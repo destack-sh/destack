@@ -2,21 +2,21 @@ use std::sync::atomic::Ordering;
 
 use destack_mir::TraceTable;
 
-use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
-use crate::shared::space::{SharedHeapSpace, SharedHeapStorage, small_slot_offset};
+use crate::shared::gc::{GcPhase, GcWorker, MarkWork};
+use crate::shared::storage::{HeapPlace, HeapStorage, small_slot_offset};
 use crate::{
     GcStats, HeapConfigurationError, HeapError, HeapGcStateError, HeapResult, ReferenceInput,
     ReferenceRange, SharedHeapReference, SizeClassTableError, scan_references,
 };
 
-impl SharedHeapSpace {
+impl HeapStorage {
     /// Start one shared heap mark phase over the given roots.
     pub(crate) fn start_mark(&self, roots: &[SharedHeapReference]) -> HeapResult<()> {
         // lifecycle
         let _lifecycle = self.gc.lock_lifecycle();
 
         // phase
-        if self.gc.phase() != SharedGcPhase::Idle {
+        if self.gc.phase() != GcPhase::Idle {
             return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive));
         }
 
@@ -27,7 +27,7 @@ impl SharedHeapSpace {
         self.gc.reset_sweep();
         self.gc.mark_publishers.store(0, Ordering::Release);
         self.gc.mark_inflight.store(0, Ordering::Release);
-        self.gc.set_phase(SharedGcPhase::Mark);
+        self.gc.set_phase(GcPhase::Mark);
 
         // begin with roots
         self.queue_unmarked_references(None, roots)?;
@@ -36,7 +36,7 @@ impl SharedHeapSpace {
     }
 
     /// Perform one full shared heap collection over the given roots.
-    pub fn collect_full(
+    pub(crate) fn collect_full(
         &self,
         roots: &[SharedHeapReference],
         trace_table: &TraceTable,
@@ -65,13 +65,13 @@ impl SharedHeapSpace {
     /// Perform bounded shared mark work.
     pub(crate) fn mark_step(
         &self,
-        worker: Option<&SharedGcWorker>,
+        worker: Option<&GcWorker>,
         roots: &[SharedHeapReference],
         budget_bytes: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<()> {
         // phase
-        if self.gc.phase() != SharedGcPhase::Mark {
+        if self.gc.phase() != GcPhase::Mark {
             return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotMarking));
         }
 
@@ -150,8 +150,8 @@ impl SharedHeapSpace {
     /// Trace one shared mark batch.
     fn trace_batch(
         &self,
-        worker: Option<&SharedGcWorker>,
-        batch: &[SharedTraceWork],
+        worker: Option<&GcWorker>,
+        batch: &[MarkWork],
         budget_bytes: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<(usize, usize)> {
@@ -167,7 +167,7 @@ impl SharedHeapSpace {
 
             match batch[start] {
                 // large blocks are already page-sliced
-                SharedTraceWork::Large {
+                MarkWork::Large {
                     reference,
                     start: range_start,
                 } => {
@@ -177,12 +177,12 @@ impl SharedHeapSpace {
                 }
 
                 // adjacent small-span items can share one scan
-                SharedTraceWork::SmallSpan(span_index) => {
+                MarkWork::SmallSpan(span_index) => {
                     let mut end = start + 1;
 
                     // skip duplicate work for the same span
                     while end < batch.len() {
-                        if batch[end] != SharedTraceWork::SmallSpan(span_index) {
+                        if batch[end] != MarkWork::SmallSpan(span_index) {
                             break;
                         }
 
@@ -205,13 +205,13 @@ impl SharedHeapSpace {
 
     /// Return whether concurrent mark is currently drained.
     pub(crate) fn mark_idle(&self) -> bool {
-        self.gc.phase() == SharedGcPhase::Mark && self.gc.mark_drained()
+        self.gc.phase() == GcPhase::Mark && self.gc.mark_drained()
     }
 
     /// Trace one page-sized range from one shared large block.
     fn trace_large_range(
         &self,
-        worker: Option<&SharedGcWorker>,
+        worker: Option<&GcWorker>,
         reference: SharedHeapReference,
         start: usize,
         trace_table: &TraceTable,
@@ -220,7 +220,7 @@ impl SharedHeapSpace {
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
-        let SharedHeapStorage::LargeBlock(_) = extent.storage else {
+        let HeapPlace::LargeBlock(_) = extent.storage else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
 
@@ -262,7 +262,7 @@ impl SharedHeapSpace {
         if next_start < extent.byte_len {
             self.gc.trace_queue.push(
                 worker,
-                SharedTraceWork::Large {
+                MarkWork::Large {
                     reference,
                     start: next_start,
                 },
@@ -275,7 +275,7 @@ impl SharedHeapSpace {
     /// Trace one shared small-span work item.
     fn trace_small_span_work(
         &self,
-        worker: Option<&SharedGcWorker>,
+        worker: Option<&GcWorker>,
         span_index: usize,
         budget_bytes: usize,
         trace_table: &TraceTable,
@@ -350,7 +350,7 @@ impl SharedHeapSpace {
         // keep this span queued when the step budget runs out
         self.gc
             .trace_queue
-            .push(worker, SharedTraceWork::SmallSpan(span_index));
+            .push(worker, MarkWork::SmallSpan(span_index));
 
         Ok(scanned_bytes)
     }

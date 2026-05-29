@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// One stored phase of the shared heap collector.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum SharedGcPhase {
+pub enum GcPhase {
     /// No shared collection is currently active.
     #[default]
     Idle,
@@ -13,7 +13,7 @@ pub enum SharedGcPhase {
     Sweep,
 }
 
-impl SharedGcPhase {
+impl GcPhase {
     /// Return the atomic representation for this phase.
     pub(crate) const fn bits(self) -> u8 {
         match self {

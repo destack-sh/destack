@@ -7,12 +7,8 @@ pub enum AccountingRegion {
     Total,
     /// One heap space.
     Heap,
-    /// One local raw space.
-    Raw,
     /// One shared heap space.
     SharedHeap,
-    /// One shared raw space.
-    SharedRaw,
 }
 
 impl AccountingRegion {
@@ -21,9 +17,7 @@ impl AccountingRegion {
         match self {
             Self::Total => "total heap",
             Self::Heap => "heap",
-            Self::Raw => "local raw heap",
             Self::SharedHeap => "shared heap",
-            Self::SharedRaw => "shared raw heap",
         }
     }
 }
@@ -33,9 +27,7 @@ impl Display for AccountingRegion {
         let label = match self {
             Self::Total => "total",
             Self::Heap => "heap",
-            Self::Raw => "raw",
             Self::SharedHeap => "shared heap",
-            Self::SharedRaw => "shared raw",
         };
 
         write!(formatter, "{label}")
@@ -82,15 +74,6 @@ impl AllocationUsage {
     pub(crate) fn allocate_many(&mut self, allocation_count: usize, allocated_bytes: u64) {
         self.allocation_count += allocation_count;
         self.allocated_bytes += allocated_bytes;
-    }
-
-    /// Replace one block byte count inside this usage.
-    pub(crate) fn resize(&mut self, previous_len: usize, next_len: usize) {
-        let previous_len = previous_len as u64;
-        let next_len = next_len as u64;
-
-        self.check_free(previous_len);
-        self.allocated_bytes = self.allocated_bytes - previous_len + next_len;
     }
 
     /// Check whether this usage can release one block.

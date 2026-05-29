@@ -1,9 +1,8 @@
 use destack_mir::{TraceMap, TraceTable};
 
 use crate::allocator::Slot;
-use crate::local::space::{
-    DirtyExtent, HeapExtent, HeapPageMapEntry, HeapSpace, HeapStorage, LargeBlockId,
-};
+use crate::local::gc::DirtyExtent;
+use crate::local::storage::{HeapExtent, HeapPageMapEntry, HeapPlace, HeapStorage, LargeBlockId};
 use crate::{
     HeapError, HeapReference, HeapResult, ReferenceRange, RootSlot, visit_heap_root_slots,
 };
@@ -71,7 +70,7 @@ fn slot_key(slot: Slot) -> (usize, usize) {
     (slot.span_index(), slot.slot_index())
 }
 
-impl HeapSpace {
+impl HeapStorage {
     /// Relocate eligible young survivors and rewrite their visible references.
     pub(super) fn relocate_young_survivors<E>(
         &mut self,
@@ -183,7 +182,7 @@ impl HeapSpace {
                     .mapping
                     .read_bytes(source.offset(), span.class.size_class)?;
                 let trace_map =
-                    self.trace_map_for_place(HeapStorage::YoungSlot(slot), trace_table)?;
+                    self.trace_map_for_place(HeapPlace::YoungSlot(slot), trace_table)?;
                 let target_place =
                     self.allocate_promoted_payload(span.class.size_class, &trace_map, &bytes)?;
                 let target = self.base_reference(target_place)?;
@@ -207,7 +206,7 @@ impl HeapSpace {
     fn publish_promoted_payload(
         &mut self,
         reference: HeapReference,
-        storage: HeapStorage,
+        storage: HeapPlace,
         byte_len: usize,
         trace_map: &TraceMap,
         trace_table: &TraceTable,
@@ -685,7 +684,7 @@ impl HeapSpace {
 
         Ok(matches!(
             extent.storage,
-            HeapStorage::YoungRange { .. } | HeapStorage::YoungSlot(_)
+            HeapPlace::YoungRange { .. } | HeapPlace::YoungSlot(_)
         ))
     }
 

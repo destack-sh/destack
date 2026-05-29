@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    AccountingRegion, Allocator, HeapError, Payload, RawAllocationShape, SharedHeap,
-    SharedHeapLimits, SharedHeapSpaceLimits, SharedRawLimits, SizeClassTable, test_aligned_layout,
-    test_layout,
+    AccountingRegion, Allocator, HeapError, Payload, SharedHeap, SharedHeapLimits, SizeClassTable,
+    test_aligned_layout, test_layout,
 };
 use destack_mir::TraceMap;
 
@@ -14,7 +13,7 @@ const SMALL_ALLOCATION_BYTES: usize = 32;
 
 /// Return the retained shared heap bytes for one block.
 fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
-    // allocate one shared managed payload under default options
+    // allocate one shared heap payload under default options
     let layout = test_layout(bytes.len(), TraceMap::empty());
     let options = crate::SharedHeapOptions::default();
     let allocator = Arc::new(
@@ -41,7 +40,7 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
         .expect("shared heap block should succeed");
 
     // report retained bytes after shared allocator rounding
-    shared.usage().heap.retained_bytes
+    shared.usage().retained_bytes
 }
 
 /// Track retained bytes for shared small-span block.
@@ -87,7 +86,7 @@ fn test_track_shared_small_span_retained_bytes() {
     }
     shared.flush_allocation_cache(&mut allocator);
 
-    let usage = shared.usage().heap;
+    let usage = shared.usage();
 
     // retained bytes should be rounded by shared span geometry
     assert_eq!(usage.allocation_count, SMALL_ALLOCATION_COUNT);
@@ -145,7 +144,7 @@ fn test_flush_publishes_worker_shared_small_allocations() {
 
     assert_eq!(first_bytes, &[0; SMALL_ALLOCATION_BYTES]);
     assert_eq!(second_bytes, &[0; SMALL_ALLOCATION_BYTES]);
-    assert_eq!(shared.usage().heap.allocation_count, 2);
+    assert_eq!(shared.usage().allocation_count, 2);
 }
 
 /// Freeing one worker-local shared block clears cache liveness.
@@ -182,7 +181,7 @@ fn test_free_clears_worker_shared_small_liveness() {
 
     assert!(!allocator.contains_heap_reference(reference));
     assert!(!shared.is_heap_live(reference));
-    assert_eq!(shared.usage().heap.allocation_count, 0);
+    assert_eq!(shared.usage().allocation_count, 0);
 }
 
 /// Keep over-aligned shared blocks on aligned small slots.
@@ -239,8 +238,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
         Arc::new(Allocator::try_default().expect("allocator should build")),
         SharedHeapLimits {
             max_bytes: None,
-            heap: SharedHeapSpaceLimits { max_bytes: Some(0) },
-            raw: SharedRawLimits { max_bytes: None },
+            retained_bytes: Some(0),
         },
         crate::SharedHeapOptions::default(),
     )
@@ -267,60 +265,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
             max_bytes: 0,
         }
     );
-    assert_eq!(shared.usage().heap.retained_bytes, 0);
-}
-
-/// Reject one shared raw replacement when the shared raw limit would be exceeded.
-#[test]
-fn test_reject_shared_raw_replace_when_limit_exceeded() {
-    // allocate one raw payload and cap retained bytes at the baseline
-    let allocator = Arc::new(Allocator::try_default().expect("allocator should build"));
-    let options = crate::SharedHeapOptions::default();
-    let shared = SharedHeap::with_allocator_limits_and_options(
-        allocator.clone(),
-        SharedHeapLimits::default(),
-        options.clone(),
-    )
-    .expect("shared heap should build");
-    let pointer = shared
-        .allocate_raw(
-            RawAllocationShape::bytes(4097),
-            Payload::Bytes(&vec![0xAA; 4097]),
-        )
-        .expect("shared raw block should succeed");
-    let baseline = shared.usage().raw.retained_bytes;
-    let image = shared.image().expect("shared image should capture");
-    let shared = SharedHeap::from_image_with_limits(
-        &image,
-        SharedHeapLimits {
-            max_bytes: None,
-            heap: SharedHeapSpaceLimits { max_bytes: None },
-            raw: SharedRawLimits {
-                max_bytes: Some(baseline),
-            },
-        },
-    )
-    .expect("shared image restore should fit the baseline raw limit");
-    let retained_byte_delta = shared
-        .raw
-        .replace_retained_byte_delta(pointer, 8193)
-        .expect("shared raw replacement should project");
-    let expected_used_bytes = baseline + retained_byte_delta as u64;
-
-    // reject the replacement before mutating bytes or accounting
-    let error = shared
-        .replace_raw_bytes(pointer, &vec![0xBB; 8193])
-        .expect_err("shared raw replacement should be rejected");
-
-    assert_eq!(
-        error,
-        HeapError::LimitExceeded {
-            region: AccountingRegion::SharedRaw,
-            used_bytes: expected_used_bytes,
-            max_bytes: baseline,
-        }
-    );
-    assert_eq!(shared.read_raw_bytes(pointer), Ok(vec![0xAA; 4097]));
+    assert_eq!(shared.usage().retained_bytes, 0);
 }
 
 /// Reject one restored shared heap image when the explicit limits are already exceeded.
@@ -349,7 +294,7 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
         .expect("shared heap block should succeed");
     shared.flush_allocation_cache(&mut allocator);
 
-    let used_bytes = shared.usage().heap.retained_bytes;
+    let used_bytes = shared.usage().retained_bytes;
     let image = shared.image().expect("shared image should capture");
 
     // reject restore when the explicit limit cannot contain the baseline
@@ -357,8 +302,7 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
         &image,
         SharedHeapLimits {
             max_bytes: None,
-            heap: SharedHeapSpaceLimits { max_bytes: Some(0) },
-            raw: SharedRawLimits { max_bytes: None },
+            retained_bytes: Some(0),
         },
     )
     .expect_err("shared image restore should reject an over-budget baseline");

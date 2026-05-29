@@ -11,7 +11,7 @@ pub const DEFAULT_YOUNG_SIZE_BYTES: usize = 1024 * 1024;
 pub const DEFAULT_SHARED_SMALL_SIZE_BYTES: usize = DEFAULT_YOUNG_SIZE_BYTES;
 
 /// The standard virtual byte capacity for one forkable heap space.
-pub const DEFAULT_SPACE_SIZE_BYTES: usize = if cfg!(target_pointer_width = "64") {
+pub const DEFAULT_ADDRESS_SPACE_SIZE_BYTES: usize = if cfg!(target_pointer_width = "64") {
     64 * 1024 * 1024 * 1024
 } else {
     256 * 1024 * 1024

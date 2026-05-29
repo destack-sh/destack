@@ -7,5 +7,5 @@ mod sweep;
 
 pub(crate) use pacer::*;
 pub use phase::*;
-pub use state::SharedGcWorker;
+pub use state::GcWorker;
 pub(crate) use state::*;

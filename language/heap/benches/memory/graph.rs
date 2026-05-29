@@ -1,5 +1,5 @@
 use destack_heap::{
-    AllocationShape, Heap, HeapReference, SharedAllocationCache, SharedGcWorker, SharedHeap,
+    AllocationCache, AllocationShape, GcWorker, Heap, HeapReference, SharedHeap,
     SharedHeapReference,
 };
 use destack_mir::{TraceMap, TraceTable};
@@ -55,8 +55,8 @@ impl ObjectGraphWorkload {
     pub(crate) fn allocate_shared(
         self,
         shared: &SharedHeap,
-        worker: &SharedGcWorker,
-        cache: &mut SharedAllocationCache,
+        worker: &GcWorker,
+        cache: &mut AllocationCache,
     ) -> ObjectGraph<SharedHeapReference> {
         let trace_map = shared_record_trace_map();
 
@@ -114,8 +114,8 @@ impl ObjectGraphWorkload {
     fn allocate_shared_with_map(
         self,
         shared: &SharedHeap,
-        worker: &SharedGcWorker,
-        cache: &mut SharedAllocationCache,
+        worker: &GcWorker,
+        cache: &mut AllocationCache,
         trace_map: &TraceMap,
     ) -> ObjectGraph<SharedHeapReference> {
         let mut trace_table = TraceTable::new();
@@ -207,8 +207,8 @@ impl ReferenceArrayWorkload {
     pub(crate) fn allocate_shared(
         self,
         shared: &SharedHeap,
-        worker: &SharedGcWorker,
-        cache: &mut SharedAllocationCache,
+        worker: &GcWorker,
+        cache: &mut AllocationCache,
     ) -> ReferenceArray<SharedHeapReference> {
         let mut trace_table = TraceTable::new();
         let trace_map = shared_reference_array_map(self.objects);

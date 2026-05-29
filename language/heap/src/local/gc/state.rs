@@ -1,5 +1,5 @@
 use crate::local::gc::PinSet;
-use crate::local::space::LargeBlockId;
+use crate::local::storage::LargeBlockId;
 use crate::{HeapReference, TraceQueue, TraceReference};
 
 /// The budget charged for one metadata-only GC step.
@@ -10,11 +10,14 @@ pub(crate) const GC_METADATA_WORD_BITS: usize = u64::BITS as usize;
 
 /// Active local collector state.
 #[derive(Debug, Default)]
-pub(crate) struct LocalGcState {
-    /// The reusable minor collector trace queue.
-    pub(crate) minor_queue: HeapTraceQueue,
-    /// The current local young collection phase.
-    pub(crate) young_phase: YoungGcPhase,
+pub(crate) struct CollectorState {
+    /// The scoped heap pins that keep stable addresses and block branch boundaries.
+    pub(crate) pins: PinSet,
+    /// Mature extents queued for dirty-card scanning.
+    pub(crate) dirty_extents: Vec<DirtyExtent>,
+
+    /// The current minor collection phase.
+    pub(crate) minor_phase: Phase,
     /// The next young range start bit to sweep.
     pub(crate) young_sweep_range_cursor: usize,
     /// The next young span index to sweep.
@@ -29,10 +32,13 @@ pub(crate) struct LocalGcState {
     pub(crate) young_freed_allocations: usize,
     /// The number of bytes freed by the active young cycle.
     pub(crate) young_freed_bytes: u64,
-    /// The current local major collection phase.
-    pub(crate) major_phase: LocalGcPhase,
-    /// The persistent trace queue for an active local major cycle.
-    pub(crate) major_queue: LocalTraceQueue,
+
+    /// The reusable minor collector trace queue.
+    pub(crate) minor_queue: TraceQueue<HeapReference>,
+    /// The current major collection phase.
+    pub(crate) major_phase: Phase,
+    /// The persistent trace queue for an active major cycle.
+    pub(crate) major_queue: TraceQueue<MarkWork>,
     /// The active local mark epoch.
     pub(crate) mark_epoch: u64,
     /// The active major sweep cursor.
@@ -41,10 +47,7 @@ pub(crate) struct LocalGcState {
     pub(crate) major_freed_allocations: usize,
     /// The number of bytes freed by the active local major cycle.
     pub(crate) major_freed_bytes: u64,
-    /// The scoped heap pins that keep stable addresses and block branch boundaries.
-    pub(crate) pins: PinSet,
-    /// Mature extents queued for dirty-card scanning.
-    pub(crate) dirty_extents: Vec<DirtyExtent>,
+
     /// Live local references whose layouts may contain shared heap references.
     pub(crate) shared_edge_roots: Vec<HeapReference>,
     /// Whether one local-to-shared edge scan is currently active.
@@ -52,7 +55,7 @@ pub(crate) struct LocalGcState {
     /// The next dense reference slot to scan for shared edges.
     pub(crate) shared_edge_cursor: usize,
     /// The pending local-to-shared edge work.
-    pub(crate) shared_edge_queue: SharedEdgeQueue,
+    pub(crate) shared_edge_queue: TraceQueue<EdgeWork>,
     /// Queue membership for pending shared-edge rescans.
     pub(crate) shared_edge_pending: Vec<HeapReference>,
 }
@@ -66,10 +69,10 @@ pub(crate) enum DirtyExtent {
     Large(LargeBlockId),
 }
 
-impl LocalGcState {
+impl CollectorState {
     /// Return whether a local collection is currently running.
     pub(crate) fn is_collecting(&self) -> bool {
-        self.young_phase != YoungGcPhase::Idle || self.major_phase != LocalGcPhase::Idle
+        self.minor_phase != Phase::Idle || self.major_phase != Phase::Idle
     }
 
     /// Clear every tracked shared-edge root.
@@ -152,8 +155,7 @@ impl LocalGcState {
         }
 
         self.shared_edge_pending.push(reference);
-        self.shared_edge_queue
-            .push(SharedEdgeWork::Reference(reference));
+        self.shared_edge_queue.push(EdgeWork::Reference(reference));
     }
 
     /// Clear pending shared-edge rescan work.
@@ -163,10 +165,10 @@ impl LocalGcState {
     }
 
     /// Pop one queued shared-edge work item.
-    pub(crate) fn pop_shared_edge_work(&mut self) -> Option<SharedEdgeWork> {
+    pub(crate) fn pop_shared_edge_work(&mut self) -> Option<EdgeWork> {
         // remove queue membership with the queue entry
         let work = self.shared_edge_queue.pop()?;
-        let SharedEdgeWork::Reference(reference) = work else {
+        let EdgeWork::Reference(reference) = work else {
             return Some(work);
         };
         self.remove_shared_edge_pending(reference);
@@ -204,36 +206,15 @@ impl LocalGcState {
     }
 }
 
-/// Collector queue for heap references.
-pub(crate) type HeapTraceQueue = TraceQueue<HeapReference>;
-
-/// Collector queue for local major mark work.
-pub(crate) type LocalTraceQueue = TraceQueue<LocalTraceWork>;
-
-/// Collector queue for local-to-shared edge work.
-pub(crate) type SharedEdgeQueue = TraceQueue<SharedEdgeWork>;
-
-/// The current local young collection phase.
+/// The current local collection phase.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum YoungGcPhase {
-    /// No young collection is active.
+pub(crate) enum Phase {
+    /// No collection is active.
     #[default]
     Idle,
-    /// The young collector is marking reachable nursery blocks.
+    /// The collector is marking reachable blocks.
     Mark,
-    /// The young collector is reclaiming unreachable nursery blocks.
-    Sweep,
-}
-
-/// The current local major collection phase.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LocalGcPhase {
-    /// No major collection is active.
-    #[default]
-    Idle,
-    /// The major collector is marking reachable blocks.
-    Mark,
-    /// The major collector is reclaiming unreachable blocks.
+    /// The collector is reclaiming unreachable blocks.
     Sweep,
 }
 
@@ -260,7 +241,7 @@ pub(crate) struct MajorSweepCursor {
 
 /// One queued unit of local major mark work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum LocalTraceWork {
+pub(crate) enum MarkWork {
     /// One heap block to scan.
     Reference(HeapReference),
     /// One range of one large heap block to scan.
@@ -272,7 +253,7 @@ pub(crate) enum LocalTraceWork {
     },
 }
 
-impl TraceReference for LocalTraceWork {
+impl TraceReference for MarkWork {
     /// Report whether this trace work points at null.
     fn is_null(self) -> bool {
         match self {
@@ -283,7 +264,7 @@ impl TraceReference for LocalTraceWork {
 
 /// One queued unit of local-to-shared edge scan work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SharedEdgeWork {
+pub(crate) enum EdgeWork {
     /// One local heap block to scan.
     Reference(HeapReference),
     /// One range of one large local heap block to scan.
@@ -295,7 +276,7 @@ pub(crate) enum SharedEdgeWork {
     },
 }
 
-impl TraceReference for SharedEdgeWork {
+impl TraceReference for EdgeWork {
     /// Report whether this edge work points at null.
     fn is_null(self) -> bool {
         match self {

@@ -1,13 +1,13 @@
 use destack_mir::TraceTable;
 
-use crate::local::gc::SharedEdgeWork;
-use crate::local::space::{HeapSpace, HeapStorage};
+use crate::local::gc::EdgeWork;
+use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
     HeapError, HeapOperationSource, HeapReference, HeapResult, ReferenceInput, ReferenceRange,
     SharedHeapReference, scan_references,
 };
 
-impl HeapSpace {
+impl HeapStorage {
     /// Start one incremental local-to-shared edge scan.
     pub(crate) fn start_shared_edge_scan(&mut self) {
         self.collector.start_shared_edge_scan();
@@ -52,11 +52,8 @@ impl HeapSpace {
                 break;
             };
 
-            scanned_bytes += self.trace_shared_edge_work(
-                SharedEdgeWork::Reference(reference),
-                roots,
-                trace_table,
-            )?;
+            scanned_bytes +=
+                self.trace_shared_edge_work(EdgeWork::Reference(reference), roots, trace_table)?;
         }
 
         Ok(scanned_bytes)
@@ -107,15 +104,15 @@ impl HeapSpace {
     /// Trace shared heap roots from one queued edge work item.
     fn trace_shared_edge_work(
         &mut self,
-        work: SharedEdgeWork,
+        work: EdgeWork,
         roots: &mut Vec<SharedHeapReference>,
         trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         match work {
-            SharedEdgeWork::Reference(reference) => {
+            EdgeWork::Reference(reference) => {
                 self.trace_shared_edges(reference, roots, trace_table)
             }
-            SharedEdgeWork::LargeRange { reference, start } => {
+            EdgeWork::LargeRange { reference, start } => {
                 self.trace_large_shared_edges(reference, start, roots, trace_table)
             }
         }
@@ -146,7 +143,7 @@ impl HeapSpace {
         }
 
         // large references are sliced to keep shared-root scans bounded
-        if matches!(extent.storage, HeapStorage::LargeBlock(_)) {
+        if matches!(extent.storage, HeapPlace::LargeBlock(_)) {
             return self.trace_large_shared_edges(reference, 0, roots, trace_table);
         }
 
@@ -186,7 +183,7 @@ impl HeapSpace {
         let Some(extent) = self.resolve_extent(reference) else {
             return Ok(0);
         };
-        let HeapStorage::LargeBlock(_) = extent.storage else {
+        let HeapPlace::LargeBlock(_) = extent.storage else {
             return Err(HeapError::Internal {
                 context: "large shared-edge work resolved to non-large block",
             });
@@ -232,12 +229,10 @@ impl HeapSpace {
         // continue this large block on a later step
         let next_start = start + range_len;
         if next_start < extent.byte_len {
-            self.collector
-                .shared_edge_queue
-                .push(SharedEdgeWork::LargeRange {
-                    reference,
-                    start: next_start,
-                });
+            self.collector.shared_edge_queue.push(EdgeWork::LargeRange {
+                reference,
+                start: next_start,
+            });
         }
 
         Ok(range_len)

@@ -1,9 +1,9 @@
-use crate::local::space::HeapSpace;
+use crate::local::storage::HeapStorage;
 use crate::{HeapError, HeapReference, HeapResult};
 
-impl HeapSpace {
+impl HeapStorage {
     /// Return the currently live heap references.
-    pub fn live_references(&self) -> HeapResult<Vec<HeapReference>> {
+    pub(crate) fn live_references(&self) -> HeapResult<Vec<HeapReference>> {
         let mut references = Vec::new();
         let mut start = 0;
 

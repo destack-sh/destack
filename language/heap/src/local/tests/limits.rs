@@ -1,6 +1,6 @@
 use crate::{
-    AccountingRegion, DEFAULT_YOUNG_SIZE_BYTES, HeapError, HeapLimits, HeapOptions,
-    HeapSpaceLimits, Payload, RawAllocationShape, RawLimits, test_layout,
+    AccountingRegion, DEFAULT_YOUNG_SIZE_BYTES, HeapError, HeapLimits, HeapOptions, Payload,
+    test_layout,
 };
 use destack_mir::TraceMap;
 
@@ -11,7 +11,7 @@ const SMALL_ALLOCATION_BYTES: usize = 32;
 
 /// Return the retained heap bytes for one block in the given heap options.
 fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
-    // allocate one managed payload under the requested options
+    // allocate one heap payload under the requested options
     let layout = test_layout(bytes.len(), TraceMap::empty());
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
@@ -20,26 +20,10 @@ fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64
         .expect("heap block should succeed");
 
     // report retained bytes after allocator rounding
-    heap.usage().heap.retained_bytes
+    heap.usage().retained_bytes
 }
 
-/// Return the retained local raw bytes after one replacement in the given heap options.
-fn raw_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
-    // allocate one raw payload under the requested options
-    let mut test_heap = TestHeap::with_options(options);
-    let heap = &mut test_heap.heap;
-
-    heap.allocate_raw(
-        RawAllocationShape::bytes(bytes.len()),
-        Payload::Bytes(bytes),
-    )
-    .expect("raw block should succeed");
-
-    // report retained bytes after allocator rounding
-    heap.usage().raw.retained_bytes
-}
-
-/// Track retained bytes for default young-space block.
+/// Track retained bytes for default young space block.
 #[test]
 fn test_track_default_young_retained_bytes() {
     // fill the default nursery with small zeroed objects
@@ -52,7 +36,7 @@ fn test_track_default_young_retained_bytes() {
             .expect("heap block should succeed");
     }
 
-    let usage = heap.usage().heap;
+    let usage = heap.usage();
 
     // retained bytes should be the whole reserved nursery
     assert_eq!(usage.allocation_count, SMALL_ALLOCATION_COUNT);
@@ -93,7 +77,7 @@ fn test_track_small_span_retained_bytes() {
             .expect("heap block should succeed");
     }
 
-    let usage = heap.usage().heap;
+    let usage = heap.usage();
 
     // retained bytes should be rounded by span geometry
     assert_eq!(usage.allocation_count, SMALL_ALLOCATION_COUNT);
@@ -117,13 +101,10 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     let layout = test_layout(1, TraceMap::empty());
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
-    let baseline = heap.usage().heap.retained_bytes;
+    let baseline = heap.usage().retained_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
-        heap: HeapSpaceLimits {
-            max_bytes: Some(baseline),
-        },
-        raw: RawLimits { max_bytes: None },
+        retained_bytes: Some(baseline),
     })
     .expect("baseline heap should fit its current retained-byte limit");
 
@@ -141,41 +122,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
         }
     );
     assert_eq!(heap.heap_allocation_count(), 0);
-    assert_eq!(heap.usage().heap.retained_bytes, baseline);
-}
-
-/// Reject one raw block when the retained-byte limit would be exceeded.
-#[test]
-fn test_reject_raw_allocation_when_limit_exceeded() {
-    // compute the projected retained-byte charge for one block
-    let expected_used_bytes = raw_retained_bytes_after_allocate(HeapOptions::local(), &[1]);
-    let mut test_heap = TestHeap::new();
-    let heap = &mut test_heap.heap;
-    let baseline = heap.usage().raw.retained_bytes;
-    heap.set_limits(HeapLimits {
-        max_bytes: None,
-        heap: HeapSpaceLimits { max_bytes: None },
-        raw: RawLimits {
-            max_bytes: Some(baseline),
-        },
-    })
-    .expect("baseline raw heap should fit its current retained-byte limit");
-
-    // reject the block before mutating raw accounting
-    let error = heap
-        .allocate_raw(RawAllocationShape::bytes(1), Payload::Bytes(&[1]))
-        .expect_err("raw block should be rejected");
-
-    assert_eq!(
-        error,
-        HeapError::LimitExceeded {
-            region: AccountingRegion::Raw,
-            used_bytes: expected_used_bytes,
-            max_bytes: baseline,
-        }
-    );
-    assert_eq!(heap.raw_allocation_count(), 0);
-    assert_eq!(heap.usage().raw.retained_bytes, baseline);
+    assert_eq!(heap.usage().retained_bytes, baseline);
 }
 
 /// Preserve custom heap limits across in-storage heap image restore.
@@ -186,12 +133,7 @@ fn test_restore_heap_image_preserves_limits() {
     let heap = &mut test_heap.heap;
     let limits = HeapLimits {
         max_bytes: Some(heap.usage().retained_bytes() + 4096),
-        heap: HeapSpaceLimits {
-            max_bytes: Some(heap.usage().heap.retained_bytes + 2048),
-        },
-        raw: RawLimits {
-            max_bytes: Some(heap.usage().raw.retained_bytes + 2048),
-        },
+        retained_bytes: Some(heap.usage().retained_bytes + 2048),
     };
     heap.set_limits(limits)
         .expect("custom heap limits should fit current usage");
@@ -202,48 +144,4 @@ fn test_restore_heap_image_preserves_limits() {
         .expect("heap image restore should succeed");
 
     assert_eq!(heap.limits(), limits);
-}
-
-/// Reject one raw replace when byte growth would exceed the retained-byte limit.
-#[test]
-fn test_reject_raw_replace_when_limit_exceeded() {
-    // allocate one raw payload and cap retained bytes at the baseline
-    let mut test_heap = TestHeap::with_options(HeapOptions::local());
-    let heap = &mut test_heap.heap;
-    let pointer = heap
-        .allocate_raw(
-            RawAllocationShape::bytes(4097),
-            Payload::Bytes(&vec![0xAA; 4097]),
-        )
-        .expect("raw block should succeed");
-    let baseline = heap.usage().raw.retained_bytes;
-    heap.set_limits(HeapLimits {
-        max_bytes: None,
-        heap: HeapSpaceLimits { max_bytes: None },
-        raw: RawLimits {
-            max_bytes: Some(baseline),
-        },
-    })
-    .expect("baseline raw heap should fit its current retained-byte limit");
-    let retained_byte_delta = heap
-        .raw
-        .replace_retained_byte_delta(pointer, 8193)
-        .expect("raw replacement should project");
-    let expected_used_bytes = baseline + retained_byte_delta as u64;
-
-    // reject the replacement before mutating bytes or accounting
-    let error = heap
-        .replace_raw_bytes(pointer, &vec![0xBB; 8193])
-        .expect_err("raw replace should be rejected");
-
-    assert_eq!(
-        error,
-        HeapError::LimitExceeded {
-            region: AccountingRegion::Raw,
-            used_bytes: expected_used_bytes,
-            max_bytes: baseline,
-        }
-    );
-    assert_eq!(heap.read_raw_bytes(pointer), Ok(vec![0xAA; 4097]));
-    assert_eq!(heap.usage().raw.retained_bytes, baseline);
 }

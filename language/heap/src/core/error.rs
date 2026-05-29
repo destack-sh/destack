@@ -4,7 +4,7 @@ use std::fmt::{self, Display, Formatter};
 use destack_memory::MemoryError;
 
 use crate::allocator::PageId;
-use crate::{AccountingRegion, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
+use crate::{AccountingRegion, HeapReference, SharedHeapReference};
 
 /// One heap result.
 pub type HeapResult<T> = Result<T, HeapError>;
@@ -94,8 +94,8 @@ pub enum HeapConfigurationError {
     InvalidPageSizeBytes { bytes: usize },
     /// The configured allocator chunk width is unsupported.
     InvalidAllocatorChunkSizeBytes { bytes: usize },
-    /// The configured virtual heap-space width is unsupported.
-    InvalidSpaceSizeBytes { bytes: usize },
+    /// The configured virtual address-space width is unsupported.
+    InvalidAddressSpaceSizeBytes { bytes: usize },
     /// The configured allocator chunk width is not aligned to the allocator page width.
     MisalignedAllocatorChunkSize {
         /// The configured allocator page width in bytes.
@@ -103,12 +103,12 @@ pub enum HeapConfigurationError {
         /// The configured allocator chunk width in bytes.
         chunk_size_bytes: usize,
     },
-    /// The configured virtual heap-space width is not aligned to the allocator page width.
-    MisalignedSpaceSize {
+    /// The configured virtual address-space width is not aligned to the allocator page width.
+    MisalignedAddressSpaceSize {
         /// The configured allocator page width in bytes.
         page_size_bytes: usize,
-        /// The configured virtual heap-space width in bytes.
-        space_size_bytes: usize,
+        /// The configured virtual address-space width in bytes.
+        address_space_size_bytes: usize,
     },
     /// The explicit allocator does not match the configured allocator page width.
     AllocatorPageSizeMismatch {
@@ -206,12 +206,8 @@ pub enum SizeClassPolicyError {
 pub enum HeapReferenceKind {
     /// Local managed heap reference.
     Heap,
-    /// Local raw pointer.
-    Raw,
     /// Shared managed heap reference.
     SharedHeap,
-    /// Shared raw pointer.
-    SharedRaw,
 }
 
 /// Invalid block request reason.
@@ -342,27 +338,11 @@ impl HeapError {
         }
     }
 
-    /// Return one invalid raw pointer error.
-    pub const fn invalid_raw_pointer(pointer: RawPointer) -> Self {
-        Self::InvalidReference {
-            kind: HeapReferenceKind::Raw,
-            value: pointer.offset() as u64,
-        }
-    }
-
     /// Return one invalid shared heap reference error.
     pub const fn invalid_shared_heap_reference(reference: SharedHeapReference) -> Self {
         Self::InvalidReference {
             kind: HeapReferenceKind::SharedHeap,
             value: reference.offset() as u64,
-        }
-    }
-
-    /// Return one invalid shared raw pointer error.
-    pub const fn invalid_shared_raw_pointer(pointer: SharedRawPointer) -> Self {
-        Self::InvalidReference {
-            kind: HeapReferenceKind::SharedRaw,
-            value: pointer.offset() as u64,
         }
     }
 
@@ -486,8 +466,8 @@ impl Display for HeapConfigurationError {
             Self::InvalidAllocatorChunkSizeBytes { bytes } => {
                 write!(formatter, "invalid allocator chunk width: {bytes}")
             }
-            Self::InvalidSpaceSizeBytes { bytes } => {
-                write!(formatter, "invalid virtual heap-space width: {bytes}")
+            Self::InvalidAddressSpaceSizeBytes { bytes } => {
+                write!(formatter, "invalid virtual address-space width: {bytes}")
             }
             Self::MisalignedAllocatorChunkSize {
                 page_size_bytes,
@@ -498,13 +478,13 @@ impl Display for HeapConfigurationError {
                     "allocator chunk width {chunk_size_bytes} is not aligned to allocator page width {page_size_bytes}"
                 )
             }
-            Self::MisalignedSpaceSize {
+            Self::MisalignedAddressSpaceSize {
                 page_size_bytes,
-                space_size_bytes,
+                address_space_size_bytes,
             } => {
                 write!(
                     formatter,
-                    "virtual heap-space width {space_size_bytes} is not aligned to allocator page width {page_size_bytes}"
+                    "virtual address-space width {address_space_size_bytes} is not aligned to allocator page width {page_size_bytes}"
                 )
             }
             Self::AllocatorPageSizeMismatch {
@@ -615,9 +595,7 @@ impl Display for HeapReferenceKind {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         let name = match self {
             Self::Heap => "heap",
-            Self::Raw => "raw",
             Self::SharedHeap => "shared heap",
-            Self::SharedRaw => "shared raw",
         };
 
         write!(formatter, "{name}")

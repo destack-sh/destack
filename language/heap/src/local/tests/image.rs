@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
 use crate::allocator::Allocator;
-use crate::local::raw::RawSpaceImage;
-use crate::local::space::{HeapSpaceImage, YoungImage};
+use crate::local::storage::{HeapStorage, HeapStorageImage, YoungImage};
 use crate::{
-    HeapConfigurationError, HeapError, HeapImage, HeapOptions, HeapSpace, Payload,
-    RawAllocationShape, RawSpace, SizeClassTable, TestLayout, test_allocator, test_layouts,
+    HeapConfigurationError, HeapError, HeapOptions, Payload, SizeClassTable, TestLayout,
+    test_allocator, test_layouts,
 };
 use destack_mir::TraceMap;
 
@@ -14,23 +13,23 @@ use super::{TestHeap, read_mapped_bytes, trace_table, write_mapped_byte, write_m
 /// The allocator chunk size for small-page image fixtures.
 const TEST_ALLOCATOR_CHUNK_SIZE_BYTES: usize = 1024 * 1024;
 
-/// Build one heap space with explicit empty managed layouts.
-fn heap_space_with_empty_layouts(
+/// Build one heap storage with explicit empty layouts.
+fn heap_storage_with_empty_layouts(
     allocator: Arc<Allocator>,
     options: &HeapOptions,
     allocation_byte_lens: &[usize],
-) -> (HeapSpace, Vec<TestLayout>) {
+) -> (HeapStorage, Vec<TestLayout>) {
     let layout_specs = allocation_byte_lens
         .iter()
         .map(|byte_len| (*byte_len, TraceMap::empty()))
         .collect::<Vec<_>>();
     let layouts = test_layouts(&layout_specs);
-    let heap = HeapSpace::with_options(allocator, options).expect("heap should build");
+    let heap = HeapStorage::build_with_options(allocator, options).expect("heap should build");
 
     (heap, layouts)
 }
 
-/// Build one full heap with explicit empty managed layouts.
+/// Build one full heap with explicit empty layouts.
 fn test_heap_with_empty_layouts(
     options: HeapOptions,
     allocation_byte_lens: &[usize],
@@ -46,13 +45,13 @@ fn test_heap_with_empty_layouts(
 }
 
 /// Return the bytes for one large image block.
-fn read_large_block_bytes(block: &crate::local::space::LargeBlockImage) -> Vec<u8> {
+fn read_large_block_bytes(block: &crate::local::storage::LargeBlockImage) -> Vec<u8> {
     block.bytes[..block.byte_len].to_vec()
 }
 
 /// Return the bytes for one small-span slot.
 fn read_small_slot_bytes(
-    span: &crate::local::space::SmallSpanImage,
+    span: &crate::local::storage::SmallSpanImage,
     size_class: usize,
     slot_index: usize,
     byte_len: usize,
@@ -62,7 +61,7 @@ fn read_small_slot_bytes(
     span.bytes[start..start + byte_len].to_vec()
 }
 
-/// Write one managed payload range for image assertions.
+/// Write one heap payload range for image assertions.
 fn write_payload(
     heap: &mut crate::Heap,
     reference: crate::HeapReference,
@@ -76,7 +75,7 @@ fn write_payload(
     write_mapped_bytes(address, bytes);
 }
 
-/// Return the bytes for one young-space range.
+/// Return the bytes for one young space range.
 fn read_young_range_bytes(young: &YoungImage, range_index: usize) -> Vec<u8> {
     let block = &young.ranges()[range_index];
     let start = block.first_offset;
@@ -85,7 +84,7 @@ fn read_young_range_bytes(young: &YoungImage, range_index: usize) -> Vec<u8> {
     young.bytes()[start..end].to_vec()
 }
 
-/// Return the bytes for one young-space span slot.
+/// Return the bytes for one young space span slot.
 fn read_young_slot_bytes(young: &YoungImage, span_index: usize, slot_index: usize) -> Vec<u8> {
     let span = &young.spans()[span_index];
     let start = span.slot_offset(slot_index);
@@ -95,7 +94,7 @@ fn read_young_slot_bytes(young: &YoungImage, span_index: usize, slot_index: usiz
 }
 
 /// Return the first live heap block bytes from one captured image.
-fn read_first_heap_image_bytes(image: &HeapSpaceImage) -> Vec<u8> {
+fn read_first_heap_image_bytes(image: &HeapStorageImage) -> Vec<u8> {
     // young blocks first
     for range_index in 0..image.young().ranges().len() {
         if image.young().live().contains(range_index) {
@@ -144,37 +143,9 @@ fn read_first_heap_image_bytes(image: &HeapSpaceImage) -> Vec<u8> {
     panic!("heap image should contain one live block")
 }
 
-/// Return the first live raw block bytes from one captured image.
-fn read_first_raw_image_bytes(image: &RawSpaceImage) -> Vec<u8> {
-    // small slots first
-    for span in image.spans() {
-        for slot_index in 0..span.slot_count {
-            if !span.occupied.contains(slot_index) {
-                continue;
-            }
-
-            let start = span.class.size_class * slot_index;
-            let byte_len = span.class.byte_len;
-
-            return span.bytes[start..start + byte_len].to_vec();
-        }
-    }
-
-    // then large blocks
-    for block in image.blocks() {
-        if !block.is_live {
-            continue;
-        }
-
-        return block.bytes[..block.byte_len].to_vec();
-    }
-
-    panic!("raw image should contain one live block")
-}
-
 /// Preserve heap metadata and bytes across image roundtrips.
 #[test]
-fn test_roundtrip_heap_space_image() {
+fn test_roundtrip_heap_storage_image() {
     let options = HeapOptions {
         heap_young_size_bytes: 0,
         heap_small_size_bytes: 32,
@@ -186,7 +157,7 @@ fn test_roundtrip_heap_space_image() {
     let allocator = test_allocator(&options);
     let first_bytes = vec![1; 5000];
     let second_bytes = vec![2; 5000];
-    let (mut heap, layout_ids) = heap_space_with_empty_layouts(
+    let (mut heap, layout_ids) = heap_storage_with_empty_layouts(
         allocator.clone(),
         &options,
         &[first_bytes.len(), second_bytes.len()],
@@ -208,7 +179,7 @@ fn test_roundtrip_heap_space_image() {
         )
         .expect("heap block should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored = HeapSpace::from_image(allocator.clone(), &image, trace_table())
+    let mut restored = HeapStorage::from_image(allocator.clone(), &image, trace_table())
         .expect("heap image should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
@@ -260,59 +231,6 @@ fn test_roundtrip_heap_space_image() {
     );
 }
 
-/// Roundtrip raw images as independent byte payloads.
-#[test]
-fn test_roundtrip_raw_space_image() {
-    let options = HeapOptions {
-        page_size_bytes: 4,
-        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
-        raw_small_size_bytes: 32,
-        size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
-        ..HeapOptions::local()
-    };
-    let allocator = test_allocator(&options);
-    let mut raw = RawSpace::with_options(allocator.clone(), &options)
-        .expect("explicit raw options should build");
-
-    // capture two blocks and mutate only one after restore
-    let first_bytes = vec![1; 5000];
-    let second_bytes = vec![2; 5000];
-    let first = raw
-        .allocate(
-            RawAllocationShape::bytes(first_bytes.len()),
-            Payload::Bytes(&first_bytes),
-        )
-        .expect("raw block should succeed");
-    let _second = raw
-        .allocate(
-            RawAllocationShape::bytes(second_bytes.len()),
-            Payload::Bytes(&second_bytes),
-        )
-        .expect("raw block should succeed");
-
-    let image = raw.image().expect("raw image should capture");
-    let mut restored =
-        RawSpace::from_image(allocator.clone(), &image).expect("raw image should restore");
-
-    // restored bytes should match without sharing image storage
-    assert!(Arc::ptr_eq(restored.allocator(), &allocator));
-    assert_eq!(read_first_raw_image_bytes(&image), first_bytes);
-    assert_eq!(restored.read_bytes(first), Ok(first_bytes.clone()));
-
-    // mutating one block should not affect the captured image bytes
-    restored
-        .write_byte(first, 1, 0xFE)
-        .expect("raw byte write should succeed");
-    let mutated_image = restored.image().expect("raw image should capture");
-
-    let mut expected_first = first_bytes;
-    expected_first[1] = 0xFE;
-
-    assert_eq!(read_first_raw_image_bytes(&image), vec![1; 5000]);
-    assert_eq!(restored.read_bytes(first), Ok(expected_first.clone()));
-    assert_eq!(read_first_raw_image_bytes(&mutated_image), expected_first);
-}
-
 /// Preserve heap images and forks across one full heap.
 #[test]
 fn test_roundtrip_heap_image_and_fork() {
@@ -327,13 +245,6 @@ fn test_roundtrip_heap_image_and_fork() {
             Payload::Bytes(&heap_bytes),
         )
         .expect("heap block should succeed");
-    let _raw = heap
-        .allocate_raw(
-            RawAllocationShape::bytes(4),
-            Payload::Bytes(&[0xCA, 0xFE, 0xBA, 0xBE]),
-        )
-        .expect("raw block should succeed");
-
     // capture both the frozen image and the live fork
     let image = heap.image().expect("heap image should capture");
     let mut forked = heap
@@ -345,20 +256,12 @@ fn test_roundtrip_heap_image_and_fork() {
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_first_heap_image_bytes(forked_image.heap()),
+        read_first_heap_image_bytes(forked_image.storage()),
         heap_bytes.to_vec()
     );
     assert_eq!(
-        read_first_raw_image_bytes(forked_image.raw()),
-        vec![0xCA, 0xFE, 0xBA, 0xBE]
-    );
-    assert_eq!(
-        read_first_heap_image_bytes(restored_image.heap()),
+        read_first_heap_image_bytes(restored_image.storage()),
         heap_bytes.to_vec()
-    );
-    assert_eq!(
-        read_first_raw_image_bytes(restored_image.raw()),
-        vec![0xCA, 0xFE, 0xBA, 0xBE]
     );
 }
 
@@ -383,14 +286,14 @@ fn test_roundtrip_heap_snapshot() {
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_first_heap_image_bytes(restored_image.heap()),
+        read_first_heap_image_bytes(restored_image.storage()),
         heap_bytes.to_vec()
     );
 }
 
 /// Preserve image bytes when writing one restored heap block.
 #[test]
-fn test_heap_heap_write_preserves_captured_allocation_bytes() {
+fn test_heap_image_write_preserves_captured_allocation_bytes() {
     let options = HeapOptions {
         heap_young_size_bytes: 0,
         heap_small_size_bytes: 32,
@@ -427,22 +330,22 @@ fn test_heap_heap_write_preserves_captured_allocation_bytes() {
     expected_first[0] = 0xCC;
 
     assert_eq!(
-        read_large_block_bytes(&mutated_image.heap().blocks()[0]),
+        read_large_block_bytes(&mutated_image.storage().blocks()[0]),
         expected_first
     );
     assert_eq!(
-        read_large_block_bytes(&mutated_image.heap().blocks()[1]),
+        read_large_block_bytes(&mutated_image.storage().blocks()[1]),
         second_bytes
     );
     assert_eq!(
-        read_large_block_bytes(&image.heap().blocks()[0]),
+        read_large_block_bytes(&image.storage().blocks()[0]),
         vec![0xAA; 5000]
     );
 }
 
 /// Preserve image bytes when writing one restored heap page.
 #[test]
-fn test_heap_heap_write_preserves_captured_page_bytes() {
+fn test_heap_image_write_preserves_captured_page_bytes() {
     let options = HeapOptions {
         heap_young_size_bytes: 0,
         heap_small_size_bytes: 32,
@@ -470,15 +373,15 @@ fn test_heap_heap_write_preserves_captured_page_bytes() {
     expected[4096] = 0xCC;
 
     assert_eq!(
-        read_large_block_bytes(&mutated_image.heap().blocks()[0]),
+        read_large_block_bytes(&mutated_image.storage().blocks()[0]),
         expected
     );
-    assert_eq!(read_large_block_bytes(&image.heap().blocks()[0]), bytes);
+    assert_eq!(read_large_block_bytes(&image.storage().blocks()[0]), bytes);
 }
 
 /// Preserve image bytes when writing several restored pages.
 #[test]
-fn test_heap_heap_write_preserves_captured_multi_page_bytes() {
+fn test_heap_image_write_preserves_captured_multi_page_bytes() {
     let options = HeapOptions {
         heap_young_size_bytes: 0,
         heap_small_size_bytes: 32,
@@ -506,15 +409,15 @@ fn test_heap_heap_write_preserves_captured_multi_page_bytes() {
     expected[..3 * 4096].fill(0xCC);
 
     assert_eq!(
-        read_large_block_bytes(&mutated_image.heap().blocks()[0]),
+        read_large_block_bytes(&mutated_image.storage().blocks()[0]),
         expected
     );
-    assert_eq!(read_large_block_bytes(&image.heap().blocks()[0]), bytes);
+    assert_eq!(read_large_block_bytes(&image.storage().blocks()[0]), bytes);
 }
 
 /// Preserve image bytes when most restored pages are written.
 #[test]
-fn test_heap_heap_write_preserves_captured_many_page_bytes() {
+fn test_heap_image_write_preserves_captured_many_page_bytes() {
     let options = HeapOptions {
         heap_young_size_bytes: 0,
         heap_small_size_bytes: 32,
@@ -542,15 +445,15 @@ fn test_heap_heap_write_preserves_captured_many_page_bytes() {
     expected[..4 * 4096].fill(0xCC);
 
     assert_eq!(
-        read_large_block_bytes(&mutated_image.heap().blocks()[0]),
+        read_large_block_bytes(&mutated_image.storage().blocks()[0]),
         expected
     );
-    assert_eq!(read_large_block_bytes(&image.heap().blocks()[0]), bytes);
+    assert_eq!(read_large_block_bytes(&image.storage().blocks()[0]), bytes);
 }
 
 /// Preserve heap small-space bytes across image roundtrips.
 #[test]
-fn test_roundtrip_heap_small_space_image() {
+fn test_roundtrip_heap_small_storage_image() {
     let options = HeapOptions {
         heap_young_size_bytes: 0,
         page_size_bytes: 4,
@@ -559,7 +462,7 @@ fn test_roundtrip_heap_small_space_image() {
     };
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) =
-        heap_space_with_empty_layouts(allocator.clone(), &options, &[3, 3]);
+        heap_storage_with_empty_layouts(allocator.clone(), &options, &[3, 3]);
 
     // small blocks should roundtrip as independent bytes
     let first = heap
@@ -575,7 +478,7 @@ fn test_roundtrip_heap_small_space_image() {
         )
         .expect("heap block should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored = HeapSpace::from_image(allocator.clone(), &image, trace_table())
+    let mut restored = HeapStorage::from_image(allocator.clone(), &image, trace_table())
         .expect("heap image should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
@@ -614,9 +517,9 @@ fn test_roundtrip_heap_small_space_image() {
     );
 }
 
-/// Preserve heap young-space bytes across image roundtrips.
+/// Preserve heap young storage bytes across image roundtrips.
 #[test]
-fn test_roundtrip_heap_young_space_image() {
+fn test_roundtrip_heap_young_storage_image() {
     let options = HeapOptions {
         page_size_bytes: 4,
         allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
@@ -624,7 +527,7 @@ fn test_roundtrip_heap_young_space_image() {
     };
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) =
-        heap_space_with_empty_layouts(allocator.clone(), &options, &[3, 3]);
+        heap_storage_with_empty_layouts(allocator.clone(), &options, &[3, 3]);
 
     // young blocks should roundtrip as independent bytes
     let first = heap
@@ -640,7 +543,7 @@ fn test_roundtrip_heap_young_space_image() {
         )
         .expect("heap block should succeed");
     let image = heap.image().expect("heap image should capture");
-    let mut restored = HeapSpace::from_image(allocator.clone(), &image, trace_table())
+    let mut restored = HeapStorage::from_image(allocator.clone(), &image, trace_table())
         .expect("heap image should restore");
     let restored_image = restored.image().expect("heap image should capture");
 
@@ -666,76 +569,6 @@ fn test_roundtrip_heap_young_space_image() {
     assert_eq!(read_young_slot_bytes(image.young(), 0, 0), vec![1, 2, 3]);
 }
 
-/// Roundtrip raw small-space images as independent byte payloads.
-#[test]
-fn test_roundtrip_raw_small_space_image() {
-    let options = HeapOptions {
-        page_size_bytes: 4,
-        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
-        ..HeapOptions::local()
-    };
-    let allocator = test_allocator(&options);
-    let mut raw = RawSpace::with_options(allocator.clone(), &options)
-        .expect("explicit raw options should build");
-
-    // small blocks should stay in spans and share those span pages after restore
-    let first = raw
-        .allocate(RawAllocationShape::new(3, 16), Payload::Bytes(&[1, 2, 3]))
-        .expect("raw block should succeed");
-    let _second = raw
-        .allocate(RawAllocationShape::bytes(3), Payload::Bytes(&[4, 5, 6]))
-        .expect("raw block should succeed");
-    let image = raw.image().expect("raw image should capture");
-    let mut restored =
-        RawSpace::from_image(allocator.clone(), &image).expect("raw image should restore");
-    let restored_image = restored.image().expect("raw image should capture");
-
-    assert_eq!(read_first_raw_image_bytes(&image), vec![1, 2, 3]);
-    assert_eq!(read_first_raw_image_bytes(&restored_image), vec![1, 2, 3]);
-    assert_eq!(restored.read_bytes(first), Ok(vec![1, 2, 3]));
-    assert_eq!(first.offset() % 16, 0);
-
-    // mutating one small block should not affect the captured image bytes
-    restored
-        .write_byte(first, 1, 0xFE)
-        .expect("raw byte write should succeed");
-    let mutated_image = restored.image().expect("raw image should capture");
-
-    assert_eq!(read_first_raw_image_bytes(&image), vec![1, 2, 3]);
-    assert_eq!(read_first_raw_image_bytes(&mutated_image), vec![1, 0xFE, 3]);
-}
-
-/// Roundtrip one raw span image with one size class above `u16::MAX`.
-#[test]
-fn test_roundtrip_raw_small_space_image_with_large_size_class() {
-    let options = HeapOptions {
-        size_classes: SizeClassTable::new([70_000]).expect("size classes should validate"),
-        raw_small_size_bytes: 70_000,
-        heap_small_size_bytes: 70_000,
-        heap_young_size_bytes: 0,
-        max_heap_young_allocation_size_bytes: 0,
-        ..HeapOptions::local()
-    };
-    let allocator = test_allocator(&options);
-    let mut raw = RawSpace::with_options(allocator.clone(), &options)
-        .expect("explicit raw options should build");
-    let bytes = vec![0xAB; 70_000];
-
-    // one custom large size class should stay in small space without truncation
-    let _pointer = raw
-        .allocate(
-            RawAllocationShape::bytes(bytes.len()),
-            Payload::Bytes(&bytes),
-        )
-        .expect("raw block should succeed");
-    let image = raw.image().expect("raw image should capture");
-    let mut restored = RawSpace::from_image(allocator, &image).expect("raw image should restore");
-    let restored_image = restored.image().expect("raw image should capture");
-
-    assert_eq!(image.spans()[0].class.byte_len, bytes.len());
-    assert_eq!(read_first_raw_image_bytes(&restored_image), bytes);
-}
-
 /// Reject invalid heap image metadata during restore.
 #[test]
 fn test_restore_full_heap_image_rejects_invalid_size_class() {
@@ -744,7 +577,7 @@ fn test_restore_full_heap_image_rejects_invalid_size_class() {
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
-    let (mut heap, layout_ids) = heap_space_with_empty_layouts(allocator.clone(), &options, &[3]);
+    let (mut heap, layout_ids) = heap_storage_with_empty_layouts(allocator.clone(), &options, &[3]);
     heap.allocate(
         &heap.allocation_plan(layout_ids[0].block()),
         Payload::Bytes(&[1, 2, 3]),
@@ -755,7 +588,7 @@ fn test_restore_full_heap_image_rejects_invalid_size_class() {
     let image =
         image.with_size_classes(SizeClassTable::new([16]).expect("size classes should validate"));
 
-    let error = HeapSpace::from_image(allocator, &image, trace_table())
+    let error = HeapStorage::from_image(allocator, &image, trace_table())
         .expect_err("heap restore should fail loudly");
 
     assert_eq!(
@@ -766,128 +599,19 @@ fn test_restore_full_heap_image_rejects_invalid_size_class() {
 
 /// Reject invalid heap metadata during fork.
 #[test]
-fn test_fork_heap_space_rejects_invalid_size_class() {
+fn test_fork_heap_storage_rejects_invalid_size_class() {
     let options = HeapOptions {
         heap_young_size_bytes: 0,
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
-    let (mut heap, layout_ids) = heap_space_with_empty_layouts(allocator.clone(), &options, &[3]);
+    let (mut heap, layout_ids) = heap_storage_with_empty_layouts(allocator.clone(), &options, &[3]);
     heap.allocate(
         &heap.allocation_plan(layout_ids[0].block()),
         Payload::Bytes(&[1, 2, 3]),
     )
     .expect("heap block should succeed");
     heap.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");
-
-    let error = heap
-        .fork(trace_table())
-        .expect_err("heap fork should fail loudly");
-
-    assert_eq!(
-        error,
-        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
-    );
-}
-
-/// Reject invalid raw image metadata during restore.
-#[test]
-fn test_restore_raw_image_rejects_invalid_size_class() {
-    let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
-    let mut raw = RawSpace::with_options(allocator.clone(), &options)
-        .expect("explicit raw options should build");
-    raw.allocate(RawAllocationShape::bytes(3), Payload::Bytes(&[1, 2, 3]))
-        .expect("raw block should succeed");
-
-    let image = raw.image().expect("raw image should capture");
-    let image =
-        image.with_size_classes(SizeClassTable::new([16]).expect("size classes should validate"));
-
-    let error =
-        RawSpace::from_image(allocator, &image).expect_err("raw restore should fail loudly");
-
-    assert_eq!(
-        error,
-        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
-    );
-}
-
-/// Reject invalid raw metadata during fork.
-#[test]
-fn test_fork_raw_space_rejects_invalid_size_class() {
-    let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
-    let mut raw = RawSpace::with_options(allocator.clone(), &options)
-        .expect("explicit raw options should build");
-    raw.allocate(RawAllocationShape::bytes(3), Payload::Bytes(&[1, 2, 3]))
-        .expect("raw block should succeed");
-    raw.small.size_classes =
-        crate::SizeClassTable::new([16]).expect("size classes should validate");
-
-    let error = raw.fork().expect_err("raw fork should fail loudly");
-
-    assert_eq!(
-        error,
-        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
-    );
-}
-
-/// Reject invalid full-heap image metadata in raw space.
-#[test]
-fn test_restore_heap_image_rejects_invalid_raw_size_class() {
-    let options = HeapOptions {
-        heap_young_size_bytes: 0,
-        ..HeapOptions::local()
-    };
-    let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[3]);
-    let heap = &mut test_heap.heap;
-    heap.allocate_payload(
-        &heap.allocation_plan(layout_ids[0].block()),
-        Payload::Bytes(&[1, 2, 3]),
-    )
-    .expect("heap block should succeed");
-    heap.allocate_raw(RawAllocationShape::bytes(3), Payload::Bytes(&[4, 5, 6]))
-        .expect("raw block should succeed");
-
-    let original_image = heap.image().expect("heap image should capture");
-    let image = HeapImage::new(
-        original_image.allocator().clone(),
-        original_image.options().clone(),
-        original_image.heap().clone(),
-        original_image
-            .raw()
-            .clone()
-            .with_size_classes(SizeClassTable::new([16]).expect("size classes should validate")),
-    );
-    drop(original_image);
-
-    let error = crate::Heap::from_image(&image, trace_table())
-        .expect_err("heap restore should fail loudly");
-
-    assert_eq!(
-        error,
-        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
-    );
-}
-
-/// Reject invalid full-heap metadata during fork.
-#[test]
-fn test_fork_heap_rejects_invalid_raw_size_class() {
-    let options = HeapOptions {
-        heap_young_size_bytes: 0,
-        ..HeapOptions::local()
-    };
-    let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[3]);
-    let heap = &mut test_heap.heap;
-    heap.allocate_payload(
-        &heap.allocation_plan(layout_ids[0].block()),
-        Payload::Bytes(&[1, 2, 3]),
-    )
-    .expect("heap block should succeed");
-    heap.allocate_raw(RawAllocationShape::bytes(3), Payload::Bytes(&[4, 5, 6]))
-        .expect("raw block should succeed");
-    heap.raw.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");
 
     let error = heap
         .fork(trace_table())

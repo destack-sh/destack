@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
 use destack_heap::{
-    Allocator, Heap, HeapLimits, HeapOptions, SharedAllocationCache, SharedGcWorker, SharedHeap,
+    AllocationCache, Allocator, GcWorker, Heap, HeapLimits, HeapOptions, SharedHeap,
     SharedHeapLimits, SharedHeapOptions,
 };
 
 /// One shared heap with one worker-local allocator.
-pub(crate) struct SharedWorkerHeap {
+pub(crate) struct WorkerHeap {
     /// The shared heap under test.
     pub(crate) heap: SharedHeap,
     /// The worker-local allocator cache.
-    pub(crate) allocator: SharedAllocationCache,
+    pub(crate) allocator: AllocationCache,
     /// The shared collector worker used by this worker heap.
-    pub(crate) worker: SharedGcWorker,
+    pub(crate) worker: GcWorker,
 }
 
 /// Build one local heap suitable for allocation benchmarks.
@@ -40,12 +40,12 @@ pub(crate) fn shared_heap() -> SharedHeap {
 }
 
 /// Build one shared heap and worker-local allocator.
-pub(crate) fn shared_worker_heap() -> SharedWorkerHeap {
+pub(crate) fn shared_worker_heap() -> WorkerHeap {
     let shared = shared_heap();
     let allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
-    SharedWorkerHeap {
+    WorkerHeap {
         heap: shared,
         allocator,
         worker,

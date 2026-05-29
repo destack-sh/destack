@@ -4,7 +4,7 @@ use crate::{GcPacer, GcStats, SharedHeapOptions};
 
 /// Shared collector pacing state.
 #[derive(Debug, Default)]
-pub(crate) struct SharedGcPacer {
+pub(crate) struct Pacer {
     /// The live shared heap bytes after the last completed cycle.
     live_bytes: AtomicUsize,
     /// Estimated shared collector work for one complete cycle.
@@ -15,7 +15,7 @@ pub(crate) struct SharedGcPacer {
     assist_debt_bytes: AtomicUsize,
 }
 
-impl SharedGcPacer {
+impl Pacer {
     /// Derive shared pacing targets from the current live heap size.
     pub(crate) fn set_live_bytes(&self, options: &SharedHeapOptions, live_bytes: u64) {
         // derive generic pacer targets

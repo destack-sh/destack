@@ -14,7 +14,7 @@ use crate::config::{
     MATRIX_MIN_ALLOCATIONS, MATRIX_SAMPLE_BYTES, PARALLEL_ALLOCATIONS_PER_WORKER, PARALLEL_WORKERS,
     SMALL_ALLOCATIONS, SMALL_BYTES,
 };
-use crate::heap::{SharedWorkerHeap, local_heap, shared_heap, shared_worker_heap};
+use crate::heap::{WorkerHeap, local_heap, shared_heap, shared_worker_heap};
 
 /// Benchmark managed heap allocation paths.
 pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
@@ -63,7 +63,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 },
                 |heap| {
                     let reference = heap
-                        .reserve_small_noscan_zeroed(small_site)
+                        .reserve_small_noscan(small_site)
                         .expect("local noscan allocation should stay hot");
                     black_box(reference);
                 },
@@ -84,7 +84,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 },
                 |heap| {
                     let reference = heap
-                        .reserve_small_scan_zeroed(local_small_site)
+                        .reserve_small_scan(local_small_site)
                         .expect("local scan allocation should stay hot");
                     black_box(reference);
                 },
@@ -105,7 +105,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 },
                 |heap| {
                     let reference = heap
-                        .reserve_small_shared_edge_zeroed(shared_small_site)
+                        .reserve_small_shared_edge(shared_small_site)
                         .expect("local shared-edge allocation should stay hot");
                     black_box(reference);
                 },
@@ -209,7 +209,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 |shared_worker| {
                     let reference = shared_worker
                         .heap
-                        .reserve_small_zeroed(&mut shared_worker.allocator, small)
+                        .reserve_small_from_cache(&mut shared_worker.allocator, small)
                         .expect("shared noscan allocation should stay hot");
                     black_box(reference);
                 },
@@ -544,8 +544,8 @@ fn measure_local_heap(
 fn measure_shared_worker_heap(
     iterations: u64,
     allocation_count: usize,
-    mut prepare: impl FnMut(&mut SharedWorkerHeap),
-    mut allocate: impl FnMut(&mut SharedWorkerHeap),
+    mut prepare: impl FnMut(&mut WorkerHeap),
+    mut allocate: impl FnMut(&mut WorkerHeap),
 ) -> Duration {
     let mut elapsed = Duration::ZERO;
 
