@@ -2,6 +2,10 @@
 @languageItem("memory.Copy")
 export newtype interface Copy {}
 
+/// Mark a type as having a complete storage representation.
+@languageItem("memory.Concrete")
+export newtype interface Concrete {}
+
 /// Mark a type as explicitly cloneable.
 @languageItem("memory.Clone")
 export newtype interface Clone {
