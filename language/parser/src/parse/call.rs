@@ -81,6 +81,7 @@ impl Parser {
 
         // keyword
         self.eat_keyword(Keyword::New)?;
+        let is_maybe = self.eat_token_maybe(TokenType::Maybe)?;
 
         // constructor name
         let ty = if self.current_token_is_on_new_line() {
@@ -94,10 +95,12 @@ impl Parser {
         let arguments = self.eat_dynamic_arguments_maybe()?.unwrap_or_default();
 
         // call
-        let call_id = self.insert_node(
-            Expression::New { ty, arguments },
-            self.get_span_from(&start),
-        );
+        let expression = if is_maybe {
+            Expression::NewMaybe { ty, arguments }
+        } else {
+            Expression::New { ty, arguments }
+        };
+        let call_id = self.insert_node(expression, self.get_span_from(&start));
         Ok(call_id)
     }
 
