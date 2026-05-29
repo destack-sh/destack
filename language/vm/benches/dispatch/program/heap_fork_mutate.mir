@@ -1,13 +1,13 @@
 function buildForkGraph(v0: int32): ref<int32, managed, readonly> {
 b0(v0: int32):
     v1: int32 = 0int32
-    v2: ref<int32, managed, readonly> = new int32
+    v2: ref<int32, managed, readonly> = new.zeroed int32
     jump b1(v1, v2)
 b1(v3: int32, v4: ref<int32, managed, readonly>):
     v5: boolean = int.lt.s v3, v0
     branch v5, b2(v3), b3(v4)
 b2(v6: int32):
-    v7: ref<int32, managed, readonly> = new int32
+    v7: ref<int32, managed, readonly> = new.zeroed int32
     store v7, v6
     v8: int32 = 1int32
     v9: int32 = int.add v6, v8
