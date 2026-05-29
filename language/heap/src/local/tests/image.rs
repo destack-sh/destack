@@ -4,15 +4,15 @@ use crate::allocator::Allocator;
 use crate::local::raw::RawSpaceImage;
 use crate::local::space::{HeapSpaceImage, YoungImage};
 use crate::{
-    HeapError, HeapImage, HeapOptions, HeapSpace, Payload, RawAllocationShape, RawSpace,
-    SizeClassTable, TestLayout, test_allocator, test_layouts,
+    HeapConfigurationError, HeapError, HeapImage, HeapOptions, HeapSpace, Payload,
+    RawAllocationShape, RawSpace, SizeClassTable, TestLayout, test_allocator, test_layouts,
 };
 use destack_mir::TraceMap;
 
 use super::{TestHeap, read_mapped_bytes, trace_table, write_mapped_byte, write_mapped_bytes};
 
 /// The allocator chunk size for small-page image fixtures.
-const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
+const TEST_ALLOCATOR_CHUNK_SIZE_BYTES: usize = 1024 * 1024;
 
 /// Build one heap space with explicit empty managed layouts.
 fn heap_space_with_empty_layouts(
@@ -85,12 +85,34 @@ fn read_young_range_bytes(young: &YoungImage, range_index: usize) -> Vec<u8> {
     young.bytes()[start..end].to_vec()
 }
 
+/// Return the bytes for one young-space run slot.
+fn read_young_run_slot_bytes(young: &YoungImage, run_index: usize, slot_index: usize) -> Vec<u8> {
+    let run = &young.runs()[run_index];
+    let start = run.slot_offset(slot_index);
+    let end = start + run.byte_len();
+
+    young.bytes()[start..end].to_vec()
+}
+
 /// Return the first live heap allocation bytes from one captured image.
 fn read_first_heap_image_bytes(image: &HeapSpaceImage) -> Vec<u8> {
     // young allocations first
     for range_index in 0..image.young().ranges().len() {
         if image.young().live().contains(range_index) {
             return read_young_range_bytes(image.young(), range_index);
+        }
+    }
+
+    // then fixed-size young run slots
+    for (run_index, run) in image.young().runs().iter().enumerate() {
+        let bits = &image.young().run_bits()[run_index];
+        let reserved_count = run.reserved_slot_count_with(run.next_offset);
+        for slot_index in 0..reserved_count {
+            if bits.freed.contains(slot_index) {
+                continue;
+            }
+
+            return read_young_run_slot_bytes(image.young(), run_index, slot_index);
         }
     }
 
@@ -154,10 +176,10 @@ fn read_first_raw_image_bytes(image: &RawSpaceImage) -> Vec<u8> {
 #[test]
 fn test_roundtrip_heap_space_image() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        heap_small_bytes: 32,
-        page_bytes: 4,
-        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
+        heap_young_size_bytes: 0,
+        heap_small_size_bytes: 32,
+        page_size_bytes: 4,
+        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -248,9 +270,9 @@ fn test_roundtrip_heap_space_image() {
 #[test]
 fn test_roundtrip_raw_space_image() {
     let options = HeapOptions {
-        page_bytes: 4,
-        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
-        raw_small_bytes: 32,
+        page_size_bytes: 4,
+        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
+        raw_small_size_bytes: 32,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -306,7 +328,7 @@ fn test_roundtrip_heap_image_and_fork() {
     let layout = &layout_ids[0];
     let heap = &mut test_heap.heap;
     let _heap_reference = heap
-        .allocate(
+        .allocate_dynamic_payload(
             &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&heap_bytes),
         )
@@ -354,7 +376,7 @@ fn test_roundtrip_heap_snapshot() {
         test_heap_with_empty_layouts(HeapOptions::local(), &[heap_bytes.len()]);
     let layout = &layout_ids[0];
     let heap = &mut test_heap.heap;
-    heap.allocate(
+    heap.allocate_dynamic_payload(
         &heap.allocation_plan(layout.allocation()),
         Payload::Bytes(&heap_bytes),
     )
@@ -376,9 +398,9 @@ fn test_roundtrip_heap_snapshot() {
 #[test]
 fn test_heap_heap_write_preserves_captured_allocation_bytes() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        heap_small_bytes: 32,
-        page_bytes: 4096,
+        heap_young_size_bytes: 0,
+        heap_small_size_bytes: 32,
+        page_size_bytes: 4096,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -388,13 +410,13 @@ fn test_heap_heap_write_preserves_captured_allocation_bytes() {
         test_heap_with_empty_layouts(options, &[first_bytes.len(), second_bytes.len()]);
     let heap = &mut test_heap.heap;
     let first = heap
-        .allocate(
+        .allocate_dynamic_payload(
             &heap.allocation_plan(layout_ids[0].allocation()),
             Payload::Bytes(&first_bytes),
         )
         .expect("heap allocation should succeed");
     let _second = heap
-        .allocate(
+        .allocate_dynamic_payload(
             &heap.allocation_plan(layout_ids[1].allocation()),
             Payload::Bytes(&second_bytes),
         )
@@ -428,9 +450,9 @@ fn test_heap_heap_write_preserves_captured_allocation_bytes() {
 #[test]
 fn test_heap_heap_write_preserves_captured_page_bytes() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        heap_small_bytes: 32,
-        page_bytes: 4096,
+        heap_young_size_bytes: 0,
+        heap_small_size_bytes: 32,
+        page_size_bytes: 4096,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -438,7 +460,7 @@ fn test_heap_heap_write_preserves_captured_page_bytes() {
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut test_heap.heap;
     let reference = heap
-        .allocate(
+        .allocate_dynamic_payload(
             &heap.allocation_plan(layout_ids[0].allocation()),
             Payload::Bytes(&bytes),
         )
@@ -467,9 +489,9 @@ fn test_heap_heap_write_preserves_captured_page_bytes() {
 #[test]
 fn test_heap_heap_write_preserves_captured_multi_page_bytes() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        heap_small_bytes: 32,
-        page_bytes: 4096,
+        heap_young_size_bytes: 0,
+        heap_small_size_bytes: 32,
+        page_size_bytes: 4096,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -477,7 +499,7 @@ fn test_heap_heap_write_preserves_captured_multi_page_bytes() {
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut test_heap.heap;
     let reference = heap
-        .allocate(
+        .allocate_dynamic_payload(
             &heap.allocation_plan(layout_ids[0].allocation()),
             Payload::Bytes(&bytes),
         )
@@ -506,9 +528,9 @@ fn test_heap_heap_write_preserves_captured_multi_page_bytes() {
 #[test]
 fn test_heap_heap_write_preserves_captured_many_page_bytes() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        heap_small_bytes: 32,
-        page_bytes: 4096,
+        heap_young_size_bytes: 0,
+        heap_small_size_bytes: 32,
+        page_size_bytes: 4096,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -516,7 +538,7 @@ fn test_heap_heap_write_preserves_captured_many_page_bytes() {
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
     let heap = &mut test_heap.heap;
     let reference = heap
-        .allocate(
+        .allocate_dynamic_payload(
             &heap.allocation_plan(layout_ids[0].allocation()),
             Payload::Bytes(&bytes),
         )
@@ -545,9 +567,9 @@ fn test_heap_heap_write_preserves_captured_many_page_bytes() {
 #[test]
 fn test_roundtrip_heap_small_space_image() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        page_bytes: 4,
-        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
+        heap_young_size_bytes: 0,
+        page_size_bytes: 4,
+        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
@@ -611,8 +633,8 @@ fn test_roundtrip_heap_small_space_image() {
 #[test]
 fn test_roundtrip_heap_young_space_image() {
     let options = HeapOptions {
-        page_bytes: 4,
-        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
+        page_size_bytes: 4,
+        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
@@ -638,7 +660,7 @@ fn test_roundtrip_heap_young_space_image() {
     let restored_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_young_range_bytes(restored_image.young(), 0),
+        read_young_run_slot_bytes(restored_image.young(), 0, 0),
         vec![1, 2, 3]
     );
 
@@ -653,18 +675,21 @@ fn test_roundtrip_heap_young_space_image() {
     let mutated_image = restored.image().expect("heap image should capture");
 
     assert_eq!(
-        read_young_range_bytes(mutated_image.young(), 0),
+        read_young_run_slot_bytes(mutated_image.young(), 0, 0),
         vec![1, 0xFE, 3]
     );
-    assert_eq!(read_young_range_bytes(image.young(), 0), vec![1, 2, 3]);
+    assert_eq!(
+        read_young_run_slot_bytes(image.young(), 0, 0),
+        vec![1, 2, 3]
+    );
 }
 
 /// Roundtrip raw small-space images as independent byte payloads.
 #[test]
 fn test_roundtrip_raw_small_space_image() {
     let options = HeapOptions {
-        page_bytes: 4,
-        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
+        page_size_bytes: 4,
+        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
@@ -703,10 +728,10 @@ fn test_roundtrip_raw_small_space_image() {
 fn test_roundtrip_raw_small_space_image_with_large_size_class() {
     let options = HeapOptions {
         size_classes: SizeClassTable::new([70_000]).expect("size classes should validate"),
-        raw_small_bytes: 70_000,
-        heap_small_bytes: 70_000,
-        heap_young_bytes: 0,
-        max_heap_young_allocation_bytes: 0,
+        raw_small_size_bytes: 70_000,
+        heap_small_size_bytes: 70_000,
+        heap_young_size_bytes: 0,
+        max_heap_young_allocation_size_bytes: 0,
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
@@ -733,7 +758,7 @@ fn test_roundtrip_raw_small_space_image_with_large_size_class() {
 #[test]
 fn test_restore_full_heap_image_rejects_invalid_size_class() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
+        heap_young_size_bytes: 0,
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
@@ -751,14 +776,17 @@ fn test_restore_full_heap_image_rejects_invalid_size_class() {
     let error = HeapSpace::from_image(allocator, &image, trace_table())
         .expect_err("heap restore should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
+    assert_eq!(
+        error,
+        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
+    );
 }
 
 /// Reject invalid heap metadata during fork.
 #[test]
 fn test_fork_heap_space_rejects_invalid_size_class() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
+        heap_young_size_bytes: 0,
         ..HeapOptions::local()
     };
     let allocator = test_allocator(&options);
@@ -774,7 +802,10 @@ fn test_fork_heap_space_rejects_invalid_size_class() {
         .fork(trace_table())
         .expect_err("heap fork should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
+    assert_eq!(
+        error,
+        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
+    );
 }
 
 /// Reject invalid raw image metadata during restore.
@@ -794,7 +825,10 @@ fn test_restore_raw_image_rejects_invalid_size_class() {
     let error =
         RawSpace::from_image(allocator, &image).expect_err("raw restore should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
+    assert_eq!(
+        error,
+        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
+    );
 }
 
 /// Reject invalid raw metadata during fork.
@@ -811,19 +845,22 @@ fn test_fork_raw_space_rejects_invalid_size_class() {
 
     let error = raw.fork().expect_err("raw fork should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
+    assert_eq!(
+        error,
+        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
+    );
 }
 
 /// Reject invalid full-heap image metadata in raw space.
 #[test]
 fn test_restore_heap_image_rejects_invalid_raw_size_class() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
+        heap_young_size_bytes: 0,
         ..HeapOptions::local()
     };
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[3]);
     let heap = &mut test_heap.heap;
-    heap.allocate(
+    heap.allocate_dynamic_payload(
         &heap.allocation_plan(layout_ids[0].allocation()),
         Payload::Bytes(&[1, 2, 3]),
     )
@@ -846,19 +883,22 @@ fn test_restore_heap_image_rejects_invalid_raw_size_class() {
     let error = crate::Heap::from_image(&image, trace_table())
         .expect_err("heap restore should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
+    assert_eq!(
+        error,
+        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
+    );
 }
 
 /// Reject invalid full-heap metadata during fork.
 #[test]
 fn test_fork_heap_rejects_invalid_raw_size_class() {
     let options = HeapOptions {
-        heap_young_bytes: 0,
+        heap_young_size_bytes: 0,
         ..HeapOptions::local()
     };
     let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[3]);
     let heap = &mut test_heap.heap;
-    heap.allocate(
+    heap.allocate_dynamic_payload(
         &heap.allocation_plan(layout_ids[0].allocation()),
         Payload::Bytes(&[1, 2, 3]),
     )
@@ -871,5 +911,8 @@ fn test_fork_heap_rejects_invalid_raw_size_class() {
         .fork(trace_table())
         .expect_err("heap fork should fail loudly");
 
-    assert_eq!(error, HeapError::InvalidSizeClass { class_bytes: 8 });
+    assert_eq!(
+        error,
+        HeapError::configuration(HeapConfigurationError::InvalidSizeClass { class_bytes: 8 })
+    );
 }

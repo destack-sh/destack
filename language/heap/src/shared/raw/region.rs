@@ -11,9 +11,9 @@ pub(crate) struct SharedRawPageMapEntry {
     pub(crate) logical_page_index: usize,
 }
 
-/// One resolved shared raw location.
+/// One resolved shared raw region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct SharedRawLocation {
+pub(crate) struct SharedRawRegion {
     /// The owning allocation index.
     pub(crate) allocation_index: usize,
     /// The base pointer for the owning allocation.

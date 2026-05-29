@@ -66,8 +66,8 @@ impl HeapImage {
     /// Build one heap image from one serialized payload.
     pub fn from_snapshot(snapshot: &HeapSnapshot) -> Result<Self, HeapError> {
         let allocator = Arc::new(Allocator::try_new(
-            snapshot.options.page_bytes,
-            snapshot.options.allocator_chunk_bytes,
+            snapshot.options.page_size_bytes,
+            snapshot.options.allocator_chunk_size_bytes,
         )?);
 
         Self::from_snapshot_with_allocator(snapshot, allocator)

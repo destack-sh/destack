@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{HeapError, HeapResult};
+use crate::{HeapError, HeapRepresentationError, HeapResult};
 
 /// One stable allocator page identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -10,7 +10,9 @@ pub struct PageId(u32);
 impl PageId {
     /// Create one page identifier.
     pub fn new(index: usize) -> HeapResult<Self> {
-        let index = u32::try_from(index).map_err(|_| HeapError::InvalidPageId { index })?;
+        let index = u32::try_from(index).map_err(|_| {
+            HeapError::representation(HeapRepresentationError::InvalidPageId { index })
+        })?;
 
         Ok(Self(index))
     }
@@ -51,16 +53,20 @@ impl PageRun {
 
     /// Create one contiguous page run.
     pub fn new(first_page: PageId, page_count: usize) -> HeapResult<Self> {
-        let page_count = u32::try_from(page_count).map_err(|_| HeapError::InvalidPageRun {
-            first_page,
-            page_count,
+        let page_count = u32::try_from(page_count).map_err(|_| {
+            HeapError::representation(HeapRepresentationError::InvalidPageRun {
+                first_page,
+                page_count,
+            })
         })?;
         let end_page_index = u64::from(first_page.raw()) + u64::from(page_count);
         if end_page_index > u64::from(u32::MAX) + 1 {
-            return Err(HeapError::InvalidPageRun {
-                first_page,
-                page_count: page_count as usize,
-            });
+            return Err(HeapError::representation(
+                HeapRepresentationError::InvalidPageRun {
+                    first_page,
+                    page_count: page_count as usize,
+                },
+            ));
         }
 
         Ok(Self {

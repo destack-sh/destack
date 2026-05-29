@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{HeapError, HeapResult};
+use crate::{HeapError, HeapRepresentationError, HeapResult};
 
 /// Reference to one shared heap allocation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -41,7 +41,9 @@ impl SharedHeapReference {
     #[inline]
     pub fn read_from_bytes(bytes: &[u8]) -> HeapResult<Self> {
         if bytes.len() != Self::BYTE_LEN {
-            return Err(HeapError::InvalidReferenceWindowWidth { bytes: bytes.len() });
+            return Err(HeapError::representation(
+                HeapRepresentationError::InvalidReferenceWindowWidth { bytes: bytes.len() },
+            ));
         }
 
         let mut raw = [0u8; Self::BYTE_LEN];
@@ -54,7 +56,9 @@ impl SharedHeapReference {
     #[inline]
     pub fn write_to_bytes(self, bytes: &mut [u8]) -> HeapResult<()> {
         if bytes.len() != Self::BYTE_LEN {
-            return Err(HeapError::InvalidReferenceWindowWidth { bytes: bytes.len() });
+            return Err(HeapError::representation(
+                HeapRepresentationError::InvalidReferenceWindowWidth { bytes: bytes.len() },
+            ));
         }
 
         bytes.copy_from_slice(&self.bits().to_le_bytes());

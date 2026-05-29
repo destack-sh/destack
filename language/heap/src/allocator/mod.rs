@@ -12,7 +12,9 @@ pub use allocator::*;
 pub use bitmap::*;
 pub(crate) use cache::*;
 pub use class::*;
-pub use constants::{DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES};
+pub use constants::{
+    DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES, DEFAULT_MAX_SMALL_ALLOCATION_BYTES, DEFAULT_PAGE_SIZE_BYTES,
+};
 pub use page::*;
 pub(crate) use run::*;
 pub use span::*;

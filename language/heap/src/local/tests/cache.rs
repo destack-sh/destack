@@ -5,16 +5,16 @@ use crate::{
 use destack_mir::TraceMap;
 
 /// The allocator chunk size for small-page cache fixtures.
-const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
+const TEST_ALLOCATOR_CHUNK_SIZE_BYTES: usize = 1024 * 1024;
 
 /// Keep empty raw spans in the local cache instead of the live image.
 #[test]
 fn test_release_empty_raw_span_into_page_run_cache() {
     // build a raw space whose small spans are easy to observe
     let options = HeapOptions {
-        page_bytes: 16,
-        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
-        raw_small_bytes: 32,
+        page_size_bytes: 16,
+        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
+        raw_small_size_bytes: 32,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -43,10 +43,10 @@ fn test_release_empty_raw_span_into_page_run_cache() {
 fn test_release_heap_large_pages_into_page_run_cache() {
     // force the payload onto the large-allocation path
     let options = HeapOptions {
-        page_bytes: 16,
-        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
-        heap_young_bytes: 0,
-        heap_small_bytes: 32,
+        page_size_bytes: 16,
+        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
+        heap_young_size_bytes: 0,
+        heap_small_size_bytes: 32,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };

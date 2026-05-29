@@ -6,9 +6,9 @@ use super::{
 };
 use crate::allocator::{PageRun, SpanSlot};
 use crate::{
-    AllocationPlan, Bitmap, HeapError, HeapReference, HeapResult, Payload, SmallAllocationPlan,
-    SmallSpanClass, clear_allocation_reference_bits, clear_slot_reference_bits,
-    write_allocation_reference_bits, write_slot_reference_bits,
+    AllocationPlan, Bitmap, HeapAllocationError, HeapError, HeapReference, HeapRepresentationError,
+    HeapResult, Payload, SmallAllocationPlan, SmallSpanClass, clear_allocation_reference_bits,
+    clear_slot_reference_bits, write_allocation_reference_bits, write_slot_reference_bits,
 };
 
 impl HeapSpace {
@@ -16,7 +16,7 @@ impl HeapSpace {
     pub(crate) fn retained_byte_delta(&self, layout: &AllocationPlan<'_>) -> HeapResult<i64> {
         // reject empty managed heap allocations
         if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
+            return Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize));
         }
 
         // stay in young space when the payload still fits
@@ -30,7 +30,7 @@ impl HeapSpace {
                 return Ok(0);
             }
 
-            Ok(small.class.span_bytes as i64)
+            Ok(small.class.span_size_bytes as i64)
         }
         // otherwise allocate one dedicated large allocation
         else {
@@ -38,132 +38,60 @@ impl HeapSpace {
         }
     }
 
-    /// Report whether one allocation plan fits the young-space tail.
-    #[inline(always)]
-    pub(crate) fn layout_fits_young(&self, layout: &AllocationPlan<'_>) -> bool {
-        if layout.is_empty() {
-            return false;
-        }
-
-        self.young_fits(layout.byte_len, layout.alignment)
-    }
-
-    /// Try to allocate one zeroed allocation in young space.
-    #[inline(always)]
-    pub(crate) fn try_allocate_young_zeroed(
-        &mut self,
-        layout: &AllocationPlan<'_>,
-    ) -> HeapResult<Option<HeapReference>> {
-        if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
-        }
-
-        if let Some(reference) = self.try_allocate_young_run_zeroed(layout)? {
-            return Ok(Some(reference));
-        }
-
-        let trace_map = layout.trace_map;
-        let tracks_shared_edges = layout.has_shared_reference;
-        let Some(reference) = self.allocate_young_zeroed(
-            layout.byte_len,
-            layout.alignment,
-            trace_map,
-            tracks_shared_edges,
-        )?
-        else {
-            return Ok(None);
-        };
-
-        // track every live reference whose layout may contain shared edges
-        if tracks_shared_edges {
-            self.collector.track_shared_edge_root(reference);
-        }
-
-        self.publish_major_allocation(
-            reference,
-            HeapPlace::Young(YoungPlace::Range {
-                first_offset: reference.offset(),
-            }),
-            trace_map,
-        )?;
-
-        Ok(Some(reference))
-    }
-
-    /// Try to allocate one byte-initialized allocation in young space.
-    #[inline(always)]
-    pub(crate) fn try_allocate_young_bytes(
-        &mut self,
-        layout: &AllocationPlan<'_>,
-        bytes: &[u8],
-    ) -> HeapResult<Option<HeapReference>> {
-        if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
-        }
-
-        if let Some(reference) = self.try_allocate_young_run_bytes(layout, bytes)? {
-            return Ok(Some(reference));
-        }
-
-        let trace_map = layout.trace_map;
-        let tracks_shared_edges = layout.has_shared_reference;
-        let Some(reference) = self.allocate_young_range_bytes(
-            layout.byte_len,
-            layout.alignment,
-            bytes,
-            trace_map,
-            tracks_shared_edges,
-        )?
-        else {
-            return Ok(None);
-        };
-
-        // track every live reference whose layout may contain shared edges
-        if tracks_shared_edges {
-            self.collector.track_shared_edge_root(reference);
-            self.queue_shared_edge_root(reference);
-        }
-
-        self.publish_major_allocation(
-            reference,
-            HeapPlace::Young(YoungPlace::Range {
-                first_offset: reference.offset(),
-            }),
-            trace_map,
-        )?;
-
-        Ok(Some(reference))
-    }
-
     /// Reserve one reference from the active young run cursor.
     #[inline(always)]
     pub(crate) fn reserve_young_run_cursor(
         &mut self,
-        small: SmallAllocationPlan,
+        byte_len: usize,
+        class: SmallSpanClass,
     ) -> Option<HeapReference> {
         let reference = self
             .young
             .run_cursor
-            .reserve_matching_reference(small.class)?;
-
-        self.clear_mapped_bytes(reference.offset(), small.slot_bytes());
-        self.record_young_allocation(small.slot_bytes());
+            .reserve_matching_reference(byte_len, class)?;
 
         Some(reference)
     }
 
-    /// Try to allocate one zeroed fixed-size allocation in young space.
+    /// Reserve one noscan reference from the active young run cursor.
     #[inline(always)]
-    fn try_allocate_young_run_zeroed(
+    pub(crate) fn reserve_young_noscan_run_cursor(
+        &mut self,
+        byte_len: usize,
+        class: SmallSpanClass,
+    ) -> Option<HeapReference> {
+        let reference = self
+            .young
+            .run_cursor
+            .reserve_noscan_reference(byte_len, class)?;
+
+        Some(reference)
+    }
+
+    /// Reserve one fixed-size or no-scan payload in young space.
+    #[inline(always)]
+    fn reserve_young_run_or_noscan_range(
         &mut self,
         layout: &AllocationPlan<'_>,
+        payload: Payload<'_>,
     ) -> HeapResult<Option<HeapReference>> {
         if let Some(slot) = self.reserve_young_run(layout)? {
-            self.clear_mapped_bytes(slot.reference.offset(), slot.byte_len);
-            self.record_young_allocation(slot.byte_len);
+            self.initialize_clean_slot_payload(slot.reference.offset(), payload);
 
             if !layout.is_noscan {
-                self.publish_young_run_allocation(slot, layout.trace_map, false)?;
+                self.publish_young_run_allocation(
+                    slot,
+                    layout.trace_map,
+                    payload.byte_len().is_some(),
+                )?;
+            }
+            // blacken noscan allocations created during an active major cycle
+            else if self.collector.major_phase != LocalGcPhase::Idle {
+                let Some(bits) = self.young.run_bits_mut(slot.run_index) else {
+                    return Err(HeapError::internal("missing span"));
+                };
+
+                bits.marked.set_in_bounds(slot.slot_index);
             }
 
             return Ok(Some(slot.reference));
@@ -181,11 +109,12 @@ impl HeapSpace {
         };
         let reference = HeapReference::new(write_offset);
 
-        // objects allocated during marking start black
-        if self.collector.major_phase == LocalGcPhase::Mark {
+        self.initialize_mapped_payload(write_offset, byte_len, payload);
+
+        // blacken noscan allocations created during an active major cycle
+        if self.collector.major_phase != LocalGcPhase::Idle {
             self.young.marked.set_in_bounds(range_index);
         }
-        self.clear_mapped_bytes(write_offset, byte_len);
         self.record_young_allocation(byte_len);
 
         Ok(Some(reference))
@@ -208,7 +137,7 @@ impl HeapSpace {
             return Ok(None);
         };
         let class = small.class;
-        let minimum_byte_len = small.minimum_byte_len;
+        let cache_index = small.cache_index();
 
         // stay on the active run cursor without consulting metadata
         if self.young.run_cursor.matches(class, byte_len)
@@ -216,15 +145,12 @@ impl HeapSpace {
         {
             let run_index = self.young.run_cursor.run_index;
             let Some(run) = self.young.run(run_index) else {
-                return Err(HeapError::MissingSpan {
-                    span_index: run_index,
-                });
+                return Err(HeapError::internal("missing span"));
             };
             let slot_index = (reference.offset() - run.first_offset) / class.size_class;
 
             return Ok(Some(YoungRunSlot {
                 reference,
-                byte_len: self.young.run_cursor.class.size_class,
                 run_index,
                 slot_index,
             }));
@@ -235,45 +161,57 @@ impl HeapSpace {
         }
 
         // reuse the class bucket run when it still has space
-        if let Some(run_index) = self.young.run_buckets.get(&class).copied()
-            && let Some(slot) = self.reserve_young_run_slot(minimum_byte_len, class, run_index)
+        if let Some(run_index) = self
+            .young
+            .run_cache
+            .get(cache_index)
+            .and_then(|run_index| *run_index)
+            && let Some(slot) = self.reserve_young_run_slot(byte_len, class, run_index)
         {
             return Ok(Some(slot));
         }
 
-        let Some(run_index) = self.allocate_young_run(class)? else {
+        let Some(run_index) = self.allocate_young_run(byte_len, class, cache_index)? else {
             return Ok(None);
         };
 
-        Ok(self.reserve_young_run_slot(minimum_byte_len, class, run_index))
+        Ok(self.reserve_young_run_slot(byte_len, class, run_index))
     }
 
     /// Allocate one fixed-size young run for one small class.
-    fn allocate_young_run(&mut self, class: SmallSpanClass) -> HeapResult<Option<usize>> {
+    fn allocate_young_run(
+        &mut self,
+        byte_len: usize,
+        class: SmallSpanClass,
+        cache_index: usize,
+    ) -> HeapResult<Option<usize>> {
         let size_class = class.size_class;
-        let first_offset = align_up(self.young.next_offset, self.young.page_bytes);
+        let first_offset = align_up(self.young.next_offset, self.young.page_size_bytes);
         if first_offset >= self.young.capacity_bytes {
             return Ok(None);
         }
 
         let available_bytes = self.young.capacity_bytes - first_offset;
-        let configured_bytes = class.span_bytes;
+        let configured_bytes = class.span_size_bytes;
         let run_bytes = configured_bytes.min(available_bytes);
-        let run_bytes = run_bytes / self.young.page_bytes * self.young.page_bytes;
+        let run_bytes = run_bytes / self.young.page_size_bytes * self.young.page_size_bytes;
         if run_bytes < size_class {
             return Ok(None);
         }
 
         let slot_count = run_bytes / size_class;
-        let page_start = first_offset / self.young.page_bytes;
-        let page_count = run_bytes / self.young.page_bytes;
+        let page_start = first_offset / self.young.page_size_bytes;
+        let page_count = run_bytes / self.young.page_size_bytes;
+
         // materialize the whole run before publishing its slots
         self.materialize_young_range(first_offset, run_bytes)?;
+        self.clear_mapped_bytes(first_offset, run_bytes);
 
         // publish the run before handing out its first reference
         let run_index = self.young.runs.len();
         self.young.runs.push(YoungRun {
             first_offset,
+            byte_len,
             next_offset: first_offset,
             end_offset: first_offset + run_bytes,
             class,
@@ -287,7 +225,10 @@ impl HeapSpace {
             self.young.page_runs[page_index] = Some(run_index);
         }
 
-        self.young.run_buckets.insert(class, run_index);
+        if self.young.run_cache.len() <= cache_index {
+            self.young.run_cache.resize(cache_index + 1, None);
+        }
+        self.young.run_cache[cache_index] = Some(run_index);
         self.young.next_offset = first_offset + run_bytes;
 
         Ok(Some(run_index))
@@ -297,69 +238,21 @@ impl HeapSpace {
     #[inline(always)]
     fn reserve_young_run_slot(
         &mut self,
-        minimum_byte_len: usize,
+        byte_len: usize,
         class: SmallSpanClass,
         run_index: usize,
     ) -> Option<YoungRunSlot> {
-        self.young
-            .activate_run_cursor(minimum_byte_len, class, run_index)?;
+        self.flush_young_run_cursor();
+        self.young.activate_run_cursor(byte_len, class, run_index)?;
         let reference = self.young.run_cursor.reserve_reference()?;
         let run = self.young.run(run_index)?;
         let slot_index = (reference.offset() - run.first_offset) / class.size_class;
 
         Some(YoungRunSlot {
             reference,
-            byte_len: class.size_class,
             run_index,
             slot_index,
         })
-    }
-
-    /// Try to allocate one byte-initialized fixed-size allocation in young space.
-    #[inline(always)]
-    fn try_allocate_young_run_bytes(
-        &mut self,
-        layout: &AllocationPlan<'_>,
-        bytes: &[u8],
-    ) -> HeapResult<Option<HeapReference>> {
-        let byte_len = layout.byte_len;
-
-        if let Some(slot) = self.reserve_young_run(layout)? {
-            let reference = slot.reference;
-            self.initialize_mapped_payload(
-                reference.offset(),
-                slot.byte_len,
-                Payload::Bytes(bytes),
-            );
-            self.record_young_allocation(slot.byte_len);
-
-            if !layout.is_noscan {
-                self.publish_young_run_allocation(slot, layout.trace_map, true)?;
-            }
-
-            return Ok(Some(reference));
-        }
-
-        if !layout.is_noscan {
-            return Ok(None);
-        }
-
-        let Some((write_offset, range_index)) =
-            self.reserve_young_noscan_range(byte_len, layout.alignment)?
-        else {
-            return Ok(None);
-        };
-        let reference = HeapReference::new(write_offset);
-
-        self.initialize_mapped_payload(write_offset, byte_len, Payload::Bytes(bytes));
-
-        // objects allocated during marking start black
-        if self.collector.major_phase == LocalGcPhase::Mark {
-            self.young.marked.set_in_bounds(range_index);
-        }
-        self.record_young_allocation(byte_len);
-
-        Ok(Some(reference))
     }
 
     /// Publish one traced young run allocation to active collectors.
@@ -396,21 +289,42 @@ impl HeapSpace {
         payload: Payload<'_>,
     ) -> HeapResult<HeapReference> {
         if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
+            return Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize));
         }
 
         if let Some(actual) = payload.byte_len()
             && actual != layout.byte_len
         {
-            return Err(HeapError::InvalidAllocationBytes {
-                expected: layout.byte_len,
-                actual,
-            });
+            return Err(HeapError::invalid_allocation(
+                HeapAllocationError::ByteLengthMismatch {
+                    expected: layout.byte_len,
+                    actual,
+                },
+            ));
         }
 
+        if let Some(reference) = self.reserve_young_payload(layout, payload)? {
+            return Ok(reference);
+        }
+
+        let has_initialized_bytes = payload.byte_len().is_some();
+
+        self.allocate_mature_layout(layout, payload, has_initialized_bytes)
+    }
+
+    /// Reserve one managed heap allocation in young space.
+    pub(crate) fn reserve_young_payload(
+        &mut self,
+        layout: &AllocationPlan<'_>,
+        payload: Payload<'_>,
+    ) -> HeapResult<Option<HeapReference>> {
         let trace_map = layout.trace_map;
         let tracks_shared_edges = layout.has_shared_reference;
         let has_initialized_bytes = payload.byte_len().is_some();
+
+        if let Some(reference) = self.reserve_young_run_or_noscan_range(layout, payload)? {
+            return Ok(Some(reference));
+        }
 
         if let Some(reference) = self.allocate_young(
             layout.byte_len,
@@ -437,10 +351,10 @@ impl HeapSpace {
                 trace_map,
             )?;
 
-            return Ok(reference);
+            return Ok(Some(reference));
         }
 
-        self.allocate_mature_layout(layout, payload, has_initialized_bytes)
+        Ok(None)
     }
 
     /// Allocate one mature managed heap allocation from one allocation plan.
@@ -451,7 +365,7 @@ impl HeapSpace {
         has_initialized_bytes: bool,
     ) -> HeapResult<HeapReference> {
         if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
+            return Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize));
         }
 
         let (place, charged_bytes) = self.allocate_mature(layout, payload)?;
@@ -475,15 +389,17 @@ impl HeapSpace {
 
     /// Free one heap allocation.
     pub fn free(&mut self, reference: HeapReference) -> HeapResult<()> {
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidHeapReference { reference });
+        self.flush_young_run_cursor();
+
+        let Some(region) = self.resolve_region(reference) else {
+            return Err(HeapError::invalid_heap_reference(reference));
         };
-        match location.place {
+        match region.place {
             // retire one young range until the next young sweep
             HeapPlace::Young(YoungPlace::Range { first_offset }) => {
                 let Some((allocation_index, allocation)) = self.young_range_by_offset(first_offset)
                 else {
-                    return Err(HeapError::MissingYoungRange { first_offset });
+                    return Err(HeapError::internal("missing young range"));
                 };
 
                 self.young.live.clear(allocation_index);
@@ -496,7 +412,7 @@ impl HeapSpace {
                 );
 
                 self.collector.remove_shared_edge_root(reference);
-                self.record_young_free(location.byte_len);
+                self.record_young_free(region.byte_len);
 
                 Ok(())
             }
@@ -504,15 +420,13 @@ impl HeapSpace {
             // retire one young fixed-size slot until the next young sweep
             HeapPlace::Young(YoungPlace::Slot(slot)) => {
                 let Some(bits) = self.young.run_bits_mut(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
+                    return Err(HeapError::internal("missing span"));
                 };
 
                 bits.freed.set(slot.slot_index());
                 bits.marked.clear(slot.slot_index());
                 self.collector.remove_shared_edge_root(reference);
-                self.record_young_free(location.byte_len);
+                self.record_young_free(region.byte_len);
 
                 Ok(())
             }
@@ -521,7 +435,7 @@ impl HeapSpace {
             HeapPlace::Small(slot) => {
                 self.release_small_slot(slot)?;
                 self.collector.remove_shared_edge_root(reference);
-                self.record_mature_free(location.byte_len);
+                self.record_mature_free(region.byte_len);
 
                 Ok(())
             }
@@ -529,18 +443,14 @@ impl HeapSpace {
             // release one allocation in large space and its allocator pages
             HeapPlace::Large(allocation_id) => {
                 let Some(allocation) = self.large_allocation(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
+                    return Err(HeapError::internal("missing large allocation"));
                 };
 
                 let first_offset = allocation.first_offset;
                 let pages = allocation.pages;
 
                 let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
+                    return Err(HeapError::internal("missing large allocation"));
                 };
 
                 // retire the live large-allocation slot before releasing its pages
@@ -553,7 +463,7 @@ impl HeapSpace {
 
                 self.unmap_page_run(first_offset, &pages);
                 self.release_page_run(pages)?;
-                self.record_mature_free(location.byte_len);
+                self.record_mature_free(region.byte_len);
 
                 Ok(())
             }
@@ -570,10 +480,12 @@ impl HeapSpace {
         if let Some(actual) = payload.byte_len()
             && actual != layout.byte_len
         {
-            return Err(HeapError::InvalidAllocationBytes {
-                expected: layout.byte_len,
-                actual,
-            });
+            return Err(HeapError::invalid_allocation(
+                HeapAllocationError::ByteLengthMismatch {
+                    expected: layout.byte_len,
+                    actual,
+                },
+            ));
         }
 
         // allocate from one size class span when the payload still fits
@@ -581,7 +493,7 @@ impl HeapSpace {
             let class = small.class;
             let span_index = self.allocate_small_span(&class)?;
             let Some(span) = self.small.spans.get(span_index) else {
-                return Err(HeapError::MissingSpan { span_index });
+                return Err(HeapError::internal("missing span"));
             };
             let slot_index = span.free_cursor;
             let slot = self.initialize_small_slot(
@@ -607,9 +519,7 @@ impl HeapSpace {
                 true,
             )?;
             let Some(allocation) = self.large_allocation(allocation_id) else {
-                return Err(HeapError::MissingLargeAllocation {
-                    allocation_id: allocation_id.id(),
-                });
+                return Err(HeapError::internal("missing large allocation"));
             };
             let first_offset = allocation.first_offset;
 
@@ -624,25 +534,17 @@ impl HeapSpace {
         let mut requeue_class = None;
         let pages = {
             let Some(span) = self.span_mut(slot.span_index()) else {
-                return Err(HeapError::MissingSpan {
-                    span_index: slot.span_index(),
-                });
+                return Err(HeapError::internal("missing span"));
             };
 
             let slot_index = slot.slot_index();
             let was_full = span.occupied_count == span.slot_count;
 
             if !span.occupied.contains(slot_index) {
-                return Err(HeapError::MissingSmallSlot {
-                    span_index: slot.span_index(),
-                    slot_index,
-                });
+                return Err(HeapError::internal("missing small slot"));
             }
             if span.occupied_count == 0 {
-                return Err(HeapError::MissingSmallSlot {
-                    span_index: slot.span_index(),
-                    slot_index,
-                });
+                return Err(HeapError::internal("missing small slot"));
             }
 
             span.occupied.clear(slot_index);
@@ -734,10 +636,10 @@ impl HeapSpace {
 
     /// Return the page-rounded retained bytes for one heap large allocation.
     fn round_up_large_allocation_bytes(&self, byte_len: usize) -> u64 {
-        let page_bytes = self.allocator.page_bytes() as u64;
+        let page_size_bytes = self.allocator.page_size_bytes() as u64;
         let byte_len = byte_len as u64;
 
-        byte_len.div_ceil(page_bytes) * page_bytes
+        byte_len.div_ceil(page_size_bytes) * page_size_bytes
     }
 
     /// Insert one large allocation record.
@@ -770,18 +672,22 @@ impl HeapSpace {
 
             self.release_page_run(pages)?;
 
-            return Err(HeapError::InvalidLargeAllocationId { id: allocation_id });
+            return Err(HeapError::representation(
+                HeapRepresentationError::InvalidLargeAllocationId { id: allocation_id },
+            ));
         }
 
         let allocation_id = LargeAllocationId::new(allocation_id);
         let index = allocation_id.index()?;
 
-        let first_offset =
-            self.reserve_space_range_aligned(pages.len() * self.allocator.page_bytes(), alignment)?;
+        let first_offset = self.reserve_space_range_aligned(
+            pages.len() * self.allocator.page_size_bytes(),
+            alignment,
+        )?;
 
         // materialize the full large allocation before publishing it
         self.mapping
-            .materialize(first_offset, pages.len() * self.allocator.page_bytes())?;
+            .materialize(first_offset, pages.len() * self.allocator.page_size_bytes())?;
 
         self.map_page_run(first_offset, &pages, |logical_page_index| {
             HeapPageMapEntry::Large {
@@ -836,15 +742,15 @@ impl HeapSpace {
             let size_class = self.small.size_classes.classes[class_index];
             let class = SmallSpanClass {
                 size_class: size_class.bytes,
-                span_bytes: size_class
-                    .span_bytes(self.allocator.page_bytes(), self.small.span_bytes)
-                    .max(self.small.span_bytes),
+                span_size_bytes: size_class
+                    .span_size_bytes(self.allocator.page_size_bytes(), self.small.span_size_bytes)
+                    .max(self.small.span_size_bytes),
                 trace_id: None,
                 is_noscan: true,
             };
             let span_index = self.allocate_small_span(&class)?;
             let Some(span) = self.small.spans.get(span_index) else {
-                return Err(HeapError::MissingSpan { span_index });
+                return Err(HeapError::internal("missing span"));
             };
             let slot_index = span.free_cursor;
             let slot = self.initialize_small_slot(
@@ -864,15 +770,13 @@ impl HeapSpace {
             let pages = self.allocate_page_run(byte_len)?;
             let allocation_id = self.insert_large_allocation(
                 byte_len,
-                self.allocator.page_bytes(),
+                self.allocator.page_size_bytes(),
                 pages,
                 trace_map.clone(),
                 false,
             )?;
             let Some(allocation) = self.large_allocation(allocation_id) else {
-                return Err(HeapError::MissingLargeAllocation {
-                    allocation_id: allocation_id.id(),
-                });
+                return Err(HeapError::internal("missing large allocation"));
             };
 
             self.initialize_mapped_payload(
@@ -908,27 +812,6 @@ impl HeapSpace {
         Ok(Some(HeapReference::new(write_offset)))
     }
 
-    /// Allocate caller bytes at the young-space bump cursor when the request fits.
-    #[inline(always)]
-    fn allocate_young_range_bytes(
-        &mut self,
-        byte_len: usize,
-        alignment: usize,
-        bytes: &[u8],
-        trace_map: &TraceMap,
-        tracks_shared_edges: bool,
-    ) -> HeapResult<Option<HeapReference>> {
-        let Some(write_offset) =
-            self.reserve_young_range(byte_len, alignment, trace_map, tracks_shared_edges)?
-        else {
-            return Ok(None);
-        };
-
-        self.initialize_mapped_payload(write_offset, byte_len, Payload::Bytes(bytes));
-
-        Ok(Some(HeapReference::new(write_offset)))
-    }
-
     /// Materialize the young-space pages needed by one allocation.
     #[inline(always)]
     fn materialize_young_range(&mut self, offset: usize, byte_len: usize) -> HeapResult<()> {
@@ -942,7 +825,7 @@ impl HeapSpace {
         let materialize_bytes = self
             .young
             .capacity_bytes
-            .min(self.small.span_bytes * 8)
+            .min(self.small.span_size_bytes * 8)
             .max(byte_len);
         let materialize_end = (offset + materialize_bytes).min(self.young.capacity_bytes);
 
@@ -957,25 +840,6 @@ impl HeapSpace {
         self.young.mapped_until = frame_end;
 
         Ok(())
-    }
-
-    /// Allocate one zeroed payload at the young-space bump cursor.
-    #[inline(always)]
-    fn allocate_young_zeroed(
-        &mut self,
-        byte_len: usize,
-        alignment: usize,
-        trace_map: &TraceMap,
-        tracks_shared_edges: bool,
-    ) -> HeapResult<Option<HeapReference>> {
-        let Some(write_offset) =
-            self.reserve_young_range(byte_len, alignment, trace_map, tracks_shared_edges)?
-        else {
-            return Ok(None);
-        };
-        self.clear_mapped_bytes(write_offset, byte_len);
-
-        Ok(Some(HeapReference::new(write_offset)))
     }
 
     /// Reserve one aligned young-space byte range.
@@ -1077,13 +941,13 @@ impl HeapSpace {
         // reuse one non-full span when possible
         while let Some(span_index) = self.small.partial_spans.entry(*class).or_default().pop() {
             let Some(span) = self.small.spans.get(span_index) else {
-                return Err(HeapError::MissingSpan { span_index });
+                return Err(HeapError::internal("missing span"));
             };
 
             if span.occupied_count < span.slot_count {
                 if span.occupied_count == 0 && span.pages.is_empty() {
                     let first_offset = span.first_offset;
-                    let pages = self.allocate_page_run(class.span_bytes)?;
+                    let pages = self.allocate_page_run(class.span_size_bytes)?;
 
                     self.map_page_run(first_offset, &pages, |logical_page_index| {
                         HeapPageMapEntry::Small {
@@ -1096,11 +960,12 @@ impl HeapSpace {
                         self.unmap_page_run(first_offset, &pages);
                         self.release_page_run(pages)?;
 
-                        return Err(HeapError::MissingSpan { span_index });
+                        return Err(HeapError::internal("missing span"));
                     };
 
                     // materialize the full span before handing out slots
-                    self.mapping.materialize(first_offset, class.span_bytes)?;
+                    self.mapping
+                        .materialize(first_offset, class.span_size_bytes)?;
 
                     span.pages = pages;
                 }
@@ -1110,14 +975,15 @@ impl HeapSpace {
         }
 
         // otherwise allocate one fresh span for the size class
-        let slot_count = (class.span_bytes / class.size_class).max(1);
+        let slot_count = (class.span_size_bytes / class.size_class).max(1);
         let scan_word_count = class.size_class.div_ceil(std::mem::size_of::<usize>());
         let dirty_card_bytes = slot_count * class.size_class;
-        let pages = self.allocate_page_run(class.span_bytes)?;
-        let first_offset = self.reserve_space_range(class.span_bytes)?;
+        let pages = self.allocate_page_run(class.span_size_bytes)?;
+        let first_offset = self.reserve_space_range(class.span_size_bytes)?;
 
         // materialize the full span before handing out slots
-        self.mapping.materialize(first_offset, class.span_bytes)?;
+        self.mapping
+            .materialize(first_offset, class.span_size_bytes)?;
 
         let span = SmallSpan {
             first_offset,
@@ -1162,7 +1028,7 @@ impl HeapSpace {
             .small
             .spans
             .get(span_index)
-            .ok_or(HeapError::MissingSpan { span_index })?;
+            .ok_or(HeapError::internal("missing span"))?;
         let slot_offset = span.class.size_class * slot_index;
         let mapping_offset = span.first_offset + slot_offset;
 
@@ -1172,9 +1038,9 @@ impl HeapSpace {
             .small
             .spans
             .get_mut(span_index)
-            .ok_or(HeapError::MissingSpan { span_index })?;
+            .ok_or(HeapError::internal("missing span"))?;
 
-        // publish fallback trace metadata when the class has no table id
+        // publish direct trace metadata when the class has no table id
         if span.class.trace_id.is_none() {
             let size_class = span.class.size_class;
             let local_reference_bits = &mut span.local_reference_bits;
@@ -1231,6 +1097,15 @@ impl HeapSpace {
             }
             Payload::Bytes(bytes) => self.write_mapped_bytes(offset, bytes),
             Payload::Zeroed => self.clear_mapped_bytes(offset, clear_byte_len),
+            Payload::Uninit => {}
+        }
+    }
+
+    /// Initialize one already-zeroed small slot.
+    #[inline(always)]
+    pub(super) fn initialize_clean_slot_payload(&self, offset: usize, payload: Payload<'_>) {
+        if let Payload::Bytes(bytes) = payload {
+            self.write_mapped_bytes(offset, bytes);
         }
     }
 
@@ -1260,8 +1135,6 @@ impl HeapSpace {
 struct YoungRunSlot {
     /// The allocated heap reference.
     reference: HeapReference,
-    /// The charged slot byte length.
-    byte_len: usize,
     /// The owning young run index.
     run_index: usize,
     /// The slot index inside the owning young run.

@@ -3,11 +3,11 @@ use std::sync::Arc;
 use destack_memory::AddressSpace;
 use parking_lot::{Mutex, RwLock};
 
-use super::{SharedRawAllocation, SharedRawLocation, SharedRawPageMapEntry};
+use super::{SharedRawAllocation, SharedRawPageMapEntry, SharedRawRegion};
 use crate::allocator::{PageRun, PageRunCache};
 use crate::{
-    AllocationUsage, Allocator, HeapError, HeapResult, Payload, RawAllocationShape,
-    SharedHeapOptions, SharedRawPointer, SharedRawSpaceUsage,
+    AllocationUsage, Allocator, HeapAllocationError, HeapError, HeapResult, Payload,
+    RawAllocationShape, SharedHeapOptions, SharedRawPointer, SharedRawSpaceUsage,
 };
 
 /// One live shared raw space over one allocator.
@@ -19,7 +19,7 @@ pub struct SharedRawSpace {
     pub(crate) base_address: usize,
     /// The shared raw-space state.
     pub(crate) state: Mutex<SharedRawState>,
-    /// The owning allocation location for each visible allocator page.
+    /// The owning allocation region for each visible allocator page.
     pub(crate) page_map: RwLock<Vec<Option<SharedRawPageMapEntry>>>,
     /// The live shared raw-space allocations.
     pub(crate) allocations: RwLock<Vec<Arc<RwLock<SharedRawAllocation>>>>,
@@ -37,8 +37,8 @@ impl SharedRawSpace {
     /// Create a new empty shared raw space over one shared allocator.
     pub fn with_allocator(allocator: Arc<Allocator>) -> HeapResult<Self> {
         let options = SharedHeapOptions {
-            page_bytes: allocator.page_bytes(),
-            allocator_chunk_bytes: allocator.chunk_bytes(),
+            page_size_bytes: allocator.page_size_bytes(),
+            allocator_chunk_size_bytes: allocator.chunk_size_bytes(),
             ..SharedHeapOptions::default()
         };
 
@@ -54,8 +54,8 @@ impl SharedRawSpace {
         options.validate_allocator(&allocator)?;
 
         let page_run_cache = PageRunCache::new(allocator.pages_per_chunk());
-        let next_offset = allocator.page_bytes();
-        let mapping = AddressSpace::reserve(options.raw_space_bytes, options.page_bytes)?;
+        let next_offset = allocator.page_size_bytes();
+        let mapping = AddressSpace::reserve(options.raw_space_size_bytes, options.page_size_bytes)?;
         let base_address = mapping.base_address();
 
         Ok(Self {
@@ -74,27 +74,27 @@ impl SharedRawSpace {
     }
 
     /// Return the configured shared page size.
-    pub fn page_bytes(&self) -> usize {
-        self.allocator.page_bytes()
+    pub fn page_size_bytes(&self) -> usize {
+        self.allocator.page_size_bytes()
     }
 
     /// Return the exact retained shared raw allocator-page bytes.
     pub fn retained_bytes(&self) -> u64 {
         let state = self.state.lock();
 
-        state.retained_bytes(self.allocator.page_bytes())
+        state.retained_bytes(self.allocator.page_size_bytes())
     }
 
     /// Return the exact usage for this live shared raw space.
     pub fn usage(&self) -> SharedRawSpaceUsage {
         let state = self.state.lock();
 
-        state.usage(self.allocator.page_bytes())
+        state.usage(self.allocator.page_size_bytes())
     }
 
     /// Return whether one shared raw pointer currently refers to one live allocation slot.
     pub fn is_live(&self, pointer: SharedRawPointer) -> bool {
-        self.resolve_location(pointer).is_ok()
+        self.resolve_region(pointer).is_ok()
     }
 
     /// Allocate one shared raw allocation.
@@ -106,16 +106,19 @@ impl SharedRawSpace {
         if let Some(actual) = allocation.byte_len()
             && actual != shape.byte_len
         {
-            return Err(HeapError::InvalidAllocationBytes {
-                expected: shape.byte_len,
-                actual,
-            });
+            return Err(HeapError::invalid_allocation(
+                HeapAllocationError::ByteLengthMismatch {
+                    expected: shape.byte_len,
+                    actual,
+                },
+            ));
         }
 
         let pages = self.allocate_pages(shape.byte_len)?;
-        let first_offset = match self
-            .reserve_space_range(pages.len() * self.allocator.page_bytes(), shape.alignment)
-        {
+        let first_offset = match self.reserve_space_range(
+            pages.len() * self.allocator.page_size_bytes(),
+            shape.alignment,
+        ) {
             Ok(first_offset) => first_offset,
             Err(error) => {
                 self.release_pages(pages)?;
@@ -128,7 +131,7 @@ impl SharedRawSpace {
         if let Err(error) = self
             .mapping
             .write()
-            .materialize(first_offset, pages.len() * self.allocator.page_bytes())
+            .materialize(first_offset, pages.len() * self.allocator.page_size_bytes())
         {
             self.release_pages(pages)?;
 
@@ -166,7 +169,7 @@ impl SharedRawSpace {
             let pages = state
                 .page_run_cache
                 .allocate_pages(&self.allocator, allocated_byte_len)?;
-            state.retain_pages(pages, self.allocator.page_bytes());
+            state.retain_pages(pages, self.allocator.page_size_bytes());
 
             pages
         };
@@ -181,7 +184,7 @@ impl SharedRawSpace {
         state
             .page_run_cache
             .release_page_run(&self.allocator, pages)?;
-        state.release_pages(pages, self.allocator.page_bytes());
+        state.release_pages(pages, self.allocator.page_size_bytes());
 
         Ok(())
     }
@@ -193,19 +196,19 @@ impl SharedRawSpace {
 
     /// Return the remaining byte length for one shared raw pointer.
     pub fn byte_len(&self, pointer: SharedRawPointer) -> HeapResult<usize> {
-        let location = self.resolve_location(pointer)?;
+        let region = self.resolve_region(pointer)?;
 
-        Ok(location.byte_len - location.byte_offset)
+        Ok(region.byte_len - region.byte_offset)
     }
 
     /// Return the bytes for one shared raw pointer.
     pub fn read_bytes(&self, pointer: SharedRawPointer) -> HeapResult<Vec<u8>> {
-        let location = self.resolve_location(pointer)?;
-        let byte_len = location.byte_len - location.byte_offset;
+        let region = self.resolve_region(pointer)?;
+        let byte_len = region.byte_len - region.byte_offset;
 
         self.mapping
             .read()
-            .read_bytes(location.base.offset() + location.byte_offset, byte_len)
+            .read_bytes(region.base.offset() + region.byte_offset, byte_len)
             .map_err(HeapError::from)
     }
 
@@ -216,11 +219,11 @@ impl SharedRawSpace {
         start: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        let (location, byte_offset) = self.resolve_range(pointer, start, target.len())?;
+        let (region, byte_offset) = self.resolve_range(pointer, start, target.len())?;
 
         self.mapping
             .read()
-            .read_bytes_into(location.base.offset() + byte_offset, target)
+            .read_bytes_into(region.base.offset() + byte_offset, target)
             .map_err(HeapError::from)
     }
 
@@ -231,12 +234,12 @@ impl SharedRawSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<*const u8> {
-        let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
+        let (region, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
 
         Ok(self
             .mapping
             .read()
-            .address(location.base.offset() + byte_offset, byte_len)
+            .address(region.base.offset() + byte_offset, byte_len)
             .map_err(HeapError::from)? as *const u8)
     }
 
@@ -247,11 +250,11 @@ impl SharedRawSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<*mut u8> {
-        let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
+        let (region, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
 
         self.mapping
             .write()
-            .address(location.base.offset() + byte_offset, byte_len)
+            .address(region.base.offset() + byte_offset, byte_len)
             .map_err(HeapError::from)
     }
 
@@ -262,11 +265,11 @@ impl SharedRawSpace {
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        let (location, byte_offset) = self.resolve_range(pointer, start, bytes.len())?;
+        let (region, byte_offset) = self.resolve_range(pointer, start, bytes.len())?;
 
         self.mapping
             .write()
-            .write_bytes(location.base.offset() + byte_offset, bytes)?;
+            .write_bytes(region.base.offset() + byte_offset, bytes)?;
 
         Ok(())
     }
@@ -277,8 +280,8 @@ impl SharedRawSpace {
         pointer: SharedRawPointer,
         bytes: &[u8],
     ) -> HeapResult<SharedRawPointer> {
-        let location = self.resolve_location(pointer)?;
-        let allocation = self.allocation(pointer, location.allocation_index)?;
+        let region = self.resolve_region(pointer)?;
+        let allocation = self.allocation(pointer, region.allocation_index)?;
         let mut state = self.state.lock();
         let next_pages = state
             .page_run_cache
@@ -289,9 +292,9 @@ impl SharedRawSpace {
             state
                 .page_run_cache
                 .release_page_run(&self.allocator, next_pages)?;
-            state.release_pages(next_pages, self.allocator.page_bytes());
+            state.release_pages(next_pages, self.allocator.page_size_bytes());
 
-            return Err(HeapError::InvalidSharedRawPointer { pointer });
+            return Err(HeapError::invalid_shared_raw_pointer(pointer));
         }
 
         let previous_pages = allocation.pages;
@@ -299,15 +302,14 @@ impl SharedRawSpace {
         let previous_byte_len = allocation.byte_len;
 
         // materialize the replacement pages before publishing them
-        if let Err(error) = self
-            .mapping
-            .write()
-            .materialize(first_offset, next_pages.len() * self.allocator.page_bytes())
-        {
+        if let Err(error) = self.mapping.write().materialize(
+            first_offset,
+            next_pages.len() * self.allocator.page_size_bytes(),
+        ) {
             state
                 .page_run_cache
                 .release_page_run(&self.allocator, next_pages)?;
-            state.release_pages(next_pages, self.allocator.page_bytes());
+            state.release_pages(next_pages, self.allocator.page_size_bytes());
 
             return Err(error.into());
         }
@@ -319,7 +321,7 @@ impl SharedRawSpace {
             first_offset,
             &previous_pages,
             &next_pages,
-            location.allocation_index,
+            region.allocation_index,
         );
 
         allocation.pages = next_pages;
@@ -331,20 +333,20 @@ impl SharedRawSpace {
         state
             .page_run_cache
             .release_page_run(&self.allocator, previous_pages)?;
-        state.release_pages(previous_pages, self.allocator.page_bytes());
+        state.release_pages(previous_pages, self.allocator.page_size_bytes());
 
         Ok(SharedRawPointer::new(first_offset))
     }
 
     /// Free one shared raw-space allocation.
     pub fn free(&self, pointer: SharedRawPointer) -> HeapResult<()> {
-        let location = self.resolve_location(pointer)?;
-        let allocation = self.allocation(pointer, location.allocation_index)?;
+        let region = self.resolve_region(pointer)?;
+        let allocation = self.allocation(pointer, region.allocation_index)?;
         let mut state = self.state.lock();
         let mut allocation = allocation.write();
 
         if allocation.is_vacant() {
-            return Err(HeapError::InvalidSharedRawPointer { pointer });
+            return Err(HeapError::invalid_shared_raw_pointer(pointer));
         }
 
         let pages = allocation.pages;
@@ -361,7 +363,7 @@ impl SharedRawSpace {
         state
             .page_run_cache
             .release_page_run(&self.allocator, pages)?;
-        state.release_pages(pages, self.allocator.page_bytes());
+        state.release_pages(pages, self.allocator.page_size_bytes());
 
         Ok(())
     }
@@ -372,12 +374,12 @@ impl SharedRawSpace {
         pointer: SharedRawPointer,
         next_byte_len: usize,
     ) -> HeapResult<i64> {
-        let location = self.resolve_location(pointer)?;
-        let allocation = self.allocation(pointer, location.allocation_index)?;
+        let region = self.resolve_region(pointer)?;
+        let allocation = self.allocation(pointer, region.allocation_index)?;
         let allocation = allocation.read();
 
         if allocation.is_vacant() {
-            return Err(HeapError::InvalidSharedRawPointer { pointer });
+            return Err(HeapError::invalid_shared_raw_pointer(pointer));
         }
 
         let previous_retained_bytes = self.round_up_allocation_bytes(allocation.byte_len);
@@ -388,10 +390,10 @@ impl SharedRawSpace {
 
     /// Return the page-rounded retained bytes for one shared allocation.
     fn round_up_allocation_bytes(&self, byte_len: usize) -> u64 {
-        let page_bytes = self.page_bytes() as u64;
+        let page_size_bytes = self.page_size_bytes() as u64;
         let byte_len = byte_len.max(1) as u64;
 
-        byte_len.div_ceil(page_bytes) * page_bytes
+        byte_len.div_ceil(page_size_bytes) * page_size_bytes
     }
 
     /// Return the current live raw allocation page runs.
@@ -437,39 +439,39 @@ impl SharedRawSpace {
             .read()
             .get(allocation_index)
             .cloned()
-            .ok_or(HeapError::InvalidSharedRawPointer { pointer })
+            .ok_or(HeapError::invalid_shared_raw_pointer(pointer))
     }
 
-    /// Return the resolved live location for one shared raw pointer.
-    fn resolve_location(&self, pointer: SharedRawPointer) -> HeapResult<SharedRawLocation> {
-        let page_index = pointer.offset() / self.page_bytes();
-        let page_offset = pointer.offset() % self.page_bytes();
+    /// Return the resolved live region for one shared raw pointer.
+    fn resolve_region(&self, pointer: SharedRawPointer) -> HeapResult<SharedRawRegion> {
+        let page_index = pointer.offset() / self.page_size_bytes();
+        let page_offset = pointer.offset() % self.page_size_bytes();
         let Some(entry) = self.page_map.read().get(page_index).copied().flatten() else {
-            return Err(HeapError::InvalidSharedRawPointer { pointer });
+            return Err(HeapError::invalid_shared_raw_pointer(pointer));
         };
         let allocation = self
             .allocations
             .read()
             .get(entry.allocation_index)
             .cloned()
-            .ok_or(HeapError::InvalidSharedRawPointer { pointer })?;
+            .ok_or(HeapError::invalid_shared_raw_pointer(pointer))?;
         let allocation = allocation.read();
 
         if allocation.is_vacant() {
-            return Err(HeapError::InvalidSharedRawPointer { pointer });
+            return Err(HeapError::invalid_shared_raw_pointer(pointer));
         }
 
-        let byte_offset = entry.logical_page_index * self.page_bytes() + page_offset;
+        let byte_offset = entry.logical_page_index * self.page_size_bytes() + page_offset;
 
         if allocation.byte_len == 0 {
             if byte_offset != 0 {
-                return Err(HeapError::InvalidSharedRawPointer { pointer });
+                return Err(HeapError::invalid_shared_raw_pointer(pointer));
             }
         } else if byte_offset >= allocation.byte_len {
-            return Err(HeapError::InvalidSharedRawPointer { pointer });
+            return Err(HeapError::invalid_shared_raw_pointer(pointer));
         }
 
-        Ok(SharedRawLocation {
+        Ok(SharedRawRegion {
             allocation_index: entry.allocation_index,
             base: SharedRawPointer::new(allocation.first_offset),
             byte_offset,
@@ -477,28 +479,28 @@ impl SharedRawSpace {
         })
     }
 
-    /// Return one checked shared raw location range.
+    /// Return one checked shared raw region range.
     fn resolve_range(
         &self,
         pointer: SharedRawPointer,
         start: usize,
         byte_len: usize,
-    ) -> HeapResult<(SharedRawLocation, usize)> {
-        let location = self.resolve_location(pointer)?;
-        debug_assert!(location.byte_offset <= location.byte_len);
+    ) -> HeapResult<(SharedRawRegion, usize)> {
+        let region = self.resolve_region(pointer)?;
+        debug_assert!(region.byte_offset <= region.byte_len);
 
-        let remaining = location.byte_len - location.byte_offset;
+        let remaining = region.byte_len - region.byte_offset;
         if start > remaining {
-            return Err(HeapError::InvalidSharedRawPointer { pointer });
+            return Err(HeapError::invalid_shared_raw_pointer(pointer));
         }
 
-        let byte_offset = location.byte_offset + start;
-        let remaining = location.byte_len - byte_offset;
+        let byte_offset = region.byte_offset + start;
+        let remaining = region.byte_len - byte_offset;
         if byte_len > remaining {
-            return Err(HeapError::InvalidSharedRawPointer { pointer });
+            return Err(HeapError::invalid_shared_raw_pointer(pointer));
         }
 
-        Ok((location, byte_offset))
+        Ok((region, byte_offset))
     }
 
     /// Record one page-map entry for every page in one page run.
@@ -509,7 +511,7 @@ impl SharedRawSpace {
         allocation_index: usize,
     ) {
         let mut page_map = self.page_map.write();
-        let first_page_index = first_offset / self.page_bytes();
+        let first_page_index = first_offset / self.page_size_bytes();
 
         for logical_page_index in 0..page_run.len() {
             let page_index = first_page_index + logical_page_index;
@@ -528,7 +530,7 @@ impl SharedRawSpace {
     /// Clear every page-map entry for one page run.
     pub(crate) fn unmap_page_run(&self, first_offset: usize, page_run: &PageRun) {
         let mut page_map = self.page_map.write();
-        let first_page_index = first_offset / self.page_bytes();
+        let first_page_index = first_offset / self.page_size_bytes();
 
         for logical_page_index in 0..page_run.len() {
             let page_index = first_page_index + logical_page_index;
@@ -548,7 +550,7 @@ impl SharedRawSpace {
         allocation_index: usize,
     ) {
         let mut page_map = self.page_map.write();
-        let first_page_index = first_offset / self.page_bytes();
+        let first_page_index = first_offset / self.page_size_bytes();
 
         // publish the next entries over the shared prefix
         for logical_page_index in 0..next.len() {
@@ -582,7 +584,7 @@ impl SharedRawSpace {
         let mapping_byte_len = self.mapping.read().byte_len();
         debug_assert!(state.next_offset <= mapping_byte_len);
 
-        let alignment = alignment.max(self.allocator.page_bytes());
+        let alignment = alignment.max(self.allocator.page_size_bytes());
         let first_offset = align_up(state.next_offset, alignment);
         let next_offset = first_offset + byte_len;
         if next_offset > mapping_byte_len {
@@ -609,6 +611,7 @@ impl SharedRawSpace {
         match payload {
             Payload::Bytes(bytes) => self.write_mapped_bytes(offset, bytes),
             Payload::Zeroed => self.clear_mapped_bytes(offset, clear_byte_len),
+            Payload::Uninit => {}
         }
     }
 
@@ -651,27 +654,27 @@ pub(crate) struct SharedRawState {
 
 impl SharedRawState {
     /// Return the exact retained bytes owned by live allocations and cached page runs.
-    pub(crate) fn retained_bytes(&self, page_bytes: usize) -> u64 {
-        self.live_retained_bytes + self.page_run_cache.cached_bytes(page_bytes)
+    pub(crate) fn retained_bytes(&self, page_size_bytes: usize) -> u64 {
+        self.live_retained_bytes + self.page_run_cache.cached_bytes(page_size_bytes)
     }
 
     /// Return the exact raw-space usage.
-    pub(crate) fn usage(&self, page_bytes: usize) -> SharedRawSpaceUsage {
+    pub(crate) fn usage(&self, page_size_bytes: usize) -> SharedRawSpaceUsage {
         SharedRawSpaceUsage {
             allocation_count: self.usage.allocation_count(),
             allocated_bytes: self.usage.allocated_bytes(),
-            retained_bytes: self.retained_bytes(page_bytes),
+            retained_bytes: self.retained_bytes(page_size_bytes),
         }
     }
 
     /// Add one live raw allocation page run to retained accounting.
-    pub(crate) fn retain_pages(&mut self, page_run: PageRun, page_bytes: usize) {
-        self.live_retained_bytes += page_run.len() as u64 * page_bytes as u64;
+    pub(crate) fn retain_pages(&mut self, page_run: PageRun, page_size_bytes: usize) {
+        self.live_retained_bytes += page_run.len() as u64 * page_size_bytes as u64;
     }
 
     /// Remove one live raw allocation page run from retained accounting.
-    pub(crate) fn release_pages(&mut self, page_run: PageRun, page_bytes: usize) {
-        self.live_retained_bytes -= page_run.len() as u64 * page_bytes as u64;
+    pub(crate) fn release_pages(&mut self, page_run: PageRun, page_size_bytes: usize) {
+        self.live_retained_bytes -= page_run.len() as u64 * page_size_bytes as u64;
     }
 }
 

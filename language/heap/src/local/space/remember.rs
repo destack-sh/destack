@@ -82,13 +82,10 @@ impl HeapSpace {
         trace_map: &TraceMap,
     ) -> HeapResult<()> {
         let Some(span) = self.span(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
+            return Err(HeapError::internal("missing span"));
         };
         if !span.occupied.contains(slot_index) {
-            return Err(HeapError::MissingSmallSlot {
-                span_index,
-                slot_index,
-            });
+            return Err(HeapError::internal("missing small slot"));
         }
 
         let is_overlapping = overlaps_heap_range(trace_map, byte_offset, byte_len);
@@ -130,9 +127,7 @@ impl HeapSpace {
         byte_len: usize,
     ) -> HeapResult<()> {
         let Some(allocation) = self.large_allocation(allocation_id) else {
-            return Err(HeapError::MissingLargeAllocation {
-                allocation_id: allocation_id.id(),
-            });
+            return Err(HeapError::internal("missing large allocation"));
         };
         let is_overlapping = overlaps_heap_range(&allocation.trace_map, byte_offset, byte_len);
         if !is_overlapping {

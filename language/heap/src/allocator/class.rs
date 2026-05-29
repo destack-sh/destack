@@ -1,25 +1,9 @@
+use std::sync::Arc;
+
 use serde::{Deserialize, Serialize};
 
-use crate::HeapError;
-
-/// The default small object size classes, excluding class zero.
-const DEFAULT_SIZE_CLASS_BYTES: [usize; 67] = [
-    8, 16, 24, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256, 288, 320, 352,
-    384, 416, 448, 480, 512, 576, 640, 704, 768, 896, 1024, 1152, 1280, 1408, 1536, 1792, 2048,
-    2304, 2688, 3072, 3200, 3456, 4096, 4864, 5376, 6144, 6528, 6784, 6912, 8192, 9472, 9728,
-    10240, 10880, 12288, 13568, 14336, 16384, 18432, 19072, 20480, 21760, 24576, 27264, 28672,
-    32768,
-];
-
-/// The page width used by the canonical size-class table.
-const SIZE_CLASS_TABLE_PAGE_BYTES: usize = 8 * 1024;
-
-/// The default small object span page counts, excluding class zero.
-const DEFAULT_SIZE_CLASS_SPAN_PAGE_COUNTS: [usize; 67] = [
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 2, 1, 2, 1, 2, 1, 3, 2, 3, 1, 3, 2, 3, 4, 5, 6, 1, 7, 6, 5, 4, 3, 5, 7, 2, 9, 7, 5, 8, 3,
-    10, 7, 4,
-];
+use super::constants::{DEFAULT_MAX_SMALL_ALLOCATION_BYTES, DEFAULT_SIZE_CLASS_TABLE_CLASSES};
+use crate::{HeapConfigurationError, HeapError, SizeClassPolicyError, SizeClassTableError};
 
 /// One policy for generating size classes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -30,10 +14,10 @@ pub struct SizeClassPolicy {
     pub max_bytes: usize,
     /// The required alignment for every generated size class.
     pub alignment_bytes: usize,
-    /// The maximum internal waste numerator between adjacent classes.
-    pub max_waste_numerator: usize,
-    /// The maximum internal waste denominator between adjacent classes.
-    pub max_waste_denominator: usize,
+    /// The maximum internal fragmentation numerator between adjacent classes.
+    pub max_fragmentation_numerator: usize,
+    /// The maximum internal fragmentation denominator between adjacent classes.
+    pub max_fragmentation_denominator: usize,
 }
 
 impl Default for SizeClassPolicy {
@@ -42,8 +26,8 @@ impl Default for SizeClassPolicy {
             min_bytes: Self::DEFAULT_MIN_BYTES,
             max_bytes: Self::DEFAULT_MAX_BYTES,
             alignment_bytes: Self::DEFAULT_ALIGNMENT_BYTES,
-            max_waste_numerator: Self::DEFAULT_MAX_WASTE_NUMERATOR,
-            max_waste_denominator: Self::DEFAULT_MAX_WASTE_DENOMINATOR,
+            max_fragmentation_numerator: Self::DEFAULT_MAX_FRAGMENTATION_NUMERATOR,
+            max_fragmentation_denominator: Self::DEFAULT_MAX_FRAGMENTATION_DENOMINATOR,
         }
     }
 }
@@ -52,13 +36,13 @@ impl SizeClassPolicy {
     /// The default minimum size class in bytes.
     pub const DEFAULT_MIN_BYTES: usize = 8;
     /// The default maximum size class in bytes.
-    pub const DEFAULT_MAX_BYTES: usize = 32 * 1024;
+    pub const DEFAULT_MAX_BYTES: usize = DEFAULT_MAX_SMALL_ALLOCATION_BYTES;
     /// The default size class alignment in bytes.
     pub const DEFAULT_ALIGNMENT_BYTES: usize = 8;
-    /// The default maximum internal waste numerator.
-    pub const DEFAULT_MAX_WASTE_NUMERATOR: usize = 1;
-    /// The default maximum internal waste denominator.
-    pub const DEFAULT_MAX_WASTE_DENOMINATOR: usize = 4;
+    /// The default maximum internal fragmentation numerator.
+    pub const DEFAULT_MAX_FRAGMENTATION_NUMERATOR: usize = 1;
+    /// The default maximum internal fragmentation denominator.
+    pub const DEFAULT_MAX_FRAGMENTATION_DENOMINATOR: usize = 4;
 
     /// Generate the custom size-class table described by this policy.
     pub fn size_classes(self) -> Result<SizeClassTable, HeapError> {
@@ -81,9 +65,9 @@ impl SizeClassPolicy {
 
         while bytes < max_bytes {
             let previous_boundary = bytes + 1;
-            let waste_step =
-                previous_boundary * self.max_waste_numerator / self.max_waste_denominator;
-            let step = waste_step.max(self.alignment_bytes);
+            let fragmentation_step = previous_boundary * self.max_fragmentation_numerator
+                / self.max_fragmentation_denominator;
+            let step = fragmentation_step.max(self.alignment_bytes);
             let step = align_down(step, self.alignment_bytes).max(self.alignment_bytes);
             let next_bytes = align_up(bytes + step, self.alignment_bytes);
 
@@ -97,27 +81,43 @@ impl SizeClassPolicy {
     /// Validate this small allocation policy.
     fn validate(self) -> Result<(), HeapError> {
         if self.min_bytes == 0 || self.max_bytes == 0 {
-            return Err(HeapError::ZeroSizeClass);
+            return Err(HeapError::configuration(
+                HeapConfigurationError::InvalidSizeClassTable {
+                    reason: SizeClassTableError::ZeroSizeClass,
+                },
+            ));
         }
 
         if self.min_bytes > self.max_bytes {
-            return Err(HeapError::InvalidSizeClassPolicyRange {
-                min_bytes: self.min_bytes,
-                max_bytes: self.max_bytes,
-            });
+            return Err(HeapError::configuration(
+                HeapConfigurationError::InvalidSizeClassPolicy {
+                    reason: SizeClassPolicyError::InvalidRange {
+                        min_bytes: self.min_bytes,
+                        max_bytes: self.max_bytes,
+                    },
+                },
+            ));
         }
 
         if self.alignment_bytes == 0 || !self.alignment_bytes.is_power_of_two() {
-            return Err(HeapError::InvalidSizeClassPolicyAlignment {
-                alignment_bytes: self.alignment_bytes,
-            });
+            return Err(HeapError::configuration(
+                HeapConfigurationError::InvalidSizeClassPolicy {
+                    reason: SizeClassPolicyError::InvalidAlignment {
+                        alignment_bytes: self.alignment_bytes,
+                    },
+                },
+            ));
         }
 
-        if self.max_waste_numerator == 0 || self.max_waste_denominator == 0 {
-            return Err(HeapError::InvalidSizeClassPolicyWaste {
-                numerator: self.max_waste_numerator,
-                denominator: self.max_waste_denominator,
-            });
+        if self.max_fragmentation_numerator == 0 || self.max_fragmentation_denominator == 0 {
+            return Err(HeapError::configuration(
+                HeapConfigurationError::InvalidSizeClassPolicy {
+                    reason: SizeClassPolicyError::InvalidFragmentation {
+                        numerator: self.max_fragmentation_numerator,
+                        denominator: self.max_fragmentation_denominator,
+                    },
+                },
+            ));
         }
 
         Ok(())
@@ -130,7 +130,7 @@ pub struct SizeClass {
     /// The slot payload size in bytes.
     pub bytes: usize,
     /// The span width in bytes, or zero for the default span size.
-    pub span_bytes: usize,
+    pub span_size_bytes: usize,
 }
 
 impl SizeClass {
@@ -138,26 +138,29 @@ impl SizeClass {
     pub const fn new(bytes: usize) -> Self {
         Self {
             bytes,
-            span_bytes: 0,
+            span_size_bytes: 0,
         }
     }
 
     /// Create one size class with an explicit span byte width.
-    pub const fn with_span_bytes(bytes: usize, span_bytes: usize) -> Self {
-        Self { bytes, span_bytes }
+    pub const fn with_span_size_bytes(bytes: usize, span_size_bytes: usize) -> Self {
+        Self {
+            bytes,
+            span_size_bytes,
+        }
     }
 
     /// Return the span byte width for this size class.
-    pub fn span_bytes(self, page_bytes: usize, default_span_bytes: usize) -> usize {
-        let span_bytes = if self.span_bytes == 0 {
-            default_span_bytes
+    pub fn span_size_bytes(self, page_size_bytes: usize, default_span_size_bytes: usize) -> usize {
+        let span_size_bytes = if self.span_size_bytes == 0 {
+            default_span_size_bytes
         } else {
-            self.span_bytes
+            self.span_size_bytes
         };
-        let span_bytes = span_bytes.div_ceil(page_bytes) * page_bytes;
-        let minimum_span_bytes = self.bytes.div_ceil(page_bytes) * page_bytes;
+        let span_size_bytes = span_size_bytes.div_ceil(page_size_bytes) * page_size_bytes;
+        let minimum_span_size_bytes = self.bytes.div_ceil(page_size_bytes) * page_size_bytes;
 
-        span_bytes.max(minimum_span_bytes)
+        span_size_bytes.max(minimum_span_size_bytes)
     }
 }
 
@@ -165,7 +168,7 @@ impl SizeClass {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SizeClassTable {
     /// The ordered size classes in bytes.
-    pub classes: Vec<SizeClass>,
+    pub classes: Arc<[SizeClass]>,
 }
 
 impl SizeClassTable {
@@ -176,22 +179,18 @@ impl SizeClassTable {
         Self::validate(&classes)?;
 
         Ok(Self {
-            classes: classes.into_iter().map(SizeClass::new).collect(),
+            classes: classes
+                .into_iter()
+                .map(SizeClass::new)
+                .collect::<Vec<_>>()
+                .into(),
         })
     }
 
     /// Return the default size-class table.
     pub fn default_table() -> Self {
         Self {
-            classes: DEFAULT_SIZE_CLASS_BYTES
-                .iter()
-                .zip(DEFAULT_SIZE_CLASS_SPAN_PAGE_COUNTS)
-                .map(|(&bytes, span_page_count)| {
-                    let span_bytes = span_page_count * SIZE_CLASS_TABLE_PAGE_BYTES;
-
-                    SizeClass::with_span_bytes(bytes, span_bytes)
-                })
-                .collect(),
+            classes: DEFAULT_SIZE_CLASS_TABLE_CLASSES.clone(),
         }
     }
 
@@ -255,7 +254,11 @@ impl SizeClassTable {
     fn validate(classes: &[usize]) -> Result<(), HeapError> {
         // reject empty tables
         if classes.is_empty() {
-            return Err(HeapError::EmptySizeClassTable);
+            return Err(HeapError::configuration(
+                HeapConfigurationError::InvalidSizeClassTable {
+                    reason: SizeClassTableError::Empty,
+                },
+            ));
         }
 
         // validate each class in order
@@ -263,12 +266,20 @@ impl SizeClassTable {
         for &bytes in classes {
             // can't have zero
             if bytes == 0 {
-                return Err(HeapError::ZeroSizeClass);
+                return Err(HeapError::configuration(
+                    HeapConfigurationError::InvalidSizeClassTable {
+                        reason: SizeClassTableError::ZeroSizeClass,
+                    },
+                ));
             }
 
             // require strict monotonic growth
             if bytes <= previous {
-                return Err(HeapError::NonMonotonicSizeClass { previous, bytes });
+                return Err(HeapError::configuration(
+                    HeapConfigurationError::InvalidSizeClassTable {
+                        reason: SizeClassTableError::NonMonotonic { previous, bytes },
+                    },
+                ));
             }
 
             previous = bytes;

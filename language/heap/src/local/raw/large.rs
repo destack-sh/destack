@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::allocator::PageRun;
-use crate::{HeapError, HeapResult};
+use crate::{HeapError, HeapRepresentationError, HeapResult};
 
 /// One live raw large allocation.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,7 +44,9 @@ impl LargeAllocationId {
     /// Return the zero-based large-allocation slot index.
     pub(crate) fn index(self) -> HeapResult<usize> {
         let Some(index) = self.0.checked_sub(1) else {
-            return Err(HeapError::InvalidLargeAllocationId { id: self.0 });
+            return Err(HeapError::representation(
+                HeapRepresentationError::InvalidLargeAllocationId { id: self.0 },
+            ));
         };
 
         Ok(index as usize)

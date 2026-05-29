@@ -1,6 +1,8 @@
 use crate::shared::gc::SharedGcPhase;
 use crate::shared::space::SharedHeapSpace;
-use crate::{GcKind, GcProgress, GcStats, HeapError, HeapResult, SharedHeapReference};
+use crate::{
+    GcKind, GcProgress, GcStats, HeapError, HeapGcStateError, HeapResult, SharedHeapReference,
+};
 
 /// The budget charged for one metadata-only sweep step.
 const METADATA_STEP_BYTES: usize = 1;
@@ -13,7 +15,7 @@ impl SharedHeapSpace {
 
         // phase
         if self.gc.phase() != SharedGcPhase::Mark {
-            return Err(HeapError::SharedCollectionNotMarking);
+            return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotMarking));
         }
 
         // termination
@@ -42,7 +44,9 @@ impl SharedHeapSpace {
         match self.gc.phase() {
             SharedGcPhase::Sweep => {}
             SharedGcPhase::Idle => return Ok(GcProgress::Idle),
-            SharedGcPhase::Mark => return Err(HeapError::SharedCollectionNotSweeping),
+            SharedGcPhase::Mark => {
+                return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotSweeping));
+            }
         }
 
         // active cursor
@@ -139,7 +143,9 @@ impl SharedHeapSpace {
     /// Finish one completed shared collection cycle.
     fn finish_collection(&self) -> HeapResult<GcStats> {
         let mut store = self.state.write();
-        let usage = self.accounting.usage(&store, self.allocator.page_bytes());
+        let usage = self
+            .accounting
+            .usage(&store, self.allocator.page_size_bytes());
 
         // cycle stats
         let (freed_allocations, freed_bytes) = self.gc.sweep_freed();

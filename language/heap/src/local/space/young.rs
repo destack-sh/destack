@@ -1,10 +1,8 @@
-use std::collections::BTreeMap;
-
 use serde::{Deserialize, Serialize};
 
 use crate::allocator::{Allocator, Bitmap, PageRun, PageRunCache};
 
-use crate::{HeapReference, HeapResult, SmallSpanClass};
+use crate::{AllocationUsage, HeapReference, HeapResult, SmallSpanClass};
 
 /// One live heap young space.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -12,7 +10,7 @@ pub(crate) struct YoungSpace {
     /// The configured byte capacity for the young space.
     pub(crate) capacity_bytes: usize,
     /// The fixed page width for young space.
-    pub(crate) page_bytes: usize,
+    pub(crate) page_size_bytes: usize,
     /// The bump-allocation cursor inside the logical young byte space.
     pub(crate) next_offset: usize,
     /// The first byte offset after the materialized young-space prefix.
@@ -38,8 +36,8 @@ pub(crate) struct YoungSpace {
     pub(crate) runs: Vec<YoungRun>,
     /// The fixed-size young run bits.
     pub(crate) run_bits: Vec<YoungRunBits>,
-    /// The active run for each exact small-span class.
-    pub(crate) run_buckets: BTreeMap<SmallSpanClass, usize>,
+    /// The reusable run for each exact small allocation cache index.
+    pub(crate) run_cache: Vec<Option<usize>>,
     /// The active fixed-size young run cursor.
     pub(crate) run_cursor: YoungRunCursor,
     /// The owning run for each young-space page.
@@ -51,16 +49,16 @@ impl YoungSpace {
     pub(crate) fn new(
         allocator: &Allocator,
         capacity_bytes: usize,
-        page_bytes: usize,
+        page_size_bytes: usize,
         allocation_alignment_bytes: usize,
         cache: &mut PageRunCache,
     ) -> HeapResult<Self> {
         let reference_bit_capacity = capacity_bytes.div_ceil(std::mem::size_of::<usize>());
-        let page_count = capacity_bytes.div_ceil(page_bytes);
+        let page_count = capacity_bytes.div_ceil(page_size_bytes);
 
         Ok(Self {
             capacity_bytes,
-            page_bytes,
+            page_size_bytes,
             next_offset: allocation_alignment_bytes,
             mapped_until: 0,
             allocation_alignment_bytes,
@@ -72,7 +70,7 @@ impl YoungSpace {
             shared_reference_bits: Bitmap::with_capacity(reference_bit_capacity),
             runs: Vec::new(),
             run_bits: Vec::new(),
-            run_buckets: BTreeMap::new(),
+            run_cache: Vec::new(),
             run_cursor: YoungRunCursor::inactive(),
             page_runs: vec![None; page_count],
         })
@@ -190,17 +188,26 @@ impl YoungSpace {
         Some(run.reserved_slot_count_with(next_offset))
     }
 
+    /// Return the uncommitted usage held by the active run cursor.
+    #[inline(always)]
+    pub(crate) fn pending_run_cursor_usage(&self) -> AllocationUsage {
+        self.run_cursor.pending_usage()
+    }
+
     /// Flush the active young run cursor into run metadata.
     #[inline(always)]
-    pub(crate) fn flush_run_cursor(&mut self) {
+    pub(crate) fn flush_run_cursor(&mut self) -> AllocationUsage {
         if !self.run_cursor.is_active() {
-            return;
+            return AllocationUsage::default();
         }
 
+        let usage = self.run_cursor.flush_usage();
         let run_index = self.run_cursor.run_index;
         if let Some(run) = self.runs.get_mut(run_index) {
             run.next_offset = self.run_cursor.next_offset;
         }
+
+        usage
     }
 
     /// Return runs with the active cursor written into the clone.
@@ -220,22 +227,25 @@ impl YoungSpace {
     #[inline(always)]
     pub(crate) fn activate_run_cursor(
         &mut self,
-        minimum_byte_len: usize,
+        byte_len: usize,
         class: SmallSpanClass,
         run_index: usize,
     ) -> Option<()> {
         if self.run_cursor.is_active() && self.run_cursor.run_index == run_index {
-            return Some(());
+            return self.run_cursor.matches(class, byte_len).then_some(());
         }
 
-        self.flush_run_cursor();
-
         let run = self.run(run_index)?;
+        if run.byte_len != byte_len || run.class != class {
+            return None;
+        }
+
         self.run_cursor = YoungRunCursor {
-            minimum_byte_len,
+            byte_len,
             class,
             run_index,
             next_offset: run.next_offset,
+            accounted_offset: run.next_offset,
             end_offset: run.end_offset,
         };
 
@@ -257,6 +267,8 @@ impl YoungSpace {
 pub(crate) struct YoungRun {
     /// The first byte offset inside young space.
     pub(crate) first_offset: usize,
+    /// The exact logical payload byte length for each slot.
+    pub(crate) byte_len: usize,
     /// The next byte offset allocated from this run.
     pub(crate) next_offset: usize,
     /// The byte offset after this run.
@@ -271,14 +283,19 @@ impl YoungRun {
         self.class
     }
 
+    /// Return the exact logical payload byte length for each slot.
+    pub(crate) const fn byte_len(&self) -> usize {
+        self.byte_len
+    }
+
     /// Return the total byte length of this run.
-    pub(crate) const fn span_bytes(&self) -> usize {
+    pub(crate) const fn span_size_bytes(&self) -> usize {
         self.end_offset - self.first_offset
     }
 
     /// Return the number of slots in this run.
     pub(crate) const fn slot_count(&self) -> usize {
-        self.span_bytes() / self.class.size_class
+        self.span_size_bytes() / self.class.size_class
     }
 
     /// Return the number of slots reserved through one next offset.
@@ -296,14 +313,16 @@ impl YoungRun {
 /// The active fixed-size young run.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct YoungRunCursor {
-    /// The smallest payload byte length allocated by this cursor.
-    pub(crate) minimum_byte_len: usize,
+    /// The exact payload byte length allocated by this cursor.
+    pub(crate) byte_len: usize,
     /// The fixed slot class allocated by this cursor.
     pub(crate) class: SmallSpanClass,
     /// The run index written back when this cursor changes.
     pub(crate) run_index: usize,
     /// The next byte offset allocated by this cursor.
     pub(crate) next_offset: usize,
+    /// The next byte offset already published into usage accounting.
+    pub(crate) accounted_offset: usize,
     /// The byte offset after this cursor.
     pub(crate) end_offset: usize,
 }
@@ -312,10 +331,11 @@ impl YoungRunCursor {
     /// Return an inactive young run cursor.
     pub(crate) const fn inactive() -> Self {
         Self {
-            minimum_byte_len: 0,
+            byte_len: 0,
             class: SmallSpanClass::EMPTY,
             run_index: 0,
             next_offset: 0,
+            accounted_offset: 0,
             end_offset: 0,
         }
     }
@@ -330,11 +350,10 @@ impl YoungRunCursor {
     #[inline(always)]
     pub(crate) fn matches(&self, class: SmallSpanClass, byte_len: usize) -> bool {
         self.class.size_class == class.size_class
-            && self.class.span_bytes == class.span_bytes
+            && self.class.span_size_bytes == class.span_size_bytes
             && self.class.trace_id == class.trace_id
             && self.class.is_noscan == class.is_noscan
-            && self.minimum_byte_len <= byte_len
-            && byte_len <= self.class.size_class
+            && self.byte_len == byte_len
     }
 
     /// Reserve one reference from this cursor.
@@ -350,13 +369,50 @@ impl YoungRunCursor {
         Some(reference)
     }
 
+    /// Return the uncommitted usage held by this cursor.
+    #[inline(always)]
+    pub(crate) fn pending_usage(&self) -> AllocationUsage {
+        if !self.is_active() {
+            return AllocationUsage::default();
+        }
+
+        let allocated_bytes = self.next_offset - self.accounted_offset;
+        let allocation_count = allocated_bytes / self.class.size_class;
+
+        AllocationUsage::new(allocation_count, allocated_bytes as u64)
+    }
+
+    /// Flush uncommitted cursor usage.
+    #[inline(always)]
+    pub(crate) fn flush_usage(&mut self) -> AllocationUsage {
+        let usage = self.pending_usage();
+        self.accounted_offset = self.next_offset;
+
+        usage
+    }
+
     /// Reserve one reference when this cursor owns the requested size class.
     #[inline(always)]
     pub(crate) fn reserve_matching_reference(
         &mut self,
+        byte_len: usize,
         class: SmallSpanClass,
     ) -> Option<HeapReference> {
-        if self.class != class {
+        if !self.matches(class, byte_len) {
+            return None;
+        }
+
+        self.reserve_reference()
+    }
+
+    /// Reserve one noscan reference when this cursor owns the requested slot width.
+    #[inline(always)]
+    pub(crate) fn reserve_noscan_reference(
+        &mut self,
+        byte_len: usize,
+        class: SmallSpanClass,
+    ) -> Option<HeapReference> {
+        if !class.is_noscan || !self.matches(class, byte_len) {
             return None;
         }
 
@@ -388,7 +444,7 @@ pub(crate) struct YoungImage {
     /// The configured byte capacity for the young space.
     capacity_bytes: usize,
     /// The fixed page width for young space.
-    page_bytes: usize,
+    page_size_bytes: usize,
     /// The bump-allocation cursor inside the logical young byte space.
     next_offset: usize,
     /// The required alignment for young allocation bases.
@@ -413,7 +469,7 @@ impl YoungImage {
     /// Create one frozen young-space image.
     pub(crate) fn new(
         capacity_bytes: usize,
-        page_bytes: usize,
+        page_size_bytes: usize,
         next_offset: usize,
         allocation_alignment_bytes: usize,
         bytes: Box<[u8]>,
@@ -426,7 +482,7 @@ impl YoungImage {
     ) -> Self {
         Self {
             capacity_bytes,
-            page_bytes,
+            page_size_bytes,
             next_offset,
             allocation_alignment_bytes,
             bytes,
@@ -445,8 +501,8 @@ impl YoungImage {
     }
 
     /// Return the young page width.
-    pub(crate) const fn page_bytes(&self) -> usize {
-        self.page_bytes
+    pub(crate) const fn page_size_bytes(&self) -> usize {
+        self.page_size_bytes
     }
 
     /// Return the next bump offset.

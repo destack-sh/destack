@@ -3,16 +3,21 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use parking_lot::Mutex;
 
 use super::chunk::{Chunk, ChunkIndex, max_chunk_count};
-use super::{DEFAULT_ALLOCATOR_CHUNK_BYTES, DEFAULT_PAGE_BYTES, PageId, PageRun, PageRunSet};
-use crate::{HeapError, HeapResult, validate_allocator_chunk_bytes, validate_page_bytes};
+use super::{
+    DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES, DEFAULT_PAGE_SIZE_BYTES, PageId, PageRun, PageRunSet,
+};
+use crate::{
+    HeapError, HeapRepresentationError, HeapResult, validate_allocator_chunk_size_bytes,
+    validate_page_size_bytes,
+};
 
 /// One branchable allocator of fixed-size pages.
 #[derive(Debug)]
 pub struct Allocator {
     /// The fixed page size for every page.
-    page_bytes: u32,
+    page_size_bytes: u32,
     /// The fixed chunk size for every allocator chunk.
-    chunk_bytes: u32,
+    chunk_size_bytes: u32,
     /// The number of pages stored in each allocator chunk.
     pages_per_chunk: u32,
     /// The maximum addressable chunk count.
@@ -32,19 +37,20 @@ unsafe impl Sync for Allocator {}
 impl Allocator {
     /// Create one allocator with the default page and chunk sizes.
     pub fn try_default() -> HeapResult<Self> {
-        Self::try_new(DEFAULT_PAGE_BYTES, DEFAULT_ALLOCATOR_CHUNK_BYTES)
+        Self::try_new(DEFAULT_PAGE_SIZE_BYTES, DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES)
     }
 
     /// Create one empty allocator with the given page and chunk sizes.
-    pub fn try_new(page_bytes: usize, chunk_bytes: usize) -> HeapResult<Self> {
-        let page_bytes = validate_page_bytes(page_bytes)?;
-        let chunk_bytes = validate_allocator_chunk_bytes(page_bytes, chunk_bytes)?;
-        let pages_per_chunk = chunk_bytes / page_bytes;
-        let max_chunk_count = max_chunk_count(page_bytes, chunk_bytes);
+    pub fn try_new(page_size_bytes: usize, chunk_size_bytes: usize) -> HeapResult<Self> {
+        let page_size_bytes = validate_page_size_bytes(page_size_bytes)?;
+        let chunk_size_bytes =
+            validate_allocator_chunk_size_bytes(page_size_bytes, chunk_size_bytes)?;
+        let pages_per_chunk = chunk_size_bytes / page_size_bytes;
+        let max_chunk_count = max_chunk_count(page_size_bytes, chunk_size_bytes);
 
         Ok(Self {
-            page_bytes: page_bytes as u32,
-            chunk_bytes: chunk_bytes as u32,
+            page_size_bytes: page_size_bytes as u32,
+            chunk_size_bytes: chunk_size_bytes as u32,
             pages_per_chunk: pages_per_chunk as u32,
             max_chunk_count,
             chunk_index: ChunkIndex::new(max_chunk_count),
@@ -57,13 +63,13 @@ impl Allocator {
     }
 
     /// Return the fixed page size.
-    pub const fn page_bytes(&self) -> usize {
-        self.page_bytes as usize
+    pub const fn page_size_bytes(&self) -> usize {
+        self.page_size_bytes as usize
     }
 
     /// Return the fixed chunk size.
-    pub const fn chunk_bytes(&self) -> usize {
-        self.chunk_bytes as usize
+    pub const fn chunk_size_bytes(&self) -> usize {
+        self.chunk_size_bytes as usize
     }
 
     /// Return the maximum addressable chunk count.
@@ -103,7 +109,7 @@ impl Allocator {
             .map(|page_run| page_run.len())
             .sum::<usize>();
 
-        page_count as u64 * self.page_bytes() as u64
+        page_count as u64 * self.page_size_bytes() as u64
     }
 
     /// Share one page run with another metadata record.
@@ -120,7 +126,7 @@ impl Allocator {
             return 0;
         }
 
-        byte_len.div_ceil(self.page_bytes())
+        byte_len.div_ceil(self.page_size_bytes())
     }
 
     /// Allocate one logical page run.
@@ -176,9 +182,11 @@ impl Allocator {
 
             // reject representational overflow
             if current_count == u32::MAX {
-                return Err(HeapError::RepresentationLimitExceeded {
-                    context: "allocator run reference count",
-                });
+                return Err(HeapError::representation(
+                    HeapRepresentationError::LimitExceeded {
+                        context: "allocator run reference count",
+                    },
+                ));
             }
 
             let next_count = current_count + 1;
@@ -296,10 +304,12 @@ impl Allocator {
             };
 
             let Some(chunk) = self.chunk(chunk_index) else {
-                return Err(HeapError::AllocatorChunkLimitExceeded {
-                    required_chunks: chunk_index + 1,
-                    max_chunks: self.max_chunk_count(),
-                });
+                return Err(HeapError::representation(
+                    HeapRepresentationError::AllocatorChunkLimitExceeded {
+                        required_chunks: chunk_index + 1,
+                        max_chunks: self.max_chunk_count(),
+                    },
+                ));
             };
 
             chunk.raise_watermark(used_pages);
@@ -323,10 +333,12 @@ impl Allocator {
 
         let max_chunk_count = self.max_chunk_count();
         if end_chunk_index > max_chunk_count {
-            return Err(HeapError::AllocatorChunkLimitExceeded {
-                required_chunks: end_chunk_index,
-                max_chunks: max_chunk_count,
-            });
+            return Err(HeapError::representation(
+                HeapRepresentationError::AllocatorChunkLimitExceeded {
+                    required_chunks: end_chunk_index,
+                    max_chunks: max_chunk_count,
+                },
+            ));
         }
 
         // publish chunks before moving the frontier
@@ -382,9 +394,7 @@ impl Allocator {
     fn run_ref_count(&self, run: PageRun) -> HeapResult<&AtomicU32> {
         let (chunk_index, chunk_page_index) = self.chunk_position(run.first_page);
         let Some(chunk) = self.chunk(chunk_index) else {
-            return Err(HeapError::MissingPage {
-                page_id: run.first_page,
-            });
+            return Err(HeapError::internal("missing page"));
         };
 
         Ok(chunk.run_ref_count(chunk_page_index))
@@ -470,10 +480,12 @@ impl Allocator {
     /// Allocate and publish one chunk.
     fn allocate_chunk(&self, chunk_index: usize) -> HeapResult<()> {
         if chunk_index >= self.max_chunk_count() {
-            return Err(HeapError::AllocatorChunkLimitExceeded {
-                required_chunks: chunk_index + 1,
-                max_chunks: self.max_chunk_count(),
-            });
+            return Err(HeapError::representation(
+                HeapRepresentationError::AllocatorChunkLimitExceeded {
+                    required_chunks: chunk_index + 1,
+                    max_chunks: self.max_chunk_count(),
+                },
+            ));
         }
 
         // skip existing chunk

@@ -21,15 +21,11 @@ impl HeapSpace {
         // fixed-size young runs
         for (run_index, run) in self.young.runs.iter().enumerate() {
             let Some(bits) = self.young.run_bits(run_index) else {
-                return Err(HeapError::MissingSpan {
-                    span_index: run_index,
-                });
+                return Err(HeapError::internal("missing span"));
             };
 
             let Some(slot_count) = self.young.run_reserved_slot_count(run_index) else {
-                return Err(HeapError::MissingSpan {
-                    span_index: run_index,
-                });
+                return Err(HeapError::internal("missing span"));
             };
 
             for slot_index in 0..slot_count {

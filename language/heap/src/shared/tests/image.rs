@@ -9,7 +9,7 @@ use destack_mir::TraceMap;
 use super::{read_mapped_bytes, trace_table, write_mapped_bytes};
 
 /// The allocator chunk size for small-page shared image fixtures.
-const TEST_ALLOCATOR_CHUNK_BYTES: usize = 1024 * 1024;
+const TEST_ALLOCATOR_CHUNK_SIZE_BYTES: usize = 1024 * 1024;
 
 /// Return the logical bytes for one shared raw allocation image.
 fn raw_allocation_bytes(allocation: &crate::shared::raw::SharedRawAllocationImage) -> Vec<u8> {
@@ -20,9 +20,9 @@ fn raw_allocation_bytes(allocation: &crate::shared::raw::SharedRawAllocationImag
 #[test]
 fn test_roundtrip_shared_memory_image_and_fork() {
     let options = SharedHeapOptions {
-        page_bytes: 4,
-        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
-        heap_small_bytes: 16,
+        page_size_bytes: 4,
+        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
+        heap_small_size_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..SharedHeapOptions::default()
     };
@@ -113,9 +113,9 @@ fn test_roundtrip_shared_memory_image_and_fork() {
 #[test]
 fn test_roundtrip_shared_heap_space_image() {
     let options = SharedHeapOptions {
-        page_bytes: 4,
-        allocator_chunk_bytes: TEST_ALLOCATOR_CHUNK_BYTES,
-        heap_small_bytes: 16,
+        page_size_bytes: 4,
+        allocator_chunk_size_bytes: TEST_ALLOCATOR_CHUNK_SIZE_BYTES,
+        heap_small_size_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..SharedHeapOptions::default()
     };

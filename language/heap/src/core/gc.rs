@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{HeapError, HeapResult};
+use crate::{HeapConfigurationError, HeapError, HeapResult};
 
 /// The default proportional heap growth target after one cycle.
 pub const DEFAULT_GC_GROWTH_PERCENT: u32 = 100;
@@ -56,15 +56,19 @@ impl GcOptions {
     /// Validate this collector configuration.
     pub fn validate(self) -> HeapResult<Self> {
         if self.trigger_percent > 100 {
-            return Err(HeapError::InvalidGcTriggerPercent {
-                percent: self.trigger_percent,
-            });
+            return Err(HeapError::configuration(
+                HeapConfigurationError::InvalidGcTriggerPercent {
+                    percent: self.trigger_percent,
+                },
+            ));
         }
 
         if self.minimum_work_bytes == 0 {
-            return Err(HeapError::InvalidGcMinimumWorkBytes {
-                bytes: self.minimum_work_bytes,
-            });
+            return Err(HeapError::configuration(
+                HeapConfigurationError::InvalidGcMinimumWorkBytes {
+                    bytes: self.minimum_work_bytes,
+                },
+            ));
         }
 
         Ok(self)

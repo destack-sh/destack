@@ -1,7 +1,7 @@
 use crate::local::space::HeapPlace;
 use crate::{
-    HeapError, HeapOptions, HeapReference, HeapSpace, Payload, SizeClassTable, test_aligned_layout,
-    test_allocator, test_layout,
+    HeapAllocationError, HeapError, HeapOptions, HeapReference, HeapSpace, Payload, SizeClassTable,
+    test_aligned_layout, test_allocator, test_layout,
 };
 use destack_mir::{TraceMap, TraceVariant};
 
@@ -24,7 +24,10 @@ fn test_allocate_heap_rejects_zero_size_layout() {
         )
         .expect_err("heap allocation should reject zero-size layouts");
 
-    assert_eq!(error, HeapError::ZeroSizeAllocation);
+    assert_eq!(
+        error,
+        HeapError::invalid_allocation(HeapAllocationError::ZeroSize)
+    );
 }
 
 /// Reclaim one freed heap allocation and allow another allocation.
@@ -63,8 +66,8 @@ fn test_free_heap_reclaims_live_allocation() {
 fn test_allocate_heap_clears_reused_small_slot_tail() {
     // force small mature allocation reuse
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        heap_small_bytes: 16,
+        heap_young_size_bytes: 0,
+        heap_small_size_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -106,9 +109,9 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
     assert_eq!(bytes, &[0xCC, 0, 0, 0, 0, 0, 0, 0]);
 }
 
-/// Keep young allocations separated by size-class width.
+/// Keep young run metadata at exact payload lengths.
 #[test]
-fn test_allocate_heap_uses_size_class_stride_for_young_runs() {
+fn test_allocate_heap_tracks_exact_young_run_payload_lengths() {
     // configure both payloads into the same 16-byte young run class
     let options = HeapOptions {
         size_classes: SizeClassTable::new([8, 16]).expect("size classes should validate"),
@@ -132,10 +135,23 @@ fn test_allocate_heap_uses_size_class_stride_for_young_runs() {
         )
         .expect("second heap allocation should succeed");
 
-    // consecutive run slots should use the size-class stride
-    assert_eq!(second.offset() - first.offset(), 16);
+    // resolve each allocation through its own live metadata
+    let first_place = heap.place(first).expect("first allocation should be live");
+    let second_place = heap
+        .place(second)
+        .expect("second allocation should be live");
+    let first_byte_len = heap
+        .byte_len_for_place(first_place)
+        .expect("first allocation byte length should resolve");
+    let second_byte_len = heap
+        .byte_len_for_place(second_place)
+        .expect("second allocation byte length should resolve");
     let first_address = heap.base_address() + first.offset();
     let second_address = heap.base_address() + second.offset();
+
+    // run metadata should keep each exact payload length
+    assert_eq!(first_byte_len, 9);
+    assert_eq!(second_byte_len, 10);
 
     // payload bytes should not overlap across adjacent slots
     let first_bytes = read_mapped_bytes(first_address, 9);
@@ -150,9 +166,9 @@ fn test_allocate_heap_uses_size_class_stride_for_young_runs() {
 fn test_allocate_heap_routes_tagged_trace_map_to_large() {
     // tagged trace maps require allocation records, not young run metadata
     let options = HeapOptions {
-        heap_young_bytes: 64,
-        max_heap_young_allocation_bytes: 64,
-        heap_small_bytes: 64,
+        heap_young_size_bytes: 64,
+        max_heap_young_allocation_size_bytes: 64,
+        heap_small_size_bytes: 64,
         size_classes: SizeClassTable::new([16]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -186,9 +202,9 @@ fn test_allocate_heap_routes_tagged_trace_map_to_large() {
 fn test_allocate_heap_honors_layout_alignment() {
     // use a size class that can satisfy 16-byte alignment
     let options = HeapOptions {
-        heap_young_bytes: 64,
-        max_heap_young_allocation_bytes: 64,
-        heap_small_bytes: 64,
+        heap_young_size_bytes: 64,
+        max_heap_young_allocation_size_bytes: 64,
+        heap_small_size_bytes: 64,
         size_classes: SizeClassTable::new([8, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -220,8 +236,8 @@ fn test_allocate_heap_honors_layout_alignment() {
 fn test_write_heap_rejects_interior_reference_crossing_bounds() {
     // allocate one small mature payload and form an interior reference near the end
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        heap_small_bytes: 8,
+        heap_young_size_bytes: 0,
+        heap_small_size_bytes: 8,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -256,8 +272,8 @@ fn test_write_heap_rejects_interior_reference_crossing_bounds() {
 fn test_free_heap_reclaims_large_allocation() {
     // force allocations larger than the local small span classes
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        heap_small_bytes: 32,
+        heap_young_size_bytes: 0,
+        heap_small_size_bytes: 32,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -304,5 +320,5 @@ fn test_free_heap_rejects_invalid_reference() {
     let reference = HeapReference::new(7);
     let error = heap.free(reference).expect_err("heap free should fail");
 
-    assert_eq!(error, HeapError::InvalidHeapReference { reference });
+    assert_eq!(error, HeapError::invalid_heap_reference(reference));
 }

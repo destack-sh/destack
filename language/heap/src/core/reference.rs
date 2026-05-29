@@ -1,7 +1,9 @@
 use destack_mir::{TraceMap, TraceVariant};
 
 use crate::allocator::Bitmap;
-use crate::{HeapError, HeapReference, HeapResult, RootSlot, SharedHeapReference};
+use crate::{
+    HeapError, HeapReference, HeapRepresentationError, HeapResult, RootSlot, SharedHeapReference,
+};
 
 /// Native reference field width.
 const REFERENCE_BYTES: usize = std::mem::size_of::<usize>();
@@ -842,17 +844,21 @@ fn reference_bits_from_bytes(bytes: &[u8], start: usize, offset: usize) -> HeapR
 /// Return one immutable reference byte window.
 fn reference_bytes(bytes: &[u8], start: usize, offset: usize, width: usize) -> HeapResult<&[u8]> {
     let Some(local_start) = offset.checked_sub(start) else {
-        return Err(HeapError::TruncatedReferenceBytes {
-            start: offset,
-            width,
-        });
+        return Err(HeapError::representation(
+            HeapRepresentationError::TruncatedReferenceBytes {
+                start: offset,
+                width,
+            },
+        ));
     };
     let local_end = local_start + width;
     let Some(window) = bytes.get(local_start..local_end) else {
-        return Err(HeapError::TruncatedReferenceBytes {
-            start: local_start,
-            width,
-        });
+        return Err(HeapError::representation(
+            HeapRepresentationError::TruncatedReferenceBytes {
+                start: local_start,
+                width,
+            },
+        ));
     };
 
     Ok(window)
@@ -866,17 +872,21 @@ fn reference_bytes_mut(
     width: usize,
 ) -> HeapResult<&mut [u8]> {
     let Some(local_start) = offset.checked_sub(start) else {
-        return Err(HeapError::TruncatedReferenceBytes {
-            start: offset,
-            width,
-        });
+        return Err(HeapError::representation(
+            HeapRepresentationError::TruncatedReferenceBytes {
+                start: offset,
+                width,
+            },
+        ));
     };
     let local_end = local_start + width;
     let Some(window) = bytes.get_mut(local_start..local_end) else {
-        return Err(HeapError::TruncatedReferenceBytes {
-            start: local_start,
-            width,
-        });
+        return Err(HeapError::representation(
+            HeapRepresentationError::TruncatedReferenceBytes {
+                start: local_start,
+                width,
+            },
+        ));
     };
 
     Ok(window)
@@ -945,10 +955,10 @@ mod tests {
 
         assert_eq!(
             error,
-            HeapError::TruncatedReferenceBytes {
+            HeapError::representation(HeapRepresentationError::TruncatedReferenceBytes {
                 start: 0,
                 width: SharedHeapReference::BYTE_LEN,
-            }
+            })
         );
     }
 }

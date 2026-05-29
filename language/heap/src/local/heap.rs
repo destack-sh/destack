@@ -7,8 +7,8 @@ use crate::local::raw::RawSpace;
 use crate::local::space::HeapSpace;
 use crate::{
     AllocationPlan, AllocationShape, AllocationSite, GcPacer, GcPressure, GcProgress, GcState,
-    GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload,
-    RawAllocationShape, RawPointer, RootSlot, SharedHeapReference,
+    GcStats, HeapAllocationError, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult,
+    Payload, RawAllocationShape, RawPointer, RootSlot, SharedHeapReference, SmallAllocationSite,
 };
 
 /// One live heap over one shared allocator.
@@ -287,15 +287,64 @@ impl Heap {
         }
     }
 
-    /// Allocate one managed heap allocation.
+    /// Allocate one zeroed dynamic managed heap allocation.
     #[inline(always)]
-    pub fn allocate(
+    pub fn allocate_dynamic_zeroed(
+        &mut self,
+        shape: AllocationShape<'_>,
+    ) -> HeapResult<HeapReference> {
+        let layout = self.heap.allocation_plan(shape);
+
+        self.allocate_dynamic_payload(&layout, Payload::Zeroed)
+    }
+
+    /// Allocate one uninitialized dynamic managed heap allocation.
+    #[inline(always)]
+    pub fn allocate_dynamic_uninit(
+        &mut self,
+        shape: AllocationShape<'_>,
+    ) -> HeapResult<HeapReference> {
+        let layout = self.heap.allocation_plan(shape);
+
+        self.allocate_dynamic_payload(&layout, Payload::Uninit)
+    }
+
+    /// Allocate one byte-initialized dynamic managed heap allocation.
+    #[inline(always)]
+    pub fn allocate_dynamic_bytes(
+        &mut self,
+        shape: AllocationShape<'_>,
+        bytes: &[u8],
+    ) -> HeapResult<HeapReference> {
+        let layout = self.heap.allocation_plan(shape);
+
+        self.allocate_dynamic_payload(&layout, Payload::Bytes(bytes))
+    }
+
+    /// Allocate one allocator-planned dynamic payload.
+    #[inline(always)]
+    pub(crate) fn allocate_dynamic_payload(
         &mut self,
         layout: &AllocationPlan<'_>,
         allocation: Payload<'_>,
     ) -> HeapResult<HeapReference> {
-        if self.heap.layout_fits_young(layout) {
-            return self.heap.allocate(layout, allocation);
+        if layout.is_empty() {
+            return Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize));
+        }
+
+        if let Some(actual) = allocation.byte_len()
+            && actual != layout.byte_len
+        {
+            return Err(HeapError::invalid_allocation(
+                HeapAllocationError::ByteLengthMismatch {
+                    expected: layout.byte_len,
+                    actual,
+                },
+            ));
+        }
+
+        if let Some(reference) = self.heap.reserve_young_payload(layout, allocation)? {
+            return Ok(reference);
         }
 
         let retained_byte_delta = self.heap.retained_byte_delta(layout)?;
@@ -314,118 +363,126 @@ impl Heap {
         Ok(reference)
     }
 
-    /// Allocate one byte-initialized managed heap allocation.
+    /// Reserve one zeroed noscan small payload from the active young run.
     #[inline(always)]
-    pub fn allocate_bytes(
+    pub fn reserve_small_noscan_zeroed(
         &mut self,
-        layout: &AllocationPlan<'_>,
-        bytes: &[u8],
-    ) -> HeapResult<HeapReference> {
-        if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
+        allocation: SmallAllocationSite,
+    ) -> Option<HeapReference> {
+        self.reserve_small_noscan(allocation)
+    }
+
+    /// Reserve one uninitialized noscan small payload from the active young run.
+    #[inline(always)]
+    pub fn reserve_small_noscan_uninit(
+        &mut self,
+        allocation: SmallAllocationSite,
+    ) -> Option<HeapReference> {
+        self.reserve_small_noscan(allocation)
+    }
+
+    /// Reserve one zeroed scanned small payload from the active young run.
+    #[inline(always)]
+    pub fn reserve_small_scan_zeroed(
+        &mut self,
+        allocation: SmallAllocationSite,
+    ) -> Option<HeapReference> {
+        self.reserve_small_scan(allocation)
+    }
+
+    /// Reserve one uninitialized scanned small payload from the active young run.
+    #[inline(always)]
+    pub fn reserve_small_scan_uninit(
+        &mut self,
+        allocation: SmallAllocationSite,
+    ) -> Option<HeapReference> {
+        self.reserve_small_scan(allocation)
+    }
+
+    /// Reserve one zeroed small payload that may point into shared heap.
+    #[inline(always)]
+    pub fn reserve_small_shared_edge_zeroed(
+        &mut self,
+        allocation: SmallAllocationSite,
+    ) -> Option<HeapReference> {
+        self.reserve_small_shared_edge(allocation)
+    }
+
+    /// Reserve one uninitialized small payload that may point into shared heap.
+    #[inline(always)]
+    pub fn reserve_small_shared_edge_uninit(
+        &mut self,
+        allocation: SmallAllocationSite,
+    ) -> Option<HeapReference> {
+        self.reserve_small_shared_edge(allocation)
+    }
+
+    /// Reserve one no-scan small payload.
+    #[inline(always)]
+    fn reserve_small_noscan(&mut self, allocation: SmallAllocationSite) -> Option<HeapReference> {
+        self.heap
+            .reserve_young_noscan_run_cursor(allocation.byte_len, allocation.span_class())
+    }
+
+    /// Reserve one scanned small payload.
+    #[inline(always)]
+    fn reserve_small_scan(&mut self, allocation: SmallAllocationSite) -> Option<HeapReference> {
+        if self.heap.major_gc_active() {
+            return None;
         }
 
-        if bytes.len() != layout.byte_len {
-            return Err(HeapError::InvalidAllocationBytes {
-                expected: layout.byte_len,
-                actual: bytes.len(),
-            });
+        self.heap
+            .reserve_young_run_cursor(allocation.byte_len, allocation.span_class())
+    }
+
+    /// Reserve one small payload that may point into shared heap.
+    #[inline(always)]
+    fn reserve_small_shared_edge(
+        &mut self,
+        allocation: SmallAllocationSite,
+    ) -> Option<HeapReference> {
+        if self.heap.major_gc_active() {
+            return None;
         }
 
-        if let Some(reference) = self.heap.try_allocate_young_bytes(layout, bytes)? {
-            return Ok(reference);
-        }
-
-        let retained_byte_delta = self.heap.retained_byte_delta(layout)?;
-
-        // check the projected heap retained-byte delta first
-        self.check_retained_byte_delta(retained_byte_delta, 0)?;
-
-        // then allocate from mature space
         let reference = self
             .heap
-            .allocate_mature_layout(layout, Payload::Bytes(bytes), true)?;
-        self.accrue_assist_debt(layout.byte_len);
-        self.refresh_gc_request();
-
-        Ok(reference)
-    }
-
-    /// Allocate one zeroed managed heap allocation.
-    #[inline(always)]
-    pub fn allocate_zeroed(&mut self, layout: &AllocationPlan<'_>) -> HeapResult<HeapReference> {
-        if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
-        }
-
-        // no-scan small allocations use the young run cursor directly
-        if layout.is_noscan
-            && let Some(small) = layout.class.small()
-            && let Some(reference) = self.heap.reserve_young_run_cursor(small)
-        {
-            return Ok(reference);
-        }
-
-        if let Some(reference) = self.heap.try_allocate_young_zeroed(layout)? {
-            return Ok(reference);
-        }
-
-        self.allocate_zeroed_mature(layout)
-    }
-
-    /// Try to allocate one zeroed payload from a compiled allocation site.
-    #[inline(always)]
-    pub fn try_allocate_site_zeroed(&mut self, site: AllocationSite) -> Option<HeapReference> {
-        if site.is_empty() {
-            return None;
-        }
-
-        // active major collection needs the slow path to publish traced allocations
-        if !site.is_noscan && self.heap.major_gc_active() {
-            return None;
-        }
-
-        let small = site.class.small()?;
-        let reference = self.heap.reserve_young_run_cursor(small)?;
-
-        // track every live reference whose layout may contain shared edges
-        if site.has_shared_reference {
-            self.heap.collector.track_shared_edge_root(reference);
-        }
+            .reserve_young_run_cursor(allocation.byte_len, allocation.span_class())?;
+        self.heap.collector.track_shared_edge_root(reference);
 
         Some(reference)
     }
 
-    /// Allocate one zeroed payload from a compiled allocation site.
+    /// Allocate one zeroed payload from one allocation site.
     #[cold]
     #[inline(never)]
-    pub fn allocate_site_zeroed(
+    pub fn allocate_zeroed(
         &mut self,
-        site: AllocationSite,
+        allocation: AllocationSite,
         trace_map: &TraceMap,
     ) -> HeapResult<HeapReference> {
-        let layout = site.plan(trace_map);
+        let layout = allocation.plan(trace_map);
 
-        self.allocate_zeroed(&layout)
+        self.allocate_dynamic_payload(&layout, Payload::Zeroed)
     }
 
-    /// Allocate one zeroed payload from mature space.
+    /// Allocate one uninitialized payload from one allocation site.
     #[cold]
     #[inline(never)]
-    fn allocate_zeroed_mature(&mut self, layout: &AllocationPlan<'_>) -> HeapResult<HeapReference> {
-        let retained_byte_delta = self.heap.retained_byte_delta(layout)?;
+    pub fn allocate_uninit(
+        &mut self,
+        allocation: AllocationSite,
+        trace_map: &TraceMap,
+    ) -> HeapResult<HeapReference> {
+        let layout = allocation.plan(trace_map);
 
-        // check the projected heap retained-byte delta first
-        self.check_retained_byte_delta(retained_byte_delta, 0)?;
+        self.allocate_dynamic_payload(&layout, Payload::Uninit)
+    }
 
-        // then allocate from mature space
-        let reference = self
-            .heap
-            .allocate_mature_layout(layout, Payload::Zeroed, false)?;
-        self.accrue_assist_debt(layout.byte_len);
-        self.refresh_gc_request();
-
-        Ok(reference)
+    /// Resolve one allocation shape to one compiled allocation site.
+    #[inline(always)]
+    pub fn allocation_site(&self, shape: AllocationShape<'_>) -> AllocationSite {
+        self.heap.allocation_plan(shape).site()
     }
 
     /// Resolve one allocation shape against this heap.
@@ -610,10 +667,10 @@ impl Heap {
         }
 
         // recycle the nursery only when it fits the hard local quantum
-        let young_bytes = self.heap.young.used_bytes();
+        let young_size_bytes = self.heap.young.used_bytes();
         let nursery_fits_quantum =
-            young_bytes > 0 && young_bytes <= self.options.gc.minimum_work_bytes;
-        if young_bytes >= self.young_trigger_bytes() && nursery_fits_quantum {
+            young_size_bytes > 0 && young_size_bytes <= self.options.gc.minimum_work_bytes;
+        if young_size_bytes >= self.young_trigger_bytes() && nursery_fits_quantum {
             self.request_gc(GcRequest::Minor);
         }
     }

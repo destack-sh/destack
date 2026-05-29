@@ -2,8 +2,7 @@ use destack_mir::{TraceMap, TraceTable};
 
 use crate::allocator::SpanSlot;
 use crate::local::space::{
-    DirtyRegion, HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId,
-    YoungPlace,
+    DirtyRegion, HeapPageMapEntry, HeapPlace, HeapRegion, HeapSpace, LargeAllocationId, YoungPlace,
 };
 use crate::{
     HeapError, HeapReference, HeapResult, ReferenceRange, RootSlot, visit_heap_root_slots,
@@ -151,13 +150,11 @@ impl HeapSpace {
         forwarding: &mut ForwardingTable,
         trace_table: &TraceTable,
     ) -> HeapResult<()> {
-        self.young.flush_run_cursor();
+        self.flush_young_run_cursor();
 
         for run_index in 0..self.young.runs.len() {
             let Some(run) = self.young.run(run_index).cloned() else {
-                return Err(HeapError::MissingSpan {
-                    span_index: run_index,
-                });
+                return Err(HeapError::internal("missing span"));
             };
             let reserved_slots = self
                 .young
@@ -167,9 +164,7 @@ impl HeapSpace {
             for slot_index in 0..reserved_slots {
                 let slot = SpanSlot::new(run_index, slot_index)?;
                 let Some(bits) = self.young.run_bits_mut(run_index) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: run_index,
-                    });
+                    return Err(HeapError::internal("missing span"));
                 };
 
                 // only marked occupied slots can be promoted
@@ -223,7 +218,7 @@ impl HeapSpace {
 
         self.record_write_barrier(
             reference,
-            HeapLocation {
+            HeapRegion {
                 place,
                 base: reference,
                 byte_offset: 0,
@@ -256,9 +251,7 @@ impl HeapSpace {
         byte_len: usize,
     ) -> HeapResult<()> {
         let Some(bits) = self.young.run_bits_mut(slot.span_index()) else {
-            return Err(HeapError::MissingSpan {
-                span_index: slot.span_index(),
-            });
+            return Err(HeapError::internal("missing span"));
         };
 
         bits.freed.set(slot.slot_index());
@@ -374,7 +367,7 @@ impl HeapSpace {
 
         loop {
             let Some(span) = self.span(span_index) else {
-                return Err(HeapError::MissingSpan { span_index });
+                return Err(HeapError::internal("missing span"));
             };
             let Some((card_index, card_start, card_len)) =
                 span.dirty_cards.next_dirty_card_from(card_cursor)
@@ -406,7 +399,7 @@ impl HeapSpace {
         trace_table: &TraceTable,
     ) -> HeapResult<bool> {
         let Some(span) = self.span(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
+            return Err(HeapError::internal("missing span"));
         };
         let card_end = card_start + card_len;
         let first_offset = span.first_offset;
@@ -419,7 +412,7 @@ impl HeapSpace {
 
         for slot_index in first_slot..end_slot {
             let Some(span) = self.span(span_index) else {
-                return Err(HeapError::MissingSpan { span_index });
+                return Err(HeapError::internal("missing span"));
             };
             if !span.occupied.contains(slot_index) {
                 continue;
@@ -462,7 +455,7 @@ impl HeapSpace {
         has_young_reference: bool,
     ) -> HeapResult<()> {
         let Some(span) = self.span_mut(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
+            return Err(HeapError::internal("missing span"));
         };
 
         if !has_young_reference {
@@ -478,7 +471,7 @@ impl HeapSpace {
     /// Finish one rewritten dirty span with no remaining cards to visit.
     fn finish_rewritten_dirty_span(&mut self, span_index: usize) -> HeapResult<()> {
         let Some(span) = self.span_mut(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
+            return Err(HeapError::internal("missing span"));
         };
 
         span.is_dirty_queued = !span.dirty_cards.is_empty();
@@ -496,9 +489,7 @@ impl HeapSpace {
 
         loop {
             let Some(allocation) = self.large_allocation(allocation_id) else {
-                return Err(HeapError::MissingLargeAllocation {
-                    allocation_id: allocation_id.id(),
-                });
+                return Err(HeapError::internal("missing large allocation"));
             };
             let Some((card_index, card_start, card_len)) =
                 allocation.dirty_cards.next_dirty_card_from(card_cursor)
@@ -524,9 +515,7 @@ impl HeapSpace {
         forwarding: &ForwardingTable,
     ) -> HeapResult<bool> {
         let Some(allocation) = self.large_allocation(allocation_id) else {
-            return Err(HeapError::MissingLargeAllocation {
-                allocation_id: allocation_id.id(),
-            });
+            return Err(HeapError::internal("missing large allocation"));
         };
         let first_offset = allocation.first_offset;
         let byte_len = allocation.byte_len;
@@ -550,9 +539,7 @@ impl HeapSpace {
         has_young_reference: bool,
     ) -> HeapResult<()> {
         let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-            return Err(HeapError::MissingLargeAllocation {
-                allocation_id: allocation_id.id(),
-            });
+            return Err(HeapError::internal("missing large allocation"));
         };
 
         if !has_young_reference {
@@ -568,9 +555,7 @@ impl HeapSpace {
     /// Finish one rewritten dirty large allocation with no remaining cards to visit.
     fn finish_rewritten_dirty_large(&mut self, allocation_id: LargeAllocationId) -> HeapResult<()> {
         let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-            return Err(HeapError::MissingLargeAllocation {
-                allocation_id: allocation_id.id(),
-            });
+            return Err(HeapError::internal("missing large allocation"));
         };
 
         allocation.is_dirty_queued = !allocation.dirty_cards.is_empty();
@@ -694,12 +679,12 @@ impl HeapSpace {
             return Ok(false);
         }
 
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidHeapReference { reference });
+        let Some(region) = self.resolve_region(reference) else {
+            return Err(HeapError::invalid_heap_reference(reference));
         };
 
         Ok(matches!(
-            location.place,
+            region.place,
             HeapPlace::Young(YoungPlace::Range { .. }) | HeapPlace::Young(YoungPlace::Slot(_))
         ))
     }
@@ -714,14 +699,14 @@ impl HeapSpace {
             return Ok(None);
         }
 
-        let page_bytes = self.allocator().page_bytes();
-        let page_index = reference.offset() / page_bytes;
-        let page_offset = reference.offset() % page_bytes;
+        let page_size_bytes = self.allocator().page_size_bytes();
+        let page_index = reference.offset() / page_size_bytes;
+        let page_offset = reference.offset() % page_size_bytes;
         let Some(HeapPageMapEntry::Young { logical_page_index }) = self.page_entry(page_index)
         else {
             return Ok(None);
         };
-        let logical_byte_offset = logical_page_index * self.young.page_bytes + page_offset;
+        let logical_byte_offset = logical_page_index * self.young.page_size_bytes + page_offset;
 
         if let Some(run_index) = self
             .young
@@ -771,9 +756,7 @@ impl HeapSpace {
         forwarding: &ForwardingTable,
     ) -> HeapResult<Option<HeapReference>> {
         let Some(run) = self.young.run(run_index) else {
-            return Err(HeapError::MissingSpan {
-                span_index: run_index,
-            });
+            return Err(HeapError::internal("missing span"));
         };
         let Some(run_offset) = logical_byte_offset.checked_sub(run.first_offset) else {
             return Ok(None);

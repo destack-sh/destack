@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 
-use crate::{HeapError, HeapReference, HeapResult};
+use crate::{HeapError, HeapGcStateError, HeapReference, HeapResult};
 
 /// Active pin state for scoped heap borrows.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -27,7 +27,9 @@ impl PinSet {
     /// Unpin one heap reference.
     pub(crate) fn unpin(&mut self, reference: HeapReference) -> HeapResult<()> {
         let Some(count) = self.counts.get(&reference).copied() else {
-            return Err(HeapError::HeapPinMissing { reference });
+            return Err(HeapError::gc_state(HeapGcStateError::PinMissing {
+                reference,
+            }));
         };
 
         if count.get() == 1 {
@@ -36,10 +38,13 @@ impl PinSet {
             return Ok(());
         }
 
-        let next_count =
-            NonZeroUsize::new(count.get() - 1).ok_or(HeapError::HeapPinMissing { reference })?;
+        let next_count = NonZeroUsize::new(count.get() - 1).ok_or(HeapError::gc_state(
+            HeapGcStateError::PinMissing { reference },
+        ))?;
         let Some(count) = self.counts.get_mut(&reference) else {
-            return Err(HeapError::HeapPinMissing { reference });
+            return Err(HeapError::gc_state(HeapGcStateError::PinMissing {
+                reference,
+            }));
         };
         *count = next_count;
 
@@ -124,6 +129,9 @@ mod tests {
             .unpin(reference)
             .expect_err("missing heap pin should fail");
 
-        assert_eq!(error, HeapError::HeapPinMissing { reference });
+        assert_eq!(
+            error,
+            HeapError::gc_state(HeapGcStateError::PinMissing { reference })
+        );
     }
 }

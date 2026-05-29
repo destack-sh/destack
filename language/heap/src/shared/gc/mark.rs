@@ -27,11 +27,11 @@ impl SharedHeapSpace {
 
         // overwritten bytes
         let mut reference_buffer = Vec::new();
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidSharedHeapReference { reference });
+        let Some(region) = self.resolve_region(reference) else {
+            return Err(HeapError::invalid_shared_heap_reference(reference));
         };
-        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
-        let base_address = self.mapping.base_address() + location.base.offset();
+        let trace_map = self.trace_map_for_place(region.place, trace_table)?;
+        let base_address = self.mapping.base_address() + region.base.offset();
         scan_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
@@ -69,22 +69,22 @@ impl SharedHeapSpace {
         // concurrent publication
         let Some(_publication) = self.gc.begin_mark_publication() else {
             if phase == SharedGcPhase::Sweep {
-                let Some(location) = self.resolve_location(reference) else {
-                    return Err(HeapError::InvalidSharedHeapReference { reference });
+                let Some(region) = self.resolve_region(reference) else {
+                    return Err(HeapError::invalid_shared_heap_reference(reference));
                 };
-                self.mark_place(location.place)?;
+                self.mark_place(region.place)?;
             }
 
             return Ok(());
         };
 
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidSharedHeapReference { reference });
+        let Some(region) = self.resolve_region(reference) else {
+            return Err(HeapError::invalid_shared_heap_reference(reference));
         };
 
         // new allocations without initial shared edges can stay black
         if !has_initial_edges {
-            self.mark_place(location.place)?;
+            self.mark_place(region.place)?;
 
             return Ok(());
         }
@@ -145,18 +145,16 @@ impl SharedHeapSpace {
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
         // resolve the reference to its physical place
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidSharedHeapReference { reference });
+        let Some(region) = self.resolve_region(reference) else {
+            return Err(HeapError::invalid_shared_heap_reference(reference));
         };
 
         // small references mark their span slot for later scanning
-        if let SharedHeapPlace::Small(slot) = location.place {
+        if let SharedHeapPlace::Small(slot) = region.place {
             let should_queue = {
                 let store = self.state.read();
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
+                    return Err(HeapError::internal("missing span"));
                 };
 
                 let mark_epoch = self.gc.mark_epoch();
@@ -177,7 +175,7 @@ impl SharedHeapSpace {
         }
 
         // large references scan in page-sized chunks
-        if !self.mark_place(location.place)? {
+        if !self.mark_place(region.place)? {
             return Ok(());
         }
         self.gc.trace_queue.push(
@@ -200,9 +198,7 @@ impl SharedHeapSpace {
         match place {
             SharedHeapPlace::Small(slot) => {
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
+                    return Err(HeapError::internal("missing span"));
                 };
 
                 return Ok(span.mark_slot(slot.slot_index(), mark_epoch));
@@ -210,9 +206,7 @@ impl SharedHeapSpace {
             SharedHeapPlace::Large(allocation_id) => {
                 let Some(allocation) = store.large.allocations.get(allocation_id.index()?).cloned()
                 else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
+                    return Err(HeapError::internal("missing large allocation"));
                 };
                 let mut allocation = allocation.write();
                 if allocation.mark_epoch == mark_epoch {

@@ -19,7 +19,7 @@ pub(crate) struct SharedWorkerHeap {
 pub(crate) fn local_heap() -> Heap {
     let options = HeapOptions::local();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
             .expect("allocator should build"),
     );
 
@@ -31,7 +31,7 @@ pub(crate) fn local_heap() -> Heap {
 pub(crate) fn shared_heap() -> SharedHeap {
     let options = SharedHeapOptions::default();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
             .expect("allocator should build"),
     );
 

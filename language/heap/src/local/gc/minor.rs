@@ -5,8 +5,8 @@ use crate::local::space::{
     HeapSpace, HeapTraceQueue, LargeAllocationId, YoungGcPhase, YoungPlace, YoungRunCursor,
 };
 use crate::{
-    GcProgress, HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange, RootSlot,
-    ScanSource, scan_references,
+    GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference, HeapResult,
+    ReferenceInput, ReferenceRange, RootSlot, scan_references,
 };
 
 impl HeapSpace {
@@ -44,8 +44,11 @@ impl HeapSpace {
     pub(crate) fn start_young_gc(&mut self) -> HeapResult<()> {
         // reject overlapping collection work
         if self.collector.is_collecting() {
-            return Err(HeapError::HeapCollectionActive);
+            return Err(HeapError::gc_state(HeapGcStateError::LocalGcActive));
         }
+
+        // publish active run accounting before tracing
+        self.flush_young_run_cursor();
 
         // reset minor cycle cursors
         self.clear_young_mark_bits();
@@ -194,13 +197,13 @@ impl HeapSpace {
             let Some(reference) = pending.pop() else {
                 break;
             };
-            let Some(location) = self.resolve_location(reference) else {
-                return Err(HeapError::InvalidHeapReference { reference });
+            let Some(region) = self.resolve_region(reference) else {
+                return Err(HeapError::invalid_heap_reference(reference));
             };
 
             // minor collection only traces young allocations
             if !matches!(
-                location.place,
+                region.place,
                 HeapPlace::Young(YoungPlace::Range { .. }) | HeapPlace::Young(YoungPlace::Slot(_))
             ) {
                 continue;
@@ -208,16 +211,15 @@ impl HeapSpace {
 
             // load exact reference layout for this allocation
             let trace_map = self
-                .trace_map_for_place(location.place, trace_table)
-                .map_err(|error| HeapError::HeapScanFailed {
-                    source: ScanSource::Reference(reference),
-                    error: Box::new(error),
+                .trace_map_for_place(region.place, trace_table)
+                .map_err(|error| {
+                    HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
                 })?;
 
             let mut references = Vec::new();
 
             // enqueue every local reference discovered in this payload
-            let base_address = self.mapping.base_address() + location.base.offset();
+            let base_address = self.mapping.base_address() + region.base.offset();
             let trace_result = scan_references::<HeapReference>(
                 &trace_map,
                 ReferenceInput::mapped(base_address),
@@ -226,17 +228,17 @@ impl HeapSpace {
             );
 
             if let Err(error) = trace_result {
-                return Err(HeapError::HeapScanFailed {
-                    source: ScanSource::Reference(reference),
-                    error: Box::new(error),
-                });
+                return Err(HeapError::scan_failed(
+                    HeapOperationSource::Reference(reference),
+                    error,
+                ));
             }
 
             for reference in references {
                 self.enqueue_young_reference(reference, &mut pending)?;
             }
 
-            marked_bytes += location.byte_len.max(1);
+            marked_bytes += region.byte_len.max(1);
         }
 
         self.collector.minor_queue = pending;
@@ -324,10 +326,7 @@ impl HeapSpace {
             }
 
             self.free(reference)
-                .map_err(|error| HeapError::HeapFreeFailed {
-                    reference,
-                    error: Box::new(error),
-                })?;
+                .map_err(|error| HeapError::free_failed(reference, error))?;
             self.collector.young_freed_allocations += 1;
             self.collector.young_freed_bytes += byte_len as u64;
             *swept_bytes += byte_len.max(1);
@@ -342,16 +341,14 @@ impl HeapSpace {
         budget_bytes: usize,
         swept_bytes: &mut usize,
     ) -> HeapResult<()> {
-        self.young.flush_run_cursor();
+        self.flush_young_run_cursor();
 
         while *swept_bytes < budget_bytes
             && self.collector.young_sweep_run_cursor < self.young.runs.len()
         {
             let run_index = self.collector.young_sweep_run_cursor;
             let Some(run) = self.young.run(run_index).cloned() else {
-                return Err(HeapError::MissingSpan {
-                    span_index: run_index,
-                });
+                return Err(HeapError::internal("missing span"));
             };
             let reserved_slots = self
                 .young
@@ -365,9 +362,7 @@ impl HeapSpace {
                 self.collector.young_sweep_slot_cursor += 1;
 
                 let Some(bits) = self.young.run_bits_mut(run_index) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: run_index,
-                    });
+                    return Err(HeapError::internal("missing span"));
                 };
                 if bits.freed.contains(slot_index) {
                     *swept_bytes += GC_METADATA_STEP_BYTES;
@@ -410,7 +405,7 @@ impl HeapSpace {
         self.young.shared_reference_bits.clear_all();
         self.young.runs.clear();
         self.young.run_bits.clear();
-        self.young.run_buckets.clear();
+        self.young.run_cache.fill(None);
         self.young.run_cursor = YoungRunCursor::inactive();
         self.young.page_runs.fill(None);
     }
@@ -427,14 +422,14 @@ impl HeapSpace {
         }
 
         // only young references belong in the minor queue
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidHeapReference { reference });
+        let Some(region) = self.resolve_region(reference) else {
+            return Err(HeapError::invalid_heap_reference(reference));
         };
 
         if matches!(
-            location.place,
+            region.place,
             HeapPlace::Young(YoungPlace::Range { .. }) | HeapPlace::Young(YoungPlace::Slot(_))
-        ) && self.mark_place(location.place)?
+        ) && self.mark_place(region.place)?
         {
             pending.push(reference);
         }
@@ -515,10 +510,10 @@ impl HeapSpace {
         trace_table: &TraceTable,
     ) -> HeapResult<Option<(usize, usize, Vec<HeapReference>)>> {
         let Some(span) = self.span(span_index) else {
-            return Err(HeapError::HeapScanFailed {
-                source: ScanSource::Span(span_index),
-                error: Box::new(HeapError::MissingSpan { span_index }),
-            });
+            return Err(HeapError::scan_failed(
+                HeapOperationSource::Span(span_index),
+                HeapError::internal("missing span"),
+            ));
         };
         let card_cursor = self.collector.young_dirty_card_cursor;
         let Some((card_index, card_start, card_len)) =
@@ -561,9 +556,8 @@ impl HeapSpace {
                 ReferenceRange::bytes(local_start, local_len),
                 &mut references,
             )
-            .map_err(|error| HeapError::HeapScanFailed {
-                source: ScanSource::Span(span_index),
-                error: Box::new(error),
+            .map_err(|error| {
+                HeapError::scan_failed(HeapOperationSource::Span(span_index), error)
             })?;
         }
 
@@ -595,7 +589,7 @@ impl HeapSpace {
         has_young_reference: bool,
     ) -> HeapResult<()> {
         let Some(span) = self.span_mut(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
+            return Err(HeapError::internal("missing span"));
         };
 
         if !has_young_reference {
@@ -621,12 +615,10 @@ impl HeapSpace {
         allocation_id: LargeAllocationId,
     ) -> HeapResult<Option<(usize, usize, Vec<HeapReference>)>> {
         let Some(allocation) = self.large_allocation(allocation_id) else {
-            return Err(HeapError::HeapScanFailed {
-                source: ScanSource::LargeAllocation(allocation_id.id()),
-                error: Box::new(HeapError::MissingLargeAllocation {
-                    allocation_id: allocation_id.id(),
-                }),
-            });
+            return Err(HeapError::scan_failed(
+                HeapOperationSource::LargeAllocation(allocation_id.id()),
+                HeapError::internal("missing large allocation"),
+            ));
         };
         let card_cursor = self.collector.young_dirty_card_cursor;
         let Some((card_index, card_start, card_len)) =
@@ -643,9 +635,11 @@ impl HeapSpace {
             ReferenceRange::bytes(card_start, card_len),
             &mut references,
         )
-        .map_err(|error| HeapError::HeapScanFailed {
-            source: ScanSource::LargeAllocation(allocation_id.id()),
-            error: Box::new(error),
+        .map_err(|error| {
+            HeapError::scan_failed(
+                HeapOperationSource::LargeAllocation(allocation_id.id()),
+                error,
+            )
         })?;
 
         Ok(Some((card_index, card_len, references)))
@@ -659,9 +653,7 @@ impl HeapSpace {
         has_young_reference: bool,
     ) -> HeapResult<()> {
         let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-            return Err(HeapError::MissingLargeAllocation {
-                allocation_id: allocation_id.id(),
-            });
+            return Err(HeapError::internal("missing large allocation"));
         };
 
         if !has_young_reference {
@@ -686,16 +678,14 @@ impl HeapSpace {
         match region {
             DirtyRegion::Span(span_index) => {
                 let Some(span) = self.span_mut(span_index) else {
-                    return Err(HeapError::MissingSpan { span_index });
+                    return Err(HeapError::internal("missing span"));
                 };
 
                 span.is_dirty_queued = !span.dirty_cards.is_empty();
             }
             DirtyRegion::Large(allocation_id) => {
                 let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
+                    return Err(HeapError::internal("missing large allocation"));
                 };
 
                 allocation.is_dirty_queued = !allocation.dirty_cards.is_empty();
@@ -712,14 +702,12 @@ impl HeapSpace {
                 continue;
             }
 
-            let Some(location) = self.resolve_location(*reference) else {
-                return Err(HeapError::InvalidHeapReference {
-                    reference: *reference,
-                });
+            let Some(region) = self.resolve_region(*reference) else {
+                return Err(HeapError::invalid_heap_reference(*reference));
             };
 
             if matches!(
-                location.place,
+                region.place,
                 HeapPlace::Young(YoungPlace::Range { .. }) | HeapPlace::Young(YoungPlace::Slot(_))
             ) {
                 return Ok(true);

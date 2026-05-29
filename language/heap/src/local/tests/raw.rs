@@ -1,6 +1,6 @@
 use crate::{
-    HeapError, HeapOptions, Payload, RawAllocationShape, RawPointer, RawSpace, SizeClassTable,
-    test_allocator,
+    HeapAllocationError, HeapError, HeapOptions, Payload, RawAllocationShape, RawPointer, RawSpace,
+    SizeClassTable, test_allocator,
 };
 
 /// Reclaim one freed raw allocation and keep the allocator live.
@@ -55,10 +55,10 @@ fn test_reject_raw_allocation_byte_len_mismatch() {
 
     assert_eq!(
         error,
-        HeapError::InvalidAllocationBytes {
+        HeapError::invalid_allocation(HeapAllocationError::ByteLengthMismatch {
             expected: 4,
             actual: 2
-        }
+        })
     );
 }
 
@@ -76,13 +76,16 @@ fn test_allocate_raw_honors_alignment() {
         .expect("aligned small raw allocation should succeed");
     let large = raw
         .allocate(
-            RawAllocationShape::new(options.raw_small_bytes + 1, options.page_bytes * 2),
+            RawAllocationShape::new(
+                options.raw_small_size_bytes + 1,
+                options.page_size_bytes * 2,
+            ),
             Payload::Zeroed,
         )
         .expect("aligned large raw allocation should succeed");
 
     assert_eq!(small.offset() % 16, 0);
-    assert_eq!(large.offset() % (options.page_bytes * 2), 0);
+    assert_eq!(large.offset() % (options.page_size_bytes * 2), 0);
 }
 
 /// Keep raw fork writes independent from the parent mapping.
@@ -111,8 +114,8 @@ fn test_fork_raw_write_is_independent() {
 fn test_free_raw_reclaims_large_allocation() {
     // force allocations larger than the local small span classes
     let options = HeapOptions {
-        heap_small_bytes: 32,
-        raw_small_bytes: 32,
+        heap_small_size_bytes: 32,
+        raw_small_size_bytes: 32,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -150,8 +153,8 @@ fn test_free_raw_reclaims_large_allocation() {
 fn test_replace_large_raw_can_move_to_small() {
     // allocate one payload above the local small raw threshold
     let options = HeapOptions {
-        heap_small_bytes: 32,
-        raw_small_bytes: 32,
+        heap_small_size_bytes: 32,
+        raw_small_size_bytes: 32,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
@@ -190,5 +193,5 @@ fn test_free_raw_rejects_invalid_pointer() {
     let pointer = RawPointer::new(7);
     let error = raw.free(pointer).expect_err("raw free should fail");
 
-    assert_eq!(error, HeapError::InvalidRawPointer { pointer });
+    assert_eq!(error, HeapError::invalid_raw_pointer(pointer));
 }

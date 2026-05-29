@@ -76,8 +76,8 @@ impl PageRunCache {
     }
 
     /// Return the currently cached byte count.
-    pub(crate) fn cached_bytes(&self, page_bytes: usize) -> u64 {
-        self.cached_pages as u64 * page_bytes as u64
+    pub(crate) fn cached_bytes(&self, page_size_bytes: usize) -> u64 {
+        self.cached_pages as u64 * page_size_bytes as u64
     }
 
     /// Return one cached run that satisfies the requested page count.

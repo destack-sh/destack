@@ -1,5 +1,3 @@
-use std::collections::{BTreeMap, BTreeSet};
-
 use crate::local::gc::PinSet;
 use crate::local::space::LargeAllocationId;
 use crate::{HeapReference, TraceQueue, TraceReference};
@@ -49,8 +47,6 @@ pub(crate) struct LocalGcState {
     pub(crate) dirty_regions: Vec<DirtyRegion>,
     /// Live local references whose layouts may contain shared heap references.
     pub(crate) shared_edge_roots: Vec<HeapReference>,
-    /// Reverse index into tracked shared-edge roots.
-    pub(crate) shared_edge_index: BTreeMap<HeapReference, usize>,
     /// Whether one local-to-shared edge scan is currently active.
     pub(crate) is_scanning_shared_edges: bool,
     /// The next dense reference slot to scan for shared edges.
@@ -58,7 +54,7 @@ pub(crate) struct LocalGcState {
     /// The pending local-to-shared edge work.
     pub(crate) shared_edge_queue: SharedEdgeQueue,
     /// Queue membership for pending shared-edge rescans.
-    pub(crate) shared_edge_pending: BTreeSet<HeapReference>,
+    pub(crate) shared_edge_pending: Vec<HeapReference>,
 }
 
 /// One mature region queued for dirty-card scanning.
@@ -79,7 +75,6 @@ impl LocalGcState {
     /// Clear every tracked shared-edge root.
     pub(crate) fn clear_shared_edge_roots(&mut self) {
         self.shared_edge_roots.clear();
-        self.shared_edge_index.clear();
     }
 
     /// Start one tracked shared-edge scan.
@@ -106,25 +101,21 @@ impl LocalGcState {
 
     /// Record one live reference whose layout may contain shared edges.
     pub(crate) fn track_shared_edge_root(&mut self, reference: HeapReference) {
-        // duplicate root
-        if self.shared_edge_index.contains_key(&reference) {
-            return;
-        }
-
-        // dense slot
-        let tracked_index = self.shared_edge_roots.len();
         self.shared_edge_roots.push(reference);
-        self.shared_edge_index.insert(reference, tracked_index);
     }
 
     /// Remove one live reference from the tracked shared-edge set.
     pub(crate) fn remove_shared_edge_root(&mut self, reference: HeapReference) {
         // absent roots are already removed
-        let Some(tracked_index) = self.shared_edge_index.remove(&reference) else {
+        let Some(tracked_index) = self
+            .shared_edge_roots
+            .iter()
+            .position(|root| *root == reference)
+        else {
             return;
         };
 
-        self.shared_edge_pending.remove(&reference);
+        self.remove_shared_edge_pending(reference);
 
         // active scans need stable cursor ordering
         if self.is_scanning_shared_edges {
@@ -144,10 +135,6 @@ impl LocalGcState {
 
         // backfill the removed slot
         self.shared_edge_roots[tracked_index] = moved_reference;
-        if !moved_reference.is_null() {
-            self.shared_edge_index
-                .insert(moved_reference, tracked_index);
-        }
     }
 
     /// Compact removed roots after one active shared-edge scan.
@@ -155,21 +142,16 @@ impl LocalGcState {
         // remove active-scan tombstones
         self.shared_edge_roots
             .retain(|reference| !reference.is_null());
-        self.shared_edge_index.clear();
-
-        // rebuild dense reverse index
-        for (index, reference) in self.shared_edge_roots.iter().copied().enumerate() {
-            self.shared_edge_index.insert(reference, index);
-        }
     }
 
     /// Queue one live reference for one later shared-edge rescan.
     pub(crate) fn queue_shared_edge_root(&mut self, reference: HeapReference) {
         // duplicate rescan
-        if !self.shared_edge_pending.insert(reference) {
+        if self.shared_edge_pending.contains(&reference) {
             return;
         }
 
+        self.shared_edge_pending.push(reference);
         self.shared_edge_queue
             .push(SharedEdgeWork::Reference(reference));
     }
@@ -187,7 +169,7 @@ impl LocalGcState {
         let SharedEdgeWork::Reference(reference) = work else {
             return Some(work);
         };
-        self.shared_edge_pending.remove(&reference);
+        self.remove_shared_edge_pending(reference);
 
         Some(work)
     }
@@ -206,6 +188,19 @@ impl LocalGcState {
         }
 
         None
+    }
+
+    /// Remove one reference from the pending shared-edge set.
+    fn remove_shared_edge_pending(&mut self, reference: HeapReference) {
+        let Some(index) = self
+            .shared_edge_pending
+            .iter()
+            .position(|pending| *pending == reference)
+        else {
+            return;
+        };
+
+        self.shared_edge_pending.swap_remove(index);
     }
 }
 

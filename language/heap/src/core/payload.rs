@@ -5,6 +5,8 @@ pub enum Payload<'a> {
     Bytes(&'a [u8]),
     /// Zeroed bytes.
     Zeroed,
+    /// Uninitialized bytes.
+    Uninit,
 }
 
 impl<'a> Payload<'a> {
@@ -12,7 +14,7 @@ impl<'a> Payload<'a> {
     pub(crate) fn byte_len(&self) -> Option<usize> {
         match self {
             Self::Bytes(bytes) => Some(bytes.len()),
-            Self::Zeroed => None,
+            Self::Zeroed | Self::Uninit => None,
         }
     }
 }

@@ -26,9 +26,9 @@ pub struct SharedHeapSpaceImage {
     /// The captured shared heap spans.
     spans: Box<[SharedHeapSmallSpanImage]>,
     /// The configured shared page width.
-    page_bytes: usize,
+    page_size_bytes: usize,
     /// The reserved virtual byte capacity for shared heap space.
-    space_bytes: usize,
+    space_size_bytes: usize,
     /// The captured shared heap allocations in large space.
     allocations: Box<[SharedHeapLargeAllocationImage]>,
     /// The captured free shared heap large-allocation ids.
@@ -52,8 +52,8 @@ impl SharedHeapSpaceImage {
         size_classes: SizeClassTable,
         small_bytes: usize,
         spans: Box<[SharedHeapSmallSpanImage]>,
-        page_bytes: usize,
-        space_bytes: usize,
+        page_size_bytes: usize,
+        space_size_bytes: usize,
         allocations: Box<[SharedHeapLargeAllocationImage]>,
         free_large_allocation_ids: Box<[u64]>,
         next_unused_large_allocation_id: u64,
@@ -66,8 +66,8 @@ impl SharedHeapSpaceImage {
             size_classes,
             small_bytes,
             spans,
-            page_bytes,
-            space_bytes,
+            page_size_bytes,
+            space_size_bytes,
             allocations,
             free_large_allocation_ids,
             next_unused_large_allocation_id,
@@ -94,13 +94,13 @@ impl SharedHeapSpaceImage {
     }
 
     /// Return the configured shared page width.
-    pub const fn page_bytes(&self) -> usize {
-        self.page_bytes
+    pub const fn page_size_bytes(&self) -> usize {
+        self.page_size_bytes
     }
 
     /// Return the reserved virtual byte capacity for shared heap space.
-    pub const fn space_bytes(&self) -> usize {
-        self.space_bytes
+    pub const fn space_size_bytes(&self) -> usize {
+        self.space_size_bytes
     }
 
     /// Return the captured shared heap allocations in large space.
@@ -139,12 +139,12 @@ impl SharedHeapSpaceImage {
 
         // count retained small-span bytes
         for span in self.spans() {
-            page_count += span.bytes.len().div_ceil(self.page_bytes());
+            page_count += span.bytes.len().div_ceil(self.page_size_bytes());
         }
 
         // count retained large-allocation bytes
         for allocation in self.allocations() {
-            page_count += allocation.bytes.len().div_ceil(self.page_bytes());
+            page_count += allocation.bytes.len().div_ceil(self.page_size_bytes());
         }
 
         page_count
@@ -209,7 +209,7 @@ impl SharedHeapSpace {
             page_run_cache: PageRunCache::new(self.allocator.pages_per_chunk()),
             small: SharedSmallSpace {
                 size_classes: store.small.size_classes.clone(),
-                span_bytes: store.small.span_bytes,
+                span_size_bytes: store.small.span_size_bytes,
                 spans,
                 partial_spans: BTreeMap::new(),
             },
@@ -223,14 +223,14 @@ impl SharedHeapSpace {
             gc: store.gc.clone(),
         };
 
-        Self::rebuild_page_map(&mut cloned_store, self.allocator.page_bytes());
+        Self::rebuild_page_map(&mut cloned_store, self.allocator.page_size_bytes());
 
         let space = Self {
             allocator: self.allocator.clone(),
             mapping,
             accounting: SharedHeapAccounting::from_state(
                 &cloned_store,
-                self.allocator.page_bytes(),
+                self.allocator.page_size_bytes(),
             ),
             state: RwLock::new(cloned_store),
             gc: SharedGcState::default(),
@@ -246,14 +246,14 @@ impl SharedHeapSpace {
         allocator: Arc<Allocator>,
         image: &SharedHeapSpaceImage,
     ) -> HeapResult<Self> {
-        let mut mapping = AddressSpace::reserve(image.space_bytes(), image.page_bytes())?;
+        let mut mapping = AddressSpace::reserve(image.space_size_bytes(), image.page_size_bytes())?;
         restore_shared_mapping(image, &mut mapping)?;
         let mut store = Self::restore_state(image, allocator.as_ref())?;
 
-        Self::rebuild_page_map(&mut store, allocator.page_bytes());
+        Self::rebuild_page_map(&mut store, allocator.page_size_bytes());
 
         let space = Self {
-            accounting: SharedHeapAccounting::from_state(&store, allocator.page_bytes()),
+            accounting: SharedHeapAccounting::from_state(&store, allocator.page_size_bytes()),
             allocator,
             mapping,
             state: RwLock::new(store),
@@ -273,7 +273,7 @@ impl SharedHeapSpace {
 
         // capture small spans from the live mapping
         for span in &store.small.spans {
-            let byte_len = span.page_count() * self.allocator.page_bytes();
+            let byte_len = span.page_count() * self.allocator.page_size_bytes();
             let bytes = self.mapping.read_bytes(span.first_offset, byte_len)?;
 
             spans.push(SharedHeapSmallSpanImage {
@@ -312,9 +312,9 @@ impl SharedHeapSpace {
 
         Ok(SharedHeapSpaceImage::new(
             store.small.size_classes.clone(),
-            store.small.span_bytes,
+            store.small.span_size_bytes,
             spans.into_boxed_slice(),
-            self.allocator.page_bytes(),
+            self.allocator.page_size_bytes(),
             self.mapping.byte_len(),
             allocations.into_boxed_slice(),
             store
@@ -339,7 +339,7 @@ impl SharedHeapSpace {
             page_run_cache: PageRunCache::new(allocator.pages_per_chunk()),
             small: SharedSmallSpace {
                 size_classes: image.size_classes().clone(),
-                span_bytes: image.small_bytes(),
+                span_size_bytes: image.small_bytes(),
                 spans: image
                     .spans()
                     .iter()
@@ -409,8 +409,8 @@ impl SharedHeapSpace {
                 class = span.class;
                 class.validate(
                     &store.small.size_classes,
-                    self.allocator.page_bytes(),
-                    store.small.span_bytes,
+                    self.allocator.page_size_bytes(),
+                    store.small.span_size_bytes,
                 )?;
 
                 if occupied_count == 0 {
@@ -440,14 +440,14 @@ impl SharedHeapSpace {
     }
 
     /// Rebuild the page-map table from live shared allocations.
-    fn rebuild_page_map(store: &mut SharedHeapState, page_bytes: usize) {
+    fn rebuild_page_map(store: &mut SharedHeapState, page_size_bytes: usize) {
         store.page_map.clear();
 
         for span_index in 0..store.small.spans.len() {
             let span = store.small.spans[span_index].clone();
 
             for logical_page_index in 0..span.page_count() {
-                let page_index = span.first_offset / page_bytes + logical_page_index;
+                let page_index = span.first_offset / page_size_bytes + logical_page_index;
 
                 if store.page_map.len() <= page_index {
                     store.page_map.resize(page_index + 1, None);
@@ -468,7 +468,7 @@ impl SharedHeapSpace {
             }
 
             for logical_page_index in 0..allocation.pages.len() {
-                let page_index = allocation.first_offset / page_bytes + logical_page_index;
+                let page_index = allocation.first_offset / page_size_bytes + logical_page_index;
 
                 if store.page_map.len() <= page_index {
                     store.page_map.resize(page_index + 1, None);

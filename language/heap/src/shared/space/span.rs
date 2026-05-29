@@ -181,7 +181,7 @@ impl SharedSmallSpan {
         std::mem::replace(&mut *self.pages.write(), PageRun::empty())
     }
 
-    /// Try to reserve one free slot.
+    /// Reserve one free slot if available.
     pub(crate) fn reserve_slot(&self) -> Option<usize> {
         let mut slot_index = self.free_cursor.load(Ordering::Acquire);
 
@@ -301,9 +301,7 @@ impl SharedSmallSpan {
         if let Some(trace_id) = self.class.trace_id {
             let trace_map = trace_table
                 .trace(trace_id)
-                .ok_or(HeapError::MissingTraceMap {
-                    trace_id: trace_id.raw(),
-                })?;
+                .ok_or(HeapError::internal("missing trace map"))?;
 
             return Ok(trace_map.clone());
         }

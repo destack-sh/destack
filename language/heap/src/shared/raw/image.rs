@@ -19,7 +19,7 @@ pub struct SharedRawSpaceImage {
     /// The number of allocated shared raw-space bytes.
     allocated_bytes: u64,
     /// The reserved virtual byte capacity for shared raw space.
-    space_bytes: usize,
+    space_size_bytes: usize,
     /// The next unused byte offset in shared raw space.
     next_offset: usize,
 }
@@ -30,14 +30,14 @@ impl SharedRawSpaceImage {
         allocations: Box<[SharedRawAllocationImage]>,
         allocated_count: usize,
         allocated_bytes: u64,
-        space_bytes: usize,
+        space_size_bytes: usize,
         next_offset: usize,
     ) -> Self {
         Self {
             allocations,
             allocated_count,
             allocated_bytes,
-            space_bytes,
+            space_size_bytes,
             next_offset,
         }
     }
@@ -63,8 +63,8 @@ impl SharedRawSpaceImage {
     }
 
     /// Return the reserved virtual byte capacity for shared raw space.
-    pub const fn space_bytes(&self) -> usize {
-        self.space_bytes
+    pub const fn space_size_bytes(&self) -> usize {
+        self.space_size_bytes
     }
 
     /// Return the next unused byte offset in shared raw space.
@@ -73,12 +73,12 @@ impl SharedRawSpaceImage {
     }
 
     /// Return the retained frozen page count.
-    pub fn page_count(&self, page_bytes: usize) -> usize {
+    pub fn page_count(&self, page_size_bytes: usize) -> usize {
         let mut page_count = 0;
 
         // count retained allocation bytes
         for allocation in self.allocations() {
-            page_count += allocation.bytes.len().div_ceil(page_bytes);
+            page_count += allocation.bytes.len().div_ceil(page_size_bytes);
         }
 
         page_count
@@ -153,7 +153,7 @@ impl SharedRawSpace {
         allocator: Arc<Allocator>,
         image: &SharedRawSpaceImage,
     ) -> HeapResult<Self> {
-        let mapping = AddressSpace::reserve(image.space_bytes(), allocator.page_bytes())?;
+        let mapping = AddressSpace::reserve(image.space_size_bytes(), allocator.page_size_bytes())?;
         let base_address = mapping.base_address();
 
         let allocations = image
@@ -177,7 +177,7 @@ impl SharedRawSpace {
                 Ok(allocation)
             })
             .collect::<HeapResult<Vec<_>>>()?;
-        let live_retained_bytes = live_retained_bytes(&allocations, allocator.page_bytes());
+        let live_retained_bytes = live_retained_bytes(&allocations, allocator.page_size_bytes());
         let restored = Self {
             allocator: allocator.clone(),
             base_address,
@@ -211,7 +211,8 @@ impl SharedRawSpace {
                         let bytes = if allocation.is_vacant() {
                             Box::new([])
                         } else {
-                            let byte_len = allocation.pages.len() * self.allocator.page_bytes();
+                            let byte_len =
+                                allocation.pages.len() * self.allocator.page_size_bytes();
                             self.mapping
                                 .read()
                                 .read_bytes(allocation.first_offset, byte_len)?
@@ -252,7 +253,10 @@ fn rebuild_page_map(raw: &SharedRawSpace) {
 }
 
 /// Return the live retained bytes for restored raw allocations.
-fn live_retained_bytes(allocations: &[Arc<RwLock<SharedRawAllocation>>], page_bytes: usize) -> u64 {
+fn live_retained_bytes(
+    allocations: &[Arc<RwLock<SharedRawAllocation>>],
+    page_size_bytes: usize,
+) -> u64 {
     let mut retained_bytes = 0;
 
     for allocation in allocations {
@@ -262,7 +266,7 @@ fn live_retained_bytes(allocations: &[Arc<RwLock<SharedRawAllocation>>], page_by
             continue;
         }
 
-        retained_bytes += allocation.pages.len() as u64 * page_bytes as u64;
+        retained_bytes += allocation.pages.len() as u64 * page_size_bytes as u64;
     }
 
     retained_bytes

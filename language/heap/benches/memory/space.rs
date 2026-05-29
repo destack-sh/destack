@@ -3,13 +3,13 @@ use std::mem::size_of;
 
 use destack_memory::AddressSpace;
 
-use crate::config::{PAGE_BYTES, SPACE_BYTES};
+use crate::config::{PAGE_SIZE_BYTES, SPACE_SIZE_BYTES};
 
 /// One reserved address-space shape used by fork benchmarks.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct AddressSpaceShape {
     /// The reserved virtual byte width.
-    space_bytes: usize,
+    space_size_bytes: usize,
     /// The active byte prefix to materialize.
     active_bytes: usize,
 }
@@ -18,7 +18,7 @@ impl AddressSpaceShape {
     /// Return the default reserved address-space shape.
     pub(crate) const fn reserved() -> Self {
         Self {
-            space_bytes: SPACE_BYTES,
+            space_size_bytes: SPACE_SIZE_BYTES,
             active_bytes: 0,
         }
     }
@@ -26,33 +26,34 @@ impl AddressSpaceShape {
     /// Return the default space shape with a materialized page prefix.
     pub(crate) const fn materialized_pages(page_count: usize) -> Self {
         Self {
-            space_bytes: SPACE_BYTES,
-            active_bytes: page_count * PAGE_BYTES,
+            space_size_bytes: SPACE_SIZE_BYTES,
+            active_bytes: page_count * PAGE_SIZE_BYTES,
         }
     }
 
     /// Return an address-space shape with a materialized byte prefix.
-    pub(crate) const fn materialized_bytes(space_bytes: usize, active_bytes: usize) -> Self {
+    pub(crate) const fn materialized_bytes(space_size_bytes: usize, active_bytes: usize) -> Self {
         Self {
-            space_bytes,
+            space_size_bytes,
             active_bytes,
         }
     }
 
     /// Reserve this address space without materializing pages.
     pub(crate) fn reserve(self) -> AddressSpace {
-        AddressSpace::reserve(self.space_bytes, PAGE_BYTES).expect("address space should reserve")
+        AddressSpace::reserve(self.space_size_bytes, PAGE_SIZE_BYTES)
+            .expect("address space should reserve")
     }
 
     /// Reserve this address space and materialize its active prefix.
     pub(crate) fn materialize(self) -> AddressSpace {
         let space = self.reserve();
-        let page = vec![0xAB; PAGE_BYTES];
-        let page_count = self.active_bytes.div_ceil(PAGE_BYTES);
+        let page = vec![0xAB; PAGE_SIZE_BYTES];
+        let page_count = self.active_bytes.div_ceil(PAGE_SIZE_BYTES);
 
         // materialize only the active pages requested by the benchmark
         for page_index in 0..page_count {
-            let offset = page_index * PAGE_BYTES;
+            let offset = page_index * PAGE_SIZE_BYTES;
             space
                 .write_bytes(offset, &page)
                 .expect("address space page write should succeed");
@@ -102,7 +103,7 @@ impl AddressSpaceShape {
         page_count: usize,
     ) -> (AddressSpace, AddressSpace, *mut usize) {
         let (parent, child) = self.fork_lazy_pair();
-        let byte_len = page_count * PAGE_BYTES;
+        let byte_len = page_count * PAGE_SIZE_BYTES;
         let address = child
             .address(0, byte_len)
             .expect("forked address range should resolve")
@@ -132,13 +133,13 @@ impl ForkLineage {
 
     /// Build one live fork chain from active byte counts.
     pub(crate) fn with_bytes(
-        space_bytes: usize,
+        space_size_bytes: usize,
         active_bytes: usize,
         ancestor_count: usize,
         dirty_bytes: usize,
     ) -> Self {
-        let shape = AddressSpaceShape::materialized_bytes(space_bytes, active_bytes);
-        let dirty_page_count = dirty_bytes.div_ceil(PAGE_BYTES);
+        let shape = AddressSpaceShape::materialized_bytes(space_size_bytes, active_bytes);
+        let dirty_page_count = dirty_bytes.div_ceil(PAGE_SIZE_BYTES);
 
         Self::with_shape(shape, ancestor_count, dirty_page_count)
     }
@@ -171,10 +172,10 @@ impl ForkLineage {
         }
 
         // dirty the leaf after the chain is built
-        let page = vec![0xA5; PAGE_BYTES];
+        let page = vec![0xA5; PAGE_SIZE_BYTES];
         let leaf = spaces.last().expect("fork lineage should keep one leaf");
         for page_index in 0..dirty_page_count {
-            let offset = page_index * PAGE_BYTES;
+            let offset = page_index * PAGE_SIZE_BYTES;
             leaf.write_bytes(offset, black_box(&page))
                 .expect("forked address space write should succeed");
         }
