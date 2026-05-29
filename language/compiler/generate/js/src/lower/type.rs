@@ -387,6 +387,14 @@ impl ModuleLowerer<'_> {
             dir::StaticTerm::Symbol { symbol } => {
                 self.lower_reference_type_from_symbol(source_id, *symbol, None)
             }
+            dir::StaticTerm::Parameter(parameter) => match parameter.key {
+                dir::GenericSlotKey::Symbol(symbol) => {
+                    self.lower_reference_type_from_symbol(source_id, symbol, None)
+                }
+                dir::GenericSlotKey::Generated(_) => {
+                    self.lower_generated_parameter_type(source_id, parameter.key)
+                }
+            },
             dir::StaticTerm::Access { access } => {
                 self.lower_static_string_type(source_id, &format!("{access:?}").to_lowercase())
             }
@@ -405,11 +413,6 @@ impl ModuleLowerer<'_> {
                 dir::Lifetime::Static => self.lower_static_string_type(source_id, "static"),
                 dir::Lifetime::Symbol(symbol) => {
                     self.lower_reference_type_from_symbol(source_id, *symbol, None)
-                }
-                dir::Lifetime::Generated(name) => {
-                    let name = self.source_strings.get(*name).to_string();
-
-                    self.lower_static_string_type(source_id, &name)
                 }
                 dir::Lifetime::Join(_) => Err(CodegenJsError::UnsupportedConstruct {
                     node: source_id.into_global(self.module.id),
