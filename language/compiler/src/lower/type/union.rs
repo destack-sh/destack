@@ -799,30 +799,14 @@ impl TypeLowerer<'_> {
             (dir::StaticKey::Name(left), dir::StaticKey::Name(right)) => {
                 strings.get(left).cmp(&strings.get(right))
             }
-            (dir::StaticKey::Number(left), dir::StaticKey::Number(right)) => {
-                strings.get(left).cmp(&strings.get(right))
-            }
-            (dir::StaticKey::Name(left), dir::StaticKey::Number(right)) => {
-                let ordering = strings.get(left).cmp(&strings.get(right));
-                if ordering == Ordering::Equal {
-                    Ordering::Less
-                } else {
-                    ordering
-                }
-            }
-            (dir::StaticKey::Number(left), dir::StaticKey::Name(right)) => {
-                let ordering = strings.get(left).cmp(&strings.get(right));
-                if ordering == Ordering::Equal {
-                    Ordering::Greater
-                } else {
-                    ordering
-                }
-            }
+            (dir::StaticKey::Index(left), dir::StaticKey::Index(right)) => left.cmp(&right),
             (dir::StaticKey::Symbol(left), dir::StaticKey::Symbol(right)) => {
                 self.compare_symbol_keys(left, right, strings)
             }
-            (dir::StaticKey::Symbol(_), _) => Ordering::Greater,
-            (_, dir::StaticKey::Symbol(_)) => Ordering::Less,
+            (dir::StaticKey::Name(_), _) => Ordering::Less,
+            (_, dir::StaticKey::Name(_)) => Ordering::Greater,
+            (dir::StaticKey::Index(_), _) => Ordering::Less,
+            (_, dir::StaticKey::Index(_)) => Ordering::Greater,
         }
     }
 
