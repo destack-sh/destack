@@ -485,10 +485,10 @@ impl Parser {
             let (name, span) = self.eat_key_name_with_span()?;
             Ok((Key::Name(name), span))
         }
-        // numeric key
+        // index key
         else if self.peek_numeric_literal_is() {
-            let (string_id, span) = self.eat_numeric_key_name_with_span()?;
-            Ok((Key::Name(Name::Number(string_id)), span))
+            let (index, span) = self.eat_index_key_with_span()?;
+            Ok((Key::Name(Name::Index(index)), span))
         }
         // dynamic key
         else if self.peek_is(TokenType::OpenBracket) {
@@ -538,23 +538,18 @@ impl Parser {
         }
     }
 
-    /// Eat a numeric key token and return the raw key text with its span.
-    fn eat_numeric_key_name_with_span(&mut self) -> ParserResult<(StringId, Span)> {
-        // capture the original numeric token text for key identity
+    /// Eat an integer key token and return its index with its span.
+    pub(in crate::parse) fn eat_index_key_with_span(&mut self) -> ParserResult<(usize, Span)> {
         let token = *self.peek_numeric_literal()?;
-        let key_string = self.file.span_str(token.span).to_string();
 
-        // parse and validate numeric literal grammar in key position
-        // keep the original raw token text, object key identity is source text not normalized value
+        // parse direct index keys through the literal grammar
         let numeric_literal = self.eat_scalar_literal()?;
-        if !matches!(
-            numeric_literal,
-            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_)
-        ) {
+        let ScalarLiteral::Integer(index) = numeric_literal else {
             return Err(ParserError::unexpected(token.span));
-        }
+        };
 
-        let key_name = self.strings.intern(&key_string);
-        Ok((key_name, token.span))
+        let index = usize::try_from(index).map_err(|_| ParserError::unexpected(token.span))?;
+
+        Ok((index, token.span))
     }
 }
