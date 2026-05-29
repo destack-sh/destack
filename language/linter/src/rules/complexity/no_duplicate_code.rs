@@ -1169,7 +1169,11 @@ impl<'a> DuplicateSignatureCollector<'a> {
         match name {
             dir::Name::Identifier(id) => self.push_identifier_id(key, id),
             dir::Name::String(id) => self.push_literal_id(key, id, "$str"),
-            dir::Name::Number(id) => self.push_literal_id(key, id, "$num"),
+            dir::Name::Index(index) => {
+                let exact_hash = stable_hash_usize(index);
+                let near_hash = stable_hash_bytes(b"$index");
+                self.push_hashed_token(key, exact_hash, near_hash);
+            }
         }
     }
 

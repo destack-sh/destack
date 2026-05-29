@@ -230,8 +230,8 @@ fn member_is_accessor(member: &dir::Member) -> bool {
 enum AccessorKey {
     /// Identifier-like key.
     Name(StringId),
-    /// Numeric key.
-    Number(StringId),
+    /// Positional index key.
+    Index(usize),
     /// Private key.
     Private(StringId),
 }
@@ -246,7 +246,7 @@ fn member_private_accessor_key(member: &dir::Member) -> Option<AccessorKey> {
         dir::Key::Name(dir::Name::Identifier(name)) | dir::Key::Name(dir::Name::String(name)) => {
             Some(AccessorKey::Name(*name))
         }
-        dir::Key::Name(dir::Name::Number(number)) => Some(AccessorKey::Number(*number)),
+        dir::Key::Name(dir::Name::Index(index)) => Some(AccessorKey::Index(*index)),
         dir::Key::Private(name) => Some(AccessorKey::Private(*name)),
         dir::Key::Expression(_) => None,
     }

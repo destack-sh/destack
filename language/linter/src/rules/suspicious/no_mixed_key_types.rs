@@ -156,7 +156,7 @@ fn property_key_kind(
         dir::Key::Name(dir::Name::Identifier(_) | dir::Name::String(_)) => {
             ObjectKeyKind::StringLike
         }
-        dir::Key::Name(dir::Name::Number(_)) => ObjectKeyKind::Numeric,
+        dir::Key::Name(dir::Name::Index(_)) => ObjectKeyKind::Numeric,
         dir::Key::Private(_) => ObjectKeyKind::SymbolLike,
         dir::Key::Expression(expression_id) => key_expression_kind(ctx, expression_id)?,
     };

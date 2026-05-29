@@ -176,10 +176,10 @@ fn method_key_is_constructor(
     };
 
     match key {
-        Key::Name(Name::Identifier(name))
-        | Key::Name(Name::String(name))
-        | Key::Name(Name::Number(name))
-        | Key::Private(name) => *name == constructor_name,
+        Key::Name(Name::Identifier(name)) | Key::Name(Name::String(name)) | Key::Private(name) => {
+            *name == constructor_name
+        }
+        Key::Name(Name::Index(_)) => false,
         Key::Expression(_) => false,
     }
 }
