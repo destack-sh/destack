@@ -131,6 +131,36 @@ fn run_copy_propagate(function: &mut mir::Function, tree: &mut mir::Tree) -> boo
                         .push((block_id, failure.arguments.clone()));
                 }
             }
+            mir::Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewUninitTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewSliceUninitTry {
+                success, failure, ..
+            } => {
+                if let Some(target_block) = success.block.block() {
+                    let mut arguments = Vec::with_capacity(success.arguments.len() + 1);
+                    arguments.push(mir::ValueReference::Missing);
+                    arguments.extend(success.arguments.iter().copied());
+
+                    predecessors
+                        .get_mut(&target_block)
+                        .unwrap()
+                        .push((block_id, arguments));
+                }
+
+                if let Some(target_block) = failure.block.block() {
+                    predecessors
+                        .get_mut(&target_block)
+                        .unwrap()
+                        .push((block_id, failure.arguments.clone()));
+                }
+            }
             mir::Terminator::Switch { default, cases, .. } => {
                 if let Some(target_block) = default.block.block() {
                     predecessors

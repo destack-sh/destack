@@ -237,6 +237,68 @@ pub fn collect_non_escaping_frame_allocs(
                     );
                 }
             }
+            mir::Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewUninitTry {
+                success, failure, ..
+            } => {
+                for arg in success
+                    .arguments
+                    .iter()
+                    .chain(failure.arguments.iter())
+                    .copied()
+                {
+                    record_stack_escape_reference(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &frame_allocs,
+                        &mut escaping,
+                    );
+                }
+            }
+            mir::Terminator::NewSliceZeroedTry {
+                length,
+                success,
+                failure,
+                ..
+            }
+            | mir::Terminator::NewSliceUninitTry {
+                length,
+                success,
+                failure,
+                ..
+            } => {
+                record_stack_escape_reference(
+                    *length,
+                    definitions,
+                    &local_defs,
+                    &param_defs,
+                    tree,
+                    &frame_allocs,
+                    &mut escaping,
+                );
+
+                for arg in success
+                    .arguments
+                    .iter()
+                    .chain(failure.arguments.iter())
+                    .copied()
+                {
+                    record_stack_escape_reference(
+                        arg,
+                        definitions,
+                        &local_defs,
+                        &param_defs,
+                        tree,
+                        &frame_allocs,
+                        &mut escaping,
+                    );
+                }
+            }
             mir::Terminator::Switch { cases, default, .. } => {
                 for arg in default.arguments.iter().copied() {
                     record_stack_escape_reference(

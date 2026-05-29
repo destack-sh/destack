@@ -1061,6 +1061,12 @@ impl ModuleLowerer<'_> {
                     .insert_from_source(expression, self.module.id, expression_id)
                     .into_any()
             }
+            dir::Expression::NewMaybe { .. } => {
+                return Err(CodegenJsError::UnsupportedConstruct {
+                    node: expression_id.into_global_any(self.module.id),
+                    message: Some("fallible new expressions are not lowered to JS".to_string()),
+                });
+            }
             dir::Expression::If {
                 form,
                 condition,

@@ -795,6 +795,82 @@ fn update_terminator_arguments(
                 },
             }
         }
+        mir::Terminator::NewZeroedTry {
+            layout,
+            success,
+            failure,
+        } => mir::Terminator::NewZeroedTry {
+            layout: *layout,
+            success: mir::BlockTarget {
+                block: success.block,
+                arguments: extend_arguments(
+                    success.block,
+                    &success.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
+            failure: extend_target(failure),
+        },
+        mir::Terminator::NewUninitTry {
+            layout,
+            success,
+            failure,
+        } => mir::Terminator::NewUninitTry {
+            layout: *layout,
+            success: mir::BlockTarget {
+                block: success.block,
+                arguments: extend_arguments(
+                    success.block,
+                    &success.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
+            failure: extend_target(failure),
+        },
+        mir::Terminator::NewSliceZeroedTry {
+            element,
+            length,
+            success,
+            failure,
+        } => mir::Terminator::NewSliceZeroedTry {
+            element: *element,
+            length: remap_value_reference(*length, substitutions),
+            success: mir::BlockTarget {
+                block: success.block,
+                arguments: extend_arguments(
+                    success.block,
+                    &success.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
+            failure: extend_target(failure),
+        },
+        mir::Terminator::NewSliceUninitTry {
+            element,
+            length,
+            success,
+            failure,
+        } => mir::Terminator::NewSliceUninitTry {
+            element: *element,
+            length: remap_value_reference(*length, substitutions),
+            success: mir::BlockTarget {
+                block: success.block,
+                arguments: extend_arguments(
+                    success.block,
+                    &success.arguments,
+                    block_params,
+                    value_stacks,
+                    substitutions,
+                ),
+            },
+            failure: extend_target(failure),
+        },
         mir::Terminator::Switch {
             value,
             default,
