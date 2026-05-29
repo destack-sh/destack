@@ -32,6 +32,7 @@ let [first, , ...rest]: Items = items;
 function visit({ id }: User, [first]: Items) {
 /// @binding.symbol symbol=visit role=item kind=function scope=<module>@5
 /// @binding.scope scope=visit kind=function parent=<module>@6 owner=visit
+/// @binding.owner_scope owner=visit scope=visit
 /// @binding.symbol symbol=id#2 role=local kind=variable scope=visit@0
 /// @binding.symbol symbol=first#2 role=local kind=variable scope=visit@1
 /// @binding.scope scope=scope3 kind=block parent=visit@2
@@ -43,7 +44,7 @@ function visit({ id }: User, [first]: Items) {
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
-/// @binding.summary symbols=8 scopes=4 declarations=7 node_scopes=31
+/// @binding.summary symbols=8 scopes=4 declarations=7 node_scopes=31 owner_scopes=1
 "#,
     );
 }

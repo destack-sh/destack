@@ -156,42 +156,15 @@ impl<'a> ResolveState<'a> {
         key: dir::StaticKey,
         space: dir::SymbolSpace,
     ) {
-        if self.scope_resolves_key(source, key, space) {
+        let source = source.into_global(self.module);
+        if !matches!(
+            self.bindings.lookup_symbol_at(source, key, space),
+            dir::SymbolLookup::Missing,
+        ) {
             return;
         }
 
         self.required_global_keys.insert(key);
-    }
-
-    /// Return whether one key is already resolved by lexical or import scope.
-    fn scope_resolves_key(
-        &self,
-        source: dir::LocalNodeIdAny,
-        key: dir::StaticKey,
-        space: dir::SymbolSpace,
-    ) -> bool {
-        let source = source.into_global(self.module);
-        let Some(mut cursor) = self.bindings.scope_for_node(source) else {
-            return false;
-        };
-
-        loop {
-            let scope = self.bindings.get_scope_by_id(cursor.id);
-
-            // check bindings visible at this cursor
-            if scope
-                .find_symbol_up_to(key, cursor.mark)
-                .is_some_and(|symbol| self.bindings.get_symbol(symbol).kind.is_visible_in(space))
-            {
-                return true;
-            }
-
-            let Some(parent) = scope.parent else {
-                return false;
-            };
-
-            cursor = dir::LocalScope::new(parent.id, parent.mark);
-        }
     }
 
     /// Drain recoverable diagnostics.
@@ -275,9 +248,8 @@ impl<'a> ResolveState<'a> {
     /// Render one static key for diagnostics.
     fn static_key_text(&self, key: dir::StaticKey) -> String {
         match key {
-            dir::StaticKey::Name(name) | dir::StaticKey::Number(name) => {
-                self.strings.get(name).to_string()
-            }
+            dir::StaticKey::Name(name) => self.strings.get(name).to_string(),
+            dir::StaticKey::Index(index) => index.to_string(),
             dir::StaticKey::Symbol(symbol) => symbol.debug_string(self.strings),
         }
     }

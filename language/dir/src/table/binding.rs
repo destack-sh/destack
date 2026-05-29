@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
     LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, SegmentView, StaticKey, Symbol,
-    SymbolKind, SymbolOrigin, SymbolRole,
+    SymbolKind, SymbolLookup, SymbolOrigin, SymbolRole, SymbolSpace,
 };
 
 /// Cumulative lexical scopes and symbols for one DIR module.
@@ -132,6 +132,17 @@ impl<'a> BindingTable<'a> {
         self.get_scope_by_id(scope.id)
     }
 
+    /// Return the owned scope for one visible symbol.
+    pub fn scope_for_owner(&self, owner: LocalSymbolId) -> Option<LocalScope> {
+        for segment in self.segments.iter().rev() {
+            if let Some(scope_id) = segment.scope_for_owner(owner) {
+                return Some(LocalScope::new(scope_id, LocalScopeMark::end()));
+            }
+        }
+
+        None
+    }
+
     /// Return the visible scope that owns one symbol.
     pub fn get_scope_by_symbol(&self, symbol_id: LocalSymbolId) -> &Scope {
         let symbol = self.get_symbol(symbol_id);
@@ -201,6 +212,59 @@ impl<'a> BindingTable<'a> {
         None
     }
 
+    /// Look up one symbol visible at a source node.
+    pub fn lookup_symbol_at(
+        &self,
+        node_id: GlobalNodeIdAny,
+        key: StaticKey,
+        space: SymbolSpace,
+    ) -> SymbolLookup {
+        match self.scope_for_node(node_id) {
+            Some(scope) => self.lookup_symbol_from_scope(scope, key, space),
+            None => SymbolLookup::Missing,
+        }
+    }
+
+    /// Look up one symbol visible from a lexical scope cursor.
+    pub fn lookup_symbol_from_scope(
+        &self,
+        mut scope: LocalScope,
+        key: StaticKey,
+        space: SymbolSpace,
+    ) -> SymbolLookup {
+        loop {
+            let current = self.get_scope(scope);
+            let lookup = self.lookup_symbols_in_scope(current, scope.mark, key, space);
+            if !matches!(lookup, SymbolLookup::Missing) {
+                return lookup;
+            }
+
+            let Some(parent) = current.parent else {
+                return SymbolLookup::Missing;
+            };
+
+            scope = LocalScope::new(parent.id, parent.mark);
+        }
+    }
+
+    /// Look up one keyed member symbol owned by a declaration symbol.
+    pub fn lookup_key_member(&self, owner: LocalSymbolId, key: StaticKey) -> SymbolLookup {
+        let Some(scope) = self.scope_for_owner(owner) else {
+            return SymbolLookup::Missing;
+        };
+        let scope = self.get_scope(scope);
+        let mut lookup = SymbolLookup::Missing;
+
+        // collect matching owner members
+        for (binding_key, symbol) in scope.named_symbols() {
+            if binding_key == key {
+                lookup.push(symbol);
+            }
+        }
+
+        lookup
+    }
+
     /// Iterate scopes keyed by owner or member node.
     pub fn node_scopes(&self) -> impl Iterator<Item = (GlobalNodeIdAny, LocalScope)> + '_ {
         self.segments
@@ -220,6 +284,28 @@ impl<'a> BindingTable<'a> {
         self.segments
             .iter()
             .flat_map(|segment| segment.replaced_scopes())
+    }
+
+    /// Look up named symbols inside one scope cursor.
+    fn lookup_symbols_in_scope(
+        &self,
+        scope: &Scope,
+        mark: LocalScopeMark,
+        key: StaticKey,
+        space: SymbolSpace,
+    ) -> SymbolLookup {
+        let mut lookup = SymbolLookup::Missing;
+
+        // collect matching symbols in the current scope
+        for (binding_key, symbol) in scope.named_symbols_up_to(mark) {
+            if binding_key != key || !self.get_symbol(symbol).kind.is_visible_in(space) {
+                continue;
+            }
+
+            lookup.push(symbol);
+        }
+
+        lookup
     }
 }
 
@@ -243,6 +329,9 @@ pub struct BindingSegment {
     pub(crate) implicit_receiver_by_node: IndexMap<GlobalNodeIdAny, LocalSymbolId>,
     /// Scopes keyed by their owner or member node.
     pub(crate) scope_by_node: IndexMap<GlobalNodeIdAny, LocalScope>,
+    /// Scopes keyed by their owner symbol.
+    pub(crate) scope_by_owner: IndexMap<LocalSymbolId, LocalScopeId>,
+
     /// Replacements for visible symbols copied into this segment.
     pub(crate) replaced_symbol_by_id: IndexMap<LocalSymbolId, Symbol>,
     /// Replacements for visible scopes copied into this segment.
@@ -262,6 +351,7 @@ impl BindingSegment {
             symbol_by_declaration: IndexMap::new(),
             implicit_receiver_by_node: IndexMap::new(),
             scope_by_node: IndexMap::new(),
+            scope_by_owner: IndexMap::new(),
             replaced_symbol_by_id: IndexMap::new(),
             replaced_scope_by_id: IndexMap::new(),
         }
@@ -278,6 +368,7 @@ impl BindingSegment {
             symbol_by_declaration: IndexMap::new(),
             implicit_receiver_by_node: IndexMap::new(),
             scope_by_node: IndexMap::new(),
+            scope_by_owner: IndexMap::new(),
             replaced_symbol_by_id: IndexMap::new(),
             replaced_scope_by_id: IndexMap::new(),
         }
@@ -408,11 +499,24 @@ impl BindingSegment {
         self.scope_by_node.get(&node_id).copied()
     }
 
+    /// Return the owned scope for one local symbol.
+    #[inline]
+    pub fn scope_for_owner(&self, owner: LocalSymbolId) -> Option<LocalScopeId> {
+        self.scope_by_owner.get(&owner).copied()
+    }
+
     /// Iterate scopes keyed by owner or member node.
     pub fn node_scopes(&self) -> impl Iterator<Item = (GlobalNodeIdAny, LocalScope)> + '_ {
         self.scope_by_node
             .iter()
             .map(|(node_id, scope)| (*node_id, *scope))
+    }
+
+    /// Iterate scopes keyed by owner symbol.
+    pub fn owner_scopes(&self) -> impl Iterator<Item = (LocalSymbolId, LocalScopeId)> + '_ {
+        self.scope_by_owner
+            .iter()
+            .map(|(owner, scope)| (*owner, *scope))
     }
 
     /// Insert a new scope.
@@ -434,6 +538,10 @@ impl BindingSegment {
         if let Some(parent) = parent {
             self.get_scope_by_id_mut(parent.id).append_child(scope_id);
         }
+        if let Some(owner) = owner {
+            self.scope_by_owner.insert(owner, scope_id);
+        }
+
         scope_id
     }
 
