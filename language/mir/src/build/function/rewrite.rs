@@ -380,6 +380,31 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_values_in_slice(&mut success.arguments, from, to);
                 Self::replace_values_in_slice(&mut failure.arguments, from, to);
             }
+            Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewUninitTry {
+                success, failure, ..
+            } => {
+                Self::replace_values_in_slice(&mut success.arguments, from, to);
+                Self::replace_values_in_slice(&mut failure.arguments, from, to);
+            }
+            Terminator::NewSliceZeroedTry {
+                length,
+                success,
+                failure,
+                ..
+            }
+            | Terminator::NewSliceUninitTry {
+                length,
+                success,
+                failure,
+                ..
+            } => {
+                Self::replace_value_in_slot(length, from, to);
+                Self::replace_values_in_slice(&mut success.arguments, from, to);
+                Self::replace_values_in_slice(&mut failure.arguments, from, to);
+            }
             Terminator::Switch {
                 value,
                 default,

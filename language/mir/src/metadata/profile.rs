@@ -23,6 +23,10 @@ pub enum EdgeKind {
     CheckSuccess,
     /// Check failure edge.
     CheckFailure,
+    /// Fallible allocation success edge.
+    AllocationSuccess,
+    /// Fallible allocation failure edge.
+    AllocationFailure,
     /// Switch case edge.
     SwitchCase { value: i128 },
     /// Switch default edge.

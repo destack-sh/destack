@@ -148,6 +148,7 @@ pub enum Terminator {
         /// The value to return, or None for void functions.
         value: Option<ValueReference>,
     },
+
     /// Unconditional jump to another block.
     Jump {
         /// The block to jump to.
@@ -180,6 +181,7 @@ pub enum Terminator {
         /// The cases to match against.
         cases: Vec<SwitchCase>,
     },
+
     /// Yield from a coroutine.
     Yield {
         /// The yielded value.
@@ -187,6 +189,7 @@ pub enum Terminator {
         /// The block to resume at when the coroutine is continued.
         resume: BlockTarget,
     },
+
     /// Direct call with an explicit continuation.
     Call {
         /// The direct callee function.
@@ -239,6 +242,48 @@ pub enum Terminator {
         /// The cleanup block when this call panics.
         unwind: Option<BlockTarget>,
     },
+
+    /// Fallible zeroed typed heap allocation.
+    NewZeroedTry {
+        /// The type of the struct to allocate.
+        layout: TypeReference,
+        /// The block to jump to when allocation succeeds.
+        success: BlockTarget,
+        /// The block to jump to when allocation fails.
+        failure: BlockTarget,
+    },
+    /// Fallible uninitialized typed heap allocation.
+    NewUninitTry {
+        /// The type of the struct to allocate.
+        layout: TypeReference,
+        /// The block to jump to when allocation succeeds.
+        success: BlockTarget,
+        /// The block to jump to when allocation fails.
+        failure: BlockTarget,
+    },
+    /// Fallible zeroed slice backing allocation.
+    NewSliceZeroedTry {
+        /// The element type.
+        element: TypeReference,
+        /// The number of elements.
+        length: ValueReference,
+        /// The block to jump to when allocation succeeds.
+        success: BlockTarget,
+        /// The block to jump to when allocation fails.
+        failure: BlockTarget,
+    },
+    /// Fallible uninitialized slice backing allocation.
+    NewSliceUninitTry {
+        /// The element type.
+        element: TypeReference,
+        /// The number of elements.
+        length: ValueReference,
+        /// The block to jump to when allocation succeeds.
+        success: BlockTarget,
+        /// The block to jump to when allocation fails.
+        failure: BlockTarget,
+    },
+
     /// Start language panic unwinding.
     Panic {
         /// Optional panic payload.
@@ -255,6 +300,7 @@ pub enum Terminator {
     },
     /// Unreachable code.
     Unreachable,
+
     /// Tail call to a function.
     TailCall {
         /// The function to tail call.
@@ -373,6 +419,18 @@ impl Terminator {
                 }
                 successors
             }
+            Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewUninitTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceUninitTry {
+                success, failure, ..
+            } => smallvec![success.block, failure.block],
             Terminator::Panic { .. } => smallvec![],
             Terminator::ResumePanic => smallvec![],
             Terminator::Trap { .. } => smallvec![],
@@ -492,6 +550,34 @@ impl Terminator {
                 if let Some(unwind) = unwind {
                     uses.extend(unwind.arguments.iter().copied());
                 }
+                uses
+            }
+            Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewUninitTry {
+                success, failure, ..
+            } => {
+                let mut uses = smallvec![];
+                uses.extend(success.arguments.iter().copied());
+                uses.extend(failure.arguments.iter().copied());
+                uses
+            }
+            Terminator::NewSliceZeroedTry {
+                length,
+                success,
+                failure,
+                ..
+            }
+            | Terminator::NewSliceUninitTry {
+                length,
+                success,
+                failure,
+                ..
+            } => {
+                let mut uses = smallvec![*length];
+                uses.extend(success.arguments.iter().copied());
+                uses.extend(failure.arguments.iter().copied());
                 uses
             }
             Terminator::Panic { payload } => payload.iter().copied().collect(),

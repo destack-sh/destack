@@ -262,6 +262,68 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_call_continuation(target, unwind.as_ref(), f)
         }
 
+        Terminator::NewZeroedTry {
+            layout,
+            success,
+            failure,
+            ..
+        } => {
+            write!(f, [token("new.zeroed.try"), space(), layout])?;
+            format_allocation_continuation(success, failure, f)
+        }
+
+        Terminator::NewUninitTry {
+            layout,
+            success,
+            failure,
+            ..
+        } => {
+            write!(f, [token("new.uninit.try"), space(), layout])?;
+            format_allocation_continuation(success, failure, f)
+        }
+
+        Terminator::NewSliceZeroedTry {
+            element,
+            length,
+            success,
+            failure,
+            ..
+        } => {
+            write!(
+                f,
+                [
+                    token("new.slice.zeroed.try"),
+                    space(),
+                    element,
+                    token(","),
+                    space(),
+                    length
+                ]
+            )?;
+            format_allocation_continuation(success, failure, f)
+        }
+
+        Terminator::NewSliceUninitTry {
+            element,
+            length,
+            success,
+            failure,
+            ..
+        } => {
+            write!(
+                f,
+                [
+                    token("new.slice.uninit.try"),
+                    space(),
+                    element,
+                    token(","),
+                    space(),
+                    length
+                ]
+            )?;
+            format_allocation_continuation(success, failure, f)
+        }
+
         Terminator::Panic { payload } => {
             write!(f, [token("panic")])?;
             if let Some(payload) = payload {
@@ -360,6 +422,20 @@ fn format_call_continuation<'a>(
         write!(f, [token(","), space(), token("unwind"), space()])?;
         format_block_target(unwind, f)?;
     }
+
+    Ok(())
+}
+
+/// Format one fallible allocation continuation.
+fn format_allocation_continuation<'a>(
+    success: &BlockTarget,
+    failure: &BlockTarget,
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    write!(f, [space(), token("->"), space()])?;
+    format_block_target(success, f)?;
+    write!(f, [token(","), space()])?;
+    format_block_target(failure, f)?;
 
     Ok(())
 }
