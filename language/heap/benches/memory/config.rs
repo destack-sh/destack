@@ -1,11 +1,11 @@
 use std::mem::size_of;
 
-use destack_heap::DEFAULT_PAGE_BYTES;
+use destack_heap::DEFAULT_PAGE_SIZE_BYTES;
 
 /// The virtual memory range reserved by address-space benchmarks.
-pub(crate) const SPACE_BYTES: usize = 16 * 1024 * 1024;
+pub(crate) const SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
 /// The operating-system page width used by the heap allocator.
-pub(crate) const PAGE_BYTES: usize = DEFAULT_PAGE_BYTES;
+pub(crate) const PAGE_SIZE_BYTES: usize = DEFAULT_PAGE_SIZE_BYTES;
 /// The number of small allocations in one wrapper-path sample.
 pub(crate) const SMALL_ALLOCATIONS: usize = 1024;
 /// The representative small object payload width.
@@ -44,7 +44,7 @@ pub(crate) const FORK_ANCESTOR_COUNTS: &[usize] = &[0, 1, 4, 16];
 /// The dirty page-count candidates sampled by fork benchmarks.
 pub(crate) const FORK_DIRTY_PAGE_COUNTS: &[usize] = &[0, 1, 4, 16, 256];
 /// The reserved heap sizes sampled by large fork benchmarks.
-pub(crate) const FORK_LARGE_SPACE_BYTES: &[usize] = &[20 * 1024 * 1024, 100 * 1024 * 1024];
+pub(crate) const FORK_LARGE_SPACE_SIZE_BYTES: &[usize] = &[20 * 1024 * 1024, 100 * 1024 * 1024];
 /// The active byte counts sampled by large fork benchmarks.
 pub(crate) const FORK_LARGE_ACTIVE_BYTES: &[usize] = &[1024 * 1024, 10 * 1024 * 1024];
 /// The dirty byte counts sampled by large fork benchmarks.

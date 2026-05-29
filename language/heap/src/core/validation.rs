@@ -1,61 +1,80 @@
-use crate::{HeapError, SizeClassTable};
+use crate::{HeapConfigurationError, HeapError, SizeClassTable, SizeClassTableError};
 
 /// The largest page or chunk width stored by allocator metadata.
 const MAX_ALLOCATOR_WIDTH_BYTES: usize = u32::MAX as usize;
 
 /// Validate one configured heap page size.
-pub(crate) fn validate_page_bytes(page_bytes: usize) -> Result<usize, HeapError> {
-    if page_bytes == 0 || page_bytes > MAX_ALLOCATOR_WIDTH_BYTES || !page_bytes.is_power_of_two() {
-        Err(HeapError::InvalidPageBytes { bytes: page_bytes })
+pub(crate) fn validate_page_size_bytes(page_size_bytes: usize) -> Result<usize, HeapError> {
+    if page_size_bytes == 0
+        || page_size_bytes > MAX_ALLOCATOR_WIDTH_BYTES
+        || !page_size_bytes.is_power_of_two()
+    {
+        Err(HeapError::configuration(
+            HeapConfigurationError::InvalidPageSizeBytes {
+                bytes: page_size_bytes,
+            },
+        ))
     } else {
-        Ok(page_bytes)
+        Ok(page_size_bytes)
     }
 }
 
 /// Validate one configured allocator chunk size against one valid page size.
-pub(crate) fn validate_allocator_chunk_bytes(
-    page_bytes: usize,
-    allocator_chunk_bytes: usize,
+pub(crate) fn validate_allocator_chunk_size_bytes(
+    page_size_bytes: usize,
+    allocator_chunk_size_bytes: usize,
 ) -> Result<usize, HeapError> {
-    if allocator_chunk_bytes == 0 || allocator_chunk_bytes > MAX_ALLOCATOR_WIDTH_BYTES {
-        return Err(HeapError::InvalidAllocatorChunkBytes {
-            bytes: allocator_chunk_bytes,
-        });
+    if allocator_chunk_size_bytes == 0 || allocator_chunk_size_bytes > MAX_ALLOCATOR_WIDTH_BYTES {
+        return Err(HeapError::configuration(
+            HeapConfigurationError::InvalidAllocatorChunkSizeBytes {
+                bytes: allocator_chunk_size_bytes,
+            },
+        ));
     }
 
-    if !allocator_chunk_bytes.is_power_of_two() {
-        return Err(HeapError::InvalidAllocatorChunkBytes {
-            bytes: allocator_chunk_bytes,
-        });
+    if !allocator_chunk_size_bytes.is_power_of_two() {
+        return Err(HeapError::configuration(
+            HeapConfigurationError::InvalidAllocatorChunkSizeBytes {
+                bytes: allocator_chunk_size_bytes,
+            },
+        ));
     }
 
-    if !allocator_chunk_bytes.is_multiple_of(page_bytes) {
-        return Err(HeapError::MisalignedAllocatorChunkBytes {
-            page_bytes,
-            chunk_bytes: allocator_chunk_bytes,
-        });
+    if !allocator_chunk_size_bytes.is_multiple_of(page_size_bytes) {
+        return Err(HeapError::configuration(
+            HeapConfigurationError::MisalignedAllocatorChunkSize {
+                page_size_bytes,
+                chunk_size_bytes: allocator_chunk_size_bytes,
+            },
+        ));
     }
 
-    Ok(allocator_chunk_bytes)
+    Ok(allocator_chunk_size_bytes)
 }
 
 /// Validate one configured virtual space size against one valid page size.
-pub(crate) fn validate_space_bytes(
-    page_bytes: usize,
-    space_bytes: usize,
+pub(crate) fn validate_space_size_bytes(
+    page_size_bytes: usize,
+    space_size_bytes: usize,
 ) -> Result<usize, HeapError> {
-    if space_bytes == 0 {
-        return Err(HeapError::InvalidSpaceBytes { bytes: space_bytes });
+    if space_size_bytes == 0 {
+        return Err(HeapError::configuration(
+            HeapConfigurationError::InvalidSpaceSizeBytes {
+                bytes: space_size_bytes,
+            },
+        ));
     }
 
-    if !space_bytes.is_multiple_of(page_bytes) {
-        return Err(HeapError::MisalignedSpaceBytes {
-            page_bytes,
-            space_bytes,
-        });
+    if !space_size_bytes.is_multiple_of(page_size_bytes) {
+        return Err(HeapError::configuration(
+            HeapConfigurationError::MisalignedSpaceSize {
+                page_size_bytes,
+                space_size_bytes,
+            },
+        ));
     }
 
-    Ok(space_bytes)
+    Ok(space_size_bytes)
 }
 
 /// Validate one configured small-allocation alignment.
@@ -63,9 +82,11 @@ pub(crate) fn validate_small_allocation_alignment_bytes(
     alignment_bytes: usize,
 ) -> Result<usize, HeapError> {
     if alignment_bytes == 0 || !alignment_bytes.is_power_of_two() {
-        Err(HeapError::InvalidSmallAllocationAlignmentBytes {
-            bytes: alignment_bytes,
-        })
+        Err(HeapError::configuration(
+            HeapConfigurationError::InvalidSmallAllocationAlignmentBytes {
+                bytes: alignment_bytes,
+            },
+        ))
     } else {
         Ok(alignment_bytes)
     }
@@ -78,12 +99,14 @@ pub(crate) fn validate_size_class_alignment(
 ) -> Result<(), HeapError> {
     validate_small_allocation_alignment_bytes(alignment_bytes)?;
 
-    for class in &size_classes.classes {
+    for class in size_classes.classes.iter() {
         if class.bytes % alignment_bytes != 0 {
-            return Err(HeapError::MisalignedSizeClass {
-                alignment_bytes,
-                class_bytes: class.bytes,
-            });
+            return Err(HeapError::configuration(
+                HeapConfigurationError::MisalignedSizeClass {
+                    alignment_bytes,
+                    class_bytes: class.bytes,
+                },
+            ));
         }
     }
 
@@ -91,19 +114,26 @@ pub(crate) fn validate_size_class_alignment(
 }
 
 /// Validate one small span against one size-class table.
-pub(crate) fn validate_small_span_bytes(
-    span_bytes: usize,
+pub(crate) fn validate_small_span_size_bytes(
+    span_size_bytes: usize,
     size_classes: &SizeClassTable,
 ) -> Result<(), HeapError> {
-    let max_small_bytes = size_classes
-        .max_small_allocation_bytes()
-        .ok_or(HeapError::EmptySizeClassTable)?;
+    let max_small_bytes =
+        size_classes
+            .max_small_allocation_bytes()
+            .ok_or(HeapError::configuration(
+                HeapConfigurationError::InvalidSizeClassTable {
+                    reason: SizeClassTableError::Empty,
+                },
+            ))?;
 
-    if span_bytes < max_small_bytes {
-        Err(HeapError::SmallSpanTooSmall {
-            span_bytes,
-            class_bytes: max_small_bytes,
-        })
+    if span_size_bytes < max_small_bytes {
+        Err(HeapError::configuration(
+            HeapConfigurationError::SmallSpanTooSmall {
+                span_size_bytes,
+                class_bytes: max_small_bytes,
+            },
+        ))
     } else {
         Ok(())
     }

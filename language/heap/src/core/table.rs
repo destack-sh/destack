@@ -108,7 +108,7 @@ impl<T> CowTable<T> {
         T: Clone,
     {
         let Some(entry) = self.get_mut(index) else {
-            return Err(HeapError::MissingTableEntry { index });
+            return Err(HeapError::internal("missing table entry"));
         };
 
         *entry = value;

@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
 use super::{SharedSmallSpan, SpanList};
-use crate::allocator::{SizeClassTable, SpanSlot};
-use crate::{AllocationPlan, SharedHeapReference, SmallAllocationPlan, SmallSpanClass};
+use crate::allocator::SpanSlot;
+use crate::{
+    AllocationPlan, AllocationUsage, SharedHeapReference, SmallAllocationPlan, SmallSpanClass,
+};
 
 /// One mutator-local shared allocation cache.
 #[derive(Debug)]
@@ -38,6 +40,8 @@ pub(super) struct SmallBucket {
 pub(super) struct SmallRun {
     /// The next byte offset allocated from this run.
     pub(super) next_offset: usize,
+    /// The next byte offset already published into usage accounting.
+    pub(super) accounted_offset: usize,
     /// The byte offset after this run.
     pub(super) end_offset: usize,
 }
@@ -58,47 +62,19 @@ pub(super) struct SmallAllocation {
     pub(super) slot: SpanSlot,
     /// The base shared heap reference for the slot.
     pub(super) reference: SharedHeapReference,
+    /// Whether the allocation came from a dense worker run.
+    pub(super) is_dense: bool,
     /// Whether the bucket still owns usable slots.
     pub(super) keep_bucket: bool,
 }
 
 impl SharedAllocationCache {
     /// Create one empty mutator-local shared allocation cache.
-    pub(super) fn new(size_classes: SizeClassTable, span_bytes: usize, page_bytes: usize) -> Self {
-        let bucket_count = SmallAllocationPlan::bucket_count(&size_classes);
-        let mut small = Vec::with_capacity(bucket_count);
-        let mut runs = Vec::with_capacity(bucket_count);
-
-        // create scan and noscan buckets for every size class
-        for class_index in 0..size_classes.classes.len() {
-            let size_class = size_classes.classes[class_index];
-
-            for is_noscan in [false, true] {
-                let class = SmallSpanClass {
-                    size_class: size_class.bytes,
-                    span_bytes: size_class
-                        .span_bytes(page_bytes, span_bytes)
-                        .max(span_bytes),
-                    trace_id: None,
-                    is_noscan,
-                };
-
-                small.push(SmallBucket {
-                    class,
-                    span_index: 0,
-                    span: None,
-                    first_offset: 0,
-                    slot_count: 0,
-                    next_slot: 0,
-                });
-                runs.push(SmallRun {
-                    next_offset: 0,
-                    end_offset: 0,
-                });
-            }
+    pub(super) fn new() -> Self {
+        Self {
+            runs: Vec::new(),
+            small: Vec::new(),
         }
-
-        Self { runs, small }
     }
 
     /// Return the byte charge for acquiring an allocation run.
@@ -106,58 +82,59 @@ impl SharedAllocationCache {
     pub(crate) fn plan_run_charge_bytes(&self, layout: &AllocationPlan<'_>) -> usize {
         // small allocations acquire one span at a time
         if let Some(small) = layout.class.small() {
-            return self.small[small.bucket_index].class.span_bytes;
+            return small.class.span_size_bytes;
         }
 
         layout.byte_len
     }
 
-    /// Try to allocate one zeroed payload from the active run for one small class.
+    /// Ensure the exact small allocation cache entry exists.
     #[inline(always)]
-    pub(crate) fn try_allocate_zeroed(
-        &mut self,
-        small: SmallAllocationPlan,
-    ) -> Option<SharedHeapReference> {
-        let bucket = self.small.get(small.bucket_index())?;
-        if bucket.class != small.class {
-            return None;
+    pub(super) fn ensure_small(&mut self, small: SmallAllocationPlan) {
+        let cache_index = small.cache_index();
+
+        while self.small.len() <= cache_index {
+            self.small.push(SmallBucket::inactive());
+            self.runs.push(SmallRun::inactive());
         }
 
-        // SAFETY: the bucket class was checked against this small allocation plan
-        unsafe { self.reserve_zeroed_run_slot_unchecked(small.bucket_index(), small.slot_bytes()) }
+        if self.small[cache_index].class == SmallSpanClass::EMPTY {
+            self.small[cache_index].class = small.class;
+        }
+
+        debug_assert_eq!(self.small[cache_index].class, small.class);
     }
 
-    /// Reserve one zeroed allocation from trusted instruction fields.
-    ///
-    /// The caller must pass a bucket index and slot byte width from the same resolved small allocation.
-    ///
-    /// # Safety
-    ///
-    /// `bucket_index` must identify the bucket that owns `slot_bytes`.
-    #[inline(always)]
-    pub(crate) unsafe fn reserve_zeroed_run_slot_unchecked(
-        &mut self,
-        bucket_index: usize,
-        slot_bytes: usize,
-    ) -> Option<SharedHeapReference> {
-        // SAFETY: caller resolved both values from the same small allocation plan
-        let run = unsafe { self.runs.get_unchecked_mut(bucket_index) };
-        // SAFETY: caller resolved both values from the same small allocation plan
-        let bucket = unsafe { self.small.get_unchecked_mut(bucket_index) };
-        let reference = run.reserve_reference(slot_bytes)?;
+    /// Return whether this cache owns one unflushed shared heap reference.
+    pub fn contains_heap_reference(&self, reference: SharedHeapReference) -> bool {
+        let offset = reference.offset();
 
-        // publish the bump before returning to the mutator
-        bucket.publish_run(run);
-        if !bucket.has_available_slot(run) {
-            bucket.finish(run);
-            bucket.clear(run);
+        // dense runs are private to the owning mutator until flushed
+        for cache_index in 0..self.small.len() {
+            let run = &self.runs[cache_index];
+            if run.end_offset == 0 {
+                continue;
+            }
+
+            if offset >= run.accounted_offset && offset < run.next_offset {
+                return true;
+            }
         }
 
-        Some(reference)
+        false
     }
 }
 
 impl SmallRun {
+    /// Return an inactive dense run.
+    pub(super) const fn inactive() -> Self {
+        Self {
+            next_offset: 0,
+            accounted_offset: 0,
+            end_offset: 0,
+        }
+    }
+
     /// Reserve one reference from this dense run.
     #[inline(always)]
     pub(super) fn reserve_reference(&mut self, size_class: usize) -> Option<SharedHeapReference> {
@@ -210,17 +187,53 @@ impl SmallRun {
     /// Install one dense run.
     pub(super) fn install(&mut self, next_offset: usize, end_offset: usize) {
         self.next_offset = next_offset;
+        self.accounted_offset = next_offset;
         self.end_offset = end_offset;
+    }
+
+    /// Return the uncommitted usage held by this run.
+    #[inline(always)]
+    pub(super) fn pending_usage(&self, size_class: usize) -> AllocationUsage {
+        if self.end_offset == 0 {
+            return AllocationUsage::default();
+        }
+
+        let allocated_bytes = self.next_offset - self.accounted_offset;
+        let allocation_count = allocated_bytes / size_class;
+
+        AllocationUsage::new(allocation_count, allocated_bytes as u64)
+    }
+
+    /// Flush uncommitted run usage.
+    #[inline(always)]
+    pub(super) fn flush_usage(&mut self, size_class: usize) -> AllocationUsage {
+        let usage = self.pending_usage(size_class);
+        self.accounted_offset = self.next_offset;
+
+        usage
     }
 
     /// Clear this dense run.
     pub(super) fn clear(&mut self) {
         self.next_offset = 0;
+        self.accounted_offset = 0;
         self.end_offset = 0;
     }
 }
 
 impl SmallBucket {
+    /// Return an inactive small allocation bucket.
+    pub(super) const fn inactive() -> Self {
+        Self {
+            class: SmallSpanClass::EMPTY,
+            span_index: 0,
+            span: None,
+            first_offset: 0,
+            slot_count: 0,
+            next_slot: 0,
+        }
+    }
+
     /// Reserve one slot from this allocator.
     #[inline(always)]
     pub(super) fn reserve_slot(&mut self, run: &mut SmallRun) -> Option<SmallSlot> {
@@ -244,7 +257,7 @@ impl SmallBucket {
             }
         }
 
-        // final fallback to the span free bitmap
+        // then use the span free bitmap
         self.span
             .as_ref()?
             .reserve_slot()

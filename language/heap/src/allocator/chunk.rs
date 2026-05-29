@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use super::{PageId, PageRun};
-use crate::{HeapError, HeapResult};
+use crate::{HeapError, HeapRepresentationError, HeapResult};
 
 /// The number of chunk cells stored in one index segment.
 const CHUNK_INDEX_SEGMENT_LEN: usize = 1024;
@@ -121,10 +121,12 @@ impl ChunkIndex {
     /// Insert one chunk by logical chunk index.
     pub(super) fn insert(&self, chunk_index: usize, chunk: Chunk) -> HeapResult<()> {
         if chunk_index >= self.max_chunk_count {
-            return Err(HeapError::AllocatorChunkLimitExceeded {
-                required_chunks: chunk_index + 1,
-                max_chunks: self.max_chunk_count,
-            });
+            return Err(HeapError::representation(
+                HeapRepresentationError::AllocatorChunkLimitExceeded {
+                    required_chunks: chunk_index + 1,
+                    max_chunks: self.max_chunk_count,
+                },
+            ));
         }
 
         let segment_index = chunk_index / CHUNK_INDEX_SEGMENT_LEN;
@@ -176,8 +178,8 @@ fn once_lock_slice<T>(len: usize) -> Box<[OnceLock<T>]> {
 }
 
 /// Return the maximum allocator chunk count addressable by page ids.
-pub(super) fn max_chunk_count(page_bytes: usize, chunk_bytes: usize) -> usize {
-    let pages_per_chunk = (chunk_bytes / page_bytes) as u64;
+pub(super) fn max_chunk_count(page_size_bytes: usize, chunk_size_bytes: usize) -> usize {
+    let pages_per_chunk = (chunk_size_bytes / page_size_bytes) as u64;
     let addressable_pages = u64::from(u32::MAX) + 1;
     let chunk_count = addressable_pages / pages_per_chunk;
 

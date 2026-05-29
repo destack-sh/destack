@@ -4,7 +4,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use criterion::{BenchmarkId, Criterion, Throughput};
-use destack_heap::{AllocationShape, AllocationSite, Heap, SmallAllocationPlan};
+use destack_heap::{
+    AllocationShape, AllocationSite, Heap, SmallAllocationPlan, SmallAllocationSite,
+};
 use destack_mir::{TraceMap, TraceTable};
 
 use crate::config::{
@@ -30,12 +32,15 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
     let heap = local_heap();
     let shape = AllocationShape::new(SMALL_BYTES, 1, None, &trace_map);
     let allocation = heap.allocation_site(shape);
+    let small_site = small_allocation_site(allocation);
     let small = small_allocation(allocation);
     let local_shape = AllocationShape::new(SMALL_BYTES, 1, Some(local_trace_id), &local_trace_map);
     let local_allocation = heap.allocation_site(local_shape);
+    let local_small_site = small_allocation_site(local_allocation);
     let shared_shape =
         AllocationShape::new(SMALL_BYTES, 1, Some(shared_trace_id), &shared_trace_map);
     let shared_allocation = heap.allocation_site(shared_shape);
+    let shared_small_site = small_allocation_site(shared_allocation);
 
     // build initialized payloads for byte-copy paths
     let payload = [0xAB; SMALL_BYTES];
@@ -58,7 +63,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 },
                 |heap| {
                     let reference = heap
-                        .try_allocate_small_noscan_zeroed(allocation)
+                        .reserve_small_noscan_zeroed(small_site)
                         .expect("local noscan allocation should stay hot");
                     black_box(reference);
                 },
@@ -79,7 +84,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 },
                 |heap| {
                     let reference = heap
-                        .try_allocate_small_scan_zeroed(local_allocation)
+                        .reserve_small_scan_zeroed(local_small_site)
                         .expect("local scan allocation should stay hot");
                     black_box(reference);
                 },
@@ -100,7 +105,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 },
                 |heap| {
                     let reference = heap
-                        .try_allocate_small_shared_edge_zeroed(shared_allocation)
+                        .reserve_small_shared_edge_zeroed(shared_small_site)
                         .expect("local shared-edge allocation should stay hot");
                     black_box(reference);
                 },
@@ -204,7 +209,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 |shared_worker| {
                     let reference = shared_worker
                         .heap
-                        .try_allocate_small_zeroed(&mut shared_worker.allocator, small)
+                        .reserve_small_zeroed(&mut shared_worker.allocator, small)
                         .expect("shared noscan allocation should stay hot");
                     black_box(reference);
                 },
@@ -212,7 +217,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
         });
     });
 
-    group.bench_function("shared_small_bytes", |bencher| {
+    group.bench_function("shared_small_size_bytes", |bencher| {
         bencher.iter_custom(|iterations| {
             measure_shared_worker_heap(
                 iterations,
@@ -628,9 +633,14 @@ fn matrix_allocation_count(byte_len: usize) -> usize {
 /// Return the small allocation plan for one allocation site.
 #[inline(always)]
 fn small_allocation(allocation: AllocationSite) -> SmallAllocationPlan {
+    small_allocation_site(allocation).small
+}
+
+/// Return the small allocation site for one allocation site.
+#[inline(always)]
+fn small_allocation_site(allocation: AllocationSite) -> SmallAllocationSite {
     allocation
-        .class
-        .small()
+        .small_site()
         .expect("allocation should use a small class")
 }
 

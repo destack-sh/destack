@@ -27,7 +27,7 @@ pub(crate) struct RawSmallSpanClass {
     /// The slot payload size in bytes.
     pub size_class: usize,
     /// The span byte width for this class.
-    pub span_bytes: usize,
+    pub span_size_bytes: usize,
     /// The logical byte length for every slot.
     pub byte_len: usize,
 }

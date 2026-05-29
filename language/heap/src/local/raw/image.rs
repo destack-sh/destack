@@ -9,7 +9,7 @@ use super::{
     SmallSpanImage,
 };
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
-use crate::{AllocationUsage, CowTable, HeapError, HeapResult};
+use crate::{AllocationUsage, CowTable, HeapConfigurationError, HeapError, HeapResult};
 
 /// One frozen raw-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,9 +21,9 @@ pub(crate) struct RawSpaceImage {
     /// The captured raw spans.
     spans: Box<[SmallSpanImage]>,
     /// The configured local page width.
-    page_bytes: usize,
+    page_size_bytes: usize,
     /// The reserved virtual byte capacity for raw space.
-    space_bytes: usize,
+    space_size_bytes: usize,
     /// The captured raw allocations in large space.
     allocations: Box<[LargeAllocationImage]>,
 
@@ -45,8 +45,8 @@ impl RawSpaceImage {
         size_classes: SizeClassTable,
         small_bytes: usize,
         spans: Box<[SmallSpanImage]>,
-        page_bytes: usize,
-        space_bytes: usize,
+        page_size_bytes: usize,
+        space_size_bytes: usize,
         allocations: Box<[LargeAllocationImage]>,
         next_unused_large_allocation_id: u64,
         next_offset: usize,
@@ -57,8 +57,8 @@ impl RawSpaceImage {
             size_classes,
             small_bytes,
             spans,
-            page_bytes,
-            space_bytes,
+            page_size_bytes,
+            space_size_bytes,
             allocations,
             next_unused_large_allocation_id,
             next_offset,
@@ -83,13 +83,13 @@ impl RawSpaceImage {
     }
 
     /// Return the configured local page width.
-    pub(crate) const fn page_bytes(&self) -> usize {
-        self.page_bytes
+    pub(crate) const fn page_size_bytes(&self) -> usize {
+        self.page_size_bytes
     }
 
     /// Return the reserved virtual byte capacity for raw space.
-    pub(crate) const fn space_bytes(&self) -> usize {
-        self.space_bytes
+    pub(crate) const fn space_size_bytes(&self) -> usize {
+        self.space_size_bytes
     }
 
     /// Return the captured raw allocations in large space.
@@ -122,13 +122,13 @@ impl RawSpaceImage {
         let span_pages = self
             .spans()
             .iter()
-            .map(|span| span.bytes.len().div_ceil(self.page_bytes))
+            .map(|span| span.bytes.len().div_ceil(self.page_size_bytes))
             .sum::<usize>();
         let allocation_pages = self
             .allocations()
             .iter()
             .filter(|allocation| allocation.is_live)
-            .map(|allocation| allocation.bytes.len().div_ceil(self.page_bytes))
+            .map(|allocation| allocation.bytes.len().div_ceil(self.page_size_bytes))
             .sum::<usize>();
 
         span_pages + allocation_pages
@@ -158,7 +158,7 @@ impl RawSpace {
             page_run_cache: PageRunCache::new(self.allocator.pages_per_chunk()),
             small: super::SmallSpace {
                 size_classes: self.small.size_classes.clone(),
-                span_bytes: self.small.span_bytes,
+                span_size_bytes: self.small.span_size_bytes,
                 spans: CowTable::from_vec(spans),
                 partial_spans: Default::default(),
             },
@@ -184,13 +184,13 @@ impl RawSpace {
         allocator: Arc<Allocator>,
         image: &RawSpaceImage,
     ) -> Result<Self, HeapError> {
-        let mapping = AddressSpace::reserve(image.space_bytes(), image.page_bytes())?;
+        let mapping = AddressSpace::reserve(image.space_size_bytes(), image.page_size_bytes())?;
         let mut space = Self {
             allocator: allocator.clone(),
             page_run_cache: PageRunCache::new(allocator.pages_per_chunk()),
             small: super::SmallSpace {
                 size_classes: image.size_classes().clone(),
-                span_bytes: image.small_bytes(),
+                span_size_bytes: image.small_bytes(),
                 spans: CowTable::new(),
                 partial_spans: Default::default(),
             },
@@ -242,9 +242,9 @@ impl RawSpace {
         // freeze the current raw image
         Ok(RawSpaceImage::new(
             self.small.size_classes.clone(),
-            self.small.span_bytes,
+            self.small.span_size_bytes,
             spans,
-            self.allocator.page_bytes(),
+            self.allocator.page_size_bytes(),
             self.mapping.byte_len(),
             allocations,
             self.large.next_unused_large_allocation_id,
@@ -258,7 +258,7 @@ impl RawSpace {
     fn restore_partial_spans(small: &mut super::SmallSpace) -> Result<(), HeapError> {
         for span_index in 0..small.spans.len() {
             let Some(span) = small.spans.get_mut(span_index) else {
-                return Err(HeapError::MissingSpan { span_index });
+                return Err(HeapError::internal("missing span"));
             };
 
             // rebuild the derived per-span occupancy counters
@@ -272,17 +272,21 @@ impl RawSpace {
 
             let Some(class_index) = small.size_classes.class_index_for(span.class.size_class)
             else {
-                return Err(HeapError::InvalidSizeClass {
-                    class_bytes: span.class.size_class,
-                });
+                return Err(HeapError::configuration(
+                    HeapConfigurationError::InvalidSizeClass {
+                        class_bytes: span.class.size_class,
+                    },
+                ));
             };
             let configured_size_class = small.size_classes.classes[class_index].bytes;
             if configured_size_class != span.class.size_class
                 || span.class.byte_len > span.class.size_class
             {
-                return Err(HeapError::InvalidSizeClass {
-                    class_bytes: span.class.size_class,
-                });
+                return Err(HeapError::configuration(
+                    HeapConfigurationError::InvalidSizeClass {
+                        class_bytes: span.class.size_class,
+                    },
+                ));
             }
 
             small
@@ -396,7 +400,7 @@ impl RawSpace {
 
     /// Capture one live raw span image.
     fn capture_span_image(&self, span: &SmallSpan) -> HeapResult<SmallSpanImage> {
-        let byte_len = span.pages.len() * self.allocator.page_bytes();
+        let byte_len = span.pages.len() * self.allocator.page_size_bytes();
         let bytes = self
             .mapping
             .read_bytes(span.first_offset, byte_len)?
@@ -450,7 +454,7 @@ impl RawSpace {
 
         for span_index in 0..self.small.spans.len() {
             let Some(span) = self.span(span_index) else {
-                return Err(HeapError::MissingSpan { span_index });
+                return Err(HeapError::internal("missing span"));
             };
             let pages = span.pages;
 

@@ -3,7 +3,7 @@ use destack_mir::TraceTable;
 use crate::local::gc::SharedEdgeWork;
 use crate::local::space::{HeapPlace, HeapSpace};
 use crate::{
-    HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange, ScanSource,
+    HeapError, HeapOperationSource, HeapReference, HeapResult, ReferenceInput, ReferenceRange,
     SharedHeapReference, scan_references,
 };
 
@@ -94,12 +94,12 @@ impl HeapSpace {
         trace_table: &TraceTable,
     ) -> HeapResult<bool> {
         // freed references cannot publish shared roots
-        let Some(location) = self.resolve_location(reference) else {
+        let Some(region) = self.resolve_region(reference) else {
             return Ok(false);
         };
 
         // layout metadata decides whether scanning is needed
-        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
+        let trace_map = self.trace_map_for_place(region.place, trace_table)?;
 
         Ok(trace_map.has_shared_reference())
     }
@@ -129,30 +129,29 @@ impl HeapSpace {
         trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         // freed references contribute no work
-        let Some(location) = self.resolve_location(reference) else {
+        let Some(region) = self.resolve_region(reference) else {
             return Ok(0);
         };
 
         // load exact shared-reference layout
         let trace_map = self
-            .trace_map_for_place(location.place, trace_table)
-            .map_err(|error| HeapError::HeapScanFailed {
-                source: ScanSource::Reference(reference),
-                error: Box::new(error),
+            .trace_map_for_place(region.place, trace_table)
+            .map_err(|error| {
+                HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
             })?;
 
         // noscan payloads still consume their byte budget
         if !trace_map.has_shared_reference() {
-            return Ok(location.byte_len);
+            return Ok(region.byte_len);
         }
 
         // large references are sliced to keep shared-root scans bounded
-        if matches!(location.place, HeapPlace::Large(_)) {
+        if matches!(region.place, HeapPlace::Large(_)) {
             return self.trace_large_shared_edges(reference, 0, roots, trace_table);
         }
 
         // scan mapped heap memory directly
-        let base_address = self.mapping.base_address() + location.base.offset();
+        let base_address = self.mapping.base_address() + region.base.offset();
         let mut reference_buffer = Vec::new();
         let result = scan_references::<SharedHeapReference>(
             &trace_map,
@@ -162,17 +161,17 @@ impl HeapSpace {
         );
 
         if let Err(error) = result {
-            return Err(HeapError::HeapScanFailed {
-                source: ScanSource::Reference(reference),
-                error: Box::new(error),
-            });
+            return Err(HeapError::scan_failed(
+                HeapOperationSource::Reference(reference),
+                error,
+            ));
         }
 
         // publish non-null shared roots
         reference_buffer.retain(|reference| !reference.is_null());
         roots.extend(reference_buffer);
 
-        Ok(location.byte_len)
+        Ok(region.byte_len)
     }
 
     /// Trace one page-sized range of shared roots from one large heap reference.
@@ -184,10 +183,10 @@ impl HeapSpace {
         trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         // freed references contribute no work
-        let Some(location) = self.resolve_location(reference) else {
+        let Some(region) = self.resolve_region(reference) else {
             return Ok(0);
         };
-        let HeapPlace::Large(_) = location.place else {
+        let HeapPlace::Large(_) = region.place else {
             return Err(HeapError::Internal {
                 context: "large shared-edge work resolved to non-large allocation",
             });
@@ -195,20 +194,22 @@ impl HeapSpace {
 
         // load exact shared-reference layout
         let trace_map = self
-            .trace_map_for_place(location.place, trace_table)
-            .map_err(|error| HeapError::HeapScanFailed {
-                source: ScanSource::Reference(reference),
-                error: Box::new(error),
+            .trace_map_for_place(region.place, trace_table)
+            .map_err(|error| {
+                HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
             })?;
 
         // empty or noscan ranges need no continuation
-        if start >= location.byte_len || !trace_map.has_shared_reference() {
+        if start >= region.byte_len || !trace_map.has_shared_reference() {
             return Ok(0);
         }
 
         // scan at most one allocator page
-        let range_len = self.allocator().page_bytes().min(location.byte_len - start);
-        let base_address = self.mapping.base_address() + location.base.offset();
+        let range_len = self
+            .allocator()
+            .page_size_bytes()
+            .min(region.byte_len - start);
+        let base_address = self.mapping.base_address() + region.base.offset();
         let mut reference_buffer = Vec::new();
         let result = scan_references::<SharedHeapReference>(
             &trace_map,
@@ -218,10 +219,10 @@ impl HeapSpace {
         );
 
         if let Err(error) = result {
-            return Err(HeapError::HeapScanFailed {
-                source: ScanSource::Reference(reference),
-                error: Box::new(error),
-            });
+            return Err(HeapError::scan_failed(
+                HeapOperationSource::Reference(reference),
+                error,
+            ));
         }
 
         // publish non-null shared roots
@@ -230,7 +231,7 @@ impl HeapSpace {
 
         // continue this large allocation on a later step
         let next_start = start + range_len;
-        if next_start < location.byte_len {
+        if next_start < region.byte_len {
             self.collector
                 .shared_edge_queue
                 .push(SharedEdgeWork::LargeRange {

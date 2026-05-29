@@ -5,8 +5,8 @@ use destack_mir::TraceTable;
 use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
 use crate::shared::space::{SharedHeapPlace, SharedHeapSpace, small_slot_offset};
 use crate::{
-    GcStats, HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference,
-    scan_references,
+    GcStats, HeapConfigurationError, HeapError, HeapGcStateError, HeapResult, ReferenceInput,
+    ReferenceRange, SharedHeapReference, SizeClassTableError, scan_references,
 };
 
 impl SharedHeapSpace {
@@ -17,7 +17,7 @@ impl SharedHeapSpace {
 
         // phase
         if self.gc.phase() != SharedGcPhase::Idle {
-            return Err(HeapError::SharedCollectionActive);
+            return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive));
         }
 
         // cycle state
@@ -51,7 +51,7 @@ impl SharedHeapSpace {
 
         // sweep phase
         if !self.try_start_sweep()? {
-            return Err(HeapError::SharedCollectionActive);
+            return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive));
         }
 
         // drain sweep work synchronously
@@ -72,7 +72,7 @@ impl SharedHeapSpace {
     ) -> HeapResult<()> {
         // phase
         if self.gc.phase() != SharedGcPhase::Mark {
-            return Err(HeapError::SharedCollectionNotMarking);
+            return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotMarking));
         }
 
         // newly discovered roots
@@ -138,9 +138,13 @@ impl SharedHeapSpace {
             .small
             .size_classes
             .min_small_allocation_bytes()
-            .ok_or(HeapError::EmptySizeClassTable)?;
+            .ok_or(HeapError::configuration(
+                HeapConfigurationError::InvalidSizeClassTable {
+                    reason: SizeClassTableError::Empty,
+                },
+            ))?;
 
-        Ok((state.small.span_bytes / min_slot_bytes).max(1))
+        Ok((state.small.span_size_bytes / min_slot_bytes).max(1))
     }
 
     /// Trace one shared mark batch.
@@ -213,31 +217,34 @@ impl SharedHeapSpace {
         trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         // resolve and verify the large allocation
-        let Some(location) = self.resolve_location(reference) else {
-            return Err(HeapError::InvalidSharedHeapReference { reference });
+        let Some(region) = self.resolve_region(reference) else {
+            return Err(HeapError::invalid_shared_heap_reference(reference));
         };
-        let SharedHeapPlace::Large(_) = location.place else {
-            return Err(HeapError::InvalidSharedHeapReference { reference });
+        let SharedHeapPlace::Large(_) = region.place else {
+            return Err(HeapError::invalid_shared_heap_reference(reference));
         };
 
         // skip empty ranges and noscan payloads
-        let trace_map = self.trace_map_for_place(location.place, trace_table)?;
+        let trace_map = self.trace_map_for_place(region.place, trace_table)?;
         if !trace_map.has_shared_reference() {
-            return Ok(location.byte_len);
+            return Ok(region.byte_len);
         }
 
         // range already fully traced
-        if start >= location.byte_len {
+        if start >= region.byte_len {
             return Ok(0);
         }
 
         // scan at most one allocator page
-        let range_len = self.allocator.page_bytes().min(location.byte_len - start);
+        let range_len = self
+            .allocator
+            .page_size_bytes()
+            .min(region.byte_len - start);
 
         let mut reference_buffer = Vec::new();
 
         // payload scan
-        let base_address = self.mapping.base_address() + location.base.offset();
+        let base_address = self.mapping.base_address() + region.base.offset();
         scan_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
@@ -252,7 +259,7 @@ impl SharedHeapSpace {
         // continue this large allocation on a later step
         let next_start = start + range_len;
 
-        if next_start < location.byte_len {
+        if next_start < region.byte_len {
             self.gc.trace_queue.push(
                 worker,
                 SharedTraceWork::Large {
@@ -279,7 +286,7 @@ impl SharedHeapSpace {
         let span = {
             let store = self.state.read();
             let Some(span) = store.small.spans.get(span_index).cloned() else {
-                return Err(HeapError::MissingSpan { span_index });
+                return Err(HeapError::internal("missing span"));
             };
 
             span

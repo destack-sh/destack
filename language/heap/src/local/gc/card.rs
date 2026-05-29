@@ -1,4 +1,4 @@
-use crate::DEFAULT_CARD_BYTES;
+use crate::DEFAULT_CARD_SIZE_BYTES;
 use crate::allocator::Bitmap;
 
 /// One card set for mature remembered regions.
@@ -13,7 +13,7 @@ pub(crate) struct CardSet {
 impl CardSet {
     /// Create one empty card set for the given byte length.
     pub(crate) fn with_len(byte_len: usize) -> Self {
-        let card_count = byte_len.div_ceil(DEFAULT_CARD_BYTES);
+        let card_count = byte_len.div_ceil(DEFAULT_CARD_SIZE_BYTES);
 
         Self {
             byte_len,
@@ -29,8 +29,8 @@ impl CardSet {
         }
 
         let end = (start + len).min(self.byte_len);
-        let start_card = start / DEFAULT_CARD_BYTES;
-        let end_card = end.div_ceil(DEFAULT_CARD_BYTES);
+        let start_card = start / DEFAULT_CARD_SIZE_BYTES;
+        let end_card = end.div_ceil(DEFAULT_CARD_SIZE_BYTES);
 
         // mark the covered card run in one bitmap update
         self.dirty.set_range(start_card, end_card - start_card);
@@ -49,8 +49,8 @@ impl CardSet {
     /// Return one dirty card at or after the given card index.
     pub(crate) fn next_dirty_card_from(&self, card_index: usize) -> Option<(usize, usize, usize)> {
         let card_index = self.dirty.first_set_from(card_index)?;
-        let start = card_index * DEFAULT_CARD_BYTES;
-        let end = (start + DEFAULT_CARD_BYTES).min(self.byte_len);
+        let start = card_index * DEFAULT_CARD_SIZE_BYTES;
+        let end = (start + DEFAULT_CARD_SIZE_BYTES).min(self.byte_len);
 
         Some((card_index, start, end - start))
     }

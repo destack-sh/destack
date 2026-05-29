@@ -1,4 +1,4 @@
-use super::{RawLocation, RawPlace, RawSpace};
+use super::{RawPlace, RawRegion, RawSpace};
 use crate::{HeapError, HeapResult, Payload, RawAllocationShape, RawPointer};
 
 impl RawSpace {
@@ -9,9 +9,9 @@ impl RawSpace {
         start: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        let (location, byte_offset) = self.resolve_range(pointer, start, target.len())?;
+        let (region, byte_offset) = self.resolve_range(pointer, start, target.len())?;
 
-        self.fill_location_bytes(location, byte_offset, target)
+        self.fill_region_bytes(region, byte_offset, target)
     }
 
     /// Return one checked address for a live raw byte range.
@@ -21,8 +21,8 @@ impl RawSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<*const u8> {
-        let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
-        let offset = location.base.offset() + byte_offset;
+        let (region, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
+        let offset = region.base.offset() + byte_offset;
 
         Ok(self.mapping.address(offset, byte_len)? as *const u8)
     }
@@ -34,57 +34,57 @@ impl RawSpace {
         start: usize,
         byte_len: usize,
     ) -> HeapResult<*mut u8> {
-        let (location, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
-        let offset = location.base.offset() + byte_offset;
+        let (region, byte_offset) = self.resolve_range(pointer, start, byte_len)?;
+        let offset = region.base.offset() + byte_offset;
 
         Ok(self.mapping.address(offset, byte_len)?)
     }
 
     /// Return whether one raw pointer currently refers to one live allocation.
     pub fn is_live(&self, pointer: RawPointer) -> bool {
-        self.resolve_location(pointer).is_some()
+        self.resolve_region(pointer).is_some()
     }
 
     /// Return the bytes for one raw allocation as one owned vector.
     pub fn read_bytes(&self, pointer: RawPointer) -> HeapResult<Vec<u8>> {
         // resolve the live allocation and requested slice
-        let Some(location) = self.resolve_location(pointer) else {
-            return Err(HeapError::InvalidRawPointer { pointer });
+        let Some(region) = self.resolve_region(pointer) else {
+            return Err(HeapError::invalid_raw_pointer(pointer));
         };
-        let byte_len = location.byte_len - location.byte_offset;
+        let byte_len = region.byte_len - region.byte_offset;
 
-        self.location_bytes(location, location.byte_offset, byte_len)
+        self.region_bytes(region, region.byte_offset, byte_len)
     }
 
-    /// Return the bytes for one live raw location.
-    fn location_bytes(
+    /// Return the bytes for one live raw region.
+    fn region_bytes(
         &self,
-        location: RawLocation,
+        region: RawRegion,
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<Vec<u8>> {
-        let offset = location.base.offset() + byte_offset;
+        let offset = region.base.offset() + byte_offset;
 
         Ok(self.mapping.read_bytes(offset, byte_len)?)
     }
 
     /// Return the remaining byte length for one raw allocation.
     pub fn byte_len(&self, pointer: RawPointer) -> HeapResult<usize> {
-        let Some(location) = self.resolve_location(pointer) else {
-            return Err(HeapError::InvalidRawPointer { pointer });
+        let Some(region) = self.resolve_region(pointer) else {
+            return Err(HeapError::invalid_raw_pointer(pointer));
         };
 
-        Ok(location.byte_len - location.byte_offset)
+        Ok(region.byte_len - region.byte_offset)
     }
 
-    /// Fill one caller-provided buffer from one live raw location.
-    fn fill_location_bytes(
+    /// Fill one caller-provided buffer from one live raw region.
+    fn fill_region_bytes(
         &self,
-        location: RawLocation,
+        region: RawRegion,
         byte_offset: usize,
         target: &mut [u8],
     ) -> HeapResult<()> {
-        let offset = location.base.offset() + byte_offset;
+        let offset = region.base.offset() + byte_offset;
 
         Ok(self.mapping.read_bytes_into(offset, target)?)
     }
@@ -96,35 +96,35 @@ impl RawSpace {
         start: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        let (location, byte_offset) = self.resolve_range(pointer, start, bytes.len())?;
+        let (region, byte_offset) = self.resolve_range(pointer, start, bytes.len())?;
 
-        self.write_location_bytes(location, byte_offset, bytes)
+        self.write_region_bytes(region, byte_offset, bytes)
     }
 
-    /// Return one checked live location and byte offset for one raw range.
+    /// Return one checked live region and byte offset for one raw range.
     fn resolve_range(
         &self,
         pointer: RawPointer,
         start: usize,
         byte_len: usize,
-    ) -> HeapResult<(RawLocation, usize)> {
-        let Some(location) = self.resolve_location(pointer) else {
-            return Err(HeapError::InvalidRawPointer { pointer });
+    ) -> HeapResult<(RawRegion, usize)> {
+        let Some(region) = self.resolve_region(pointer) else {
+            return Err(HeapError::invalid_raw_pointer(pointer));
         };
         let byte_offset =
-            allocation_byte_offset(location.byte_offset, start, byte_len, location.byte_len)?;
+            allocation_byte_offset(region.byte_offset, start, byte_len, region.byte_len)?;
 
-        Ok((location, byte_offset))
+        Ok((region, byte_offset))
     }
 
-    /// Overwrite one byte range for one live raw location.
-    fn write_location_bytes(
+    /// Overwrite one byte range for one live raw region.
+    fn write_region_bytes(
         &mut self,
-        location: RawLocation,
+        region: RawRegion,
         byte_offset: usize,
         bytes: &[u8],
     ) -> HeapResult<()> {
-        let offset = location.base.offset() + byte_offset;
+        let offset = region.base.offset() + byte_offset;
 
         self.write_mapped_bytes(offset, bytes);
 
@@ -139,15 +139,15 @@ impl RawSpace {
     /// Replace the entire raw allocation payload.
     pub fn replace_bytes(&mut self, pointer: RawPointer, bytes: &[u8]) -> HeapResult<RawPointer> {
         // resolve the live allocation first
-        let Some(location) = self.resolve_location(pointer) else {
-            return Err(HeapError::InvalidRawPointer { pointer });
+        let Some(region) = self.resolve_region(pointer) else {
+            return Err(HeapError::invalid_raw_pointer(pointer));
         };
 
-        self.replace_location_bytes(location.place, location.byte_len, bytes)
+        self.replace_region_bytes(region.place, region.byte_len, bytes)
     }
 
-    /// Replace the full payload for one live raw location.
-    fn replace_location_bytes(
+    /// Replace the full payload for one live raw region.
+    fn replace_region_bytes(
         &mut self,
         place: RawPlace,
         previous_byte_len: usize,
@@ -158,17 +158,13 @@ impl RawSpace {
             RawPlace::Small(slot) => {
                 let Some(class) = self.span(slot.span_index()).map(|span| span.class.clone())
                 else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
+                    return Err(HeapError::internal("missing span"));
                 };
 
                 // rewrite in place when the payload still fits
                 if bytes.len() == class.byte_len {
                     let Some(span) = self.span(slot.span_index()) else {
-                        return Err(HeapError::MissingSpan {
-                            span_index: slot.span_index(),
-                        });
+                        return Err(HeapError::internal("missing span"));
                     };
                     let slot_offset = small_slot_offset(span.class.size_class, slot.slot_index());
                     let offset = span.first_offset + slot_offset;
@@ -181,15 +177,13 @@ impl RawSpace {
                 }
 
                 // otherwise allocate new place and retarget the pointer
-                let new_location = match self.allocate_small_bytes(bytes)? {
+                let new_region = match self.allocate_small_bytes(bytes)? {
                     Some(new_slot) => RawPlace::Small(new_slot),
                     None => {
                         let pages = self.allocate_page_run(bytes.len())?;
                         let allocation_id = self.insert_large_allocation(bytes.len(), 1, pages)?;
                         let Some(allocation) = self.large_allocation(allocation_id) else {
-                            return Err(HeapError::MissingLargeAllocation {
-                                allocation_id: allocation_id.id(),
-                            });
+                            return Err(HeapError::internal("missing large allocation"));
                         };
                         let first_offset = allocation.first_offset;
 
@@ -204,24 +198,20 @@ impl RawSpace {
 
                 self.usage.resize(previous_byte_len, bytes.len());
 
-                self.base_pointer(new_location)
+                self.base_pointer(new_region)
             }
             RawPlace::Large(allocation_id) => {
                 let shape = RawAllocationShape::bytes(bytes.len());
-                let new_location = self.allocate_place(shape, Payload::Bytes(bytes))?;
+                let new_region = self.allocate_place(shape, Payload::Bytes(bytes))?;
 
                 let Some(allocation) = self.large_allocation(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
+                    return Err(HeapError::internal("missing large allocation"));
                 };
                 let first_offset = allocation.first_offset;
                 let pages = allocation.pages;
 
                 let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
+                    return Err(HeapError::internal("missing large allocation"));
                 };
 
                 // retire the previous large allocation after replacement succeeds
@@ -234,7 +224,7 @@ impl RawSpace {
 
                 self.usage.resize(previous_byte_len, bytes.len());
 
-                self.base_pointer(new_location)
+                self.base_pointer(new_region)
             }
         }
     }

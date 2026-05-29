@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::{Allocator, HeapError, Payload, RawAllocationShape, SharedRawPointer, SharedRawSpace};
+use crate::{
+    Allocator, HeapAllocationError, HeapError, Payload, RawAllocationShape, SharedRawPointer,
+    SharedRawSpace,
+};
 
 /// Build one default shared raw space.
 fn test_shared_raw_space() -> SharedRawSpace {
@@ -19,7 +22,7 @@ fn test_free_shared_rejects_invalid_pointer() {
     let pointer = SharedRawPointer::new(7);
     let error = shared.free(pointer).expect_err("shared free should fail");
 
-    assert_eq!(error, HeapError::InvalidSharedRawPointer { pointer });
+    assert_eq!(error, HeapError::invalid_shared_raw_pointer(pointer));
 }
 
 /// Reclaim one freed shared raw allocation and allow another allocation.
@@ -75,10 +78,10 @@ fn test_reject_shared_raw_allocation_byte_len_mismatch() {
 
     assert_eq!(
         error,
-        HeapError::InvalidAllocationBytes {
+        HeapError::invalid_allocation(HeapAllocationError::ByteLengthMismatch {
             expected: 4,
             actual: 2
-        }
+        })
     );
 }
 
@@ -87,7 +90,7 @@ fn test_reject_shared_raw_allocation_byte_len_mismatch() {
 fn test_allocate_shared_raw_honors_alignment() {
     // build a default shared raw space
     let shared = test_shared_raw_space();
-    let alignment = shared.page_bytes() * 2;
+    let alignment = shared.page_size_bytes() * 2;
 
     // align page-backed shared raw allocation bases
     let pointer = shared
@@ -147,5 +150,5 @@ fn test_shared_reads_reject_invalid_pointer_offset() {
         .byte_len(pointer)
         .expect_err("shared byte_len should reject invalid offsets");
 
-    assert_eq!(error, HeapError::InvalidSharedRawPointer { pointer });
+    assert_eq!(error, HeapError::invalid_shared_raw_pointer(pointer));
 }

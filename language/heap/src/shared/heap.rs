@@ -10,8 +10,9 @@ use super::{
 };
 use crate::{
     AccountingRegion, AllocationPlan, AllocationShape, AllocationSite, Allocator, GcPacer,
-    GcPressure, GcProgress, GcState, GcStats, HeapError, HeapResult, Payload, RawAllocationShape,
-    SharedHeapOptions, SharedHeapReference, SharedRawPointer, apply_byte_delta,
+    GcPressure, GcProgress, GcState, GcStats, HeapAllocationError, HeapError, HeapResult, Payload,
+    RawAllocationShape, SharedHeapOptions, SharedHeapReference, SharedRawPointer,
+    SmallAllocationPlan, apply_byte_delta,
 };
 
 /// One live shared heap.
@@ -87,8 +88,8 @@ impl SharedHeapImage {
     /// Build one shared heap image from one serialized snapshot.
     pub fn from_snapshot(snapshot: &SharedHeapSnapshot) -> HeapResult<Self> {
         let allocator = Arc::new(Allocator::try_new(
-            snapshot.options.page_bytes,
-            snapshot.options.allocator_chunk_bytes,
+            snapshot.options.page_size_bytes,
+            snapshot.options.allocator_chunk_size_bytes,
         )?);
 
         Self::from_snapshot_with_allocator(snapshot, allocator)
@@ -138,7 +139,7 @@ impl SharedHeapImage {
 
     /// Return the retained frozen page count.
     pub fn page_count(&self) -> usize {
-        self.heap().page_count() + self.raw().page_count(self.options().page_bytes)
+        self.heap().page_count() + self.raw().page_count(self.options().page_size_bytes)
     }
 }
 
@@ -170,8 +171,8 @@ impl SharedHeap {
     }
 
     /// Return the configured shared page size.
-    pub fn page_bytes(&self) -> usize {
-        self.heap.allocator.page_bytes()
+    pub fn page_size_bytes(&self) -> usize {
+        self.heap.allocator.page_size_bytes()
     }
 
     /// Return the configured shared heap options.
@@ -359,9 +360,52 @@ impl SharedHeap {
         self.heap.flush_allocation_cache(cache);
     }
 
-    /// Allocate one shared managed heap allocation.
+    /// Allocate one zeroed dynamic shared managed heap allocation.
     #[inline(always)]
-    pub fn allocate(
+    pub fn allocate_dynamic_zeroed(
+        &self,
+        worker: &SharedGcWorker,
+        cache: &mut SharedAllocationCache,
+        shape: AllocationShape<'_>,
+        trace_table: &TraceTable,
+    ) -> HeapResult<SharedHeapReference> {
+        let layout = self.heap.allocation_plan(shape);
+
+        self.allocate_dynamic_payload(worker, cache, &layout, Payload::Zeroed, trace_table)
+    }
+
+    /// Allocate one uninitialized dynamic shared managed heap allocation.
+    #[inline(always)]
+    pub fn allocate_dynamic_uninit(
+        &self,
+        worker: &SharedGcWorker,
+        cache: &mut SharedAllocationCache,
+        shape: AllocationShape<'_>,
+        trace_table: &TraceTable,
+    ) -> HeapResult<SharedHeapReference> {
+        let layout = self.heap.allocation_plan(shape);
+
+        self.allocate_dynamic_payload(worker, cache, &layout, Payload::Uninit, trace_table)
+    }
+
+    /// Allocate one byte-initialized dynamic shared managed heap allocation.
+    #[inline(always)]
+    pub fn allocate_dynamic_bytes(
+        &self,
+        worker: &SharedGcWorker,
+        cache: &mut SharedAllocationCache,
+        shape: AllocationShape<'_>,
+        bytes: &[u8],
+        trace_table: &TraceTable,
+    ) -> HeapResult<SharedHeapReference> {
+        let layout = self.heap.allocation_plan(shape);
+
+        self.allocate_dynamic_payload(worker, cache, &layout, Payload::Bytes(bytes), trace_table)
+    }
+
+    /// Allocate one allocator-planned dynamic payload.
+    #[inline(always)]
+    pub(crate) fn allocate_dynamic_payload(
         &self,
         worker: &SharedGcWorker,
         cache: &mut SharedAllocationCache,
@@ -369,119 +413,19 @@ impl SharedHeap {
         allocation: Payload<'_>,
         trace_table: &TraceTable,
     ) -> HeapResult<SharedHeapReference> {
-        self.allocate_payload(worker, cache, layout, allocation, trace_table)
-    }
-
-    /// Allocate one byte-initialized shared managed heap allocation.
-    #[inline(always)]
-    pub fn allocate_bytes(
-        &self,
-        worker: &SharedGcWorker,
-        cache: &mut SharedAllocationCache,
-        layout: &AllocationPlan<'_>,
-        bytes: &[u8],
-        trace_table: &TraceTable,
-    ) -> HeapResult<SharedHeapReference> {
-        self.allocate_payload(worker, cache, layout, Payload::Bytes(bytes), trace_table)
-    }
-
-    /// Allocate one zeroed shared managed heap allocation.
-    #[inline(always)]
-    pub fn allocate_zeroed(
-        &self,
-        worker: &SharedGcWorker,
-        cache: &mut SharedAllocationCache,
-        layout: &AllocationPlan<'_>,
-        trace_table: &TraceTable,
-    ) -> HeapResult<SharedHeapReference> {
         if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
+            return Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize));
         }
 
-        let is_active_collection = self.gc_phase() != SharedGcPhase::Idle;
-
-        // worker-local runs are the ordinary allocation path
-        if !is_active_collection
-            && layout.is_noscan
-            && let Some(small) = layout.class.small()
-            && let Some(reference) = cache.try_allocate_zeroed(small)
-        {
-            self.heap.accounting.allocate(small.slot_bytes());
-
-            return Ok(reference);
-        }
-
-        self.allocate_zeroed_refill(worker, cache, layout, trace_table)
-    }
-
-    /// Try to allocate one zeroed payload from a compiled allocation site.
-    #[inline(always)]
-    pub fn try_allocate_site_zeroed(
-        &self,
-        cache: &mut SharedAllocationCache,
-        site: AllocationSite,
-    ) -> Option<SharedHeapReference> {
-        if site.is_empty() || self.gc_phase() != SharedGcPhase::Idle {
-            return None;
-        }
-
-        let small = site.class.small()?;
-        let reference = cache.try_allocate_zeroed(small)?;
-        self.heap.accounting.allocate(small.slot_bytes());
-
-        Some(reference)
-    }
-
-    /// Allocate one zeroed payload from a compiled allocation site.
-    #[cold]
-    #[inline(never)]
-    pub fn allocate_site_zeroed(
-        &self,
-        worker: &SharedGcWorker,
-        cache: &mut SharedAllocationCache,
-        site: AllocationSite,
-        trace_map: &TraceMap,
-        trace_table: &TraceTable,
-    ) -> HeapResult<SharedHeapReference> {
-        let layout = site.plan(trace_map);
-
-        self.allocate_payload(worker, cache, &layout, Payload::Zeroed, trace_table)
-    }
-
-    /// Refill zeroed allocation state or allocate from published space.
-    #[cold]
-    #[inline(never)]
-    fn allocate_zeroed_refill(
-        &self,
-        worker: &SharedGcWorker,
-        cache: &mut SharedAllocationCache,
-        layout: &AllocationPlan<'_>,
-        trace_table: &TraceTable,
-    ) -> HeapResult<SharedHeapReference> {
-        self.allocate_payload(worker, cache, layout, Payload::Zeroed, trace_table)
-    }
-
-    /// Allocate one shared managed payload.
-    #[inline(always)]
-    fn allocate_payload(
-        &self,
-        worker: &SharedGcWorker,
-        cache: &mut SharedAllocationCache,
-        layout: &AllocationPlan<'_>,
-        payload: Payload<'_>,
-        trace_table: &TraceTable,
-    ) -> HeapResult<SharedHeapReference> {
-        if layout.is_empty() {
-            return Err(HeapError::ZeroSizeAllocation);
-        }
-
-        if let Some(actual) = payload.byte_len()
+        if let Some(actual) = allocation.byte_len()
             && actual != layout.byte_len
         {
-            return Err(HeapError::InvalidAllocationBytes {
-                expected: layout.byte_len,
-                actual,
-            });
+            return Err(HeapError::invalid_allocation(
+                HeapAllocationError::ByteLengthMismatch {
+                    expected: layout.byte_len,
+                    actual,
+                },
+            ));
         }
 
         let is_active_collection = self.gc_phase() != SharedGcPhase::Idle;
@@ -490,7 +434,7 @@ impl SharedHeap {
         if !is_active_collection
             && let Some(reference) = self
                 .heap
-                .try_allocate_worker_small(cache, layout, payload)?
+                .reserve_worker_small_payload(cache, layout, allocation)?
         {
             return Ok(reference);
         }
@@ -510,13 +454,85 @@ impl SharedHeap {
 
         let reference = self
             .heap
-            .allocate(cache, layout, payload, !is_active_collection)?;
+            .allocate(cache, layout, allocation, !is_active_collection)?;
         if !is_active_collection {
             self.accrue_assist_debt(pressure_bytes);
         }
         self.refresh_gc_request();
 
         Ok(reference)
+    }
+
+    /// Reserve one zeroed shared small payload from the worker cache.
+    #[inline(always)]
+    pub fn reserve_small_zeroed(
+        &self,
+        cache: &mut SharedAllocationCache,
+        small: SmallAllocationPlan,
+    ) -> Option<SharedHeapReference> {
+        self.reserve_small(cache, small)
+    }
+
+    /// Reserve one uninitialized shared small payload from the worker cache.
+    #[inline(always)]
+    pub fn reserve_small_uninit(
+        &self,
+        cache: &mut SharedAllocationCache,
+        small: SmallAllocationPlan,
+    ) -> Option<SharedHeapReference> {
+        self.reserve_small(cache, small)
+    }
+
+    /// Reserve one shared small payload.
+    #[inline(always)]
+    fn reserve_small(
+        &self,
+        cache: &mut SharedAllocationCache,
+        small: SmallAllocationPlan,
+    ) -> Option<SharedHeapReference> {
+        if self.gc_phase() != SharedGcPhase::Idle {
+            return None;
+        }
+
+        self.heap.reserve_worker_small(cache, small)
+    }
+
+    /// Allocate one zeroed payload from one allocation site.
+    #[cold]
+    #[inline(never)]
+    pub fn allocate_zeroed(
+        &self,
+        worker: &SharedGcWorker,
+        cache: &mut SharedAllocationCache,
+        allocation: AllocationSite,
+        trace_map: &TraceMap,
+        trace_table: &TraceTable,
+    ) -> HeapResult<SharedHeapReference> {
+        let layout = allocation.plan(trace_map);
+
+        self.allocate_dynamic_payload(worker, cache, &layout, Payload::Zeroed, trace_table)
+    }
+
+    /// Allocate one uninitialized payload from one allocation site.
+    #[cold]
+    #[inline(never)]
+    pub fn allocate_uninit(
+        &self,
+        worker: &SharedGcWorker,
+        cache: &mut SharedAllocationCache,
+        allocation: AllocationSite,
+        trace_map: &TraceMap,
+        trace_table: &TraceTable,
+    ) -> HeapResult<SharedHeapReference> {
+        let layout = allocation.plan(trace_map);
+
+        self.allocate_dynamic_payload(worker, cache, &layout, Payload::Uninit, trace_table)
+    }
+
+    /// Resolve one allocation shape to one compiled allocation site.
+    #[inline(always)]
+    pub fn allocation_site(&self, shape: AllocationShape<'_>) -> AllocationSite {
+        self.heap.allocation_plan(shape).site()
     }
 
     /// Resolve one allocation shape against this shared heap.
@@ -531,7 +547,13 @@ impl SharedHeap {
     }
 
     /// Free one shared heap allocation immediately.
-    pub fn free(&self, reference: SharedHeapReference) -> HeapResult<()> {
+    pub fn free(
+        &self,
+        cache: &mut SharedAllocationCache,
+        reference: SharedHeapReference,
+    ) -> HeapResult<()> {
+        self.heap.flush_cache_for_reference(cache, reference);
+
         self.heap.free(reference).map(|_| ())
     }
 

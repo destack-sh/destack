@@ -1,5 +1,5 @@
 use super::{
-    SharedHeapLocation, SharedHeapPageMapEntry, SharedHeapPlace, SharedHeapSpace, SharedHeapState,
+    SharedHeapPageMapEntry, SharedHeapPlace, SharedHeapRegion, SharedHeapSpace, SharedHeapState,
     SharedLargeAllocationId,
 };
 use crate::SharedHeapReference;
@@ -23,7 +23,7 @@ impl SharedHeapSpace {
         page_run: &PageRun,
         mut entry: impl FnMut(usize) -> SharedHeapPageMapEntry,
     ) {
-        let first_page_index = first_offset / self.allocator.page_bytes();
+        let first_page_index = first_offset / self.allocator.page_size_bytes();
 
         for logical_page_index in 0..page_run.len() {
             let page_index = first_page_index + logical_page_index;
@@ -44,7 +44,7 @@ impl SharedHeapSpace {
         first_offset: usize,
         page_run: &PageRun,
     ) {
-        let first_page_index = first_offset / self.allocator.page_bytes();
+        let first_page_index = first_offset / self.allocator.page_size_bytes();
 
         for logical_page_index in 0..page_run.len() {
             let page_index = first_page_index + logical_page_index;
@@ -56,14 +56,14 @@ impl SharedHeapSpace {
         }
     }
 
-    /// Return the resolved location for one live shared heap reference.
-    pub(crate) fn resolve_location(
+    /// Return the resolved region for one live shared heap reference.
+    pub(crate) fn resolve_region(
         &self,
         reference: SharedHeapReference,
-    ) -> Option<SharedHeapLocation> {
-        let page_bytes = self.allocator.page_bytes();
-        let page_index = reference.offset() / page_bytes;
-        let page_offset = reference.offset() % page_bytes;
+    ) -> Option<SharedHeapRegion> {
+        let page_size_bytes = self.allocator.page_size_bytes();
+        let page_index = reference.offset() / page_size_bytes;
+        let page_offset = reference.offset() % page_size_bytes;
         let store = self.state.read();
         let entry = self.page_entry(&store, page_index)?;
 
@@ -71,26 +71,25 @@ impl SharedHeapSpace {
             SharedHeapPageMapEntry::Small {
                 span_index,
                 logical_page_index,
-            } => self.resolve_small_location(&store, span_index, logical_page_index, page_offset),
+            } => self.resolve_small_region(&store, span_index, logical_page_index, page_offset),
             SharedHeapPageMapEntry::Large {
                 allocation_id,
                 logical_page_index,
-            } => {
-                self.resolve_large_location(&store, allocation_id, logical_page_index, page_offset)
-            }
+            } => self.resolve_large_region(&store, allocation_id, logical_page_index, page_offset),
         }
     }
 
-    /// Return the resolved small-span location for one live shared heap reference.
-    fn resolve_small_location(
+    /// Return the resolved small-span region for one live shared heap reference.
+    fn resolve_small_region(
         &self,
         store: &SharedHeapState,
         span_index: usize,
         logical_page_index: usize,
         page_offset: usize,
-    ) -> Option<SharedHeapLocation> {
+    ) -> Option<SharedHeapRegion> {
         let span = store.small.spans.get(span_index)?.clone();
-        let logical_byte_offset = logical_page_index * self.allocator.page_bytes() + page_offset;
+        let logical_byte_offset =
+            logical_page_index * self.allocator.page_size_bytes() + page_offset;
         let slot_index = logical_byte_offset / span.class.size_class;
         let slot_offset = logical_byte_offset % span.class.size_class;
 
@@ -108,7 +107,7 @@ impl SharedHeapSpace {
         let base_offset = span.first_offset + slot_base_offset;
         let slot = SpanSlot::new(span_index, slot_index).ok()?;
 
-        Some(SharedHeapLocation {
+        Some(SharedHeapRegion {
             place: SharedHeapPlace::Small(slot),
             base: SharedHeapReference::new(base_offset),
             byte_offset: slot_offset,
@@ -116,14 +115,14 @@ impl SharedHeapSpace {
         })
     }
 
-    /// Return the resolved large-allocation location for one live shared heap reference.
-    fn resolve_large_location(
+    /// Return the resolved large-allocation region for one live shared heap reference.
+    fn resolve_large_region(
         &self,
         store: &SharedHeapState,
         allocation_id: SharedLargeAllocationId,
         logical_page_index: usize,
         page_offset: usize,
-    ) -> Option<SharedHeapLocation> {
+    ) -> Option<SharedHeapRegion> {
         let allocation = store
             .large
             .allocations
@@ -134,7 +133,8 @@ impl SharedHeapSpace {
             return None;
         }
 
-        let logical_byte_offset = logical_page_index * self.allocator.page_bytes() + page_offset;
+        let logical_byte_offset =
+            logical_page_index * self.allocator.page_size_bytes() + page_offset;
         if allocation.byte_len == 0 {
             if logical_byte_offset != 0 {
                 return None;
@@ -143,7 +143,7 @@ impl SharedHeapSpace {
             return None;
         }
 
-        Some(SharedHeapLocation {
+        Some(SharedHeapRegion {
             place: SharedHeapPlace::Large(allocation_id),
             base: SharedHeapReference::new(allocation.first_offset),
             byte_offset: logical_byte_offset,

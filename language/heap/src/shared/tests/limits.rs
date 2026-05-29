@@ -18,7 +18,7 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
     let layout = test_layout(bytes.len(), TraceMap::empty());
     let options = crate::SharedHeapOptions::default();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
             .expect("allocator should build"),
     );
     let shared = SharedHeap::with_allocator_limits_and_options(
@@ -31,7 +31,7 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
     let worker = shared.register_collector_worker();
 
     shared
-        .allocate(
+        .allocate_dynamic_payload(
             &worker,
             &mut allocator,
             &shared.allocation_plan(layout.allocation()),
@@ -55,15 +55,15 @@ fn test_track_shared_small_span_retained_bytes() {
         .class_index_for(SMALL_ALLOCATION_BYTES)
         .expect("small allocation size should have a class");
     let size_class = options.size_classes.classes[class_index];
-    let span_bytes = size_class
-        .span_bytes(options.page_bytes, options.heap_small_bytes)
-        .max(options.heap_small_bytes);
-    let slot_count = span_bytes / size_class.bytes;
+    let span_size_bytes = size_class
+        .span_size_bytes(options.page_size_bytes, options.heap_small_size_bytes)
+        .max(options.heap_small_size_bytes);
+    let slot_count = span_size_bytes / size_class.bytes;
     let span_count = SMALL_ALLOCATION_COUNT.div_ceil(slot_count);
-    let retained_bytes = span_count * span_bytes;
+    let retained_bytes = span_count * span_size_bytes;
     let shared = SharedHeap::with_allocator_limits_and_options(
         Arc::new(
-            Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+            Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
                 .expect("allocator should build"),
         ),
         SharedHeapLimits::default(),
@@ -76,7 +76,7 @@ fn test_track_shared_small_span_retained_bytes() {
     // allocate enough objects to cover several shared span slots
     for _ in 0..SMALL_ALLOCATION_COUNT {
         shared
-            .allocate(
+            .allocate_dynamic_payload(
                 &worker,
                 &mut allocator,
                 &shared.allocation_plan(layout.allocation()),
@@ -113,18 +113,20 @@ fn test_flush_publishes_worker_shared_small_allocations() {
     let worker = shared.register_collector_worker();
 
     let first = shared
-        .allocate_zeroed(
+        .allocate_dynamic_payload(
             &worker,
             &mut allocator,
             &shared.allocation_plan(layout.allocation()),
+            Payload::Zeroed,
             trace_table(),
         )
         .expect("shared heap allocation should succeed");
     let second = shared
-        .allocate_zeroed(
+        .allocate_dynamic_payload(
             &worker,
             &mut allocator,
             &shared.allocation_plan(layout.allocation()),
+            Payload::Zeroed,
             trace_table(),
         )
         .expect("shared heap allocation should succeed");
@@ -146,13 +148,50 @@ fn test_flush_publishes_worker_shared_small_allocations() {
     assert_eq!(shared.usage().heap.allocation_count, 2);
 }
 
+/// Freeing one worker-local shared allocation clears cache liveness.
+#[test]
+fn test_free_clears_worker_shared_small_liveness() {
+    let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
+    let shared = SharedHeap::with_allocator_limits_and_options(
+        Arc::new(Allocator::try_default().expect("allocator should build")),
+        SharedHeapLimits::default(),
+        crate::SharedHeapOptions::default(),
+    )
+    .expect("shared heap should build");
+    let mut allocator = shared.allocation_cache();
+    let worker = shared.register_collector_worker();
+
+    // allocate into the worker-local run without publishing it globally
+    let reference = shared
+        .allocate_dynamic_payload(
+            &worker,
+            &mut allocator,
+            &shared.allocation_plan(layout.allocation()),
+            Payload::Zeroed,
+            trace_table(),
+        )
+        .expect("shared heap allocation should succeed");
+
+    assert!(allocator.contains_heap_reference(reference));
+    assert!(!shared.is_heap_live(reference));
+
+    // free must publish only enough cache state to release the allocation
+    shared
+        .free(&mut allocator, reference)
+        .expect("shared heap free should succeed");
+
+    assert!(!allocator.contains_heap_reference(reference));
+    assert!(!shared.is_heap_live(reference));
+    assert_eq!(shared.usage().heap.allocation_count, 0);
+}
+
 /// Keep over-aligned shared allocations on aligned small slots.
 #[test]
 fn test_allocate_shared_honors_layout_alignment() {
     // use a size class that can satisfy 16-byte alignment
     let layout = test_aligned_layout(17, 16, TraceMap::empty());
     let options = crate::SharedHeapOptions {
-        heap_small_bytes: 64,
+        heap_small_size_bytes: 64,
         size_classes: SizeClassTable::new([8, 24, 32]).expect("size classes should validate"),
         ..crate::SharedHeapOptions::default()
     };
@@ -166,18 +205,20 @@ fn test_allocate_shared_honors_layout_alignment() {
     let worker = shared.register_collector_worker();
 
     let first = shared
-        .allocate_zeroed(
+        .allocate_dynamic_payload(
             &worker,
             &mut allocator,
             &shared.allocation_plan(layout.allocation()),
+            Payload::Zeroed,
             trace_table(),
         )
         .expect("first shared heap allocation should succeed");
     let second = shared
-        .allocate_zeroed(
+        .allocate_dynamic_payload(
             &worker,
             &mut allocator,
             &shared.allocation_plan(layout.allocation()),
+            Payload::Zeroed,
             trace_table(),
         )
         .expect("second shared heap allocation should succeed");
@@ -209,7 +250,7 @@ fn test_reject_shared_heap_allocation_when_limit_exceeded() {
 
     // reject before mutating shared heap accounting
     let error = shared
-        .allocate(
+        .allocate_dynamic_payload(
             &worker,
             &mut allocator,
             &shared.allocation_plan(layout.allocation()),
@@ -298,7 +339,7 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
     shared
-        .allocate(
+        .allocate_dynamic_payload(
             &worker,
             &mut allocator,
             &shared.allocation_plan(layout.allocation()),
@@ -306,6 +347,8 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
             trace_table(),
         )
         .expect("shared heap allocation should succeed");
+    shared.flush_allocation_cache(&mut allocator);
+
     let used_bytes = shared.usage().heap.retained_bytes;
     let image = shared.image().expect("shared image should capture");
 

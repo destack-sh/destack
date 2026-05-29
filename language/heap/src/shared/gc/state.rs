@@ -7,7 +7,7 @@ use crate::SharedHeapReference;
 
 use super::SharedGcPhase;
 
-/// One active shared heap collection state.
+/// One active shared GC state.
 #[derive(Debug, Default)]
 pub(crate) struct SharedGcState {
     /// The shared collector lifecycle gate.

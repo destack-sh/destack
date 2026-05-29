@@ -9,127 +9,13 @@ use crate::{AccountingRegion, HeapReference, RawPointer, SharedHeapReference, Sh
 /// One heap result.
 pub type HeapResult<T> = Result<T, HeapError>;
 
-/// One heap scan source.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ScanSource {
-    /// One heap reference payload.
-    Reference(HeapReference),
-    /// One mature span.
-    Span(usize),
-    /// One mature large allocation.
-    LargeAllocation(u64),
-}
-
 /// Heap operation failure.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HeapError {
-    /// The configured GC trigger percentage is unsupported.
-    InvalidGcTriggerPercent { percent: u32 },
-    /// The configured minimum GC work is unsupported.
-    InvalidGcMinimumWorkBytes { bytes: usize },
-    /// The configured heap page width is unsupported.
-    InvalidPageBytes { bytes: usize },
-    /// The configured allocator chunk width is unsupported.
-    InvalidAllocatorChunkBytes { bytes: usize },
-    /// The configured virtual heap-space width is unsupported.
-    InvalidSpaceBytes {
-        /// The configured virtual heap-space width in bytes.
-        bytes: usize,
-    },
-    /// The configured allocator chunk width is not aligned to the page width.
-    MisalignedAllocatorChunkBytes {
-        /// The configured page width in bytes.
-        page_bytes: usize,
-        /// The configured allocator chunk width in bytes.
-        chunk_bytes: usize,
-    },
-    /// The configured virtual heap-space width is not aligned to the page width.
-    MisalignedSpaceBytes {
-        /// The configured page width in bytes.
-        page_bytes: usize,
-        /// The configured virtual heap-space width in bytes.
-        space_bytes: usize,
-    },
-    /// The explicit allocator does not match the configured heap page width.
-    AllocatorPageBytesMismatch {
-        /// The page width configured through heap options.
-        option_page_bytes: usize,
-        /// The actual page width of the explicit allocator.
-        allocator_page_bytes: usize,
-    },
-    /// The explicit allocator does not match the configured heap chunk width.
-    AllocatorChunkBytesMismatch {
-        /// The chunk width configured through heap options.
-        option_chunk_bytes: usize,
-        /// The actual chunk width of the explicit allocator.
-        allocator_chunk_bytes: usize,
-    },
-    /// The configured heap young-allocation threshold exceeds young-space capacity.
-    HeapYoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
-    /// The configured heap young-space capacity exceeds young metadata capacity.
-    HeapYoungCapacityTooLarge { capacity: usize, max: usize },
-    /// The configured small-allocation alignment is unsupported.
-    InvalidSmallAllocationAlignmentBytes { bytes: usize },
-    /// One size class violated the configured small-allocation alignment.
-    MisalignedSizeClass {
-        /// The required alignment in bytes.
-        alignment_bytes: usize,
-        /// The misaligned size class in bytes.
-        class_bytes: usize,
-    },
-    /// The configured size-class table was empty.
-    EmptySizeClassTable,
-    /// One configured size class was zero.
-    ZeroSizeClass,
-    /// The configured size classes were not strictly increasing.
-    NonMonotonicSizeClass {
-        /// The previous size class in bytes.
-        previous: usize,
-        /// The current size class in bytes.
-        bytes: usize,
-    },
-    /// The configured size-class policy range is invalid.
-    InvalidSizeClassPolicyRange {
-        /// The configured minimum generated size class in bytes.
-        min_bytes: usize,
-        /// The configured maximum generated size class in bytes.
-        max_bytes: usize,
-    },
-    /// The configured size-class policy alignment is invalid.
-    InvalidSizeClassPolicyAlignment {
-        /// The configured alignment in bytes.
-        alignment_bytes: usize,
-    },
-    /// The configured size-class policy waste ratio is invalid.
-    InvalidSizeClassPolicyWaste {
-        /// The configured waste ratio numerator.
-        numerator: usize,
-        /// The configured waste ratio denominator.
-        denominator: usize,
-    },
-    /// One restored or requested size class does not exist in the configured table.
-    InvalidSizeClass {
-        /// The invalid size class in bytes.
-        class_bytes: usize,
-    },
-    /// The configured small span is too small for the largest size class.
-    SmallSpanTooSmall {
-        /// The configured span width in bytes.
-        span_bytes: usize,
-        /// The largest configured size class in bytes.
-        class_bytes: usize,
-    },
-    /// The allocator chunk count cannot grow far enough for one allocation.
-    AllocatorChunkLimitExceeded {
-        /// The required chunk count.
-        required_chunks: usize,
-        /// The maximum configured chunk count.
-        max_chunks: usize,
-    },
-    /// One lower memory operation failed.
-    Memory {
-        /// The lower memory failure.
-        error: MemoryError,
+    /// Heap configuration is invalid.
+    Configuration {
+        /// Configuration failure reason.
+        reason: HeapConfigurationError,
     },
     /// One heap-space hard limit was exceeded.
     LimitExceeded {
@@ -140,22 +26,12 @@ pub enum HeapError {
         /// The configured limit.
         max_bytes: u64,
     },
-    /// One heap capture request found active collector work.
-    CaptureGcActive,
-    /// One heap capture request found active heap pins.
-    CapturePinsActive,
-    /// One heap collection was requested while another collection was active.
-    HeapCollectionActive,
-    /// One shared heap collection was requested while another collection was active.
-    SharedCollectionActive,
-    /// One shared heap mark operation was requested while shared mark was inactive.
-    SharedCollectionNotMarking,
-    /// One shared heap sweep operation was requested while shared sweep was inactive.
-    SharedCollectionNotSweeping,
-    /// One heap reference was unpinned without one active scoped pin.
-    HeapPinMissing {
-        /// The unpinned heap reference.
-        reference: HeapReference,
+    /// One heap reference or pointer did not resolve to one live allocation.
+    InvalidReference {
+        /// The reference space that failed validation.
+        kind: HeapReferenceKind,
+        /// The raw reference or pointer value.
+        value: u64,
     },
     /// One heap byte range was outside the logical allocation.
     InvalidByteRange {
@@ -166,88 +42,208 @@ pub enum HeapError {
         /// The logical allocation capacity in bytes.
         capacity: usize,
     },
-    /// One heap reference did not resolve to one live allocation.
-    InvalidHeapReference {
-        /// The invalid heap reference.
-        reference: HeapReference,
+    /// One allocation request was invalid.
+    InvalidAllocation {
+        /// Allocation failure reason.
+        reason: HeapAllocationError,
     },
-    /// One heap collection scan failed.
-    HeapScanFailed {
-        /// The heap scan source.
-        source: ScanSource,
-        /// The underlying heap failure.
+    /// One encoded heap value exceeded its representation.
+    Representation {
+        /// Representation failure reason.
+        reason: HeapRepresentationError,
+    },
+    /// One heap capture request was blocked by live state.
+    CaptureBlocked {
+        /// Capture blocker reason.
+        reason: HeapCaptureBlocker,
+    },
+    /// One GC operation was requested in the wrong state.
+    GcState {
+        /// GC state failure reason.
+        reason: HeapGcStateError,
+    },
+    /// One heap operation failed while processing a specific source.
+    OperationFailed {
+        /// Heap operation that failed.
+        operation: HeapOperation,
+        /// Heap object or region being processed.
+        source: HeapOperationSource,
+        /// Underlying heap failure.
         error: Box<HeapError>,
     },
-    /// One heap collection free failed.
-    HeapFreeFailed {
-        /// The heap reference being freed.
-        reference: HeapReference,
-        /// The underlying heap failure.
-        error: Box<HeapError>,
+    /// One lower memory operation failed.
+    Memory {
+        /// The lower memory failure.
+        error: MemoryError,
     },
-    /// One raw pointer did not resolve to one live allocation.
-    InvalidRawPointer {
-        /// The invalid raw pointer.
-        pointer: RawPointer,
+    /// One internal heap invariant failed.
+    Internal {
+        /// Internal error context.
+        context: &'static str,
     },
-    /// One shared heap reference did not resolve to one live allocation.
-    InvalidSharedHeapReference {
-        /// The invalid shared heap reference.
-        reference: SharedHeapReference,
+}
+
+/// Heap configuration failure reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HeapConfigurationError {
+    /// The configured GC trigger percentage is unsupported.
+    InvalidGcTriggerPercent { percent: u32 },
+    /// The configured minimum GC work is unsupported.
+    InvalidGcMinimumWorkBytes { bytes: usize },
+    /// The configured heap page width is unsupported.
+    InvalidPageSizeBytes { bytes: usize },
+    /// The configured allocator chunk width is unsupported.
+    InvalidAllocatorChunkSizeBytes { bytes: usize },
+    /// The configured virtual heap-space width is unsupported.
+    InvalidSpaceSizeBytes { bytes: usize },
+    /// The configured allocator chunk width is not aligned to the page width.
+    MisalignedAllocatorChunkSize {
+        /// The configured page width in bytes.
+        page_size_bytes: usize,
+        /// The configured allocator chunk width in bytes.
+        chunk_size_bytes: usize,
     },
-    /// One shared raw pointer did not resolve to one live allocation.
-    InvalidSharedRawPointer {
-        /// The invalid shared raw pointer.
-        pointer: SharedRawPointer,
+    /// The configured virtual heap-space width is not aligned to the page width.
+    MisalignedSpaceSize {
+        /// The configured page width in bytes.
+        page_size_bytes: usize,
+        /// The configured virtual heap-space width in bytes.
+        space_size_bytes: usize,
     },
+    /// The explicit allocator does not match the configured heap page width.
+    AllocatorPageSizeMismatch {
+        /// The page width configured through heap options.
+        option_page_size_bytes: usize,
+        /// The actual page width of the explicit allocator.
+        allocator_page_size_bytes: usize,
+    },
+    /// The explicit allocator does not match the configured heap chunk width.
+    AllocatorChunkSizeMismatch {
+        /// The chunk width configured through heap options.
+        option_chunk_size_bytes: usize,
+        /// The actual chunk width of the explicit allocator.
+        allocator_chunk_size_bytes: usize,
+    },
+    /// The configured heap young-allocation threshold exceeds young-space capacity.
+    YoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
+    /// The configured heap young-space capacity exceeds young metadata capacity.
+    YoungCapacityTooLarge { capacity: usize, max: usize },
+    /// The configured small-allocation alignment is unsupported.
+    InvalidSmallAllocationAlignmentBytes { bytes: usize },
+    /// One size class violated the configured small-allocation alignment.
+    MisalignedSizeClass {
+        /// The required alignment in bytes.
+        alignment_bytes: usize,
+        /// The misaligned size class in bytes.
+        class_bytes: usize,
+    },
+    /// The configured size-class table is invalid.
+    InvalidSizeClassTable {
+        /// Size-class table failure reason.
+        reason: SizeClassTableError,
+    },
+    /// The configured size-class generation policy is invalid.
+    InvalidSizeClassPolicy {
+        /// Size-class policy failure reason.
+        reason: SizeClassPolicyError,
+    },
+    /// One restored or requested size class does not exist in the configured table.
+    InvalidSizeClass {
+        /// The invalid size class in bytes.
+        class_bytes: usize,
+    },
+    /// The configured small span is too small for the largest size class.
+    SmallSpanTooSmall {
+        /// The configured span width in bytes.
+        span_size_bytes: usize,
+        /// The largest configured size class in bytes.
+        class_bytes: usize,
+    },
+}
+
+/// Size-class table validation failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SizeClassTableError {
+    /// The configured size-class table was empty.
+    Empty,
+    /// One configured size class was zero.
+    ZeroSizeClass,
+    /// The configured size classes were not strictly increasing.
+    NonMonotonic {
+        /// The previous size class in bytes.
+        previous: usize,
+        /// The current size class in bytes.
+        bytes: usize,
+    },
+}
+
+/// Size-class policy validation failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SizeClassPolicyError {
+    /// The configured size-class policy range is invalid.
+    InvalidRange {
+        /// The configured minimum generated size class in bytes.
+        min_bytes: usize,
+        /// The configured maximum generated size class in bytes.
+        max_bytes: usize,
+    },
+    /// The configured size-class policy alignment is invalid.
+    InvalidAlignment {
+        /// The configured alignment in bytes.
+        alignment_bytes: usize,
+    },
+    /// The configured size-class policy fragmentation ratio is invalid.
+    InvalidFragmentation {
+        /// The configured fragmentation ratio numerator.
+        numerator: usize,
+        /// The configured fragmentation ratio denominator.
+        denominator: usize,
+    },
+}
+
+/// Heap reference space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeapReferenceKind {
+    /// Local managed heap reference.
+    Heap,
+    /// Local raw pointer.
+    Raw,
+    /// Shared managed heap reference.
+    SharedHeap,
+    /// Shared raw pointer.
+    SharedRaw,
+}
+
+/// Invalid allocation request reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HeapAllocationError {
+    /// Managed heap allocation with no bytes reached runtime.
+    ZeroSize,
+    /// One allocation initializer did not match its requested byte length.
+    ByteLengthMismatch {
+        /// The expected byte length.
+        expected: usize,
+        /// The actual byte length requested by the caller.
+        actual: usize,
+    },
+}
+
+/// Heap representation failure reason.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HeapRepresentationError {
     /// One heap value exceeded its encoded representation.
-    RepresentationLimitExceeded {
+    LimitExceeded {
         /// The representation that was exceeded.
         context: &'static str,
     },
-    /// One internal heap error occurred.
-    Internal {
-        /// The internal error context.
-        context: &'static str,
+    /// One allocator image exceeded the encoded chunk range.
+    AllocatorChunkLimitExceeded {
+        /// The chunks required by the allocator image.
+        required_chunks: usize,
+        /// The maximum chunks representable by the allocator image.
+        max_chunks: usize,
     },
-    /// One heap trace id did not resolve to program trace metadata.
-    MissingTraceMap {
-        /// The missing trace id.
-        trace_id: u32,
-    },
-    /// One validated logical page map lost one visible page slot.
-    MissingLogicalPage {
-        /// The missing logical page index.
-        page_index: usize,
-    },
-    /// One validated physical allocator page could not be resolved.
-    MissingPage {
-        /// The missing page identifier.
-        page_id: PageId,
-    },
-    /// One reserved span disappeared before initialization or access.
-    MissingSpan {
-        /// The missing span index.
-        span_index: usize,
-    },
-    /// One live small slot disappeared from its owning span.
-    MissingSmallSlot {
-        /// The missing span index.
-        span_index: usize,
-        /// The missing slot index.
-        slot_index: usize,
-    },
-    /// One live young range disappeared before initialization or access.
-    MissingYoungRange {
-        /// The missing young range base offset.
-        first_offset: usize,
-    },
-    /// One live large allocation disappeared before access.
-    MissingLargeAllocation {
-        /// The missing large-allocation identifier.
-        allocation_id: u64,
-    },
-    /// One large-allocation id cannot be represented by large-allocation tables.
+    /// One live large-allocation id cannot be represented.
     InvalidLargeAllocationId {
         /// The invalid large-allocation id.
         id: u64,
@@ -271,11 +267,6 @@ pub enum HeapError {
         /// The invalid slot index.
         slot_index: usize,
     },
-    /// One dense copy-on-write table entry was missing unexpectedly.
-    MissingTableEntry {
-        /// The missing dense entry index.
-        index: usize,
-    },
     /// One decoded heap-reference window has an unsupported width.
     InvalidReferenceWindowWidth {
         /// The invalid byte width.
@@ -288,178 +279,151 @@ pub enum HeapError {
         /// The traced field byte width.
         width: usize,
     },
-    /// One allocation initializer did not match its requested byte length.
-    InvalidAllocationBytes {
-        /// The expected byte length.
-        expected: usize,
-        /// The actual byte length requested by the caller.
-        actual: usize,
+}
+
+/// Heap capture blocker reason.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeapCaptureBlocker {
+    /// Active collector work blocks capture.
+    GcActive,
+    /// Active pins block capture.
+    PinsActive,
+}
+
+/// GC state failure reason.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeapGcStateError {
+    /// One local GC was requested while another local GC was active.
+    LocalGcActive,
+    /// One shared GC was requested while another shared GC was active.
+    SharedGcActive,
+    /// One shared GC mark operation was requested while shared mark was inactive.
+    SharedGcNotMarking,
+    /// One shared GC sweep operation was requested while shared sweep was inactive.
+    SharedGcNotSweeping,
+    /// One heap reference was unpinned without one active scoped pin.
+    PinMissing {
+        /// The unpinned heap reference.
+        reference: HeapReference,
     },
-    /// Managed heap allocation with no bytes reached runtime.
-    ZeroSizeAllocation,
+}
+
+/// Heap operation kind.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeapOperation {
+    /// Scan heap references.
+    Scan,
+    /// Free one heap allocation.
+    Free,
+}
+
+/// Heap operation source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeapOperationSource {
+    /// One heap reference payload.
+    Reference(HeapReference),
+    /// One mature span.
+    Span(usize),
+    /// One mature large allocation.
+    LargeAllocation(u64),
+}
+
+impl HeapError {
+    /// Return one configuration error.
+    pub const fn configuration(reason: HeapConfigurationError) -> Self {
+        Self::Configuration { reason }
+    }
+
+    /// Return one invalid heap reference error.
+    pub const fn invalid_heap_reference(reference: HeapReference) -> Self {
+        Self::InvalidReference {
+            kind: HeapReferenceKind::Heap,
+            value: reference.offset() as u64,
+        }
+    }
+
+    /// Return one invalid raw pointer error.
+    pub const fn invalid_raw_pointer(pointer: RawPointer) -> Self {
+        Self::InvalidReference {
+            kind: HeapReferenceKind::Raw,
+            value: pointer.offset() as u64,
+        }
+    }
+
+    /// Return one invalid shared heap reference error.
+    pub const fn invalid_shared_heap_reference(reference: SharedHeapReference) -> Self {
+        Self::InvalidReference {
+            kind: HeapReferenceKind::SharedHeap,
+            value: reference.offset() as u64,
+        }
+    }
+
+    /// Return one invalid shared raw pointer error.
+    pub const fn invalid_shared_raw_pointer(pointer: SharedRawPointer) -> Self {
+        Self::InvalidReference {
+            kind: HeapReferenceKind::SharedRaw,
+            value: pointer.offset() as u64,
+        }
+    }
+
+    /// Return one invalid allocation error.
+    pub const fn invalid_allocation(reason: HeapAllocationError) -> Self {
+        Self::InvalidAllocation { reason }
+    }
+
+    /// Return one representation error.
+    pub const fn representation(reason: HeapRepresentationError) -> Self {
+        Self::Representation { reason }
+    }
+
+    /// Return one capture blocker error.
+    pub const fn capture_blocked(reason: HeapCaptureBlocker) -> Self {
+        Self::CaptureBlocked { reason }
+    }
+
+    /// Return one GC state error.
+    pub const fn gc_state(reason: HeapGcStateError) -> Self {
+        Self::GcState { reason }
+    }
+
+    /// Return one operation failure.
+    pub fn operation_failed(
+        operation: HeapOperation,
+        source: HeapOperationSource,
+        error: HeapError,
+    ) -> Self {
+        Self::OperationFailed {
+            operation,
+            source,
+            error: Box::new(error),
+        }
+    }
+
+    /// Return one scan failure.
+    pub fn scan_failed(source: HeapOperationSource, error: HeapError) -> Self {
+        Self::operation_failed(HeapOperation::Scan, source, error)
+    }
+
+    /// Return one free failure.
+    pub fn free_failed(reference: HeapReference, error: HeapError) -> Self {
+        Self::operation_failed(
+            HeapOperation::Free,
+            HeapOperationSource::Reference(reference),
+            error,
+        )
+    }
+
+    /// Return one internal invariant error.
+    pub const fn internal(context: &'static str) -> Self {
+        Self::Internal { context }
+    }
 }
 
 impl Display for HeapError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidGcTriggerPercent { percent } => {
-                write!(formatter, "invalid GC trigger percent: {percent}")
-            }
-            Self::InvalidGcMinimumWorkBytes { bytes } => {
-                write!(formatter, "invalid minimum GC work bytes: {bytes}")
-            }
-            Self::InvalidPageBytes { bytes } => {
-                write!(
-                    formatter,
-                    "invalid heap page width for heap options: {bytes}"
-                )
-            }
-            Self::InvalidAllocatorChunkBytes { bytes } => {
-                write!(
-                    formatter,
-                    "invalid allocator chunk width for heap options: {bytes}"
-                )
-            }
-            Self::InvalidSpaceBytes { bytes } => {
-                write!(
-                    formatter,
-                    "invalid virtual heap-space width for heap options: {bytes}"
-                )
-            }
-            Self::MisalignedAllocatorChunkBytes {
-                page_bytes,
-                chunk_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "allocator chunk width violates heap page alignment: {chunk_bytes} is not a multiple of {page_bytes}"
-                )
-            }
-            Self::MisalignedSpaceBytes {
-                page_bytes,
-                space_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "virtual heap-space width violates heap page alignment: {space_bytes} is not a multiple of {page_bytes}"
-                )
-            }
-            Self::AllocatorPageBytesMismatch {
-                option_page_bytes,
-                allocator_page_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "explicit allocator page width does not match heap options: options {option_page_bytes}, allocator {allocator_page_bytes}"
-                )
-            }
-            Self::AllocatorChunkBytesMismatch {
-                option_chunk_bytes,
-                allocator_chunk_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "explicit allocator chunk width does not match heap options: options {option_chunk_bytes}, allocator {allocator_chunk_bytes}"
-                )
-            }
-            Self::HeapYoungThresholdExceedsCapacity {
-                threshold,
-                capacity,
-            } => {
-                write!(
-                    formatter,
-                    "heap young allocation threshold exceeds young-space capacity: {threshold} > {capacity}"
-                )
-            }
-            Self::HeapYoungCapacityTooLarge { capacity, max } => {
-                write!(
-                    formatter,
-                    "heap young-space capacity exceeds young metadata capacity: {capacity} > {max}"
-                )
-            }
-            Self::InvalidSmallAllocationAlignmentBytes { bytes } => {
-                write!(
-                    formatter,
-                    "invalid small-allocation alignment for heap options: {bytes}"
-                )
-            }
-            Self::MisalignedSizeClass {
-                alignment_bytes,
-                class_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "size class violates heap small-allocation alignment: {class_bytes} is not a multiple of {alignment_bytes}"
-                )
-            }
-            Self::EmptySizeClassTable => {
-                write!(
-                    formatter,
-                    "size-class table must contain at least one class"
-                )
-            }
-            Self::ZeroSizeClass => {
-                write!(
-                    formatter,
-                    "size-class table must not contain zero-byte classes"
-                )
-            }
-            Self::NonMonotonicSizeClass { previous, bytes } => {
-                write!(
-                    formatter,
-                    "size-class table must be strictly increasing: {bytes} follows {previous}"
-                )
-            }
-            Self::InvalidSizeClassPolicyRange {
-                min_bytes,
-                max_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "size-class policy range is invalid: min {min_bytes}, max {max_bytes}"
-                )
-            }
-            Self::InvalidSizeClassPolicyAlignment { alignment_bytes } => {
-                write!(
-                    formatter,
-                    "size-class policy alignment is invalid: {alignment_bytes}"
-                )
-            }
-            Self::InvalidSizeClassPolicyWaste {
-                numerator,
-                denominator,
-            } => {
-                write!(
-                    formatter,
-                    "size-class policy waste ratio is invalid: {numerator}/{denominator}"
-                )
-            }
-            Self::InvalidSizeClass { class_bytes } => {
-                write!(
-                    formatter,
-                    "size class is not present in the configured heap table: {class_bytes}"
-                )
-            }
-            Self::SmallSpanTooSmall {
-                span_bytes,
-                class_bytes,
-            } => {
-                write!(
-                    formatter,
-                    "small span is smaller than the largest size class: {span_bytes} < {class_bytes}"
-                )
-            }
-            Self::AllocatorChunkLimitExceeded {
-                required_chunks,
-                max_chunks,
-            } => {
-                write!(
-                    formatter,
-                    "allocator chunk limit exceeded: required {required_chunks} chunks with maximum {max_chunks}"
-                )
-            }
-            Self::Memory { error } => {
-                write!(formatter, "memory operation failed: {error}")
+            Self::Configuration { reason } => {
+                write!(formatter, "invalid heap configuration: {reason}")
             }
             Self::LimitExceeded {
                 region,
@@ -473,29 +437,8 @@ impl Display for HeapError {
                     "{subject} limit exceeded: using {used_bytes} bytes with limit {max_bytes}"
                 )
             }
-            Self::CaptureGcActive => {
-                write!(formatter, "heap capture requires idle gc state")
-            }
-            Self::CapturePinsActive => {
-                write!(formatter, "heap capture requires no active heap pins")
-            }
-            Self::HeapCollectionActive => {
-                write!(formatter, "heap collection is already active")
-            }
-            Self::SharedCollectionActive => {
-                write!(formatter, "shared heap collection is already active")
-            }
-            Self::SharedCollectionNotMarking => {
-                write!(formatter, "shared heap is not currently marking")
-            }
-            Self::SharedCollectionNotSweeping => {
-                write!(formatter, "shared heap is not currently sweeping")
-            }
-            Self::HeapPinMissing { reference } => {
-                write!(
-                    formatter,
-                    "heap reference {reference:?} is not currently pinned"
-                )
+            Self::InvalidReference { kind, value } => {
+                write!(formatter, "invalid {kind} reference: {value}")
             }
             Self::InvalidByteRange {
                 start,
@@ -507,91 +450,211 @@ impl Display for HeapError {
                     "invalid heap byte range: start {start}, len {len}, capacity {capacity}"
                 )
             }
-            Self::InvalidHeapReference { reference } => {
-                write!(formatter, "invalid heap reference: {reference:?}")
+            Self::InvalidAllocation { reason } => {
+                write!(formatter, "invalid heap allocation: {reason}")
             }
-            Self::HeapScanFailed { source, error } => match source {
-                ScanSource::Reference(reference) => {
-                    write!(
-                        formatter,
-                        "heap scan failed for reference {reference:?}: {error}"
-                    )
-                }
-                ScanSource::Span(span_index) => {
-                    write!(
-                        formatter,
-                        "heap scan failed for dirty span {span_index}: {error}"
-                    )
-                }
-                ScanSource::LargeAllocation(allocation_id) => {
-                    write!(
-                        formatter,
-                        "heap scan failed for dirty large allocation {allocation_id}: {error}"
-                    )
-                }
-            },
-            Self::HeapFreeFailed { reference, error } => {
-                write!(
-                    formatter,
-                    "heap free failed for reference {reference:?}: {error}"
-                )
+            Self::Representation { reason } => {
+                write!(formatter, "heap representation error: {reason}")
             }
-            Self::InvalidRawPointer { pointer } => {
-                write!(formatter, "invalid raw pointer: {pointer:?}")
+            Self::CaptureBlocked { reason } => write!(formatter, "heap capture blocked: {reason}"),
+            Self::GcState { reason } => write!(formatter, "invalid heap gc state: {reason}"),
+            Self::OperationFailed {
+                operation,
+                source,
+                error,
+            } => {
+                write!(formatter, "heap {operation} failed for {source}: {error}")
             }
-            Self::InvalidSharedHeapReference { reference } => {
-                write!(formatter, "invalid shared heap reference: {reference:?}")
+            Self::Memory { error } => write!(formatter, "memory operation failed: {error}"),
+            Self::Internal { context } => write!(formatter, "internal heap error: {context}"),
+        }
+    }
+}
+
+impl Display for HeapConfigurationError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidGcTriggerPercent { percent } => {
+                write!(formatter, "invalid gc trigger percent: {percent}")
             }
-            Self::InvalidSharedRawPointer { pointer } => {
-                write!(formatter, "invalid shared raw pointer: {pointer:?}")
+            Self::InvalidGcMinimumWorkBytes { bytes } => {
+                write!(formatter, "invalid minimum gc work bytes: {bytes}")
             }
-            Self::RepresentationLimitExceeded { context } => {
-                write!(formatter, "heap representation limit exceeded: {context}")
+            Self::InvalidPageSizeBytes { bytes } => {
+                write!(formatter, "invalid heap page width: {bytes}")
             }
-            Self::Internal { context } => {
-                write!(formatter, "internal heap error: {context}")
+            Self::InvalidAllocatorChunkSizeBytes { bytes } => {
+                write!(formatter, "invalid allocator chunk width: {bytes}")
             }
-            Self::MissingTraceMap { trace_id } => {
-                write!(formatter, "heap trace table is missing trace id {trace_id}")
+            Self::InvalidSpaceSizeBytes { bytes } => {
+                write!(formatter, "invalid virtual heap-space width: {bytes}")
             }
-            Self::MissingLogicalPage { page_index } => {
-                write!(formatter, "heap lost logical page at index {page_index}")
-            }
-            Self::MissingPage { page_id } => {
-                write!(formatter, "heap lost live page {page_id:?}")
-            }
-            Self::MissingSpan { span_index } => {
-                write!(formatter, "heap lost live span at index {span_index}")
-            }
-            Self::MissingSmallSlot {
-                span_index,
-                slot_index,
+            Self::MisalignedAllocatorChunkSize {
+                page_size_bytes,
+                chunk_size_bytes,
             } => {
                 write!(
                     formatter,
-                    "heap lost live span slot at span {span_index}, slot {slot_index}"
+                    "allocator chunk width {chunk_size_bytes} is not aligned to page width {page_size_bytes}"
                 )
             }
-            Self::MissingYoungRange { first_offset } => {
+            Self::MisalignedSpaceSize {
+                page_size_bytes,
+                space_size_bytes,
+            } => {
                 write!(
                     formatter,
-                    "heap lost live young range at byte offset {first_offset}"
+                    "virtual heap-space width {space_size_bytes} is not aligned to page width {page_size_bytes}"
                 )
             }
-            Self::MissingLargeAllocation { allocation_id } => {
+            Self::AllocatorPageSizeMismatch {
+                option_page_size_bytes,
+                allocator_page_size_bytes,
+            } => {
                 write!(
                     formatter,
-                    "heap lost live large allocation with id {allocation_id}"
+                    "allocator page width mismatch: options {option_page_size_bytes}, allocator {allocator_page_size_bytes}"
+                )
+            }
+            Self::AllocatorChunkSizeMismatch {
+                option_chunk_size_bytes,
+                allocator_chunk_size_bytes,
+            } => {
+                write!(
+                    formatter,
+                    "allocator chunk width mismatch: options {option_chunk_size_bytes}, allocator {allocator_chunk_size_bytes}"
+                )
+            }
+            Self::YoungThresholdExceedsCapacity {
+                threshold,
+                capacity,
+            } => {
+                write!(
+                    formatter,
+                    "young allocation threshold {threshold} exceeds capacity {capacity}"
+                )
+            }
+            Self::YoungCapacityTooLarge { capacity, max } => {
+                write!(
+                    formatter,
+                    "young-space capacity {capacity} exceeds max {max}"
+                )
+            }
+            Self::InvalidSmallAllocationAlignmentBytes { bytes } => {
+                write!(formatter, "invalid small-allocation alignment: {bytes}")
+            }
+            Self::MisalignedSizeClass {
+                alignment_bytes,
+                class_bytes,
+            } => {
+                write!(
+                    formatter,
+                    "size class {class_bytes} is not aligned to {alignment_bytes}"
+                )
+            }
+            Self::InvalidSizeClassTable { reason } => {
+                write!(formatter, "invalid size-class table: {reason}")
+            }
+            Self::InvalidSizeClassPolicy { reason } => {
+                write!(formatter, "invalid size-class policy: {reason}")
+            }
+            Self::InvalidSizeClass { class_bytes } => {
+                write!(formatter, "unknown size class: {class_bytes}")
+            }
+            Self::SmallSpanTooSmall {
+                span_size_bytes,
+                class_bytes,
+            } => {
+                write!(
+                    formatter,
+                    "small span {span_size_bytes} is smaller than size class {class_bytes}"
+                )
+            }
+        }
+    }
+}
+
+impl Display for SizeClassTableError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Empty => write!(formatter, "empty table"),
+            Self::ZeroSizeClass => write!(formatter, "zero-byte size class"),
+            Self::NonMonotonic { previous, bytes } => {
+                write!(formatter, "{bytes} follows {previous}")
+            }
+        }
+    }
+}
+
+impl Display for SizeClassPolicyError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidRange {
+                min_bytes,
+                max_bytes,
+            } => {
+                write!(formatter, "invalid range: min {min_bytes}, max {max_bytes}")
+            }
+            Self::InvalidAlignment { alignment_bytes } => {
+                write!(formatter, "invalid alignment: {alignment_bytes}")
+            }
+            Self::InvalidFragmentation {
+                numerator,
+                denominator,
+            } => {
+                write!(
+                    formatter,
+                    "invalid fragmentation ratio: {numerator}/{denominator}"
+                )
+            }
+        }
+    }
+}
+
+impl Display for HeapReferenceKind {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        let name = match self {
+            Self::Heap => "heap",
+            Self::Raw => "raw",
+            Self::SharedHeap => "shared heap",
+            Self::SharedRaw => "shared raw",
+        };
+
+        write!(formatter, "{name}")
+    }
+}
+
+impl Display for HeapAllocationError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ZeroSize => write!(formatter, "zero-size managed allocation"),
+            Self::ByteLengthMismatch { expected, actual } => {
+                write!(formatter, "expected {expected} bytes, got {actual}")
+            }
+        }
+    }
+}
+
+impl Display for HeapRepresentationError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::LimitExceeded { context } => {
+                write!(formatter, "representation limit exceeded: {context}")
+            }
+            Self::AllocatorChunkLimitExceeded {
+                required_chunks,
+                max_chunks,
+            } => {
+                write!(
+                    formatter,
+                    "allocator chunk limit exceeded: required {required_chunks}, max {max_chunks}"
                 )
             }
             Self::InvalidLargeAllocationId { id } => {
                 write!(formatter, "invalid large-allocation id: {id}")
             }
             Self::InvalidPageId { index } => {
-                write!(
-                    formatter,
-                    "page identifier exceeds encoded page range: {index}"
-                )
+                write!(formatter, "invalid page id index: {index}")
             }
             Self::InvalidPageRun {
                 first_page,
@@ -599,7 +662,7 @@ impl Display for HeapError {
             } => {
                 write!(
                     formatter,
-                    "page run exceeds encoded page range: first page {first_page:?}, page count {page_count}"
+                    "invalid page run: first page {first_page:?}, page count {page_count}"
                 )
             }
             Self::InvalidSmallSlot {
@@ -608,35 +671,63 @@ impl Display for HeapError {
             } => {
                 write!(
                     formatter,
-                    "span slot exceeds encoded slot range: span {span_index}, slot {slot_index}"
+                    "invalid small slot: span {span_index}, slot {slot_index}"
                 )
-            }
-            Self::MissingTableEntry { index } => {
-                write!(formatter, "heap lost dense table entry at index {index}")
             }
             Self::InvalidReferenceWindowWidth { bytes } => {
-                write!(
-                    formatter,
-                    "unsupported heap reference width for tracing window: {bytes}"
-                )
+                write!(formatter, "invalid reference window width: {bytes}")
             }
             Self::TruncatedReferenceBytes { start, width } => {
                 write!(
                     formatter,
-                    "truncated heap reference payload while tracing: start={start}, width={width}"
+                    "truncated reference bytes: start {start}, width {width}"
                 )
             }
-            Self::InvalidAllocationBytes { expected, actual } => {
-                write!(
-                    formatter,
-                    "allocation bytes do not match requested length: expected {expected}, got {actual}"
-                )
-            }
-            Self::ZeroSizeAllocation => {
-                write!(
-                    formatter,
-                    "zero-size managed heap allocation reached runtime"
-                )
+        }
+    }
+}
+
+impl Display for HeapCaptureBlocker {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        let reason = match self {
+            Self::GcActive => "gc active",
+            Self::PinsActive => "pins active",
+        };
+
+        write!(formatter, "{reason}")
+    }
+}
+
+impl Display for HeapGcStateError {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::LocalGcActive => write!(formatter, "local gc already active"),
+            Self::SharedGcActive => write!(formatter, "shared gc already active"),
+            Self::SharedGcNotMarking => write!(formatter, "shared gc not marking"),
+            Self::SharedGcNotSweeping => write!(formatter, "shared gc not sweeping"),
+            Self::PinMissing { reference } => write!(formatter, "pin missing for {reference:?}"),
+        }
+    }
+}
+
+impl Display for HeapOperation {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        let operation = match self {
+            Self::Scan => "scan",
+            Self::Free => "free",
+        };
+
+        write!(formatter, "{operation}")
+    }
+}
+
+impl Display for HeapOperationSource {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Reference(reference) => write!(formatter, "reference {reference:?}"),
+            Self::Span(span_index) => write!(formatter, "span {span_index}"),
+            Self::LargeAllocation(allocation_id) => {
+                write!(formatter, "large allocation {allocation_id}")
             }
         }
     }

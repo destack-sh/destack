@@ -1,14 +1,15 @@
 use std::mem;
 
 use destack_heap::{
-    DEFAULT_PAGE_BYTES, DEFAULT_SHARED_SMALL_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
-    DEFAULT_SMALL_BYTES, DEFAULT_YOUNG_BYTES, SizeClass, SizeClassTable,
+    DEFAULT_PAGE_SIZE_BYTES, DEFAULT_SHARED_SMALL_SIZE_BYTES,
+    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_SIZE_BYTES, DEFAULT_YOUNG_SIZE_BYTES,
+    SizeClass, SizeClassTable,
 };
 
 const WORD_BYTES: usize = mem::size_of::<usize>();
 const TARGET_YOUNG_RANGE_RECORD_BYTES: usize = mem::size_of::<u32>() * 3;
 const TARGET_TRACE_MAP_ID_BYTES: usize = 4;
-const DIRTY_CARD_BYTES: usize = DEFAULT_PAGE_BYTES / 32;
+const DIRTY_CARD_BYTES: usize = DEFAULT_PAGE_SIZE_BYTES / 32;
 
 /// One reported size class row.
 #[derive(Debug)]
@@ -20,7 +21,7 @@ struct Row {
     /// The rounded slot byte length.
     slot_bytes: usize,
     /// The span byte length used by this slot class.
-    span_bytes: usize,
+    span_size_bytes: usize,
     /// The number of slots in the span.
     slot_count: usize,
     /// The payload bytes wasted by size-class rounding.
@@ -63,10 +64,13 @@ fn print_policy() {
     println!("heap metadata overhead report");
     println!();
     println!("defaults");
-    println!("  page bytes:             {}", DEFAULT_PAGE_BYTES);
-    println!("  local young bytes:      {}", DEFAULT_YOUNG_BYTES);
-    println!("  local small span bytes: {}", DEFAULT_SMALL_BYTES);
-    println!("  shared span bytes:      {}", DEFAULT_SHARED_SMALL_BYTES);
+    println!("  page bytes:             {}", DEFAULT_PAGE_SIZE_BYTES);
+    println!("  local young bytes:      {}", DEFAULT_YOUNG_SIZE_BYTES);
+    println!("  local small span bytes: {}", DEFAULT_SMALL_SIZE_BYTES);
+    println!(
+        "  shared span bytes:      {}",
+        DEFAULT_SHARED_SMALL_SIZE_BYTES
+    );
     println!(
         "  allocation alignment:   {}",
         DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES
@@ -76,14 +80,14 @@ fn print_policy() {
 
 /// Print the current eager young-space metadata summary.
 fn print_young_space_summary() {
-    let reference_capacity = DEFAULT_YOUNG_BYTES.div_ceil(WORD_BYTES);
-    let page_count = DEFAULT_YOUNG_BYTES.div_ceil(DEFAULT_PAGE_BYTES);
+    let reference_capacity = DEFAULT_YOUNG_SIZE_BYTES.div_ceil(WORD_BYTES);
+    let page_count = DEFAULT_YOUNG_SIZE_BYTES.div_ceil(DEFAULT_PAGE_SIZE_BYTES);
 
     let local_reference_bytes = bitmap_bytes(reference_capacity);
     let shared_reference_bytes = bitmap_bytes(reference_capacity);
     let page_runs_bytes = page_count * mem::size_of::<Option<usize>>();
     let total_bytes = page_runs_bytes + local_reference_bytes + shared_reference_bytes;
-    let metadata_percent = total_bytes as f64 / DEFAULT_YOUNG_BYTES as f64 * 100.0;
+    let metadata_percent = total_bytes as f64 / DEFAULT_YOUNG_SIZE_BYTES as f64 * 100.0;
 
     println!("current eager local young metadata");
     println!("  page run owners:        {}", page_runs_bytes);
@@ -137,7 +141,7 @@ fn print_size_table(rows: &[Row]) {
             "{:>13} {:>7} {:>7} {:>5} {:>7} {:>10.2} {:>10.2} {:>10.2} {:>10.2} {:>10.2} {:>10.2} {:>10.2} {:>10.2}",
             request_range,
             row.slot_bytes,
-            row.span_bytes,
+            row.span_size_bytes,
             row.slot_count,
             row.rounding_bytes,
             row.current_young_scan_bytes,
@@ -180,23 +184,27 @@ fn row_for_class(class_index: usize, class: SizeClass, classes: &[SizeClass]) ->
     } else {
         classes[class_index - 1].bytes + 1
     };
-    let span_bytes = class.span_bytes(DEFAULT_PAGE_BYTES, DEFAULT_SMALL_BYTES);
-    let slot_count = (span_bytes / class.bytes).max(1);
+    let span_size_bytes = class.span_size_bytes(DEFAULT_PAGE_SIZE_BYTES, DEFAULT_SMALL_SIZE_BYTES);
+    let slot_count = (span_size_bytes / class.bytes).max(1);
     let rounding_bytes = class.bytes - min_request_bytes;
 
     Row {
         min_request_bytes,
         max_request_bytes: class.bytes,
         slot_bytes: class.bytes,
-        span_bytes,
+        span_size_bytes,
         slot_count,
         rounding_bytes,
         current_young_scan_bytes: current_young_scan_bytes(slot_count),
         target_young_scan_bytes: target_young_scan_bytes(class.bytes),
         current_young_noscan_bytes: current_young_noscan_bytes(),
         target_young_noscan_bytes: target_young_noscan_bytes(),
-        current_local_scan_bytes: current_local_scan_bytes(class.bytes, span_bytes, slot_count),
-        target_local_scan_bytes: target_local_scan_bytes(span_bytes, slot_count),
+        current_local_scan_bytes: current_local_scan_bytes(
+            class.bytes,
+            span_size_bytes,
+            slot_count,
+        ),
+        target_local_scan_bytes: target_local_scan_bytes(span_size_bytes, slot_count),
         current_shared_scan_bytes: current_shared_scan_bytes(class.bytes),
         target_shared_scan_bytes: target_shared_scan_bytes(slot_count),
     }
@@ -223,17 +231,17 @@ fn target_young_noscan_bytes() -> f64 {
 }
 
 /// Return current local mature scan metadata bytes for one allocation.
-fn current_local_scan_bytes(slot_bytes: usize, span_bytes: usize, slot_count: usize) -> f64 {
+fn current_local_scan_bytes(slot_bytes: usize, span_size_bytes: usize, slot_count: usize) -> f64 {
     let slot_bits = 2 + 2 * slot_bytes.div_ceil(WORD_BYTES);
-    let card_bytes = card_bytes_per_slot(span_bytes, slot_count);
+    let card_bytes = card_bytes_per_slot(span_size_bytes, slot_count);
 
     bit_bytes(slot_bits) + card_bytes
 }
 
 /// Return target local mature scan metadata bytes for one allocation.
-fn target_local_scan_bytes(span_bytes: usize, slot_count: usize) -> f64 {
+fn target_local_scan_bytes(span_size_bytes: usize, slot_count: usize) -> f64 {
     let slot_bits = 2;
-    let card_bytes = card_bytes_per_slot(span_bytes, slot_count);
+    let card_bytes = card_bytes_per_slot(span_size_bytes, slot_count);
     let trace_id_bytes = TARGET_TRACE_MAP_ID_BYTES as f64 / slot_count as f64;
 
     bit_bytes(slot_bits) + card_bytes + trace_id_bytes
@@ -260,8 +268,8 @@ fn reference_map_bytes(slot_bytes: usize) -> f64 {
 }
 
 /// Return dirty-card bytes amortized over one slot.
-fn card_bytes_per_slot(span_bytes: usize, slot_count: usize) -> f64 {
-    let card_count = span_bytes.div_ceil(DIRTY_CARD_BYTES);
+fn card_bytes_per_slot(span_size_bytes: usize, slot_count: usize) -> f64 {
+    let card_count = span_size_bytes.div_ceil(DIRTY_CARD_BYTES);
     let card_bytes = bitmap_bytes(card_count);
 
     card_bytes as f64 / slot_count as f64

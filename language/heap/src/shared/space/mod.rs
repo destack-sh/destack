@@ -3,9 +3,9 @@ mod allocate;
 mod allocator;
 mod image;
 mod large;
-mod location;
 mod map;
 mod reference;
+mod region;
 pub(crate) mod space;
 mod span;
 
@@ -14,8 +14,8 @@ pub(crate) use allocator::*;
 pub use image::SharedHeapSpaceImage;
 pub use large::SharedHeapLargeAllocationImage;
 pub(crate) use large::*;
-pub(crate) use location::*;
 pub use reference::SharedHeapReference;
+pub(crate) use region::*;
 pub use space::SharedHeapSpace;
 pub(crate) use space::{
     SharedHeapAccounting, SharedHeapState, SharedLargeSpace, SharedSmallSpace, small_slot_offset,

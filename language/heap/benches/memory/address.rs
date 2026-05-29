@@ -7,15 +7,15 @@ use criterion::{BatchSize, BenchmarkGroup, BenchmarkId, Criterion, Throughput};
 
 use crate::config::{
     FORK_ANCESTOR_COUNTS, FORK_DIRTY_PAGE_COUNTS, FORK_LARGE_ACTIVE_BYTES, FORK_LARGE_ANCESTORS,
-    FORK_LARGE_DIRTY_BYTES, FORK_LARGE_SPACE_BYTES, FORK_MATERIALIZED_PAGES, PAGE_BYTES,
-    SPACE_BYTES,
+    FORK_LARGE_DIRTY_BYTES, FORK_LARGE_SPACE_SIZE_BYTES, FORK_MATERIALIZED_PAGES, PAGE_SIZE_BYTES,
+    SPACE_SIZE_BYTES,
 };
 use crate::space::{AddressSpaceShape, ForkLineage};
 
 /// Benchmark forkable address-space operations.
 pub(crate) fn bench_address_space(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_address_space");
-    group.throughput(Throughput::Bytes(SPACE_BYTES as u64));
+    group.throughput(Throughput::Bytes(SPACE_SIZE_BYTES as u64));
 
     bench_reservation(&mut group);
     bench_lineage_forks(&mut group);
@@ -34,7 +34,7 @@ fn bench_reservation(group: &mut BenchmarkGroup<'_, WallTime>) {
 
     // materialize one page through the address-space write path
     group.bench_function("write_first_page", |bencher| {
-        let page = vec![0xCD; PAGE_BYTES];
+        let page = vec![0xCD; PAGE_SIZE_BYTES];
 
         bencher.iter_batched(
             || AddressSpaceShape::reserved().reserve(),
@@ -101,12 +101,12 @@ fn bench_lineage_forks(group: &mut BenchmarkGroup<'_, WallTime>) {
     }
 
     // fork large live heaps across reserved, active, dirty, and nested bytes
-    for space_bytes in FORK_LARGE_SPACE_BYTES {
+    for space_size_bytes in FORK_LARGE_SPACE_SIZE_BYTES {
         for active_bytes in FORK_LARGE_ACTIVE_BYTES {
             for ancestor_count in FORK_LARGE_ANCESTORS {
                 for dirty_bytes in large_dirty_bytes(*active_bytes) {
                     let name = byte_lineage_name(
-                        *space_bytes,
+                        *space_size_bytes,
                         *active_bytes,
                         *ancestor_count,
                         dirty_bytes,
@@ -114,12 +114,12 @@ fn bench_lineage_forks(group: &mut BenchmarkGroup<'_, WallTime>) {
 
                     group.bench_with_input(
                         BenchmarkId::new("fork_lineage_bytes", name),
-                        &(*space_bytes, *active_bytes, *ancestor_count, dirty_bytes),
-                        |bencher, &(space_bytes, active_bytes, ancestor_count, dirty_bytes)| {
+                        &(*space_size_bytes, *active_bytes, *ancestor_count, dirty_bytes),
+                        |bencher, &(space_size_bytes, active_bytes, ancestor_count, dirty_bytes)| {
                             bencher.iter_batched_ref(
                                 || {
                                     ForkLineage::with_bytes(
-                                        space_bytes,
+                                        space_size_bytes,
                                         active_bytes,
                                         ancestor_count,
                                         dirty_bytes,
@@ -146,7 +146,7 @@ fn bench_fork_writes(group: &mut BenchmarkGroup<'_, WallTime>) {
             BenchmarkId::new("fork_copy_first_page", page_count),
             page_count,
             |bencher, page_count| {
-                let page = vec![0xEF; PAGE_BYTES];
+                let page = vec![0xEF; PAGE_SIZE_BYTES];
 
                 bencher.iter_batched(
                     || AddressSpaceShape::materialized_pages(*page_count).fork_lazy_pair(),
@@ -390,7 +390,7 @@ fn write_page_words(base_address: *mut usize, page_count: usize, seed: usize) {
 /// Store one volatile word on one benchmark page.
 #[inline(always)]
 fn write_page_word(base_address: *mut usize, page_index: usize, value: usize) {
-    let byte_offset = page_index * PAGE_BYTES;
+    let byte_offset = page_index * PAGE_SIZE_BYTES;
 
     // address-space fixtures expose page-aligned word ranges
     unsafe {
@@ -428,14 +428,14 @@ fn large_dirty_bytes(active_bytes: usize) -> impl Iterator<Item = usize> {
 
 /// Return the byte-lineage benchmark label.
 fn byte_lineage_name(
-    space_bytes: usize,
+    space_size_bytes: usize,
     active_bytes: usize,
     ancestor_count: usize,
     dirty_bytes: usize,
 ) -> String {
     format!(
         "space={}/active={}/ancestors={ancestor_count}/dirty={}",
-        mib(space_bytes),
+        mib(space_size_bytes),
         mib(active_bytes),
         mib(dirty_bytes)
     )

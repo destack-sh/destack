@@ -1,6 +1,6 @@
 use crate::{
-    AccountingRegion, DEFAULT_YOUNG_BYTES, HeapError, HeapLimits, HeapOptions, HeapSpaceLimits,
-    Payload, RawAllocationShape, RawLimits, test_layout,
+    AccountingRegion, DEFAULT_YOUNG_SIZE_BYTES, HeapError, HeapLimits, HeapOptions,
+    HeapSpaceLimits, Payload, RawAllocationShape, RawLimits, test_layout,
 };
 use destack_mir::TraceMap;
 
@@ -16,7 +16,7 @@ fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
 
-    heap.allocate(
+    heap.allocate_dynamic_payload(
         &heap.allocation_plan(layout.allocation()),
         Payload::Bytes(bytes),
     )
@@ -51,7 +51,7 @@ fn test_track_default_young_retained_bytes() {
     let heap = &mut test_heap.heap;
 
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
+        heap.allocate_dynamic_payload(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
             .expect("heap allocation should succeed");
     }
 
@@ -63,7 +63,7 @@ fn test_track_default_young_retained_bytes() {
         usage.allocated_bytes,
         (SMALL_ALLOCATION_COUNT * SMALL_ALLOCATION_BYTES) as u64
     );
-    assert_eq!(usage.retained_bytes, DEFAULT_YOUNG_BYTES as u64);
+    assert_eq!(usage.retained_bytes, DEFAULT_YOUNG_SIZE_BYTES as u64);
 }
 
 /// Track retained bytes for local small-span allocation.
@@ -71,8 +71,8 @@ fn test_track_default_young_retained_bytes() {
 fn test_track_small_span_retained_bytes() {
     // disable young space so all objects use mature small spans
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        max_heap_young_allocation_bytes: 0,
+        heap_young_size_bytes: 0,
+        max_heap_young_allocation_size_bytes: 0,
         ..HeapOptions::local()
     };
     let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
@@ -81,18 +81,18 @@ fn test_track_small_span_retained_bytes() {
         .class_index_for(SMALL_ALLOCATION_BYTES)
         .expect("small allocation size should have a class");
     let size_class = options.size_classes.classes[class_index];
-    let span_bytes = size_class
-        .span_bytes(options.page_bytes, options.heap_small_bytes)
-        .max(options.heap_small_bytes);
-    let slot_count = span_bytes / size_class.bytes;
+    let span_size_bytes = size_class
+        .span_size_bytes(options.page_size_bytes, options.heap_small_size_bytes)
+        .max(options.heap_small_size_bytes);
+    let slot_count = span_size_bytes / size_class.bytes;
     let span_count = SMALL_ALLOCATION_COUNT.div_ceil(slot_count);
-    let retained_bytes = span_count * span_bytes;
+    let retained_bytes = span_count * span_size_bytes;
     let mut test_heap = TestHeap::with_options(options);
     let heap = &mut test_heap.heap;
 
     // allocate enough objects to cover several slots and spans
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
+        heap.allocate_dynamic_payload(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
             .expect("heap allocation should succeed");
     }
 
@@ -112,8 +112,8 @@ fn test_track_small_span_retained_bytes() {
 fn test_reject_heap_allocation_when_limit_exceeded() {
     // compute the projected retained-byte charge for one allocation
     let options = HeapOptions {
-        heap_young_bytes: 0,
-        max_heap_young_allocation_bytes: 0,
+        heap_young_size_bytes: 0,
+        max_heap_young_allocation_size_bytes: 0,
         ..HeapOptions::local()
     };
     let expected_used_bytes = heap_retained_bytes_after_allocate(options.clone(), &[1]);
@@ -132,7 +132,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
 
     // reject the allocation before mutating heap accounting
     let error = heap
-        .allocate(
+        .allocate_dynamic_payload(
             &heap.allocation_plan(layout.allocation()),
             Payload::Bytes(&[1]),
         )

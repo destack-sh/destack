@@ -1,4 +1,4 @@
-use super::{HeapLocation, HeapPageMapEntry, HeapPlace, HeapSpace, LargeAllocationId, YoungPlace};
+use super::{HeapPageMapEntry, HeapPlace, HeapRegion, HeapSpace, LargeAllocationId, YoungPlace};
 use crate::HeapReference;
 use crate::allocator::{PageRun, SpanSlot};
 
@@ -15,7 +15,7 @@ impl HeapSpace {
         page_run: &PageRun,
         mut entry: impl FnMut(usize) -> HeapPageMapEntry,
     ) {
-        let first_page_index = first_offset / self.allocator.page_bytes();
+        let first_page_index = first_offset / self.allocator.page_size_bytes();
 
         for logical_page_index in 0..page_run.len() {
             let page_index = first_page_index + logical_page_index;
@@ -31,7 +31,7 @@ impl HeapSpace {
 
     /// Clear every page-map entry for one logical page run.
     pub(crate) fn unmap_page_run(&mut self, first_offset: usize, page_run: &PageRun) {
-        let first_page_index = first_offset / self.allocator.page_bytes();
+        let first_page_index = first_offset / self.allocator.page_size_bytes();
 
         for logical_page_index in 0..page_run.len() {
             let page_index = first_page_index + logical_page_index;
@@ -43,42 +43,37 @@ impl HeapSpace {
         }
     }
 
-    /// Return the resolved location for one live heap reference.
-    pub(crate) fn resolve_location(&self, reference: HeapReference) -> Option<HeapLocation> {
-        let page_bytes = self.allocator.page_bytes();
-        let page_index = reference.offset() / page_bytes;
-        let page_offset = reference.offset() % page_bytes;
+    /// Return the resolved region for one live heap reference.
+    pub(crate) fn resolve_region(&self, reference: HeapReference) -> Option<HeapRegion> {
+        let page_size_bytes = self.allocator.page_size_bytes();
+        let page_index = reference.offset() / page_size_bytes;
+        let page_offset = reference.offset() % page_size_bytes;
         let entry = self.page_entry(page_index)?;
 
         match entry {
             HeapPageMapEntry::Young { logical_page_index } => {
-                self.resolve_young_location(logical_page_index, page_offset)
+                self.resolve_young_region(logical_page_index, page_offset)
             }
             HeapPageMapEntry::Small {
                 span_index,
                 logical_page_index,
-            } => {
-                self.resolve_small_location(reference, span_index, logical_page_index, page_offset)
-            }
+            } => self.resolve_small_region(reference, span_index, logical_page_index, page_offset),
             HeapPageMapEntry::Large {
                 allocation_id,
                 logical_page_index,
-            } => self.resolve_large_location(
-                reference,
-                allocation_id,
-                logical_page_index,
-                page_offset,
-            ),
+            } => {
+                self.resolve_large_region(reference, allocation_id, logical_page_index, page_offset)
+            }
         }
     }
 
-    /// Return the resolved young-space location for one live heap reference.
-    fn resolve_young_location(
+    /// Return the resolved young-space region for one live heap reference.
+    fn resolve_young_region(
         &self,
         logical_page_index: usize,
         page_offset: usize,
-    ) -> Option<HeapLocation> {
-        let logical_byte_offset = logical_page_index * self.young.page_bytes + page_offset;
+    ) -> Option<HeapRegion> {
+        let logical_byte_offset = logical_page_index * self.young.page_size_bytes + page_offset;
 
         if let Some(run_index) = self
             .young
@@ -87,7 +82,7 @@ impl HeapSpace {
             .copied()
             .flatten()
         {
-            return self.resolve_young_run_location(run_index, logical_byte_offset);
+            return self.resolve_young_run_region(run_index, logical_byte_offset);
         }
 
         let (_range_index, allocation) = self.young.range_at_offset(logical_byte_offset)?;
@@ -95,7 +90,7 @@ impl HeapSpace {
 
         let byte_offset = logical_byte_offset - allocation_offset;
 
-        Some(HeapLocation {
+        Some(HeapRegion {
             place: HeapPlace::Young(YoungPlace::Range {
                 first_offset: allocation_offset,
             }),
@@ -105,12 +100,12 @@ impl HeapSpace {
         })
     }
 
-    /// Return the resolved fixed-size young location for one live heap reference.
-    fn resolve_young_run_location(
+    /// Return the resolved fixed-size young region for one live heap reference.
+    fn resolve_young_run_region(
         &self,
         run_index: usize,
         logical_byte_offset: usize,
-    ) -> Option<HeapLocation> {
+    ) -> Option<HeapRegion> {
         let run = self.young.run(run_index)?;
         let run_offset = logical_byte_offset.checked_sub(run.first_offset)?;
         let slot_index = run_offset / run.class.size_class;
@@ -125,24 +120,25 @@ impl HeapSpace {
         let base_offset = run.slot_offset(slot_index);
         let slot = SpanSlot::new(run_index, slot_index).ok()?;
 
-        Some(HeapLocation {
+        Some(HeapRegion {
             place: HeapPlace::Young(YoungPlace::Slot(slot)),
             base: HeapReference::new(base_offset),
             byte_offset: slot_offset,
-            byte_len: run.class.size_class,
+            byte_len: run.byte_len(),
         })
     }
 
-    /// Return the resolved small-span location for one live heap reference.
-    fn resolve_small_location(
+    /// Return the resolved small-span region for one live heap reference.
+    fn resolve_small_region(
         &self,
         reference: HeapReference,
         span_index: usize,
         logical_page_index: usize,
         page_offset: usize,
-    ) -> Option<HeapLocation> {
+    ) -> Option<HeapRegion> {
         let span = self.span(span_index)?;
-        let logical_byte_offset = logical_page_index * self.allocator.page_bytes() + page_offset;
+        let logical_byte_offset =
+            logical_page_index * self.allocator.page_size_bytes() + page_offset;
         let slot_index = logical_byte_offset / span.class.size_class;
         let slot_offset = logical_byte_offset % span.class.size_class;
         if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
@@ -160,7 +156,7 @@ impl HeapSpace {
 
         debug_assert_eq!(reference.offset(), base_offset + slot_offset);
 
-        Some(HeapLocation {
+        Some(HeapRegion {
             place: HeapPlace::Small(slot),
             base: HeapReference::new(base_offset),
             byte_offset: slot_offset,
@@ -168,16 +164,17 @@ impl HeapSpace {
         })
     }
 
-    /// Return the resolved large-allocation location for one live heap reference.
-    fn resolve_large_location(
+    /// Return the resolved large-allocation region for one live heap reference.
+    fn resolve_large_region(
         &self,
         reference: HeapReference,
         allocation_id: LargeAllocationId,
         logical_page_index: usize,
         page_offset: usize,
-    ) -> Option<HeapLocation> {
+    ) -> Option<HeapRegion> {
         let allocation = self.large_allocation(allocation_id)?;
-        let logical_byte_offset = logical_page_index * self.allocator.page_bytes() + page_offset;
+        let logical_byte_offset =
+            logical_page_index * self.allocator.page_size_bytes() + page_offset;
         if allocation.byte_len == 0 {
             if logical_byte_offset != 0 {
                 return None;
@@ -191,7 +188,7 @@ impl HeapSpace {
             allocation.first_offset + logical_byte_offset
         );
 
-        Some(HeapLocation {
+        Some(HeapRegion {
             place: HeapPlace::Large(allocation_id),
             base: HeapReference::new(allocation.first_offset),
             byte_offset: logical_byte_offset,

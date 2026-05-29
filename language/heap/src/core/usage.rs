@@ -77,6 +77,13 @@ impl AllocationUsage {
         self.allocated_bytes += byte_len as u64;
     }
 
+    /// Charge multiple allocations into this usage.
+    #[inline(always)]
+    pub(crate) fn allocate_many(&mut self, allocation_count: usize, allocated_bytes: u64) {
+        self.allocation_count += allocation_count;
+        self.allocated_bytes += allocated_bytes;
+    }
+
     /// Replace one allocation byte count inside this usage.
     pub(crate) fn resize(&mut self, previous_len: usize, next_len: usize) {
         let previous_len = previous_len as u64;

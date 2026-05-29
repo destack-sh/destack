@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_memory::AddressSpace;
 
 use super::{
-    LargeAllocation, LargeAllocationId, RawLocation, RawPageMapEntry, RawPlace, RawSmallSpanClass,
+    LargeAllocation, LargeAllocationId, RawPageMapEntry, RawPlace, RawRegion, RawSmallSpanClass,
     SmallSpan,
 };
 use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable, SpanSlot};
@@ -53,15 +53,15 @@ impl RawSpace {
         options.validate_local()?;
         options.validate_allocator(&allocator)?;
         let page_run_cache = PageRunCache::new(allocator.pages_per_chunk());
-        let next_offset = allocator.page_bytes();
-        let mapping = AddressSpace::reserve(options.raw_space_bytes, options.page_bytes)?;
+        let next_offset = allocator.page_size_bytes();
+        let mapping = AddressSpace::reserve(options.raw_space_size_bytes, options.page_size_bytes)?;
 
         Ok(Self {
             allocator,
             page_run_cache,
             small: SmallSpace {
                 size_classes: options.size_classes.clone(),
-                span_bytes: options.raw_small_bytes,
+                span_size_bytes: options.raw_small_size_bytes,
                 spans: CowTable::new(),
                 partial_spans: BTreeMap::new(),
             },
@@ -98,7 +98,7 @@ impl RawSpace {
             ),
         ) + self
             .page_run_cache
-            .cached_bytes(self.allocator.page_bytes())
+            .cached_bytes(self.allocator.page_size_bytes())
     }
 
     /// Return the exact live usage for this raw space.
@@ -179,7 +179,7 @@ impl RawSpace {
         page_run: &PageRun,
         mut entry: impl FnMut(usize) -> RawPageMapEntry,
     ) {
-        let first_page_index = first_offset / self.allocator.page_bytes();
+        let first_page_index = first_offset / self.allocator.page_size_bytes();
 
         for logical_page_index in 0..page_run.len() {
             let page_index = first_page_index + logical_page_index;
@@ -194,7 +194,7 @@ impl RawSpace {
 
     /// Clear every page-map entry for one logical page run.
     pub(crate) fn unmap_page_run(&mut self, first_offset: usize, page_run: &PageRun) {
-        let first_page_index = first_offset / self.allocator.page_bytes();
+        let first_page_index = first_offset / self.allocator.page_size_bytes();
 
         for logical_page_index in 0..page_run.len() {
             let page_index = first_page_index + logical_page_index;
@@ -205,11 +205,11 @@ impl RawSpace {
         }
     }
 
-    /// Return the resolved location for one live raw pointer.
-    pub(crate) fn resolve_location(&self, pointer: RawPointer) -> Option<RawLocation> {
-        let page_bytes = self.allocator.page_bytes();
-        let page_index = pointer.offset() / page_bytes;
-        let page_offset = pointer.offset() % page_bytes;
+    /// Return the resolved region for one live raw pointer.
+    pub(crate) fn resolve_region(&self, pointer: RawPointer) -> Option<RawRegion> {
+        let page_size_bytes = self.allocator.page_size_bytes();
+        let page_index = pointer.offset() / page_size_bytes;
+        let page_offset = pointer.offset() % page_size_bytes;
         let entry = self.page_entry(page_index)?;
 
         match entry {
@@ -219,7 +219,7 @@ impl RawSpace {
             } => {
                 let span = self.span(span_index)?;
                 let logical_byte_offset =
-                    logical_page_index * self.allocator.page_bytes() + page_offset;
+                    logical_page_index * self.allocator.page_size_bytes() + page_offset;
                 let slot_index = logical_byte_offset / span.class.size_class;
                 let slot_offset = logical_byte_offset % span.class.size_class;
                 if slot_index >= span.slot_count || !span.occupied.contains(slot_index) {
@@ -239,7 +239,7 @@ impl RawSpace {
                 let base_offset = span.first_offset + slot_base_offset;
                 let slot = SpanSlot::new(span_index, slot_index).ok()?;
 
-                Some(RawLocation {
+                Some(RawRegion {
                     place: RawPlace::Small(slot),
                     base: RawPointer::new(base_offset),
                     byte_offset: slot_offset,
@@ -252,7 +252,7 @@ impl RawSpace {
             } => {
                 let allocation = self.large_allocation(allocation_id)?;
                 let logical_byte_offset =
-                    logical_page_index * self.allocator.page_bytes() + page_offset;
+                    logical_page_index * self.allocator.page_size_bytes() + page_offset;
                 if allocation.byte_len == 0 {
                     if logical_byte_offset != 0 {
                         return None;
@@ -261,7 +261,7 @@ impl RawSpace {
                     return None;
                 }
 
-                Some(RawLocation {
+                Some(RawRegion {
                     place: RawPlace::Large(allocation_id),
                     base: RawPointer::new(allocation.first_offset),
                     byte_offset: logical_byte_offset,
@@ -276,9 +276,7 @@ impl RawSpace {
         let base_offset = match place {
             RawPlace::Small(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
-                    return Err(HeapError::MissingSpan {
-                        span_index: slot.span_index(),
-                    });
+                    return Err(HeapError::internal("missing span"));
                 };
                 let slot_offset = span.class.size_class * slot.slot_index();
 
@@ -286,9 +284,7 @@ impl RawSpace {
             }
             RawPlace::Large(allocation_id) => {
                 let Some(allocation) = self.large_allocation(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
+                    return Err(HeapError::internal("missing large allocation"));
                 };
 
                 allocation.first_offset
@@ -306,7 +302,7 @@ impl RawSpace {
     ) -> HeapResult<usize> {
         debug_assert!(self.next_offset <= self.mapping.byte_len());
 
-        let alignment = alignment.max(self.allocator.page_bytes());
+        let alignment = alignment.max(self.allocator.page_size_bytes());
         let first_offset = align_up(self.next_offset, alignment);
         let next_offset = first_offset + byte_len;
         if next_offset > self.mapping.byte_len() {
@@ -363,7 +359,7 @@ pub(crate) struct SmallSpace {
     /// The configured size-class table.
     pub(crate) size_classes: SizeClassTable,
     /// The configured span width.
-    pub(crate) span_bytes: usize,
+    pub(crate) span_size_bytes: usize,
     /// The live raw spans.
     pub(crate) spans: CowTable<SmallSpan>,
     /// The reusable non-full spans per raw small-span class.

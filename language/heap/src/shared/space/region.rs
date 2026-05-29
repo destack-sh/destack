@@ -32,9 +32,9 @@ pub(crate) enum SharedHeapPageMapEntry {
     },
 }
 
-/// One resolved shared heap location.
+/// One resolved shared heap region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct SharedHeapLocation {
+pub(crate) struct SharedHeapRegion {
     /// The shared heap allocation place.
     pub(crate) place: SharedHeapPlace,
     /// The base reference for the owning allocation.

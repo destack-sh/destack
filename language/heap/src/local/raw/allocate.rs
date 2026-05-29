@@ -3,7 +3,10 @@ use super::{
     SmallSpan,
 };
 use crate::allocator::{PageRun, SpanSlot};
-use crate::{Bitmap, HeapError, HeapResult, Payload, RawAllocationShape, RawPointer};
+use crate::{
+    Bitmap, HeapAllocationError, HeapError, HeapRepresentationError, HeapResult, Payload,
+    RawAllocationShape, RawPointer,
+};
 
 impl RawSpace {
     /// Return the projected retained-byte delta for one raw allocation.
@@ -12,7 +15,7 @@ impl RawSpace {
             return if self.has_available_small_slot(&class) {
                 0
             } else {
-                class.span_bytes as i64
+                class.span_size_bytes as i64
             };
         }
 
@@ -26,15 +29,13 @@ impl RawSpace {
         next_byte_len: usize,
     ) -> HeapResult<i64> {
         // resolve the current live allocation first
-        let Some(location) = self.resolve_location(pointer) else {
-            return Err(HeapError::InvalidRawPointer { pointer });
+        let Some(region) = self.resolve_region(pointer) else {
+            return Err(HeapError::invalid_raw_pointer(pointer));
         };
 
         // project the retained-byte delta for this replacement
-        let previous_retained_bytes =
-            self.location_retained_bytes(location.place, location.byte_len);
-        let next_retained_bytes =
-            self.location_replace_retained_bytes(location.place, next_byte_len);
+        let previous_retained_bytes = self.region_retained_bytes(region.place, region.byte_len);
+        let next_retained_bytes = self.region_replace_retained_bytes(region.place, next_byte_len);
 
         Ok(next_retained_bytes as i64 - previous_retained_bytes as i64)
     }
@@ -48,10 +49,12 @@ impl RawSpace {
         if let Some(actual) = payload.byte_len()
             && actual != shape.byte_len
         {
-            return Err(HeapError::InvalidAllocationBytes {
-                expected: shape.byte_len,
-                actual,
-            });
+            return Err(HeapError::invalid_allocation(
+                HeapAllocationError::ByteLengthMismatch {
+                    expected: shape.byte_len,
+                    actual,
+                },
+            ));
         }
 
         let place = self.allocate_place(shape, payload)?;
@@ -66,13 +69,13 @@ impl RawSpace {
     /// Free one raw allocation.
     pub fn free(&mut self, pointer: RawPointer) -> HeapResult<()> {
         // resolve the live allocation first
-        let Some(location) = self.resolve_location(pointer) else {
-            return Err(HeapError::InvalidRawPointer { pointer });
+        let Some(region) = self.resolve_region(pointer) else {
+            return Err(HeapError::invalid_raw_pointer(pointer));
         };
-        let freed_bytes = location.byte_len as u64;
+        let freed_bytes = region.byte_len as u64;
         self.usage.check_free(freed_bytes);
 
-        match location.place {
+        match region.place {
             // release one small-span slot
             RawPlace::Small(slot) => {
                 self.release_small_slot(slot)?;
@@ -86,18 +89,14 @@ impl RawSpace {
             // release one allocation in large space and its allocator pages
             RawPlace::Large(allocation_id) => {
                 let Some(allocation) = self.large_allocation(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
+                    return Err(HeapError::internal("missing large allocation"));
                 };
 
                 let first_offset = allocation.first_offset;
                 let pages = allocation.pages;
 
                 let Some(allocation) = self.large_allocation_mut(allocation_id) else {
-                    return Err(HeapError::MissingLargeAllocation {
-                        allocation_id: allocation_id.id(),
-                    });
+                    return Err(HeapError::internal("missing large allocation"));
                 };
 
                 // retire the live large-allocation slot before releasing its pages
@@ -133,9 +132,7 @@ impl RawSpace {
             let allocation_id =
                 self.insert_large_allocation(shape.byte_len, shape.alignment, pages)?;
             let Some(large_allocation) = self.large_allocation(allocation_id) else {
-                return Err(HeapError::MissingLargeAllocation {
-                    allocation_id: allocation_id.id(),
-                });
+                return Err(HeapError::internal("missing large allocation"));
             };
             let first_offset = large_allocation.first_offset;
 
@@ -173,18 +170,22 @@ impl RawSpace {
 
             self.release_page_run(pages)?;
 
-            return Err(HeapError::InvalidLargeAllocationId { id: allocation_id });
+            return Err(HeapError::representation(
+                HeapRepresentationError::InvalidLargeAllocationId { id: allocation_id },
+            ));
         }
 
         let allocation_id = LargeAllocationId::new(allocation_id);
         let index = allocation_id.index()?;
 
-        let first_offset =
-            self.reserve_space_range_aligned(pages.len() * self.allocator.page_bytes(), alignment)?;
+        let first_offset = self.reserve_space_range_aligned(
+            pages.len() * self.allocator.page_size_bytes(),
+            alignment,
+        )?;
 
         // materialize the full large allocation before publishing it
         self.mapping
-            .materialize(first_offset, pages.len() * self.allocator.page_bytes())?;
+            .materialize(first_offset, pages.len() * self.allocator.page_size_bytes())?;
 
         self.map_page_run(first_offset, &pages, |logical_page_index| {
             RawPageMapEntry::Large {
@@ -234,16 +235,17 @@ impl RawSpace {
         // reuse one non-full span when possible
         while let Some(span_index) = self.small.partial_spans.get_mut(class).and_then(Vec::pop) {
             let Some(span) = self.small.spans.get(span_index) else {
-                return Err(HeapError::MissingSpan { span_index });
+                return Err(HeapError::internal("missing span"));
             };
 
             if span.occupied_count < span.slot_count {
                 if span.occupied_count == 0 && span.pages.is_empty() {
                     let first_offset = span.first_offset;
-                    let pages = self.allocate_page_run(class.span_bytes)?;
+                    let pages = self.allocate_page_run(class.span_size_bytes)?;
 
                     // materialize the full span before handing out slots
-                    self.mapping.materialize(first_offset, class.span_bytes)?;
+                    self.mapping
+                        .materialize(first_offset, class.span_size_bytes)?;
 
                     self.map_page_run(first_offset, &pages, |logical_page_index| {
                         RawPageMapEntry::Small {
@@ -256,7 +258,7 @@ impl RawSpace {
                         self.unmap_page_run(first_offset, &pages);
                         self.release_page_run(pages)?;
 
-                        return Err(HeapError::MissingSpan { span_index });
+                        return Err(HeapError::internal("missing span"));
                     };
 
                     span.pages = pages;
@@ -267,12 +269,14 @@ impl RawSpace {
         }
 
         // otherwise allocate one fresh span for the size class
-        let slot_count = (class.span_bytes / class.size_class).max(1);
-        let pages = self.allocate_page_run(class.span_bytes)?;
-        let first_offset = self.reserve_space_range_aligned(class.span_bytes, class.size_class)?;
+        let slot_count = (class.span_size_bytes / class.size_class).max(1);
+        let pages = self.allocate_page_run(class.span_size_bytes)?;
+        let first_offset =
+            self.reserve_space_range_aligned(class.span_size_bytes, class.size_class)?;
 
         // materialize the full span before handing out slots
-        self.mapping.materialize(first_offset, class.span_bytes)?;
+        self.mapping
+            .materialize(first_offset, class.span_size_bytes)?;
 
         let span = SmallSpan {
             first_offset,
@@ -306,7 +310,7 @@ impl RawSpace {
         };
         let span_index = self.allocate_small_span(&class)?;
         let Some(span) = self.small.spans.get(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
+            return Err(HeapError::internal("missing span"));
         };
         let slot_index = span.free_cursor;
 
@@ -322,7 +326,7 @@ impl RawSpace {
         allocation: Payload<'_>,
     ) -> HeapResult<SpanSlot> {
         let Some(span) = self.small.spans.get(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
+            return Err(HeapError::internal("missing span"));
         };
         let slot_offset = span.class.size_class * slot_index;
 
@@ -331,7 +335,7 @@ impl RawSpace {
         self.initialize_mapped_payload(mapping_offset, class.byte_len, allocation);
 
         let Some(span) = self.small.spans.get_mut(span_index) else {
-            return Err(HeapError::MissingSpan { span_index });
+            return Err(HeapError::internal("missing span"));
         };
 
         // mark the slot as live inside its span
@@ -359,9 +363,7 @@ impl RawSpace {
         let pages = {
             // resolve the live span first
             let Some(span) = self.span_mut(slot.span_index()) else {
-                return Err(HeapError::MissingSpan {
-                    span_index: slot.span_index(),
-                });
+                return Err(HeapError::internal("missing span"));
             };
             let slot_index = slot.slot_index();
             let was_full = span.occupied_count == span.slot_count;
@@ -369,16 +371,10 @@ impl RawSpace {
 
             // ignore stale releases for already-free slots
             if !span.occupied.contains(slot_index) {
-                return Err(HeapError::MissingSmallSlot {
-                    span_index: slot.span_index(),
-                    slot_index,
-                });
+                return Err(HeapError::internal("missing small slot"));
             }
             if span.occupied_count == 0 {
-                return Err(HeapError::MissingSmallSlot {
-                    span_index: slot.span_index(),
-                    slot_index,
-                });
+                return Err(HeapError::internal("missing small slot"));
             }
 
             // mark the slot as free inside the span
@@ -437,23 +433,23 @@ impl RawSpace {
 
         Some(RawSmallSpanClass {
             size_class: size_class.bytes,
-            span_bytes: size_class
-                .span_bytes(self.allocator.page_bytes(), self.small.span_bytes)
-                .max(self.small.span_bytes),
+            span_size_bytes: size_class
+                .span_size_bytes(self.allocator.page_size_bytes(), self.small.span_size_bytes)
+                .max(self.small.span_size_bytes),
             byte_len: shape.byte_len,
         })
     }
 
-    /// Return the retained bytes currently charged to one raw location.
-    fn location_retained_bytes(&self, place: RawPlace, byte_len: usize) -> u64 {
+    /// Return the retained bytes currently charged to one raw region.
+    fn region_retained_bytes(&self, place: RawPlace, byte_len: usize) -> u64 {
         match place {
             RawPlace::Small(_) => 0,
             RawPlace::Large(_) => self.round_up_large_allocation_bytes(byte_len),
         }
     }
 
-    /// Return the retained bytes for one replacement target location.
-    fn location_replace_retained_bytes(&self, place: RawPlace, next_byte_len: usize) -> u64 {
+    /// Return the retained bytes for one replacement target region.
+    fn region_replace_retained_bytes(&self, place: RawPlace, next_byte_len: usize) -> u64 {
         // small allocations stay in place when the next payload still fits
         if let RawPlace::Small(slot) = place
             && let Some(span) = self.span(slot.span_index())
@@ -468,10 +464,10 @@ impl RawSpace {
 
     /// Return the page-rounded retained bytes for one raw large allocation.
     fn round_up_large_allocation_bytes(&self, byte_len: usize) -> u64 {
-        let page_bytes = self.allocator.page_bytes() as u64;
+        let page_size_bytes = self.allocator.page_size_bytes() as u64;
         let byte_len = byte_len as u64;
 
-        byte_len.div_ceil(page_bytes) * page_bytes
+        byte_len.div_ceil(page_size_bytes) * page_size_bytes
     }
 
     /// Initialize one mapped payload range.
@@ -485,6 +481,7 @@ impl RawSpace {
         match payload {
             Payload::Bytes(bytes) => self.write_mapped_bytes(offset, bytes),
             Payload::Zeroed => self.clear_mapped_bytes(offset, clear_byte_len),
+            Payload::Uninit => {}
         }
     }
 

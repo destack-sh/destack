@@ -14,7 +14,7 @@ pub(crate) struct TestLayout {
 }
 
 impl TestLayout {
-    /// Return this test layout as resolved heap allocation facts.
+    /// Return this test layout as one heap allocation site.
     pub(crate) fn allocation(&self) -> AllocationShape<'_> {
         AllocationShape::new(self.byte_len, self.alignment, None, &self.trace_map)
     }
