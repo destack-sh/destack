@@ -90,6 +90,7 @@ fn write_expression_trailing_annotations<'ast>(
         | Expression::Instantiation { .. }
         | Expression::Call { .. }
         | Expression::New { .. }
+        | Expression::NewMaybe { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
         | Expression::RangeExpression { .. }
@@ -268,6 +269,7 @@ fn format_expression_body_at_current_stack<'ast>(
         | Expression::Instantiation { .. }
         | Expression::Call { .. }
         | Expression::New { .. }
+        | Expression::NewMaybe { .. }
         | Expression::Maybe { .. }
         | Expression::Must { .. }
         | Expression::RangeExpression { .. }

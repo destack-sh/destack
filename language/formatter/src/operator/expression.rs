@@ -165,6 +165,10 @@ pub(crate) fn operator_expression_uses_postfix_only_annotations(
         | Expression::New {
             arguments,
             ..
+        }
+        | Expression::NewMaybe {
+            arguments,
+            ..
         } if arguments.is_empty() && context.has_infix_annotation(node_id)
     )
 }
@@ -367,7 +371,11 @@ pub(crate) fn format_operator_expression<'ast>(
 
         // new
         Expression::New { ty, arguments } => {
-            format_new_expression(f, node_id, *ty, arguments)?;
+            format_new_expression(f, node_id, *ty, arguments, false)?;
+        }
+
+        Expression::NewMaybe { ty, arguments } => {
+            format_new_expression(f, node_id, *ty, arguments, true)?;
         }
 
         // maybe

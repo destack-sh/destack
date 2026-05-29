@@ -388,6 +388,7 @@ impl BinaryLikeExpression {
                 context.tree.get(parent_expression_id),
                 Expression::Call { .. }
                     | Expression::New { .. }
+                    | Expression::NewMaybe { .. }
                     | Expression::Import { .. }
                     | Expression::ImportMeta
             );
@@ -405,6 +406,7 @@ impl BinaryLikeExpression {
                 | Expression::Throw { .. }
                 | Expression::Call { .. }
                 | Expression::New { .. }
+                | Expression::NewMaybe { .. }
                 | Expression::Import { .. }
                 | Expression::ImportMeta
         )
