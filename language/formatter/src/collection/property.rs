@@ -136,8 +136,8 @@ pub(crate) fn format_name_with_quotes<'ast>(
                 string_id.format(f)?;
             }
         }
-        Name::Number(string_id) => {
-            string_id.format(f)?;
+        Name::Index(index) => {
+            write!(f, [text(&index.to_string())])?;
         }
     }
 
