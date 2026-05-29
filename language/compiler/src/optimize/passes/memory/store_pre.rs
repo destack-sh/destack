@@ -24,7 +24,7 @@ declare_mir_pass! {
     /// ```mir
     /// function before(v0: boolean, v1: int32): void {
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = frame.alloc int32 -> ref<int32, raw, space(frame)>
+    ///     v2 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     store v2, v1
@@ -40,7 +40,7 @@ declare_mir_pass! {
     /// ```mir
     /// function after(v0: boolean, v1: int32): void {
     /// b0(v0: boolean, v1: int32):
-    ///     v2 = frame.alloc int32 -> ref<int32, raw, space(frame)>
+    ///     v2 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     store v2, v1
@@ -648,7 +648,7 @@ mod tests {
         let input = r#"
 function test(v0: boolean, v1: int32): void {
 b0(v0: boolean, v1: int32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     store v2, v1
@@ -663,7 +663,7 @@ b3:
         let expected = r#"
 function test(v0: boolean, v1: int32): void {
 b0(v0: boolean, v1: int32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     store v2, v1
@@ -686,7 +686,7 @@ b3:
         let input = r#"
 function test(v0: boolean, v1: int32): void {
 b0(v0: boolean, v1: int32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     jump b3
@@ -714,7 +714,7 @@ b1:
 b2:
     jump b3
 b3:
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1int32
     store v1, v2
     return
@@ -731,7 +731,7 @@ b3:
         let input = r#"
 function test(v0: boolean, v1: int32): void {
 b0(v0: boolean, v1: int32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     jump b3

@@ -1026,7 +1026,7 @@ impl FunctionLowerer<'_> {
                 mir::Space::Local,
                 mir::Nullability::None,
             );
-            let reference_value = self.state.builder.new_(value_type, reference_type);
+            let reference_value = self.state.builder.new_zeroed(value_type, reference_type);
 
             let variable = self.state.builder.variable(reference_type);
             self.state
@@ -1094,7 +1094,7 @@ impl FunctionLowerer<'_> {
                 mir::Space::Local,
                 mir::Nullability::None,
             );
-            let reference_value = self.state.builder.new_(value_type, reference_type);
+            let reference_value = self.state.builder.new_zeroed(value_type, reference_type);
             self.state.builder.store(reference_value, value);
 
             // allocate indirect binding

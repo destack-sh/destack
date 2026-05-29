@@ -695,14 +695,17 @@ fn effects_for_instruction(
             let effect = frame_effect(mir::MemoryEffect::write_only(mir::SpaceSet::FRAME));
             (effect, mir::FunctionBehavior::none())
         }
-        mir::Instruction::New { result_type, .. }
-        | mir::Instruction::NewSlice { result_type, .. } => {
+        mir::Instruction::NewZeroed { result_type, .. }
+        | mir::Instruction::NewUninit { result_type, .. }
+        | mir::Instruction::NewSliceZeroed { result_type, .. }
+        | mir::Instruction::NewSliceUninit { result_type, .. } => {
             let spaces = space_set_for_type(tree, *result_type);
             let effect = mir::MemoryEffect::write_only(spaces);
             let behavior = alloc_behavior();
             (effect, behavior)
         }
-        mir::Instruction::RawAlloc { result_type, .. } => {
+        mir::Instruction::RawAllocZeroed { result_type, .. }
+        | mir::Instruction::RawAllocUninit { result_type, .. } => {
             let spaces = space_set_for_type(tree, *result_type);
             let effect = mir::MemoryEffect::write_only(spaces);
             let behavior = alloc_behavior();
@@ -720,8 +723,13 @@ fn effects_for_instruction(
             let behavior = free_behavior();
             (effect, behavior)
         }
-        mir::Instruction::FrameAlloc { .. } => {
+        mir::Instruction::FrameAllocZeroed { .. } | mir::Instruction::FrameAllocUninit { .. } => {
             let effect = frame_effect(mir::MemoryEffect::write_only(mir::SpaceSet::FRAME));
+            (effect, mir::FunctionBehavior::none())
+        }
+        mir::Instruction::NewComplete { result_type, .. } => {
+            let spaces = space_set_for_type(tree, *result_type);
+            let effect = mir::MemoryEffect::read_write(spaces);
             (effect, mir::FunctionBehavior::none())
         }
         mir::Instruction::Pin { .. }
@@ -837,6 +845,7 @@ fn space_set_for_type(tree: &mir::Tree, ty: mir::TypeReference) -> mir::SpaceSet
     };
 
     match tree.get(ty) {
+        mir::Type::Uninit { value } => space_set_for_type(tree, *value),
         mir::Type::Reference { space, .. } | mir::Type::TensorView { space, .. } => {
             space_set_for_space(space.clone())
         }
@@ -889,7 +898,7 @@ b0(v0: int32):
         let input = r#"
 function alloc(): void {
 b0:
-    v0: ref<int32, raw> = raw.alloc int32
+    v0: ref<int32, raw> = raw.alloc.zeroed int32
     raw.free v0
     return
 }"#;

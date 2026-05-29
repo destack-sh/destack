@@ -219,6 +219,15 @@ pub(crate) fn compute_type_layout(
             Ok(TypeLayout::new(layout.size, layout.alignment))
         }
 
+        // uninit tokens use the value representation while enforcing linearity
+        mir::Type::Uninit { value } => {
+            let value = value.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "missing or malformed MIR type in native lowering: uninit value type"
+                    .into(),
+            })?;
+            compute_type_layout(tree, value, pointer_bytes)
+        }
+
         // callables: read canonical layout metadata
         mir::Type::Closure { .. } => {
             let Some(layout) = tree.metadata.layout.type_layout(type_id) else {

@@ -239,8 +239,8 @@ type Point {
 }
 function test(): void {
 b0:
-    v0: ref<Point, managed> = new Point
-    v1: ref<Point, managed> = new Point
+    v0: ref<Point, managed> = new.zeroed Point
+    v1: ref<Point, managed> = new.zeroed Point
     return
 }"#,
         );
@@ -260,8 +260,8 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 42int32
     store v0, v2
     v3: int32 = load v1
@@ -289,8 +289,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 42int32
     store v0, v2
     return
@@ -325,7 +325,7 @@ function test(): void {
 b0:
     v0: ref<int32, raw, space(static)> = global.address g1
     v1: ref<int32, raw, space(static)> = global.address g2
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     return
 }"#,
         );
@@ -348,8 +348,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<float64, raw, space(frame)> = frame.alloc float64
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<float64, raw, space(frame)> = frame.alloc.zeroed float64
     return
 }"#,
         );

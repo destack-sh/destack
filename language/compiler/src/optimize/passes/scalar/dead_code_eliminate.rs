@@ -480,7 +480,7 @@ b2:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     return
 }"#;
@@ -517,7 +517,7 @@ b0:
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = 2int32
@@ -837,7 +837,7 @@ b0(v0: int32):
         let input = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
     v2: int32 = 2int32
     store v0, v1
@@ -849,7 +849,7 @@ b0:
         let expected = r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 2int32
     store v0, v1
     return
@@ -868,7 +868,7 @@ b0:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
     store v0, v1
     v2: int32 = load v0

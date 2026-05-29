@@ -647,6 +647,26 @@ b0(v0: ref<int32, unique>):
 }
 
 #[test]
+fn test_reject_use_after_new_complete() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    int32;
+}
+
+function test(): void {
+b0:
+    v0: uninit<ref<Box, managed>> = new.uninit Box
+    v1: ref<Box, managed> = new.complete v0
+    v2: ref<Box, managed> = new.complete v0
+    return
+}"#,
+    );
+
+    program.assert_use_after_move();
+}
+
+#[test]
 fn test_ignore_raw_free_for_moves() {
     let mut program = TestProgram::mir(
         r#"
@@ -671,7 +691,7 @@ type Box {
 
 function test(): ref<int32, borrowed> {
 b0:
-    v0: ref<Box, raw, space(frame)> = frame.alloc Box
+    v0: ref<Box, raw, space(frame)> = frame.alloc.zeroed Box
     v1: ref<int32, borrowed> = field.address v0, 0
     return v1
 }"#,

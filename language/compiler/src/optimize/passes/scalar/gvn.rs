@@ -1240,7 +1240,7 @@ b1:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     jump b1
 b1:
@@ -1251,7 +1251,7 @@ b1:
         let expected = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     jump b1
 b1:
@@ -1270,7 +1270,7 @@ b1:
         let input = r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     v2: int32 = 1int32
     store v0, v2
@@ -1331,7 +1331,7 @@ b0(v0: ref<int32, raw>):
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     call external(v0): (ref<int32, raw>) -> void
     v2: int32 = load v0
@@ -1342,7 +1342,7 @@ b0:
 external function external(ref<int32, raw>): void
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     call external(v0): (ref<int32, raw>) -> void
     v2: int32 = int.add v1, v1

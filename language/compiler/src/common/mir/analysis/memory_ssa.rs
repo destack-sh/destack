@@ -1095,10 +1095,15 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Drop { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
-            | mir::Instruction::New { .. }
-            | mir::Instruction::NewSlice { .. }
-            | mir::Instruction::RawAlloc { .. }
-            | mir::Instruction::FrameAlloc { .. } => Self::single_effect(
+            | mir::Instruction::NewZeroed { .. }
+            | mir::Instruction::NewUninit { .. }
+            | mir::Instruction::NewComplete { .. }
+            | mir::Instruction::NewSliceZeroed { .. }
+            | mir::Instruction::NewSliceUninit { .. }
+            | mir::Instruction::RawAllocZeroed { .. }
+            | mir::Instruction::RawAllocUninit { .. }
+            | mir::Instruction::FrameAllocZeroed { .. }
+            | mir::Instruction::FrameAllocUninit { .. } => Self::single_effect(
                 MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),
             ),
             mir::Instruction::Intrinsic {
@@ -2068,8 +2073,8 @@ b3:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1int32
     store v0, v2
     v3: int32 = 2int32
@@ -2109,7 +2114,7 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     return v1
 }"#,
@@ -2217,8 +2222,8 @@ b0(v0: ref<int32, raw>):
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1int32
     store v0, v2
     v3: int32 = 2int32
@@ -2339,7 +2344,7 @@ type Point {
 }
 function test(): ref<Point, managed> {
 b0:
-    v0: ref<Point, managed> = new Point
+    v0: ref<Point, managed> = new.zeroed Point
     return v0
 }"#,
         );
@@ -2370,8 +2375,8 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4int64
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -2425,8 +2430,8 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int64 = 4int64
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
     return v3
@@ -2459,7 +2464,7 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = load v0
     store v0, v1
     return v1
@@ -2519,7 +2524,7 @@ b0:
             r#"
 function test(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = atomic.load v0, acquire, device, device, any
     atomic.store v0, v1, release, device, device, any
     return v1
@@ -2819,7 +2824,7 @@ b0:
     v0: int32 = 0int32
     return v0
 b1:
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1int32
     store v1, v2
     return v2

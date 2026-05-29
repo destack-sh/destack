@@ -41,7 +41,7 @@ impl FunctionLowerer<'_> {
                         })
                         .map_err(CompilerError::from)?;
 
-                    let pointer = self.state.builder.new_(pointee, instance_type);
+                    let pointer = self.state.builder.new_zeroed(pointee, instance_type);
                     let default_value =
                         self.default_struct_value_for_layout(pointee, &layout, class_symbol, node)?;
                     self.state.builder.store(pointer, default_value);

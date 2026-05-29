@@ -393,10 +393,15 @@ impl BasicAA {
             }
 
             // allocations don't alias existing spaces
-            mir::Instruction::New { .. }
-            | mir::Instruction::NewSlice { .. }
-            | mir::Instruction::RawAlloc { .. }
-            | mir::Instruction::FrameAlloc { .. } => ModRefInfo::NO_MOD_REF,
+            mir::Instruction::NewZeroed { .. }
+            | mir::Instruction::NewUninit { .. }
+            | mir::Instruction::NewSliceZeroed { .. }
+            | mir::Instruction::NewSliceUninit { .. }
+            | mir::Instruction::RawAllocZeroed { .. }
+            | mir::Instruction::RawAllocUninit { .. }
+            | mir::Instruction::FrameAllocZeroed { .. }
+            | mir::Instruction::FrameAllocUninit { .. }
+            | mir::Instruction::NewComplete { .. } => ModRefInfo::NO_MOD_REF,
 
             // deallocation only affects the freed memory
             mir::Instruction::RawFree { pointer } | mir::Instruction::Free { value: pointer } => {
@@ -702,8 +707,8 @@ type Point {
 }
 function test(): void {
 b0:
-    v0: ref<Point, managed> = new Point
-    v1: ref<Point, managed> = new Point
+    v0: ref<Point, managed> = new.zeroed Point
+    v1: ref<Point, managed> = new.zeroed Point
     v2: int32 = 1int32
     store v0, v2
     store v1, v2
@@ -727,8 +732,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int8 = 0int8
     v3: int64 = 4int64
     intrinsic.memory.raw.setBytes(v1, v2, v3)
@@ -834,7 +839,7 @@ type Point {
 }
 function test(): void {
 b0:
-    v0: ref<Point, managed> = new Point
+    v0: ref<Point, managed> = new.zeroed Point
     return
 }"#,
         );
@@ -858,7 +863,7 @@ type Point {
 }
 function test(): void {
 b0:
-    v0: ref<Point, managed> = new Point
+    v0: ref<Point, managed> = new.zeroed Point
     v1: ref<int32, borrowed> = field.address v0, 0
     v2: ref<int32, borrowed> = field.address v0, 1
     v3: int32 = 1int32
@@ -884,8 +889,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<int32, managed> = new int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, managed> = new.zeroed int32
     v2: int32 = 1int32
     store v0, v2
     store v1, v2
@@ -911,7 +916,7 @@ global g: int32 = 0int32
 function test(): void {
 b0:
     v0: ref<int32, raw, space(static)> = global.address g
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = 1int32
     store v0, v2
     store v1, v2
@@ -936,7 +941,7 @@ b0:
 type Arr = [int32; 10]
 function test(): void {
 b0:
-    v0: ref<Arr, raw, space(frame)> = frame.alloc Arr
+    v0: ref<Arr, raw, space(frame)> = frame.alloc.zeroed Arr
     v1: int64 = 0int64
     v2: int64 = 1int64
     v3: ref<int32, borrowed> = element.address v0, v1
@@ -989,7 +994,7 @@ b0(v0: ref<int32, raw>, v1: ref<int32, raw>):
             r#"
 function test(): void {
 b0:
-    v0: ref<int64, raw, space(frame)> = frame.alloc int64
+    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
     return
 }"#,
         );
@@ -1015,7 +1020,7 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int64, raw, space(frame)> = frame.alloc int64
+    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
     return
 }"#,
         );
@@ -1041,8 +1046,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int64, raw> = raw.alloc int64
-    v1: ref<int64, managed> = new int64
+    v0: ref<int64, raw> = raw.alloc.zeroed int64
+    v1: ref<int64, managed> = new.zeroed int64
     return
 }"#,
         );
@@ -1064,8 +1069,8 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: ref<int8, raw> = cast.bit v0 -> ref<int8, raw>
     return
 }"#,
@@ -1095,7 +1100,7 @@ b0:
 type Arr = [int32; 10]
 function test(v0: int64): void {
 b0(v0: int64):
-    v1: ref<Arr, raw, space(frame)> = frame.alloc Arr
+    v1: ref<Arr, raw, space(frame)> = frame.alloc.zeroed Arr
     v2: ref<int32, borrowed> = element.address v1, v0
     v3: ref<int32, borrowed> = element.address v1, v0
     return
@@ -1128,7 +1133,7 @@ type Outer {
 }
 function test(): void {
 b0:
-    v0: ref<Outer, raw, space(frame)> = frame.alloc Outer
+    v0: ref<Outer, raw, space(frame)> = frame.alloc.zeroed Outer
     v1: ref<Inner, borrowed> = field.address v0, 0
     v2: ref<Inner, borrowed> = field.address v0, 1
     v3: ref<int32, borrowed> = field.address v1, 0

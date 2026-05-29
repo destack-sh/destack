@@ -201,7 +201,7 @@ type Circle {
 function makeShape(value0: Circle): makeShape.return#union {
 entry0(value0: Circle):
     value1: uint8 = 0uint8
-    value2: ref<[usize; 1], raw, space(frame)> = frame.alloc [usize; 1]
+    value2: ref<[usize; 1], raw, space(frame)> = frame.alloc.zeroed [usize; 1]
     value3: uint64 = 0uint64
     value4: usize = cast.bit value3 -> usize
     value5: [usize; 1] = array [usize; 1] (value4)
@@ -490,7 +490,7 @@ type makeFrame.return#union {
 function makeFrame(value0: Frame): makeFrame.return#union {
 entry0(value0: Frame):
     value1: uint8 = 0uint8
-    value2: ref<Frame, managed, readonly> = new Frame
+    value2: ref<Frame, managed, readonly> = new.zeroed Frame
     store value2, value0
     value3: ref<void, managed, readonly> = cast.bit value2 -> ref<void, managed, readonly>
     value4: makeFrame.return#union = struct makeFrame.return#union (value1, value3)
@@ -538,7 +538,7 @@ type Circle { value: int32 }
 function takeCircle(value0: takeCircle.payload#union): Circle {
 entry0(value0: takeCircle.payload#union):
     value1: [usize; 1] = field.get value0, 1
-    value2: ref<[usize; 1], raw, space(frame)> = frame.alloc [usize; 1]
+    value2: ref<[usize; 1], raw, space(frame)> = frame.alloc.zeroed [usize; 1]
     store value2, value1
     value3: ref<Circle, raw, space(frame)> = cast.bit value2 -> ref<Circle, raw, space(frame)>
     value4: Circle = load value3

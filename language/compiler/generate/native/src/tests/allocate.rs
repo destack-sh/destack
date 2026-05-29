@@ -6,12 +6,12 @@ fn test_frame_allocate_i32() {
     let mir = r#"
 function alloc_i32(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
 
-    // frame.alloc creates a stack slot and returns its address
+    // frame.alloc.zeroed creates a stack slot and returns its address
     let expected = r#"
 function u0:0(): int64 native {
     ss0 = explicit_slot 4
@@ -30,7 +30,7 @@ fn test_frame_allocate_i64() {
     let mir = r#"
 function alloc_i64(): ref<int64, raw> {
 b0:
-    v0: ref<int64, raw, space(frame)> = frame.alloc int64
+    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
     return v0
 }"#;
     let clif = compile_mir_to_normalized_clif(mir);
@@ -53,7 +53,7 @@ fn test_frame_allocate_and_use() {
     let mir = r#"
 function alloc_store_load(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0

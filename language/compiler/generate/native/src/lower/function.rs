@@ -973,8 +973,13 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // frame_allocate: create_sized_stack_slot + stack_addr (alloca equivalent)
-            mir::Instruction::FrameAlloc {
+            // allocate frame storage with cranelift stack slots
+            mir::Instruction::FrameAllocZeroed {
+                destination,
+                layout,
+                ..
+            }
+            | mir::Instruction::FrameAllocUninit {
                 destination,
                 layout,
                 ..
@@ -994,8 +999,12 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(destination, address);
             }
 
-            // typed allocation: requires GC/runtime support, not supported
-            mir::Instruction::New { .. } | mir::Instruction::NewSlice { .. } => {
+            // managed allocation requires runtime support
+            mir::Instruction::NewZeroed { .. }
+            | mir::Instruction::NewUninit { .. }
+            | mir::Instruction::NewComplete { .. }
+            | mir::Instruction::NewSliceZeroed { .. }
+            | mir::Instruction::NewSliceUninit { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "require runtime support",
                     instruction_id.into_any(),
@@ -1003,7 +1012,8 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // raw allocation and unique free require runtime or allocator support
-            mir::Instruction::RawAlloc { .. }
+            mir::Instruction::RawAllocZeroed { .. }
+            | mir::Instruction::RawAllocUninit { .. }
             | mir::Instruction::RawFree { .. }
             | mir::Instruction::Free { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
@@ -1984,9 +1994,7 @@ impl<'a> FunctionLowerer<'a> {
             .iter()
             .find(|field| field.source_index == Some(index))
             .or_else(|| fields.get(index as usize))
-            .ok_or_else(|| {
-                CodegenCraneliftError::out_of_bounds(node, index, fields.len())
-            })?;
+            .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, fields.len()))?;
 
         if layout_field.ty != field_type {
             return Err(CodegenCraneliftError::Internal {

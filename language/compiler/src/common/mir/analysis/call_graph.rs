@@ -193,6 +193,11 @@ enum SignatureType {
         /// Interface type signature.
         interface: Box<SignatureType>,
     },
+    /// Linear uninitialized allocation token signature.
+    Uninit {
+        /// Value type under construction.
+        value: Box<SignatureType>,
+    },
     /// Reference type signature.
     Reference {
         /// Reference kind for the pointer.
@@ -355,6 +360,9 @@ impl SignatureType {
             },
             mir::Type::Any { interface } => SignatureType::Any {
                 interface: Box::new(SignatureType::from_type(tree, interface.ty()?)?),
+            },
+            mir::Type::Uninit { value } => SignatureType::Uninit {
+                value: Box::new(SignatureType::from_type(tree, value.ty()?)?),
             },
             mir::Type::Reference {
                 kind,

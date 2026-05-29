@@ -607,15 +607,20 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::Store { .. }
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::LocalSet { .. }
-        | mir::Instruction::New { .. }
-        | mir::Instruction::NewSlice { .. }
-        | mir::Instruction::RawAlloc { .. }
+        | mir::Instruction::NewZeroed { .. }
+        | mir::Instruction::NewUninit { .. }
+        | mir::Instruction::NewComplete { .. }
+        | mir::Instruction::NewSliceZeroed { .. }
+        | mir::Instruction::NewSliceUninit { .. }
+        | mir::Instruction::RawAllocZeroed { .. }
+        | mir::Instruction::RawAllocUninit { .. }
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::Free { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
         | mir::Instruction::Drop { .. }
-        | mir::Instruction::FrameAlloc { .. }
+        | mir::Instruction::FrameAllocZeroed { .. }
+        | mir::Instruction::FrameAllocUninit { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }

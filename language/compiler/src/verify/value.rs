@@ -23,6 +23,7 @@ pub(super) fn instruction_consumes(
     match instruction {
         mir::Instruction::LocalSet { value, .. }
         | mir::Instruction::Store { value, .. }
+        | mir::Instruction::NewComplete { value, .. }
         | mir::Instruction::TensorStore { value, .. }
         | mir::Instruction::TensorFill { value, .. }
         | mir::Instruction::Free { value } => values.push(*value),

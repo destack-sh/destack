@@ -199,7 +199,7 @@ b0(v0: ref<int32, borrowed>):
             r#"
 function create(): ref<int32, raw> {
 b0:
-    v0: ref<int32, raw> = raw.alloc int32
+    v0: ref<int32, raw> = raw.alloc.zeroed int32
     return v0
 }"#,
         );
@@ -303,7 +303,7 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
             r#"
 function getStatic(v0: int32): ref<int32, borrowed> {
 b0(v0: int32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     return v1
 }"#,
         );

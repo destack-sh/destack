@@ -59,7 +59,8 @@ pub fn frame_alloc_base(
 
         // walk through address computations
         match instruction {
-            mir::Instruction::FrameAlloc { destination, .. }
+            mir::Instruction::FrameAllocZeroed { destination, .. }
+            | mir::Instruction::FrameAllocUninit { destination, .. }
                 if destination.value() == Some(current) =>
             {
                 return Some(current);
@@ -96,7 +97,8 @@ pub fn collect_non_escaping_frame_allocs(
         for &instruction_id in &block.instructions {
             // read the instruction
             let instruction = tree.get(instruction_id);
-            if let mir::Instruction::FrameAlloc { destination, .. } = instruction
+            if let mir::Instruction::FrameAllocZeroed { destination, .. }
+            | mir::Instruction::FrameAllocUninit { destination, .. } = instruction
                 && let Some(destination) = destination.value()
             {
                 frame_allocs.insert(destination);
@@ -1251,19 +1253,38 @@ impl<'a> PointerDecomposer<'a> {
 
         match inst {
             // allocations are base objects
-            mir::Instruction::FrameAlloc { destination, .. }
+            mir::Instruction::FrameAllocZeroed { destination, .. }
+            | mir::Instruction::FrameAllocUninit { destination, .. }
                 if destination.value() == Some(ptr) =>
             {
                 DecomposedPointer::from_base(PointerBase::FrameAlloc(instruction_id))
             }
-            mir::Instruction::New { destination, .. } if destination.value() == Some(ptr) => {
+            mir::Instruction::NewZeroed { destination, .. }
+            | mir::Instruction::NewUninit { destination, .. }
+                if destination.value() == Some(ptr) =>
+            {
                 DecomposedPointer::from_base(PointerBase::HeapAlloc(instruction_id))
             }
-            mir::Instruction::NewSlice { destination, .. } if destination.value() == Some(ptr) => {
+            mir::Instruction::NewSliceZeroed { destination, .. }
+            | mir::Instruction::NewSliceUninit { destination, .. }
+                if destination.value() == Some(ptr) =>
+            {
                 DecomposedPointer::from_base(PointerBase::HeapAlloc(instruction_id))
             }
-            mir::Instruction::RawAlloc { destination, .. } if destination.value() == Some(ptr) => {
+            mir::Instruction::RawAllocZeroed { destination, .. }
+            | mir::Instruction::RawAllocUninit { destination, .. }
+                if destination.value() == Some(ptr) =>
+            {
                 DecomposedPointer::from_base(PointerBase::RawAlloc(instruction_id))
+            }
+            mir::Instruction::NewComplete {
+                destination, value, ..
+            } if destination.value() == Some(ptr) => {
+                let Some(value) = value.value() else {
+                    return DecomposedPointer::from_base(PointerBase::Unknown);
+                };
+
+                self.decompose(value)
             }
 
             // global address is a base

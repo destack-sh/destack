@@ -667,7 +667,7 @@ impl FunctionLowerer<'_> {
             let out_ptr = self
                 .state
                 .builder
-                .frame_alloc(ok_value_mir_type, out_ptr_type);
+                .frame_alloc_zeroed(ok_value_mir_type, out_ptr_type);
             call_args.push(out_ptr);
             Some(out_ptr)
         };
@@ -765,7 +765,7 @@ impl FunctionLowerer<'_> {
         let error_out_ptr = self
             .state
             .builder
-            .frame_alloc(err_value_mir_type, error_out_ptr_type);
+            .frame_alloc_zeroed(err_value_mir_type, error_out_ptr_type);
         let _ = self
             .state
             .builder

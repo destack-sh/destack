@@ -97,7 +97,7 @@ type env.7 {
 function makeAdder(): makeAdder.return.function {
 entry0:
     value0: int32 = 5int32
-    value1: ref<env.7, managed> = new env.7
+    value1: ref<env.7, managed> = new.zeroed env.7
     value2: ref<int32, managed> = field.address value1, 0
     store value2, value0
     value3: (int32) => int32 = callable.bind makeAdder.lambda#7, value1
@@ -170,9 +170,9 @@ type env.6 {
 function makeCounter(): makeCounter.return.function {
 entry0:
     value0: int32 = 0int32
-    value1: ref<int32, managed> = new int32
+    value1: ref<int32, managed> = new.zeroed int32
     store value1, value0
-    value2: ref<env.6, managed> = new env.6
+    value2: ref<env.6, managed> = new.zeroed env.6
     value3: ref<ref<int32, managed>, managed> = field.address value2, 0
     value4: ref<int32, managed> = cast.bit value1 -> ref<int32, managed>
     store value3, value4
