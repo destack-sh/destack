@@ -322,8 +322,8 @@ define_language_items! {
             /// Opaque context push token.
             ContextToken => (Newtype, "context/context", "ContextToken"),
 
-            /// Typed context value.
-            ContextValue => (Struct, "context/key", "ContextValue"),
+            /// Typed context entry.
+            ContextEntry => (Struct, "context/entry", "ContextEntry"),
 
             /// Current-context intrinsic.
             CurrentContext => (Function, "context/context", "currentContext", "context.current"),
@@ -467,6 +467,9 @@ define_language_items! {
 
             /// `@noHeap` marker.
             NoHeap => (Newtype, "decorator/restriction", "noHeap"),
+
+            /// `@noImplicitReceivers` marker.
+            NoImplicitReceivers => (Newtype, "decorator/restriction", "noImplicitReceivers"),
 
             /// `@noManaged` marker.
             NoManaged => (Newtype, "decorator/restriction", "noManaged"),
@@ -830,6 +833,9 @@ define_language_items! {
         capability {
             /// Explicit clone capability.
             Clone => (NewtypeInterface, "memory/capability", "Clone"),
+
+            /// Concrete storage representation capability.
+            Concrete => (NewtypeInterface, "memory/capability", "Concrete"),
 
             /// Copy capability.
             Copy => (NewtypeInterface, "memory/capability", "Copy"),

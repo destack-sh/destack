@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, Mutability,
     Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind, StaticKey, StringId,
-    SymbolKind, SymbolSpace, TupleElement, TypeLiteral, VarianceBound, WhereClause,
+    SymbolKind, SymbolSpace, ThisForm, TupleElement, TypeLiteral, VarianceBound, WhereClause,
 };
 
 /// One type-surface member.
@@ -220,6 +220,8 @@ pub struct FunctionType {
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the function type.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The source form used for the receiver.
+    pub this_form: Option<ThisForm>,
     /// The optional `this` parameter.
     pub this_parameter: Option<LocalNodeId<Parameter>>,
     /// The parameters of the function type.
