@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use destack_mir::TraceId;
 
 use crate::allocator::{
-    Allocator, DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES, DEFAULT_PAGE_SIZE_BYTES, SizeClassTable,
+    Allocator, DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES, DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
+    SizeClassTable,
 };
 use crate::{
     AllocationClass, DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
@@ -24,9 +25,9 @@ pub struct HeapOptions {
     pub heap_young_size_bytes: usize,
     /// The maximum payload size routed to heap young space.
     pub max_heap_young_allocation_size_bytes: usize,
-    /// The byte size for heap small-allocation spans.
+    /// The byte size for heap small-block spans.
     pub heap_small_size_bytes: usize,
-    /// The byte size for raw small-allocation spans.
+    /// The byte size for raw small-block spans.
     pub raw_small_size_bytes: usize,
     /// The virtual byte capacity for managed heap space.
     pub heap_space_size_bytes: usize,
@@ -72,7 +73,7 @@ impl HeapOptions {
             raw_small_size_bytes: DEFAULT_SMALL_SIZE_BYTES,
             heap_space_size_bytes: DEFAULT_SPACE_SIZE_BYTES,
             raw_space_size_bytes: DEFAULT_SPACE_SIZE_BYTES,
-            page_size_bytes: DEFAULT_PAGE_SIZE_BYTES,
+            page_size_bytes: DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
             allocator_chunk_size_bytes: DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }

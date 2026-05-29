@@ -3,7 +3,7 @@ use crate::{HeapConfigurationError, HeapError, SizeClassTable, SizeClassTableErr
 /// The largest page or chunk width stored by allocator metadata.
 const MAX_ALLOCATOR_WIDTH_BYTES: usize = u32::MAX as usize;
 
-/// Validate one configured heap page size.
+/// Validate one configured allocator page size.
 pub(crate) fn validate_page_size_bytes(page_size_bytes: usize) -> Result<usize, HeapError> {
     if page_size_bytes == 0
         || page_size_bytes > MAX_ALLOCATOR_WIDTH_BYTES
@@ -19,7 +19,7 @@ pub(crate) fn validate_page_size_bytes(page_size_bytes: usize) -> Result<usize, 
     }
 }
 
-/// Validate one configured allocator chunk size against one valid page size.
+/// Validate one configured allocator chunk size against one allocator page size.
 pub(crate) fn validate_allocator_chunk_size_bytes(
     page_size_bytes: usize,
     allocator_chunk_size_bytes: usize,
@@ -52,7 +52,7 @@ pub(crate) fn validate_allocator_chunk_size_bytes(
     Ok(allocator_chunk_size_bytes)
 }
 
-/// Validate one configured virtual space size against one valid page size.
+/// Validate one configured virtual space size against one allocator page size.
 pub(crate) fn validate_space_size_bytes(
     page_size_bytes: usize,
     space_size_bytes: usize,
@@ -77,7 +77,7 @@ pub(crate) fn validate_space_size_bytes(
     Ok(space_size_bytes)
 }
 
-/// Validate one configured small-allocation alignment.
+/// Validate one configured small-block alignment.
 pub(crate) fn validate_small_allocation_alignment_bytes(
     alignment_bytes: usize,
 ) -> Result<usize, HeapError> {

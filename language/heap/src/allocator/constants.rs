@@ -3,7 +3,7 @@ use std::sync::{Arc, LazyLock};
 use super::class::SizeClass;
 
 /// The default allocator page size.
-pub const DEFAULT_PAGE_SIZE_BYTES: usize = 8 * 1024;
+pub const DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES: usize = 8 * 1024;
 
 /// The default allocator chunk size.
 pub const DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES: usize = if cfg!(target_arch = "wasm32") {
@@ -14,37 +14,88 @@ pub const DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES: usize = if cfg!(target_arch = "was
     4 * 1024 * 1024
 };
 
-/// The default small-allocation class payload sizes.
-pub(crate) const DEFAULT_SIZE_CLASS_BYTES: [usize; 67] = [
-    8, 16, 24, 32, 48, 64, 80, 96, 112, 128, 144, 160, 176, 192, 208, 224, 240, 256, 288, 320, 352,
-    384, 416, 448, 480, 512, 576, 640, 704, 768, 896, 1024, 1152, 1280, 1408, 1536, 1792, 2048,
-    2304, 2688, 3072, 3200, 3456, 4096, 4864, 5376, 6144, 6528, 6784, 6912, 8192, 9472, 9728,
-    10240, 10880, 12288, 13568, 14336, 16384, 18432, 19072, 20480, 21760, 24576, 27264, 28672,
-    32768,
+/// The default small-block class payload sizes and span page counts.
+pub(crate) const DEFAULT_SIZE_CLASSES: [(usize, usize); 67] = [
+    (8, 1),
+    (16, 1),
+    (24, 1),
+    (32, 1),
+    (48, 1),
+    (64, 1),
+    (80, 1),
+    (96, 1),
+    (112, 1),
+    (128, 1),
+    (144, 1),
+    (160, 1),
+    (176, 1),
+    (192, 1),
+    (208, 1),
+    (224, 1),
+    (240, 1),
+    (256, 1),
+    (288, 1),
+    (320, 1),
+    (352, 1),
+    (384, 1),
+    (416, 1),
+    (448, 1),
+    (480, 1),
+    (512, 1),
+    (576, 1),
+    (640, 1),
+    (704, 1),
+    (768, 1),
+    (896, 1),
+    (1024, 1),
+    (1152, 1),
+    (1280, 1),
+    (1408, 2),
+    (1536, 1),
+    (1792, 2),
+    (2048, 1),
+    (2304, 2),
+    (2688, 1),
+    (3072, 3),
+    (3200, 2),
+    (3456, 3),
+    (4096, 1),
+    (4864, 3),
+    (5376, 2),
+    (6144, 3),
+    (6528, 4),
+    (6784, 5),
+    (6912, 6),
+    (8192, 1),
+    (9472, 7),
+    (9728, 6),
+    (10240, 5),
+    (10880, 4),
+    (12288, 3),
+    (13568, 5),
+    (14336, 7),
+    (16384, 2),
+    (18432, 9),
+    (19072, 7),
+    (20480, 5),
+    (21760, 8),
+    (24576, 3),
+    (27264, 10),
+    (28672, 7),
+    (32768, 4),
 ];
 
-/// The largest payload routed through the default small-allocation table.
+/// The largest payload routed through the default small-block table.
 pub const DEFAULT_MAX_SMALL_ALLOCATION_BYTES: usize =
-    DEFAULT_SIZE_CLASS_BYTES[DEFAULT_SIZE_CLASS_BYTES.len() - 1];
-
-/// The page width used by the default size-class table.
-pub(crate) const DEFAULT_SIZE_CLASS_PAGE_SIZE_BYTES: usize = DEFAULT_PAGE_SIZE_BYTES;
-
-/// The default small-allocation class span page counts.
-pub(crate) const DEFAULT_SIZE_CLASS_SPAN_PAGE_COUNTS: [usize; 67] = [
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 2, 1, 2, 1, 2, 1, 3, 2, 3, 1, 3, 2, 3, 4, 5, 6, 1, 7, 6, 5, 4, 3, 5, 7, 2, 9, 7, 5, 8, 3,
-    10, 7, 4,
-];
+    DEFAULT_SIZE_CLASSES[DEFAULT_SIZE_CLASSES.len() - 1].0;
 
 /// Shared storage for the default size-class table.
 pub(crate) static DEFAULT_SIZE_CLASS_TABLE_CLASSES: LazyLock<Arc<[SizeClass]>> =
     LazyLock::new(|| {
-        DEFAULT_SIZE_CLASS_BYTES
+        DEFAULT_SIZE_CLASSES
             .iter()
-            .zip(DEFAULT_SIZE_CLASS_SPAN_PAGE_COUNTS)
-            .map(|(&bytes, span_page_count)| {
-                let span_size_bytes = span_page_count * DEFAULT_SIZE_CLASS_PAGE_SIZE_BYTES;
+            .map(|&(bytes, span_page_count)| {
+                let span_size_bytes = span_page_count * DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;
 
                 SizeClass::with_span_size_bytes(bytes, span_size_bytes)
             })

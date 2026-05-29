@@ -1,7 +1,7 @@
 use std::mem;
 
 use destack_heap::{
-    DEFAULT_PAGE_SIZE_BYTES, DEFAULT_SHARED_SMALL_SIZE_BYTES,
+    DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES, DEFAULT_SHARED_SMALL_SIZE_BYTES,
     DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_SIZE_BYTES, DEFAULT_YOUNG_SIZE_BYTES,
     SizeClass, SizeClassTable,
 };
@@ -9,7 +9,7 @@ use destack_heap::{
 const WORD_BYTES: usize = mem::size_of::<usize>();
 const TARGET_YOUNG_RANGE_RECORD_BYTES: usize = mem::size_of::<u32>() * 3;
 const TARGET_TRACE_MAP_ID_BYTES: usize = 4;
-const DIRTY_CARD_BYTES: usize = DEFAULT_PAGE_SIZE_BYTES / 32;
+const DIRTY_CARD_BYTES: usize = DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES / 32;
 
 /// One reported size class row.
 #[derive(Debug)]
@@ -64,7 +64,10 @@ fn print_policy() {
     println!("heap metadata overhead report");
     println!();
     println!("defaults");
-    println!("  page bytes:             {}", DEFAULT_PAGE_SIZE_BYTES);
+    println!(
+        "  page bytes:             {}",
+        DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES
+    );
     println!("  local young bytes:      {}", DEFAULT_YOUNG_SIZE_BYTES);
     println!("  local small span bytes: {}", DEFAULT_SMALL_SIZE_BYTES);
     println!(
@@ -81,17 +84,17 @@ fn print_policy() {
 /// Print the current eager young-space metadata summary.
 fn print_young_space_summary() {
     let reference_capacity = DEFAULT_YOUNG_SIZE_BYTES.div_ceil(WORD_BYTES);
-    let page_count = DEFAULT_YOUNG_SIZE_BYTES.div_ceil(DEFAULT_PAGE_SIZE_BYTES);
+    let page_count = DEFAULT_YOUNG_SIZE_BYTES.div_ceil(DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES);
 
     let local_reference_bytes = bitmap_bytes(reference_capacity);
     let shared_reference_bytes = bitmap_bytes(reference_capacity);
-    let page_runs_bytes = page_count * mem::size_of::<Option<usize>>();
-    let total_bytes = page_runs_bytes + local_reference_bytes + shared_reference_bytes;
+    let page_spans_bytes = page_count * mem::size_of::<Option<usize>>();
+    let total_bytes = page_spans_bytes + local_reference_bytes + shared_reference_bytes;
     let metadata_percent = total_bytes as f64 / DEFAULT_YOUNG_SIZE_BYTES as f64 * 100.0;
 
     println!("current eager local young metadata");
-    println!("  page run owners:        {}", page_runs_bytes);
-    println!("  run bucket map:         0");
+    println!("  page span owners:       {}", page_spans_bytes);
+    println!("  span cache map:         0");
     println!("  local reference bits:   {}", local_reference_bytes);
     println!("  shared reference bits:  {}", shared_reference_bytes);
     println!("  total:                  {total_bytes} ({metadata_percent:.1}% of young)");
@@ -165,15 +168,15 @@ fn print_notes() {
     println!(
         "  young*: target local young range allocation, compact record plus reference map bits"
     );
-    println!("  run:    current local young no-scan fixed run");
-    println!("  run*:   target local young no-scan fixed run");
+    println!("  span:   current local young no-scan fixed span");
+    println!("  span*:  target local young no-scan fixed span");
     println!("  local:  current local mature small span, scan allocation");
     println!("  local*: target local mature type-homogeneous span, scan allocation");
     println!("  shared: current shared small span, scan allocation");
     println!("  shared*: target shared type-homogeneous span, scan allocation");
     println!();
     println!("large allocations");
-    println!("  current: one side record, one page run, one trace map, dirty-card bits for local");
+    println!("  current: one side record, one page span, one trace map, dirty-card bits for local");
     println!("  target: one side record plus trace map id and card bits, no per-payload header");
 }
 
@@ -184,7 +187,8 @@ fn row_for_class(class_index: usize, class: SizeClass, classes: &[SizeClass]) ->
     } else {
         classes[class_index - 1].bytes + 1
     };
-    let span_size_bytes = class.span_size_bytes(DEFAULT_PAGE_SIZE_BYTES, DEFAULT_SMALL_SIZE_BYTES);
+    let span_size_bytes =
+        class.span_size_bytes(DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES, DEFAULT_SMALL_SIZE_BYTES);
     let slot_count = (span_size_bytes / class.bytes).max(1);
     let rounding_bytes = class.bytes - min_request_bytes;
 
