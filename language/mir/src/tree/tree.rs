@@ -315,6 +315,7 @@ impl Tree {
             }
             Type::Newtype { inner, .. } => self.type_reference_lifetime_inner(*inner, visited),
             Type::Any { interface } => self.type_reference_lifetime_inner(*interface, visited),
+            Type::Uninit { value } => self.type_reference_lifetime_inner(*value, visited),
             Type::Variant {
                 tag,
                 storage,
@@ -391,6 +392,7 @@ impl Tree {
             }),
             Type::Newtype { inner, .. } => self.type_reference_contains_borrowed_refs(*inner),
             Type::Any { interface } => self.type_reference_contains_borrowed_refs(*interface),
+            Type::Uninit { value } => self.type_reference_contains_borrowed_refs(*value),
             Type::Variant {
                 tag,
                 storage,
