@@ -878,7 +878,7 @@ mod tests {
             )
             .expect("shared allocation should succeed");
 
-        assert_eq!(shared.shared.usage().heap.allocation_count, 0);
+        assert_eq!(shared.shared.usage().allocation_count, 0);
 
         let mut runtime = Runtime::new(
             Arc::new(destack_workspace::Environment::default()),
@@ -894,7 +894,7 @@ mod tests {
             .capture_image(CaptureMode::Suspend)
             .expect("runtime image should capture");
 
-        assert_eq!(runtime.heap.shared.usage().heap.allocation_count, 1);
+        assert_eq!(runtime.heap.shared.usage().allocation_count, 1);
     }
 
     /// Publish direct shared roots from the owning worker checkpoint during marking.

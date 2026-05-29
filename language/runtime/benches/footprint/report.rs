@@ -3,8 +3,8 @@ use std::sync::Once;
 
 use destack_engine::StaticSpace;
 use destack_heap::{
-    Allocator, Heap, HeapOptions, HeapSpace, RawSpace, SharedAllocationCache, SharedGcWorker,
-    SharedHeap, SharedHeapOptions, SharedHeapSpace, SharedRawSpace, SizeClassTable,
+    AllocationCache, Allocator, GcWorker, Heap, HeapOptions, SharedHeap, SharedHeapOptions,
+    SizeClassTable,
 };
 use destack_runtime::diagnostic::DiagnosticStore;
 use destack_runtime::host::HostPollResult;
@@ -87,17 +87,9 @@ fn print_component_sizes() {
         ("heap", "Allocator", size_of::<Allocator>()),
         ("heap", "SizeClassTable", size_of::<SizeClassTable>()),
         ("heap", "HeapOptions", size_of::<HeapOptions>()),
-        ("heap", "HeapSpace", size_of::<HeapSpace>()),
-        ("heap", "RawSpace", size_of::<RawSpace>()),
         ("heap", "SharedHeapOptions", size_of::<SharedHeapOptions>()),
-        ("heap", "SharedHeapSpace", size_of::<SharedHeapSpace>()),
-        ("heap", "SharedRawSpace", size_of::<SharedRawSpace>()),
-        (
-            "heap",
-            "SharedAllocationCache",
-            size_of::<SharedAllocationCache>(),
-        ),
-        ("heap", "SharedGcWorker", size_of::<SharedGcWorker>()),
+        ("heap", "AllocationCache", size_of::<AllocationCache>()),
+        ("heap", "GcWorker", size_of::<GcWorker>()),
         ("host", "ResourceTable", size_of::<ResourceTable>()),
         ("host", "BindingRegistry", size_of::<BindingRegistry>()),
         ("runtime", "EventLoop", size_of::<EventLoop>()),
