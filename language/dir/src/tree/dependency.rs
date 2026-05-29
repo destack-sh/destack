@@ -80,7 +80,7 @@ impl DependencyItem {
         match name {
             None => None,
             Some(Name::Identifier(name) | Name::String(name)) => Some(StaticKey::Name(*name)),
-            Some(Name::Number(name)) => Some(StaticKey::Number(*name)),
+            Some(Name::Index(index)) => Some(StaticKey::Index(*index)),
         }
     }
 

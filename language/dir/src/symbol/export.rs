@@ -39,7 +39,7 @@ impl ExportKey {
     pub fn from_name(name: Name, strings: &StringPool) -> Self {
         match name {
             Name::Identifier(name) | Name::String(name) => Self::from_string(name, strings),
-            Name::Number(name) => Self::Named(StaticKey::Number(name)),
+            Name::Index(index) => Self::Named(StaticKey::Index(index)),
         }
     }
 

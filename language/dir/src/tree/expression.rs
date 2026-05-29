@@ -822,6 +822,9 @@ impl Expression {
     /// Return this expression as a static lookup key when locally obvious.
     pub fn static_key(&self) -> Option<StaticKey> {
         match self {
+            Self::ScalarLiteral(ScalarLiteral::Integer(value)) => {
+                usize::try_from(*value).ok().map(StaticKey::Index)
+            }
             Self::ScalarLiteral(ScalarLiteral::String(name)) => Some(StaticKey::Name(*name)),
             _ => None,
         }

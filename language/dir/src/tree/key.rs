@@ -9,8 +9,8 @@ pub enum Name {
     Identifier(StringId),
     /// A string identifier.
     String(StringId),
-    /// A numeric identifier.
-    Number(StringId),
+    /// A positional index.
+    Index(usize),
 }
 
 impl Name {
@@ -18,7 +18,8 @@ impl Name {
     #[inline]
     pub fn string(&self) -> StringId {
         match self {
-            Name::Identifier(id) | Name::String(id) | Name::Number(id) => *id,
+            Name::Identifier(id) | Name::String(id) => *id,
+            Name::Index(index) => panic!("indexed name {index} has no string identifier"),
         }
     }
 
@@ -27,7 +28,7 @@ impl Name {
     pub fn static_key(self) -> StaticKey {
         match self {
             Self::Identifier(name) | Self::String(name) => StaticKey::Name(name),
-            Self::Number(name) => StaticKey::Number(name),
+            Self::Index(index) => StaticKey::Index(index),
         }
     }
 }
