@@ -118,7 +118,6 @@ impl BasicAA {
             (PointerBase::FrameAlloc(a), PointerBase::FrameAlloc(b)) => a != b,
             (PointerBase::Local(a), PointerBase::Local(b)) => a != b,
             (PointerBase::HeapAlloc(a), PointerBase::HeapAlloc(b)) => a != b,
-            (PointerBase::RawAlloc(a), PointerBase::RawAlloc(b)) => a != b,
 
             // different globals
             (PointerBase::Global(a), PointerBase::Global(b)) => a != b,
@@ -126,24 +125,16 @@ impl BasicAA {
             // different allocation types never alias
             (PointerBase::FrameAlloc(_), PointerBase::HeapAlloc(_))
             | (PointerBase::HeapAlloc(_), PointerBase::FrameAlloc(_))
-            | (PointerBase::FrameAlloc(_), PointerBase::RawAlloc(_))
-            | (PointerBase::RawAlloc(_), PointerBase::FrameAlloc(_))
-            | (PointerBase::HeapAlloc(_), PointerBase::RawAlloc(_))
-            | (PointerBase::RawAlloc(_), PointerBase::HeapAlloc(_))
             | (PointerBase::Local(_), PointerBase::FrameAlloc(_))
             | (PointerBase::FrameAlloc(_), PointerBase::Local(_))
             | (PointerBase::Local(_), PointerBase::HeapAlloc(_))
-            | (PointerBase::HeapAlloc(_), PointerBase::Local(_))
-            | (PointerBase::Local(_), PointerBase::RawAlloc(_))
-            | (PointerBase::RawAlloc(_), PointerBase::Local(_)) => true,
+            | (PointerBase::HeapAlloc(_), PointerBase::Local(_)) => true,
 
             // globals vs local allocations
             (PointerBase::Global(_), PointerBase::FrameAlloc(_))
             | (PointerBase::FrameAlloc(_), PointerBase::Global(_))
             | (PointerBase::Global(_), PointerBase::HeapAlloc(_))
             | (PointerBase::HeapAlloc(_), PointerBase::Global(_))
-            | (PointerBase::Global(_), PointerBase::RawAlloc(_))
-            | (PointerBase::RawAlloc(_), PointerBase::Global(_))
             | (PointerBase::Global(_), PointerBase::Local(_))
             | (PointerBase::Local(_), PointerBase::Global(_)) => true,
 
@@ -397,14 +388,12 @@ impl BasicAA {
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::RawAllocZeroed { .. }
-            | mir::Instruction::RawAllocUninit { .. }
             | mir::Instruction::FrameAllocZeroed { .. }
             | mir::Instruction::FrameAllocUninit { .. }
             | mir::Instruction::NewComplete { .. } => ModRefInfo::NO_MOD_REF,
 
             // deallocation only affects the freed memory
-            mir::Instruction::RawFree { pointer } | mir::Instruction::Free { value: pointer } => {
+            mir::Instruction::Free { value: pointer } => {
                 let Some(pointer) = pointer.value() else {
                     return ModRefInfo::NO_MOD_REF;
                 };
@@ -632,7 +621,6 @@ impl BasicAA {
         match decomposed.base {
             PointerBase::FrameAlloc(_) | PointerBase::Local(_) => Some(mir::SpaceSet::FRAME),
             PointerBase::HeapAlloc(_) => Some(mir::SpaceSet::LOCAL),
-            PointerBase::RawAlloc(_) => Some(mir::SpaceSet::LOCAL),
             PointerBase::Global(global) => {
                 Some(self.space_set_for_space(tree.get(global).space.clone()))
             }
@@ -1046,7 +1034,7 @@ b0:
             r#"
 function test(): void {
 b0:
-    v0: ref<int64, raw> = raw.alloc.zeroed int64
+    v0: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
     v1: ref<int64, managed> = new.zeroed int64
     return
 }"#,

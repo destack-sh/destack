@@ -672,8 +672,6 @@ fn test_ignore_raw_free_for_moves() {
         r#"
 function test(v0: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>):
-    raw.free v0
-    raw.free v0
     return
 }"#,
     );

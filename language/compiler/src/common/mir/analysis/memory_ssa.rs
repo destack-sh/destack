@@ -1090,8 +1090,7 @@ impl<'a> MemoryAccessCollector<'a> {
                 self.call_effects(instruction_id, instruction)
             }
             mir::Instruction::CallIndirect { .. } => self.call_effects(instruction_id, instruction),
-            mir::Instruction::RawFree { .. }
-            | mir::Instruction::Free { .. }
+            mir::Instruction::Free { .. }
             | mir::Instruction::Drop { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
@@ -1100,8 +1099,6 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::NewComplete { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::RawAllocZeroed { .. }
-            | mir::Instruction::RawAllocUninit { .. }
             | mir::Instruction::FrameAllocZeroed { .. }
             | mir::Instruction::FrameAllocUninit { .. } => Self::single_effect(
                 MemoryAccessEffect::read_write(MemoryAccessLocation::Unknown, false),

@@ -1070,8 +1070,6 @@ pub enum PointerBase {
     Local(mir::LocalNodeId<mir::Local>),
     /// Heap allocation instruction.
     HeapAlloc(mir::LocalNodeId<mir::Instruction>),
-    /// Raw heap allocation instruction.
-    RawAlloc(mir::LocalNodeId<mir::Instruction>),
     /// Global variable address.
     Global(mir::LocalNodeId<mir::Global>),
     /// Function parameter.
@@ -1095,7 +1093,6 @@ impl PointerBase {
             PointerBase::FrameAlloc(_)
                 | PointerBase::Local(_)
                 | PointerBase::HeapAlloc(_)
-                | PointerBase::RawAlloc(_)
                 | PointerBase::Global(_)
         )
     }
@@ -1109,10 +1106,7 @@ impl PointerBase {
     pub fn is_local_alloc(&self) -> bool {
         matches!(
             self,
-            PointerBase::FrameAlloc(_)
-                | PointerBase::Local(_)
-                | PointerBase::HeapAlloc(_)
-                | PointerBase::RawAlloc(_)
+            PointerBase::FrameAlloc(_) | PointerBase::Local(_) | PointerBase::HeapAlloc(_)
         )
     }
 }
@@ -1270,12 +1264,6 @@ impl<'a> PointerDecomposer<'a> {
                 if destination.value() == Some(ptr) =>
             {
                 DecomposedPointer::from_base(PointerBase::HeapAlloc(instruction_id))
-            }
-            mir::Instruction::RawAllocZeroed { destination, .. }
-            | mir::Instruction::RawAllocUninit { destination, .. }
-                if destination.value() == Some(ptr) =>
-            {
-                DecomposedPointer::from_base(PointerBase::RawAlloc(instruction_id))
             }
             mir::Instruction::NewComplete {
                 destination, value, ..
@@ -1589,7 +1577,6 @@ mod tests {
     fn test_pointer_base_is_local_alloc() {
         let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
         let heap = PointerBase::HeapAlloc(mir::LocalNodeId::new(1));
-        let raw = PointerBase::RawAlloc(mir::LocalNodeId::new(2));
         let global = PointerBase::Global(mir::LocalNodeId::new(0));
         let param = PointerBase::Parameter {
             index: 0,
@@ -1600,7 +1587,6 @@ mod tests {
 
         assert!(stack.is_local_alloc());
         assert!(heap.is_local_alloc());
-        assert!(raw.is_local_alloc());
         assert!(!global.is_local_alloc());
         assert!(!param.is_local_alloc());
         assert!(!call.is_local_alloc());
@@ -1612,12 +1598,10 @@ mod tests {
     fn test_pointer_base_all_variants_identified() {
         let stack = PointerBase::FrameAlloc(mir::LocalNodeId::new(0));
         let heap = PointerBase::HeapAlloc(mir::LocalNodeId::new(1));
-        let raw = PointerBase::RawAlloc(mir::LocalNodeId::new(2));
         let global = PointerBase::Global(mir::LocalNodeId::new(0));
 
         assert!(stack.is_identified());
         assert!(heap.is_identified());
-        assert!(raw.is_identified());
         assert!(global.is_identified());
 
         let param = PointerBase::Parameter {

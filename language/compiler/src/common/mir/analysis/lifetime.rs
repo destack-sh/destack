@@ -197,9 +197,9 @@ b0(v0: ref<int32, borrowed>):
     fn test_resolve_none_for_owned_return() {
         let program = TestProgram::new(
             r#"
-function create(): ref<int32, raw> {
+function create(): ref<int32, raw, space(frame)> {
 b0:
-    v0: ref<int32, raw> = raw.alloc.zeroed int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     return v0
 }"#,
         );
