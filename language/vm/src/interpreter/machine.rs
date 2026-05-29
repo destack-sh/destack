@@ -333,7 +333,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.try_allocate_small_noscan_zeroed(heap_site) {
+        if let Some(reference) = self.heap.reserve_small_noscan_zeroed(heap_site) {
             return Ok(reference);
         }
 
@@ -347,7 +347,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.try_allocate_small_scan_zeroed(heap_site) {
+        if let Some(reference) = self.heap.reserve_small_scan_zeroed(heap_site) {
             return Ok(reference);
         }
 
@@ -361,7 +361,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.try_allocate_small_shared_edge_zeroed(heap_site) {
+        if let Some(reference) = self.heap.reserve_small_shared_edge_zeroed(heap_site) {
             return Ok(reference);
         }
 
@@ -400,7 +400,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.try_allocate_small_noscan_uninit(heap_site) {
+        if let Some(reference) = self.heap.reserve_small_noscan_uninit(heap_site) {
             return Ok(reference);
         }
 
@@ -414,7 +414,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.try_allocate_small_scan_uninit(heap_site) {
+        if let Some(reference) = self.heap.reserve_small_scan_uninit(heap_site) {
             return Ok(reference);
         }
 
@@ -428,7 +428,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.try_allocate_small_shared_edge_uninit(heap_site) {
+        if let Some(reference) = self.heap.reserve_small_shared_edge_uninit(heap_site) {
             return Ok(reference);
         }
 
@@ -528,9 +528,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) -> Result<SharedHeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
         if let Some(small) = heap_site.class.small()
-            && let Some(reference) = self
-                .shared
-                .try_allocate_small_zeroed(self.shared_cache, small)
+            && let Some(reference) = self.shared.reserve_small_zeroed(self.shared_cache, small)
         {
             return Ok(reference);
         }
@@ -577,9 +575,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) -> Result<SharedHeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
         if let Some(small) = heap_site.class.small()
-            && let Some(reference) = self
-                .shared
-                .try_allocate_small_uninit(self.shared_cache, small)
+            && let Some(reference) = self.shared.reserve_small_uninit(self.shared_cache, small)
         {
             return Ok(reference);
         }
