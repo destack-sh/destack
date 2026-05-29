@@ -4,7 +4,7 @@ use destack_engine as engine;
 use destack_heap::{
     AllocationShape, AllocationSite as HeapAllocationSite, Heap, HeapReference, HeapResult,
     Payload, RawAllocationShape, SharedAllocationCache, SharedGcWorker, SharedHeapReference,
-    repeated_layout,
+    SmallAllocationSite as HeapSmallAllocationSite, repeated_layout,
 };
 use destack_mir::{self as mir, TraceId};
 use engine::StaticSpace;
@@ -15,8 +15,9 @@ use crate::options::IsolateOptions;
 use crate::program::{
     AllocationSiteId, ArgumentRange, Check, CheckId, Edge, EdgeId, Function, Instruction, Layout,
     Program, Projection, ProjectionId, SideRecord, SideTable, SliceProjection, SliceProjectionId,
-    SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId,
-    TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
+    SmallAllocationSiteId, SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId,
+    TensorDotId, TensorGatherId, TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId,
+    U32RangeId,
 };
 use crate::{FramePointer, RawPointer, SharedHeap, SharedRawPointer, StaticPointer, Word};
 
@@ -316,6 +317,18 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         (vm_site.trace_map, vm_site.heap)
     }
 
+    /// Return one trace map id, cold heap site, and small heap site.
+    #[inline(always)]
+    fn heap_small_allocation_site(
+        &self,
+        id: SmallAllocationSiteId,
+    ) -> (TraceId, HeapAllocationSite, HeapSmallAllocationSite) {
+        let side_table = self.side_table();
+        let vm_site = *side_table.small_allocation_site(id);
+
+        (vm_site.trace_map, vm_site.heap, vm_site.small)
+    }
+
     /// Allocate one zeroed local heap payload from one allocation site.
     #[inline(always)]
     pub(crate) fn allocate_zeroed_heap(
@@ -330,10 +343,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_zeroed_heap_small_noscan(
         &mut self,
-        id: AllocationSiteId,
+        id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
-        let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_noscan_zeroed(heap_site) {
+        let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
+        if let Some(reference) = self.heap.reserve_small_noscan_zeroed(small_site) {
             return Ok(reference);
         }
 
@@ -344,10 +357,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_zeroed_heap_small_scan(
         &mut self,
-        id: AllocationSiteId,
+        id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
-        let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_scan_zeroed(heap_site) {
+        let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
+        if let Some(reference) = self.heap.reserve_small_scan_zeroed(small_site) {
             return Ok(reference);
         }
 
@@ -358,10 +371,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_zeroed_heap_small_shared_edge(
         &mut self,
-        id: AllocationSiteId,
+        id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
-        let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_shared_edge_zeroed(heap_site) {
+        let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
+        if let Some(reference) = self.heap.reserve_small_shared_edge_zeroed(small_site) {
             return Ok(reference);
         }
 
@@ -397,10 +410,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_uninit_heap_small_noscan(
         &mut self,
-        id: AllocationSiteId,
+        id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
-        let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_noscan_uninit(heap_site) {
+        let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
+        if let Some(reference) = self.heap.reserve_small_noscan_uninit(small_site) {
             return Ok(reference);
         }
 
@@ -411,10 +424,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_uninit_heap_small_scan(
         &mut self,
-        id: AllocationSiteId,
+        id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
-        let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_scan_uninit(heap_site) {
+        let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
+        if let Some(reference) = self.heap.reserve_small_scan_uninit(small_site) {
             return Ok(reference);
         }
 
@@ -425,10 +438,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_uninit_heap_small_shared_edge(
         &mut self,
-        id: AllocationSiteId,
+        id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
-        let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_shared_edge_uninit(heap_site) {
+        let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
+        if let Some(reference) = self.heap.reserve_small_shared_edge_uninit(small_site) {
             return Ok(reference);
         }
 
@@ -524,11 +537,12 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_zeroed_shared_heap_small(
         &mut self,
-        id: AllocationSiteId,
+        id: SmallAllocationSiteId,
     ) -> Result<SharedHeapReference, Error> {
-        let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(small) = heap_site.class.small()
-            && let Some(reference) = self.shared.reserve_small_zeroed(self.shared_cache, small)
+        let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
+        if let Some(reference) = self
+            .shared
+            .reserve_small_zeroed(self.shared_cache, small_site.small)
         {
             return Ok(reference);
         }
@@ -571,11 +585,12 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn allocate_uninit_shared_heap_small(
         &mut self,
-        id: AllocationSiteId,
+        id: SmallAllocationSiteId,
     ) -> Result<SharedHeapReference, Error> {
-        let (trace_map, heap_site) = self.heap_allocation_site(id);
-        if let Some(small) = heap_site.class.small()
-            && let Some(reference) = self.shared.reserve_small_uninit(self.shared_cache, small)
+        let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
+        if let Some(reference) = self
+            .shared
+            .reserve_small_uninit(self.shared_cache, small_site.small)
         {
             return Ok(reference);
         }

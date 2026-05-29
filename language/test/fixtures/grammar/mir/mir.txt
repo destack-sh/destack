@@ -34,7 +34,7 @@ bb0(v0: int64):
     local.set v0, v1
 //  ^^^^^^^^^ keyword.operator.instruction.dsmir
 
-    v6: slice<(int64, int64) -> int64> = new.slice (int64, int64) -> int64, v5
+    v6: slice<(int64, int64) -> int64> = new.slice.zeroed (int64, int64) -> int64, v5
 //      ^^^ support.type.dsmir
 //                                       ^^^^^^^^^ keyword.operator.instruction.dsmir
 

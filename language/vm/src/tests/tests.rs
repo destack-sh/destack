@@ -16,7 +16,7 @@ use crate::program::{Layout, encode_word_bytes};
 use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, Word};
 
 /// The virtual heap-space width used by ordinary VM tests.
-const TEST_LOCAL_SPACE_BYTES: usize = 16 * 1024 * 1024;
+const TEST_LOCAL_SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
 static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
 
 /// Return the shared empty trace table for VM tests.
@@ -44,7 +44,7 @@ pub(crate) struct TestIsolate {
 pub(crate) fn create_test_heap() -> Heap {
     let options = test_local_heap_options();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
             .expect("test allocator should build"),
     );
 
@@ -56,7 +56,7 @@ pub(crate) fn create_test_heap() -> Heap {
 pub(crate) fn create_test_shared_heap() -> SharedHeap {
     let options = test_shared_heap_options();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
             .expect("test allocator should build"),
     );
 
@@ -67,8 +67,8 @@ pub(crate) fn create_test_shared_heap() -> SharedHeap {
 /// Create heap options for ordinary local VM tests.
 fn test_local_heap_options() -> HeapOptions {
     HeapOptions {
-        heap_space_bytes: TEST_LOCAL_SPACE_BYTES,
-        raw_space_bytes: TEST_LOCAL_SPACE_BYTES,
+        heap_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
+        raw_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
         ..HeapOptions::local()
     }
 }
@@ -76,8 +76,8 @@ fn test_local_heap_options() -> HeapOptions {
 /// Create heap options for ordinary shared VM tests.
 pub(crate) fn test_shared_heap_options() -> SharedHeapOptions {
     SharedHeapOptions {
-        heap_space_bytes: TEST_LOCAL_SPACE_BYTES,
-        raw_space_bytes: TEST_LOCAL_SPACE_BYTES,
+        heap_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
+        raw_space_size_bytes: TEST_LOCAL_SPACE_SIZE_BYTES,
         ..SharedHeapOptions::default()
     }
 }

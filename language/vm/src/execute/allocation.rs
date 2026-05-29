@@ -1,7 +1,7 @@
 use super::slice::{load_slice_length_at, store_slice_at};
 use crate::diagnostic::{Error, ReferenceKind};
 use crate::interpreter::Machine;
-use crate::program::{AllocationSiteId, Instruction, SliceProjectionId};
+use crate::program::{AllocationSiteId, Instruction, SliceProjectionId, SmallAllocationSiteId};
 use crate::{StackPointer, Word};
 use destack_heap::{HeapError, HeapReferenceKind, RawAllocationShape};
 
@@ -50,7 +50,7 @@ pub(crate) fn execute_allocate_heap_small_noscan_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = SmallAllocationSiteId(instruction.b);
 
     // allocate from the specialized site
     let reference = machine.allocate_zeroed_heap_small_noscan(allocation)?;
@@ -68,7 +68,7 @@ pub(crate) fn execute_allocate_heap_small_noscan_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = SmallAllocationSiteId(instruction.b);
 
     let reference = machine.allocate_uninit_heap_small_noscan(allocation)?;
     machine.store_word_at(dest, Word::heap_reference(reference));
@@ -83,7 +83,7 @@ pub(crate) fn execute_allocate_heap_small_scan_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = SmallAllocationSiteId(instruction.b);
 
     // allocate from the specialized site
     let reference = machine.allocate_zeroed_heap_small_scan(allocation)?;
@@ -101,7 +101,7 @@ pub(crate) fn execute_allocate_heap_small_scan_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = SmallAllocationSiteId(instruction.b);
 
     let reference = machine.allocate_uninit_heap_small_scan(allocation)?;
     machine.store_word_at(dest, Word::heap_reference(reference));
@@ -116,7 +116,7 @@ pub(crate) fn execute_allocate_heap_small_shared_edge_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = SmallAllocationSiteId(instruction.b);
 
     // allocate from the specialized site
     let reference = machine.allocate_zeroed_heap_small_shared_edge(allocation)?;
@@ -134,7 +134,7 @@ pub(crate) fn execute_allocate_heap_small_shared_edge_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = SmallAllocationSiteId(instruction.b);
 
     let reference = machine.allocate_uninit_heap_small_shared_edge(allocation)?;
     machine.store_word_at(dest, Word::heap_reference(reference));
@@ -179,7 +179,7 @@ pub(crate) fn execute_allocate_shared_heap_small_zeroed(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = SmallAllocationSiteId(instruction.b);
 
     // allocate from the specialized site
     let reference = machine.allocate_zeroed_shared_heap_small(allocation)?;
@@ -196,7 +196,7 @@ pub(crate) fn execute_allocate_shared_heap_small_uninit(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let allocation = AllocationSiteId(instruction.b);
+    let allocation = SmallAllocationSiteId(instruction.b);
 
     let reference = machine.allocate_uninit_shared_heap_small(allocation)?;
     machine.store_word_at(dest, Word::shared_heap_reference(reference));

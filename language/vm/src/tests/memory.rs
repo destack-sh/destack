@@ -216,7 +216,7 @@ fn test_shared_heap_reference_value_roundtrip() {
 fn test_roundtrip_shared_memory_image() {
     let options = test_shared_heap_options();
     let allocator = std::sync::Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
             .expect("valid explicit allocator options should build"),
     );
     let shared = SharedHeap::with_allocator_limits_and_options(
@@ -272,7 +272,7 @@ fn test_roundtrip_shared_memory_image() {
 fn test_shared_raw_budget_tracks_committed_usage() {
     let options = test_shared_heap_options();
     let allocator = std::sync::Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
             .expect("valid explicit allocator options should build"),
     );
     let shared = SharedHeap::with_allocator_limits_and_options(

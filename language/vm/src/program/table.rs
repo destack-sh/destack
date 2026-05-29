@@ -3,14 +3,14 @@ use destack_mir as mir;
 use super::{
     AllocationSite, AtomicCompareExchange, Call, CallBranch, CallClass, CallClassBranch,
     CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch, CallableBind, ConstValue,
-    FrameSelect, Intrinsic, MoveRange, Projection, SliceProjection, SwitchCase, TailCall,
-    TailCallClass, TailCallIndirect, TailCallInterface, TensorBinary, TensorBroadcast,
-    TensorConcat, TensorContiguousBinary, TensorContiguousUnary, TensorConvert, TensorConvolution,
-    TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorIndexReduce,
-    TensorLayout, TensorLoad, TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect,
-    TensorSlice, TensorStore, TensorTranspose, TensorUnary, TensorView, TensorViewCast,
-    VectorBinary, VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect,
-    VectorShuffle, VectorSplat, VectorUnary,
+    FrameSelect, Intrinsic, MoveRange, Projection, SliceProjection, SmallAllocationSite,
+    SwitchCase, TailCall, TailCallClass, TailCallIndirect, TailCallInterface, TensorBinary,
+    TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary, TensorConvert,
+    TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather,
+    TensorIndexReduce, TensorLayout, TensorLoad, TensorPad, TensorReduce, TensorReshape,
+    TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorUnary,
+    TensorView, TensorViewCast, VectorBinary, VectorConvert, VectorExtract, VectorInsert,
+    VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
 };
 
 /// Identifier for one pooled check constraint.
@@ -152,6 +152,10 @@ pub(crate) struct SwitchTable {
 /// Identifier for one pooled allocation site.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AllocationSiteId(pub(crate) u32);
+
+/// Identifier for one pooled small allocation site.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SmallAllocationSiteId(pub(crate) u32);
 
 /// Identifier for one pooled constant value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -310,6 +314,8 @@ pub(crate) struct SideTable {
     record: Box<SideRecordTable>,
     /// Pooled allocation sites.
     allocation_site: Box<[AllocationSite]>,
+    /// Pooled small allocation sites.
+    small_allocation_site: Box<[SmallAllocationSite]>,
     /// Pooled constants.
     constant: Box<[ConstValue]>,
     /// Pooled address projections.
@@ -355,6 +361,8 @@ pub(crate) struct SideTableBuilder {
     edge: Vec<Edge>,
     /// Pooled allocation sites.
     allocation_site: Vec<AllocationSite>,
+    /// Pooled small allocation sites.
+    small_allocation_site: Vec<SmallAllocationSite>,
     /// Pooled constants.
     constant: Vec<ConstValue>,
     /// Pooled address projections.
@@ -387,6 +395,7 @@ impl SideTableBuilder {
             switch_table,
             edge,
             allocation_site,
+            small_allocation_site,
             constant,
             projection,
             slice_projection,
@@ -402,6 +411,7 @@ impl SideTableBuilder {
         SideTable {
             record: Box::new(record.finish()),
             allocation_site: allocation_site.into_boxed_slice(),
+            small_allocation_site: small_allocation_site.into_boxed_slice(),
             constant: constant.into_boxed_slice(),
             projection: projection.into_boxed_slice(),
             slice_projection: slice_projection.into_boxed_slice(),
@@ -457,6 +467,17 @@ impl SideTableBuilder {
         self.allocation_site.push(allocation);
 
         AllocationSiteId(id)
+    }
+
+    /// Add one small allocation site to the side table.
+    pub(crate) fn push_small_allocation_site(
+        &mut self,
+        allocation: SmallAllocationSite,
+    ) -> SmallAllocationSiteId {
+        let id = self.small_allocation_site.len() as u32;
+        self.small_allocation_site.push(allocation);
+
+        SmallAllocationSiteId(id)
     }
 
     /// Add one constant to the side table.
@@ -616,6 +637,12 @@ impl SideTable {
     #[inline(always)]
     pub(crate) fn allocation_site(&self, id: AllocationSiteId) -> &AllocationSite {
         &self.allocation_site[id.0 as usize]
+    }
+
+    /// Borrow one pooled small allocation site.
+    #[inline(always)]
+    pub(crate) fn small_allocation_site(&self, id: SmallAllocationSiteId) -> &SmallAllocationSite {
+        &self.small_allocation_site[id.0 as usize]
     }
 
     /// Borrow one pooled constant.

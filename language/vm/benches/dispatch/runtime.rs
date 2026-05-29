@@ -120,7 +120,7 @@ impl Runtime {
 fn heap() -> Heap {
     let options = HeapOptions::local();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
             .expect("benchmark allocator should build"),
     );
 
@@ -132,7 +132,7 @@ fn heap() -> Heap {
 fn shared_heap() -> SharedHeap {
     let options = SharedHeapOptions::default();
     let allocator = Arc::new(
-        Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
+        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
             .expect("benchmark shared page allocator should build"),
     );
 
