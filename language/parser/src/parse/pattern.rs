@@ -783,7 +783,8 @@ impl Parser {
         field_span: Span,
     ) -> ParserResult<Option<LocalNodeId<Pattern>>> {
         let identifier = match name {
-            Name::Identifier(name) | Name::String(name) | Name::Number(name) => name,
+            Name::Identifier(name) | Name::String(name) => name,
+            Name::Index(_) => return Err(ParserError::unexpected(name_span)),
         };
 
         let binding_pattern = self.insert_node(
@@ -838,21 +839,11 @@ impl Parser {
         self.eat_name_with_span()
     }
 
-    // eat a numeric pattern field name as Name::Number
+    // eat a numeric pattern field name as an index
     fn eat_numeric_pattern_name_with_span(&mut self) -> ParserResult<(Name, Span)> {
-        let token = *self.peek_numeric_literal()?;
-        let key_string = self.file.span_str(token.span).to_string();
+        let (index, span) = self.eat_index_key_with_span()?;
 
-        let numeric_literal = self.eat_scalar_literal()?;
-        if !matches!(
-            numeric_literal,
-            ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_)
-        ) {
-            return Err(ParserError::unexpected(token.span));
-        }
-
-        let key_name = self.strings.intern(&key_string);
-        Ok((Name::Number(key_name), token.span))
+        Ok((Name::Index(index), span))
     }
 
     // eat a boolean pattern field name as Name::Identifier

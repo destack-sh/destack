@@ -251,11 +251,8 @@ impl Parser {
                 self.bump();
                 Name::String(string_id)
             } else if self.peek_numeric_literal_is() {
-                let token = *self.peek_numeric_literal()?;
-                let key_str = self.file.span_str(token.span);
-                let string_id = self.strings.intern(key_str);
-                self.bump();
-                Name::Number(string_id)
+                let (index, _) = self.eat_index_key_with_span()?;
+                Name::Index(index)
             } else if self.peek_is(TokenType::TemplateString) {
                 let template = self.eat_template_literal()?;
                 match template {
@@ -271,11 +268,8 @@ impl Parser {
             self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::Expression)?;
             Ok((name, self.get_span_from(&start)))
         } else if self.peek_numeric_literal_is() {
-            let token = *self.peek_numeric_literal()?;
-            let key_str = self.file.span_str(token.span);
-            let string_id = self.strings.intern(key_str);
-            self.bump();
-            Ok((Name::Number(string_id), token.span))
+            let (index, span) = self.eat_index_key_with_span()?;
+            Ok((Name::Index(index), span))
         } else {
             self.eat_name_with_span()
         }

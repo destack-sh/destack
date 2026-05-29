@@ -781,16 +781,16 @@ fn test_parse_pattern_struct_numeric_name_aliases() {
     assert_node!(parser.tree, pattern_id, Pattern::Object { fields } => {
         assert_eq!(fields.len(), 3);
         assert_node!(parser.tree, fields[0], PatternField::Named { name, is_shorthand: false, pattern: Some(pattern), .. } => {
-            assert_node!(name, Name::Number(name) => {
-                assert_string!(parser, *name, "0");
+            assert_node!(name, Name::Index(index) => {
+                assert_eq!(*index, 0);
             });
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
                 assert_string!(parser, *name, "fieldNameOrOptions");
             });
         });
         assert_node!(parser.tree, fields[1], PatternField::Named { name, is_shorthand: false, pattern: Some(pattern), .. } => {
-            assert_node!(name, Name::Number(name) => {
-                assert_string!(parser, *name, "1");
+            assert_node!(name, Name::Index(index) => {
+                assert_eq!(*index, 1);
             });
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, pattern: None, .. } => {
                 assert_string!(parser, *name, "from");
