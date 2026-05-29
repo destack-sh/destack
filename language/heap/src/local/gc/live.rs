@@ -7,24 +7,24 @@ impl HeapSpace {
         let mut references = Vec::new();
         let mut start = 0;
 
-        // contiguous young allocations
-        while let Some(allocation_index) = self.young.live.first_set_from(start) {
-            let Some(allocation) = self.young_range(allocation_index) else {
+        // contiguous young blocks
+        while let Some(block_index) = self.young.live.first_set_from(start) {
+            let Some(block) = self.young_range(block_index) else {
                 return Err(HeapError::Internal {
                     context: "live young range missing",
                 });
             };
-            references.push(HeapReference::new(allocation.first_offset));
-            start = allocation_index + 1;
+            references.push(HeapReference::new(block.first_offset));
+            start = block_index + 1;
         }
 
-        // fixed-size young runs
-        for (run_index, run) in self.young.runs.iter().enumerate() {
-            let Some(bits) = self.young.run_bits(run_index) else {
+        // fixed-size young spans
+        for (span_index, span) in self.young.spans.iter().enumerate() {
+            let Some(bits) = self.young.span_bits(span_index) else {
                 return Err(HeapError::internal("missing span"));
             };
 
-            let Some(slot_count) = self.young.run_reserved_slot_count(run_index) else {
+            let Some(slot_count) = self.young.span_reserved_slot_count(span_index) else {
                 return Err(HeapError::internal("missing span"));
             };
 
@@ -33,7 +33,7 @@ impl HeapSpace {
                     continue;
                 }
 
-                let offset = run.slot_offset(slot_index);
+                let offset = span.slot_offset(slot_index);
 
                 references.push(HeapReference::new(offset));
             }
@@ -53,13 +53,13 @@ impl HeapSpace {
             }
         }
 
-        // mature large allocations
-        for allocation in self.large.allocations.iter() {
-            if !allocation.is_live {
+        // mature large blocks
+        for block in self.large.blocks.iter() {
+            if !block.is_live {
                 continue;
             }
 
-            references.push(HeapReference::new(allocation.first_offset));
+            references.push(HeapReference::new(block.first_offset));
         }
 
         Ok(references)

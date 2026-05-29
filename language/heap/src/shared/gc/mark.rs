@@ -1,7 +1,7 @@
 use destack_mir::TraceTable;
 
 use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
-use crate::shared::space::{SharedHeapPlace, SharedHeapSpace};
+use crate::shared::space::{SharedHeapSpace, SharedHeapStorage};
 use crate::{
     HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, scan_references,
 };
@@ -27,11 +27,11 @@ impl SharedHeapSpace {
 
         // overwritten bytes
         let mut reference_buffer = Vec::new();
-        let Some(region) = self.resolve_region(reference) else {
+        let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
-        let trace_map = self.trace_map_for_place(region.place, trace_table)?;
-        let base_address = self.mapping.base_address() + region.base.offset();
+        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
+        let base_address = self.mapping.base_address() + extent.base.offset();
         scan_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
@@ -60,7 +60,7 @@ impl SharedHeapSpace {
         reference: SharedHeapReference,
         has_initial_edges: bool,
     ) -> HeapResult<()> {
-        // idle allocation needs no publication work
+        // idle block needs no publication work
         let phase = self.gc.phase();
         if phase == SharedGcPhase::Idle {
             return Ok(());
@@ -69,27 +69,27 @@ impl SharedHeapSpace {
         // concurrent publication
         let Some(_publication) = self.gc.begin_mark_publication() else {
             if phase == SharedGcPhase::Sweep {
-                let Some(region) = self.resolve_region(reference) else {
+                let Some(extent) = self.resolve_extent(reference) else {
                     return Err(HeapError::invalid_shared_heap_reference(reference));
                 };
-                self.mark_place(region.place)?;
+                self.mark_place(extent.storage)?;
             }
 
             return Ok(());
         };
 
-        let Some(region) = self.resolve_region(reference) else {
+        let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
 
-        // new allocations without initial shared edges can stay black
+        // new blocks without initial shared edges can stay black
         if !has_initial_edges {
-            self.mark_place(region.place)?;
+            self.mark_place(extent.storage)?;
 
             return Ok(());
         }
 
-        // queue the new allocation so the active cycle traces its initial payload
+        // queue the new block so the active cycle traces its initial payload
         self.queue_reference(None, reference)
     }
 
@@ -144,13 +144,13 @@ impl SharedHeapSpace {
         worker: Option<&SharedGcWorker>,
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
-        // resolve the reference to its physical place
-        let Some(region) = self.resolve_region(reference) else {
+        // resolve the reference to its physical storage
+        let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
 
         // small references mark their span slot for later scanning
-        if let SharedHeapPlace::Small(slot) = region.place {
+        if let SharedHeapStorage::SmallSlot(slot) = extent.storage {
             let should_queue = {
                 let store = self.state.read();
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
@@ -175,7 +175,7 @@ impl SharedHeapSpace {
         }
 
         // large references scan in page-sized chunks
-        if !self.mark_place(region.place)? {
+        if !self.mark_place(extent.storage)? {
             return Ok(());
         }
         self.gc.trace_queue.push(
@@ -189,31 +189,30 @@ impl SharedHeapSpace {
         Ok(())
     }
 
-    /// Mark one shared heap place and return whether this was the first mark.
-    pub(super) fn mark_place(&self, place: SharedHeapPlace) -> HeapResult<bool> {
+    /// Mark one shared heap storage and return whether this was the first mark.
+    pub(super) fn mark_place(&self, storage: SharedHeapStorage) -> HeapResult<bool> {
         let store = self.state.read();
         let mark_epoch = self.gc.mark_epoch();
 
-        // mark by physical shared heap place
-        match place {
-            SharedHeapPlace::Small(slot) => {
+        // mark by physical shared heap storage
+        match storage {
+            SharedHeapStorage::SmallSlot(slot) => {
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::internal("missing span"));
                 };
 
                 return Ok(span.mark_slot(slot.slot_index(), mark_epoch));
             }
-            SharedHeapPlace::Large(allocation_id) => {
-                let Some(allocation) = store.large.allocations.get(allocation_id.index()?).cloned()
-                else {
-                    return Err(HeapError::internal("missing large allocation"));
+            SharedHeapStorage::LargeBlock(block_id) => {
+                let Some(block) = store.large.blocks.get(block_id.index()?).cloned() else {
+                    return Err(HeapError::internal("missing large block"));
                 };
-                let mut allocation = allocation.write();
-                if allocation.mark_epoch == mark_epoch {
+                let mut block = block.write();
+                if block.mark_epoch == mark_epoch {
                     return Ok(false);
                 }
 
-                allocation.mark_epoch = mark_epoch;
+                block.mark_epoch = mark_epoch;
             }
         }
 

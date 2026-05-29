@@ -100,14 +100,14 @@ impl SharedGcPacer {
         self.assist_debt_bytes.store(0, Ordering::Release);
     }
 
-    /// Charge one shared allocation against current collection runway.
+    /// Charge one shared block against current collection runway.
     pub(crate) fn charge_allocation(
         &self,
         options: &SharedHeapOptions,
         heap_bytes: u64,
         byte_len: usize,
     ) {
-        // compute new assist debt from allocation pressure
+        // compute new assist debt from block pressure
         let gc_pacer = self.snapshot(options, heap_bytes);
         let debt_bytes = gc_pacer.allocation_debt_bytes(options.gc, byte_len);
 
@@ -119,7 +119,7 @@ impl SharedGcPacer {
     pub(crate) fn take_assist_budget_bytes(&self, budget_bytes: usize) -> usize {
         let mut consumed = 0usize;
 
-        // claim one bounded slice of outstanding allocation debt
+        // claim one bounded slice of outstanding block debt
         let _ =
             self.assist_debt_bytes
                 .fetch_update(Ordering::AcqRel, Ordering::Acquire, |pending| {
@@ -152,7 +152,7 @@ impl SharedGcPacer {
         budget_bytes
     }
 
-    /// Return one shared collector budget without consuming allocation debt.
+    /// Return one shared collector budget without consuming block debt.
     pub(crate) fn base_budget_bytes(
         &self,
         options: &SharedHeapOptions,

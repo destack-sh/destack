@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-/// One allocation accounting region.
+/// One block accounting region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AccountingRegion {
     /// All heap regions together.
@@ -42,17 +42,17 @@ impl Display for AccountingRegion {
     }
 }
 
-/// Exact allocation accounting for one region.
+/// Exact block accounting for one region.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) struct AllocationUsage {
-    /// The number of live allocations.
+    /// The number of live blocks.
     allocation_count: usize,
     /// The number of live allocated bytes.
     allocated_bytes: u64,
 }
 
 impl AllocationUsage {
-    /// Create exact allocation accounting.
+    /// Create exact block accounting.
     pub(crate) const fn new(allocation_count: usize, allocated_bytes: u64) -> Self {
         Self {
             allocation_count,
@@ -60,7 +60,7 @@ impl AllocationUsage {
         }
     }
 
-    /// Return the number of live allocations.
+    /// Return the number of live blocks.
     pub(crate) const fn allocation_count(self) -> usize {
         self.allocation_count
     }
@@ -70,21 +70,21 @@ impl AllocationUsage {
         self.allocated_bytes
     }
 
-    /// Charge one allocation into this usage.
+    /// Charge one block into this usage.
     #[inline(always)]
     pub(crate) fn allocate(&mut self, byte_len: usize) {
         self.allocation_count += 1;
         self.allocated_bytes += byte_len as u64;
     }
 
-    /// Charge multiple allocations into this usage.
+    /// Charge multiple blocks into this usage.
     #[inline(always)]
     pub(crate) fn allocate_many(&mut self, allocation_count: usize, allocated_bytes: u64) {
         self.allocation_count += allocation_count;
         self.allocated_bytes += allocated_bytes;
     }
 
-    /// Replace one allocation byte count inside this usage.
+    /// Replace one block byte count inside this usage.
     pub(crate) fn resize(&mut self, previous_len: usize, next_len: usize) {
         let previous_len = previous_len as u64;
         let next_len = next_len as u64;
@@ -93,13 +93,13 @@ impl AllocationUsage {
         self.allocated_bytes = self.allocated_bytes - previous_len + next_len;
     }
 
-    /// Check whether this usage can release one allocation.
+    /// Check whether this usage can release one block.
     pub(crate) fn check_free(&self, freed_bytes: u64) {
         debug_assert!(self.allocation_count > 0);
         debug_assert!(self.allocated_bytes >= freed_bytes);
     }
 
-    /// Release one allocation from this usage.
+    /// Release one block from this usage.
     pub(crate) fn free(&mut self, freed_bytes: u64) {
         self.check_free(freed_bytes);
         self.allocation_count -= 1;

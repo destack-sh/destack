@@ -45,7 +45,7 @@ impl ReferenceRange {
 pub(crate) enum ReferenceInput<'a> {
     /// Mapped heap memory at a native address.
     Mapped {
-        /// The mapped allocation base address.
+        /// The mapped block base address.
         base_address: usize,
     },
     /// Caller-provided object bytes.
@@ -279,14 +279,14 @@ fn overlaps_reference_range<R: ReferenceClass>(
     overlaps
 }
 
-/// Return the exact trace map encoded for one allocation byte range.
+/// Return the exact trace map encoded for one block byte range.
 pub(crate) fn allocation_trace_map(
     local_reference_bits: &Bitmap,
     shared_reference_bits: &Bitmap,
     byte_offset: usize,
     byte_len: usize,
 ) -> TraceMap {
-    // locate this allocation in the side bitmaps
+    // locate this block in the side bitmaps
     let bit_start = byte_offset / REFERENCE_BYTES;
     let word_count = byte_len.div_ceil(REFERENCE_BYTES);
 
@@ -330,14 +330,14 @@ pub(crate) fn clear_slot_reference_bits(
     );
 }
 
-/// Clear the exact reference bits for one allocation byte range.
+/// Clear the exact reference bits for one block byte range.
 pub(crate) fn clear_allocation_reference_bits(
     local_reference_bits: &mut Bitmap,
     shared_reference_bits: &mut Bitmap,
     byte_offset: usize,
     byte_len: usize,
 ) {
-    // map the allocation payload to bitmap word indexes
+    // map the block payload to bitmap word indexes
     let bit_start = byte_offset / REFERENCE_BYTES;
     let bit_len = byte_len.div_ceil(REFERENCE_BYTES);
 
@@ -384,17 +384,15 @@ pub(crate) fn write_slot_reference_bits(
         local_reference_bits,
         shared_reference_bits,
         bit_start,
-        bit_len,
     );
 }
 
-/// Encode one exact trace map into one allocation byte range.
+/// Encode one exact trace map at one block byte offset.
 pub(crate) fn write_allocation_reference_bits(
     trace_map: &TraceMap,
     local_reference_bits: &mut Bitmap,
     shared_reference_bits: &mut Bitmap,
     byte_offset: usize,
-    byte_len: usize,
 ) {
     debug_assert!(!trace_map.has_tagged_reference());
 
@@ -403,35 +401,24 @@ pub(crate) fn write_allocation_reference_bits(
         return;
     }
 
-    // derive the allocation bitmap range
+    // derive the block bitmap start
     let bit_start = byte_offset / REFERENCE_BYTES;
-    let bit_len = byte_len.div_ceil(REFERENCE_BYTES);
 
     write_direct_reference_bits(
         trace_map,
         local_reference_bits,
         shared_reference_bits,
         bit_start,
-        bit_len,
     );
 }
 
-/// Encode one exact trace map into one bitmap range.
+/// Encode one exact trace map into one clean bitmap range.
 fn write_direct_reference_bits(
     trace_map: &TraceMap,
     local_reference_bits: &mut Bitmap,
     shared_reference_bits: &mut Bitmap,
     bit_start: usize,
-    bit_len: usize,
 ) {
-    // clear stale reference bits before writing exact offsets
-    clear_reference_bits(
-        local_reference_bits,
-        shared_reference_bits,
-        bit_start,
-        bit_len,
-    );
-
     // encode local and shared reference offsets independently
     set_reference_bits::<HeapReference>(trace_map, local_reference_bits, bit_start);
     set_reference_bits::<SharedHeapReference>(trace_map, shared_reference_bits, bit_start);
@@ -613,9 +600,9 @@ trait ReferenceWalker {
     fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>>;
 }
 
-/// Read-only reference scanner over mapped allocation memory.
+/// Read-only reference scanner over mapped block memory.
 struct MemoryReferenceWalker<'a, R: ReferenceClass> {
-    /// The mapped allocation base address.
+    /// The mapped block base address.
     base_address: usize,
     /// The references collected during the walk.
     references: &'a mut Vec<R>,
@@ -635,7 +622,7 @@ impl<R: ReferenceClass> ReferenceWalker for MemoryReferenceWalker<'_, R> {
             range,
             R::BYTE_LEN,
             |offset| {
-                // SAFETY: mapped allocation references are aligned native words at trace-map offsets
+                // SAFETY: mapped block references are aligned native words at trace-map offsets
                 let bits = unsafe { read_reference_bits(self.base_address + offset) };
 
                 self.references.push(R::from_bits(bits));
@@ -646,7 +633,7 @@ impl<R: ReferenceClass> ReferenceWalker for MemoryReferenceWalker<'_, R> {
     }
 
     fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
-        // SAFETY: mapped allocation tags are inside live payload memory
+        // SAFETY: mapped block tags are inside live payload memory
         let tag = unsafe { read_reference_tag(self.base_address + offset, width) };
 
         Ok(Some(tag))

@@ -22,7 +22,7 @@ impl WorldMemory {
     pub(crate) fn new(execution_mode: ExecutionMode, branch_id: BranchId) -> RuntimeResult<Self> {
         let allocator = Arc::new(
             heap::Allocator::try_new(
-                heap::DEFAULT_PAGE_SIZE_BYTES,
+                heap::DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
                 heap::DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES,
             )
             .map_err(Box::<RuntimeError>::from)?,

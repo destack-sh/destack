@@ -29,7 +29,7 @@ impl SharedHeapSpace {
         // sweep state
         let store = self.state.read();
         self.gc
-            .start_sweep(store.small.spans.len(), store.large.allocations.len());
+            .start_sweep(store.small.spans.len(), store.large.blocks.len());
         drop(store);
 
         self.gc.set_phase(SharedGcPhase::Sweep);
@@ -94,24 +94,24 @@ impl SharedHeapSpace {
                 }
             }
 
-            // large allocations
+            // large blocks
             while swept_bytes < budget_bytes && cursor.large_index < cursor.large_limit {
-                let allocation_index = cursor.large_index;
+                let block_index = cursor.large_index;
                 cursor.large_index += 1;
 
-                let allocation = store.large.allocations[allocation_index].read();
-                if !allocation.is_live {
+                let block = store.large.blocks[block_index].read();
+                if !block.is_live {
                     swept_bytes += METADATA_STEP_BYTES;
 
                     continue;
                 }
 
-                swept_bytes += allocation.byte_len.max(1);
-                if allocation.mark_epoch == mark_epoch {
+                swept_bytes += block.byte_len.max(1);
+                if block.mark_epoch == mark_epoch {
                     continue;
                 }
 
-                released_references.push(SharedHeapReference::new(allocation.first_offset));
+                released_references.push(SharedHeapReference::new(block.first_offset));
             }
 
             cursor.small_span_index >= cursor.small_span_limit
@@ -119,7 +119,7 @@ impl SharedHeapSpace {
         };
         self.gc.set_sweep_cursor(cursor);
 
-        // reclaimed allocation
+        // reclaimed block
         let mut freed_allocations = 0usize;
         let mut freed_bytes = 0u64;
         for reference in released_references {

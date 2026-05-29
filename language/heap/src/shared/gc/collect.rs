@@ -3,7 +3,7 @@ use std::sync::atomic::Ordering;
 use destack_mir::TraceTable;
 
 use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
-use crate::shared::space::{SharedHeapPlace, SharedHeapSpace, small_slot_offset};
+use crate::shared::space::{SharedHeapSpace, SharedHeapStorage, small_slot_offset};
 use crate::{
     GcStats, HeapConfigurationError, HeapError, HeapGcStateError, HeapResult, ReferenceInput,
     ReferenceRange, SharedHeapReference, SizeClassTableError, scan_references,
@@ -132,7 +132,7 @@ impl SharedHeapSpace {
 
     /// Return the mark queue batch capacity for this space.
     fn trace_batch_capacity(&self) -> HeapResult<usize> {
-        // derive a bounded batch from the smallest possible small allocation
+        // derive a bounded batch from the smallest possible small block
         let state = self.state.read();
         let min_slot_bytes = state
             .small
@@ -166,7 +166,7 @@ impl SharedHeapSpace {
             }
 
             match batch[start] {
-                // large allocations are already page-sliced
+                // large blocks are already page-sliced
                 SharedTraceWork::Large {
                     reference,
                     start: range_start,
@@ -208,7 +208,7 @@ impl SharedHeapSpace {
         self.gc.phase() == SharedGcPhase::Mark && self.gc.mark_drained()
     }
 
-    /// Trace one page-sized range from one shared large allocation.
+    /// Trace one page-sized range from one shared large block.
     fn trace_large_range(
         &self,
         worker: Option<&SharedGcWorker>,
@@ -216,22 +216,22 @@ impl SharedHeapSpace {
         start: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<usize> {
-        // resolve and verify the large allocation
-        let Some(region) = self.resolve_region(reference) else {
+        // resolve and verify the large block
+        let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
-        let SharedHeapPlace::Large(_) = region.place else {
+        let SharedHeapStorage::LargeBlock(_) = extent.storage else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
 
         // skip empty ranges and noscan payloads
-        let trace_map = self.trace_map_for_place(region.place, trace_table)?;
+        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
         if !trace_map.has_shared_reference() {
-            return Ok(region.byte_len);
+            return Ok(extent.byte_len);
         }
 
         // range already fully traced
-        if start >= region.byte_len {
+        if start >= extent.byte_len {
             return Ok(0);
         }
 
@@ -239,12 +239,12 @@ impl SharedHeapSpace {
         let range_len = self
             .allocator
             .page_size_bytes()
-            .min(region.byte_len - start);
+            .min(extent.byte_len - start);
 
         let mut reference_buffer = Vec::new();
 
         // payload scan
-        let base_address = self.mapping.base_address() + region.base.offset();
+        let base_address = self.mapping.base_address() + extent.base.offset();
         scan_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
@@ -256,10 +256,10 @@ impl SharedHeapSpace {
         // discovered references
         self.queue_references(worker, reference_buffer)?;
 
-        // continue this large allocation on a later step
+        // continue this large block on a later step
         let next_start = start + range_len;
 
-        if next_start < region.byte_len {
+        if next_start < extent.byte_len {
             self.gc.trace_queue.push(
                 worker,
                 SharedTraceWork::Large {

@@ -1,4 +1,4 @@
-/// The source bytes used to initialize one allocation.
+/// The source bytes used to initialize one block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Payload<'a> {
     /// Caller-provided bytes.

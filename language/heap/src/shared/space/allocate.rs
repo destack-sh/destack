@@ -4,26 +4,26 @@ use destack_mir::TraceMap;
 use parking_lot::RwLock;
 
 use super::{
-    SharedAllocationCache, SharedHeapPageMapEntry, SharedHeapPlace, SharedHeapSpace,
-    SharedHeapState, SharedLargeAllocation, SharedLargeAllocationId, SharedSmallSpan,
-    SmallAllocation, SmallBucket, SmallRun, SpanList,
+    ReservedSlot, SharedAllocationCache, SharedHeapPageMapEntry, SharedHeapSpace, SharedHeapState,
+    SharedHeapStorage, SharedLargeBlock, SharedLargeBlockId, SharedSmallSpan, SmallSizeClassCache,
+    SpanList,
 };
-use crate::allocator::{PageRun, SpanSlot};
+use crate::allocator::{PageSpan, Slot};
 use crate::{
     AllocationPlan, HeapAllocationError, HeapError, HeapRepresentationError, HeapResult, Payload,
     SharedHeapReference, SmallAllocationPlan, SmallSpanClass,
 };
 
 impl SharedHeapSpace {
-    /// Allocate one shared managed heap allocation.
+    /// Allocate one shared managed heap block.
     pub fn allocate(
         &self,
         cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
-        should_keep_worker_bucket: bool,
+        should_keep_worker_cache: bool,
     ) -> HeapResult<SharedHeapReference> {
-        // heap allocations must have a physical payload
+        // heap blocks must have a physical payload
         if layout.is_empty() {
             return Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize));
         }
@@ -41,8 +41,8 @@ impl SharedHeapSpace {
         }
 
         // allocate the payload bytes
-        let place = self.allocate_place(cache, layout, payload, should_keep_worker_bucket)?;
-        let reference = self.base_reference_for_place(place)?;
+        let storage = self.allocate_place(cache, layout, payload, should_keep_worker_cache)?;
+        let reference = self.base_reference_for_place(storage)?;
 
         // publish initialized shared references to an active mark cycle
         let has_shared_reference = payload.byte_len().is_some() && layout.has_shared_reference;
@@ -51,93 +51,9 @@ impl SharedHeapSpace {
         Ok(reference)
     }
 
-    /// Reserve one small payload from a worker-local bucket.
+    /// Reserve one payload from a worker-local small cache.
     #[inline(always)]
-    pub(crate) fn reserve_worker_small_payload(
-        &self,
-        cache: &mut SharedAllocationCache,
-        layout: &AllocationPlan<'_>,
-        payload: Payload<'_>,
-    ) -> HeapResult<Option<SharedHeapReference>> {
-        // worker buckets only handle small allocations
-        let Some(small) = layout.class.small() else {
-            return Ok(None);
-        };
-        let cache_index = small.cache_index();
-        if cache.small.len() <= cache_index {
-            return Ok(None);
-        }
-
-        // inactive buckets have no local slots
-        let run = &mut cache.runs[cache_index];
-        let bucket = &mut cache.small[cache_index];
-        if !bucket.is_active() {
-            return Ok(None);
-        }
-        if bucket.class != small.class {
-            return Ok(None);
-        }
-
-        // no-scan blank allocations are just a dense-run bump
-        if layout.is_noscan
-            && matches!(payload, Payload::Zeroed | Payload::Uninit)
-            && let Some(reference) = run.reserve_reference(small.class.size_class)
-        {
-            if !bucket.has_available_slot(run) {
-                self.flush_worker_bucket(bucket, run);
-                bucket.finish(run);
-                bucket.clear(run);
-            }
-
-            return Ok(Some(reference));
-        }
-
-        // no-scan byte allocations write directly into fresh dense-run slots
-        if layout.is_noscan
-            && let Payload::Bytes(bytes) = payload
-            && let Some(reference) = run.reserve_reference(small.class.size_class)
-        {
-            self.write_mapped_bytes(reference.offset(), bytes);
-            if !bucket.has_available_slot(run) {
-                self.flush_worker_bucket(bucket, run);
-                bucket.finish(run);
-                bucket.clear(run);
-            }
-
-            return Ok(Some(reference));
-        }
-
-        // remaining small allocations need span metadata updates
-        let allocation = match payload {
-            Payload::Zeroed | Payload::Uninit if layout.is_noscan => {
-                self.reserve_zeroed_noscan_slot(bucket, run)?
-            }
-            Payload::Bytes(bytes) if layout.is_noscan => {
-                self.reserve_bytes_noscan_slot(bucket, run, bytes)?
-            }
-            _ => self.reserve_small_slot(bucket, run, layout.trace_map, payload)?,
-        };
-        let Some(allocation) = allocation else {
-            // exhausted buckets leave worker ownership immediately
-            bucket.finish(run);
-            bucket.clear(run);
-
-            return Ok(None);
-        };
-
-        // full buckets leave worker ownership immediately
-        if !allocation.keep_bucket {
-            self.flush_worker_bucket(bucket, run);
-            bucket.finish(run);
-            bucket.clear(run);
-        }
-
-        Ok(Some(allocation.reference))
-    }
-
-    /// Reserve one payload from a worker-local small run.
-    #[inline(always)]
-    pub(crate) fn reserve_worker_small(
+    pub(crate) fn reserve_small_from_cache(
         &self,
         cache: &mut SharedAllocationCache,
         small: SmallAllocationPlan,
@@ -147,60 +63,62 @@ impl SharedHeapSpace {
             return None;
         }
 
-        let run = &mut cache.runs[cache_index];
-        let bucket = &mut cache.small[cache_index];
-        if !bucket.is_active() || bucket.class != small.class {
+        let size_class_cache = &mut cache.small[cache_index];
+        if !size_class_cache.is_active() || size_class_cache.class != small.class {
             return None;
         }
 
-        let reference = run.reserve_reference(small.slot_bytes())?;
-        if !bucket.has_available_slot(run) {
-            self.flush_worker_bucket(bucket, run);
-            bucket.finish(run);
-            bucket.clear(run);
+        let reference = size_class_cache
+            .cursor
+            .reserve_reference(small.slot_bytes())?;
+        if !size_class_cache.has_available_slot() {
+            self.flush_size_class_cache(size_class_cache);
+            size_class_cache.finish();
+            size_class_cache.clear();
         }
 
         Some(reference)
     }
 
-    /// Publish and retire every worker-local small run.
+    /// Publish and retire every worker-local small cache.
     pub(crate) fn flush_allocation_cache(&self, cache: &mut SharedAllocationCache) {
         let mut store = self.state.write();
 
-        // publish each worker-owned bucket back to central state
-        for (cache_index, bucket) in cache.small.iter_mut().enumerate() {
-            let run = &mut cache.runs[cache_index];
-            let Some(span) = bucket.span.clone() else {
+        // publish each worker-owned cache back to central state
+        for size_class_cache in &mut cache.small {
+            let Some(span) = size_class_cache.span.clone() else {
                 continue;
             };
 
-            self.flush_worker_bucket(bucket, run);
-            bucket.publish_run(run);
+            self.flush_size_class_cache(size_class_cache);
+            size_class_cache.publish_cursor();
 
             // partial spans return to the central partial list
-            if bucket.has_available_slot(run) {
+            if size_class_cache.has_available_slot() {
                 span.list.store(SpanList::Central);
                 store
                     .small
                     .partial_spans
-                    .entry(bucket.class)
+                    .entry(size_class_cache.class)
                     .or_default()
-                    .push(bucket.span_index as usize);
-                bucket.clear(run);
+                    .push(size_class_cache.span_index as usize);
+                size_class_cache.clear();
 
                 continue;
             }
 
             // full spans only need a list transition
             span.list.store(SpanList::Full);
-            bucket.clear(run);
+            size_class_cache.clear();
         }
     }
 
-    /// Publish one worker-local bucket into shared accounting.
+    /// Publish one worker-local cache into shared accounting.
     #[inline(always)]
-    fn flush_worker_bucket(&self, bucket: &mut SmallBucket, run: &mut SmallRun) {
-        let usage = run.flush_usage(bucket.class.size_class);
+    fn flush_size_class_cache(&self, size_class_cache: &mut SmallSizeClassCache) {
+        let usage = size_class_cache
+            .cursor
+            .flush_usage(size_class_cache.class.size_class);
         if usage.allocation_count() == 0 {
             return;
         }
@@ -209,7 +127,7 @@ impl SharedHeapSpace {
             .allocate_many(usage.allocation_count(), usage.allocated_bytes());
     }
 
-    /// Publish worker-local accounting for the bucket that owns one reference.
+    /// Publish worker-local accounting for the cache that owns one reference.
     pub(crate) fn flush_cache_for_reference(
         &self,
         cache: &mut SharedAllocationCache,
@@ -217,22 +135,20 @@ impl SharedHeapSpace {
     ) {
         let offset = reference.offset();
 
-        // settle only the owning bucket
-        for cache_index in 0..cache.small.len() {
-            let bucket = &mut cache.small[cache_index];
-            if !bucket.is_active() {
+        // settle only the owning cache
+        for size_class_cache in &mut cache.small {
+            if !size_class_cache.is_active() {
                 continue;
             }
 
-            let span_size_bytes = bucket.class.size_class * bucket.slot_count;
-            let span_end = bucket.first_offset + span_size_bytes;
-            if offset < bucket.first_offset || offset >= span_end {
+            let span_size_bytes = size_class_cache.class.size_class * size_class_cache.slot_count;
+            let span_end = size_class_cache.first_offset + span_size_bytes;
+            if offset < size_class_cache.first_offset || offset >= span_end {
                 continue;
             }
 
-            let run = &mut cache.runs[cache_index];
-            self.flush_worker_bucket(bucket, run);
-            bucket.publish_run(run);
+            self.flush_size_class_cache(size_class_cache);
+            size_class_cache.publish_cursor();
 
             return;
         }
@@ -244,18 +160,17 @@ impl SharedHeapSpace {
         cache: &SharedAllocationCache,
         layout: &AllocationPlan<'_>,
     ) -> HeapResult<i64> {
-        // heap allocations must have a physical payload
+        // heap blocks must have a physical payload
         if layout.is_empty() {
             return Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize));
         }
 
-        // small allocations may reuse worker-local or central slots
+        // small blocks may reuse worker-local or central slots
         if let Some(small) = layout.class.small() {
             let cache_index = small.cache_index();
-            if let (Some(bucket), Some(run)) =
-                (cache.small.get(cache_index), cache.runs.get(cache_index))
-                && bucket.span.as_ref().is_some_and(|span| {
-                    span.list.load() == SpanList::Worker && bucket.has_available_slot(run)
+            if let Some(size_class_cache) = cache.small.get(cache_index)
+                && size_class_cache.span.as_ref().is_some_and(|span| {
+                    span.list.load() == SpanList::Worker && size_class_cache.has_available_slot()
                 })
             {
                 return Ok(0);
@@ -269,7 +184,7 @@ impl SharedHeapSpace {
             return Ok(small.class.span_size_bytes as i64);
         }
 
-        // large allocations retain whole pages
+        // large blocks retain whole pages
         Ok(self.round_up_allocation_bytes(layout.byte_len) as i64)
     }
 
@@ -277,7 +192,7 @@ impl SharedHeapSpace {
     pub(crate) fn release_small_slot(
         &self,
         store: &mut SharedHeapState,
-        slot: SpanSlot,
+        slot: Slot,
     ) -> HeapResult<()> {
         // resolve the owning span
         let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
@@ -321,27 +236,27 @@ impl SharedHeapSpace {
             }
         };
 
-        // empty spans return their page run to the cache
+        // empty spans return their page span to the cache
         if let Some((first_offset, pages)) = pages {
-            self.unmap_page_run(store, first_offset, &pages);
+            self.unmap_page_span(store, first_offset, &pages);
             store
-                .page_run_cache
-                .release_page_run(&self.allocator, pages)?;
+                .page_span_cache
+                .release_page_span(&self.allocator, pages)?;
             self.accounting.release_pages(pages, self.page_size_bytes());
         }
 
         Ok(())
     }
 
-    /// Allocate one shared heap place for the given payload.
+    /// Allocate one shared heap storage for the given payload.
     fn allocate_place(
         &self,
         cache: &mut SharedAllocationCache,
         layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
-        should_keep_worker_bucket: bool,
-    ) -> HeapResult<SharedHeapPlace> {
-        // small allocations use worker buckets and size-class spans
+        should_keep_worker_cache: bool,
+    ) -> HeapResult<SharedHeapStorage> {
+        // small blocks use worker-local caches and size-class spans
         if let Some(small) = layout.class.small() {
             let cache_index = small.cache_index();
             let class = small.class;
@@ -352,43 +267,43 @@ impl SharedHeapSpace {
                 &class,
                 layout.trace_map,
                 payload,
-                should_keep_worker_bucket,
+                should_keep_worker_cache,
             )?;
 
-            return Ok(SharedHeapPlace::Small(slot));
+            return Ok(SharedHeapStorage::SmallSlot(slot));
         }
 
-        // large allocations reserve whole page runs
+        // large blocks reserve whole page spans
         let pages = self.allocate_large_pages(layout.byte_len)?;
 
         let mut store = self.state.write();
-        let allocation_id = self.insert_large_allocation(
+        let block_id = self.insert_large_block(
             &mut store,
             layout.byte_len,
             layout.alignment,
             pages,
             layout.trace_map.clone(),
         )?;
-        let Some(allocation) = store.large.allocations.get(allocation_id.index()?).cloned() else {
-            return Err(HeapError::internal("missing large allocation"));
+        let Some(block) = store.large.blocks.get(block_id.index()?).cloned() else {
+            return Err(HeapError::internal("missing large block"));
         };
-        let first_offset = allocation.read().first_offset;
+        let first_offset = block.read().first_offset;
 
         self.initialize_mapped_payload(first_offset, layout.byte_len, payload);
         self.accounting.allocate(layout.byte_len);
         self.accounting.retain_pages(pages, self.page_size_bytes());
 
-        Ok(SharedHeapPlace::Large(allocation_id))
+        Ok(SharedHeapStorage::LargeBlock(block_id))
     }
 
     /// Allocate large pages outside the shared state lock.
-    fn allocate_large_pages(&self, byte_len: usize) -> HeapResult<PageRun> {
-        // page-run cache owns allocator interaction
+    fn allocate_large_pages(&self, byte_len: usize) -> HeapResult<PageSpan> {
+        // page-cursor cache owns allocator interaction
         let pages = {
             let mut store = self.state.write();
 
             store
-                .page_run_cache
+                .page_span_cache
                 .allocate_pages(&self.allocator, byte_len)?
         };
 
@@ -429,16 +344,16 @@ impl SharedHeapSpace {
                 // rematerialize spans whose pages were released
                 if span.occupied_count() == 0 && span.pages_empty() {
                     let pages = store
-                        .page_run_cache
+                        .page_span_cache
                         .allocate_pages(&self.allocator, class.span_size_bytes)?;
                     let first_offset = span.first_offset;
 
-                    // materialize the full span before worker-local runs use it
+                    // materialize the full span before worker-local spans use it
                     self.mapping
                         .materialize(first_offset, class.span_size_bytes)?;
 
-                    self.map_page_run(store, first_offset, &pages, |logical_page_index| {
-                        SharedHeapPageMapEntry::Small {
+                    self.map_page_span(store, first_offset, &pages, |logical_page_index| {
+                        SharedHeapPageMapEntry::SmallSpan {
                             span_index,
                             logical_page_index,
                         }
@@ -458,19 +373,19 @@ impl SharedHeapSpace {
         // otherwise map a new span for this size class
         let slot_count = (class.span_size_bytes / class.size_class).max(1);
         let pages = store
-            .page_run_cache
+            .page_span_cache
             .allocate_pages(&self.allocator, class.span_size_bytes)?;
         let first_offset = self.reserve_space_range(store, class.span_size_bytes)?;
 
-        // materialize the full span before worker-local runs use it
+        // materialize the full span before worker-local spans use it
         self.mapping
             .materialize(first_offset, class.span_size_bytes)?;
         self.clear_mapped_bytes(first_offset, class.span_size_bytes);
 
         let span = SharedSmallSpan::new(first_offset, *class, slot_count, pages, SpanList::Worker);
         let span_index = store.small.spans.len();
-        self.map_page_run(store, first_offset, &pages, |logical_page_index| {
-            SharedHeapPageMapEntry::Small {
+        self.map_page_span(store, first_offset, &pages, |logical_page_index| {
+            SharedHeapPageMapEntry::SmallSpan {
                 span_index,
                 logical_page_index,
             }
@@ -482,22 +397,21 @@ impl SharedHeapSpace {
         Ok((span_index, true))
     }
 
-    /// Install one small span into one worker-local bucket.
-    fn install_small_bucket(
+    /// Install one small span into one worker-local cache.
+    fn install_small_cache(
         &self,
         store: &SharedHeapState,
-        bucket: &mut SmallBucket,
-        run: &mut SmallRun,
+        size_class_cache: &mut SmallSizeClassCache,
         span_index: usize,
-        use_dense_run: bool,
+        use_dense_cursor: bool,
     ) -> HeapResult<()> {
         // resolve the selected shared small span
         let Some(span) = store.small.spans.get(span_index).cloned() else {
             return Err(HeapError::internal("missing span"));
         };
 
-        // install the span in the worker-local bucket
-        bucket.install(run, span_index, span, use_dense_run);
+        // install the span in the worker-local cache
+        size_class_cache.install(span_index, span, use_dense_cursor);
 
         Ok(())
     }
@@ -510,51 +424,50 @@ impl SharedHeapSpace {
         class: &SmallSpanClass,
         trace_map: &TraceMap,
         payload: Payload<'_>,
-        should_keep_worker_bucket: bool,
-    ) -> HeapResult<SpanSlot> {
+        should_keep_worker_cache: bool,
+    ) -> HeapResult<Slot> {
         debug_assert_eq!(cache.small[cache_index].class, *class);
 
         // reuse the worker-owned span when it still has a matching slot
         if cache.small[cache_index].is_active() {
-            let mut should_release_bucket = false;
+            let mut should_release_cache = false;
             let allocated_slot = {
-                let run = &mut cache.runs[cache_index];
-                let bucket = &mut cache.small[cache_index];
-                let allocation = self.reserve_small_slot(bucket, run, trace_map, payload)?;
+                let size_class_cache = &mut cache.small[cache_index];
+                let block = self.reserve_small_slot(size_class_cache, trace_map, payload)?;
 
-                if let Some(allocation) = allocation {
-                    let slot = allocation.slot;
+                if let Some(block) = block {
+                    let slot = block.slot;
 
-                    // exhausted buckets leave worker ownership immediately
-                    if !allocation.keep_bucket {
-                        self.flush_worker_allocation(bucket, run, allocation);
-                        bucket.finish(run);
-                        bucket.clear(run);
+                    // exhausted caches leave worker ownership immediately
+                    if !block.keep_cache {
+                        self.flush_reserved_slot(size_class_cache, block);
+                        size_class_cache.finish();
+                        size_class_cache.clear();
                     }
-                    // kept non-dense slots have no run flush to publish them
-                    else if !allocation.is_dense {
-                        self.accounting.allocate(bucket.class.size_class);
+                    // kept non-dense slots have no cursor flush to publish them
+                    else if !block.is_dense {
+                        self.accounting.allocate(size_class_cache.class.size_class);
                     }
                     // active marking cannot leave free slots hidden in the worker
-                    else if !should_keep_worker_bucket {
-                        should_release_bucket = true;
+                    else if !should_keep_worker_cache {
+                        should_release_cache = true;
                     }
 
                     Some(slot)
                 } else {
-                    bucket.finish(run);
-                    bucket.clear(run);
+                    size_class_cache.finish();
+                    size_class_cache.clear();
 
                     None
                 }
             };
 
-            // centralize a bucket whose free slots must remain visible
-            if should_release_bucket {
-                self.release_cache_bucket(cache, cache_index);
+            // centralize a cache whose free slots must remain visible
+            if should_release_cache {
+                self.release_small_cache(cache, cache_index);
             }
 
-            // return the slot if the active bucket produced one
+            // return the slot if the active cache produced one
             if let Some(slot) = allocated_slot {
                 return Ok(slot);
             }
@@ -563,117 +476,123 @@ impl SharedHeapSpace {
         // acquire a central span or map a new one for this size class
         {
             let mut store = self.state.write();
-            let (span_index, use_dense_run) = self.allocate_small_span(&mut store, class)?;
-            let run = &mut cache.runs[cache_index];
-            let bucket = &mut cache.small[cache_index];
+            let (span_index, use_dense_cursor) = self.allocate_small_span(&mut store, class)?;
+            let size_class_cache = &mut cache.small[cache_index];
 
-            self.install_small_bucket(&store, bucket, run, span_index, use_dense_run)?;
+            self.install_small_cache(&store, size_class_cache, span_index, use_dense_cursor)?;
         }
 
-        // initialize one slot from the newly installed worker bucket
-        let run = &mut cache.runs[cache_index];
-        let bucket = &mut cache.small[cache_index];
-        let allocation = match payload {
-            Payload::Zeroed | Payload::Uninit if !trace_map.has_reference() => {
-                self.reserve_zeroed_noscan_slot(bucket, run)?
-            }
-            Payload::Bytes(bytes) if !trace_map.has_reference() => {
-                self.reserve_bytes_noscan_slot(bucket, run, bytes)?
-            }
-            _ => self.reserve_small_slot(bucket, run, trace_map, payload)?,
-        };
-        let Some(allocation) = allocation else {
+        // initialize one slot from the newly installed worker cache
+        let size_class_cache = &mut cache.small[cache_index];
+        let block = self.reserve_small_slot(size_class_cache, trace_map, payload)?;
+        let Some(block) = block else {
             return Err(HeapError::internal("missing span"));
         };
 
-        let slot = allocation.slot;
-        let should_release_bucket = allocation.keep_bucket && !should_keep_worker_bucket;
+        let slot = block.slot;
+        let should_release_cache = block.keep_cache && !should_keep_worker_cache;
 
-        // publish or retire the newly installed bucket
-        if !allocation.keep_bucket {
-            self.flush_worker_allocation(bucket, run, allocation);
-            bucket.finish(run);
-            bucket.clear(run);
-        } else if !allocation.is_dense {
-            self.accounting.allocate(bucket.class.size_class);
+        // publish or retire the newly installed cache
+        if !block.keep_cache {
+            self.flush_reserved_slot(size_class_cache, block);
+            size_class_cache.finish();
+            size_class_cache.clear();
+        } else if !block.is_dense {
+            self.accounting.allocate(size_class_cache.class.size_class);
         }
 
-        // return published buckets to the central partial list
-        if should_release_bucket {
-            self.release_cache_bucket(cache, cache_index);
+        // return published caches to the central partial list
+        if should_release_cache {
+            self.release_small_cache(cache, cache_index);
         }
 
         Ok(slot)
     }
 
-    /// Return one worker-local bucket to the central list.
-    fn release_cache_bucket(&self, cache: &mut SharedAllocationCache, cache_index: usize) {
+    /// Return one worker-local cache to the central list.
+    fn release_small_cache(&self, cache: &mut SharedAllocationCache, cache_index: usize) {
         // take the worker-owned span
         let mut store = self.state.write();
-        let run = &mut cache.runs[cache_index];
-        let bucket = &mut cache.small[cache_index];
-        let Some(span) = bucket.span.clone() else {
+        let size_class_cache = &mut cache.small[cache_index];
+        let Some(span) = size_class_cache.span.clone() else {
             return;
         };
 
         // publish occupied slots before list transition
-        self.flush_worker_bucket(bucket, run);
-        bucket.publish_run(run);
+        self.flush_size_class_cache(size_class_cache);
+        size_class_cache.publish_cursor();
 
         // keep reusable spans on the central partial list
-        if bucket.has_available_slot(run) {
+        if size_class_cache.has_available_slot() {
             span.list.store(SpanList::Central);
             store
                 .small
                 .partial_spans
-                .entry(bucket.class)
+                .entry(size_class_cache.class)
                 .or_default()
-                .push(bucket.span_index as usize);
+                .push(size_class_cache.span_index as usize);
         } else {
             span.list.store(SpanList::Full);
         }
 
-        bucket.clear(run);
+        size_class_cache.clear();
     }
 
     /// Publish accounting for one allocated worker-local slot.
     #[inline(always)]
-    fn flush_worker_allocation(
-        &self,
-        bucket: &mut SmallBucket,
-        run: &mut SmallRun,
-        allocation: SmallAllocation,
-    ) {
-        if allocation.is_dense {
-            self.flush_worker_bucket(bucket, run);
+    fn flush_reserved_slot(&self, size_class_cache: &mut SmallSizeClassCache, block: ReservedSlot) {
+        if block.is_dense {
+            self.flush_size_class_cache(size_class_cache);
         } else {
-            self.accounting.allocate(bucket.class.size_class);
+            self.accounting.allocate(size_class_cache.class.size_class);
         }
     }
 
-    /// Reserve one zeroed no-scan slot from one worker-local bucket.
+    /// Reserve one small slot from one worker-local cache.
+    #[inline(always)]
+    fn reserve_small_slot(
+        &self,
+        size_class_cache: &mut SmallSizeClassCache,
+        trace_map: &TraceMap,
+        payload: Payload<'_>,
+    ) -> HeapResult<Option<ReservedSlot>> {
+        // no-scan payloads avoid reference metadata writes
+        if !trace_map.has_reference() {
+            match payload {
+                Payload::Zeroed | Payload::Uninit => {
+                    return self.reserve_zeroed_noscan_slot(size_class_cache);
+                }
+                Payload::Bytes(bytes) => {
+                    return self.reserve_bytes_noscan_slot(size_class_cache, bytes);
+                }
+            }
+        }
+
+        self.reserve_traced_slot(size_class_cache, trace_map, payload)
+    }
+
+    /// Reserve one zeroed no-scan slot from one worker-local cache.
     #[inline(always)]
     fn reserve_zeroed_noscan_slot(
         &self,
-        bucket: &mut SmallBucket,
-        run: &mut SmallRun,
-    ) -> HeapResult<Option<SmallAllocation>> {
-        let Some(slot) = bucket.reserve_slot(run) else {
-            bucket.finish(run);
+        size_class_cache: &mut SmallSizeClassCache,
+    ) -> HeapResult<Option<ReservedSlot>> {
+        let Some(slot) = size_class_cache.reserve_slot() else {
+            size_class_cache.finish();
 
             return Ok(None);
         };
         let slot_index = slot.slot_index;
-        let span = bucket.span.as_ref().cloned();
-        let span_slot = bucket.span_slot(slot_index);
-        let reference = bucket.reference_for_slot(slot_index);
+        let span = size_class_cache.span.as_ref().cloned();
+        let span_slot = size_class_cache.span_slot(slot_index);
+        let reference = size_class_cache.reference_for_slot(slot_index);
 
         // clear only slots that previously held arbitrary bytes
         if let Some(span) = &span
             && !slot.is_dense
             && span.take_needs_zero(slot_index)
         {
-            self.clear_mapped_bytes(reference.offset(), bucket.class.size_class);
+            self.clear_mapped_bytes(reference.offset(), size_class_cache.class.size_class);
         }
 
         // publish reused slots immediately
@@ -683,41 +602,39 @@ impl SharedHeapSpace {
             span.publish_slot(slot_index);
         }
 
-        // decide whether the worker keeps this bucket
-        let keep_bucket = bucket.has_available_slot(run);
+        // decide whether the worker keeps this cache
+        let keep_cache = size_class_cache.has_available_slot();
 
-        Ok(Some(SmallAllocation {
+        Ok(Some(ReservedSlot {
             slot: span_slot,
-            reference,
             is_dense: slot.is_dense,
-            keep_bucket,
+            keep_cache,
         }))
     }
 
-    /// Reserve one byte-initialized no-scan slot from one worker-local bucket.
+    /// Reserve one byte-initialized no-scan slot from one worker-local cache.
     #[inline(always)]
     fn reserve_bytes_noscan_slot(
         &self,
-        bucket: &mut SmallBucket,
-        run: &mut SmallRun,
+        size_class_cache: &mut SmallSizeClassCache,
         bytes: &[u8],
-    ) -> HeapResult<Option<SmallAllocation>> {
-        let Some(slot) = bucket.reserve_slot(run) else {
-            bucket.finish(run);
+    ) -> HeapResult<Option<ReservedSlot>> {
+        let Some(slot) = size_class_cache.reserve_slot() else {
+            size_class_cache.finish();
 
             return Ok(None);
         };
         let slot_index = slot.slot_index;
-        let span = bucket.span.as_ref().cloned();
-        let span_slot = bucket.span_slot(slot_index);
-        let reference = bucket.reference_for_slot(slot_index);
+        let span = size_class_cache.span.as_ref().cloned();
+        let span_slot = size_class_cache.span_slot(slot_index);
+        let reference = size_class_cache.reference_for_slot(slot_index);
 
         // clear stale tail bytes before copying short payloads
         if let Some(span) = &span
-            && bytes.len() < bucket.class.size_class
+            && bytes.len() < size_class_cache.class.size_class
             && span.take_needs_zero(slot_index)
         {
-            self.clear_mapped_bytes(reference.offset(), bucket.class.size_class);
+            self.clear_mapped_bytes(reference.offset(), size_class_cache.class.size_class);
         }
 
         // copy the payload before publishing the initialized slot
@@ -733,40 +650,38 @@ impl SharedHeapSpace {
             span.publish_slot(slot_index);
         }
 
-        // decide whether the worker keeps this bucket
-        let keep_bucket = bucket.has_available_slot(run);
+        // decide whether the worker keeps this cache
+        let keep_cache = size_class_cache.has_available_slot();
 
-        Ok(Some(SmallAllocation {
+        Ok(Some(ReservedSlot {
             slot: span_slot,
-            reference,
             is_dense: slot.is_dense,
-            keep_bucket,
+            keep_cache,
         }))
     }
 
-    /// Reserve one slot from one worker-local shared small bucket.
+    /// Reserve one traced slot from one worker-local shared small cache.
     #[inline(always)]
-    fn reserve_small_slot(
+    fn reserve_traced_slot(
         &self,
-        bucket: &mut SmallBucket,
-        run: &mut SmallRun,
+        size_class_cache: &mut SmallSizeClassCache,
         trace_map: &TraceMap,
         payload: Payload<'_>,
-    ) -> HeapResult<Option<SmallAllocation>> {
-        let Some(slot) = bucket.reserve_slot(run) else {
-            bucket.finish(run);
+    ) -> HeapResult<Option<ReservedSlot>> {
+        let Some(slot) = size_class_cache.reserve_slot() else {
+            size_class_cache.finish();
 
             return Ok(None);
         };
         let slot_index = slot.slot_index;
-        let span = bucket.span.as_ref().cloned();
-        let span_slot = bucket.span_slot(slot_index);
-        let reference = bucket.reference_for_slot(slot_index);
+        let span = size_class_cache.span.as_ref().cloned();
+        let span_slot = size_class_cache.span_slot(slot_index);
+        let reference = size_class_cache.reference_for_slot(slot_index);
         let mapping_offset = reference.offset();
 
         match payload {
-            Payload::Bytes(bytes) if bytes.len() < bucket.class.size_class => {
-                self.clear_mapped_bytes(mapping_offset, bucket.class.size_class);
+            Payload::Bytes(bytes) if bytes.len() < size_class_cache.class.size_class => {
+                self.clear_mapped_bytes(mapping_offset, size_class_cache.class.size_class);
                 self.write_mapped_bytes(mapping_offset, bytes);
             }
             Payload::Bytes(bytes) => self.write_mapped_bytes(mapping_offset, bytes),
@@ -774,7 +689,7 @@ impl SharedHeapSpace {
                 if let Some(span) = &span
                     && span.take_needs_zero(slot_index)
                 {
-                    self.clear_mapped_bytes(mapping_offset, bucket.class.size_class);
+                    self.clear_mapped_bytes(mapping_offset, size_class_cache.class.size_class);
                 }
             }
             Payload::Uninit => {}
@@ -795,72 +710,66 @@ impl SharedHeapSpace {
             span.publish_slot(slot_index);
         }
 
-        // decide whether the worker keeps this bucket
-        let keep_bucket = bucket.has_available_slot(run);
+        // decide whether the worker keeps this cache
+        let keep_cache = size_class_cache.has_available_slot();
 
-        Ok(Some(SmallAllocation {
+        Ok(Some(ReservedSlot {
             slot: span_slot,
-            reference,
             is_dense: slot.is_dense,
-            keep_bucket,
+            keep_cache,
         }))
     }
 
-    /// Insert one shared large allocation record.
-    fn insert_large_allocation(
+    /// Insert one shared large block record.
+    fn insert_large_block(
         &self,
         store: &mut SharedHeapState,
         byte_len: usize,
         alignment: usize,
-        pages: PageRun,
+        pages: PageSpan,
         trace_map: TraceMap,
-    ) -> HeapResult<SharedLargeAllocationId> {
-        // reuse retired large-allocation ids before growing the table
-        let (allocation_id, reused_allocation_id) =
-            if let Some(allocation_id) = store.large.free_large_allocation_ids.pop() {
-                (allocation_id, true)
+    ) -> HeapResult<SharedLargeBlockId> {
+        // reuse retired large-block ids before growing the table
+        let (block_id, reused_block_id) =
+            if let Some(block_id) = store.large.free_large_block_ids.pop() {
+                (block_id, true)
             } else {
-                let allocation_id = store.large.next_unused_large_allocation_id;
-                let next_allocation_id = store.large.next_unused_large_allocation_id + 1;
+                let block_id = store.large.next_unused_large_block_id;
+                let next_block_id = store.large.next_unused_large_block_id + 1;
 
-                store.large.next_unused_large_allocation_id = next_allocation_id;
-                (allocation_id, false)
+                store.large.next_unused_large_block_id = next_block_id;
+                (block_id, false)
             };
 
         // zero is reserved for null references
-        if allocation_id == 0 {
-            if reused_allocation_id {
-                store.large.free_large_allocation_ids.push(allocation_id);
+        if block_id == 0 {
+            if reused_block_id {
+                store.large.free_large_block_ids.push(block_id);
             }
 
             store
-                .page_run_cache
-                .release_page_run(&self.allocator, pages)?;
+                .page_span_cache
+                .release_page_span(&self.allocator, pages)?;
 
             return Err(HeapError::representation(
-                HeapRepresentationError::InvalidLargeAllocationId { id: allocation_id },
+                HeapRepresentationError::InvalidLargeBlockId { id: block_id },
             ));
         }
 
         // reused ids must address an existing table slot
-        let allocation_id = SharedLargeAllocationId::new(allocation_id);
-        let index = allocation_id.index()?;
-        if index > store.large.allocations.len() {
-            if reused_allocation_id {
-                store
-                    .large
-                    .free_large_allocation_ids
-                    .push(allocation_id.id());
+        let block_id = SharedLargeBlockId::new(block_id);
+        let index = block_id.index()?;
+        if index > store.large.blocks.len() {
+            if reused_block_id {
+                store.large.free_large_block_ids.push(block_id.id());
             }
 
             store
-                .page_run_cache
-                .release_page_run(&self.allocator, pages)?;
+                .page_span_cache
+                .release_page_span(&self.allocator, pages)?;
 
             return Err(HeapError::representation(
-                HeapRepresentationError::InvalidLargeAllocationId {
-                    id: allocation_id.id(),
-                },
+                HeapRepresentationError::InvalidLargeBlockId { id: block_id.id() },
             ));
         }
 
@@ -872,8 +781,8 @@ impl SharedHeapSpace {
             Ok(first_offset) => first_offset,
             Err(error) => {
                 store
-                    .page_run_cache
-                    .release_page_run(&self.allocator, pages)?;
+                    .page_span_cache
+                    .release_page_span(&self.allocator, pages)?;
 
                 return Err(error);
             }
@@ -885,20 +794,20 @@ impl SharedHeapSpace {
             .materialize(first_offset, pages.len() * self.allocator.page_size_bytes())
         {
             store
-                .page_run_cache
-                .release_page_run(&self.allocator, pages)?;
+                .page_span_cache
+                .release_page_span(&self.allocator, pages)?;
 
             return Err(error.into());
         }
 
-        self.map_page_run(store, first_offset, &pages, |logical_page_index| {
-            SharedHeapPageMapEntry::Large {
-                allocation_id,
+        self.map_page_span(store, first_offset, &pages, |logical_page_index| {
+            SharedHeapPageMapEntry::LargeBlock {
+                block_id,
                 logical_page_index,
             }
         });
 
-        let allocation = SharedLargeAllocation {
+        let block = SharedLargeBlock {
             is_live: true,
             first_offset,
             byte_len,
@@ -906,19 +815,19 @@ impl SharedHeapSpace {
             trace_map,
             mark_epoch: 0,
         };
-        let allocation = Arc::new(RwLock::new(allocation));
+        let block = Arc::new(RwLock::new(block));
 
-        // insert or replace the allocation record
-        if index == store.large.allocations.len() {
-            store.large.allocations.push(allocation);
+        // insert or replace the block record
+        if index == store.large.blocks.len() {
+            store.large.blocks.push(block);
         } else {
-            store.large.allocations[index] = allocation;
+            store.large.blocks[index] = block;
         }
 
-        Ok(allocation_id)
+        Ok(block_id)
     }
 
-    /// Return the page-rounded retained bytes for one shared heap-space allocation.
+    /// Return the page-rounded retained bytes for one shared heap-space block.
     fn round_up_allocation_bytes(&self, byte_len: usize) -> u64 {
         let page_size_bytes = self.page_size_bytes() as u64;
         let byte_len = byte_len as u64;
@@ -985,7 +894,7 @@ impl SharedHeapSpace {
     /// Write bytes into one mapped payload range.
     #[inline(always)]
     fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
-        // SAFETY: allocation paths materialize the destination before publishing it
+        // SAFETY: block paths materialize the destination before publishing it
         unsafe {
             self.mapping.write_mapped_bytes(offset, bytes);
         }
@@ -996,14 +905,14 @@ impl SharedHeapSpace {
     fn clear_mapped_bytes(&self, offset: usize, byte_len: usize) {
         let address = self.mapping.base_address() + offset;
 
-        // SAFETY: allocation paths materialize the destination before publishing it
+        // SAFETY: block paths materialize the destination before publishing it
         unsafe {
             std::ptr::write_bytes(address as *mut u8, 0, byte_len);
         }
     }
 }
 
-/// Return the offset rounded up to one allocation boundary.
+/// Return the offset rounded up to one block boundary.
 fn align_up(byte_len: usize, alignment_bytes: usize) -> usize {
     let alignment_bytes = alignment_bytes.max(1);
 

@@ -26,7 +26,7 @@ pub use destack_heap::{
     Allocator, GcStats, Heap, HeapError, HeapImage, HeapLimits, HeapOptions, HeapReference,
     HeapResult, HeapSpace, RawPointer, RawSpace, RootSink, RootSlot, SharedAllocationCache,
     SharedGcWorker, SharedHeap, SharedHeapImage, SharedHeapLimits, SharedHeapReference,
-    SharedHeapUsage, SharedRawAllocationImage, SharedRawBudget, SharedRawLimits, SharedRawPointer,
+    SharedHeapUsage, SharedRawBlockImage, SharedRawBudget, SharedRawLimits, SharedRawPointer,
 };
 
 #[cfg(test)]

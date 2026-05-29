@@ -1,5 +1,5 @@
 use crate::local::gc::PinSet;
-use crate::local::space::LargeAllocationId;
+use crate::local::space::LargeBlockId;
 use crate::{HeapReference, TraceQueue, TraceReference};
 
 /// The budget charged for one metadata-only GC step.
@@ -17,15 +17,15 @@ pub(crate) struct LocalGcState {
     pub(crate) young_phase: YoungGcPhase,
     /// The next young range start bit to sweep.
     pub(crate) young_sweep_range_cursor: usize,
-    /// The next young run index to sweep.
-    pub(crate) young_sweep_run_cursor: usize,
-    /// The next slot inside the current young run to sweep.
+    /// The next young span index to sweep.
+    pub(crate) young_sweep_span_cursor: usize,
+    /// The next slot inside the current young span to sweep.
     pub(crate) young_sweep_slot_cursor: usize,
-    /// The next dirty mature region queued for young marking.
-    pub(crate) young_dirty_region_cursor: usize,
-    /// The next dirty card inside the current mature region.
+    /// The next dirty mature extent queued for young marking.
+    pub(crate) young_dirty_extent_cursor: usize,
+    /// The next dirty card inside the current mature extent.
     pub(crate) young_dirty_card_cursor: usize,
-    /// The number of allocations freed by the active young cycle.
+    /// The number of blocks freed by the active young cycle.
     pub(crate) young_freed_allocations: usize,
     /// The number of bytes freed by the active young cycle.
     pub(crate) young_freed_bytes: u64,
@@ -37,14 +37,14 @@ pub(crate) struct LocalGcState {
     pub(crate) mark_epoch: u64,
     /// The active major sweep cursor.
     pub(crate) major_sweep: MajorSweepCursor,
-    /// The number of allocations freed by the active local major cycle.
+    /// The number of blocks freed by the active local major cycle.
     pub(crate) major_freed_allocations: usize,
     /// The number of bytes freed by the active local major cycle.
     pub(crate) major_freed_bytes: u64,
     /// The scoped heap pins that keep stable addresses and block branch boundaries.
     pub(crate) pins: PinSet,
-    /// Mature regions queued for dirty-card scanning.
-    pub(crate) dirty_regions: Vec<DirtyRegion>,
+    /// Mature extents queued for dirty-card scanning.
+    pub(crate) dirty_extents: Vec<DirtyExtent>,
     /// Live local references whose layouts may contain shared heap references.
     pub(crate) shared_edge_roots: Vec<HeapReference>,
     /// Whether one local-to-shared edge scan is currently active.
@@ -57,13 +57,13 @@ pub(crate) struct LocalGcState {
     pub(crate) shared_edge_pending: Vec<HeapReference>,
 }
 
-/// One mature region queued for dirty-card scanning.
+/// One mature extent queued for dirty-card scanning.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum DirtyRegion {
+pub(crate) enum DirtyExtent {
     /// One mature small span.
     Span(usize),
-    /// One mature large allocation.
-    Large(LargeAllocationId),
+    /// One mature large block.
+    Large(LargeBlockId),
 }
 
 impl LocalGcState {
@@ -219,9 +219,9 @@ pub(crate) enum YoungGcPhase {
     /// No young collection is active.
     #[default]
     Idle,
-    /// The young collector is marking reachable nursery allocations.
+    /// The young collector is marking reachable nursery blocks.
     Mark,
-    /// The young collector is reclaiming unreachable nursery allocations.
+    /// The young collector is reclaiming unreachable nursery blocks.
     Sweep,
 }
 
@@ -231,9 +231,9 @@ pub(crate) enum LocalGcPhase {
     /// No major collection is active.
     #[default]
     Idle,
-    /// The major collector is marking reachable allocations.
+    /// The major collector is marking reachable blocks.
     Mark,
-    /// The major collector is reclaiming unreachable allocations.
+    /// The major collector is reclaiming unreachable blocks.
     Sweep,
 }
 
@@ -242,9 +242,9 @@ pub(crate) enum LocalGcPhase {
 pub(crate) struct MajorSweepCursor {
     /// The next young range start bit to sweep.
     pub(crate) young_range_cursor: usize,
-    /// The next young run index to sweep.
-    pub(crate) young_run_cursor: usize,
-    /// The next young run slot index to sweep.
+    /// The next young span index to sweep.
+    pub(crate) young_span_cursor: usize,
+    /// The next young span slot index to sweep.
     pub(crate) young_slot_cursor: usize,
     /// The next mature small span index to sweep.
     pub(crate) small_span_cursor: usize,
@@ -252,20 +252,20 @@ pub(crate) struct MajorSweepCursor {
     pub(crate) small_slot_cursor: usize,
     /// The mature small span table length captured when sweep started.
     pub(crate) small_span_limit: usize,
-    /// The next mature large allocation index to sweep.
+    /// The next mature large block index to sweep.
     pub(crate) large_cursor: usize,
-    /// The mature large allocation table length captured when sweep started.
+    /// The mature large block table length captured when sweep started.
     pub(crate) large_limit: usize,
 }
 
 /// One queued unit of local major mark work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum LocalTraceWork {
-    /// One heap allocation to scan.
+    /// One heap block to scan.
     Reference(HeapReference),
-    /// One range of one large heap allocation to scan.
+    /// One range of one large heap block to scan.
     LargeRange {
-        /// The heap allocation reference.
+        /// The heap block reference.
         reference: HeapReference,
         /// The range start in bytes.
         start: usize,
@@ -284,11 +284,11 @@ impl TraceReference for LocalTraceWork {
 /// One queued unit of local-to-shared edge scan work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SharedEdgeWork {
-    /// One local heap allocation to scan.
+    /// One local heap block to scan.
     Reference(HeapReference),
-    /// One range of one large local heap allocation to scan.
+    /// One range of one large local heap block to scan.
     LargeRange {
-        /// The local heap allocation reference.
+        /// The local heap block reference.
         reference: HeapReference,
         /// The range start in bytes.
         start: usize,

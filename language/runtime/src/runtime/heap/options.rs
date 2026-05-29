@@ -1,12 +1,11 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use destack_heap::{
-    DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES, DEFAULT_GC_MINIMUM_HEAP_BYTES,
-    DEFAULT_GC_MINIMUM_WORK_BYTES, DEFAULT_GC_TRIGGER_PERCENT,
-    DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES, DEFAULT_PAGE_SIZE_BYTES,
-    DEFAULT_SHARED_SMALL_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
-    DEFAULT_SMALL_SIZE_BYTES, DEFAULT_SPACE_SIZE_BYTES, GcOptions, HeapLimits, HeapOptions,
-    HeapSpaceLimits, RawLimits, SharedHeapLimits, SharedHeapOptions, SharedHeapSpaceLimits,
-    SharedRawLimits, SizeClassTable,
+    DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES, DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
+    DEFAULT_GC_MINIMUM_HEAP_BYTES, DEFAULT_GC_MINIMUM_WORK_BYTES, DEFAULT_GC_TRIGGER_PERCENT,
+    DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES, DEFAULT_SHARED_SMALL_SIZE_BYTES,
+    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_SIZE_BYTES, DEFAULT_SPACE_SIZE_BYTES,
+    GcOptions, HeapLimits, HeapOptions, HeapSpaceLimits, RawLimits, SharedHeapLimits,
+    SharedHeapOptions, SharedHeapSpaceLimits, SharedRawLimits, SizeClassTable,
 };
 use destack_workspace::{HeapOptions as WorkspaceHeapOptions, LocalHeapOptions};
 
@@ -76,7 +75,7 @@ fn resolve_local_heap_policy(
         raw_small_size_bytes: DEFAULT_SMALL_SIZE_BYTES,
         heap_space_size_bytes: DEFAULT_SPACE_SIZE_BYTES,
         raw_space_size_bytes: DEFAULT_SPACE_SIZE_BYTES,
-        page_size_bytes: DEFAULT_PAGE_SIZE_BYTES,
+        page_size_bytes: DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
         allocator_chunk_size_bytes: DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES,
         small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
     };
@@ -103,7 +102,7 @@ fn resolve_shared_heap_policy(
         heap_small_size_bytes: DEFAULT_SHARED_SMALL_SIZE_BYTES,
         heap_space_size_bytes: DEFAULT_SPACE_SIZE_BYTES,
         raw_space_size_bytes: DEFAULT_SPACE_SIZE_BYTES,
-        page_size_bytes: DEFAULT_PAGE_SIZE_BYTES,
+        page_size_bytes: DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
         allocator_chunk_size_bytes: DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES,
         small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
     };
