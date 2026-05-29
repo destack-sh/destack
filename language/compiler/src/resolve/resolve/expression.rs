@@ -57,6 +57,10 @@ impl ResolveState<'_> {
                 self.require_syntax_language_item(dir::LanguageItem::Type);
                 dir::walk_expression(self, tree, id, expression);
             }
+            dir::Expression::BorrowOf { .. } => {
+                self.require_syntax_language_item(dir::LanguageItem::Lifetime);
+                dir::walk_expression(self, tree, id, expression);
+            }
             dir::Expression::RangeExpression {
                 start,
                 end,
@@ -112,6 +116,10 @@ impl ResolveState<'_> {
                 let key = dir::StaticKey::Name(path.segments[0]);
 
                 self.require_global_reference(source, key, dir::SymbolSpace::Type);
+                dir::walk_type_expression(self, tree, id, ty);
+            }
+            dir::TypeExpression::BorrowedOf { .. } => {
+                self.require_syntax_language_item(dir::LanguageItem::Lifetime);
                 dir::walk_type_expression(self, tree, id, ty);
             }
             _ => dir::walk_type_expression(self, tree, id, ty),
