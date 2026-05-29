@@ -58,7 +58,10 @@ impl Parser {
     /// _[]
     /// Promise<_>
     /// ```
-    fn eat_type_infer_hole(&mut self, start: &ParserSpanStart) -> LocalNodeId<TypeExpression> {
+    pub(super) fn eat_type_infer_hole(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> LocalNodeId<TypeExpression> {
         let name_span = self.current_token().span;
         self.bump();
         let id = self.insert_node(

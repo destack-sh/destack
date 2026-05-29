@@ -238,7 +238,8 @@ impl Parser {
         let body = self.eat_function_body(&head)?;
 
         let parameter_span = parameters.parameter_span;
-        let (this_parameter, parameters) = self.split_this_parameter_maybe(parameters.parameters);
+        let (this_form, this_parameter, parameters) =
+            self.split_this_parameter_maybe(parameters.parameters);
 
         let asynchrony = if head.is_async {
             Asynchrony::Async
@@ -252,6 +253,7 @@ impl Parser {
             role: head.role,
             generic_parameters: head.generic_parameters.unwrap_or_default(),
             where_clauses: return_part.where_clauses.unwrap_or_default(),
+            this_form,
             this_parameter,
             parameters,
             return_type: return_part.return_type,
@@ -355,6 +357,7 @@ impl Parser {
             None => TypeExpression::Function(FunctionType {
                 generic_parameters: function.signature.generic_parameters,
                 where_clauses: function.signature.where_clauses,
+                this_form: function.signature.this_form,
                 this_parameter: function.signature.this_parameter,
                 parameters: function.signature.parameters,
                 return_type: function.signature.return_type,
@@ -427,7 +430,8 @@ impl Parser {
         start: &ParserSpanStart,
         arrow: ParsedArrowFunction,
     ) -> LocalNodeId<Declaration> {
-        let (this_parameter, parameters) = self.split_this_parameter_maybe(arrow.parameters);
+        let (this_form, this_parameter, parameters) =
+            self.split_this_parameter_maybe(arrow.parameters);
         let signature = FunctionSignature {
             asynchrony: Asynchrony::Sync,
             role: None,
@@ -435,6 +439,7 @@ impl Parser {
             phase: FunctionPhase::Normal,
             generic_parameters: vec![],
             where_clauses: vec![],
+            this_form,
             this_parameter,
             parameters,
             return_type: arrow.return_type,
@@ -654,6 +659,16 @@ impl Parser {
                 ..
             }
         ) {
+            return Ok(None);
+        }
+
+        // let the full parameter parser preserve receiver shorthand
+        let starts_receiver_shorthand = self.lookahead(|parser| {
+            parser.bump();
+
+            parser.current_token_starts_this_form_parameter()
+        });
+        if starts_receiver_shorthand {
             return Ok(None);
         }
 

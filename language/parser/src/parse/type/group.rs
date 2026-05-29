@@ -1,7 +1,7 @@
 use crate::parse::RecoveryPoint;
 use crate::parse::scan::DelimiterDepth;
 use crate::{Parser, ParserResult, ParserSpanStart};
-use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
+use destack_dir::{Expression, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
 use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
 
 impl Parser {
@@ -253,6 +253,10 @@ impl Parser {
 
     /// Skip the first token shape of a function type parameter.
     fn skip_type_function_parameter_start(&mut self) -> bool {
+        if self.language.is_destack() && self.skip_type_function_receiver_start() {
+            return true;
+        }
+
         if self.current_keyword() == Some(Keyword::This) || self.peek_is(TokenType::Identifier) {
             self.bump();
             return true;
@@ -264,6 +268,47 @@ impl Parser {
 
         if self.peek_is(TokenType::OpenBrace) {
             return self.skip_balanced_delimiter(TokenType::OpenBrace, TokenType::CloseBrace);
+        }
+
+        false
+    }
+
+    /// Skip one receiver shorthand in a function type head.
+    fn skip_type_function_receiver_start(&mut self) -> bool {
+        if self.current_keyword() == Some(Keyword::This) {
+            self.bump();
+            return true;
+        }
+
+        if self.current_keyword() == Some(Keyword::Readonly)
+            && self.next_keyword() == Some(Keyword::This)
+        {
+            self.bump();
+            self.bump();
+            return true;
+        }
+
+        if !matches!(
+            self.peek_token_type(),
+            TokenType::ElementwiseAnd | TokenType::ElementwiseXor
+        ) {
+            return false;
+        }
+
+        self.bump();
+        if self.current_keyword() == Some(Keyword::This) {
+            self.bump();
+            return true;
+        }
+
+        let has_access_modifier = matches!(
+            self.current_keyword(),
+            Some(Keyword::Readonly | Keyword::Const | Keyword::Exclusive)
+        );
+        if has_access_modifier && self.next_keyword() == Some(Keyword::This) {
+            self.bump();
+            self.bump();
+            return true;
         }
 
         false
@@ -384,10 +429,20 @@ impl Parser {
         element: LocalNodeId<TypeExpression>,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         self.bump();
-        let length = self.eat_expression_or_recover_missing(
-            self.flags.nested().with_type(false),
-            NodeType::Expression,
-        )?;
+        let length = if self.language.is_destack() && self.current_identifier_str_is("_") {
+            let length_start = self.span_start();
+            let ty = self.eat_type_infer_hole(&length_start);
+
+            self.insert_node(
+                Expression::Type { value: ty },
+                self.get_span_from(&length_start),
+            )
+        } else {
+            self.eat_expression_or_recover_missing(
+                self.flags.nested().with_type(false),
+                NodeType::Expression,
+            )?
+        };
         self.eat_close_token_or_recover_missing(TokenType::CloseBracket, NodeType::TypeExpression)?;
 
         Ok(self.insert_node(

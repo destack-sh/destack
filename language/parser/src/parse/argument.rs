@@ -1,7 +1,7 @@
 use destack_dir::{
     Argument, Expression, GenericArgument, GenericParameter, Keyword, LocalNodeId,
-    MethodAbstraction, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, TokenLiteral,
-    TokenSpan, TokenType, TypeExpression, VarianceModifier, Visibility,
+    MethodAbstraction, Name, NodeType, Parameter, Pattern, ScalarLiteral, StringId, ThisForm,
+    TokenLiteral, TokenSpan, TokenType, TypeExpression, VarianceModifier, Visibility,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -840,6 +840,12 @@ impl Parser {
 
         let start = self.span_start();
 
+        // receiver shorthand
+        if let Some(parameter) = self.eat_this_form_parameter_maybe(&start)? {
+            return Ok(parameter);
+        }
+
+        // modifiers
         let mut modifiers = self.eat_binding_modifiers_prefix_maybe(
             true,
             false,
@@ -1020,6 +1026,75 @@ impl Parser {
         // attach own-line parameter prefixes with block semantics first
 
         Ok(parameter_id)
+    }
+
+    /// Eat receiver shorthand parameter when present.
+    fn eat_this_form_parameter_maybe(
+        &mut self,
+        start: &ParserSpanStart,
+    ) -> ParserResult<Option<LocalNodeId<Parameter>>> {
+        if !self.language.is_destack() || !self.current_token_starts_this_form_parameter() {
+            return Ok(None);
+        }
+
+        let this_id = self.strings.intern("this");
+        let declared_type = self.eat_parameter_type_expression()?;
+        let parameter_id = self.insert_node(
+            Parameter::Named {
+                name: this_id,
+                declared_type: Some(declared_type),
+                default: None,
+                is_optional: false,
+                is_comptime: false,
+            },
+            self.get_span_from(start),
+        );
+        let main_span = self.tree.get_span(declared_type);
+        self.tree.set_main_span(parameter_id, main_span);
+
+        Ok(Some(parameter_id))
+    }
+
+    /// Return whether the current token starts a receiver shorthand.
+    pub(super) fn current_token_starts_this_form_parameter(&mut self) -> bool {
+        // this
+        if self.current_keyword() == Some(Keyword::This) {
+            return self.next_token_type() != TokenType::Colon;
+        }
+
+        // readonly this
+        if self.current_keyword() == Some(Keyword::Readonly) {
+            return self.next_keyword() == Some(Keyword::This);
+        }
+
+        // &this, &readonly this, &exclusive this
+        if self.peek_is(TokenType::ElementwiseAnd) {
+            return self.reference_operator_is_followed_by_this();
+        }
+
+        // ^this
+        if self.peek_is(TokenType::ElementwiseXor) {
+            return self.reference_operator_is_followed_by_this();
+        }
+
+        false
+    }
+
+    /// Return whether a receiver reference operator is followed by `this`.
+    fn reference_operator_is_followed_by_this(&mut self) -> bool {
+        if self.keyword_at_offset(1) == Some(Keyword::This) {
+            return true;
+        }
+
+        let has_access_modifier = matches!(
+            self.keyword_at_offset(1),
+            Some(Keyword::Readonly | Keyword::Const | Keyword::Exclusive)
+        );
+        if has_access_modifier {
+            return self.keyword_at_offset(2) == Some(Keyword::This);
+        }
+
+        false
     }
 
     /// Eat either a parameter pattern or a parameter name.
@@ -1484,7 +1559,11 @@ impl Parser {
     pub fn split_this_parameter_maybe(
         &mut self,
         mut parameters: Vec<LocalNodeId<Parameter>>,
-    ) -> (Option<LocalNodeId<Parameter>>, Vec<LocalNodeId<Parameter>>) {
+    ) -> (
+        Option<ThisForm>,
+        Option<LocalNodeId<Parameter>>,
+        Vec<LocalNodeId<Parameter>>,
+    ) {
         // only the first parameter can be `this`
         let this_parameter = if let Some(first_id) = parameters.first().copied() {
             if let Parameter::Named { name, .. } = self.tree.get(first_id) {
@@ -1505,7 +1584,28 @@ impl Parser {
             parameters.remove(0);
         }
 
-        (this_parameter, parameters)
+        let this_form = this_parameter.map(|this_parameter| {
+            if self.this_parameter_is_implicit(this_parameter) {
+                ThisForm::Implicit
+            } else {
+                ThisForm::Explicit
+            }
+        });
+
+        (this_form, this_parameter, parameters)
+    }
+
+    /// Return whether one receiver parameter came from shorthand syntax.
+    fn this_parameter_is_implicit(&self, this_parameter: LocalNodeId<Parameter>) -> bool {
+        let Parameter::Named {
+            declared_type: Some(declared_type),
+            ..
+        } = self.tree.get(this_parameter)
+        else {
+            return false;
+        };
+
+        self.tree.get_main_span(this_parameter) == Some(self.tree.get_span(*declared_type))
     }
 
     /// Eat a positional argument (positional, spread, or labeled tuple element).

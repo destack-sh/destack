@@ -1,9 +1,9 @@
 use destack_dir::{
     Argument, Asynchrony, BlockContext, BlockForm, ClassDeclaration, CommentKind, CommentPosition,
     Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
-    FunctionRole, GenericArgument, GenericParameter, IntegerType, NodeType, Parameter, Pattern,
-    ScalarLiteral, TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier, WhereClause,
-    YieldCardinality,
+    FunctionRole, GenericArgument, GenericParameter, IntegerType, Mutability, NodeType, Parameter,
+    Pattern, ScalarLiteral, ThisForm, TypeDeclaration, TypeExpression, TypeLiteral,
+    VarianceModifier, WhereClause, YieldCardinality,
 };
 
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
@@ -385,11 +385,89 @@ fn test_parse_function_type_with_this_parameter() {
         assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
             assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
                 assert!(function.this_parameter.is_some());
+                assert_eq!(function.this_form, Some(ThisForm::Explicit));
                 assert_eq!(function.parameters.len(), 1);
                 // value: Bar
                 assert_node!(parser.tree, function.parameters[0], Parameter::Named { name, declared_type, .. } => {
                     assert_string!(parser, *name, "value");
                     assert_expression_path!(parser, parser.tree.get(declared_type.unwrap()), "Bar");
+                });
+            });
+        });
+    });
+}
+
+/// Parse receiver shorthand in function types.
+#[test]
+fn test_parse_function_type_with_unqualified_this_parameter() {
+    let mut test = TestParser::new("type T = (this, value: Bar) => Baz");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    // type T = (this, value: Bar) => Baz
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
+                assert_eq!(function.this_form, Some(ThisForm::Implicit));
+                assert_eq!(function.parameters.len(), 1);
+
+                let this_parameter = function.this_parameter.expect("expected this parameter");
+                assert_node!(parser.tree, this_parameter, Parameter::Named { name, declared_type, .. } => {
+                    assert_string!(parser, *name, "this");
+                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::This);
+                });
+            });
+        });
+    });
+}
+
+/// Parse borrowed receiver shorthand in function types.
+#[test]
+fn test_parse_function_type_with_borrowed_this_parameter() {
+    let mut test = TestParser::new("type T = (&readonly this, value: Bar) => Baz");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    // type T = (&readonly this, value: Bar) => Baz
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
+                assert_eq!(function.this_form, Some(ThisForm::Implicit));
+                assert_eq!(function.parameters.len(), 1);
+
+                let this_parameter = function.this_parameter.expect("expected this parameter");
+                assert_node!(parser.tree, this_parameter, Parameter::Named { name, declared_type, .. } => {
+                    assert_string!(parser, *name, "this");
+                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { mutability, target_type, .. } => {
+                        assert_eq!(*mutability, Some(Mutability::Immutable));
+                        assert_node!(parser.tree, *target_type, TypeExpression::This);
+                    });
+                });
+            });
+        });
+    });
+}
+
+/// Parse readonly receiver shorthand in function types.
+#[test]
+fn test_parse_function_type_with_readonly_this_parameter() {
+    let mut test = TestParser::new("type T = (readonly this, value: Bar) => Baz");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    // type T = (readonly this, value: Bar) => Baz
+    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
+                assert_eq!(function.this_form, Some(ThisForm::Implicit));
+                assert_eq!(function.parameters.len(), 1);
+
+                let this_parameter = function.this_parameter.expect("expected this parameter");
+                assert_node!(parser.tree, this_parameter, Parameter::Named { name, declared_type, .. } => {
+                    assert_string!(parser, *name, "this");
+                    assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::Readonly { target_type } => {
+                        assert_node!(parser.tree, *target_type, TypeExpression::This);
+                    });
                 });
             });
         });
@@ -409,6 +487,45 @@ fn test_parse_arrow_function_with_this_parameter() {
     // (this: string) => {}
     assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
         assert_eq!(signature.form, FunctionForm::Lambda);
+        assert!(signature.this_parameter.is_some());
+        assert_eq!(signature.this_form, Some(ThisForm::Explicit));
+        assert!(signature.parameters.is_empty());
+        assert!(body.is_some());
+    });
+}
+
+/// Parse receiver shorthand in arrow functions.
+#[test]
+fn test_parse_arrow_function_with_unqualified_this_parameter() {
+    let mut test = TestParser::new("(this) => this");
+    let mut parser = test.prepare();
+    let start = parser.span_start();
+    let function_id = parser
+        .eat_function(&start, DeclarationHeader::default())
+        .unwrap();
+
+    // (this) => this
+    assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
+        assert_eq!(signature.this_form, Some(ThisForm::Implicit));
+        assert!(signature.this_parameter.is_some());
+        assert!(signature.parameters.is_empty());
+        assert!(body.is_some());
+    });
+}
+
+/// Parse owned receiver shorthand in arrow functions.
+#[test]
+fn test_parse_arrow_function_with_owned_this_parameter() {
+    let mut test = TestParser::new("(^this) => this");
+    let mut parser = test.prepare();
+    let start = parser.span_start();
+    let function_id = parser
+        .eat_function(&start, DeclarationHeader::default())
+        .unwrap();
+
+    // (^this) => this
+    assert_node!(parser.tree, function_id, Declaration::Function(FunctionDeclaration { signature, body, .. }) => {
+        assert_eq!(signature.this_form, Some(ThisForm::Implicit));
         assert!(signature.this_parameter.is_some());
         assert!(signature.parameters.is_empty());
         assert!(body.is_some());

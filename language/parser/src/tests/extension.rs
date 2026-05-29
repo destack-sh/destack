@@ -1,6 +1,6 @@
 use destack_dir::{
     Declaration, ExtensionDeclaration, GenericArgument, GenericParameter, IntegerType, Member,
-    Parameter, TypeExpression, TypeLiteral, WhereClause,
+    Mutability, Parameter, ThisForm, TypeExpression, TypeLiteral, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -320,6 +320,7 @@ extension<T> of Slice<T> {
         assert_eq!(members.len(), 1);
         assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
             assert!(signature.this_parameter.is_some());
+            assert_eq!(signature.this_form, Some(ThisForm::Explicit));
             assert_eq!(signature.parameters.len(), 2);
 
             let this_parameter_id = signature.this_parameter.expect("expected explicit this parameter");
@@ -333,6 +334,43 @@ extension<T> of Slice<T> {
             });
             assert_node!(parser.tree, signature.parameters[1], Parameter::Named { name, .. } => {
                 assert_string!(parser, *name, "value");
+            });
+        });
+    });
+}
+
+#[test]
+fn test_parse_extension_method_with_exclusive_this_parameter() {
+    let mut test = TestParser::new(
+        r###"
+extension<T> of Slice<T> {
+    indexSet(&exclusive this, i: number, value: T): void {
+        undefined!;
+    }
+}
+"###,
+    );
+    let mut parser = test.prepare();
+
+    let start = parser.span_start();
+    let extension_id = parser
+        .eat_extension(&start, DeclarationHeader::default())
+        .unwrap();
+
+    // indexSet(&exclusive this, i: number, value: T): void
+    assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { members, .. }) => {
+        assert_eq!(members.len(), 1);
+        assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
+            assert_eq!(signature.this_form, Some(ThisForm::Implicit));
+            assert_eq!(signature.parameters.len(), 2);
+
+            let this_parameter = signature.this_parameter.expect("expected this parameter");
+            assert_node!(parser.tree, this_parameter, Parameter::Named { name, declared_type, .. } => {
+                assert_string!(parser, *name, "this");
+                assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { mutability, target_type, .. } => {
+                    assert_eq!(*mutability, Some(Mutability::Exclusive));
+                    assert_node!(parser.tree, *target_type, TypeExpression::This);
+                });
             });
         });
     });

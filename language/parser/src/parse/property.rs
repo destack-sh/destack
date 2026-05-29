@@ -105,6 +105,7 @@ fn function_type_from_signature(signature: FunctionSignature) -> FunctionType {
     FunctionType {
         generic_parameters: signature.generic_parameters,
         where_clauses: signature.where_clauses,
+        this_form: signature.this_form,
         this_parameter: signature.this_parameter,
         parameters: signature.parameters,
         return_type: signature.return_type,
@@ -586,8 +587,8 @@ impl Parser {
             }
         }
 
-        // split out the explicit this parameter
-        let (this_parameter, parameters) = self.split_this_parameter_maybe(parameters);
+        // split out the receiver parameter
+        let (this_form, this_parameter, parameters) = self.split_this_parameter_maybe(parameters);
 
         // build the signature
         let signature = FunctionSignature {
@@ -597,6 +598,7 @@ impl Parser {
             phase: FunctionPhase::Normal,
             generic_parameters,
             where_clauses,
+            this_form,
             this_parameter,
             parameters,
             return_type,
