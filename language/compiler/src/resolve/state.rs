@@ -127,7 +127,7 @@ impl<'a> ResolveState<'a> {
     }
 
     /// Require one syntax-required language item.
-    pub(in crate::resolve) fn require_syntax_language_item(&mut self, item: dir::LanguageItem) {
+    pub(in crate::resolve) fn require_language_item(&mut self, item: dir::LanguageItem) {
         self.syntax_language_items.insert(item);
     }
 

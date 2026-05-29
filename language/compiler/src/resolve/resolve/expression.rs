@@ -28,15 +28,15 @@ impl ResolveState<'_> {
                 operator: dir::ForEachOperator::Of,
                 ..
             } => {
-                self.require_syntax_language_item(dir::LanguageItem::Iterable);
+                self.require_language_item(dir::LanguageItem::Iterable);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::Await { .. } => {
-                self.require_syntax_language_item(dir::LanguageItem::Promise);
+                self.require_language_item(dir::LanguageItem::Promise);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::AwaitMaybe { .. } | dir::Expression::AwaitMust { .. } => {
-                self.require_syntax_language_item(dir::LanguageItem::Promise);
+                self.require_language_item(dir::LanguageItem::Promise);
                 self.require_try_language_items();
                 dir::walk_expression(self, tree, id, expression);
             }
@@ -48,17 +48,17 @@ impl ResolveState<'_> {
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::ImportMeta => {
-                self.require_syntax_language_item(dir::LanguageItem::ImportMeta);
+                self.require_language_item(dir::LanguageItem::ImportMeta);
             }
             dir::Expression::ScalarLiteral(dir::ScalarLiteral::RegexString { .. }) => {
-                self.require_syntax_language_item(dir::LanguageItem::RegExp);
+                self.require_language_item(dir::LanguageItem::RegExp);
             }
             dir::Expression::Type { .. } => {
-                self.require_syntax_language_item(dir::LanguageItem::Type);
+                self.require_language_item(dir::LanguageItem::Type);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::BorrowOf { .. } => {
-                self.require_syntax_language_item(dir::LanguageItem::Lifetime);
+                self.require_language_item(dir::LanguageItem::Lifetime);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::RangeExpression {
@@ -67,6 +67,14 @@ impl ResolveState<'_> {
                 end_kind,
             } => {
                 self.require_range_language_item(start.is_some(), end.is_some(), *end_kind);
+                dir::walk_expression(self, tree, id, expression);
+            }
+            dir::Expression::ArrayExpression { .. } => {
+                self.require_language_item(dir::LanguageItem::Array);
+                dir::walk_expression(self, tree, id, expression);
+            }
+            dir::Expression::FixedArrayExpression { .. } => {
+                self.require_language_item(dir::LanguageItem::FixedArray);
                 dir::walk_expression(self, tree, id, expression);
             }
             dir::Expression::Unary { operator, .. } => {
@@ -119,7 +127,19 @@ impl ResolveState<'_> {
                 dir::walk_type_expression(self, tree, id, ty);
             }
             dir::TypeExpression::BorrowedOf { .. } => {
-                self.require_syntax_language_item(dir::LanguageItem::Lifetime);
+                self.require_language_item(dir::LanguageItem::Lifetime);
+                dir::walk_type_expression(self, tree, id, ty);
+            }
+            dir::TypeExpression::Array { .. } => {
+                self.require_language_item(dir::LanguageItem::Array);
+                dir::walk_type_expression(self, tree, id, ty);
+            }
+            dir::TypeExpression::Slice { .. } => {
+                self.require_language_item(dir::LanguageItem::Slice);
+                dir::walk_type_expression(self, tree, id, ty);
+            }
+            dir::TypeExpression::FixedArray { .. } => {
+                self.require_language_item(dir::LanguageItem::FixedArray);
                 dir::walk_type_expression(self, tree, id, ty);
             }
             _ => dir::walk_type_expression(self, tree, id, ty),

@@ -11,15 +11,15 @@ impl ResolveState<'_> {
         match (signature.asynchrony, signature.is_generator) {
             // async function f() {}
             (dir::Asynchrony::Async, false) => {
-                self.require_syntax_language_item(dir::LanguageItem::Promise);
+                self.require_language_item(dir::LanguageItem::Promise);
             }
             // function* f() {}
             (dir::Asynchrony::Sync, true) => {
-                self.require_syntax_language_item(dir::LanguageItem::Generator);
+                self.require_language_item(dir::LanguageItem::Generator);
             }
             // async function* f() {}
             (dir::Asynchrony::Async, true) => {
-                self.require_syntax_language_item(dir::LanguageItem::AsyncGenerator);
+                self.require_language_item(dir::LanguageItem::AsyncGenerator);
             }
             // function f() {}
             (dir::Asynchrony::Sync, false) => {}
@@ -28,8 +28,8 @@ impl ResolveState<'_> {
 
     /// Require language items implied by try propagation syntax.
     pub(in crate::resolve) fn require_try_language_items(&mut self) {
-        self.require_syntax_language_item(dir::LanguageItem::Try);
-        self.require_syntax_language_item(dir::LanguageItem::FromFailure);
+        self.require_language_item(dir::LanguageItem::Try);
+        self.require_language_item(dir::LanguageItem::FromFailure);
     }
 
     /// Require the iterable item implied by yield delegation.
@@ -47,7 +47,7 @@ impl ResolveState<'_> {
             dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
         };
 
-        self.require_syntax_language_item(item);
+        self.require_language_item(item);
     }
 
     /// Require the range item implied by one range expression.
@@ -72,7 +72,7 @@ impl ResolveState<'_> {
             (false, false, _) => dir::LanguageItem::RangeFull,
         };
 
-        self.require_syntax_language_item(item);
+        self.require_language_item(item);
     }
 
     /// Require language items implied by one unary operator.
@@ -100,7 +100,7 @@ impl ResolveState<'_> {
             | dir::UnaryOperator::Spread => return,
         };
 
-        self.require_syntax_language_item(item);
+        self.require_language_item(item);
     }
 
     /// Require language items implied by one binary operator.
@@ -142,9 +142,9 @@ impl ResolveState<'_> {
             | dir::BinaryOperator::LessThanOrEqual
             | dir::BinaryOperator::GreaterThan
             | dir::BinaryOperator::GreaterThanOrEqual => {
-                self.require_syntax_language_item(dir::LanguageItem::Compare);
-                self.require_syntax_language_item(dir::LanguageItem::Ordering);
-                self.require_syntax_language_item(dir::LanguageItem::PartialCompare);
+                self.require_language_item(dir::LanguageItem::Compare);
+                self.require_language_item(dir::LanguageItem::Ordering);
+                self.require_language_item(dir::LanguageItem::PartialCompare);
 
                 return;
             }
@@ -157,6 +157,6 @@ impl ResolveState<'_> {
             | dir::BinaryOperator::In => return,
         };
 
-        self.require_syntax_language_item(item);
+        self.require_language_item(item);
     }
 }
