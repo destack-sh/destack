@@ -61,11 +61,20 @@ export newtype noReflection = ();
 @languageItem("decorator.noUnwind")
 export newtype noUnwind = ();
 
-/// Require mutable borrows to be exclusive.
+/// Ban aliasing mutable borrows.
 ///
 /// ```
-/// @exclusiveMutableBorrows
+/// @noAliasingMutableBorrows
 /// module {}
 /// ```
-@languageItem("decorator.exclusiveMutableBorrows")
-export newtype exclusiveMutableBorrows = ();
+@languageItem("decorator.noAliasingMutableBorrows")
+export newtype noAliasingMutableBorrows = ();
+
+/// Ban implicit method receivers.
+///
+/// ```
+/// @noImplicitReceivers
+/// module {}
+/// ```
+@languageItem("decorator.noImplicitReceivers")
+export newtype noImplicitReceivers = ();
