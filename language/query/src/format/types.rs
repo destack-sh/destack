@@ -578,9 +578,8 @@ fn strip_extension_from_path(path: &str) -> String {
 fn static_key_segment(key: Option<dir::StaticKey>, strings: &StringPool) -> Option<String> {
     let key = key?;
     match key {
-        dir::StaticKey::Name(name_id) | dir::StaticKey::Number(name_id) => {
-            Some(strings.get(name_id).to_string())
-        }
+        dir::StaticKey::Name(name_id) => Some(strings.get(name_id).to_string()),
+        dir::StaticKey::Index(index) => Some(index.to_string()),
         dir::StaticKey::Symbol(_) => None,
     }
 }
@@ -589,7 +588,7 @@ fn static_key_segment(key: Option<dir::StaticKey>, strings: &StringPool) -> Opti
 pub fn format_static_key(key: &dir::StaticKey, strings: &StringPool) -> String {
     match key {
         dir::StaticKey::Name(name_id) => strings.get(*name_id).to_string(),
-        dir::StaticKey::Number(name_id) => strings.get(*name_id).to_string(),
+        dir::StaticKey::Index(index) => index.to_string(),
         dir::StaticKey::Symbol(symbol) => format_symbol_key(symbol, strings),
     }
 }
