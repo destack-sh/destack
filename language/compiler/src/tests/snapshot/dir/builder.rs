@@ -485,7 +485,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     pub(crate) fn static_key(&self, key: dir::StaticKey) -> String {
         match key {
             dir::StaticKey::Name(name) => self.strings.get(name).to_string(),
-            dir::StaticKey::Number(name) => format!("#number({})", self.strings.get(name)),
+            dir::StaticKey::Index(index) => format!("#index({index})"),
             dir::StaticKey::Symbol(symbol) => symbol.debug_string(self.strings),
         }
     }
