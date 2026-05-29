@@ -459,8 +459,8 @@ define_language_items! {
 
         /// `destack:decorator/restriction`.
         restriction {
-            /// `@exclusiveMutableBorrows` marker.
-            ExclusiveMutableBorrows => (Newtype, "decorator/restriction", "exclusiveMutableBorrows"),
+            /// `@noAliasingMutableBorrows` marker.
+            NoAliasingMutableBorrows => (Newtype, "decorator/restriction", "noAliasingMutableBorrows"),
 
             /// `@noDynamicDispatch` marker.
             NoDynamicDispatch => (Newtype, "decorator/restriction", "noDynamicDispatch"),

@@ -13,8 +13,8 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::StringId;
 use destack_dir::{
     Asynchrony, Expression, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
-    GenericParameter, Keyword, LocalNodeId, Node, Parameter, Pattern, TokenType, Tree, TreeStore,
-    TypeExpression, VarianceModifier, Visibility, WhereClause,
+    GenericParameter, Keyword, LocalNodeId, Node, Parameter, Pattern, ThisForm, TokenType, Tree,
+    TreeStore, TypeExpression, VarianceModifier, Visibility, WhereClause,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
@@ -869,9 +869,11 @@ pub(crate) fn expression_body_requires_head_space(
     true
 }
 
-/// Write one grouped parameter list.
-pub(crate) fn write_signature_parameter_list<'ast>(
+/// Write one grouped parameter list with an optional receiver.
+pub(crate) fn write_signature_parameter_list_with_this<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    this_form: Option<ThisForm>,
+    this_parameter: Option<LocalNodeId<Parameter>>,
     parameters: &[LocalNodeId<Parameter>],
     disallow_trailing_parameter_separator: bool,
 ) -> FormatResult<()> {
@@ -880,13 +882,22 @@ pub(crate) fn write_signature_parameter_list<'ast>(
     } else {
         default_generic_parameter_trailing_separator(f)
     };
+    if this_parameter.is_none() {
+        return write_signature_parameter_list_without_this(f, parameters, trailing_separator);
+    }
 
-    if should_break_function_parameters(f.context(), parameters) {
+    let combined_parameters = this_parameter
+        .into_iter()
+        .chain(parameters.iter().copied())
+        .collect::<Vec<_>>();
+    let parameter_count = combined_parameters.len();
+
+    if should_break_function_parameters(f.context(), &combined_parameters) {
         let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            for (index, parameter_id) in parameters.iter().copied().enumerate() {
-                let is_last = index + 1 == parameters.len();
+            for (index, parameter_id) in combined_parameters.iter().copied().enumerate() {
+                let is_last = index + 1 == parameter_count;
 
-                write!(f, [parameter_id])?;
+                write_signature_parameter_entry(f, this_form, this_parameter, parameter_id)?;
 
                 if !is_last {
                     write!(f, [token(","), hard_line_break()])?;
@@ -898,6 +909,63 @@ pub(crate) fn write_signature_parameter_list<'ast>(
                         write!(f, [token(",")])?;
                     }
                     TrailingSeparator::Omit => {}
+                }
+            }
+
+            Ok(())
+        });
+
+        return write!(f, [token("("), block_indent(&body), token(")")]);
+    }
+
+    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        for (index, parameter_id) in combined_parameters.iter().copied().enumerate() {
+            if index > 0 {
+                let parameter_span = f.context().span(parameter_id);
+                let has_lines_before = f
+                    .context()
+                    .source_text()
+                    .get_lines_before(parameter_span, f.context().comments())
+                    > 1;
+
+                if has_lines_before {
+                    write!(f, [token(","), empty_line()])?;
+                } else {
+                    write!(f, [token(","), soft_line_break_or_space()])?;
+                }
+            }
+
+            write_signature_parameter_entry(f, this_form, this_parameter, parameter_id)?;
+
+            if index + 1 == parameter_count {
+                match trailing_separator {
+                    TrailingSeparator::Omit => {}
+                    TrailingSeparator::Allowed => write!(f, [if_group_breaks(&token(","))])?,
+                    TrailingSeparator::Mandatory => write!(f, [token(",")])?,
+                }
+            }
+        }
+
+        Ok(())
+    });
+    write!(f, [token("("), soft_block_indent(&body), token(")")])
+}
+
+/// Write one grouped parameter list without a receiver.
+fn write_signature_parameter_list_without_this<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    parameters: &[LocalNodeId<Parameter>],
+    trailing_separator: TrailingSeparator,
+) -> FormatResult<()> {
+    if should_break_function_parameters(f.context(), parameters) {
+        let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            for (index, parameter_id) in parameters.iter().copied().enumerate() {
+                let is_last = index + 1 == parameters.len();
+
+                write!(f, [parameter_id])?;
+
+                if !is_last {
+                    write!(f, [token(","), hard_line_break()])?;
                 }
             }
 
@@ -935,24 +1003,76 @@ pub(crate) fn write_signature_parameter_list<'ast>(
     write!(f, [token("("), soft_block_indent(&body), token(")")])
 }
 
-/// Write one hugged parameter list.
-pub(crate) fn write_signature_hug_parameter_list<'ast>(
+/// Write one hugged parameter list with an optional receiver.
+pub(crate) fn write_signature_hug_parameter_list_with_this<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    this_form: Option<ThisForm>,
+    this_parameter: Option<LocalNodeId<Parameter>>,
     parameters: &[LocalNodeId<Parameter>],
 ) -> FormatResult<()> {
+    let combined_parameters = this_parameter
+        .into_iter()
+        .chain(parameters.iter().copied())
+        .collect::<Vec<_>>();
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        for (index, parameter_id) in parameters.iter().copied().enumerate() {
+        for (index, parameter_id) in combined_parameters.iter().copied().enumerate() {
             if index > 0 {
                 write!(f, [token(","), space()])?;
             }
 
-            write!(f, [parameter_id])?;
+            write_signature_parameter_entry(f, this_form, this_parameter, parameter_id)?;
         }
 
         Ok(())
     });
 
     write!(f, [group(&format_args![token("("), content, token(")")])])
+}
+
+/// Write one signature parameter or receiver shorthand.
+fn write_signature_parameter_entry<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    this_form: Option<ThisForm>,
+    this_parameter: Option<LocalNodeId<Parameter>>,
+    parameter_id: LocalNodeId<Parameter>,
+) -> FormatResult<()> {
+    if Some(parameter_id) == this_parameter {
+        return write_this_parameter(f, this_form, parameter_id);
+    }
+
+    write!(f, [parameter_id])
+}
+
+/// Write one receiver parameter.
+fn write_this_parameter<'ast>(
+    f: &mut DestackFormatter<'ast, '_>,
+    this_form: Option<ThisForm>,
+    this_parameter: LocalNodeId<Parameter>,
+) -> FormatResult<()> {
+    match this_form.unwrap_or(ThisForm::Explicit) {
+        ThisForm::Implicit => {
+            let Some(declared_type) =
+                this_parameter_declared_type(f.context().tree, this_parameter)
+            else {
+                return write!(f, [this_parameter]);
+            };
+
+            write!(f, [declared_type])
+        }
+        ThisForm::Explicit => write!(f, [this_parameter]),
+    }
+}
+
+/// Return the declared receiver type.
+fn this_parameter_declared_type(
+    tree: &Tree,
+    this_parameter: LocalNodeId<Parameter>,
+) -> Option<LocalNodeId<TypeExpression>> {
+    let Parameter::Named { declared_type, .. } = tree.get(this_parameter) else {
+        return None;
+    };
+
+    *declared_type
 }
 
 /// Write one empty parameter list with interior annotations.
