@@ -49,8 +49,8 @@ export {
 } from "./type.ds";
 export { Box } from "./box.ds";
 export {
-    AllocationError,
     AllocationCapacityOverflow,
+    AllocationError,
     AllocationOutOfMemory,
     AllocationUnsupported,
 } from "./error.ds";
