@@ -1,9 +1,7 @@
 use destack_mir::{TraceMap, TraceTable};
 
-use crate::local::space::{
-    GcKind, GcStats, HeapExtent, HeapSpace, HeapStorage, LocalGcPhase, LocalTraceWork,
-    MajorSweepCursor,
-};
+use crate::local::gc::{MajorSweepCursor, MarkWork, Phase};
+use crate::local::storage::{GcKind, GcStats, HeapExtent, HeapPlace, HeapStorage};
 use crate::{
     GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference, HeapResult,
     ReferenceInput, ReferenceRange, RootSlot, scan_references,
@@ -14,21 +12,21 @@ const METADATA_STEP_BYTES: usize = 1;
 /// The number of metadata bits skipped by one bitmap word scan.
 const METADATA_WORD_BITS: usize = u64::BITS as usize;
 
-impl HeapSpace {
+impl HeapStorage {
     /// Return whether one local major collection is active.
     pub(crate) fn major_gc_active(&self) -> bool {
-        self.collector.major_phase != LocalGcPhase::Idle
+        self.collector.major_phase != Phase::Idle
     }
 
     /// Publish one block to an active local major cycle.
     pub(crate) fn publish_major_allocation(
         &mut self,
         reference: HeapReference,
-        storage: HeapStorage,
+        storage: HeapPlace,
         trace_map: &TraceMap,
     ) -> HeapResult<()> {
         // inactive collector
-        if self.collector.major_phase == LocalGcPhase::Idle {
+        if self.collector.major_phase == Phase::Idle {
             return Ok(());
         }
 
@@ -46,7 +44,7 @@ impl HeapSpace {
         trace_table: &TraceTable,
     ) -> HeapResult<()> {
         // inactive collector
-        if self.collector.major_phase == LocalGcPhase::Idle {
+        if self.collector.major_phase == Phase::Idle {
             return Ok(());
         }
 
@@ -65,7 +63,7 @@ impl HeapSpace {
     fn enqueue_location_heap_references(
         &mut self,
         reference: HeapReference,
-        storage: HeapStorage,
+        storage: HeapPlace,
         byte_offset: usize,
         byte_len: usize,
         trace_map: &TraceMap,
@@ -109,7 +107,7 @@ impl HeapSpace {
     }
 
     /// Perform one full heap collection over mutable heap roots.
-    pub fn collect_full<E>(
+    pub(crate) fn collect_full<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         trace_table: &TraceTable,
@@ -160,7 +158,7 @@ impl HeapSpace {
         self.collector.major_sweep = MajorSweepCursor::default();
         self.collector.major_freed_allocations = 0;
         self.collector.major_freed_bytes = 0;
-        self.collector.major_phase = LocalGcPhase::Mark;
+        self.collector.major_phase = Phase::Mark;
 
         // seed initial roots
         self.seed_major_roots(roots)?;
@@ -179,14 +177,14 @@ impl HeapSpace {
         E: From<HeapError>,
     {
         // no active work
-        if budget_bytes == 0 || self.collector.major_phase == LocalGcPhase::Idle {
+        if budget_bytes == 0 || self.collector.major_phase == Phase::Idle {
             return Ok(GcProgress::Idle);
         }
 
         // phase work
         match self.collector.major_phase {
-            LocalGcPhase::Idle => Ok(GcProgress::Idle),
-            LocalGcPhase::Mark => {
+            Phase::Idle => Ok(GcProgress::Idle),
+            Phase::Mark => {
                 // roots may have changed between incremental steps
                 self.seed_major_roots(roots)?;
                 let marked_bytes =
@@ -195,7 +193,7 @@ impl HeapSpace {
                 // switch to sweep when mark work drains
                 if self.collector.major_queue.is_empty() {
                     self.start_major_sweep();
-                    self.collector.major_phase = LocalGcPhase::Sweep;
+                    self.collector.major_phase = Phase::Sweep;
 
                     // spend remaining budget in the sweep phase
                     if marked_bytes < budget_bytes {
@@ -207,7 +205,7 @@ impl HeapSpace {
 
                 Ok(GcProgress::Active)
             }
-            LocalGcPhase::Sweep => {
+            Phase::Sweep => {
                 let marked_bytes =
                     self.mark_reachable_references_step(budget_bytes, trace_table)?;
                 if !self.collector.major_queue.is_empty() {
@@ -260,7 +258,7 @@ impl HeapSpace {
 
         // publish cycle statistics and reset collector state
         self.gc.record_cycle(GcKind::Full, stats);
-        self.collector.major_phase = LocalGcPhase::Idle;
+        self.collector.major_phase = Phase::Idle;
         self.collector.major_queue.clear();
         self.collector.major_sweep = MajorSweepCursor::default();
         self.collector.major_freed_allocations = 0;
@@ -539,14 +537,14 @@ impl HeapSpace {
 
             match work {
                 // large blocks are scanned page by page
-                LocalTraceWork::LargeRange { reference, start } => {
+                MarkWork::LargeRange { reference, start } => {
                     marked_bytes += self.trace_large_range(reference, start, trace_table)?;
 
                     continue;
                 }
 
                 // small and young blocks are scanned as one mark item
-                LocalTraceWork::Reference(reference) => {
+                MarkWork::Reference(reference) => {
                     let Some(extent) = self.resolve_extent(reference) else {
                         return Err(HeapError::invalid_heap_reference(reference));
                     };
@@ -604,7 +602,7 @@ impl HeapSpace {
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
-        let HeapStorage::LargeBlock(_) = extent.storage else {
+        let HeapPlace::LargeBlock(_) = extent.storage else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
 
@@ -651,7 +649,7 @@ impl HeapSpace {
         // continue this large block on a later step
         let next_start = start + range_len;
         if next_start < extent.byte_len {
-            self.collector.major_queue.push(LocalTraceWork::LargeRange {
+            self.collector.major_queue.push(MarkWork::LargeRange {
                 reference,
                 start: next_start,
             });
@@ -674,8 +672,8 @@ impl HeapSpace {
         if self.mark_place(extent.storage)? {
             // marked noscan blocks need no queued scan work
             // large blocks are sliced to keep major steps bounded
-            if matches!(extent.storage, HeapStorage::LargeBlock(_)) {
-                self.collector.major_queue.push(LocalTraceWork::LargeRange {
+            if matches!(extent.storage, HeapPlace::LargeBlock(_)) {
+                self.collector.major_queue.push(MarkWork::LargeRange {
                     reference,
                     start: 0,
                 });
@@ -686,7 +684,7 @@ impl HeapSpace {
             // smaller blocks are one mark item
             self.collector
                 .major_queue
-                .push(LocalTraceWork::Reference(reference));
+                .push(MarkWork::Reference(reference));
         }
 
         Ok(())
@@ -701,10 +699,10 @@ impl HeapSpace {
     }
 
     /// Return whether one heap storage is marked in the active cycle.
-    pub(super) fn is_marked_place(&self, storage: HeapStorage) -> HeapResult<bool> {
+    pub(super) fn is_marked_place(&self, storage: HeapPlace) -> HeapResult<bool> {
         // dispatch by physical heap storage
         match storage {
-            HeapStorage::YoungRange { first_offset } => {
+            HeapPlace::YoungRange { first_offset } => {
                 let Some((block_index, _allocation)) = self.young_range_by_offset(first_offset)
                 else {
                     return Err(HeapError::internal("missing young range"));
@@ -712,14 +710,14 @@ impl HeapSpace {
 
                 Ok(self.young.marked.contains(block_index))
             }
-            HeapStorage::YoungSlot(slot) => {
+            HeapPlace::YoungSlot(slot) => {
                 let Some(bits) = self.young.span_bits(slot.span_index()) else {
                     return Err(HeapError::internal("missing span"));
                 };
 
                 Ok(bits.marked.contains(slot.slot_index()))
             }
-            HeapStorage::MatureSlot(slot) => {
+            HeapPlace::MatureSlot(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
                     return Err(HeapError::internal("missing span"));
                 };
@@ -727,7 +725,7 @@ impl HeapSpace {
                 Ok(span.mark_epoch == self.collector.mark_epoch
                     && span.marked.contains(slot.slot_index()))
             }
-            HeapStorage::LargeBlock(block_id) => {
+            HeapPlace::LargeBlock(block_id) => {
                 let Some(block) = self.large_block(block_id) else {
                     return Err(HeapError::internal("missing large block"));
                 };
@@ -738,7 +736,7 @@ impl HeapSpace {
     }
 
     /// Mark one heap storage and return whether this was the first mark.
-    pub(super) fn mark_place(&mut self, storage: HeapStorage) -> HeapResult<bool> {
+    pub(super) fn mark_place(&mut self, storage: HeapPlace) -> HeapResult<bool> {
         // skip already marked storages
         if self.is_marked_place(storage)? {
             return Ok(false);
@@ -746,7 +744,7 @@ impl HeapSpace {
 
         // mark by physical heap storage
         match storage {
-            HeapStorage::YoungRange { first_offset } => {
+            HeapPlace::YoungRange { first_offset } => {
                 let Some((block_index, _allocation)) = self.young_range_by_offset(first_offset)
                 else {
                     return Err(HeapError::internal("missing young range"));
@@ -754,14 +752,14 @@ impl HeapSpace {
 
                 self.young.marked.set(block_index);
             }
-            HeapStorage::YoungSlot(slot) => {
+            HeapPlace::YoungSlot(slot) => {
                 let Some(bits) = self.young.span_bits_mut(slot.span_index()) else {
                     return Err(HeapError::internal("missing span"));
                 };
 
                 bits.marked.set(slot.slot_index());
             }
-            HeapStorage::MatureSlot(slot) => {
+            HeapPlace::MatureSlot(slot) => {
                 let mark_epoch = self.collector.mark_epoch;
                 let Some(span) = self.span_mut(slot.span_index()) else {
                     return Err(HeapError::internal("missing span"));
@@ -770,7 +768,7 @@ impl HeapSpace {
                 span.ensure_mark_epoch(mark_epoch);
                 span.marked.set(slot.slot_index());
             }
-            HeapStorage::LargeBlock(block_id) => {
+            HeapPlace::LargeBlock(block_id) => {
                 let mark_epoch = self.collector.mark_epoch;
                 let Some(block) = self.large_block_mut(block_id) else {
                     return Err(HeapError::internal("missing large block"));

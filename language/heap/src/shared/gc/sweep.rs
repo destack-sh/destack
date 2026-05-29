@@ -1,5 +1,5 @@
-use crate::shared::gc::SharedGcPhase;
-use crate::shared::space::SharedHeapSpace;
+use crate::shared::gc::GcPhase;
+use crate::shared::storage::HeapStorage;
 use crate::{
     GcKind, GcProgress, GcStats, HeapError, HeapGcStateError, HeapResult, SharedHeapReference,
 };
@@ -7,14 +7,14 @@ use crate::{
 /// The budget charged for one metadata-only sweep step.
 const METADATA_STEP_BYTES: usize = 1;
 
-impl SharedHeapSpace {
+impl HeapStorage {
     /// Transition from concurrent mark into sweeping.
     pub(crate) fn try_start_sweep(&self) -> HeapResult<bool> {
         // lifecycle
         let _lifecycle = self.gc.lock_lifecycle();
 
         // phase
-        if self.gc.phase() != SharedGcPhase::Mark {
+        if self.gc.phase() != GcPhase::Mark {
             return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotMarking));
         }
 
@@ -32,7 +32,7 @@ impl SharedHeapSpace {
             .start_sweep(store.small.spans.len(), store.large.blocks.len());
         drop(store);
 
-        self.gc.set_phase(SharedGcPhase::Sweep);
+        self.gc.set_phase(GcPhase::Sweep);
 
         Ok(true)
     }
@@ -42,9 +42,9 @@ impl SharedHeapSpace {
         // lifecycle
         let _lifecycle = self.gc.lock_lifecycle();
         match self.gc.phase() {
-            SharedGcPhase::Sweep => {}
-            SharedGcPhase::Idle => return Ok(GcProgress::Idle),
-            SharedGcPhase::Mark => {
+            GcPhase::Sweep => {}
+            GcPhase::Idle => return Ok(GcProgress::Idle),
+            GcPhase::Mark => {
                 return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotSweeping));
             }
         }
@@ -166,7 +166,7 @@ impl SharedHeapSpace {
         store.gc.record_cycle(GcKind::Full, stats);
 
         // idle publication
-        self.gc.set_phase(SharedGcPhase::Idle);
+        self.gc.set_phase(GcPhase::Idle);
         self.gc.open_mark_publication();
 
         Ok(stats)

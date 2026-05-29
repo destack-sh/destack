@@ -5,17 +5,18 @@ use parking_lot::{Mutex, MutexGuard};
 
 use crate::SharedHeapReference;
 
-use super::SharedGcPhase;
+use super::GcPhase;
 
 /// One active shared GC state.
 #[derive(Debug, Default)]
-pub(crate) struct SharedGcState {
+pub(crate) struct CollectorState {
     /// The shared collector lifecycle gate.
     lifecycle: Mutex<()>,
     /// The reusable collector trace queue.
-    pub(crate) trace_queue: SharedTraceQueue,
+    pub(crate) trace_queue: MarkQueue,
     /// The current shared collection phase.
     phase: AtomicU8,
+
     /// Whether shared mark publication is closed for termination.
     mark_closing: AtomicBool,
     /// The number of shared mark publications currently in flight.
@@ -24,11 +25,12 @@ pub(crate) struct SharedGcState {
     pub(crate) mark_inflight: AtomicUsize,
     /// The active mark epoch.
     mark_epoch: AtomicU64,
+
     /// The active sweep state.
-    sweep: Mutex<SharedSweepState>,
+    sweep: Mutex<SweepState>,
 }
 
-impl SharedGcState {
+impl CollectorState {
     /// Lock the shared collector lifecycle.
     pub(crate) fn lock_lifecycle(&self) -> MutexGuard<'_, ()> {
         self.lifecycle.lock()
@@ -36,13 +38,13 @@ impl SharedGcState {
 
     /// Return the current shared collection phase.
     #[inline(always)]
-    pub(crate) fn phase(&self) -> SharedGcPhase {
-        SharedGcPhase::from_bits(self.phase.load(Ordering::Acquire))
+    pub(crate) fn phase(&self) -> GcPhase {
+        GcPhase::from_bits(self.phase.load(Ordering::Acquire))
     }
 
     /// Set the current shared collection phase.
     #[inline(always)]
-    pub(crate) fn set_phase(&self, phase: SharedGcPhase) {
+    pub(crate) fn set_phase(&self, phase: GcPhase) {
         self.phase.store(phase.bits(), Ordering::Release);
     }
 
@@ -58,28 +60,28 @@ impl SharedGcState {
 
     /// Reset sweep state for a new mark cycle.
     pub(crate) fn reset_sweep(&self) {
-        *self.sweep.lock() = SharedSweepState::default();
+        *self.sweep.lock() = SweepState::default();
     }
 
     /// Start sweeping from the beginning of the shared heap.
     pub(crate) fn start_sweep(&self, small_span_limit: usize, large_limit: usize) {
-        *self.sweep.lock() = SharedSweepState {
-            cursor: SharedSweepCursor {
+        *self.sweep.lock() = SweepState {
+            cursor: SweepCursor {
                 small_span_limit,
                 large_limit,
-                ..SharedSweepCursor::default()
+                ..SweepCursor::default()
             },
-            ..SharedSweepState::default()
+            ..SweepState::default()
         };
     }
 
     /// Return the current sweep cursor.
-    pub(crate) fn sweep_cursor(&self) -> SharedSweepCursor {
+    pub(crate) fn sweep_cursor(&self) -> SweepCursor {
         self.sweep.lock().cursor
     }
 
     /// Set the current sweep cursor.
-    pub(crate) fn set_sweep_cursor(&self, cursor: SharedSweepCursor) {
+    pub(crate) fn set_sweep_cursor(&self, cursor: SweepCursor) {
         self.sweep.lock().cursor = cursor;
     }
 
@@ -124,28 +126,28 @@ impl SharedGcState {
     }
 
     /// Begin one shared mark publication and return its lifetime guard.
-    pub(crate) fn begin_mark_publication(&self) -> Option<SharedMarkPublication<'_>> {
+    pub(crate) fn begin_mark_publication(&self) -> Option<MarkPublication<'_>> {
         // reject inactive or terminating mark cycles
-        if self.phase() != SharedGcPhase::Mark || self.is_mark_closing() {
+        if self.phase() != GcPhase::Mark || self.is_mark_closing() {
             return None;
         }
 
         self.mark_publishers.fetch_add(1, Ordering::AcqRel);
 
         // close the race with mark termination
-        if self.phase() != SharedGcPhase::Mark || self.is_mark_closing() {
+        if self.phase() != GcPhase::Mark || self.is_mark_closing() {
             self.mark_publishers.fetch_sub(1, Ordering::AcqRel);
 
             return None;
         }
 
-        Some(SharedMarkPublication { state: self })
+        Some(MarkPublication { state: self })
     }
 }
 
 /// One queued unit of shared mark work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum SharedTraceWork {
+pub(crate) enum MarkWork {
     /// One shared small span with marked slots to scan.
     SmallSpan(usize),
     /// One range of one shared large block to scan.
@@ -159,25 +161,25 @@ pub(crate) enum SharedTraceWork {
 
 /// One registered shared GC worker handle.
 #[derive(Debug)]
-pub struct SharedGcWorker {
+pub struct GcWorker {
     /// The worker registry key.
     index: usize,
     /// Work owned by this collector worker.
-    local: Worker<SharedTraceWork>,
+    local: Worker<MarkWork>,
 }
 
 /// Shared trace queues for global work and worker-local work.
 #[derive(Debug, Default)]
-pub(crate) struct SharedTraceQueue {
+pub(crate) struct MarkQueue {
     /// Work published without a worker context.
-    global: Injector<SharedTraceWork>,
+    global: Injector<MarkWork>,
     /// Stealing handles for registered collector workers.
-    stealers: Mutex<Vec<Stealer<SharedTraceWork>>>,
+    stealers: Mutex<Vec<Stealer<MarkWork>>>,
 }
 
-impl SharedTraceQueue {
+impl MarkQueue {
     /// Register one GC worker.
-    pub(crate) fn register_worker(&self) -> SharedGcWorker {
+    pub(crate) fn register_worker(&self) -> GcWorker {
         let local = Worker::new_fifo();
         let stealer = local.stealer();
         let mut stealers = self.stealers.lock();
@@ -186,16 +188,16 @@ impl SharedTraceQueue {
         // publish the stealing handle for other workers
         stealers.push(stealer);
 
-        SharedGcWorker {
+        GcWorker {
             index: worker_index,
             local,
         }
     }
 
     /// Push one pending trace work item.
-    pub(crate) fn push(&self, worker: Option<&SharedGcWorker>, work: SharedTraceWork) {
+    pub(crate) fn push(&self, worker: Option<&GcWorker>, work: MarkWork) {
         // null large references are not trace work
-        if let SharedTraceWork::Large { reference, .. } = work
+        if let MarkWork::Large { reference, .. } = work
             && reference.is_null()
         {
             return;
@@ -214,9 +216,9 @@ impl SharedTraceQueue {
     /// Pop one bounded batch of pending work into the caller buffer.
     pub(crate) fn pop_batch(
         &self,
-        worker: Option<&SharedGcWorker>,
+        worker: Option<&GcWorker>,
         batch_len: usize,
-        batch: &mut Vec<SharedTraceWork>,
+        batch: &mut Vec<MarkWork>,
     ) {
         batch.clear();
 
@@ -265,12 +267,7 @@ impl SharedTraceQueue {
     }
 
     /// Pop work from one worker deque into one batch.
-    fn pop_from_worker(
-        &self,
-        worker: &SharedGcWorker,
-        batch_len: usize,
-        batch: &mut Vec<SharedTraceWork>,
-    ) {
+    fn pop_from_worker(&self, worker: &GcWorker, batch_len: usize, batch: &mut Vec<MarkWork>) {
         // drain the local worker queue first
         while batch.len() < batch_len {
             let Some(work) = worker.local.pop() else {
@@ -284,9 +281,9 @@ impl SharedTraceQueue {
     /// Pop global work into one batch.
     fn pop_from_global(
         &self,
-        worker: Option<&SharedGcWorker>,
+        worker: Option<&GcWorker>,
         batch_len: usize,
-        batch: &mut Vec<SharedTraceWork>,
+        batch: &mut Vec<MarkWork>,
     ) {
         // no local worker means direct global steals
         let Some(worker) = worker else {
@@ -307,7 +304,7 @@ impl SharedTraceQueue {
     }
 
     /// Pop global work without a local worker.
-    fn steal_from_global(&self, batch_len: usize, batch: &mut Vec<SharedTraceWork>) {
+    fn steal_from_global(&self, batch_len: usize, batch: &mut Vec<MarkWork>) {
         // direct global steals
         while batch.len() < batch_len {
             match self.global.steal() {
@@ -330,7 +327,7 @@ impl SharedTraceQueue {
     }
 
     /// Drain one worker through its public stealer.
-    fn drain_stealer(&self, stealer: &Stealer<SharedTraceWork>) {
+    fn drain_stealer(&self, stealer: &Stealer<MarkWork>) {
         // consume until empty
         loop {
             match stealer.steal() {
@@ -343,9 +340,9 @@ impl SharedTraceQueue {
     /// Steal work from other worker queues into one batch.
     fn steal_from_workers(
         &self,
-        local_worker: Option<&SharedGcWorker>,
+        local_worker: Option<&GcWorker>,
         batch_len: usize,
-        batch: &mut Vec<SharedTraceWork>,
+        batch: &mut Vec<MarkWork>,
     ) {
         // snapshot avoids holding the registry lock while stealing
         let stealers = self.stealers_snapshot();
@@ -365,10 +362,10 @@ impl SharedTraceQueue {
     /// Steal work from one worker queue into one batch.
     fn steal_from_worker(
         &self,
-        local_worker: Option<&SharedGcWorker>,
-        stealer: &Stealer<SharedTraceWork>,
+        local_worker: Option<&GcWorker>,
+        stealer: &Stealer<MarkWork>,
         batch_len: usize,
-        batch: &mut Vec<SharedTraceWork>,
+        batch: &mut Vec<MarkWork>,
     ) {
         // no local worker means direct steals
         let Some(local_worker) = local_worker else {
@@ -396,21 +393,21 @@ impl SharedTraceQueue {
     }
 
     /// Return the currently registered worker stealers.
-    fn stealers_snapshot(&self) -> Vec<Stealer<SharedTraceWork>> {
+    fn stealers_snapshot(&self) -> Vec<Stealer<MarkWork>> {
         self.stealers.lock().clone()
     }
 }
 
 /// One active shared mark publication guard.
 #[derive(Debug)]
-pub(crate) struct SharedMarkPublication<'a> {
+pub(crate) struct MarkPublication<'a> {
     /// The owning shared collection state.
-    state: &'a SharedGcState,
+    state: &'a CollectorState,
 }
 
 /// Active shared sweep cursor.
 #[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct SharedSweepCursor {
+pub(crate) struct SweepCursor {
     /// The next small span index to sweep.
     pub(crate) small_span_index: usize,
     /// The next small slot index to sweep inside the current span.
@@ -425,16 +422,16 @@ pub(crate) struct SharedSweepCursor {
 
 /// Active shared sweep state.
 #[derive(Debug, Default)]
-struct SharedSweepState {
+struct SweepState {
     /// The next block to sweep.
-    cursor: SharedSweepCursor,
+    cursor: SweepCursor,
     /// The blocks freed so far in the active cycle.
     freed_allocations: usize,
     /// The bytes freed so far in the active cycle.
     freed_bytes: u64,
 }
 
-impl Drop for SharedMarkPublication<'_> {
+impl Drop for MarkPublication<'_> {
     fn drop(&mut self) {
         self.state.mark_publishers.fetch_sub(1, Ordering::AcqRel);
     }
@@ -442,24 +439,24 @@ impl Drop for SharedMarkPublication<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::{SharedTraceQueue, SharedTraceWork};
+    use super::{MarkQueue, MarkWork};
     use crate::SharedHeapReference;
 
     /// Pop worker-local work before global work.
     #[test]
     fn test_pop_worker_local_work_first() {
-        let queue = SharedTraceQueue::default();
+        let queue = MarkQueue::default();
         let worker = queue.register_worker();
         queue.push(
             Some(&worker),
-            SharedTraceWork::Large {
+            MarkWork::Large {
                 reference: SharedHeapReference::new(11),
                 start: 0,
             },
         );
         queue.push(
             None,
-            SharedTraceWork::Large {
+            MarkWork::Large {
                 reference: SharedHeapReference::new(13),
                 start: 0,
             },
@@ -471,11 +468,11 @@ mod tests {
         assert_eq!(
             batch,
             vec![
-                SharedTraceWork::Large {
+                MarkWork::Large {
                     reference: SharedHeapReference::new(11),
                     start: 0,
                 },
-                SharedTraceWork::Large {
+                MarkWork::Large {
                     reference: SharedHeapReference::new(13),
                     start: 0,
                 },

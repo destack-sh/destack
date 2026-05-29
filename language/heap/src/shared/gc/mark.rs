@@ -1,12 +1,12 @@
 use destack_mir::TraceTable;
 
-use crate::shared::gc::{SharedGcPhase, SharedGcWorker, SharedTraceWork};
-use crate::shared::space::{SharedHeapSpace, SharedHeapStorage};
+use crate::shared::gc::{GcPhase, GcWorker, MarkWork};
+use crate::shared::storage::{HeapPlace, HeapStorage};
 use crate::{
     HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, scan_references,
 };
 
-impl SharedHeapSpace {
+impl HeapStorage {
     /// Record one shared heap write barrier before one byte store.
     pub(crate) fn write_shared_barrier_bytes(
         &self,
@@ -62,13 +62,13 @@ impl SharedHeapSpace {
     ) -> HeapResult<()> {
         // idle block needs no publication work
         let phase = self.gc.phase();
-        if phase == SharedGcPhase::Idle {
+        if phase == GcPhase::Idle {
             return Ok(());
         }
 
         // concurrent publication
         let Some(_publication) = self.gc.begin_mark_publication() else {
-            if phase == SharedGcPhase::Sweep {
+            if phase == GcPhase::Sweep {
                 let Some(extent) = self.resolve_extent(reference) else {
                     return Err(HeapError::invalid_shared_heap_reference(reference));
                 };
@@ -96,7 +96,7 @@ impl SharedHeapSpace {
     /// Queue explicit roots that are not already marked in this cycle.
     pub(super) fn queue_unmarked_references(
         &self,
-        worker: Option<&SharedGcWorker>,
+        worker: Option<&GcWorker>,
         references: &[SharedHeapReference],
     ) -> HeapResult<()> {
         // seed explicit roots
@@ -114,7 +114,7 @@ impl SharedHeapSpace {
     /// Queue one shared reference for later trace work.
     pub(super) fn queue_reference(
         &self,
-        worker: Option<&SharedGcWorker>,
+        worker: Option<&GcWorker>,
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
         self.queue_references(worker, [reference])
@@ -123,7 +123,7 @@ impl SharedHeapSpace {
     /// Queue shared references for later trace work.
     pub(crate) fn queue_references(
         &self,
-        worker: Option<&SharedGcWorker>,
+        worker: Option<&GcWorker>,
         references: impl IntoIterator<Item = SharedHeapReference>,
     ) -> HeapResult<()> {
         // queue every non-null shared reference
@@ -141,7 +141,7 @@ impl SharedHeapSpace {
     /// Queue one shared reference as span work or direct reference work.
     pub(super) fn queue_reference_work(
         &self,
-        worker: Option<&SharedGcWorker>,
+        worker: Option<&GcWorker>,
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
         // resolve the reference to its physical storage
@@ -150,7 +150,7 @@ impl SharedHeapSpace {
         };
 
         // small references mark their span slot for later scanning
-        if let SharedHeapStorage::SmallSlot(slot) = extent.storage {
+        if let HeapPlace::SmallSlot(slot) = extent.storage {
             let should_queue = {
                 let store = self.state.read();
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
@@ -168,7 +168,7 @@ impl SharedHeapSpace {
             if should_queue {
                 self.gc
                     .trace_queue
-                    .push(worker, SharedTraceWork::SmallSpan(slot.span_index()));
+                    .push(worker, MarkWork::SmallSpan(slot.span_index()));
             }
 
             return Ok(());
@@ -180,7 +180,7 @@ impl SharedHeapSpace {
         }
         self.gc.trace_queue.push(
             worker,
-            SharedTraceWork::Large {
+            MarkWork::Large {
                 reference,
                 start: 0,
             },
@@ -190,20 +190,20 @@ impl SharedHeapSpace {
     }
 
     /// Mark one shared heap storage and return whether this was the first mark.
-    pub(super) fn mark_place(&self, storage: SharedHeapStorage) -> HeapResult<bool> {
+    pub(super) fn mark_place(&self, storage: HeapPlace) -> HeapResult<bool> {
         let store = self.state.read();
         let mark_epoch = self.gc.mark_epoch();
 
         // mark by physical shared heap storage
         match storage {
-            SharedHeapStorage::SmallSlot(slot) => {
+            HeapPlace::SmallSlot(slot) => {
                 let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
                     return Err(HeapError::internal("missing span"));
                 };
 
                 return Ok(span.mark_slot(slot.slot_index(), mark_epoch));
             }
-            SharedHeapStorage::LargeBlock(block_id) => {
+            HeapPlace::LargeBlock(block_id) => {
                 let Some(block) = store.large.blocks.get(block_id.index()?).cloned() else {
                     return Err(HeapError::internal("missing large block"));
                 };

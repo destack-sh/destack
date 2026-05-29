@@ -103,32 +103,6 @@ impl<'a> AllocationShape<'a> {
     }
 }
 
-/// The requested placement for one raw heap payload.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RawAllocationShape {
-    /// The exact payload byte length.
-    pub byte_len: usize,
-    /// The required block base alignment in bytes.
-    pub alignment: usize,
-}
-
-impl RawAllocationShape {
-    /// Create one raw allocation shape.
-    #[inline(always)]
-    pub const fn new(byte_len: usize, alignment: usize) -> Self {
-        Self {
-            byte_len,
-            alignment,
-        }
-    }
-
-    /// Create one byte-oriented raw allocation shape.
-    #[inline(always)]
-    pub const fn bytes(byte_len: usize) -> Self {
-        Self::new(byte_len, 1)
-    }
-}
-
 /// One allocator-ready allocation class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AllocationClass {

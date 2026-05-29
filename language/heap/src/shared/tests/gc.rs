@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    AllocationShape, Allocator, GcKind, GcOptions, GcProgress, HeapAllocationError, HeapError,
-    Payload, SharedAllocationCache, SharedGcPhase, SharedGcWorker, SharedHeap, SharedHeapLimits,
-    SharedHeapOptions, SharedHeapReference, SizeClassTable, TestLayout, test_layout, test_layouts,
+    AllocationCache, AllocationShape, Allocator, GcKind, GcOptions, GcPhase, GcProgress, GcWorker,
+    HeapAllocationError, HeapError, Payload, SharedHeap, SharedHeapLimits, SharedHeapOptions,
+    SharedHeapReference, SizeClassTable, TestLayout, test_layout, test_layouts,
 };
 use destack_mir::{TraceMap, TraceTable};
 
@@ -12,12 +12,7 @@ use super::{read_mapped_bytes, trace_table, write_mapped_bytes};
 /// Build one shared heap whose pacer starts immediately in step-driven tests.
 fn test_shared_heap(
     layouts: &[(usize, TraceMap)],
-) -> (
-    SharedHeap,
-    SharedAllocationCache,
-    SharedGcWorker,
-    Vec<TestLayout>,
-) {
+) -> (SharedHeap, AllocationCache, GcWorker, Vec<TestLayout>) {
     let options = SharedHeapOptions {
         gc: GcOptions {
             growth_percent: 0,
@@ -48,18 +43,18 @@ fn test_shared_heap(
 }
 
 /// Publish worker-local shared blocks before a direct heap collection.
-fn flush_shared_cache(shared: &SharedHeap, cache: &mut SharedAllocationCache) {
+fn flush_shared_cache(shared: &SharedHeap, cache: &mut AllocationCache) {
     shared.flush_allocation_cache(cache);
 }
 
-/// Reject one zero-size shared managed heap block.
+/// Reject one zero-size shared heap block.
 #[test]
 fn test_allocate_shared_rejects_zero_size_layout() {
     // build one shared heap with an invalid zero-size layout
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(0, TraceMap::empty())]);
     let layout = &layout_ids[0];
 
-    // reject zero-size shared managed objects loudly
+    // reject zero-size shared heap objects loudly
     let error = shared
         .allocate_payload(
             &worker,
@@ -484,7 +479,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
         .collect_step(&[first_parent, second_parent], true, 1, trace_table())
         .expect("shared collection step should succeed");
 
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
+    assert_eq!(shared.gc_phase(), GcPhase::Mark);
     assert!(!shared.mark_idle());
 
     // drain the remaining bounded mark and sweep work
@@ -564,7 +559,7 @@ fn test_collect_shared_scans_large_blocks_incrementally() {
     shared
         .collect_step(&[parent], true, 1, trace_table())
         .expect("shared collection step should succeed");
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
+    assert_eq!(shared.gc_phase(), GcPhase::Mark);
 
     // drain the remaining bounded mark and sweep work
     while shared
@@ -734,7 +729,7 @@ fn test_collect_shared_barrier_keeps_written_child() {
     shared
         .collect_step(&[parent], false, 1, trace_table())
         .expect("shared collection step should succeed");
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
+    assert_eq!(shared.gc_phase(), GcPhase::Mark);
 
     // publish the child edge through the write barrier before writing bytes
     shared
@@ -784,7 +779,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
     shared
         .collect_step(&[root], false, 1, trace_table())
         .expect("shared collection step should succeed");
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
+    assert_eq!(shared.gc_phase(), GcPhase::Mark);
 
     // allocate after mark has started
     let late = shared
@@ -897,13 +892,13 @@ fn test_allocate_shared_assists_sweep_before_returning() {
         "shared collection should become active"
     );
 
-    while shared.gc_phase() == SharedGcPhase::Mark {
+    while shared.gc_phase() == GcPhase::Mark {
         shared
             .collect_step(&[root], true, 1, trace_table())
             .expect("shared collection step should succeed");
     }
 
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Sweep);
+    assert_eq!(shared.gc_phase(), GcPhase::Sweep);
     let completed_cycles = shared.gc_state().completed_cycles;
 
     // block assist should service sweep before returning
@@ -918,7 +913,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
         .expect("shared heap block should succeed");
 
     // drain any remaining sweep work
-    while shared.gc_phase() != SharedGcPhase::Idle {
+    while shared.gc_phase() != GcPhase::Idle {
         shared
             .collect_step(&[], true, 1, trace_table())
             .expect("shared collection step should succeed");
@@ -974,7 +969,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
         .expect("shared collection step should succeed");
 
     // unreachable block should remain live until sweep is allowed
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
+    assert_eq!(shared.gc_phase(), GcPhase::Mark);
     assert!(shared.is_heap_live(unreachable));
 
     // allowing mark termination should finish the cycle and free garbage
@@ -986,7 +981,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
     {}
 
     // finish in idle with the unreachable block reclaimed
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Idle);
+    assert_eq!(shared.gc_phase(), GcPhase::Idle);
     assert!(!shared.is_heap_live(unreachable));
 }
 
@@ -1013,7 +1008,7 @@ fn test_collect_step_stays_idle_without_request() {
 
     // keep the collector idle
     assert_eq!(progress, GcProgress::Idle);
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Idle);
+    assert_eq!(shared.gc_phase(), GcPhase::Idle);
 }
 
 /// Honor one explicit shared collection request below the pacing trigger.
@@ -1046,7 +1041,7 @@ fn test_collect_step_honors_manual_request() {
         .expect("shared collection step should succeed");
 
     // first bounded step should enter mark
-    assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
+    assert_eq!(shared.gc_phase(), GcPhase::Mark);
 }
 
 /// Consume shared collector work from the active cycle budget.

@@ -1,17 +1,15 @@
 use destack_mir::TraceTable;
 
-use crate::local::space::{
-    DirtyExtent, GC_METADATA_STEP_BYTES, GC_METADATA_WORD_BITS, GcKind, GcStats, HeapSpace,
-    HeapStorage, HeapTraceQueue, LargeBlockId, YoungCursor, YoungGcPhase,
-};
+use crate::local::gc::{DirtyExtent, GC_METADATA_STEP_BYTES, GC_METADATA_WORD_BITS, Phase};
+use crate::local::storage::{GcKind, GcStats, HeapPlace, HeapStorage, LargeBlockId, YoungCursor};
 use crate::{
     GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference, HeapResult,
-    ReferenceInput, ReferenceRange, RootSlot, scan_references,
+    ReferenceInput, ReferenceRange, RootSlot, TraceQueue, scan_references,
 };
 
-impl HeapSpace {
+impl HeapStorage {
     /// Perform one young-generation collection over mutable heap roots.
-    pub fn collect_minor<E>(
+    pub(crate) fn collect_minor<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         trace_table: &TraceTable,
@@ -36,8 +34,8 @@ impl HeapSpace {
     }
 
     /// Return whether one local young collection is active.
-    pub(crate) fn young_gc_active(&self) -> bool {
-        self.collector.young_phase != YoungGcPhase::Idle
+    pub(crate) fn minor_gc_active(&self) -> bool {
+        self.collector.minor_phase != Phase::Idle
     }
 
     /// Start one local young collection.
@@ -53,7 +51,7 @@ impl HeapSpace {
         // reset minor cycle cursors
         self.clear_young_mark_bits();
         self.collector.minor_queue.clear();
-        self.collector.young_phase = YoungGcPhase::Mark;
+        self.collector.minor_phase = Phase::Mark;
         self.collector.young_sweep_range_cursor = 0;
         self.collector.young_sweep_span_cursor = 0;
         self.collector.young_sweep_slot_cursor = 0;
@@ -76,14 +74,14 @@ impl HeapSpace {
         E: From<HeapError>,
     {
         // no active work
-        if budget_bytes == 0 || self.collector.young_phase == YoungGcPhase::Idle {
+        if budget_bytes == 0 || self.collector.minor_phase == Phase::Idle {
             return Ok(GcProgress::Idle);
         }
 
-        match self.collector.young_phase {
-            YoungGcPhase::Idle => Ok(GcProgress::Idle),
-            YoungGcPhase::Mark => self.mark_young_gc_step(roots, usize::MAX, trace_table),
-            YoungGcPhase::Sweep => self.sweep_young_gc_step(roots, usize::MAX, trace_table),
+        match self.collector.minor_phase {
+            Phase::Idle => Ok(GcProgress::Idle),
+            Phase::Mark => self.mark_young_gc_step(roots, usize::MAX, trace_table),
+            Phase::Sweep => self.sweep_young_gc_step(roots, usize::MAX, trace_table),
         }
     }
 
@@ -110,7 +108,7 @@ impl HeapSpace {
             && self.collector.minor_queue.is_empty()
             && dirty_bytes + marked_bytes < budget_bytes
         {
-            self.collector.young_phase = YoungGcPhase::Sweep;
+            self.collector.minor_phase = Phase::Sweep;
             let remaining_bytes = budget_bytes - dirty_bytes - marked_bytes;
 
             return self.sweep_young_gc_step(roots, remaining_bytes, trace_table);
@@ -118,7 +116,7 @@ impl HeapSpace {
 
         // advance to sweep for the next safepoint
         if self.young_dirty_references_drained() && self.collector.minor_queue.is_empty() {
-            self.collector.young_phase = YoungGcPhase::Sweep;
+            self.collector.minor_phase = Phase::Sweep;
         }
 
         Ok(GcProgress::Active)
@@ -167,7 +165,7 @@ impl HeapSpace {
         self.gc.record_cycle(GcKind::Minor, stats);
 
         // reset active minor collection state
-        self.collector.young_phase = YoungGcPhase::Idle;
+        self.collector.minor_phase = Phase::Idle;
         self.collector.minor_queue.clear();
         self.collector.young_sweep_range_cursor = 0;
         self.collector.young_sweep_span_cursor = 0;
@@ -204,7 +202,7 @@ impl HeapSpace {
             // minor collection only traces young blocks
             if !matches!(
                 extent.storage,
-                HeapStorage::YoungRange { .. } | HeapStorage::YoungSlot(_)
+                HeapPlace::YoungRange { .. } | HeapPlace::YoungSlot(_)
             ) {
                 continue;
             }
@@ -414,7 +412,7 @@ impl HeapSpace {
     fn enqueue_young_reference(
         &mut self,
         reference: HeapReference,
-        pending: &mut HeapTraceQueue,
+        pending: &mut TraceQueue<HeapReference>,
     ) -> HeapResult<()> {
         // null references are not heap roots
         if reference.is_null() {
@@ -428,7 +426,7 @@ impl HeapSpace {
 
         if matches!(
             extent.storage,
-            HeapStorage::YoungRange { .. } | HeapStorage::YoungSlot(_)
+            HeapPlace::YoungRange { .. } | HeapPlace::YoungSlot(_)
         ) && self.mark_place(extent.storage)?
         {
             pending.push(reference);
@@ -458,7 +456,7 @@ impl HeapSpace {
         &mut self,
         budget_bytes: usize,
         scanned_bytes: &mut usize,
-        pending: &mut HeapTraceQueue,
+        pending: &mut TraceQueue<HeapReference>,
         trace_table: &TraceTable,
     ) -> HeapResult<()> {
         while *scanned_bytes < budget_bytes
@@ -705,7 +703,7 @@ impl HeapSpace {
 
             if matches!(
                 extent.storage,
-                HeapStorage::YoungRange { .. } | HeapStorage::YoungSlot(_)
+                HeapPlace::YoungRange { .. } | HeapPlace::YoungSlot(_)
             ) {
                 return Ok(true);
             }
