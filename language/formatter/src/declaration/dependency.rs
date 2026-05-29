@@ -72,7 +72,7 @@ fn format_dependency_item_name<'ast>(
     name: Name,
 ) -> FormatResult<()> {
     match name {
-        Name::Identifier(name) | Name::Number(name) => {
+        Name::Identifier(name) => {
             write!(f, [name])?;
         }
         Name::String(name) => {
@@ -80,6 +80,7 @@ fn format_dependency_item_name<'ast>(
             let span = Span::empty(f.context().file.id);
             format_scalar_literal(&literal, span, f)?;
         }
+        Name::Index(index) => write!(f, [text(&index.to_string())])?,
     }
 
     Ok(())
@@ -700,7 +701,7 @@ fn import_attribute_key_requires_quotes(
     attribute: &ImportAttribute,
 ) -> bool {
     match attribute.key {
-        Name::Identifier(_) | Name::Number(_) => false,
+        Name::Identifier(_) | Name::Index(_) => false,
         Name::String(name) => !is_identifier_for_quotes(context.strings.get(name)),
     }
 }
