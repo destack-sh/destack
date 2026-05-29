@@ -1227,7 +1227,7 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
 
-        Expression::New { ty, arguments } => {
+        Expression::New { ty, arguments } | Expression::NewMaybe { ty, arguments } => {
             let ty_expression = tree.get(*ty);
             visitor.visit_type_expression(tree, *ty, ty_expression);
             for argument_id in arguments {
