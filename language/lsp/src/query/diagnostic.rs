@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
+use destack_lsp_types as lsp;
+use destack_query as query;
 use destack_source::{
     Diagnostic, DiagnosticLabel, DiagnosticSeverity, DiagnosticTag, File, FileId,
 };
 use destack_workspace::{Repository, Revision};
 use serde_json::Value;
-use {destack_lsp_types as lsp, destack_query as query};
 
 use super::common::byte_span_to_range;
 use super::refactor::batch_edit_to_workspace_edit;

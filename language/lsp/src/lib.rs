@@ -1,5 +1,3 @@
-#![feature(default_field_values)]
-
 pub mod query;
 pub mod server;
 mod uri;

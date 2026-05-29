@@ -1,5 +1,6 @@
+use destack_lsp_types as lsp;
+use destack_query as query;
 use destack_source::File;
-use {destack_lsp_types as lsp, destack_query as query};
 
 use super::common::byte_to_utf16_position;
 

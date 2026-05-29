@@ -3,13 +3,14 @@ use std::time::Duration;
 
 use destack_lsp_server::UriExt;
 use destack_lsp_server::jsonrpc::{ErrorCode, Response};
+use destack_lsp_types as lsp;
+use destack_query as query;
 use destack_service::{FileChange, LanguageService, QueryRevision};
 use destack_session::open_repository_from_fs;
 use destack_source::{
     FileSystem, OverlayFileSystem, PhysicalFileSystem, Span, TargetId, TemporaryPhysicalFileSystem,
 };
 use destack_workspace::{DestackLayoutOverride, Environment, Settings};
-use {destack_lsp_types as lsp, destack_query as query};
 
 use super::fixture::TestLsp;
 use super::harness::{LspHarness, harness_for_fs, request_with_params, test_fs, uri_for_path};
