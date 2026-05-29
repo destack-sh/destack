@@ -26,23 +26,23 @@ pub enum HeapError {
         /// The configured limit.
         max_bytes: u64,
     },
-    /// One heap reference or pointer did not resolve to one live allocation.
+    /// One heap reference or pointer did not resolve to one live block.
     InvalidReference {
         /// The reference space that failed validation.
         kind: HeapReferenceKind,
         /// The raw reference or pointer value.
         value: u64,
     },
-    /// One heap byte range was outside the logical allocation.
+    /// One heap byte range was outside the logical block.
     InvalidByteRange {
         /// The requested byte offset.
         start: usize,
         /// The requested byte length.
         len: usize,
-        /// The logical allocation capacity in bytes.
+        /// The logical block capacity in bytes.
         capacity: usize,
     },
-    /// One allocation request was invalid.
+    /// One block request was invalid.
     InvalidAllocation {
         /// Allocation failure reason.
         reason: HeapAllocationError,
@@ -90,31 +90,31 @@ pub enum HeapConfigurationError {
     InvalidGcTriggerPercent { percent: u32 },
     /// The configured minimum GC work is unsupported.
     InvalidGcMinimumWorkBytes { bytes: usize },
-    /// The configured heap page width is unsupported.
+    /// The configured allocator page width is unsupported.
     InvalidPageSizeBytes { bytes: usize },
     /// The configured allocator chunk width is unsupported.
     InvalidAllocatorChunkSizeBytes { bytes: usize },
     /// The configured virtual heap-space width is unsupported.
     InvalidSpaceSizeBytes { bytes: usize },
-    /// The configured allocator chunk width is not aligned to the page width.
+    /// The configured allocator chunk width is not aligned to the allocator page width.
     MisalignedAllocatorChunkSize {
-        /// The configured page width in bytes.
+        /// The configured allocator page width in bytes.
         page_size_bytes: usize,
         /// The configured allocator chunk width in bytes.
         chunk_size_bytes: usize,
     },
-    /// The configured virtual heap-space width is not aligned to the page width.
+    /// The configured virtual heap-space width is not aligned to the allocator page width.
     MisalignedSpaceSize {
-        /// The configured page width in bytes.
+        /// The configured allocator page width in bytes.
         page_size_bytes: usize,
         /// The configured virtual heap-space width in bytes.
         space_size_bytes: usize,
     },
-    /// The explicit allocator does not match the configured heap page width.
+    /// The explicit allocator does not match the configured allocator page width.
     AllocatorPageSizeMismatch {
-        /// The page width configured through heap options.
+        /// The allocator page width configured through heap options.
         option_page_size_bytes: usize,
-        /// The actual page width of the explicit allocator.
+        /// The actual allocator page width.
         allocator_page_size_bytes: usize,
     },
     /// The explicit allocator does not match the configured heap chunk width.
@@ -124,13 +124,13 @@ pub enum HeapConfigurationError {
         /// The actual chunk width of the explicit allocator.
         allocator_chunk_size_bytes: usize,
     },
-    /// The configured heap young-allocation threshold exceeds young-space capacity.
+    /// The configured heap young-block threshold exceeds young-space capacity.
     YoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
     /// The configured heap young-space capacity exceeds young metadata capacity.
     YoungCapacityTooLarge { capacity: usize, max: usize },
-    /// The configured small-allocation alignment is unsupported.
+    /// The configured small-block alignment is unsupported.
     InvalidSmallAllocationAlignmentBytes { bytes: usize },
-    /// One size class violated the configured small-allocation alignment.
+    /// One size class violated the configured small-block alignment.
     MisalignedSizeClass {
         /// The required alignment in bytes.
         alignment_bytes: usize,
@@ -214,12 +214,12 @@ pub enum HeapReferenceKind {
     SharedRaw,
 }
 
-/// Invalid allocation request reason.
+/// Invalid block request reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HeapAllocationError {
-    /// Managed heap allocation with no bytes reached runtime.
+    /// Managed heap block with no bytes reached runtime.
     ZeroSize,
-    /// One allocation initializer did not match its requested byte length.
+    /// One block initializer did not match its requested byte length.
     ByteLengthMismatch {
         /// The expected byte length.
         expected: usize,
@@ -243,9 +243,9 @@ pub enum HeapRepresentationError {
         /// The maximum chunks representable by the allocator image.
         max_chunks: usize,
     },
-    /// One live large-allocation id cannot be represented.
-    InvalidLargeAllocationId {
-        /// The invalid large-allocation id.
+    /// One live large-block id cannot be represented.
+    InvalidLargeBlockId {
+        /// The invalid large-block id.
         id: u64,
     },
     /// One page identifier exceeded the encoded allocator page range.
@@ -253,15 +253,15 @@ pub enum HeapRepresentationError {
         /// The invalid page index.
         index: usize,
     },
-    /// One page run exceeded the encoded allocator page range.
-    InvalidPageRun {
-        /// The first page of the run.
+    /// One page span exceeded the encoded allocator page range.
+    InvalidPageSpan {
+        /// The first page of the span.
         first_page: PageId,
         /// The requested page count.
         page_count: usize,
     },
     /// One span slot exceeded the encoded small-space slot range.
-    InvalidSmallSlot {
+    InvalidSlot {
         /// The invalid span index.
         span_index: usize,
         /// The invalid slot index.
@@ -313,7 +313,7 @@ pub enum HeapGcStateError {
 pub enum HeapOperation {
     /// Scan heap references.
     Scan,
-    /// Free one heap allocation.
+    /// Free one heap block.
     Free,
 }
 
@@ -324,8 +324,8 @@ pub enum HeapOperationSource {
     Reference(HeapReference),
     /// One mature span.
     Span(usize),
-    /// One mature large allocation.
-    LargeAllocation(u64),
+    /// One mature large block.
+    LargeBlock(u64),
 }
 
 impl HeapError {
@@ -366,7 +366,7 @@ impl HeapError {
         }
     }
 
-    /// Return one invalid allocation error.
+    /// Return one invalid block error.
     pub const fn invalid_allocation(reason: HeapAllocationError) -> Self {
         Self::InvalidAllocation { reason }
     }
@@ -451,7 +451,7 @@ impl Display for HeapError {
                 )
             }
             Self::InvalidAllocation { reason } => {
-                write!(formatter, "invalid heap allocation: {reason}")
+                write!(formatter, "invalid heap block: {reason}")
             }
             Self::Representation { reason } => {
                 write!(formatter, "heap representation error: {reason}")
@@ -481,7 +481,7 @@ impl Display for HeapConfigurationError {
                 write!(formatter, "invalid minimum gc work bytes: {bytes}")
             }
             Self::InvalidPageSizeBytes { bytes } => {
-                write!(formatter, "invalid heap page width: {bytes}")
+                write!(formatter, "invalid allocator page width: {bytes}")
             }
             Self::InvalidAllocatorChunkSizeBytes { bytes } => {
                 write!(formatter, "invalid allocator chunk width: {bytes}")
@@ -495,7 +495,7 @@ impl Display for HeapConfigurationError {
             } => {
                 write!(
                     formatter,
-                    "allocator chunk width {chunk_size_bytes} is not aligned to page width {page_size_bytes}"
+                    "allocator chunk width {chunk_size_bytes} is not aligned to allocator page width {page_size_bytes}"
                 )
             }
             Self::MisalignedSpaceSize {
@@ -504,7 +504,7 @@ impl Display for HeapConfigurationError {
             } => {
                 write!(
                     formatter,
-                    "virtual heap-space width {space_size_bytes} is not aligned to page width {page_size_bytes}"
+                    "virtual heap-space width {space_size_bytes} is not aligned to allocator page width {page_size_bytes}"
                 )
             }
             Self::AllocatorPageSizeMismatch {
@@ -531,7 +531,7 @@ impl Display for HeapConfigurationError {
             } => {
                 write!(
                     formatter,
-                    "young allocation threshold {threshold} exceeds capacity {capacity}"
+                    "young block threshold {threshold} exceeds capacity {capacity}"
                 )
             }
             Self::YoungCapacityTooLarge { capacity, max } => {
@@ -541,7 +541,7 @@ impl Display for HeapConfigurationError {
                 )
             }
             Self::InvalidSmallAllocationAlignmentBytes { bytes } => {
-                write!(formatter, "invalid small-allocation alignment: {bytes}")
+                write!(formatter, "invalid small-block alignment: {bytes}")
             }
             Self::MisalignedSizeClass {
                 alignment_bytes,
@@ -627,7 +627,7 @@ impl Display for HeapReferenceKind {
 impl Display for HeapAllocationError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ZeroSize => write!(formatter, "zero-size managed allocation"),
+            Self::ZeroSize => write!(formatter, "zero-size managed block"),
             Self::ByteLengthMismatch { expected, actual } => {
                 write!(formatter, "expected {expected} bytes, got {actual}")
             }
@@ -650,22 +650,22 @@ impl Display for HeapRepresentationError {
                     "allocator chunk limit exceeded: required {required_chunks}, max {max_chunks}"
                 )
             }
-            Self::InvalidLargeAllocationId { id } => {
-                write!(formatter, "invalid large-allocation id: {id}")
+            Self::InvalidLargeBlockId { id } => {
+                write!(formatter, "invalid large-block id: {id}")
             }
             Self::InvalidPageId { index } => {
                 write!(formatter, "invalid page id index: {index}")
             }
-            Self::InvalidPageRun {
+            Self::InvalidPageSpan {
                 first_page,
                 page_count,
             } => {
                 write!(
                     formatter,
-                    "invalid page run: first page {first_page:?}, page count {page_count}"
+                    "invalid page span: first page {first_page:?}, page count {page_count}"
                 )
             }
-            Self::InvalidSmallSlot {
+            Self::InvalidSlot {
                 span_index,
                 slot_index,
             } => {
@@ -726,8 +726,8 @@ impl Display for HeapOperationSource {
         match self {
             Self::Reference(reference) => write!(formatter, "reference {reference:?}"),
             Self::Span(span_index) => write!(formatter, "span {span_index}"),
-            Self::LargeAllocation(allocation_id) => {
-                write!(formatter, "large allocation {allocation_id}")
+            Self::LargeBlock(block_id) => {
+                write!(formatter, "large block {block_id}")
             }
         }
     }

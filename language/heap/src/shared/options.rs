@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use destack_mir::TraceId;
 
 use crate::allocator::{
-    Allocator, DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES, DEFAULT_PAGE_SIZE_BYTES, SizeClassTable,
+    Allocator, DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES, DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
+    SizeClassTable,
 };
 use crate::{
     AllocationClass, DEFAULT_SHARED_SMALL_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
@@ -17,9 +18,9 @@ use crate::{
 pub struct SharedHeapOptions {
     /// The collector configuration.
     pub gc: GcOptions,
-    /// The configured small-allocation class table.
+    /// The configured small-block class table.
     pub size_classes: SizeClassTable,
-    /// The byte size for shared heap small-allocation spans.
+    /// The byte size for shared heap small-block spans.
     pub heap_small_size_bytes: usize,
     /// The virtual byte capacity for shared heap space.
     pub heap_space_size_bytes: usize,
@@ -29,7 +30,7 @@ pub struct SharedHeapOptions {
     pub page_size_bytes: usize,
     /// The byte size for one physical allocator chunk.
     pub allocator_chunk_size_bytes: usize,
-    /// The required alignment for configured small-allocation classes.
+    /// The required alignment for configured small-block classes.
     pub small_allocation_alignment_bytes: usize,
 }
 
@@ -41,7 +42,7 @@ impl Default for SharedHeapOptions {
             heap_small_size_bytes: DEFAULT_SHARED_SMALL_SIZE_BYTES,
             heap_space_size_bytes: DEFAULT_SPACE_SIZE_BYTES,
             raw_space_size_bytes: DEFAULT_SPACE_SIZE_BYTES,
-            page_size_bytes: DEFAULT_PAGE_SIZE_BYTES,
+            page_size_bytes: DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES,
             allocator_chunk_size_bytes: DEFAULT_ALLOCATOR_CHUNK_SIZE_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
@@ -49,7 +50,7 @@ impl Default for SharedHeapOptions {
 }
 
 impl SharedHeapOptions {
-    /// Resolve one managed allocation class for this shared heap shape.
+    /// Resolve one managed block class for this shared heap shape.
     #[inline(always)]
     pub fn allocation_class(
         &self,
