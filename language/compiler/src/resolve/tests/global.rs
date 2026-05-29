@@ -340,6 +340,52 @@ const value = answer;
 }
 
 #[test]
+fn test_resolve_does_not_import_nested_shadowed_profile_globals() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "compiler": {
+        "globals": ["globals.ds"]
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+function read() {
+    const answer = 1;
+    return answer;
+}
+"#,
+        )
+        .module(
+            "globals.ds",
+            r#"
+global {
+    const answer: int32 = 42;
+}
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+function read() {
+    const answer = 1;
+    return answer;
+}
+
+/// @import.summary
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_side_effect_import_does_not_import_globals() {
     let compiler = TestSession::new()
         .module(

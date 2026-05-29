@@ -54,6 +54,7 @@ let x: number = x + 1;
 function wrap<T extends Box<_>, U = T>(value: T): U
 /// @binding.symbol symbol=wrap role=item kind=function scope=<module>@5
 /// @binding.scope scope=wrap kind=function parent=<module>@6 owner=wrap
+/// @binding.owner_scope owner=wrap scope=wrap
 /// @binding.symbol symbol=T#1 role=local kind=generic_type_parameter scope=wrap@0
 /// @binding.symbol symbol=U role=local kind=generic_type_parameter scope=wrap@1
 /// @binding.symbol symbol=value#1 role=local kind=variable scope=wrap@2
@@ -80,6 +81,7 @@ where U: Clone {
 type Pick<T> = {
 /// @binding.symbol symbol=Pick role=item kind=type_alias scope=<module>@6
 /// @binding.scope scope=Pick kind=type parent=<module>@7 owner=Pick
+/// @binding.owner_scope owner=Pick scope=Pick
 /// @binding.symbol symbol=T#2 role=local kind=generic_type_parameter scope=Pick@0
 /// @binding.scope scope=scope8 kind=type parent=Pick@1
 
@@ -90,7 +92,7 @@ type Pick<T> = {
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 
-/// @binding.summary symbols=15 scopes=9 declarations=14 node_scopes=63
+/// @binding.summary symbols=15 scopes=9 declarations=14 node_scopes=63 owner_scopes=2
 "#,
     );
 }

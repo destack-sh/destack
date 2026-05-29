@@ -19,6 +19,18 @@ impl SnapshotTable for dir::BindingSegment {
             builder.push(row);
         }
 
+        // render owner scope index entries
+        for (owner, scope) in self.owner_scopes() {
+            let row = SnapshotRow::new(
+                builder.anchor_symbol(owner.into_global(self.module_id)),
+                "binding",
+                "owner_scope",
+            )
+            .field("owner", builder.local_symbol_label(owner))
+            .field("scope", builder.scope_label(scope));
+            builder.push(row);
+        }
+
         // render source declarations with stable, source-shaped keys
         for symbol_id in self.symbol_ids() {
             let symbol = self.get_symbol(symbol_id);
@@ -83,6 +95,7 @@ impl SnapshotTable for dir::BindingSegment {
             )
             .count_field("receivers", self.implicit_receivers().count())
             .field("node_scopes", self.node_scopes().count().to_string())
+            .count_field("owner_scopes", self.owner_scopes().count())
             .count_field("replaced_symbols", self.replaced_symbols().count())
             .count_field("replaced_scopes", self.replaced_scopes().count());
         builder.push(row);
