@@ -95,7 +95,7 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
 | Tensor | `tensor.*` (splat, extract, load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
 | Calls | `call`, `call.class`, `call.interface`, `call.indirect` |
-| Allocation | `new`, `new.slice`, `raw.alloc`, `raw.free`, `stack.alloc` |
+| Allocation | `new.zeroed`, `new.uninit`, `new.complete`, `new.slice.zeroed`, `new.slice.uninit`, `raw.alloc.zeroed`, `raw.alloc.uninit`, `raw.free` |
 | Intrinsics | `intrinsic.*` |
 
 Canonical MIR formatting uses camelCase for multiword instruction and intrinsic names.

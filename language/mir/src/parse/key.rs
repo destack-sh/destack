@@ -53,6 +53,8 @@ pub(super) enum TypeKey {
     Atomic { value: TypeReference },
     /// Runtime-erased interface value.
     Any { interface: TypeReference },
+    /// Linear uninitialized allocation token.
+    Uninit { value: TypeReference },
     /// Reference/pointer type.
     Reference {
         kind: ReferenceKind,
@@ -154,6 +156,7 @@ impl TypeKey {
             Type::Any { interface } => TypeKey::Any {
                 interface: *interface,
             },
+            Type::Uninit { value } => TypeKey::Uninit { value: *value },
 
             Type::Reference {
                 kind,

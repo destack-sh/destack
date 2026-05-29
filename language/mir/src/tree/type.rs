@@ -286,6 +286,11 @@ pub enum Type {
         /// The nullish values allowed by this slice descriptor.
         nullability: Nullability,
     },
+    /// Linear token for one uninitialized allocation.
+    Uninit {
+        /// The value under construction.
+        value: TypeReference,
+    },
 
     /// Fixed-size array: `[T; N]`.
     Array {
@@ -591,6 +596,9 @@ impl Type {
 
             // erased values may own hidden payloads
             Type::Any { .. } => Copy::No,
+
+            // initialization tokens are linear capabilities
+            Type::Uninit { .. } => Copy::No,
 
             // unique references carry ownership of typed heap storage
             Type::Reference { kind, .. } => match kind {

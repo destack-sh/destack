@@ -437,10 +437,15 @@ impl Tree {
                     places.set_global(value, *global);
                 }
             }
-            Instruction::New { destination, .. }
-            | Instruction::NewSlice { destination, .. }
-            | Instruction::RawAlloc { destination, .. }
-            | Instruction::FrameAlloc { destination, .. }
+            Instruction::NewZeroed { destination, .. }
+            | Instruction::NewUninit { destination, .. }
+            | Instruction::NewComplete { destination, .. }
+            | Instruction::NewSliceZeroed { destination, .. }
+            | Instruction::NewSliceUninit { destination, .. }
+            | Instruction::RawAllocZeroed { destination, .. }
+            | Instruction::RawAllocUninit { destination, .. }
+            | Instruction::FrameAllocZeroed { destination, .. }
+            | Instruction::FrameAllocUninit { destination, .. }
             | Instruction::CallableEnvironment { destination } => {
                 if let Some(value) = destination.value() {
                     places.set_value(value, *destination);

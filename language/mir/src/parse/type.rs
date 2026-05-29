@@ -319,6 +319,7 @@ impl Parser {
             "slice" => self.parse_slice_type()?,
             "atomic" => self.parse_atomic_type()?,
             "any" => self.parse_any_type()?,
+            "uninit" => self.parse_uninit_type()?,
             "variant" => self.parse_variant_type()?,
             _ => {
                 if let Some(alias_id) = self.type_alias_map.get(name).copied() {
@@ -372,6 +373,18 @@ impl Parser {
 
         Ok(Type::Any {
             interface: interface.into(),
+        })
+    }
+
+    /// Parse a linear uninitialized allocation token type.
+    fn parse_uninit_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let value = self.parse_type()?;
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(Type::Uninit {
+            value: value.into(),
         })
     }
 

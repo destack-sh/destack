@@ -70,9 +70,12 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::LocalAddr { .. }
                 | Instruction::GlobalAddr { .. }
                 | Instruction::FunctionAddr { .. }
-                | Instruction::New { .. }
-                | Instruction::RawAlloc { .. }
-                | Instruction::FrameAlloc { .. } => {}
+                | Instruction::NewZeroed { .. }
+                | Instruction::NewUninit { .. }
+                | Instruction::RawAllocZeroed { .. }
+                | Instruction::RawAllocUninit { .. }
+                | Instruction::FrameAllocZeroed { .. }
+                | Instruction::FrameAllocUninit { .. } => {}
                 Instruction::CallableBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
@@ -294,7 +297,11 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(array, from, to);
                     Self::replace_value_in_slot(value, from, to);
                 }
-                Instruction::NewSlice { length, .. } => {
+                Instruction::NewComplete { value, .. } => {
+                    Self::replace_value_in_slot(value, from, to);
+                }
+                Instruction::NewSliceZeroed { length, .. }
+                | Instruction::NewSliceUninit { length, .. } => {
                     Self::replace_value_in_slot(length, from, to);
                 }
                 Instruction::AtomicStore { pointer, value, .. }

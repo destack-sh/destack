@@ -147,7 +147,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, value, value_ty);
             }
         }
-        Type::Any { interface } => {
+        Type::Any { interface } | Type::Uninit { value: interface } => {
             if let TypeReference::Type(interface) = *interface {
                 let interface_ty = tree.get(interface);
                 visitor.visit_type(tree, interface, interface_ty);

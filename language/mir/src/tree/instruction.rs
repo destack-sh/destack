@@ -710,10 +710,10 @@ pub enum Instruction {
     },
 
     // heap allocation
-    /// Allocate typed heap storage (`new`).
+    /// Allocate zeroed typed heap storage (`new.zeroed`).
     ///
     /// The result type decides whether the returned reference is managed or unique.
-    New {
+    NewZeroed {
         /// The SSA value to define with the allocated reference.
         destination: ValueReference,
         /// The type of the struct to allocate.
@@ -721,11 +721,44 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeReference,
     },
-    /// Allocate typed repeated heap storage (`new.slice`).
+    /// Allocate uninitialized typed heap storage (`new.uninit`).
+    ///
+    /// The result is an initialization token that must be completed before publication.
+    NewUninit {
+        /// The SSA value to define with the initialization token.
+        destination: ValueReference,
+        /// The type of the struct to allocate.
+        layout: TypeReference,
+        /// The result type of the allocation.
+        result_type: TypeReference,
+    },
+    /// Complete one initialized heap allocation (`new.complete`).
+    NewComplete {
+        /// The SSA value to define with the completed allocation.
+        destination: ValueReference,
+        /// The initialization token to complete.
+        value: ValueReference,
+        /// The result type of the completed value.
+        result_type: TypeReference,
+    },
+    /// Allocate zeroed typed repeated heap storage (`new.slice.zeroed`).
     ///
     /// The result type decides whether the returned slice is managed or unique.
-    NewSlice {
+    NewSliceZeroed {
         /// The SSA value to define with the allocated slice.
+        destination: ValueReference,
+        /// The element type of the repeated storage.
+        element: TypeReference,
+        /// The number of elements (runtime value).
+        length: ValueReference,
+        /// The result type of the allocation.
+        result_type: TypeReference,
+    },
+    /// Allocate uninitialized typed repeated heap storage (`new.slice.uninit`).
+    ///
+    /// The result is an initialization token that must be completed before publication.
+    NewSliceUninit {
+        /// The SSA value to define with the initialization token.
         destination: ValueReference,
         /// The element type of the repeated storage.
         element: TypeReference,
@@ -736,10 +769,21 @@ pub enum Instruction {
     },
 
     // raw allocation
-    /// Allocate raw heap storage (`raw.alloc`).
+    /// Allocate zeroed raw heap storage (`raw.alloc.zeroed`).
     ///
     /// The caller must release the result with `raw.free`.
-    RawAlloc {
+    RawAllocZeroed {
+        /// The SSA value to define with the allocated pointer.
+        destination: ValueReference,
+        /// The type of the value to allocate.
+        layout: TypeReference,
+        /// The result type of the allocation.
+        result_type: TypeReference,
+    },
+    /// Allocate uninitialized raw heap storage (`raw.alloc.uninit`).
+    ///
+    /// The caller must initialize the pointee before reading and release the result with `raw.free`.
+    RawAllocUninit {
         /// The SSA value to define with the allocated pointer.
         destination: ValueReference,
         /// The type of the value to allocate.
@@ -749,7 +793,7 @@ pub enum Instruction {
     },
     /// Release raw heap storage (`raw.free`).
     ///
-    /// This is only valid for raw references produced by `raw.alloc`.
+    /// This is only valid for raw references produced by `raw.alloc.zeroed` or `raw.alloc.uninit`.
     RawFree {
         /// The pointer to free.
         pointer: ValueReference,
@@ -763,10 +807,21 @@ pub enum Instruction {
     },
 
     // frame allocation
-    /// Allocate frame-scoped storage (`frame.alloc`).
+    /// Allocate zeroed frame-scoped storage (`frame.alloc.zeroed`).
     ///
     /// The storage is released when the frame exits.
-    FrameAlloc {
+    FrameAllocZeroed {
+        /// The SSA value to define with the frame allocation pointer.
+        destination: ValueReference,
+        /// The type of the value to allocate.
+        layout: TypeReference,
+        /// The result type of the allocation.
+        result_type: TypeReference,
+    },
+    /// Allocate uninitialized frame-scoped storage (`frame.alloc.uninit`).
+    ///
+    /// The storage is released when the frame exits.
+    FrameAllocUninit {
         /// The SSA value to define with the frame allocation pointer.
         destination: ValueReference,
         /// The type of the value to allocate.
@@ -959,16 +1014,21 @@ impl Instruction {
             Instruction::CallClass { destination, .. } => *destination,
             Instruction::CallInterface { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
-            Instruction::New { destination, .. } => Some(*destination),
-            Instruction::NewSlice { destination, .. } => Some(*destination),
-            Instruction::RawAlloc { destination, .. } => Some(*destination),
+            Instruction::NewZeroed { destination, .. }
+            | Instruction::NewUninit { destination, .. }
+            | Instruction::NewComplete { destination, .. }
+            | Instruction::NewSliceZeroed { destination, .. }
+            | Instruction::NewSliceUninit { destination, .. }
+            | Instruction::RawAllocZeroed { destination, .. }
+            | Instruction::RawAllocUninit { destination, .. }
+            | Instruction::FrameAllocZeroed { destination, .. }
+            | Instruction::FrameAllocUninit { destination, .. } => Some(*destination),
             Instruction::RawFree { .. } => None,
             Instruction::Free { .. } => None,
             Instruction::Drop { .. } => None,
             Instruction::Pin { destination, .. } => Some(*destination),
             Instruction::Unpin { .. } => None,
             Instruction::BarrierWrite { .. } => None,
-            Instruction::FrameAlloc { destination, .. } => Some(*destination),
             Instruction::AtomicLoad { destination, .. } => Some(*destination),
             Instruction::AtomicStore { .. } => None,
             Instruction::AtomicCompareExchange { destination, .. } => Some(*destination),
@@ -1086,9 +1146,11 @@ impl Instruction {
             Instruction::CallClass { receiver, .. } => smallvec![*receiver],
             Instruction::CallInterface { receiver, .. } => smallvec![*receiver],
             Instruction::CallIndirect { callee, .. } => smallvec![*callee],
-            Instruction::New { .. } => smallvec![],
-            Instruction::NewSlice { length, .. } => smallvec![*length],
-            Instruction::RawAlloc { .. } => smallvec![],
+            Instruction::NewZeroed { .. } | Instruction::NewUninit { .. } => smallvec![],
+            Instruction::NewComplete { value, .. } => smallvec![*value],
+            Instruction::NewSliceZeroed { length, .. }
+            | Instruction::NewSliceUninit { length, .. } => smallvec![*length],
+            Instruction::RawAllocZeroed { .. } | Instruction::RawAllocUninit { .. } => smallvec![],
             Instruction::RawFree { pointer } => smallvec![*pointer],
             Instruction::Free { value } => smallvec![*value],
             Instruction::Drop { place } => place.value_references(),
@@ -1099,7 +1161,9 @@ impl Instruction {
                 offset,
                 byte_len,
             } => smallvec![*object, *offset, *byte_len],
-            Instruction::FrameAlloc { .. } => smallvec![],
+            Instruction::FrameAllocZeroed { .. } | Instruction::FrameAllocUninit { .. } => {
+                smallvec![]
+            }
             Instruction::AtomicLoad { pointer, .. } => smallvec![*pointer],
             Instruction::AtomicStore { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::AtomicCompareExchange {

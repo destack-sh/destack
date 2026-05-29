@@ -248,6 +248,9 @@ fn format_type_inner<'a>(
         Type::Any { interface } => {
             write!(f, [token("any"), token("<"), interface, token(">")])
         }
+        Type::Uninit { value } => {
+            write!(f, [token("uninit"), token("<"), value, token(">")])
+        }
         Type::Reference {
             kind,
             lifetime,

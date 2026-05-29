@@ -235,11 +235,21 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Allocate heap storage.
-    /// Returns a managed or unique reference type.
-    pub fn new_(&mut self, layout: LocalNodeId<Type>, result_type: LocalNodeId<Type>) -> Value {
+    /// Create a linear uninitialized allocation token type.
+    pub fn type_uninit(&mut self, value: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::Uninit {
+            value: value.into(),
+        })
+    }
+
+    /// Allocate zeroed heap storage.
+    pub fn new_zeroed(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::New {
+        self.insert_instruction(Instruction::NewZeroed {
             destination: destination.into(),
             layout: layout.into(),
             result_type: result_type.into(),
@@ -248,16 +258,43 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Allocate repeated heap storage.
-    /// Returns a slice value.
-    pub fn new_slice(
+    /// Allocate uninitialized heap storage.
+    pub fn new_uninit(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::NewUninit {
+            destination: destination.into(),
+            layout: layout.into(),
+            result_type: result_type.into(),
+        });
+        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        destination
+    }
+
+    /// Complete one initialized heap allocation.
+    pub fn new_complete(&mut self, value: Value, result_type: LocalNodeId<Type>) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::NewComplete {
+            destination: destination.into(),
+            value: value.into(),
+            result_type: result_type.into(),
+        });
+        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        destination
+    }
+
+    /// Allocate zeroed repeated heap storage.
+    pub fn new_slice_zeroed(
         &mut self,
         element: LocalNodeId<Type>,
         length: Value,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::NewSlice {
+        self.insert_instruction(Instruction::NewSliceZeroed {
             destination: destination.into(),
             element: element.into(),
             length: length.into(),
@@ -267,15 +304,32 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Allocate raw memory on the heap.
-    /// Returns a raw reference type. Caller must free with `raw.free`.
-    pub fn raw_alloc(
+    /// Allocate uninitialized repeated heap storage.
+    pub fn new_slice_uninit(
+        &mut self,
+        element: LocalNodeId<Type>,
+        length: Value,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::NewSliceUninit {
+            destination: destination.into(),
+            element: element.into(),
+            length: length.into(),
+            result_type: result_type.into(),
+        });
+        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        destination
+    }
+
+    /// Allocate zeroed raw memory on the heap.
+    pub fn raw_alloc_zeroed(
         &mut self,
         layout: LocalNodeId<Type>,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::RawAlloc {
+        self.insert_instruction(Instruction::RawAllocZeroed {
             destination: destination.into(),
             layout: layout.into(),
             result_type: result_type.into(),
@@ -285,7 +339,24 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Free raw heap memory previously allocated with `raw.alloc`.
+    /// Allocate uninitialized raw memory on the heap.
+    pub fn raw_alloc_uninit(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::RawAllocUninit {
+            destination: destination.into(),
+            layout: layout.into(),
+            result_type: result_type.into(),
+        });
+        self.define_value(destination, result_type);
+        self.define_place(destination, Place::value(destination.into()));
+        destination
+    }
+
+    /// Free raw heap memory previously allocated with `raw.alloc.zeroed` or `raw.alloc.uninit`.
     pub fn raw_free(&mut self, pointer: Value) {
         self.insert_instruction(Instruction::RawFree {
             pointer: pointer.into(),
@@ -299,15 +370,30 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Allocate on the stack (lives until function returns).
-    /// Returns a raw stack reference type.
-    pub fn frame_alloc(
+    /// Allocate zeroed frame storage.
+    pub fn frame_alloc_zeroed(
         &mut self,
         layout: LocalNodeId<Type>,
         result_type: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::FrameAlloc {
+        self.insert_instruction(Instruction::FrameAllocZeroed {
+            destination: destination.into(),
+            layout: layout.into(),
+            result_type: result_type.into(),
+        });
+        self.define_value_with_place(destination, result_type, Place::value(destination.into()));
+        destination
+    }
+
+    /// Allocate uninitialized frame storage.
+    pub fn frame_alloc_uninit(
+        &mut self,
+        layout: LocalNodeId<Type>,
+        result_type: LocalNodeId<Type>,
+    ) -> Value {
+        let destination = self.allocate_value();
+        self.insert_instruction(Instruction::FrameAllocUninit {
             destination: destination.into(),
             layout: layout.into(),
             result_type: result_type.into(),
