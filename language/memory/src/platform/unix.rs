@@ -128,9 +128,9 @@ pub(crate) fn create_page_frame_allocator_from_fd(
 }
 
 /// Return one page frame inside a contiguous frame range.
-pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, page_bytes: usize) -> PageFrame {
+pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, page_size_bytes: usize) -> PageFrame {
     PageFrame {
-        offset: frame.offset + (page_offset * page_bytes) as u64,
+        offset: frame.offset + (page_offset * page_size_bytes) as u64,
     }
 }
 
@@ -138,9 +138,9 @@ pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, page_bytes: usize) 
 pub(crate) fn allocate_frame_range(
     allocator: &PageFrameAllocator,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
-    let (frame, is_reused) = allocate_frame_storage(allocator, byte_len, page_bytes)?;
+    let (frame, is_reused) = allocate_frame_storage(allocator, byte_len, page_size_bytes)?;
 
     // reused frame file ranges must regain reserved page zero semantics
     if is_reused {
@@ -151,14 +151,14 @@ pub(crate) fn allocate_frame_range(
 }
 
 /// Retain mapped page frames.
-pub(crate) fn retain_frames<I>(allocator: &PageFrameAllocator, frames: I, page_bytes: usize)
+pub(crate) fn retain_frames<I>(allocator: &PageFrameAllocator, frames: I, page_size_bytes: usize)
 where
     I: IntoIterator<Item = PageFrame>,
 {
     let mut state = allocator.state.lock();
 
     for frame in frames {
-        let index = frame_index(frame, page_bytes);
+        let index = frame_index(frame, page_size_bytes);
         let ref_count = &mut state.frame_ref_counts[index];
 
         *ref_count += 1;
@@ -166,14 +166,14 @@ where
 }
 
 /// Release mapped page frames.
-pub(crate) fn release_frames<I>(allocator: &PageFrameAllocator, frames: I, page_bytes: usize)
+pub(crate) fn release_frames<I>(allocator: &PageFrameAllocator, frames: I, page_size_bytes: usize)
 where
     I: IntoIterator<Item = PageFrame>,
 {
     let mut state = allocator.state.lock();
 
     for frame in frames {
-        let index = frame_index(frame, page_bytes);
+        let index = frame_index(frame, page_size_bytes);
         let ref_count = &mut state.frame_ref_counts[index];
 
         // keep shared frames live until the last mapping drops
@@ -184,7 +184,7 @@ where
 
         state.free_ranges.push(PageFrameRange {
             offset: frame.offset,
-            byte_len: page_bytes as u64,
+            byte_len: page_size_bytes as u64,
         });
     }
 
@@ -196,9 +196,9 @@ where
 pub(crate) fn copy_page(
     allocator: &PageFrameAllocator,
     source: *mut u8,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
-    copy_frame_range(allocator, source, page_bytes, page_bytes)
+    copy_frame_range(allocator, source, page_size_bytes, page_size_bytes)
 }
 
 /// Copy one mapped byte range into a fresh page frame range.
@@ -206,9 +206,9 @@ pub(crate) fn copy_frame_range(
     allocator: &PageFrameAllocator,
     source: *mut u8,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
-    let (frame, _) = allocate_frame_storage(allocator, byte_len, page_bytes)?;
+    let (frame, _) = allocate_frame_storage(allocator, byte_len, page_size_bytes)?;
 
     // copy current bytes directly into the backing frame file
     write_frame_range(allocator.fd, frame, source, byte_len)?;
@@ -218,14 +218,14 @@ pub(crate) fn copy_frame_range(
 
 /// Return the platform frame byte width for fixed address mappings.
 pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
-    let page_bytes = system_page_bytes();
-    if page_bytes <= 0 {
+    let page_size_bytes = system_page_bytes();
+    if page_size_bytes <= 0 {
         return Err(MemoryError::Internal {
             context: "system frame size",
         });
     }
 
-    Ok(page_bytes as usize)
+    Ok(page_size_bytes as usize)
 }
 
 /// Reserve one inaccessible virtual address range.
@@ -256,18 +256,18 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> MemoryResult<VirtualSpac
 pub(crate) fn map_page_writable(
     base: *mut u8,
     page_index: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_frame_range_writable(base, page_index, page_bytes, page_bytes, allocator, frame)
+    map_frame_range_writable(base, page_index, page_size_bytes, page_size_bytes, allocator, frame)
 }
 
 /// Map one page frame range as copy on write memory.
 pub(crate) fn map_frame_range_cow(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
@@ -275,7 +275,7 @@ pub(crate) fn map_frame_range_cow(
     map_frame_range(
         base,
         first_page,
-        page_bytes,
+        page_size_bytes,
         byte_len,
         allocator,
         frame,
@@ -288,7 +288,7 @@ pub(crate) fn map_frame_range_cow(
 pub(crate) fn map_frame_range_writable(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
@@ -296,7 +296,7 @@ pub(crate) fn map_frame_range_writable(
     map_frame_range(
         base,
         first_page,
-        page_bytes,
+        page_size_bytes,
         byte_len,
         allocator,
         frame,
@@ -309,10 +309,10 @@ pub(crate) fn map_frame_range_writable(
 pub(crate) fn make_shared_pages_writable(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
 ) -> MemoryResult<()> {
-    let address = page_address(base, first_page, page_bytes);
+    let address = page_address(base, first_page, page_size_bytes);
     let result = protect_pages(address, byte_len, libc::PROT_READ | libc::PROT_WRITE);
     if result == 0 {
         return Ok(());
@@ -350,7 +350,7 @@ pub(crate) fn unregister_write_watch(registration: &WriteWatchRegistration) {
 fn allocate_frame_storage(
     allocator: &PageFrameAllocator,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<(PageFrame, bool)> {
     let mut state = allocator.state.lock();
 
@@ -370,7 +370,7 @@ fn allocate_frame_storage(
     };
 
     // each page starts with one owning mapping
-    initialize_frame_references(&mut state, frame, byte_len, page_bytes);
+    initialize_frame_references(&mut state, frame, byte_len, page_size_bytes);
 
     Ok((frame, is_reused))
 }
@@ -406,13 +406,13 @@ fn initialize_frame_references(
     state: &mut PageFrameAllocatorState,
     frame: PageFrame,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) {
-    let page_count = byte_len / page_bytes;
+    let page_count = byte_len / page_size_bytes;
 
     for page_offset in 0..page_count {
-        let frame = frame_at(frame, page_offset, page_bytes);
-        let index = frame_index(frame, page_bytes);
+        let frame = frame_at(frame, page_offset, page_size_bytes);
+        let index = frame_index(frame, page_size_bytes);
 
         if index >= state.frame_ref_counts.len() {
             state.frame_ref_counts.resize(index + 1, 0);
@@ -423,8 +423,8 @@ fn initialize_frame_references(
 }
 
 /// Return the dense index for one page frame.
-fn frame_index(frame: PageFrame, page_bytes: usize) -> usize {
-    (frame.offset as usize) / page_bytes
+fn frame_index(frame: PageFrame, page_size_bytes: usize) -> usize {
+    (frame.offset as usize) / page_size_bytes
 }
 
 /// Merge adjacent free page frame ranges.
@@ -453,8 +453,8 @@ fn byte_address(base: *mut u8, byte_offset: usize) -> *mut u8 {
 }
 
 /// Return one page address inside a reserved range.
-fn page_address(base: *mut u8, page_index: usize, page_bytes: usize) -> *mut u8 {
-    byte_address(base, page_index * page_bytes)
+fn page_address(base: *mut u8, page_index: usize, page_size_bytes: usize) -> *mut u8 {
+    byte_address(base, page_index * page_size_bytes)
 }
 
 /// Return the platform page byte width.
@@ -557,7 +557,7 @@ fn truncate_file(fd: RawFd, byte_len: u64) -> libc::c_int {
 fn map_frame_range(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
@@ -565,7 +565,7 @@ fn map_frame_range(
     flags: libc::c_int,
 ) -> MemoryResult<()> {
     // replace the reserved range with a file backed view
-    let address = page_address(base, first_page, page_bytes);
+    let address = page_address(base, first_page, page_size_bytes);
     let mapped = map_frame_fixed(
         address,
         byte_len,

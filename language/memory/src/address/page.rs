@@ -29,9 +29,9 @@ pub(super) struct PageMap {
 
 impl PageMap {
     /// Reserve one forkable page map.
-    pub(super) fn reserve(byte_len: usize, page_bytes: usize) -> MemoryResult<Self> {
+    pub(super) fn reserve(byte_len: usize, page_size_bytes: usize) -> MemoryResult<Self> {
         // align requested pages to native page frames
-        let frame_bytes = page_bytes.max(platform::system_frame_bytes()?);
+        let frame_bytes = page_size_bytes.max(platform::system_frame_bytes()?);
         let page_count = byte_len.div_ceil(frame_bytes);
         let byte_len = page_count * frame_bytes;
 

@@ -227,10 +227,10 @@ impl World {
             BindingReplayPayload::Results => ReplayPayloadMode::ResultsOnly,
             BindingReplayPayload::ArgumentsAndResults => ReplayPayloadMode::ArgumentsAndResults,
         };
-        let replay_chunk_size_mb = if header.max_chunk_bytes == 0 {
+        let replay_chunk_size_mb = if header.max_chunk_size_bytes == 0 {
             None
         } else {
-            Some(header.max_chunk_bytes / (1024 * 1024))
+            Some(header.max_chunk_size_bytes / (1024 * 1024))
         };
 
         let mut options = RuntimeOptions::default();

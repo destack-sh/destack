@@ -113,9 +113,9 @@ impl World {
             ..TraceHeader::new(environment)
         };
         if let Some(chunk_size_mb) = options.trace_chunk_size_mb() {
-            let chunk_bytes = chunk_size_mb.saturating_mul(1024 * 1024);
-            if chunk_bytes > 0 {
-                trace_header.max_chunk_bytes = chunk_bytes;
+            let chunk_size_bytes = chunk_size_mb.saturating_mul(1024 * 1024);
+            if chunk_size_bytes > 0 {
+                trace_header.max_chunk_size_bytes = chunk_size_bytes;
             }
         }
 

@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 use crate::{MemoryError, MemoryResult};
 
 /// The WebAssembly linear memory page width.
-const WASM_PAGE_BYTES: usize = 64 * 1024;
+const WASM_PAGE_SIZE_BYTES: usize = 64 * 1024;
 
 /// Whether mapped spaces can share page frames directly.
 pub(crate) const SUPPORTS_SHARED_PAGE_FRAMES: bool = false;
@@ -92,10 +92,10 @@ pub(crate) fn create_page_frame_allocator(_byte_len: usize) -> MemoryResult<Page
 pub(crate) fn allocate_frame_range(
     allocator: &PageFrameAllocator,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
-    let page_count = byte_len / page_bytes;
-    let (frame, is_reused) = allocate_frame_storage(allocator, page_count, page_bytes);
+    let page_count = byte_len / page_size_bytes;
+    let (frame, is_reused) = allocate_frame_storage(allocator, page_count, page_size_bytes);
 
     // reused linear memory frames must regain fresh page zero semantics
     if is_reused {
@@ -149,9 +149,9 @@ where
 pub(crate) fn copy_page(
     allocator: &PageFrameAllocator,
     source: *mut u8,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
-    copy_frame_range(allocator, source, page_bytes, page_bytes)
+    copy_frame_range(allocator, source, page_size_bytes, page_size_bytes)
 }
 
 /// Copy one mapped byte range into a fresh page frame range.
@@ -159,21 +159,21 @@ pub(crate) fn copy_frame_range(
     allocator: &PageFrameAllocator,
     source: *mut u8,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
-    let page_count = byte_len / page_bytes;
-    let (page_frame, _) = allocate_frame_storage(allocator, page_count, page_bytes);
+    let page_count = byte_len / page_size_bytes;
+    let (page_frame, _) = allocate_frame_storage(allocator, page_count, page_size_bytes);
     let mut state = allocator.state.lock();
 
     // copy each linear memory page into the contiguous frame range
     for page_offset in 0..page_count {
         // SAFETY: caller passes a mapped source range covering byte_len bytes
-        let source = unsafe { source.add(page_offset * page_bytes) };
+        let source = unsafe { source.add(page_offset * page_size_bytes) };
         let frame = &mut state.frames[page_frame.index + page_offset];
 
         // SAFETY: source and frame both cover one full page
         unsafe {
-            copy_nonoverlapping(source, frame.as_mut_ptr(), page_bytes);
+            copy_nonoverlapping(source, frame.as_mut_ptr(), page_size_bytes);
         }
     }
 
@@ -184,7 +184,7 @@ pub(crate) fn copy_frame_range(
 fn allocate_frame_storage(
     allocator: &PageFrameAllocator,
     frame_count: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> (PageFrame, bool) {
     let mut state = allocator.state.lock();
 
@@ -198,7 +198,7 @@ fn allocate_frame_storage(
         };
 
         for _ in 0..frame_count {
-            state.frames.push(vec![0; page_bytes].into_boxed_slice());
+            state.frames.push(vec![0; page_size_bytes].into_boxed_slice());
         }
 
         (frame, false)
@@ -212,7 +212,7 @@ fn allocate_frame_storage(
 
 /// Return the platform frame byte width for linear memory mappings.
 pub(crate) const fn system_frame_bytes() -> MemoryResult<usize> {
-    Ok(WASM_PAGE_BYTES)
+    Ok(WASM_PAGE_SIZE_BYTES)
 }
 
 /// Reserve one virtual byte range.
@@ -226,35 +226,35 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> MemoryResult<VirtualSpac
 pub(crate) fn map_page_writable(
     base: *mut u8,
     page_index: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_page(base, page_index, page_bytes, allocator, frame)
+    map_page(base, page_index, page_size_bytes, allocator, frame)
 }
 
 /// Copy one page frame range into linear memory.
 pub(crate) fn map_frame_range_cow(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_frame_range(base, first_page, page_bytes, byte_len, allocator, frame)
+    map_frame_range(base, first_page, page_size_bytes, byte_len, allocator, frame)
 }
 
 /// Copy one page frame range into linear memory.
 pub(crate) fn map_frame_range_writable(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_frame_range(base, first_page, page_bytes, byte_len, allocator, frame)
+    map_frame_range(base, first_page, page_size_bytes, byte_len, allocator, frame)
 }
 
 /// Prepare copied linear memory pages for writes.
@@ -283,12 +283,12 @@ pub(crate) fn unregister_write_watch(_registration: &WriteWatchRegistration) {}
 fn map_frame_range(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    let page_count = byte_len / page_bytes;
+    let page_count = byte_len / page_size_bytes;
 
     for page_offset in 0..page_count {
         let page_index = first_page + page_offset;
@@ -296,7 +296,7 @@ fn map_frame_range(
             index: frame.index + page_offset,
         };
 
-        map_page(base, page_index, page_bytes, allocator, frame)?;
+        map_page(base, page_index, page_size_bytes, allocator, frame)?;
     }
 
     Ok(())
@@ -306,7 +306,7 @@ fn map_frame_range(
 fn map_page(
     base: *mut u8,
     page_index: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
@@ -322,10 +322,10 @@ fn map_page(
     };
 
     // SAFETY: page_index is inside the owned linear memory reservation
-    let target = unsafe { base.add(page_index * page_bytes) };
+    let target = unsafe { base.add(page_index * page_size_bytes) };
     // SAFETY: source and target both cover one full page
     unsafe {
-        copy_nonoverlapping(source, target, page_bytes);
+        copy_nonoverlapping(source, target, page_size_bytes);
     }
 
     Ok(())

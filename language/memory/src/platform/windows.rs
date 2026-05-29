@@ -51,7 +51,7 @@ impl VirtualSpace {
     }
 
     /// Unmap this virtual byte space.
-    pub(crate) fn unmap<I>(&mut self, page_bytes: usize, mapped_pages: I)
+    pub(crate) fn unmap<I>(&mut self, page_size_bytes: usize, mapped_pages: I)
     where
         I: IntoIterator<Item = usize>,
     {
@@ -60,21 +60,21 @@ impl VirtualSpace {
         }
 
         let mut next_page = 0;
-        let page_count = self.byte_len / page_bytes;
+        let page_count = self.byte_len / page_size_bytes;
 
         // release reserved gaps and mapped page views
         for page_index in mapped_pages {
-            release_virtual_gap(self.base, next_page, page_index, page_bytes);
+            release_virtual_gap(self.base, next_page, page_index, page_size_bytes);
 
             // SAFETY: page_index comes from this address space page table
-            let address = unsafe { self.base.add(page_index * page_bytes) };
+            let address = unsafe { self.base.add(page_index * page_size_bytes) };
             unmap_page_view(address);
             release_placeholder(address);
 
             next_page = page_index + 1;
         }
 
-        release_virtual_gap(self.base, next_page, page_count, page_bytes);
+        release_virtual_gap(self.base, next_page, page_count, page_size_bytes);
         self.base = null_mut();
         self.byte_len = 0;
     }
@@ -179,10 +179,10 @@ pub(crate) fn create_page_frame_allocator(_byte_len: usize) -> MemoryResult<Page
 }
 
 /// Return one page frame inside a contiguous frame range.
-pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, page_bytes: usize) -> PageFrame {
+pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, page_size_bytes: usize) -> PageFrame {
     PageFrame {
         section_index: frame.section_index,
-        offset: frame.offset + (page_offset * page_bytes) as u64,
+        offset: frame.offset + (page_offset * page_size_bytes) as u64,
     }
 }
 
@@ -190,9 +190,9 @@ pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, page_bytes: usize) 
 pub(crate) fn allocate_frame_range(
     allocator: &PageFrameAllocator,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
-    let (frame, is_reused) = allocate_frame_storage(allocator, byte_len, page_bytes)?;
+    let (frame, is_reused) = allocate_frame_storage(allocator, byte_len, page_size_bytes)?;
 
     // reused page file ranges must regain reserved page zero semantics
     if is_reused {
@@ -203,7 +203,7 @@ pub(crate) fn allocate_frame_range(
 }
 
 /// Retain mapped page frames.
-pub(crate) fn retain_frames<I>(allocator: &PageFrameAllocator, frames: I, page_bytes: usize)
+pub(crate) fn retain_frames<I>(allocator: &PageFrameAllocator, frames: I, page_size_bytes: usize)
 where
     I: IntoIterator<Item = PageFrame>,
 {
@@ -211,7 +211,7 @@ where
 
     for frame in frames {
         let section = &mut state.sections[frame.section_index];
-        let index = frame_index(frame, page_bytes);
+        let index = frame_index(frame, page_size_bytes);
         let ref_count = &mut section.frame_ref_counts[index];
 
         *ref_count += 1;
@@ -219,7 +219,7 @@ where
 }
 
 /// Release mapped page frames.
-pub(crate) fn release_frames<I>(allocator: &PageFrameAllocator, frames: I, page_bytes: usize)
+pub(crate) fn release_frames<I>(allocator: &PageFrameAllocator, frames: I, page_size_bytes: usize)
 where
     I: IntoIterator<Item = PageFrame>,
 {
@@ -227,7 +227,7 @@ where
 
     for frame in frames {
         let section = &mut state.sections[frame.section_index];
-        let index = frame_index(frame, page_bytes);
+        let index = frame_index(frame, page_size_bytes);
         let ref_count = &mut section.frame_ref_counts[index];
 
         // keep shared frames live until the last mapping drops
@@ -238,7 +238,7 @@ where
 
         state.free_ranges.push(PageFrameRange {
             frame,
-            byte_len: page_bytes as u64,
+            byte_len: page_size_bytes as u64,
         });
     }
 
@@ -250,9 +250,9 @@ where
 pub(crate) fn copy_page(
     allocator: &PageFrameAllocator,
     source: *mut u8,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
-    copy_frame_range(allocator, source, page_bytes, page_bytes)
+    copy_frame_range(allocator, source, page_size_bytes, page_size_bytes)
 }
 
 /// Copy one mapped byte range into a fresh page frame range.
@@ -260,9 +260,9 @@ pub(crate) fn copy_frame_range(
     allocator: &PageFrameAllocator,
     source: *mut u8,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
-    let (frame, _) = allocate_frame_storage(allocator, byte_len, page_bytes)?;
+    let (frame, _) = allocate_frame_storage(allocator, byte_len, page_size_bytes)?;
     let target = map_frame_range_anywhere(allocator, frame, byte_len)?;
 
     // SAFETY: source and target are mapped for byte_len bytes
@@ -317,14 +317,14 @@ pub(crate) fn reserve_virtual_space(byte_len: usize) -> MemoryResult<VirtualSpac
 pub(crate) fn map_page_writable(
     base: *mut u8,
     page_index: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
     map_page(
         base,
         page_index,
-        page_bytes,
+        page_size_bytes,
         allocator,
         frame,
         PAGE_READWRITE,
@@ -335,7 +335,7 @@ pub(crate) fn map_page_writable(
 pub(crate) fn map_frame_range_cow(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
@@ -343,7 +343,7 @@ pub(crate) fn map_frame_range_cow(
     map_frame_range(
         base,
         first_page,
-        page_bytes,
+        page_size_bytes,
         byte_len,
         allocator,
         frame,
@@ -355,7 +355,7 @@ pub(crate) fn map_frame_range_cow(
 pub(crate) fn map_frame_range_writable(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
@@ -363,7 +363,7 @@ pub(crate) fn map_frame_range_writable(
     map_frame_range(
         base,
         first_page,
-        page_bytes,
+        page_size_bytes,
         byte_len,
         allocator,
         frame,
@@ -375,22 +375,22 @@ pub(crate) fn map_frame_range_writable(
 pub(crate) fn make_shared_pages_writable(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
 ) -> MemoryResult<()> {
-    let page_count = byte_len / page_bytes;
+    let page_count = byte_len / page_size_bytes;
 
     // each mapped view is currently page granular on Windows
     for page_offset in 0..page_count {
         let page_index = first_page + page_offset;
         // SAFETY: page_index is inside the reserved address space
-        let address = unsafe { base.add(page_index * page_bytes) };
+        let address = unsafe { base.add(page_index * page_size_bytes) };
         let mut old_protection = 0;
         // SAFETY: address and length describe one mapped page view
         let result = unsafe {
             VirtualProtect(
                 address.cast(),
-                page_bytes,
+                page_size_bytes,
                 PAGE_WRITECOPY,
                 &mut old_protection,
             )
@@ -432,7 +432,7 @@ pub(crate) fn unregister_write_watch(registration: &WriteWatchRegistration) {
 fn allocate_frame_storage(
     allocator: &PageFrameAllocator,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<(PageFrame, bool)> {
     let mut state = allocator.state.lock();
 
@@ -440,13 +440,13 @@ fn allocate_frame_storage(
     let (frame, is_reused) = if let Some(frame) = allocate_free_frame_range(&mut state, byte_len) {
         (frame, true)
     } else {
-        let frame = allocate_new_frame_range(&mut state, byte_len, page_bytes)?;
+        let frame = allocate_new_frame_range(&mut state, byte_len, page_size_bytes)?;
 
         (frame, false)
     };
 
     // each page starts with one owning mapping
-    initialize_frame_references(&mut state, frame, byte_len, page_bytes);
+    initialize_frame_references(&mut state, frame, byte_len, page_size_bytes);
 
     Ok((frame, is_reused))
 }
@@ -455,23 +455,23 @@ fn allocate_frame_storage(
 fn map_frame_range(
     base: *mut u8,
     first_page: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     byte_len: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
     protection: u32,
 ) -> MemoryResult<()> {
-    let page_count = byte_len / page_bytes;
+    let page_count = byte_len / page_size_bytes;
 
     // windows maps section views one page at a time
     for page_offset in 0..page_count {
         let page_index = first_page + page_offset;
         let frame = PageFrame {
             section_index: frame.section_index,
-            offset: frame.offset + (page_offset * page_bytes) as u64,
+            offset: frame.offset + (page_offset * page_size_bytes) as u64,
         };
 
-        map_page(base, page_index, page_bytes, allocator, frame, protection)?;
+        map_page(base, page_index, page_size_bytes, allocator, frame, protection)?;
     }
 
     Ok(())
@@ -529,17 +529,17 @@ unsafe extern "system" fn handle_write_watch(exception: *mut EXCEPTION_POINTERS)
 fn map_page(
     base: *mut u8,
     page_index: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
     allocator: &PageFrameAllocator,
     frame: PageFrame,
     protection: u32,
 ) -> MemoryResult<()> {
     // replace one placeholder page with one section view
     // SAFETY: page_index is inside the reserved address space
-    let address = unsafe { base.add(page_index * page_bytes) };
+    let address = unsafe { base.add(page_index * page_size_bytes) };
     let section = allocator.section(frame)?;
 
-    split_placeholder(address, page_bytes);
+    split_placeholder(address, page_size_bytes);
     unmap_page_view(address);
 
     // SAFETY: the placeholder was split to the exact page before replacement
@@ -549,7 +549,7 @@ fn map_page(
             GetCurrentProcess(),
             address.cast(),
             frame.offset,
-            page_bytes,
+            page_size_bytes,
             MEM_REPLACE_PLACEHOLDER,
             protection,
             null_mut(),
@@ -559,7 +559,7 @@ fn map_page(
     if view.Value.is_null() {
         return Err(last_system_error(
             MemoryOperation::MapFrameRange,
-            Some(page_bytes),
+            Some(page_size_bytes),
         ));
     }
 
@@ -611,13 +611,13 @@ fn release_placeholder(address: *mut u8) {
 }
 
 /// Release one placeholder gap between mapped pages.
-fn release_virtual_gap(base: *mut u8, first_page: usize, end_page: usize, page_bytes: usize) {
+fn release_virtual_gap(base: *mut u8, first_page: usize, end_page: usize, page_size_bytes: usize) {
     if first_page == end_page {
         return;
     }
 
     // SAFETY: first_page and end_page describe a gap in the placeholder range
-    let address = unsafe { base.add(first_page * page_bytes) };
+    let address = unsafe { base.add(first_page * page_size_bytes) };
     release_placeholder(address);
 }
 
@@ -703,7 +703,7 @@ fn zero_frame_range(
 fn allocate_new_frame_range(
     state: &mut PageFrameAllocatorState,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) -> MemoryResult<PageFrame> {
     // carve from an existing section when it has tail capacity
     for (section_index, section) in state.sections.iter_mut().enumerate().rev() {
@@ -718,7 +718,7 @@ fn allocate_new_frame_range(
     }
 
     // create a larger section so following ranges stay contiguous
-    let section_byte_len = page_frame_section_bytes(byte_len, page_bytes);
+    let section_byte_len = page_frame_section_bytes(byte_len, page_size_bytes);
     let section = create_section(section_byte_len)?;
     let section_index = state.sections.len();
     let mut section = PageFrameSection {
@@ -742,10 +742,10 @@ fn allocate_new_frame_range(
 }
 
 /// Return the section byte length for one allocation request.
-fn page_frame_section_bytes(byte_len: usize, page_bytes: usize) -> usize {
-    let section_bytes = byte_len.max(page_bytes * MIN_PAGE_FRAME_SECTION_FRAMES);
+fn page_frame_section_bytes(byte_len: usize, page_size_bytes: usize) -> usize {
+    let section_bytes = byte_len.max(page_size_bytes * MIN_PAGE_FRAME_SECTION_FRAMES);
 
-    section_bytes.next_multiple_of(page_bytes)
+    section_bytes.next_multiple_of(page_size_bytes)
 }
 
 /// Create one page file backed section.
@@ -811,13 +811,13 @@ fn initialize_frame_references(
     state: &mut PageFrameAllocatorState,
     frame: PageFrame,
     byte_len: usize,
-    page_bytes: usize,
+    page_size_bytes: usize,
 ) {
-    let page_count = byte_len / page_bytes;
+    let page_count = byte_len / page_size_bytes;
 
     for page_offset in 0..page_count {
-        let frame = frame_at(frame, page_offset, page_bytes);
-        let index = frame_index(frame, page_bytes);
+        let frame = frame_at(frame, page_offset, page_size_bytes);
+        let index = frame_index(frame, page_size_bytes);
         let section = &mut state.sections[frame.section_index];
 
         if index >= section.frame_ref_counts.len() {
@@ -829,8 +829,8 @@ fn initialize_frame_references(
 }
 
 /// Return the dense index for one page frame.
-fn frame_index(frame: PageFrame, page_bytes: usize) -> usize {
-    (frame.offset as usize) / page_bytes
+fn frame_index(frame: PageFrame, page_size_bytes: usize) -> usize {
+    (frame.offset as usize) / page_size_bytes
 }
 
 /// Merge adjacent free page frame ranges.

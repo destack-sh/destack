@@ -33,7 +33,7 @@ impl TraceChunk {
         &self,
         encoded_len: u64,
         max_events_per_chunk: usize,
-        max_chunk_bytes: u64,
+        max_chunk_size_bytes: u64,
     ) -> bool {
         // rotate when event count would exceed the chunk limit
         if self.header.event_count as usize >= max_events_per_chunk {
@@ -41,7 +41,7 @@ impl TraceChunk {
         }
 
         // rotate when byte length would exceed the chunk limit
-        self.byte_length().saturating_add(encoded_len) > max_chunk_bytes
+        self.byte_length().saturating_add(encoded_len) > max_chunk_size_bytes
     }
 
     /// Return whether this chunk currently stores any events.
