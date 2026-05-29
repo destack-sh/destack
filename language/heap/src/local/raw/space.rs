@@ -4,24 +4,23 @@ use std::sync::Arc;
 use destack_memory::AddressSpace;
 
 use super::{
-    LargeAllocation, LargeAllocationId, RawPageMapEntry, RawPlace, RawRegion, RawSmallSpanClass,
-    SmallSpan,
+    LargeBlock, LargeBlockId, RawExtent, RawPageMapEntry, RawSmallSpanClass, RawStorage, SmallSpan,
 };
-use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable, SpanSlot};
+use crate::allocator::{Allocator, PageSpan, PageSpanCache, SizeClassTable, Slot};
 use crate::{
     AllocationUsage, CowTable, HeapError, HeapOptions, HeapResult, RawPointer, RawSpaceUsage,
 };
 
-/// The first non-null raw large-allocation id.
+/// The first non-null raw large-block id.
 const FIRST_ALLOCATED_LARGE_ALLOCATION_ID: u64 = 1;
 
-/// One live raw allocation space over one allocator.
+/// One live raw block space over one allocator.
 #[derive(Debug)]
 pub struct RawSpace {
     /// The shared page allocator for every raw payload.
     pub(super) allocator: Arc<Allocator>,
-    /// The local cache of reusable page runs.
-    pub(crate) page_run_cache: PageRunCache,
+    /// The local cache of reusable page spans.
+    pub(crate) page_span_cache: PageSpanCache,
 
     /// The raw small space.
     pub(crate) small: SmallSpace,
@@ -52,13 +51,13 @@ impl RawSpace {
     ) -> Result<Self, HeapError> {
         options.validate_local()?;
         options.validate_allocator(&allocator)?;
-        let page_run_cache = PageRunCache::new(allocator.pages_per_chunk());
+        let page_span_cache = PageSpanCache::new(allocator.pages_per_chunk());
         let next_offset = allocator.page_size_bytes();
         let mapping = AddressSpace::reserve(options.raw_space_size_bytes, options.page_size_bytes)?;
 
         Ok(Self {
             allocator,
-            page_run_cache,
+            page_span_cache,
             small: SmallSpace {
                 size_classes: options.size_classes.clone(),
                 span_size_bytes: options.raw_small_size_bytes,
@@ -66,9 +65,9 @@ impl RawSpace {
                 partial_spans: BTreeMap::new(),
             },
             large: LargeSpace {
-                allocations: CowTable::new(),
-                free_large_allocation_ids: Vec::new(),
-                next_unused_large_allocation_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
+                blocks: CowTable::new(),
+                free_large_block_ids: Vec::new(),
+                next_unused_large_block_id: FIRST_ALLOCATED_LARGE_ALLOCATION_ID,
             },
             page_map: Vec::new(),
             next_offset,
@@ -82,22 +81,21 @@ impl RawSpace {
         &self.allocator
     }
 
-    /// Return the number of live raw allocations.
+    /// Return the number of live raw blocks.
     pub fn allocation_count(&self) -> usize {
         self.usage.allocation_count()
     }
 
     /// Return the exact retained raw allocator-page bytes.
     pub fn retained_bytes(&self) -> u64 {
-        self.allocator.retained_bytes_for_page_runs(
-            self.small.spans.iter().map(|span| &span.pages).chain(
-                self.large
-                    .allocations
-                    .iter()
-                    .map(|allocation| &allocation.pages),
-            ),
+        self.allocator.retained_bytes_for_page_spans(
+            self.small
+                .spans
+                .iter()
+                .map(|span| &span.pages)
+                .chain(self.large.blocks.iter().map(|block| &block.pages)),
         ) + self
-            .page_run_cache
+            .page_span_cache
             .cached_bytes(self.allocator.page_size_bytes())
     }
 
@@ -110,51 +108,37 @@ impl RawSpace {
         }
     }
 
-    /// Allocate one page run through the local page-run cache.
-    pub(crate) fn allocate_page_run(&mut self, byte_len: usize) -> HeapResult<PageRun> {
-        self.page_run_cache
+    /// Allocate one page span through the local page-span cache.
+    pub(crate) fn allocate_page_span(&mut self, byte_len: usize) -> HeapResult<PageSpan> {
+        self.page_span_cache
             .allocate_pages(&self.allocator, byte_len)
     }
 
-    /// Release one page run through the local page-run cache.
-    pub(crate) fn release_page_run(&mut self, page_run: PageRun) -> HeapResult<()> {
-        self.page_run_cache
-            .release_page_run(&self.allocator, page_run)
+    /// Release one page span through the local page-span cache.
+    pub(crate) fn release_page_span(&mut self, page_span: PageSpan) -> HeapResult<()> {
+        self.page_span_cache
+            .release_page_span(&self.allocator, page_span)
     }
 
     /// Flush transient cache state before one exact branch boundary.
     pub(crate) fn flush_branch_boundary(&mut self) -> HeapResult<()> {
-        self.page_run_cache.flush(&self.allocator)
+        self.page_span_cache.flush(&self.allocator)
     }
 
-    /// Return one live raw large allocation by id.
-    pub(super) fn large_allocation(
-        &self,
-        allocation_id: LargeAllocationId,
-    ) -> Option<&LargeAllocation> {
-        let index = allocation_id.index().ok()?;
-        let allocation = self.large.allocations.get(index)?;
+    /// Return one live raw large block by id.
+    pub(super) fn large_block(&self, block_id: LargeBlockId) -> Option<&LargeBlock> {
+        let index = block_id.index().ok()?;
+        let block = self.large.blocks.get(index)?;
 
-        if allocation.is_live {
-            Some(allocation)
-        } else {
-            None
-        }
+        if block.is_live { Some(block) } else { None }
     }
 
-    /// Return one live raw large allocation mutably by id.
-    pub(super) fn large_allocation_mut(
-        &mut self,
-        allocation_id: LargeAllocationId,
-    ) -> Option<&mut LargeAllocation> {
-        let index = allocation_id.index().ok()?;
-        let allocation = self.large.allocations.get_mut(index)?;
+    /// Return one live raw large block mutably by id.
+    pub(super) fn large_block_mut(&mut self, block_id: LargeBlockId) -> Option<&mut LargeBlock> {
+        let index = block_id.index().ok()?;
+        let block = self.large.blocks.get_mut(index)?;
 
-        if allocation.is_live {
-            Some(allocation)
-        } else {
-            None
-        }
+        if block.is_live { Some(block) } else { None }
     }
 
     /// Return one live raw span by index.
@@ -172,16 +156,16 @@ impl RawSpace {
         self.page_map.get(page_index).copied().flatten()
     }
 
-    /// Record one page-map entry for every page in one logical page run.
-    pub(crate) fn map_page_run(
+    /// Record one page-map entry for every page in one logical page span.
+    pub(crate) fn map_page_span(
         &mut self,
         first_offset: usize,
-        page_run: &PageRun,
+        page_span: &PageSpan,
         mut entry: impl FnMut(usize) -> RawPageMapEntry,
     ) {
         let first_page_index = first_offset / self.allocator.page_size_bytes();
 
-        for logical_page_index in 0..page_run.len() {
+        for logical_page_index in 0..page_span.len() {
             let page_index = first_page_index + logical_page_index;
 
             if self.page_map.len() <= page_index {
@@ -192,11 +176,11 @@ impl RawSpace {
         }
     }
 
-    /// Clear every page-map entry for one logical page run.
-    pub(crate) fn unmap_page_run(&mut self, first_offset: usize, page_run: &PageRun) {
+    /// Clear every page-map entry for one logical page span.
+    pub(crate) fn unmap_page_span(&mut self, first_offset: usize, page_span: &PageSpan) {
         let first_page_index = first_offset / self.allocator.page_size_bytes();
 
-        for logical_page_index in 0..page_run.len() {
+        for logical_page_index in 0..page_span.len() {
             let page_index = first_page_index + logical_page_index;
 
             if let Some(entry) = self.page_map.get_mut(page_index) {
@@ -205,15 +189,15 @@ impl RawSpace {
         }
     }
 
-    /// Return the resolved region for one live raw pointer.
-    pub(crate) fn resolve_region(&self, pointer: RawPointer) -> Option<RawRegion> {
+    /// Return the resolved extent for one live raw pointer.
+    pub(crate) fn resolve_extent(&self, pointer: RawPointer) -> Option<RawExtent> {
         let page_size_bytes = self.allocator.page_size_bytes();
         let page_index = pointer.offset() / page_size_bytes;
         let page_offset = pointer.offset() % page_size_bytes;
         let entry = self.page_entry(page_index)?;
 
         match entry {
-            RawPageMapEntry::Small {
+            RawPageMapEntry::SmallSpan {
                 span_index,
                 logical_page_index,
             } => {
@@ -237,44 +221,44 @@ impl RawSpace {
 
                 let slot_base_offset = slot_index * span.class.size_class;
                 let base_offset = span.first_offset + slot_base_offset;
-                let slot = SpanSlot::new(span_index, slot_index).ok()?;
+                let slot = Slot::new(span_index, slot_index).ok()?;
 
-                Some(RawRegion {
-                    place: RawPlace::Small(slot),
+                Some(RawExtent {
+                    storage: RawStorage::SmallSlot(slot),
                     base: RawPointer::new(base_offset),
                     byte_offset: slot_offset,
                     byte_len,
                 })
             }
-            RawPageMapEntry::Large {
-                allocation_id,
+            RawPageMapEntry::LargeBlock {
+                block_id,
                 logical_page_index,
             } => {
-                let allocation = self.large_allocation(allocation_id)?;
+                let block = self.large_block(block_id)?;
                 let logical_byte_offset =
                     logical_page_index * self.allocator.page_size_bytes() + page_offset;
-                if allocation.byte_len == 0 {
+                if block.byte_len == 0 {
                     if logical_byte_offset != 0 {
                         return None;
                     }
-                } else if logical_byte_offset >= allocation.byte_len {
+                } else if logical_byte_offset >= block.byte_len {
                     return None;
                 }
 
-                Some(RawRegion {
-                    place: RawPlace::Large(allocation_id),
-                    base: RawPointer::new(allocation.first_offset),
+                Some(RawExtent {
+                    storage: RawStorage::LargeBlock(block_id),
+                    base: RawPointer::new(block.first_offset),
                     byte_offset: logical_byte_offset,
-                    byte_len: allocation.byte_len,
+                    byte_len: block.byte_len,
                 })
             }
         }
     }
 
-    /// Return the base pointer for one raw place.
-    pub(crate) fn base_pointer(&self, place: RawPlace) -> HeapResult<RawPointer> {
-        let base_offset = match place {
-            RawPlace::Small(slot) => {
+    /// Return the base pointer for one raw storage.
+    pub(crate) fn base_pointer(&self, storage: RawStorage) -> HeapResult<RawPointer> {
+        let base_offset = match storage {
+            RawStorage::SmallSlot(slot) => {
                 let Some(span) = self.span(slot.span_index()) else {
                     return Err(HeapError::internal("missing span"));
                 };
@@ -282,12 +266,12 @@ impl RawSpace {
 
                 span.first_offset + slot_offset
             }
-            RawPlace::Large(allocation_id) => {
-                let Some(allocation) = self.large_allocation(allocation_id) else {
-                    return Err(HeapError::internal("missing large allocation"));
+            RawStorage::LargeBlock(block_id) => {
+                let Some(block) = self.large_block(block_id) else {
+                    return Err(HeapError::internal("missing large block"));
                 };
 
-                allocation.first_offset
+                block.first_offset
             }
         };
 
@@ -318,32 +302,32 @@ impl RawSpace {
         Ok(first_offset)
     }
 
-    /// Return the page runs reachable from this live raw space.
-    pub(crate) fn live_page_runs(&self) -> Vec<PageRun> {
-        let mut page_runs = Vec::new();
+    /// Return the page spans reachable from this live raw space.
+    pub(crate) fn live_page_spans(&self) -> Vec<PageSpan> {
+        let mut page_spans = Vec::new();
 
-        // collect raw span page runs first
-        page_runs.extend(self.small.spans.iter().map(|span| span.pages));
+        // collect raw span page spans first
+        page_spans.extend(self.small.spans.iter().map(|span| span.pages));
 
-        // collect live large-allocation page runs next
-        page_runs.extend(
+        // collect live large-block page spans next
+        page_spans.extend(
             self.large
-                .allocations
+                .blocks
                 .iter()
-                .filter(|allocation| allocation.is_live)
-                .map(|allocation| allocation.pages),
+                .filter(|block| block.is_live)
+                .map(|block| block.pages),
         );
 
-        page_runs
+        page_spans
     }
 
-    /// Release allocator page runs owned by this raw space.
+    /// Release allocator page spans owned by this raw space.
     fn close(&mut self) -> HeapResult<()> {
-        for page_run in self.live_page_runs() {
-            self.release_page_run(page_run)?;
+        for page_span in self.live_page_spans() {
+            self.release_page_span(page_span)?;
         }
 
-        self.page_run_cache.flush(&self.allocator)
+        self.page_span_cache.flush(&self.allocator)
     }
 }
 
@@ -369,15 +353,15 @@ pub(crate) struct SmallSpace {
 /// One raw large space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LargeSpace {
-    /// The live raw allocations.
-    pub(crate) allocations: CowTable<LargeAllocation>,
-    /// The free raw allocation ids available for reuse.
-    pub(crate) free_large_allocation_ids: Vec<u64>,
-    /// The next raw allocation id to allocate.
-    pub(crate) next_unused_large_allocation_id: u64,
+    /// The live raw blocks.
+    pub(crate) blocks: CowTable<LargeBlock>,
+    /// The free raw block ids available for reuse.
+    pub(crate) free_large_block_ids: Vec<u64>,
+    /// The next raw block id to allocate.
+    pub(crate) next_unused_large_block_id: u64,
 }
 
-/// Return the offset rounded up to one allocation boundary.
+/// Return the offset rounded up to one block boundary.
 fn align_up(byte_len: usize, alignment_bytes: usize) -> usize {
     let alignment_bytes = alignment_bytes.max(1);
 

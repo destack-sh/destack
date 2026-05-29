@@ -1,10 +1,10 @@
 mod access;
 mod allocate;
+mod block;
+mod extent;
 mod image;
-mod large;
 mod map;
 mod reference;
-mod region;
 mod remember;
 mod space;
 mod span;
@@ -12,10 +12,10 @@ mod young;
 
 pub(crate) use crate::local::gc::*;
 pub(crate) use crate::{GcKind, GcState, GcStats};
+pub(crate) use block::*;
+pub(crate) use extent::*;
 pub(crate) use image::*;
-pub(crate) use large::*;
 pub use reference::HeapReference;
-pub(crate) use region::*;
 pub use space::*;
 pub(crate) use span::*;
 pub(crate) use young::*;

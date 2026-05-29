@@ -78,7 +78,7 @@ impl SizeClassPolicy {
         classes
     }
 
-    /// Validate this small allocation policy.
+    /// Validate this small block policy.
     fn validate(self) -> Result<(), HeapError> {
         if self.min_bytes == 0 || self.max_bytes == 0 {
             return Err(HeapError::configuration(
@@ -124,7 +124,7 @@ impl SizeClassPolicy {
     }
 }
 
-/// One fixed-size small allocation class.
+/// One fixed-size small block class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SizeClass {
     /// The slot payload size in bytes.

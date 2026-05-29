@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapRepresentationError, HeapResult};
 
-/// Reference to one shared heap allocation.
+/// Reference to one shared heap block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SharedHeapReference(pub(crate) usize);
 

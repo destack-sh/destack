@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Exact shared heap-space usage for one live shared heap space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SharedHeapSpaceUsage {
-    /// The number of live shared heap allocations.
+    /// The number of live shared heap blocks.
     pub allocation_count: usize,
     /// The logical live shared heap payload bytes.
     pub allocated_bytes: u64,
@@ -14,7 +14,7 @@ pub struct SharedHeapSpaceUsage {
 /// Exact shared raw-space usage for one live shared raw space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct SharedRawSpaceUsage {
-    /// The number of live shared raw-space allocations.
+    /// The number of live shared raw-space blocks.
     pub allocation_count: usize,
     /// The logical live shared raw-space payload bytes.
     pub allocated_bytes: u64,

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Pointer to one shared raw allocation.
+/// Pointer to one shared raw block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SharedRawPointer(pub(crate) usize);
 

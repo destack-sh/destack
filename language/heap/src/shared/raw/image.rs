@@ -4,17 +4,17 @@ use destack_memory::AddressSpace;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
-use super::{SharedRawAllocation, SharedRawSpace};
-use crate::allocator::PageRunCache;
-use crate::{AllocationUsage, Allocator, HeapResult, PageRun};
+use super::{SharedRawBlock, SharedRawSpace};
+use crate::allocator::PageSpanCache;
+use crate::{AllocationUsage, Allocator, HeapResult, PageSpan};
 
 /// One frozen shared raw-space image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SharedRawSpaceImage {
-    /// Captured shared raw-space allocations keyed by allocation index.
-    allocations: Box<[SharedRawAllocationImage]>,
+    /// Captured shared raw-space blocks keyed by block index.
+    blocks: Box<[SharedRawBlockImage]>,
 
-    /// The number of allocated shared raw-space allocations.
+    /// The number of allocated shared raw-space blocks.
     allocated_count: usize,
     /// The number of allocated shared raw-space bytes.
     allocated_bytes: u64,
@@ -27,14 +27,14 @@ pub struct SharedRawSpaceImage {
 impl SharedRawSpaceImage {
     /// Create one frozen shared raw-space image.
     pub fn new(
-        allocations: Box<[SharedRawAllocationImage]>,
+        blocks: Box<[SharedRawBlockImage]>,
         allocated_count: usize,
         allocated_bytes: u64,
         space_size_bytes: usize,
         next_offset: usize,
     ) -> Self {
         Self {
-            allocations,
+            blocks,
             allocated_count,
             allocated_bytes,
             space_size_bytes,
@@ -42,17 +42,17 @@ impl SharedRawSpaceImage {
         }
     }
 
-    /// Return one shared allocation image by index.
-    pub fn allocation(&self, index: usize) -> Option<&SharedRawAllocationImage> {
-        self.allocations.get(index)
+    /// Return one shared block image by index.
+    pub fn block(&self, index: usize) -> Option<&SharedRawBlockImage> {
+        self.blocks.get(index)
     }
 
-    /// Return the frozen shared raw-space allocations.
-    pub fn allocations(&self) -> &[SharedRawAllocationImage] {
-        &self.allocations
+    /// Return the frozen shared raw-space blocks.
+    pub fn blocks(&self) -> &[SharedRawBlockImage] {
+        &self.blocks
     }
 
-    /// Return the number of allocated allocations.
+    /// Return the number of allocated blocks.
     pub const fn allocated_count(&self) -> usize {
         self.allocated_count
     }
@@ -76,25 +76,25 @@ impl SharedRawSpaceImage {
     pub fn page_count(&self, page_size_bytes: usize) -> usize {
         let mut page_count = 0;
 
-        // count retained allocation bytes
-        for allocation in self.allocations() {
-            page_count += allocation.bytes.len().div_ceil(page_size_bytes);
+        // count retained block bytes
+        for block in self.blocks() {
+            page_count += block.bytes.len().div_ceil(page_size_bytes);
         }
 
         page_count
     }
 }
 
-/// One frozen shared raw-space allocation image.
+/// One frozen shared raw-space block image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SharedRawAllocationImage {
-    /// Whether this allocation is live.
+pub struct SharedRawBlockImage {
+    /// Whether this block is live.
     pub is_live: bool,
     /// The first byte offset inside shared raw space.
     pub first_offset: usize,
-    /// The logical byte length of this allocation.
+    /// The logical byte length of this block.
     pub byte_len: usize,
-    /// The captured allocation bytes.
+    /// The captured block bytes.
     pub bytes: Box<[u8]>,
 }
 
@@ -103,7 +103,7 @@ impl SharedRawSpace {
     ///
     /// Call this only from a safepoint where shared raw mutators are stopped.
     pub fn fork(&self) -> HeapResult<Self> {
-        let allocations = self.allocations.read();
+        let blocks = self.blocks.read();
         let state = self.state.lock();
         let mapping = self.mapping.write().fork_lazy()?;
         let base_address = mapping.base_address();
@@ -112,36 +112,34 @@ impl SharedRawSpace {
             allocator: self.allocator.clone(),
             base_address,
             state: parking_lot::Mutex::new(super::space::SharedRawState {
-                page_run_cache: PageRunCache::new(self.allocator.pages_per_chunk()),
+                page_span_cache: PageSpanCache::new(self.allocator.pages_per_chunk()),
                 usage: state.usage,
                 live_retained_bytes: state.live_retained_bytes,
                 next_offset: state.next_offset,
             }),
             page_map: parking_lot::RwLock::new(Vec::new()),
-            allocations: parking_lot::RwLock::new(
-                allocations
+            blocks: parking_lot::RwLock::new(
+                blocks
                     .iter()
-                    .map(
-                        |allocation: &Arc<RwLock<SharedRawAllocation>>| -> HeapResult<_> {
-                            let allocation = allocation.read();
-                            let pages = if allocation.is_vacant() {
-                                PageRun::empty()
-                            } else {
-                                self.allocator.share_page_run(allocation.pages)?
-                            };
-                            let mut allocation = allocation.clone();
-                            allocation.pages = pages;
+                    .map(|block: &Arc<RwLock<SharedRawBlock>>| -> HeapResult<_> {
+                        let block = block.read();
+                        let pages = if block.is_vacant() {
+                            PageSpan::empty()
+                        } else {
+                            self.allocator.share_page_span(block.pages)?
+                        };
+                        let mut block = block.clone();
+                        block.pages = pages;
 
-                            Ok(Arc::new(RwLock::new(allocation)))
-                        },
-                    )
+                        Ok(Arc::new(RwLock::new(block)))
+                    })
                     .collect::<HeapResult<Vec<_>>>()?,
             ),
             mapping: parking_lot::RwLock::new(mapping),
         };
 
         drop(state);
-        drop(allocations);
+        drop(blocks);
 
         rebuild_page_map(&forked);
 
@@ -156,39 +154,39 @@ impl SharedRawSpace {
         let mapping = AddressSpace::reserve(image.space_size_bytes(), allocator.page_size_bytes())?;
         let base_address = mapping.base_address();
 
-        let allocations = image
-            .allocations()
+        let blocks = image
+            .blocks()
             .iter()
-            .map(|allocation| -> HeapResult<_> {
-                let allocation = if allocation.is_live {
-                    let pages = allocator.allocate_pages(allocation.bytes.len())?;
+            .map(|block| -> HeapResult<_> {
+                let block = if block.is_live {
+                    let pages = allocator.allocate_pages(block.bytes.len())?;
 
-                    mapping.write_bytes(allocation.first_offset, &allocation.bytes)?;
+                    mapping.write_bytes(block.first_offset, &block.bytes)?;
 
-                    Arc::new(RwLock::new(SharedRawAllocation::new(
-                        allocation.first_offset,
-                        allocation.byte_len,
+                    Arc::new(RwLock::new(SharedRawBlock::new(
+                        block.first_offset,
+                        block.byte_len,
                         pages,
                     )))
                 } else {
-                    Arc::new(RwLock::new(SharedRawAllocation::vacant()))
+                    Arc::new(RwLock::new(SharedRawBlock::vacant()))
                 };
 
-                Ok(allocation)
+                Ok(block)
             })
             .collect::<HeapResult<Vec<_>>>()?;
-        let live_retained_bytes = live_retained_bytes(&allocations, allocator.page_size_bytes());
+        let live_retained_bytes = live_retained_bytes(&blocks, allocator.page_size_bytes());
         let restored = Self {
             allocator: allocator.clone(),
             base_address,
             state: parking_lot::Mutex::new(super::space::SharedRawState {
-                page_run_cache: PageRunCache::new(allocator.pages_per_chunk()),
+                page_span_cache: PageSpanCache::new(allocator.pages_per_chunk()),
                 usage: AllocationUsage::new(image.allocated_count(), image.allocated_bytes()),
                 live_retained_bytes,
                 next_offset: image.next_offset(),
             }),
             page_map: parking_lot::RwLock::new(Vec::new()),
-            allocations: parking_lot::RwLock::new(allocations),
+            blocks: parking_lot::RwLock::new(blocks),
             mapping: parking_lot::RwLock::new(mapping),
         };
 
@@ -199,34 +197,31 @@ impl SharedRawSpace {
 
     /// Return one frozen shared raw-space image.
     pub fn image(&self) -> HeapResult<SharedRawSpaceImage> {
-        let allocations = self.allocations.read();
+        let blocks = self.blocks.read();
         let state = self.state.lock();
 
         Ok(SharedRawSpaceImage::new(
-            allocations
+            blocks
                 .iter()
-                .map(
-                    |allocation: &Arc<RwLock<SharedRawAllocation>>| -> HeapResult<_> {
-                        let allocation = allocation.read();
-                        let bytes = if allocation.is_vacant() {
-                            Box::new([])
-                        } else {
-                            let byte_len =
-                                allocation.pages.len() * self.allocator.page_size_bytes();
-                            self.mapping
-                                .read()
-                                .read_bytes(allocation.first_offset, byte_len)?
-                                .into_boxed_slice()
-                        };
+                .map(|block: &Arc<RwLock<SharedRawBlock>>| -> HeapResult<_> {
+                    let block = block.read();
+                    let bytes = if block.is_vacant() {
+                        Box::new([])
+                    } else {
+                        let byte_len = block.pages.len() * self.allocator.page_size_bytes();
+                        self.mapping
+                            .read()
+                            .read_bytes(block.first_offset, byte_len)?
+                            .into_boxed_slice()
+                    };
 
-                        Ok(SharedRawAllocationImage {
-                            is_live: !allocation.is_vacant(),
-                            first_offset: allocation.first_offset,
-                            byte_len: allocation.byte_len,
-                            bytes,
-                        })
-                    },
-                )
+                    Ok(SharedRawBlockImage {
+                        is_live: !block.is_vacant(),
+                        first_offset: block.first_offset,
+                        byte_len: block.byte_len,
+                        bytes,
+                    })
+                })
                 .collect::<HeapResult<Vec<_>>>()?
                 .into_boxed_slice(),
             state.usage.allocation_count(),
@@ -239,34 +234,31 @@ impl SharedRawSpace {
 
 /// Rebuild the address space entries for one live shared raw space.
 fn rebuild_page_map(raw: &SharedRawSpace) {
-    let allocations = raw.allocations.read();
+    let blocks = raw.blocks.read();
 
-    for (allocation_index, allocation) in allocations.iter().enumerate() {
-        let allocation = allocation.read();
+    for (block_index, block) in blocks.iter().enumerate() {
+        let block = block.read();
 
-        if allocation.is_vacant() {
+        if block.is_vacant() {
             continue;
         }
 
-        raw.map_page_run(allocation.first_offset, &allocation.pages, allocation_index);
+        raw.map_page_span(block.first_offset, &block.pages, block_index);
     }
 }
 
-/// Return the live retained bytes for restored raw allocations.
-fn live_retained_bytes(
-    allocations: &[Arc<RwLock<SharedRawAllocation>>],
-    page_size_bytes: usize,
-) -> u64 {
+/// Return the live retained bytes for restored raw blocks.
+fn live_retained_bytes(blocks: &[Arc<RwLock<SharedRawBlock>>], page_size_bytes: usize) -> u64 {
     let mut retained_bytes = 0;
 
-    for allocation in allocations {
-        let allocation = allocation.read();
+    for block in blocks {
+        let block = block.read();
 
-        if allocation.is_vacant() {
+        if block.is_vacant() {
             continue;
         }
 
-        retained_bytes += allocation.pages.len() as u64 * page_size_bytes as u64;
+        retained_bytes += block.pages.len() as u64 * page_size_bytes as u64;
     }
 
     retained_bytes

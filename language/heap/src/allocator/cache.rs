@@ -1,75 +1,75 @@
-use super::{Allocator, PageRun};
+use super::{Allocator, PageSpan};
 use crate::HeapResult;
 
-/// One bounded cache of contiguous page runs.
+/// One bounded cache of contiguous page spans.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PageRunCache {
+pub(crate) struct PageSpanCache {
     /// The maximum cached page count.
     page_capacity: usize,
     /// The current cached page count.
     cached_pages: usize,
-    /// The cached contiguous page runs.
-    runs: Vec<PageRun>,
+    /// The cached contiguous page spans.
+    spans: Vec<PageSpan>,
 }
 
-impl Default for PageRunCache {
+impl Default for PageSpanCache {
     fn default() -> Self {
         Self::new(0)
     }
 }
 
-impl PageRunCache {
-    /// Create one empty page-run cache with the given page capacity.
+impl PageSpanCache {
+    /// Create one empty page-span cache with the given page capacity.
     pub(crate) const fn new(page_capacity: usize) -> Self {
         Self {
             page_capacity,
             cached_pages: 0,
-            runs: Vec::new(),
+            spans: Vec::new(),
         }
     }
 
-    /// Allocate one page run through this cache.
+    /// Allocate one page span through this cache.
     pub(crate) fn allocate_pages(
         &mut self,
         allocator: &Allocator,
         byte_len: usize,
-    ) -> HeapResult<PageRun> {
+    ) -> HeapResult<PageSpan> {
         let page_count = allocator.page_count(byte_len);
         if page_count == 0 {
-            return Ok(PageRun::empty());
+            return Ok(PageSpan::empty());
         }
 
-        // reuse one cached run when possible
-        if let Some(run) = self.allocate(page_count) {
-            return Ok(run);
+        // reuse one cached span when possible
+        if let Some(span) = self.allocate(page_count) {
+            return Ok(span);
         }
 
         allocator.allocate_pages(byte_len)
     }
 
-    /// Release one page run through this cache.
-    pub(crate) fn release_page_run(
+    /// Release one page span through this cache.
+    pub(crate) fn release_page_span(
         &mut self,
         allocator: &Allocator,
-        page_run: PageRun,
+        page_span: PageSpan,
     ) -> HeapResult<()> {
-        if !allocator.is_run_unique(page_run)? {
-            return allocator.release_page_run(&page_run);
+        if !allocator.is_span_unique(page_span)? {
+            return allocator.release_page_span(&page_span);
         }
 
-        if self.cache(page_run) {
+        if self.cache(page_span) {
             return Ok(());
         }
 
-        allocator.recycle_cached_run(page_run)?;
+        allocator.recycle_cached_span(page_span)?;
 
         Ok(())
     }
 
-    /// Flush this cache back into the allocator free runs.
+    /// Flush this cache back into the allocator free spans.
     pub(crate) fn flush(&mut self, allocator: &Allocator) -> HeapResult<()> {
-        for run in self.drain() {
-            allocator.recycle_cached_run(run)?;
+        for span in self.drain() {
+            allocator.recycle_cached_span(span)?;
         }
 
         Ok(())
@@ -80,31 +80,34 @@ impl PageRunCache {
         self.cached_pages as u64 * page_size_bytes as u64
     }
 
-    /// Return one cached run that satisfies the requested page count.
-    pub(crate) fn allocate(&mut self, page_count: usize) -> Option<PageRun> {
+    /// Return one cached span that satisfies the requested page count.
+    pub(crate) fn allocate(&mut self, page_count: usize) -> Option<PageSpan> {
         if page_count == 0 {
-            return Some(PageRun::empty());
+            return Some(PageSpan::empty());
         }
 
-        // prefer the most recently released run first
-        let run_index = self.runs.iter().rposition(|run| run.len() >= page_count)?;
-        let run = self.runs.swap_remove(run_index);
-        self.cached_pages -= run.len();
-        if run.len() == page_count {
-            return Some(run);
+        // prefer the most recently released span first
+        let span_index = self
+            .spans
+            .iter()
+            .rposition(|span| span.len() >= page_count)?;
+        let span = self.spans.swap_remove(span_index);
+        self.cached_pages -= span.len();
+        if span.len() == page_count {
+            return Some(span);
         }
 
-        let (allocation, remainder) = run.split_prefix_unchecked(page_count);
+        let (block, remainder) = span.split_prefix_unchecked(page_count);
         if !remainder.is_empty() {
             self.cache(remainder);
         }
 
-        Some(allocation)
+        Some(block)
     }
 
-    /// Cache one contiguous run when it fits this cache.
-    pub(crate) fn cache(&mut self, run: PageRun) -> bool {
-        if run.is_empty() {
+    /// Cache one contiguous span when it fits this cache.
+    pub(crate) fn cache(&mut self, span: PageSpan) -> bool {
+        if span.is_empty() {
             return true;
         }
 
@@ -112,55 +115,55 @@ impl PageRunCache {
             return false;
         }
 
-        let next_cached_pages = self.cached_pages + run.len();
+        let next_cached_pages = self.cached_pages + span.len();
         if next_cached_pages > self.page_capacity {
             return false;
         }
 
-        let run = self.coalesce(run);
+        let span = self.coalesce(span);
 
         self.cached_pages = next_cached_pages;
-        self.runs.push(run);
+        self.spans.push(span);
 
         true
     }
 
-    /// Drain every cached run.
-    pub(crate) fn drain(&mut self) -> impl Iterator<Item = PageRun> + '_ {
+    /// Drain every cached span.
+    pub(crate) fn drain(&mut self) -> impl Iterator<Item = PageSpan> + '_ {
         self.cached_pages = 0;
 
-        self.runs.drain(..)
+        self.spans.drain(..)
     }
 
-    /// Merge one run with any immediately adjacent cached runs.
-    fn coalesce(&mut self, mut run: PageRun) -> PageRun {
-        let mut run_index = 0;
-        while run_index < self.runs.len() {
-            let candidate = self.runs[run_index];
-            let merged = if candidate.is_immediately_before(run) {
-                Some(Self::merged_run(candidate, run))
-            } else if run.is_immediately_before(candidate) {
-                Some(Self::merged_run(run, candidate))
+    /// Merge one span with any immediately adjacent cached spans.
+    fn coalesce(&mut self, mut span: PageSpan) -> PageSpan {
+        let mut span_index = 0;
+        while span_index < self.spans.len() {
+            let candidate = self.spans[span_index];
+            let merged = if candidate.is_immediately_before(span) {
+                Some(Self::merged_span(candidate, span))
+            } else if span.is_immediately_before(candidate) {
+                Some(Self::merged_span(span, candidate))
             } else {
                 None
             };
 
             if let Some(merged) = merged {
-                self.runs.swap_remove(run_index);
-                run = merged;
+                self.spans.swap_remove(span_index);
+                span = merged;
                 continue;
             }
 
-            run_index += 1;
+            span_index += 1;
         }
 
-        run
+        span
     }
 
-    /// Merge two adjacent cached runs.
-    fn merged_run(left: PageRun, right: PageRun) -> PageRun {
+    /// Merge two adjacent cached spans.
+    fn merged_span(left: PageSpan, right: PageSpan) -> PageSpan {
         debug_assert!(left.is_immediately_before(right));
 
-        PageRun::from_raw(left.first_page, left.page_count + right.page_count)
+        PageSpan::from_raw(left.first_page, left.page_count + right.page_count)
     }
 }
