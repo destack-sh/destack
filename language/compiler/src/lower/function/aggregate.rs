@@ -675,11 +675,12 @@ impl FunctionLowerer<'_> {
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let dir::Expression::New { ty, .. } = self.context.dir_tree.get(expression_id) else {
-            return Ok(None);
+        let ty = match self.context.dir_tree.get(expression_id) {
+            dir::Expression::New { ty, .. } | dir::Expression::NewMaybe { ty, .. } => *ty,
+            _ => return Ok(None),
         };
 
-        let Some(type_id) = self.type_id_for_type_expression(*ty) else {
+        let Some(type_id) = self.type_id_for_type_expression(ty) else {
             return Ok(None);
         };
 

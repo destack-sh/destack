@@ -1257,7 +1257,7 @@ impl FunctionLowerer<'_> {
             | dir::Expression::Satisfies { expression, .. } => {
                 self.concrete_symbol_for_expression(*expression)
             }
-            dir::Expression::New { .. } => self
+            dir::Expression::New { .. } | dir::Expression::NewMaybe { .. } => self
                 .constructor_target_symbol_for_expression(expression_id)
                 .ok()
                 .flatten(),

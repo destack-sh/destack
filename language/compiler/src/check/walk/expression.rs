@@ -1039,6 +1039,7 @@ impl CheckState<'_> {
                     self.walk_argument(tree, *argument, tree.get(*argument));
                 }
             }
+            dir::Expression::NewMaybe { .. } => todo!("TODO: implement new? check phase"),
             // await? value
             dir::Expression::AwaitMaybe {
                 expression: awaited,
@@ -2749,6 +2750,7 @@ impl CheckState<'_> {
             | dir::Expression::Instantiation { .. }
             | dir::Expression::Call { .. }
             | dir::Expression::New { .. }
+            | dir::Expression::NewMaybe { .. }
             | dir::Expression::AwaitMaybe { .. }
             | dir::Expression::AwaitMust { .. }
             | dir::Expression::Maybe { .. }

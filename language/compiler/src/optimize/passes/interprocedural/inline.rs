@@ -1400,6 +1400,10 @@ fn terminator_cost(terminator: &mir::Terminator) -> u64 {
         mir::Terminator::Jump { .. } => INLINE_COST_SIMPLE,
         mir::Terminator::Branch { .. }
         | mir::Terminator::Check { .. }
+        | mir::Terminator::NewZeroedTry { .. }
+        | mir::Terminator::NewUninitTry { .. }
+        | mir::Terminator::NewSliceZeroedTry { .. }
+        | mir::Terminator::NewSliceUninitTry { .. }
         | mir::Terminator::Switch { .. }
         | mir::Terminator::Yield { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Call { .. } => INLINE_COST_CALL + 1,

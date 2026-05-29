@@ -1320,6 +1320,16 @@ impl<'a> FunctionLowerer<'a> {
                 });
             }
 
+            mir::Terminator::NewZeroedTry { .. }
+            | mir::Terminator::NewUninitTry { .. }
+            | mir::Terminator::NewSliceZeroedTry { .. }
+            | mir::Terminator::NewSliceUninitTry { .. } => {
+                return Err(CodegenCraneliftError::Internal {
+                    message: "fallible allocation terminators require runtime allocation branches"
+                        .into(),
+                });
+            }
+
             // switch: br_table or brif chain (multi-way branch)
             mir::Terminator::Switch {
                 value,

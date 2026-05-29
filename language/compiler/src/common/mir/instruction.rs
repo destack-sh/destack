@@ -3725,6 +3725,35 @@ pub fn terminator_remap(
                 }
             }
         }
+        mir::Terminator::NewZeroedTry {
+            success, failure, ..
+        }
+        | mir::Terminator::NewUninitTry {
+            success, failure, ..
+        } => {
+            remap_target(success);
+            remap_args(&mut success.arguments);
+            remap_target(failure);
+            remap_args(&mut failure.arguments);
+        }
+        mir::Terminator::NewSliceZeroedTry {
+            length,
+            success,
+            failure,
+            ..
+        }
+        | mir::Terminator::NewSliceUninitTry {
+            length,
+            success,
+            failure,
+            ..
+        } => {
+            remap_value(length);
+            remap_target(success);
+            remap_args(&mut success.arguments);
+            remap_target(failure);
+            remap_args(&mut failure.arguments);
+        }
         mir::Terminator::Switch {
             value,
             default,

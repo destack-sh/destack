@@ -261,6 +261,36 @@ pub fn terminator_edges(
 
             edges
         }
+        mir::Terminator::NewZeroedTry {
+            success, failure, ..
+        }
+        | mir::Terminator::NewUninitTry {
+            success, failure, ..
+        }
+        | mir::Terminator::NewSliceZeroedTry {
+            success, failure, ..
+        }
+        | mir::Terminator::NewSliceUninitTry {
+            success, failure, ..
+        } => {
+            let mut edges = Vec::with_capacity(2);
+
+            if let Some(target) = success.block.block() {
+                edges.push((
+                    mir::EdgeKey::new(source, mir::EdgeKind::AllocationSuccess, target),
+                    target,
+                ));
+            }
+
+            if let Some(target) = failure.block.block() {
+                edges.push((
+                    mir::EdgeKey::new(source, mir::EdgeKind::AllocationFailure, target),
+                    target,
+                ));
+            }
+
+            edges
+        }
         mir::Terminator::Switch { default, cases, .. } => {
             let mut edges = Vec::with_capacity(cases.len() + 1);
 

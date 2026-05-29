@@ -589,6 +589,17 @@ impl<'a> FunctionLowerer<'a> {
                 self.lower_new_expression(expression_id, arguments)
             }
 
+            dir::Expression::NewMaybe { .. } => Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "fallible new expressions require allocation propagation lowering"
+                    .to_string(),
+            }
+            .into()),
+
             dir::Expression::TupleExpression { elements } => {
                 self.lower_tuple_expression(expression_id, elements)
             }

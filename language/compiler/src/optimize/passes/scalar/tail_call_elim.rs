@@ -488,6 +488,46 @@ fn remap_terminator_blocks(
                 arguments: failure.arguments.clone(),
             },
         },
+        mir::Terminator::NewZeroedTry {
+            layout,
+            success,
+            failure,
+        } => mir::Terminator::NewZeroedTry {
+            layout: *layout,
+            success: clone_target(success),
+            failure: clone_target(failure),
+        },
+        mir::Terminator::NewUninitTry {
+            layout,
+            success,
+            failure,
+        } => mir::Terminator::NewUninitTry {
+            layout: *layout,
+            success: clone_target(success),
+            failure: clone_target(failure),
+        },
+        mir::Terminator::NewSliceZeroedTry {
+            element,
+            length,
+            success,
+            failure,
+        } => mir::Terminator::NewSliceZeroedTry {
+            element: *element,
+            length: *length,
+            success: clone_target(success),
+            failure: clone_target(failure),
+        },
+        mir::Terminator::NewSliceUninitTry {
+            element,
+            length,
+            success,
+            failure,
+        } => mir::Terminator::NewSliceUninitTry {
+            element: *element,
+            length: *length,
+            success: clone_target(success),
+            failure: clone_target(failure),
+        },
         mir::Terminator::Switch {
             value,
             default,

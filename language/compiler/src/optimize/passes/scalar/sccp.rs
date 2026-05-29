@@ -460,6 +460,59 @@ impl<'a> SccpState<'a> {
                 self.mark_edge_executable(block_id, success_block, &success.arguments);
                 self.mark_edge_executable(block_id, failure_block, &failure.arguments);
             }
+            mir::Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewUninitTry {
+                success, failure, ..
+            } => {
+                let Some(success_block) = success.block.block() else {
+                    return;
+                };
+                let Some(failure_block) = failure.block.block() else {
+                    return;
+                };
+
+                let mut success_arguments = Vec::with_capacity(success.arguments.len() + 1);
+                success_arguments.push(mir::ValueReference::Missing);
+                success_arguments.extend(success.arguments.iter().copied());
+
+                self.mark_edge_executable(block_id, success_block, &success_arguments);
+                self.mark_edge_executable(block_id, failure_block, &failure.arguments);
+            }
+            mir::Terminator::NewSliceZeroedTry {
+                length,
+                success,
+                failure,
+                ..
+            }
+            | mir::Terminator::NewSliceUninitTry {
+                length,
+                success,
+                failure,
+                ..
+            } => {
+                let Some(success_block) = success.block.block() else {
+                    return;
+                };
+                let Some(failure_block) = failure.block.block() else {
+                    return;
+                };
+
+                let mut success_arguments = Vec::with_capacity(success.arguments.len() + 1);
+                success_arguments.push(mir::ValueReference::Missing);
+                success_arguments.extend(success.arguments.iter().copied());
+
+                self.mark_edge_executable(block_id, success_block, &success_arguments);
+                self.mark_edge_executable(block_id, failure_block, &failure.arguments);
+
+                if let Some(length) = length.value() {
+                    self.edge_use_blocks
+                        .entry(length)
+                        .or_default()
+                        .insert(block_id);
+                }
+            }
             mir::Terminator::Switch {
                 value,
                 default,

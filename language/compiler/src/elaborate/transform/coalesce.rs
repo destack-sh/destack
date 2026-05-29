@@ -290,7 +290,7 @@ impl Compiler {
                         self.normalize_nested_coalesce_in_argument(state, scope, argument_id)?;
                 }
             }
-            Expression::New { arguments, .. } => {
+            Expression::New { arguments, .. } | Expression::NewMaybe { arguments, .. } => {
                 for argument_id in arguments {
                     modified |=
                         self.normalize_nested_coalesce_in_argument(state, scope, argument_id)?;

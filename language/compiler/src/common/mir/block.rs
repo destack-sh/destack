@@ -1504,6 +1504,58 @@ pub fn terminator_substitute_uses(
                 failure,
             }
         }
+        mir::Terminator::NewZeroedTry {
+            layout,
+            success,
+            failure,
+        } => mir::Terminator::NewZeroedTry {
+            layout: *layout,
+            success: mir::BlockTarget {
+                block: success.block,
+                arguments: success.arguments.iter().copied().map(substitute).collect(),
+            },
+            failure: target_with_values(failure),
+        },
+        mir::Terminator::NewUninitTry {
+            layout,
+            success,
+            failure,
+        } => mir::Terminator::NewUninitTry {
+            layout: *layout,
+            success: mir::BlockTarget {
+                block: success.block,
+                arguments: success.arguments.iter().copied().map(substitute).collect(),
+            },
+            failure: target_with_values(failure),
+        },
+        mir::Terminator::NewSliceZeroedTry {
+            element,
+            length,
+            success,
+            failure,
+        } => mir::Terminator::NewSliceZeroedTry {
+            element: *element,
+            length: substitute(*length),
+            success: mir::BlockTarget {
+                block: success.block,
+                arguments: success.arguments.iter().copied().map(substitute).collect(),
+            },
+            failure: target_with_values(failure),
+        },
+        mir::Terminator::NewSliceUninitTry {
+            element,
+            length,
+            success,
+            failure,
+        } => mir::Terminator::NewSliceUninitTry {
+            element: *element,
+            length: substitute(*length),
+            success: mir::BlockTarget {
+                block: success.block,
+                arguments: success.arguments.iter().copied().map(substitute).collect(),
+            },
+            failure: target_with_values(failure),
+        },
         mir::Terminator::Switch {
             value,
             default,
