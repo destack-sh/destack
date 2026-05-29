@@ -54,7 +54,7 @@ export {
     AllocationOutOfMemory,
     AllocationUnsupported,
 } from "./error.ds";
-export { Clone, Copy, Default, Send, Sync, Unpin, Zeroable } from "./capability.ds";
+export { Clone, Concrete, Copy, Default, Send, Sync, Unpin, Zeroable } from "./capability.ds";
 export { Pin } from "./pin.ds";
 export { Drop, drop, forget, ManuallyDrop } from "./drop.ds";
 export { AsyncDispose, Dispose } from "./dispose.ds";
