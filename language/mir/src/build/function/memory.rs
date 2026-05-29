@@ -322,47 +322,6 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Allocate zeroed raw memory on the heap.
-    pub fn raw_alloc_zeroed(
-        &mut self,
-        layout: LocalNodeId<Type>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::RawAllocZeroed {
-            destination: destination.into(),
-            layout: layout.into(),
-            result_type: result_type.into(),
-        });
-        self.define_value(destination, result_type);
-        self.define_place(destination, Place::value(destination.into()));
-        destination
-    }
-
-    /// Allocate uninitialized raw memory on the heap.
-    pub fn raw_alloc_uninit(
-        &mut self,
-        layout: LocalNodeId<Type>,
-        result_type: LocalNodeId<Type>,
-    ) -> Value {
-        let destination = self.allocate_value();
-        self.insert_instruction(Instruction::RawAllocUninit {
-            destination: destination.into(),
-            layout: layout.into(),
-            result_type: result_type.into(),
-        });
-        self.define_value(destination, result_type);
-        self.define_place(destination, Place::value(destination.into()));
-        destination
-    }
-
-    /// Free raw heap memory previously allocated with `raw.alloc.zeroed` or `raw.alloc.uninit`.
-    pub fn raw_free(&mut self, pointer: Value) {
-        self.insert_instruction(Instruction::RawFree {
-            pointer: pointer.into(),
-        });
-    }
-
     /// Free unique heap storage after drop elaboration.
     pub fn free(&mut self, value: Value) {
         self.insert_instruction(Instruction::Free {

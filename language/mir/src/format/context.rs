@@ -732,19 +732,6 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 record_type_use(tree, *element, &mut counts);
                 record_type_use(tree, *result_type, &mut counts);
             }
-            Instruction::RawAllocZeroed {
-                layout,
-                result_type,
-                ..
-            }
-            | Instruction::RawAllocUninit {
-                layout,
-                result_type,
-                ..
-            } => {
-                record_type_use(tree, *layout, &mut counts);
-                record_type_use(tree, *result_type, &mut counts);
-            }
             Instruction::FrameAllocZeroed {
                 layout,
                 result_type,
@@ -772,7 +759,6 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
             | Instruction::FieldSet { .. }
             | Instruction::ElementGet { .. }
             | Instruction::ElementSet { .. }
-            | Instruction::RawFree { .. }
             | Instruction::Free { .. }
             | Instruction::Drop { .. }
             | Instruction::Unpin { .. }

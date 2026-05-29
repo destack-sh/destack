@@ -444,8 +444,6 @@ impl Tree {
             | Instruction::NewComplete { destination, .. }
             | Instruction::NewSliceZeroed { destination, .. }
             | Instruction::NewSliceUninit { destination, .. }
-            | Instruction::RawAllocZeroed { destination, .. }
-            | Instruction::RawAllocUninit { destination, .. }
             | Instruction::FrameAllocZeroed { destination, .. }
             | Instruction::FrameAllocUninit { destination, .. }
             | Instruction::CallableEnvironment { destination } => {

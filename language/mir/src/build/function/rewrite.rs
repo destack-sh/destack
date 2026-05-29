@@ -72,8 +72,6 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::FunctionAddr { .. }
                 | Instruction::NewZeroed { .. }
                 | Instruction::NewUninit { .. }
-                | Instruction::RawAllocZeroed { .. }
-                | Instruction::RawAllocUninit { .. }
                 | Instruction::FrameAllocZeroed { .. }
                 | Instruction::FrameAllocUninit { .. } => {}
                 Instruction::CallableBind { environment, .. } => {
@@ -119,7 +117,6 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::TensorConvert {
                     tensor: argument, ..
                 }
-                | Instruction::RawFree { pointer: argument }
                 | Instruction::Free { value: argument }
                 | Instruction::Pin {
                     value: argument, ..

@@ -99,7 +99,6 @@ impl Parser {
                     | "tensor.store"
                     | "tensor.fill"
                     | "tensor.copy"
-                    | "raw.free"
             )
         {
             return Err(ParseError::invalid(
@@ -252,12 +251,6 @@ impl Parser {
                     intrinsic,
                     arguments,
                 }
-            }
-
-            // allocation side effects
-            "raw.free" => {
-                let pointer = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::RawFree { pointer }
             }
 
             // result instructions
@@ -968,22 +961,6 @@ impl Parser {
                             destination,
                             element: element.into(),
                             length,
-                            result_type: destination_type.into(),
-                        }
-                    }
-                    "raw.alloc.zeroed" => {
-                        let layout = self.parse_type()?;
-                        Instruction::RawAllocZeroed {
-                            destination,
-                            layout: layout.into(),
-                            result_type: destination_type.into(),
-                        }
-                    }
-                    "raw.alloc.uninit" => {
-                        let layout = self.parse_type()?;
-                        Instruction::RawAllocUninit {
-                            destination,
-                            layout: layout.into(),
                             result_type: destination_type.into(),
                         }
                     }
