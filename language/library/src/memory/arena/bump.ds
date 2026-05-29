@@ -1,8 +1,8 @@
 import { Result, todo } from "destack:error";
 
+import { AllocationError } from "../error.ds";
 import { MaybeUninit } from "../init.ds";
 import { Space } from "../place.ds";
-import { AllocationError } from "../error.ds";
 import { Unique } from "../unique.ds";
 
 /// Typed bump arena in space `S`.
