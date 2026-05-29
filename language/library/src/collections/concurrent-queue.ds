@@ -37,22 +37,22 @@ extension<T> of ConcurrentQueue<T> implements Extend<T> {
     }
 
     /// Push `value` to the back of the queue.
-    push(this: &ConcurrentQueue<T>, value: T): void {
+    push(&this, value: T): void {
         todo("ConcurrentQueue.push");
     }
 
     /// Append all `values` to the back of the queue.
-    extend(this: &ConcurrentQueue<T>, values: Iterable<T>): void {
+    extend(&this, values: Iterable<T>): void {
         todo("ConcurrentQueue.extend");
     }
 
     /// Clone and return the front value without removing it.
-    peek(this: &ConcurrentQueue<T>): T | undefined where T: Clone {
+    peek(&this): T | undefined where T: Clone {
         todo("ConcurrentQueue.peek")
     }
 
     /// Remove and return the front value.
-    pop(this: &ConcurrentQueue<T>): T | undefined {
+    pop(&this): T | undefined {
         todo("ConcurrentQueue.pop")
     }
 }

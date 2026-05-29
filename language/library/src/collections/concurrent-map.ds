@@ -84,7 +84,7 @@ extension<K: Hash, V> of ConcurrentMapWrite<K, V> implements Dispose, Dereferenc
     }
 
     /// Remove this entry.
-    remove(this: ConcurrentMapWrite<K, V>): V {
+    remove(this): V {
         todo("ConcurrentMapWrite.remove")
     }
 
@@ -111,32 +111,32 @@ extension<K: Hash, V> of ConcurrentMapEntry<K, V> implements Dispose {
     }
 
     /// Borrow the current value.
-    get(this: &ConcurrentMapEntry<K, V>): &readonly V | undefined {
+    get(&this): &readonly V | undefined {
         todo("ConcurrentMapEntry.get")
     }
 
     /// Borrow the current value with exclusive access.
-    get(this: &exclusive ConcurrentMapEntry<K, V>): &exclusive V | undefined {
+    get(&exclusive this): &exclusive V | undefined {
         todo("ConcurrentMapEntry.get")
     }
 
     /// Insert `value` when this entry is vacant.
-    orInsert(this: &exclusive ConcurrentMapEntry<K, V>, value: V): &exclusive V {
+    orInsert(&exclusive this, value: V): &exclusive V {
         todo("ConcurrentMapEntry.orInsert")
     }
 
     /// Insert a value produced by `makeValue` when this entry is vacant.
-    orInsertWith(this: &exclusive ConcurrentMapEntry<K, V>, makeValue: () => V): &exclusive V {
+    orInsertWith(&exclusive this, makeValue: () => V): &exclusive V {
         todo("ConcurrentMapEntry.orInsertWith")
     }
 
     /// Insert or replace the value.
-    set(this: &exclusive ConcurrentMapEntry<K, V>, value: V): &exclusive V {
+    set(&exclusive this, value: V): &exclusive V {
         todo("ConcurrentMapEntry.set")
     }
 
     /// Remove this entry.
-    remove(this: ConcurrentMapEntry<K, V>): V | undefined {
+    remove(this): V | undefined {
         todo("ConcurrentMapEntry.remove")
     }
 
@@ -192,118 +192,101 @@ extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V)> {
     }
 
     /// Clone and return a value by key.
-    get<Q: Hash>(this: &ConcurrentMap<K, V>, key: &readonly Q): V | undefined
+    get<Q: Hash>(&this, key: &readonly Q): V | undefined
     where (K: Borrow<Q>, Q: Equal<Q>, V: Clone) {
         todo("ConcurrentMap.get")
     }
 
     /// Return whether `key` exists.
-    has<Q: Hash>(this: &ConcurrentMap<K, V>, key: &readonly Q): boolean
-    where (K: Borrow<Q>, Q: Equal<Q>) {
+    has<Q: Hash>(&this, key: &readonly Q): boolean where (K: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentMap.has")
     }
 
     /// Return a read guard for one entry.
-    read<Q: Hash>(this: &ConcurrentMap<K, V>, key: &readonly Q): ConcurrentMapRead<K, V> | undefined
+    read<Q: Hash>(&this, key: &readonly Q): ConcurrentMapRead<K, V> | undefined
     where (K: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentMap.read")
     }
 
     /// Return a write guard for one entry.
-    write<Q: Hash>(
-        this: &ConcurrentMap<K, V>,
-        key: &readonly Q,
-    ): ConcurrentMapWrite<K, V> | undefined where (K: Borrow<Q>, Q: Equal<Q>) {
+    write<Q: Hash>(&this, key: &readonly Q): ConcurrentMapWrite<K, V> | undefined
+    where (K: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentMap.write")
     }
 
     /// Return an entry guard for `key`.
-    entry(this: &ConcurrentMap<K, V>, key: K): ConcurrentMapEntry<K, V> {
+    entry(&this, key: K): ConcurrentMapEntry<K, V> {
         todo("ConcurrentMap.entry")
     }
 
     /// Return a write guard, inserting `value` when `key` is absent.
-    getOrInsert(this: &ConcurrentMap<K, V>, key: K, value: V): ConcurrentMapWrite<K, V> {
+    getOrInsert(&this, key: K, value: V): ConcurrentMapWrite<K, V> {
         todo("ConcurrentMap.getOrInsert")
     }
 
     /// Return a write guard, inserting a produced value when `key` is absent.
-    getOrInsertWith(
-        this: &ConcurrentMap<K, V>,
-        key: K,
-        makeValue: () => V,
-    ): ConcurrentMapWrite<K, V> {
+    getOrInsertWith(&this, key: K, makeValue: () => V): ConcurrentMapWrite<K, V> {
         todo("ConcurrentMap.getOrInsertWith")
     }
 
     /// Call `body` with readonly access to one value.
-    with<Q: Hash, R>(
-        this: &ConcurrentMap<K, V>,
-        key: &readonly Q,
-        body: (value: &readonly V) => R,
-    ): R | undefined where (K: Borrow<Q>, Q: Equal<Q>) {
+    with<Q: Hash, R>(&this, key: &readonly Q, body: (value: &readonly V) => R): R | undefined
+    where (K: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentMap.with")
     }
 
     /// Call `body` with exclusive access to one value.
-    update<Q: Hash, R>(
-        this: &ConcurrentMap<K, V>,
-        key: &readonly Q,
-        body: (value: &exclusive V) => R,
-    ): R | undefined where (K: Borrow<Q>, Q: Equal<Q>) {
+    update<Q: Hash, R>(&this, key: &readonly Q, body: (value: &exclusive V) => R): R | undefined
+    where (K: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentMap.update")
     }
 
     /// Insert a key-value pair only when `key` is absent.
-    insert(this: &ConcurrentMap<K, V>, key: K, value: V): boolean {
+    insert(&this, key: K, value: V): boolean {
         todo("ConcurrentMap.insert")
     }
 
     /// Insert or replace a key-value pair.
-    set(this: &ConcurrentMap<K, V>, key: K, value: V): V | undefined {
+    set(&this, key: K, value: V): V | undefined {
         todo("ConcurrentMap.set")
     }
 
     /// Insert or replace all entries.
-    extend(this: &ConcurrentMap<K, V>, entries: Iterable<(K, V)>): void {
+    extend(&this, entries: Iterable<(K, V)>): void {
         todo("ConcurrentMap.extend");
     }
 
     /// Retain only entries accepted by `predicate`.
-    retain(
-        this: &ConcurrentMap<K, V>,
-        predicate: (key: &readonly K, value: &exclusive V) => boolean,
-    ): void {
+    retain(&this, predicate: (key: &readonly K, value: &exclusive V) => boolean): void {
         todo("ConcurrentMap.retain");
     }
 
     /// Remove all entries and return them.
-    drain(this: &ConcurrentMap<K, V>): Iterator<(K, V)> {
+    drain(&this): Iterator<(K, V)> {
         todo("ConcurrentMap.drain")
     }
 
     /// Remove entries accepted by `predicate` and return them.
     extractIf(
-        this: &ConcurrentMap<K, V>,
+        &this,
         predicate: (key: &readonly K, value: &exclusive V) => boolean,
     ): Iterator<(K, V)> {
         todo("ConcurrentMap.extractIf")
     }
 
     /// Remove a key-value pair.
-    remove<Q: Hash>(this: &ConcurrentMap<K, V>, key: &readonly Q): V | undefined
-    where (K: Borrow<Q>, Q: Equal<Q>) {
+    remove<Q: Hash>(&this, key: &readonly Q): V | undefined where (K: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentMap.remove")
     }
 
     /// Remove a key-value pair and return the stored key.
-    removeEntry<Q: Hash>(this: &ConcurrentMap<K, V>, key: &readonly Q): (K, V) | undefined
+    removeEntry<Q: Hash>(&this, key: &readonly Q): (K, V) | undefined
     where (K: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentMap.removeEntry")
     }
 
     /// Remove all entries.
-    clear(this: &ConcurrentMap<K, V>): void {
+    clear(&this): void {
         todo("ConcurrentMap.clear");
     }
 }

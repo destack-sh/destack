@@ -23,7 +23,7 @@ export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<
     }
 
     /// Move out the pinned root when it is movable.
-    intoInner(this: Pin<T>): T where T: Unpin {
+    intoInner(this): T where T: Unpin {
         todo("Pin.intoInner")
     }
 
@@ -33,12 +33,12 @@ export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<
     }
 
     /// Project this pinned root into pinned exclusive access.
-    asPinnedExclusive(this: &exclusive Pin<T>): Pin<&exclusive T> {
+    asPinnedExclusive(&exclusive this): Pin<&exclusive T> {
         todo("Pin.asPinnedExclusive")
     }
 
     /// Borrow the pinned root with exclusive access when it is movable.
-    asExclusive(this: &exclusive Pin<T>): &exclusive T where T: Unpin {
+    asExclusive(&exclusive this): &exclusive T where T: Unpin {
         todo("Pin.asExclusive")
     }
 
@@ -48,12 +48,12 @@ export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<
     }
 
     /// Borrow the pinned root.
-    as(this: &readonly Pin<T>): &readonly T {
+    as(&readonly this): &readonly T {
         this.dereference()
     }
 
     /// Borrow the pinned root.
-    borrow(this: &readonly Pin<T>): &readonly T {
+    borrow(&readonly this): &readonly T {
         this.dereference()
     }
 }

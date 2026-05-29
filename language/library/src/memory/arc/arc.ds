@@ -118,17 +118,17 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move the value out when this is the only strong handle.
-    intoInner(this: Arc<T>): ^T | undefined {
+    intoInner(this): ^T | undefined {
         todo("Arc.intoInner")
     }
 
     /// Move the value out when this is the only strong handle.
-    tryUnwrap(this: Arc<T>): Result<^T, Arc<T>> {
+    tryUnwrap(this): Result<^T, Arc<T>> {
         todo("Arc.tryUnwrap")
     }
 
     /// Move the value out or clone it when shared.
-    unwrapOrClone(this: Arc<T>): ^T where T: Clone {
+    unwrapOrClone(this): ^T where T: Clone {
         todo("Arc.unwrapOrClone")
     }
 
@@ -138,17 +138,17 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move this handle into a raw value pointer.
-    intoRaw(this: Arc<T>): *T {
+    intoRaw(this): *T {
         todo("Arc.intoRaw")
     }
 
     /// Borrow the value exclusively when this is the only strong handle.
-    getExclusive(this: &exclusive Arc<T>): &exclusive T | undefined {
+    getExclusive(&exclusive this): &exclusive T | undefined {
         todo("Arc.getExclusive")
     }
 
     /// Borrow the value exclusively, cloning first if needed.
-    makeExclusive(this: &exclusive Arc<T>): &exclusive T where T: Clone {
+    makeExclusive(&exclusive this): &exclusive T where T: Clone {
         todo("Arc.makeExclusive")
     }
 
@@ -158,12 +158,12 @@ extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Borrow the referenced value.
-    as(this: &readonly Arc<T>): &readonly T {
+    as(&readonly this): &readonly T {
         this.dereference()
     }
 
     /// Borrow the referenced value.
-    borrow(this: &readonly Arc<T>): &readonly T {
+    borrow(&readonly this): &readonly T {
         this.dereference()
     }
 }

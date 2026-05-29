@@ -60,7 +60,7 @@ export struct Manifest {
 export class Registry {
     /// Register one case.
     registerCase<TOptions, TBody>(
-        this: &exclusive Registry,
+        &exclusive this,
         definition: CaseDefinition<TOptions, TBody>,
     ): CaseId {
         todo("test.Registry.registerCase")
@@ -68,14 +68,14 @@ export class Registry {
 
     /// Register one suite.
     registerSuite<TOptions, TBody>(
-        this: &exclusive Registry,
+        &exclusive this,
         definition: SuiteDefinition<TOptions, TBody>,
     ): SuiteId {
         todo("test.Registry.registerSuite")
     }
 
     /// Seal this registry into an immutable manifest.
-    seal(this: ^Registry): Manifest {
+    seal(^this): Manifest {
         todo("test.Registry.seal")
     }
 }

@@ -45,7 +45,7 @@ export class Logger {
     }
 
     /// Write one log record.
-    log(this: &readonly Logger, level: Level, message: string, fields?: Fields): void {
+    log(&readonly this, level: Level, message: string, fields?: Fields): void {
         const record = LogRecord { level, message, fields };
         const sink = this.sink;
 
@@ -57,32 +57,32 @@ export class Logger {
     }
 
     /// Write one trace event.
-    trace(this: &readonly Logger, message: string, fields?: Fields): void {
+    trace(&readonly this, message: string, fields?: Fields): void {
         this.log(Level.Trace, message, fields);
     }
 
     /// Write one debug event.
-    debug(this: &readonly Logger, message: string, fields?: Fields): void {
+    debug(&readonly this, message: string, fields?: Fields): void {
         this.log(Level.Debug, message, fields);
     }
 
     /// Write one informational event.
-    info(this: &readonly Logger, message: string, fields?: Fields): void {
+    info(&readonly this, message: string, fields?: Fields): void {
         this.log(Level.Info, message, fields);
     }
 
     /// Write one warning event.
-    warn(this: &readonly Logger, message: string, fields?: Fields): void {
+    warn(&readonly this, message: string, fields?: Fields): void {
         this.log(Level.Warn, message, fields);
     }
 
     /// Write one error event.
-    error(this: &readonly Logger, message: string, fields?: Fields): void {
+    error(&readonly this, message: string, fields?: Fields): void {
         this.log(Level.Error, message, fields);
     }
 
     /// Write one fatal event.
-    fatal(this: &readonly Logger, message: string, fields?: Fields): void {
+    fatal(&readonly this, message: string, fields?: Fields): void {
         this.log(Level.Fatal, message, fields);
     }
 }

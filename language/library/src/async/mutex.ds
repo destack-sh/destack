@@ -25,12 +25,12 @@ export class AsyncMutex<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(this: &exclusive AsyncMutex<T>): &exclusive T {
+    getExclusive(&exclusive this): &exclusive T {
         todo("AsyncMutex.getExclusive")
     }
 
     /// Consume this mutex and return the protected value.
-    intoInner(this: ^AsyncMutex<T>): T {
+    intoInner(^this): T {
         todo("AsyncMutex.intoInner")
     }
 }

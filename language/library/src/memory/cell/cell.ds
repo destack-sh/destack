@@ -13,17 +13,17 @@ export extension<T> of UnsafeCell<T> {
     }
 
     /// Return a raw pointer to the stored value.
-    get(this: &readonly UnsafeCell<T>): *T {
+    get(&readonly this): *T {
         todo("UnsafeCell.get")
     }
 
     /// Borrow the stored value with exclusive access.
-    getExclusive(this: &exclusive UnsafeCell<T>): &exclusive T {
+    getExclusive(&exclusive this): &exclusive T {
         todo("UnsafeCell.getExclusive")
     }
 
     /// Move out the stored value.
-    intoInner(this: UnsafeCell<T>): T {
+    intoInner(this): T {
         todo("UnsafeCell.intoInner")
     }
 }
@@ -41,37 +41,37 @@ export extension<T> of Cell<T> {
     }
 
     /// Copy the stored value.
-    get(this: &readonly Cell<T>): T where T: Copy {
+    get(&readonly this): T where T: Copy {
         todo("Cell.get")
     }
 
     /// Return a raw pointer to the stored value.
-    asPointer(this: &readonly Cell<T>): *T {
+    asPointer(&readonly this): *T {
         todo("Cell.asPointer")
     }
 
     /// Borrow the stored value with exclusive access.
-    getExclusive(this: &exclusive Cell<T>): &exclusive T {
+    getExclusive(&exclusive this): &exclusive T {
         todo("Cell.getExclusive")
     }
 
     /// Replace the stored value.
-    set(this: &readonly Cell<T>, value: T): void {
+    set(&readonly this, value: T): void {
         todo("Cell.set");
     }
 
     /// Replace the stored value and return the old value.
-    replace(this: &readonly Cell<T>, value: T): T {
+    replace(&readonly this, value: T): T {
         todo("Cell.replace")
     }
 
     /// Swap two cells.
-    swap(this: &readonly Cell<T>, other: &readonly Cell<T>): void {
+    swap(&readonly this, other: &readonly Cell<T>): void {
         todo("Cell.swap");
     }
 
     /// Move out the stored value.
-    intoInner(this: Cell<T>): T {
+    intoInner(this): T {
         todo("Cell.intoInner")
     }
 }

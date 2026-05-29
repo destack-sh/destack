@@ -202,17 +202,17 @@ export class Schema<T> {
     }
 
     /// Validate `value` against this schema.
-    validate(this: &readonly Schema<T>, value: unknown): Result<T, ValidationError> {
+    validate(&readonly this, value: unknown): Result<T, ValidationError> {
         validate(this, value)
     }
 
     /// Return validation issues for `value`.
-    issues(this: &readonly Schema<T>, value: unknown): [Issue] {
+    issues(&readonly this, value: unknown): [Issue] {
         issues(this, value)
     }
 
     /// Return true when `value` satisfies this schema.
-    is(this: &readonly Schema<T>, value: unknown): value is T {
+    is(&readonly this, value: unknown): value is T {
         this.issues(value).length == 0
     }
 }

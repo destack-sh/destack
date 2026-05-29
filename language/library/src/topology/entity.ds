@@ -80,13 +80,13 @@ export newtype interface Entity {
     type Kind: EntityKind;
 
     /// Return this value's entity identifier.
-    entityId(this: &readonly this): EntityId;
+    entityId(&readonly this): EntityId;
 
     /// Return this value's entity name.
-    entityName(this: &readonly this): string | undefined;
+    entityName(&readonly this): string | undefined;
 
     /// Return this value's entity labels.
-    entityLabels(this: &readonly this): LabelSet | undefined;
+    entityLabels(&readonly this): LabelSet | undefined;
 }
 
 /// Match every topology entity.

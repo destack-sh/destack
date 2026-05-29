@@ -65,54 +65,54 @@ where T: Equal<T> {
     }
 
     /// Borrow the stored value equal to `value` with readonly access.
-    get<Q: Hash>(this: &readonly Set<T>, value: &readonly Q): &readonly T | undefined
+    get<Q: Hash>(&readonly this, value: &readonly Q): &readonly T | undefined
     where (T: Borrow<Q>, Q: Equal<Q>) {
         todo("Set.get")
     }
 
     /// Add `value` when absent.
-    add(this: &exclusive Set<T>, value: T): boolean {
+    add(&exclusive this, value: T): boolean {
         todo("Set.add")
     }
 
     /// Add all `values`.
-    extend(this: &exclusive Set<T>, values: Iterable<T>): void {
+    extend(&exclusive this, values: Iterable<T>): void {
         todo("Set.extend");
     }
 
     /// Remove `value`.
-    remove<Q: Hash>(this: &exclusive Set<T>, value: &readonly Q): T | undefined
+    remove<Q: Hash>(&exclusive this, value: &readonly Q): T | undefined
     where (T: Borrow<Q>, Q: Equal<Q>) {
         todo("Set.remove")
     }
 
     /// Remove all elements.
-    clear(this: &exclusive Set<T>): void {
+    clear(&exclusive this): void {
         todo("Set.clear");
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(this: &exclusive Set<T>, predicate: (value: &readonly T) => boolean): void {
+    retain(&exclusive this, predicate: (value: &readonly T) => boolean): void {
         todo("Set.retain");
     }
 
     /// Remove all values and return them.
-    drain(this: &exclusive Set<T>): Iterator<T> {
+    drain(&exclusive this): Iterator<T> {
         todo("Set.drain")
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(this: &exclusive Set<T>, predicate: (value: &readonly T) => boolean): Iterator<T> {
+    extractIf(&exclusive this, predicate: (value: &readonly T) => boolean): Iterator<T> {
         todo("Set.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(this: &exclusive Set<T>, additional: usize): void {
+    reserve(&exclusive this, additional: usize): void {
         todo("Set.reserve");
     }
 
     /// Shrink storage to fit the current values.
-    shrinkToFit(this: &exclusive Set<T>): void {
+    shrinkToFit(&exclusive this): void {
         todo("Set.shrinkToFit");
     }
 
@@ -172,12 +172,12 @@ where T: Equal<T> {
     }
 
     /// Return an iterator over readonly borrowed values.
-    iterator(this: &readonly Set<T>): Iterator<&readonly T> {
+    iterator(&readonly this): Iterator<&readonly T> {
         todo("Set.iterator")
     }
 
     /// Consume this set into owned values.
-    iterator(this: ^Set<T>): Iterator<T> {
+    iterator(^this): Iterator<T> {
         todo("Set.iterator")
     }
 

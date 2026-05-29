@@ -119,28 +119,28 @@ export class Number {
     static readonly NaN: number = NaN;
 
     /// Return this number as a string.
-    toString(this: &readonly number, radix?: number): MaybeOwned<string> {
+    toString(&readonly this, radix?: number): MaybeOwned<string> {
         todo("Number.toString")
     }
 
     /// Return this number in fixed-point notation.
-    toFixed(this: &readonly number, fractionDigits?: number): MaybeOwned<string> {
+    toFixed(&readonly this, fractionDigits?: number): MaybeOwned<string> {
         todo("Number.toFixed")
     }
 
     /// Return this number in exponential notation.
-    toExponential(this: &readonly number, fractionDigits?: number): MaybeOwned<string> {
+    toExponential(&readonly this, fractionDigits?: number): MaybeOwned<string> {
         todo("Number.toExponential")
     }
 
     /// Return this number with the requested precision.
-    toPrecision(this: &readonly number, precision?: number): MaybeOwned<string> {
+    toPrecision(&readonly this, precision?: number): MaybeOwned<string> {
         todo("Number.toPrecision")
     }
 
     /// Return this number as a locale-aware string.
     toLocaleString(
-        this: &readonly number,
+        &readonly this,
         locales?: string | string[],
         options?: NumberFormatOptions,
     ): MaybeOwned<string> {
@@ -148,7 +148,7 @@ export class Number {
     }
 
     /// Return the primitive number value.
-    valueOf(this: &readonly number): number {
+    valueOf(&readonly this): number {
         todo("Number.valueOf")
     }
 

@@ -37,7 +37,7 @@ export class AsyncOnceCell<T> {
     }
 
     /// Move the value out when initialized.
-    take(this: &exclusive AsyncOnceCell<T>): T | undefined {
+    take(&exclusive this): T | undefined {
         todo("AsyncOnceCell.take")
     }
 }

@@ -57,7 +57,7 @@ export class Counter {
     }
 
     /// Add to this counter.
-    add(this: &readonly Counter, value: number, fields?: Fields): void {
+    add(&readonly this, value: number, fields?: Fields): void {
         recordMetric(this.sink, MetricRecord {
             kind: InstrumentKind.Counter,
             name: this.name,
@@ -87,7 +87,7 @@ export class UpDownCounter {
     }
 
     /// Add to this counter.
-    add(this: &readonly UpDownCounter, value: number, fields?: Fields): void {
+    add(&readonly this, value: number, fields?: Fields): void {
         recordMetric(this.sink, MetricRecord {
             kind: InstrumentKind.UpDownCounter,
             name: this.name,
@@ -117,7 +117,7 @@ export class Gauge {
     }
 
     /// Record this gauge value.
-    set(this: &readonly Gauge, value: number, fields?: Fields): void {
+    set(&readonly this, value: number, fields?: Fields): void {
         recordMetric(this.sink, MetricRecord {
             kind: InstrumentKind.Gauge,
             name: this.name,
@@ -147,7 +147,7 @@ export class Histogram {
     }
 
     /// Record one histogram sample.
-    record(this: &readonly Histogram, value: number, fields?: Fields): void {
+    record(&readonly this, value: number, fields?: Fields): void {
         recordMetric(this.sink, MetricRecord {
             kind: InstrumentKind.Histogram,
             name: this.name,
@@ -169,27 +169,27 @@ export class Meter {
     }
 
     /// Create one counter.
-    counter(this: &readonly Meter, name: string, unit?: string): Counter {
+    counter(&readonly this, name: string, unit?: string): Counter {
         new Counter(name, unit, this.sink)
     }
 
     /// Create one up-down counter.
-    upDownCounter(this: &readonly Meter, name: string, unit?: string): UpDownCounter {
+    upDownCounter(&readonly this, name: string, unit?: string): UpDownCounter {
         new UpDownCounter(name, unit, this.sink)
     }
 
     /// Create one gauge.
-    gauge(this: &readonly Meter, name: string, unit?: string): Gauge {
+    gauge(&readonly this, name: string, unit?: string): Gauge {
         new Gauge(name, unit, this.sink)
     }
 
     /// Create one histogram.
-    histogram(this: &readonly Meter, name: string, unit?: string): Histogram {
+    histogram(&readonly this, name: string, unit?: string): Histogram {
         new Histogram(name, unit, this.sink)
     }
 
     /// Record a duration sample.
-    duration(this: &readonly Meter, name: string, value: Duration, fields?: Fields): void {
+    duration(&readonly this, name: string, value: Duration, fields?: Fields): void {
         this.histogram(name, "duration").record(value.total("nanosecond"), fields);
     }
 }

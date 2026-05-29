@@ -84,65 +84,60 @@ extension<T: Hash> of ConcurrentSet<T> implements Extend<T> {
     }
 
     /// Return whether `value` is present.
-    has<Q: Hash>(this: &ConcurrentSet<T>, value: &readonly Q): boolean
-    where (T: Borrow<Q>, Q: Equal<Q>) {
+    has<Q: Hash>(&this, value: &readonly Q): boolean where (T: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentSet.has")
     }
 
     /// Clone and return the stored value equal to `value`.
-    get<Q: Hash>(this: &ConcurrentSet<T>, value: &readonly Q): T | undefined
+    get<Q: Hash>(&this, value: &readonly Q): T | undefined
     where (T: Borrow<Q>, Q: Equal<Q>, T: Clone) {
         todo("ConcurrentSet.get")
     }
 
     /// Return a read guard for one stored value.
-    read<Q: Hash>(this: &ConcurrentSet<T>, value: &readonly Q): ConcurrentSetRead<T> | undefined
+    read<Q: Hash>(&this, value: &readonly Q): ConcurrentSetRead<T> | undefined
     where (T: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentSet.read")
     }
 
     /// Call `body` with readonly access to one stored value.
-    with<Q: Hash, R>(
-        this: &ConcurrentSet<T>,
-        value: &readonly Q,
-        body: (value: &readonly T) => R,
-    ): R | undefined where (T: Borrow<Q>, Q: Equal<Q>) {
+    with<Q: Hash, R>(&this, value: &readonly Q, body: (value: &readonly T) => R): R | undefined
+    where (T: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentSet.with")
     }
 
     /// Add `value` when absent.
-    add(this: &ConcurrentSet<T>, value: T): boolean {
+    add(&this, value: T): boolean {
         todo("ConcurrentSet.add")
     }
 
     /// Add all `values`.
-    extend(this: &ConcurrentSet<T>, values: Iterable<T>): void {
+    extend(&this, values: Iterable<T>): void {
         todo("ConcurrentSet.extend");
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(this: &ConcurrentSet<T>, predicate: (value: &readonly T) => boolean): void {
+    retain(&this, predicate: (value: &readonly T) => boolean): void {
         todo("ConcurrentSet.retain");
     }
 
     /// Remove all values and return them.
-    drain(this: &ConcurrentSet<T>): Iterator<T> {
+    drain(&this): Iterator<T> {
         todo("ConcurrentSet.drain")
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(this: &ConcurrentSet<T>, predicate: (value: &readonly T) => boolean): Iterator<T> {
+    extractIf(&this, predicate: (value: &readonly T) => boolean): Iterator<T> {
         todo("ConcurrentSet.extractIf")
     }
 
     /// Remove `value`.
-    remove<Q: Hash>(this: &ConcurrentSet<T>, value: &readonly Q): T | undefined
-    where (T: Borrow<Q>, Q: Equal<Q>) {
+    remove<Q: Hash>(&this, value: &readonly Q): T | undefined where (T: Borrow<Q>, Q: Equal<Q>) {
         todo("ConcurrentSet.remove")
     }
 
     /// Remove all values.
-    clear(this: &ConcurrentSet<T>): void {
+    clear(&this): void {
         todo("ConcurrentSet.clear");
     }
 }

@@ -154,7 +154,7 @@ export class Span {
     }
 
     /// Add fields to this span.
-    addFields(this: &readonly Span, fields: Fields): void {
+    addFields(&readonly this, fields: Fields): void {
         writeTrace(this.sink, TraceRecord {
             kind: TraceEventKind.Fields,
             traceId: this.context.traceId,
@@ -165,7 +165,7 @@ export class Span {
     }
 
     /// Add one event to this span.
-    event(this: &readonly Span, name: string, fields?: Fields): void {
+    event(&readonly this, name: string, fields?: Fields): void {
         writeTrace(this.sink, TraceRecord {
             kind: TraceEventKind.Event,
             traceId: this.context.traceId,
@@ -177,12 +177,12 @@ export class Span {
     }
 
     /// Set this span status.
-    setStatus(this: &exclusive Span, status: SpanStatus): void {
+    setStatus(&exclusive this, status: SpanStatus): void {
         this.status = status;
     }
 
     /// Mark this span as failed.
-    error(this: &exclusive Span, error: unknown): void {
+    error(&exclusive this, error: unknown): void {
         this.status = SpanStatus.Error;
         writeTrace(this.sink, TraceRecord {
             kind: TraceEventKind.Error,
@@ -194,7 +194,7 @@ export class Span {
     }
 
     /// Finish this span.
-    end(this: &exclusive Span, status?: SpanStatus): void {
+    end(&exclusive this, status?: SpanStatus): void {
         if (this.isEnded) {
             return;
         }
@@ -222,18 +222,13 @@ export class Tracer {
     }
 
     /// Start one span.
-    start(this: &readonly Tracer, name: string, options?: SpanOptions): Span {
+    start(&readonly this, name: string, options?: SpanOptions): Span {
         const context = createSpanContext(options?.parent);
         new Span(name, context, options?.kind, options?.fields, this.sink)
     }
 
     /// Run `body` inside one span.
-    span<T>(
-        this: &readonly Tracer,
-        name: string,
-        body: (span: Span) => T,
-        options?: SpanOptions,
-    ): T {
+    span<T>(&readonly this, name: string, body: (span: Span) => T, options?: SpanOptions): T {
         let active = this.start(name, options);
         const value = body(active);
         active.end();
@@ -243,7 +238,7 @@ export class Tracer {
 
     /// Run async `body` inside one span.
     spanAsync<T>(
-        this: &readonly Tracer,
+        &readonly this,
         name: string,
         body: (span: Span) => Promise<T>,
         options?: SpanOptions,

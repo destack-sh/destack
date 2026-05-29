@@ -118,7 +118,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Replace the element at `index`.
-    indexSet(this: &exclusive SmallArray<T, N>, index: usize, value: T): void {
+    indexSet(&exclusive this, index: usize, value: T): void {
         todo("SmallArray.indexSet");
     }
 
@@ -147,73 +147,67 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Append `value`.
-    push(this: &exclusive SmallArray<T, N>, value: T): void {
+    push(&exclusive this, value: T): void {
         todo("SmallArray.push");
     }
 
     /// Append all `values`.
-    extend(this: &exclusive SmallArray<T, N>, values: Iterable<T>): void {
+    extend(&exclusive this, values: Iterable<T>): void {
         todo("SmallArray.extend");
     }
 
     /// Remove and return the last element.
-    pop(this: &exclusive SmallArray<T, N>): T | undefined {
+    pop(&exclusive this): T | undefined {
         todo("SmallArray.pop")
     }
 
     /// Insert `value` at `index`.
-    insert(this: &exclusive SmallArray<T, N>, index: usize, value: T): void {
+    insert(&exclusive this, index: usize, value: T): void {
         todo("SmallArray.insert");
     }
 
     /// Remove and return the element at `index`.
-    removeAt(this: &exclusive SmallArray<T, N>, index: usize): T {
+    removeAt(&exclusive this, index: usize): T {
         todo("SmallArray.removeAt")
     }
 
     /// Swap-remove the element at `index`.
-    swapRemove(this: &exclusive SmallArray<T, N>, index: usize): T {
+    swapRemove(&exclusive this, index: usize): T {
         todo("SmallArray.swapRemove")
     }
 
     /// Remove all elements.
-    clear(this: &exclusive SmallArray<T, N>): void {
+    clear(&exclusive this): void {
         todo("SmallArray.clear");
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(
-        this: &exclusive SmallArray<T, N>,
-        predicate: (value: &T, index: usize) => boolean,
-    ): void {
+    retain(&exclusive this, predicate: (value: &T, index: usize) => boolean): void {
         todo("SmallArray.retain");
     }
 
     /// Remove all elements and return them.
-    drain(this: &exclusive SmallArray<T, N>): Iterator<T> {
+    drain(&exclusive this): Iterator<T> {
         todo("SmallArray.drain")
     }
 
     /// Remove elements accepted by `predicate` and return them.
-    extractIf(
-        this: &exclusive SmallArray<T, N>,
-        predicate: (value: &T, index: usize) => boolean,
-    ): Iterator<T> {
+    extractIf(&exclusive this, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
         todo("SmallArray.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(this: &exclusive SmallArray<T, N>, additional: usize): void {
+    reserve(&exclusive this, additional: usize): void {
         todo("SmallArray.reserve");
     }
 
     /// Move elements back inline when they fit.
-    shrinkToInline(this: &exclusive SmallArray<T, N>): void {
+    shrinkToInline(&exclusive this): void {
         todo("SmallArray.shrinkToInline");
     }
 
     /// Shrink capacity to fit the current length.
-    shrinkToFit(this: &exclusive SmallArray<T, N>): void {
+    shrinkToFit(&exclusive this): void {
         todo("SmallArray.shrinkToFit");
     }
 
@@ -223,15 +217,12 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Reverse this array in place.
-    reverse(this: &exclusive SmallArray<T, N>): this {
+    reverse(&exclusive this): this {
         todo("SmallArray.reverse")
     }
 
     /// Sort this array in place.
-    sort(
-        this: &exclusive SmallArray<T, N>,
-        compare?: (a: &readonly T, b: &readonly T) => number,
-    ): this {
+    sort(&exclusive this, compare?: (a: &readonly T, b: &readonly T) => number): this {
         todo("SmallArray.sort")
     }
 
@@ -248,7 +239,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Consume this array into owned values.
-    iterator(this: SmallArray<T, N>): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("SmallArray.iterator")
     }
 }
@@ -272,7 +263,7 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> impl
     type Output = Slice<T>;
 
     /// Return the normalized start and length for `range`.
-    rangeSpan(this: &readonly SmallArray<T, N>, range: R): (usize, usize) {
+    rangeSpan(&readonly this, range: R): (usize, usize) {
         let start = match (range.startBound()) {
             Bound { kind: "included", value } => value
             Bound { kind: "excluded", value } => value + 1
@@ -309,7 +300,7 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> impl
 extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements
     IndexSet<R, Slice<T>> where T: Copy {
     /// Copy `source` into the selected range.
-    indexSet(this: &exclusive SmallArray<T, N>, range: R, source: Slice<T>): void {
+    indexSet(&exclusive this, range: R, source: Slice<T>): void {
         todo("SmallArray.indexSetRange");
     }
 }
@@ -317,7 +308,7 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> impl
 extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> implements
     IndexSet<R, &readonly Slice<T>> where T: Copy {
     /// Copy `source` into the selected range.
-    indexSet(this: &exclusive SmallArray<T, N>, range: R, source: &readonly Slice<T>): void {
+    indexSet(&exclusive this, range: R, source: &readonly Slice<T>): void {
         todo("SmallArray.indexSetRange");
     }
 }

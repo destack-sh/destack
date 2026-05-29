@@ -117,17 +117,17 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move the value out when this is the only strong handle.
-    intoInner(this: Rc<T>): ^T | undefined {
+    intoInner(this): ^T | undefined {
         todo("Rc.intoInner")
     }
 
     /// Move the value out when this is the only strong handle.
-    tryUnwrap(this: Rc<T>): Result<^T, Rc<T>> {
+    tryUnwrap(this): Result<^T, Rc<T>> {
         todo("Rc.tryUnwrap")
     }
 
     /// Move the value out or clone it when shared.
-    unwrapOrClone(this: Rc<T>): ^T where T: Clone {
+    unwrapOrClone(this): ^T where T: Clone {
         todo("Rc.unwrapOrClone")
     }
 
@@ -137,17 +137,17 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Move this handle into a raw value pointer.
-    intoRaw(this: Rc<T>): *T {
+    intoRaw(this): *T {
         todo("Rc.intoRaw")
     }
 
     /// Borrow the value exclusively when this is the only strong handle.
-    getExclusive(this: &exclusive Rc<T>): &exclusive T | undefined {
+    getExclusive(&exclusive this): &exclusive T | undefined {
         todo("Rc.getExclusive")
     }
 
     /// Borrow the value exclusively, cloning first if needed.
-    makeExclusive(this: &exclusive Rc<T>): &exclusive T where T: Clone {
+    makeExclusive(&exclusive this): &exclusive T where T: Clone {
         todo("Rc.makeExclusive")
     }
 
@@ -157,12 +157,12 @@ extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T> {
     }
 
     /// Borrow the referenced value.
-    as(this: &readonly Rc<T>): &readonly T {
+    as(&readonly this): &readonly T {
         this.dereference()
     }
 
     /// Borrow the referenced value.
-    borrow(this: &readonly Rc<T>): &readonly T {
+    borrow(&readonly this): &readonly T {
         this.dereference()
     }
 }

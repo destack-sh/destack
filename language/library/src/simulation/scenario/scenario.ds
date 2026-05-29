@@ -34,47 +34,47 @@ export class Scenario {
     }
 
     /// Return whether this scenario is enabled.
-    isEnabled(this: &readonly Scenario): boolean {
+    isEnabled(&readonly this): boolean {
         todo("simulation.Scenario.isEnabled")
     }
 
     /// Enable this scenario.
-    enable(this: &exclusive Scenario): void {
+    enable(&exclusive this): void {
         todo("simulation.Scenario.enable");
     }
 
     /// Disable this scenario.
-    disable(this: &exclusive Scenario): void {
+    disable(&exclusive this): void {
         todo("simulation.Scenario.disable");
     }
 
     /// Add one rule.
-    add(this: &exclusive Scenario, rule: Rule): RuleId {
+    add(&exclusive this, rule: Rule): RuleId {
         todo("simulation.Scenario.add")
     }
 
     /// Replace one rule.
-    replace(this: &exclusive Scenario, id: RuleId, rule: Rule): void {
+    replace(&exclusive this, id: RuleId, rule: Rule): void {
         todo("simulation.Scenario.replace");
     }
 
     /// Remove one rule.
-    remove(this: &exclusive Scenario, id: RuleId): boolean {
+    remove(&exclusive this, id: RuleId): boolean {
         todo("simulation.Scenario.remove")
     }
 
     /// Clear all rules and runtime rule state.
-    clear(this: &exclusive Scenario): void {
+    clear(&exclusive this): void {
         todo("simulation.Scenario.clear");
     }
 
     /// Return active rules.
-    rules(this: &readonly Scenario): [Rule] {
+    rules(&readonly this): [Rule] {
         todo("simulation.Scenario.rules")
     }
 
     /// Decide faults for one simulated attempt.
-    faults(this: &exclusive Scenario, attempt: Attempt): FaultSet {
+    faults(&exclusive this, attempt: Attempt): FaultSet {
         todo("simulation.Scenario.faults")
     }
 }

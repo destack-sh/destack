@@ -97,17 +97,17 @@ extension<T> of Slab<T> implements
     }
 
     /// Insert `value` and return its key.
-    insert(this: &exclusive Slab<T>, value: T): SlabKey {
+    insert(&exclusive this, value: T): SlabKey {
         todo("Slab.insert")
     }
 
     /// Insert all `values`.
-    extend(this: &exclusive Slab<T>, values: Iterable<T>): void {
+    extend(&exclusive this, values: Iterable<T>): void {
         todo("Slab.extend");
     }
 
     /// Remove and return the value for `key`.
-    remove(this: &exclusive Slab<T>, key: SlabKey): T | undefined {
+    remove(&exclusive this, key: SlabKey): T | undefined {
         todo("Slab.remove")
     }
 
@@ -135,53 +135,50 @@ extension<T> of Slab<T> implements
     }
 
     /// Replace the value for `key` through the index operator.
-    indexSet(this: &exclusive Slab<T>, key: SlabKey, value: T): void {
+    indexSet(&exclusive this, key: SlabKey, value: T): void {
         this.set(key, value);
     }
 
     /// Insert or replace the value for `key`.
-    set(this: &exclusive Slab<T>, key: SlabKey, value: T): boolean {
+    set(&exclusive this, key: SlabKey, value: T): boolean {
         todo("Slab.set")
     }
 
     /// Reserve room for at least `additional` more entries.
-    reserve(this: &exclusive Slab<T>, additional: usize): void {
+    reserve(&exclusive this, additional: usize): void {
         todo("Slab.reserve");
     }
 
     /// Remove all entries.
-    clear(this: &exclusive Slab<T>): void {
+    clear(&exclusive this): void {
         todo("Slab.clear");
     }
 
     /// Retain only entries accepted by `predicate`.
-    retain(
-        this: &exclusive Slab<T>,
-        predicate: (key: SlabKey, value: &exclusive T) => boolean,
-    ): void {
+    retain(&exclusive this, predicate: (key: SlabKey, value: &exclusive T) => boolean): void {
         todo("Slab.retain");
     }
 
     /// Remove all entries and return them.
-    drain(this: &exclusive Slab<T>): Iterator<(SlabKey, T)> {
+    drain(&exclusive this): Iterator<(SlabKey, T)> {
         todo("Slab.drain")
     }
 
     /// Remove entries accepted by `predicate` and return them.
     extractIf(
-        this: &exclusive Slab<T>,
+        &exclusive this,
         predicate: (key: SlabKey, value: &exclusive T) => boolean,
     ): Iterator<(SlabKey, T)> {
         todo("Slab.extractIf")
     }
 
     /// Shrink storage to fit live and reusable slots.
-    shrinkToFit(this: &exclusive Slab<T>): void {
+    shrinkToFit(&exclusive this): void {
         todo("Slab.shrinkToFit");
     }
 
     /// Return all live keys.
-    keys(this: &readonly Slab<T>): Iterator<SlabKey> {
+    keys(&readonly this): Iterator<SlabKey> {
         todo("Slab.keys")
     }
 
@@ -208,7 +205,7 @@ extension<T> of Slab<T> implements
     }
 
     /// Consume this slab into owned values.
-    iterator(this: Slab<T>): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("Slab.iterator")
     }
 }

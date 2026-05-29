@@ -33,7 +33,7 @@ extension<T> of Weak<T> {
     }
 
     /// Move this handle into a raw value pointer.
-    intoRaw(this: Weak<T>): *T | undefined {
+    intoRaw(this): *T | undefined {
         todo("Weak.intoRaw")
     }
 

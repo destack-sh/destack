@@ -82,190 +82,182 @@ extension of String {
 
     /// Get a character at the given UTF-16 index.
     /// Returns undefined if index is out of bounds.
-    charAt(this: &readonly string, index: number): ^string | undefined {
+    charAt(&readonly this, index: number): ^string | undefined {
         todo("String.charAt")
     }
 
     /// Get the character at `index`, counting from the end when negative.
-    at(this: &readonly string, index: number): ^string | undefined {
+    at(&readonly this, index: number): ^string | undefined {
         todo("String.at")
     }
 
     /// Get the UTF-16 code unit at the given index.
-    charCodeAt(this: &readonly string, index: number): number | undefined {
+    charCodeAt(&readonly this, index: number): number | undefined {
         todo("String.charCodeAt")
     }
 
     /// Get the Unicode code point at the given index.
-    codePointAt(this: &readonly string, index: number): number | undefined {
+    codePointAt(&readonly this, index: number): number | undefined {
         todo("String.codePointAt")
     }
 
     /// Concatenate two strings.
-    concat(this: &readonly string, ...values: string[]): ^string {
+    concat(&readonly this, ...values: string[]): ^string {
         todo("String.concat")
     }
 
     /// Check if string includes a substring.
-    includes(this: &readonly string, search: string, position?: number): boolean {
+    includes(&readonly this, search: string, position?: number): boolean {
         todo("String.includes")
     }
 
     /// Find the first index of a substring.
-    indexOf(this: &readonly string, search: string, position?: number): number {
+    indexOf(&readonly this, search: string, position?: number): number {
         todo("String.indexOf")
     }
 
     /// Find the last index of a substring.
-    lastIndexOf(this: &readonly string, search: string, position?: number): number {
+    lastIndexOf(&readonly this, search: string, position?: number): number {
         todo("String.lastIndexOf")
     }
 
     /// Compare with `other` using locale ordering.
-    localeCompare(this: &readonly string, other: string, locales?: string | string[]): number {
+    localeCompare(&readonly this, other: string, locales?: string | string[]): number {
         todo("String.localeCompare")
     }
 
     /// Match this string against `pattern`.
-    match(this: &readonly string, pattern: string | RegExp): StringMatch | null {
+    match(&readonly this, pattern: string | RegExp): StringMatch | null {
         todo("String.match")
     }
 
     /// Match every occurrence of `pattern`.
-    matchAll(this: &readonly string, pattern: RegExp): Iterator<RegExpMatch> {
+    matchAll(&readonly this, pattern: RegExp): Iterator<RegExpMatch> {
         todo("String.matchAll")
     }
 
     /// Replace the first matching text.
-    replace(
-        this: &readonly string,
-        pattern: string | RegExp,
-        replacement: StringReplacement,
-    ): ^string {
+    replace(&readonly this, pattern: string | RegExp, replacement: StringReplacement): ^string {
         todo("String.replace")
     }
 
     /// Replace every matching text.
-    replaceAll(
-        this: &readonly string,
-        pattern: string | RegExp,
-        replacement: StringReplacement,
-    ): ^string {
+    replaceAll(&readonly this, pattern: string | RegExp, replacement: StringReplacement): ^string {
         todo("String.replaceAll")
     }
 
     /// Find the first match of `pattern`.
-    search(this: &readonly string, pattern: string | RegExp): number {
+    search(&readonly this, pattern: string | RegExp): number {
         todo("String.search")
     }
 
     /// Split this string by `separator`.
-    split(this: &readonly string, separator?: string | RegExp, limit?: number): ^Array<^string> {
+    split(&readonly this, separator?: string | RegExp, limit?: number): ^Array<^string> {
         todo("String.split")
     }
 
     /// Check if string starts with a prefix.
-    startsWith(this: &readonly string, search: string, position?: number): boolean {
+    startsWith(&readonly this, search: string, position?: number): boolean {
         todo("String.startsWith")
     }
 
     /// Check if string ends with a suffix.
-    endsWith(this: &readonly string, search: string, position?: number): boolean {
+    endsWith(&readonly this, search: string, position?: number): boolean {
         todo("String.endsWith")
     }
 
     /// Extract a substring.
-    substring(this: &readonly string, start: number, end?: number): ^string {
+    substring(&readonly this, start: number, end?: number): ^string {
         todo("String.substring")
     }
 
     /// Extract a slice of the string.
-    slice(this: &readonly string, start?: number, end?: number): ^string {
+    slice(&readonly this, start?: number, end?: number): ^string {
         todo("String.slice")
     }
 
     /// Convert to lowercase.
-    toLowerCase(this: &readonly string): ^string {
+    toLowerCase(&readonly this): ^string {
         todo("String.toLowerCase")
     }
 
     /// Convert to lowercase using locale rules.
-    toLocaleLowerCase(this: &readonly string, locales?: string | string[]): ^string {
+    toLocaleLowerCase(&readonly this, locales?: string | string[]): ^string {
         todo("String.toLocaleLowerCase")
     }
 
     /// Convert to uppercase.
-    toUpperCase(this: &readonly string): ^string {
+    toUpperCase(&readonly this): ^string {
         todo("String.toUpperCase")
     }
 
     /// Convert to uppercase using locale rules.
-    toLocaleUpperCase(this: &readonly string, locales?: string | string[]): ^string {
+    toLocaleUpperCase(&readonly this, locales?: string | string[]): ^string {
         todo("String.toLocaleUpperCase")
     }
 
     /// Normalize this string.
-    normalize(this: &readonly string, form?: "NFC" | "NFD" | "NFKC" | "NFKD"): ^string {
+    normalize(&readonly this, form?: "NFC" | "NFD" | "NFKC" | "NFKD"): ^string {
         todo("String.normalize")
     }
 
     /// Remove leading and trailing whitespace.
-    trim(this: &readonly string): ^string {
+    trim(&readonly this): ^string {
         todo("String.trim")
     }
 
     /// Remove leading whitespace.
-    trimStart(this: &readonly string): ^string {
+    trimStart(&readonly this): ^string {
         todo("String.trimStart")
     }
 
     /// Remove trailing whitespace.
-    trimEnd(this: &readonly string): ^string {
+    trimEnd(&readonly this): ^string {
         todo("String.trimEnd")
     }
 
     /// Repeat the string n times.
-    repeat(this: &readonly string, count: number): ^string {
+    repeat(&readonly this, count: number): ^string {
         todo("String.repeat")
     }
 
     /// Pad the start of the string.
-    padStart(this: &readonly string, targetLength: number, padString?: string): ^string {
+    padStart(&readonly this, targetLength: number, padString?: string): ^string {
         todo("String.padStart")
     }
 
     /// Pad the end of the string.
-    padEnd(this: &readonly string, targetLength: number, padString?: string): ^string {
+    padEnd(&readonly this, targetLength: number, padString?: string): ^string {
         todo("String.padEnd")
     }
 
     /// Return whether this string is well-formed Unicode.
-    isWellFormed(this: &readonly string): boolean {
+    isWellFormed(&readonly this): boolean {
         todo("String.isWellFormed")
     }
 
     /// Return this string with invalid Unicode replaced.
-    toWellFormed(this: &readonly string): ^string {
+    toWellFormed(&readonly this): ^string {
         todo("String.toWellFormed")
     }
 
     /// Return the primitive string value.
-    valueOf(this: &readonly string): string {
+    valueOf(&readonly this): string {
         todo("String.valueOf")
     }
 
     /// Return the primitive string value.
-    toString(this: &readonly string): &readonly string {
+    toString(&readonly this): &readonly string {
         todo("String.toString")
     }
 
     /// Equality comparison.
-    equal(this: &readonly string, other: string): boolean {
+    equal(&readonly this, other: string): boolean {
         todo("String.equal")
     }
 
     /// String concatenation via + operator.
-    add(this: &readonly string, other: string): ^string {
+    add(&readonly this, other: string): ^string {
         todo("String.add")
     }
 }
@@ -289,17 +281,17 @@ extension of ^string implements Default, From<&readonly StringSlice>, From<^Stri
 
 extension of String implements As<StringSlice>, Borrow<StringSlice> {
     /// Borrow this string as UTF-8 text.
-    as(this: &readonly string): &readonly StringSlice {
+    as(&readonly this): &readonly StringSlice {
         todo("String.as")
     }
 
     /// Borrow this string as UTF-8 text.
-    borrow(this: &readonly string): &readonly StringSlice {
+    borrow(&readonly this): &readonly StringSlice {
         this.as()
     }
 
     /// Borrow this string as readonly bytes.
-    asBytes(this: &readonly string): &readonly Slice<uint8> {
+    asBytes(&readonly this): &readonly Slice<uint8> {
         todo("String.asBytes")
     }
 }

@@ -23,42 +23,42 @@ export extension<T> of RefCell<T> {
     }
 
     /// Borrow the value for shared readonly access.
-    borrow(this: &readonly RefCell<T>): Ref<T> {
+    borrow(&readonly this): Ref<T> {
         todo("RefCell.borrow")
     }
 
     /// Try to borrow the value for shared readonly access.
-    tryBorrow(this: &readonly RefCell<T>): Ref<T> | undefined {
+    tryBorrow(&readonly this): Ref<T> | undefined {
         todo("RefCell.tryBorrow")
     }
 
     /// Borrow the value for exclusive access.
-    borrowExclusive(this: &readonly RefCell<T>): ExclusiveRef<T> {
+    borrowExclusive(&readonly this): ExclusiveRef<T> {
         todo("RefCell.borrowExclusive")
     }
 
     /// Try to borrow the value for exclusive access.
-    tryBorrowExclusive(this: &readonly RefCell<T>): ExclusiveRef<T> | undefined {
+    tryBorrowExclusive(&readonly this): ExclusiveRef<T> | undefined {
         todo("RefCell.tryBorrowExclusive")
     }
 
     /// Replace the stored value and return the old value.
-    replace(this: &readonly RefCell<T>, value: T): T {
+    replace(&readonly this, value: T): T {
         todo("RefCell.replace")
     }
 
     /// Swap two ref cells.
-    swap(this: &readonly RefCell<T>, other: &readonly RefCell<T>): void {
+    swap(&readonly this, other: &readonly RefCell<T>): void {
         todo("RefCell.swap");
     }
 
     /// Borrow the stored value with exclusive access.
-    getExclusive(this: &exclusive RefCell<T>): &exclusive T {
+    getExclusive(&exclusive this): &exclusive T {
         todo("RefCell.getExclusive")
     }
 
     /// Move out the stored value.
-    intoInner(this: RefCell<T>): T {
+    intoInner(this): T {
         todo("RefCell.intoInner")
     }
 }

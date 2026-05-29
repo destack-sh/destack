@@ -184,13 +184,13 @@ export class Debugger {
     }
 
     /// Return the current stop state.
-    stop(this: &readonly Debugger): Result<Stop, HostError> {
+    stop(&readonly this): Result<Stop, HostError> {
         readStop(this.world)
     }
 
     /// Return the debug point for one frame.
     point(
-        this: &readonly Debugger,
+        &readonly this,
         view: WorldViewHandle,
         worker: WorkerId,
         frame: FrameId,
@@ -200,7 +200,7 @@ export class Debugger {
 
     /// List source scopes visible from one frame.
     scopes(
-        this: &readonly Debugger,
+        &readonly this,
         view: WorldViewHandle,
         frame: FrameId,
         limit: uint32,
@@ -211,7 +211,7 @@ export class Debugger {
 
     /// List source bindings visible from one scope.
     bindings(
-        this: &readonly Debugger,
+        &readonly this,
         view: WorldViewHandle,
         scope: ScopeId,
         limit: uint32,
@@ -222,7 +222,7 @@ export class Debugger {
 
     /// Read one source binding value.
     read(
-        this: &readonly Debugger,
+        &readonly this,
         view: WorldViewHandle,
         frame: FrameId,
         binding: BindingId,
@@ -231,36 +231,32 @@ export class Debugger {
     }
 
     /// Pause execution.
-    pause(this: &readonly Debugger): Result<Stop, HostError> {
+    pause(&readonly this): Result<Stop, HostError> {
         pause(this.world)
     }
 
     /// Resume execution.
-    resume(this: &readonly Debugger): Result<Stop, HostError> {
+    resume(&readonly this): Result<Stop, HostError> {
         resume(this.world)
     }
 
     /// Step execution.
-    step(
-        this: &readonly Debugger,
-        worker: WorkerId,
-        options: StepOptions,
-    ): Result<Stop, HostError> {
+    step(&readonly this, worker: WorkerId, options: StepOptions): Result<Stop, HostError> {
         step(this.world, worker, options)
     }
 
     /// Rewind execution to one moment.
-    rewind(this: &readonly Debugger, moment: Moment): Result<Stop, HostError> {
+    rewind(&readonly this, moment: Moment): Result<Stop, HostError> {
         rewind(this.world, moment)
     }
 
     /// Run execution to one moment.
-    runTo(this: &readonly Debugger, moment: Moment): Result<Stop, HostError> {
+    runTo(&readonly this, moment: Moment): Result<Stop, HostError> {
         runTo(this.world, moment)
     }
 
     /// Fork execution at one moment.
-    forkAt(this: &readonly Debugger, moment: Moment): Result<BranchId, HostError> {
+    forkAt(&readonly this, moment: Moment): Result<BranchId, HostError> {
         forkAt(this.world, moment)
     }
 }
