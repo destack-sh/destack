@@ -45,6 +45,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     /// Foreign symbol labels keyed by module and local symbol.
     pub(super) foreign_symbol_labels:
         RefCell<BTreeMap<ModuleId, BTreeMap<dir::LocalSymbolId, String>>>,
+    /// Language items keyed by resolved global symbol.
+    pub(super) language_item_by_symbol: BTreeMap<dir::GlobalSymbolId, dir::LanguageItem>,
     /// Semantic type labels keyed by local type id.
     pub(super) type_labels: BTreeMap<dir::LocalTypeId, String>,
     /// Semantic static labels keyed by local static id.
@@ -76,6 +78,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             module_path_by_id: None,
             foreign_bindings: BTreeMap::new(),
             foreign_symbol_labels: RefCell::new(BTreeMap::new()),
+            language_item_by_symbol: BTreeMap::new(),
             type_labels: BTreeMap::new(),
             static_labels: BTreeMap::new(),
             binding_nodes: false,
@@ -162,6 +165,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Add selected rows for a resolved DIR artifact.
     pub(crate) fn add_resolved(&mut self, selection: DirRows, resolved: &DirResolved) {
         self.summaries = selection.summaries;
+        self.add_language_items(&resolved.imports);
 
         if selection.import {
             self.add_table(&resolved.imports);
@@ -276,9 +280,8 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         // render the solved semantic application
         let instance = generics.get_instance(instance_id);
-        let symbol = self.symbol_path_label(instance.symbol);
         if instance.arguments.is_empty() {
-            return symbol;
+            return self.symbol_path_label(instance.symbol);
         }
 
         let arguments = instance
@@ -287,8 +290,20 @@ impl<'a> DirSnapshotBuilder<'a> {
             .map(|argument| self.static_argument_label(argument))
             .collect::<Vec<_>>()
             .join(", ");
+        if let Some(label) = self.collection_type_label(instance.symbol, &instance.arguments) {
+            return label;
+        }
+
+        let symbol = self.symbol_path_label(instance.symbol);
 
         format!("{symbol}<{arguments}>")
+    }
+
+    /// Add semantic language item identities from resolved imports.
+    pub(crate) fn add_language_items(&mut self, imports: &dir::ImportTable) {
+        for (item, symbol) in &imports.language_symbol_by_item {
+            self.language_item_by_symbol.insert(*symbol, *item);
+        }
     }
 
     /// Return the debug label for one checked generic slot key.
@@ -549,7 +564,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Render one static argument value.
-    fn static_argument_value_label(&self, static_id: dir::LocalStaticId) -> String {
+    pub(super) fn static_argument_value_label(&self, static_id: dir::LocalStaticId) -> String {
         if let Some(label) = self.static_labels.get(&static_id) {
             return label.clone();
         }
