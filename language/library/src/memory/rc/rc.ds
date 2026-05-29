@@ -2,8 +2,8 @@ import { As, Borrow } from "destack:convert";
 import { Result, todo } from "destack:error";
 import { Dereference } from "destack:ops";
 
-import { AllocationError } from "../allocator.ds";
 import { Clone, Default, Unpin, Zeroable } from "../capability.ds";
+import { AllocationError } from "../error.ds";
 import { MaybeUninit } from "../init.ds";
 import { Owned } from "../owned.ds";
 import { Pin } from "../pin.ds";

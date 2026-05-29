@@ -1,6 +1,7 @@
-import { todo } from "destack:error";
+import { Result, todo } from "destack:error";
 
 import { ReadonlyBorrowed } from "../borrow.ds";
+import { AllocationError } from "../error.ds";
 import { Lifetime } from "../lifetime.ds";
 import { Space } from "../place.ds";
 import { Bump } from "./bump.ds";
@@ -26,6 +27,14 @@ export extension<T, L: Lifetime, S: Space = "local"> of Arena<T, L, S> {
     /// Allocate `value` in this arena.
     alloc(this: &exclusive Arena<T, L, S>, value: ^T): ReadonlyBorrowed<T, L> {
         todo("Arena.alloc")
+    }
+
+    /// Try to allocate `value` in this arena.
+    tryAlloc(
+        this: &exclusive Arena<T, L, S>,
+        value: ^T,
+    ): Result<ReadonlyBorrowed<T, L>, AllocationError> {
+        todo("Arena.tryAlloc")
     }
 
     /// Return the number of allocated values.

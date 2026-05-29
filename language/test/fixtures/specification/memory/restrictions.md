@@ -52,16 +52,16 @@ function run(): void {
 
 - contains: managed memory is disabled
 
-### noHeap rejects allocator use
+### noHeap rejects fallible heap allocation
 
-`@noHeap` forbids allocator use inside the annotated body.
+`@noHeap` forbids heap allocation through typed fallible APIs.
 
 ```ds:main.ds
+import { Array } from "destack:collections";
+
 @noHeap
 function run(): void {
-    let allocator = defaultAllocator();
-    let layout = AllocationLayout.new(64, 8);
-    let value = allocator.allocate(layout)?;
+    let value = Array<int32>.tryWithCapacity(64)?;
 }
 ```
 

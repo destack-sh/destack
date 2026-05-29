@@ -1,7 +1,15 @@
 import { As, Borrow, From, ToOwned } from "destack:convert";
-import { todo } from "destack:error";
+import { Result, todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Clone, Default, MaybeUninit, Unique, WithAccess } from "destack:memory";
+import {
+    Access,
+    AllocationError,
+    Clone,
+    Default,
+    MaybeUninit,
+    Unique,
+    WithAccess,
+} from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
 
 import { Slice } from "./slice.ds";
@@ -46,6 +54,11 @@ extension<T> of Array<T> implements
     /// Create an array with room for at least `capacity` elements.
     static withCapacity(capacity: usize): ^Array<T> {
         todo("Array.withCapacity")
+    }
+
+    /// Try to create an array with room for at least `capacity` elements.
+    static tryWithCapacity(capacity: usize): Result<^Array<T>, AllocationError> {
+        todo("Array.tryWithCapacity")
     }
 
     /// Create an array from `values`.
@@ -209,6 +222,11 @@ extension<T> of Array<T> implements
     /// Reserve room for at least `additional` more elements.
     reserve(this: &exclusive Array<T>, additional: usize): void {
         todo("Array.reserve");
+    }
+
+    /// Try to reserve room for at least `additional` more elements.
+    tryReserve(this: &exclusive Array<T>, additional: usize): Result<void, AllocationError> {
+        todo("Array.tryReserve")
     }
 
     /// Shrink capacity to fit the current length.

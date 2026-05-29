@@ -1,58 +1,43 @@
 import { Result, todo } from "destack:error";
 
-import { Allocation, AllocationError, AllocationLayout, Allocator } from "../allocator.ds";
+import { MaybeUninit } from "../init.ds";
 import { Space } from "../place.ds";
+import { AllocationError } from "../error.ds";
+import { Unique } from "../unique.ds";
 
-/// Bump allocator in space `S`.
+/// Typed bump arena in space `S`.
 export struct Bump<S: Space = "local"> {
-    /// The reserved storage.
-    storage: Allocation<uint8, S>;
+    /// The reserved storage bytes.
+    storage: Unique<[MaybeUninit<uint8>]>;
 
     /// The next free byte offset.
     offset: usize = 0;
 }
 
-export extension<S: Space = "local"> of Bump<S> implements Allocator<S> {
-    /// Create a bump allocator over `storage`.
-    static new(storage: Allocation<uint8, S>): Bump<S> {
+export extension<S: Space = "local"> of Bump<S> {
+    /// Create a bump arena over `storage`.
+    static new(storage: Unique<[MaybeUninit<uint8>]>): Bump<S> {
         Bump {
             storage,
             offset: 0,
         }
     }
 
-    /// Allocate raw memory.
-    allocate<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError> {
-        todo("Bump.allocate")
+    /// Allocate `value` in this bump arena.
+    alloc<T>(this: &exclusive Bump<S>, value: ^T): &exclusive T {
+        todo("Bump.alloc")
     }
 
-    /// Allocate zero-filled raw memory.
-    allocateZeroed<T = uint8>(layout: AllocationLayout): Result<Allocation<T, S>, AllocationError> {
-        todo("Bump.allocateZeroed")
+    /// Try to allocate `value` in this bump arena.
+    tryAlloc<T>(this: &exclusive Bump<S>, value: ^T): Result<&exclusive T, AllocationError> {
+        todo("Bump.tryAlloc")
     }
 
-    /// Free raw memory.
-    @unsafe
-    deallocate<T>(allocation: Allocation<T, S>): void {
-        todo("Bump.deallocate");
-    }
-
-    /// Grow raw memory to a larger layout.
-    @unsafe
-    grow<T>(
-        allocation: Allocation<T, S>,
-        layout: AllocationLayout,
-    ): Result<Allocation<T, S>, AllocationError> {
-        todo("Bump.grow")
-    }
-
-    /// Shrink raw memory to a smaller layout.
-    @unsafe
-    shrink<T>(
-        allocation: Allocation<T, S>,
-        layout: AllocationLayout,
-    ): Result<Allocation<T, S>, AllocationError> {
-        todo("Bump.shrink")
+    /// Try to allocate uninitialized storage in this bump arena.
+    tryAllocUninit<T>(
+        this: &exclusive Bump<S>,
+    ): Result<&exclusive MaybeUninit<T>, AllocationError> {
+        todo("Bump.tryAllocUninit")
     }
 
     /// Release all bump allocations.

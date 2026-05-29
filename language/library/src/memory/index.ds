@@ -49,13 +49,11 @@ export {
 } from "./type.ds";
 export { Box } from "./box.ds";
 export {
-    Allocation,
     AllocationError,
-    AllocationErrorKind,
-    AllocationLayout,
-    Allocator,
-    defaultAllocator,
-} from "./allocator.ds";
+    AllocationCapacityOverflow,
+    AllocationOutOfMemory,
+    AllocationUnsupported,
+} from "./error.ds";
 export { Clone, Copy, Default, Send, Sync, Unpin, Zeroable } from "./capability.ds";
 export { Pin } from "./pin.ds";
 export { Drop, drop, forget, ManuallyDrop } from "./drop.ds";
