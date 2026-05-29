@@ -302,18 +302,46 @@ pub(crate) enum Op {
     // ============================================================================
     // allocation and lifetime
     // ============================================================================
-    /// Allocate a zeroed local heap value from a compiled site.
-    AllocateHeapSite,
-    /// Allocate a zeroed shared heap value from a compiled site.
-    AllocateSharedHeapSite,
+    /// Allocate one zeroed local heap value.
+    AllocateHeapZeroed,
+    /// Allocate one uninitialized local heap value.
+    AllocateHeapUninit,
+    /// Allocate one zeroed noscan local small heap value.
+    AllocateHeapSmallNoscanZeroed,
+    /// Allocate one uninitialized noscan local small heap value.
+    AllocateHeapSmallNoscanUninit,
+    /// Allocate one zeroed scanned local small heap value.
+    AllocateHeapSmallScanZeroed,
+    /// Allocate one uninitialized scanned local small heap value.
+    AllocateHeapSmallScanUninit,
+    /// Allocate one zeroed local small heap value that may point into shared heap.
+    AllocateHeapSmallSharedEdgeZeroed,
+    /// Allocate one uninitialized local small heap value that may point into shared heap.
+    AllocateHeapSmallSharedEdgeUninit,
+    /// Allocate one zeroed shared heap value.
+    AllocateSharedHeapZeroed,
+    /// Allocate one uninitialized shared heap value.
+    AllocateSharedHeapUninit,
+    /// Allocate one zeroed shared small heap value.
+    AllocateSharedHeapSmallZeroed,
+    /// Allocate one uninitialized shared small heap value.
+    AllocateSharedHeapSmallUninit,
     /// Allocate a zeroed local slice backing and descriptor.
-    AllocateSlice,
+    AllocateSliceZeroed,
+    /// Allocate an uninitialized local slice backing and descriptor.
+    AllocateSliceUninit,
     /// Allocate a zeroed shared slice backing and descriptor.
-    AllocateSharedSlice,
-    /// Allocate local raw memory.
-    AllocateRaw,
-    /// Allocate shared raw memory.
-    AllocateSharedRaw,
+    AllocateSharedSliceZeroed,
+    /// Allocate an uninitialized shared slice backing and descriptor.
+    AllocateSharedSliceUninit,
+    /// Allocate zeroed local raw memory.
+    AllocateRawZeroed,
+    /// Allocate uninitialized local raw memory.
+    AllocateRawUninit,
+    /// Allocate zeroed shared raw memory.
+    AllocateSharedRawZeroed,
+    /// Allocate uninitialized shared raw memory.
+    AllocateSharedRawUninit,
     /// Free local raw memory.
     FreeRaw,
     /// Free shared raw memory.
@@ -322,8 +350,10 @@ pub(crate) enum Op {
     FreeHeap,
     /// Free shared unique heap storage.
     FreeSharedHeap,
-    /// Allocate stack memory.
-    AllocateStack,
+    /// Allocate zeroed stack memory.
+    AllocateStackZeroed,
+    /// Allocate uninitialized stack memory.
+    AllocateStackUninit,
     /// Pin one local heap reference.
     PinHeap,
     /// Pin one shared heap reference.

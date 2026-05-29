@@ -321,6 +321,10 @@ pub(crate) fn value_layout_from_type(
             None => ValueLayout::Unknown,
         },
         mir::Type::Slice { .. } => ValueLayout::FrameBytes { ty },
+        mir::Type::Uninit { value } => match value.ty() {
+            Some(value) => value_layout_from_type(tree, value),
+            None => ValueLayout::Unknown,
+        },
         mir::Type::Any { .. } => ValueLayout::FrameBytes { ty },
         mir::Type::Atomic { value } => match value.ty() {
             Some(value) => value_layout_from_type(tree, value),
@@ -372,6 +376,7 @@ pub(crate) fn word_layout_from_type(
         mir::Type::Reference { kind, space, .. } => {
             word_layout_from_pointer_class(pointer_class_from_reference(space.clone(), *kind))
         }
+        mir::Type::Uninit { value } => word_layout_from_type(tree, value.ty()?),
         mir::Type::Closure { .. } => Some(WordLayout::HeapReference),
         mir::Type::FunctionSignature { .. } | mir::Type::FunctionPointer { .. } => {
             Some(WordLayout::FunctionPointer)

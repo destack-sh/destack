@@ -59,7 +59,7 @@ impl Interpreter {
     ) -> RuntimeResult<(usize, usize)> {
         let base = self
             .stack
-            .allocate(layout.byte_len as usize, Word::BYTE_LEN)?;
+            .allocate_zeroed(layout.byte_len as usize, Word::BYTE_LEN)?;
         let frame_base = self.stack.address(base, layout.byte_len as usize)?;
 
         Ok((base, frame_base))

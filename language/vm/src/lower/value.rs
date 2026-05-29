@@ -667,7 +667,8 @@ fn infer_instruction_layout(
         | mir::Instruction::TensorCompare { .. }
         | mir::Instruction::TensorSelect { .. }
         | mir::Instruction::TensorConvert { .. } => None,
-        mir::Instruction::FrameAlloc { result_type, .. } => {
+        mir::Instruction::FrameAllocZeroed { result_type, .. }
+        | mir::Instruction::FrameAllocUninit { result_type, .. } => {
             let mut layout = value_layout_from_type(tree, result_type.ty()?);
             let ValueLayout::Pointer { pointer_class, .. } = &mut layout else {
                 return None;
@@ -675,9 +676,13 @@ fn infer_instruction_layout(
             *pointer_class = PointerClass::Stack;
             Some(layout)
         }
-        mir::Instruction::New { result_type, .. }
-        | mir::Instruction::NewSlice { result_type, .. }
-        | mir::Instruction::RawAlloc { result_type, .. }
+        mir::Instruction::NewZeroed { result_type, .. }
+        | mir::Instruction::NewUninit { result_type, .. }
+        | mir::Instruction::NewComplete { result_type, .. }
+        | mir::Instruction::NewSliceZeroed { result_type, .. }
+        | mir::Instruction::NewSliceUninit { result_type, .. }
+        | mir::Instruction::RawAllocZeroed { result_type, .. }
+        | mir::Instruction::RawAllocUninit { result_type, .. }
         | mir::Instruction::AtomicLoad { result_type, .. } => {
             Some(value_layout_from_type(tree, result_type.ty()?))
         }

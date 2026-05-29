@@ -246,33 +246,103 @@ impl<'a> BlockLowerer<'a> {
 
             inst if is_tensor_instruction(inst) => self.lower_tensor(inst, pool)?,
 
-            mir::Instruction::New {
+            mir::Instruction::NewZeroed {
                 destination,
                 layout,
                 ..
-            } => self.lower_new(pool, *destination, *layout)?,
+            } => self.lower_new(
+                pool,
+                *destination,
+                *layout,
+                super::allocation::AllocationInitialization::Zeroed,
+            )?,
 
-            mir::Instruction::NewSlice {
+            mir::Instruction::NewUninit {
+                destination,
+                layout,
+                ..
+            } => self.lower_new(
+                pool,
+                *destination,
+                *layout,
+                super::allocation::AllocationInitialization::Uninit,
+            )?,
+
+            mir::Instruction::NewComplete {
+                destination, value, ..
+            } => self.lower_new_complete(*destination, *value)?,
+
+            mir::Instruction::NewSliceZeroed {
                 destination,
                 element,
                 length,
                 result_type,
                 ..
-            } => self.lower_new_slice(pool, *destination, *element, *length, *result_type)?,
+            } => self.lower_new_slice(
+                pool,
+                *destination,
+                *element,
+                *length,
+                *result_type,
+                super::allocation::AllocationInitialization::Zeroed,
+            )?,
 
-            mir::Instruction::RawAlloc {
+            mir::Instruction::NewSliceUninit {
+                destination,
+                element,
+                length,
+                result_type,
+                ..
+            } => self.lower_new_slice(
+                pool,
+                *destination,
+                *element,
+                *length,
+                *result_type,
+                super::allocation::AllocationInitialization::Uninit,
+            )?,
+
+            mir::Instruction::RawAllocZeroed {
                 destination,
                 layout,
                 ..
-            } => self.lower_raw_alloc(*destination, *layout)?,
+            } => self.lower_raw_alloc(
+                *destination,
+                *layout,
+                super::allocation::AllocationInitialization::Zeroed,
+            )?,
+
+            mir::Instruction::RawAllocUninit {
+                destination,
+                layout,
+                ..
+            } => self.lower_raw_alloc(
+                *destination,
+                *layout,
+                super::allocation::AllocationInitialization::Uninit,
+            )?,
 
             mir::Instruction::RawFree { pointer } => self.lower_raw_free(*pointer)?,
 
-            mir::Instruction::FrameAlloc {
+            mir::Instruction::FrameAllocZeroed {
                 destination,
                 layout,
                 ..
-            } => self.lower_frame_alloc(*destination, *layout)?,
+            } => self.lower_frame_alloc(
+                *destination,
+                *layout,
+                super::allocation::AllocationInitialization::Zeroed,
+            )?,
+
+            mir::Instruction::FrameAllocUninit {
+                destination,
+                layout,
+                ..
+            } => self.lower_frame_alloc(
+                *destination,
+                *layout,
+                super::allocation::AllocationInitialization::Uninit,
+            )?,
 
             mir::Instruction::Intrinsic {
                 destination,

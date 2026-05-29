@@ -348,6 +348,15 @@ fn build_layout(
         | mir::Type::Reference { .. }
         | mir::Type::FunctionPointer { .. }
         | mir::Type::Float { .. } => raw_scalar_layout(tree, ty, layout_id),
+        mir::Type::Uninit { value } => {
+            let value = value
+                .ty()
+                .ok_or_else(|| Error::invalid_program("uninit value type"))?;
+            let mut layout = build_layout(tree, layout_id_by_type, layouts, value)?;
+            layout.layout_id = layout_id;
+
+            layout
+        }
         mir::Type::TensorView { shape, .. } => build_tensor_view_layout(shape, layout_id)?,
         mir::Type::FunctionSignature { .. } => scalar_layout(0, 1, layout_id),
         mir::Type::Atomic { value } => {
