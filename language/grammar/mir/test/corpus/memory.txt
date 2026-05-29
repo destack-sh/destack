@@ -6,9 +6,8 @@ function @memory(v0: int64) -> void {
 block0(v0: int64):
     v1: slice<int64> = new.slice.zeroed int64, v0
     v2: ref<borrowed int64> = element.addr v1, v0
-    v3: ref<owned int64> = raw.alloc.zeroed int64
+    v3: ref<int64, raw, space(frame)> = frame.alloc.zeroed int64
     store v2, v0
-    raw.free v3
     return
 }
 

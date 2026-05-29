@@ -417,9 +417,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             | mir::Instruction::NewZeroed { destination, .. }
             | mir::Instruction::NewUninit { destination, .. }
             | mir::Instruction::NewSliceZeroed { destination, .. }
-            | mir::Instruction::NewSliceUninit { destination, .. }
-            | mir::Instruction::RawAllocZeroed { destination, .. }
-            | mir::Instruction::RawAllocUninit { destination, .. } => {
+            | mir::Instruction::NewSliceUninit { destination, .. } => {
                 let sources = self.sources_for_destination_storage(*destination);
                 self.define_sources(*destination, sources);
             }

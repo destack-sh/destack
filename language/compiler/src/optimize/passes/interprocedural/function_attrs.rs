@@ -704,19 +704,6 @@ fn effects_for_instruction(
             let behavior = alloc_behavior();
             (effect, behavior)
         }
-        mir::Instruction::RawAllocZeroed { result_type, .. }
-        | mir::Instruction::RawAllocUninit { result_type, .. } => {
-            let spaces = space_set_for_type(tree, *result_type);
-            let effect = mir::MemoryEffect::write_only(spaces);
-            let behavior = alloc_behavior();
-            (effect, behavior)
-        }
-        mir::Instruction::RawFree { pointer } => {
-            let spaces = space_set_for_value(tree, function, *pointer);
-            let effect = mir::MemoryEffect::write_only(spaces);
-            let behavior = free_behavior();
-            (effect, behavior)
-        }
         mir::Instruction::Free { value } => {
             let spaces = space_set_for_value(tree, function, *value);
             let effect = mir::MemoryEffect::write_only(spaces);
@@ -898,8 +885,7 @@ b0(v0: int32):
         let input = r#"
 function alloc(): void {
 b0:
-    v0: ref<int32, raw> = raw.alloc.zeroed int32
-    raw.free v0
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     return
 }"#;
 

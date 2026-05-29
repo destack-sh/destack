@@ -612,9 +612,6 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::NewComplete { .. }
         | mir::Instruction::NewSliceZeroed { .. }
         | mir::Instruction::NewSliceUninit { .. }
-        | mir::Instruction::RawAllocZeroed { .. }
-        | mir::Instruction::RawAllocUninit { .. }
-        | mir::Instruction::RawFree { .. }
         | mir::Instruction::Free { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }

@@ -1011,13 +1011,10 @@ impl<'a> FunctionLowerer<'a> {
                 ));
             }
 
-            // raw allocation and unique free require runtime or allocator support
-            mir::Instruction::RawAllocZeroed { .. }
-            | mir::Instruction::RawAllocUninit { .. }
-            | mir::Instruction::RawFree { .. }
-            | mir::Instruction::Free { .. } => {
+            // unique free requires runtime support
+            mir::Instruction::Free { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
-                    "require allocator support",
+                    "require runtime support",
                     instruction_id.into_any(),
                 ));
             }

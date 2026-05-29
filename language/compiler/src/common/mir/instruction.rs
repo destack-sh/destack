@@ -156,13 +156,11 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::NewComplete { .. }
         | mir::Instruction::NewSliceZeroed { .. }
         | mir::Instruction::NewSliceUninit { .. }
-        | mir::Instruction::RawAllocZeroed { .. }
-        | mir::Instruction::RawAllocUninit { .. }
         | mir::Instruction::FrameAllocZeroed { .. }
         | mir::Instruction::FrameAllocUninit { .. } => false,
 
         // deallocation has side effects
-        mir::Instruction::RawFree { .. } | mir::Instruction::Free { .. } => false,
+        mir::Instruction::Free { .. } => false,
 
         // intrinsics may have side effects
         mir::Instruction::Intrinsic { .. } => false,
@@ -328,13 +326,11 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::NewComplete { .. }
         | mir::Instruction::NewSliceZeroed { .. }
         | mir::Instruction::NewSliceUninit { .. }
-        | mir::Instruction::RawAllocZeroed { .. }
-        | mir::Instruction::RawAllocUninit { .. }
         | mir::Instruction::FrameAllocZeroed { .. }
         | mir::Instruction::FrameAllocUninit { .. } => true,
 
         // deallocation has side effects
-        mir::Instruction::RawFree { .. } | mir::Instruction::Free { .. } => true,
+        mir::Instruction::Free { .. } => true,
 
         // intrinsics may have side effects (check purity for safe removal)
         mir::Instruction::Intrinsic { intrinsic, .. } => {
@@ -391,9 +387,6 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::NewComplete { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::RawAllocZeroed { .. }
-            | mir::Instruction::RawAllocUninit { .. }
-            | mir::Instruction::RawFree { .. }
             | mir::Instruction::Free { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
@@ -1153,9 +1146,6 @@ pub fn instruction_substitute_uses(
             value: substitute(value),
             result_type: *result_type,
         },
-        mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
-            pointer: substitute(pointer),
-        },
         // instructions without value operands or with externalized arguments
         mir::Instruction::Const { .. }
         | mir::Instruction::LocalGet { .. }
@@ -1170,8 +1160,6 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::CallableEnvironment { .. }
         | mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
-        | mir::Instruction::RawAllocZeroed { .. }
-        | mir::Instruction::RawAllocUninit { .. }
         | mir::Instruction::FrameAllocZeroed { .. }
         | mir::Instruction::FrameAllocUninit { .. }
         | mir::Instruction::Intrinsic { .. } => instruction.clone(),
@@ -2759,27 +2747,6 @@ pub fn instruction_map(
             length: remap(*length),
             result_type: *result_type,
         },
-        mir::Instruction::RawAllocZeroed {
-            destination,
-            layout,
-            result_type,
-        } => mir::Instruction::RawAllocZeroed {
-            destination: remap(*destination),
-            layout: *layout,
-            result_type: *result_type,
-        },
-        mir::Instruction::RawAllocUninit {
-            destination,
-            layout,
-            result_type,
-        } => mir::Instruction::RawAllocUninit {
-            destination: remap(*destination),
-            layout: *layout,
-            result_type: *result_type,
-        },
-        mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
-            pointer: remap(*pointer),
-        },
         mir::Instruction::FrameAllocZeroed {
             destination,
             layout,
@@ -3497,27 +3464,6 @@ pub fn instruction_map_with_locals(
             element: *element,
             length: remap(*length),
             result_type: *result_type,
-        },
-        mir::Instruction::RawAllocZeroed {
-            destination,
-            layout,
-            result_type,
-        } => mir::Instruction::RawAllocZeroed {
-            destination: remap(*destination),
-            layout: *layout,
-            result_type: *result_type,
-        },
-        mir::Instruction::RawAllocUninit {
-            destination,
-            layout,
-            result_type,
-        } => mir::Instruction::RawAllocUninit {
-            destination: remap(*destination),
-            layout: *layout,
-            result_type: *result_type,
-        },
-        mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
-            pointer: remap(*pointer),
         },
         mir::Instruction::Pin {
             destination,
