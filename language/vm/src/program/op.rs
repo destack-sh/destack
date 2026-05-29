@@ -294,6 +294,14 @@ pub(crate) enum Op {
     AllocateSharedHeapSmallZeroed,
     /// Allocate one uninitialized shared small heap value.
     AllocateSharedHeapSmallUninit,
+    /// Allocate one fallible zeroed local heap value.
+    AllocateHeapZeroedBranch,
+    /// Allocate one fallible uninitialized local heap value.
+    AllocateHeapUninitBranch,
+    /// Allocate one fallible zeroed shared heap value.
+    AllocateSharedHeapZeroedBranch,
+    /// Allocate one fallible uninitialized shared heap value.
+    AllocateSharedHeapUninitBranch,
     /// Allocate a zeroed local slice backing and descriptor.
     AllocateSliceZeroed,
     /// Allocate an uninitialized local slice backing and descriptor.
@@ -302,6 +310,14 @@ pub(crate) enum Op {
     AllocateSharedSliceZeroed,
     /// Allocate an uninitialized shared slice backing and descriptor.
     AllocateSharedSliceUninit,
+    /// Allocate a fallible zeroed local slice backing and descriptor.
+    AllocateSliceZeroedBranch,
+    /// Allocate a fallible uninitialized local slice backing and descriptor.
+    AllocateSliceUninitBranch,
+    /// Allocate a fallible zeroed shared slice backing and descriptor.
+    AllocateSharedSliceZeroedBranch,
+    /// Allocate a fallible uninitialized shared slice backing and descriptor.
+    AllocateSharedSliceUninitBranch,
     /// Free local unique heap storage.
     FreeHeap,
     /// Free shared unique heap storage.

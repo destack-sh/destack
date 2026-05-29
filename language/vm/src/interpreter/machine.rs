@@ -188,6 +188,18 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.interpreter.runtime_error(self.program, error)
     }
 
+    /// Clear the last fallible allocation failure.
+    #[inline]
+    pub(crate) fn clear_allocation_failure(&mut self) {
+        self.interpreter.allocation_failure = None;
+    }
+
+    /// Record one fallible allocation failure.
+    #[inline]
+    pub(crate) fn set_allocation_failure(&mut self, error: Error) {
+        self.interpreter.allocation_failure = Some(error);
+    }
+
     /// Load cached dispatch metadata from the active frame.
     pub(crate) fn load_active_frame(&mut self) -> Result<(), Error> {
         let (function, frame_base, frame_layout) = {
@@ -336,7 +348,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        self.allocate_zeroed_heap_site(trace_map, heap_site)
+        self.allocate_zeroed_heap_shape(trace_map, heap_site)
     }
 
     /// Allocate one zeroed local noscan small heap payload.
@@ -350,7 +362,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             return Ok(reference);
         }
 
-        self.allocate_zeroed_heap_site(trace_map, heap_site)
+        self.allocate_zeroed_heap_shape(trace_map, heap_site)
     }
 
     /// Allocate one zeroed local scanned small heap payload.
@@ -364,7 +376,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             return Ok(reference);
         }
 
-        self.allocate_zeroed_heap_site(trace_map, heap_site)
+        self.allocate_zeroed_heap_shape(trace_map, heap_site)
     }
 
     /// Allocate one zeroed local small heap payload that may point into shared heap.
@@ -378,13 +390,13 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             return Ok(reference);
         }
 
-        self.allocate_zeroed_heap_site(trace_map, heap_site)
+        self.allocate_zeroed_heap_shape(trace_map, heap_site)
     }
 
-    /// Allocate one zeroed local heap payload from one allocation site.
+    /// Allocate one zeroed local heap payload from one decoded shape.
     #[cold]
     #[inline(never)]
-    fn allocate_zeroed_heap_site(
+    fn allocate_zeroed_heap_shape(
         &mut self,
         trace_map: TraceId,
         heap_site: HeapAllocationSite,
@@ -403,7 +415,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        self.allocate_uninit_heap_site(trace_map, heap_site)
+        self.allocate_uninit_heap_shape(trace_map, heap_site)
     }
 
     /// Allocate one uninitialized local noscan small heap payload.
@@ -417,7 +429,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             return Ok(reference);
         }
 
-        self.allocate_uninit_heap_site(trace_map, heap_site)
+        self.allocate_uninit_heap_shape(trace_map, heap_site)
     }
 
     /// Allocate one uninitialized local scanned small heap payload.
@@ -431,7 +443,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             return Ok(reference);
         }
 
-        self.allocate_uninit_heap_site(trace_map, heap_site)
+        self.allocate_uninit_heap_shape(trace_map, heap_site)
     }
 
     /// Allocate one uninitialized local small heap payload that may point into shared heap.
@@ -445,13 +457,13 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             return Ok(reference);
         }
 
-        self.allocate_uninit_heap_site(trace_map, heap_site)
+        self.allocate_uninit_heap_shape(trace_map, heap_site)
     }
 
-    /// Allocate one uninitialized local heap payload from one allocation site.
+    /// Allocate one uninitialized local heap payload from one decoded shape.
     #[cold]
     #[inline(never)]
-    fn allocate_uninit_heap_site(
+    fn allocate_uninit_heap_shape(
         &mut self,
         trace_map: TraceId,
         heap_site: HeapAllocationSite,
@@ -530,7 +542,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<SharedHeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        self.allocate_zeroed_shared_heap_site(trace_map, heap_site)
+        self.allocate_zeroed_shared_heap_shape(trace_map, heap_site)
     }
 
     /// Allocate one zeroed shared small heap payload.
@@ -547,13 +559,13 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             return Ok(reference);
         }
 
-        self.allocate_zeroed_shared_heap_site(trace_map, heap_site)
+        self.allocate_zeroed_shared_heap_shape(trace_map, heap_site)
     }
 
-    /// Allocate one zeroed shared heap payload from one allocation site.
+    /// Allocate one zeroed shared heap payload from one decoded shape.
     #[cold]
     #[inline(never)]
-    fn allocate_zeroed_shared_heap_site(
+    fn allocate_zeroed_shared_heap_shape(
         &mut self,
         trace_map: TraceId,
         heap_site: HeapAllocationSite,
@@ -578,7 +590,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: AllocationSiteId,
     ) -> Result<SharedHeapReference, Error> {
         let (trace_map, heap_site) = self.heap_allocation_site(id);
-        self.allocate_uninit_shared_heap_site(trace_map, heap_site)
+        self.allocate_uninit_shared_heap_shape(trace_map, heap_site)
     }
 
     /// Allocate one uninitialized shared small heap payload.
@@ -595,13 +607,13 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             return Ok(reference);
         }
 
-        self.allocate_uninit_shared_heap_site(trace_map, heap_site)
+        self.allocate_uninit_shared_heap_shape(trace_map, heap_site)
     }
 
-    /// Allocate one uninitialized shared heap payload from one allocation site.
+    /// Allocate one uninitialized shared heap payload from one decoded shape.
     #[cold]
     #[inline(never)]
-    fn allocate_uninit_shared_heap_site(
+    fn allocate_uninit_shared_heap_shape(
         &mut self,
         trace_map: TraceId,
         heap_site: HeapAllocationSite,

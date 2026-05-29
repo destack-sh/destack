@@ -4,6 +4,8 @@ use destack_heap::{
 };
 use destack_mir::{TraceId, TraceMap};
 
+use super::{AllocationSiteId, Edge, SliceProjectionId};
+
 /// The allocation site consumed by heap allocation instructions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AllocationSite {
@@ -22,6 +24,36 @@ pub(crate) struct SmallAllocationSite {
     pub small: HeapSmallAllocationSite,
     /// The exact heap trace map id.
     pub trace_map: TraceId,
+}
+
+/// Branching allocation consumed by fallible heap allocation instructions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct AllocationBranch {
+    /// The destination frame offset.
+    pub destination: u32,
+    /// The allocation site.
+    pub allocation: AllocationSiteId,
+    /// The success edge.
+    pub success: Edge,
+    /// The failure edge.
+    pub failure: Edge,
+}
+
+/// Branching slice allocation consumed by fallible slice allocation instructions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SliceAllocationBranch {
+    /// The destination frame offset.
+    pub destination: u32,
+    /// The length word frame offset.
+    pub length: u32,
+    /// The backing element allocation site.
+    pub element: AllocationSiteId,
+    /// The slice descriptor projection.
+    pub access: SliceProjectionId,
+    /// The success edge.
+    pub success: Edge,
+    /// The failure edge.
+    pub failure: Edge,
 }
 
 impl AllocationSite {

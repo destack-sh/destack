@@ -363,6 +363,24 @@ fn propagate_block_parameter_layouts(
                 is_changed |= propagate_target_edge(tree, value_layout_map, success);
                 is_changed |= propagate_target_edge(tree, value_layout_map, failure);
             }
+            mir::Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewUninitTry {
+                success, failure, ..
+            } => {
+                is_changed |= propagate_allocation_target_edge(tree, value_layout_map, success);
+                is_changed |= propagate_target_edge(tree, value_layout_map, failure);
+            }
+            mir::Terminator::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | mir::Terminator::NewSliceUninitTry {
+                success, failure, ..
+            } => {
+                is_changed |= propagate_allocation_target_edge(tree, value_layout_map, success);
+                is_changed |= propagate_target_edge(tree, value_layout_map, failure);
+            }
             mir::Terminator::Switch { default, cases, .. } => {
                 is_changed |= propagate_target_edge(tree, value_layout_map, default);
 
@@ -392,6 +410,65 @@ fn propagate_block_parameter_layouts(
             | mir::Terminator::TailCallIndirect { .. }
             | mir::Terminator::TailCallClass { .. }
             | mir::Terminator::TailCallInterface { .. } => {}
+        }
+    }
+
+    is_changed
+}
+
+/// Update one target block from one control flow edge.
+fn propagate_allocation_target_edge(
+    tree: &mir::Tree,
+    value_layout_map: &mut ValueLayoutMap,
+    target: &mir::BlockTarget,
+) -> bool {
+    let Some(target_block) = target.block.block() else {
+        return false;
+    };
+
+    let mut is_changed = false;
+    let block = tree.get(target_block);
+    let Some(result_parameter) = block.parameters.first() else {
+        return false;
+    };
+    let Some(result_value) = result_parameter.value.value() else {
+        return false;
+    };
+    let Some(result_type) = result_parameter.ty.ty() else {
+        return false;
+    };
+    let result_layout = value_layout_from_type(tree, result_type);
+    if value_layout_map.get(result_value) != Some(result_layout) {
+        value_layout_map.set(result_value, result_layout);
+        is_changed = true;
+    }
+
+    let arguments = target
+        .arguments
+        .iter()
+        .map(|argument| argument.value())
+        .collect::<Option<Vec<_>>>();
+    let Some(arguments) = arguments else {
+        return is_changed;
+    };
+    let parameters = block.parameters.iter().skip(1);
+
+    for (parameter, argument) in parameters.zip(arguments.iter()) {
+        let Some(argument_layout) = value_layout_map.get(*argument) else {
+            continue;
+        };
+        let Some(parameter_value) = parameter.value.value() else {
+            continue;
+        };
+        let existing = value_layout_map.get(parameter_value);
+        let next_layout = match existing {
+            Some(layout) => merge_block_parameter_layout(layout, argument_layout),
+            None => argument_layout,
+        };
+
+        if existing != Some(next_layout) {
+            value_layout_map.set(parameter_value, next_layout);
+            is_changed = true;
         }
     }
 

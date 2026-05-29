@@ -1,5 +1,6 @@
 use destack_mir as mir;
 
+use crate::lower::allocation::AllocationInitialization;
 use crate::program::{
     BoundsCheck, Check, Instruction, NarrowCheck, Op, OverflowCheck, ShiftRangeCheck, ValueLayout,
     VariantCheck, repr_type,
@@ -333,6 +334,58 @@ impl<'a> BlockLowerer<'a> {
                     )
                 }
             }
+
+            mir::Terminator::NewZeroedTry {
+                layout,
+                success,
+                failure,
+            } => self.lower_new_try(
+                pool,
+                *layout,
+                success,
+                failure,
+                AllocationInitialization::Zeroed,
+            )?,
+
+            mir::Terminator::NewUninitTry {
+                layout,
+                success,
+                failure,
+            } => self.lower_new_try(
+                pool,
+                *layout,
+                success,
+                failure,
+                AllocationInitialization::Uninit,
+            )?,
+
+            mir::Terminator::NewSliceZeroedTry {
+                element,
+                length,
+                success,
+                failure,
+            } => self.lower_new_slice_try(
+                pool,
+                *element,
+                *length,
+                success,
+                failure,
+                AllocationInitialization::Zeroed,
+            )?,
+
+            mir::Terminator::NewSliceUninitTry {
+                element,
+                length,
+                success,
+                failure,
+            } => self.lower_new_slice_try(
+                pool,
+                *element,
+                *length,
+                success,
+                failure,
+                AllocationInitialization::Uninit,
+            )?,
 
             mir::Terminator::Panic { payload } => {
                 let Some(payload) = payload.and_then(|payload| payload.value()) else {

@@ -1,16 +1,16 @@
 use destack_mir as mir;
 
 use super::{
-    AllocationSite, AtomicCompareExchange, Call, CallBranch, CallClass, CallClassBranch,
-    CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch, CallableBind, ConstValue,
-    FrameSelect, Intrinsic, MoveRange, Projection, SliceProjection, SmallAllocationSite,
-    SwitchCase, TailCall, TailCallClass, TailCallIndirect, TailCallInterface, TensorBinary,
-    TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary, TensorConvert,
-    TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather,
-    TensorIndexReduce, TensorLayout, TensorLoad, TensorPad, TensorReduce, TensorReshape,
-    TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorUnary,
-    TensorView, TensorViewCast, VectorBinary, VectorConvert, VectorExtract, VectorInsert,
-    VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
+    AllocationBranch, AllocationSite, AtomicCompareExchange, Call, CallBranch, CallClass,
+    CallClassBranch, CallIndirect, CallIndirectBranch, CallInterface, CallInterfaceBranch,
+    CallableBind, ConstValue, FrameSelect, Intrinsic, MoveRange, Projection, SliceAllocationBranch,
+    SliceProjection, SmallAllocationSite, SwitchCase, TailCall, TailCallClass, TailCallIndirect,
+    TailCallInterface, TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary,
+    TensorContiguousUnary, TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract,
+    TensorFill, TensorGather, TensorIndexReduce, TensorLayout, TensorLoad, TensorPad, TensorReduce,
+    TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose,
+    TensorUnary, TensorView, TensorViewCast, VectorBinary, VectorConvert, VectorExtract,
+    VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat, VectorUnary,
 };
 
 /// Identifier for one pooled check constraint.
@@ -256,6 +256,8 @@ macro_rules! side_record_table {
 
 side_record_table! {
     frame_select: FrameSelect,
+    allocation_branch: AllocationBranch,
+    slice_allocation_branch: SliceAllocationBranch,
     atomic_compare_exchange: AtomicCompareExchange,
     vector_splat: VectorSplat,
     vector_extract: VectorExtract,
