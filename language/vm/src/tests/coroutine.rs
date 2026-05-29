@@ -231,7 +231,7 @@ fn test_yield_preserves_frame_alloc_in_current_frame() {
     let mir = r#"
 function yieldStackLocal(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
     yield v1, b1
 b1(v2: int32):
@@ -252,7 +252,7 @@ fn test_yield_allows_retired_frame_alloc_in_current_frame() {
     let mir = r#"
 function yieldRetiredStackLocal(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
     yield v1, b1
 b1(v2: int32):
@@ -277,7 +277,7 @@ b1(v1: int32):
 }
 function outerWithStackLocal(v0: int32): int32 {
 b0(v0: int32):
-    v1: ref<int32, raw, readonly, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = call yieldInner(v0): (int32) -> int32
     return v2
 }"#;
@@ -396,7 +396,7 @@ type Pair {
 
 function yieldAlloc(): int32 {
 b0:
-    v0: ref<int32, managed, readonly> = new int32
+    v0: ref<int32, managed, readonly> = new.zeroed int32
     v1: int32 = 1int32
     store v0, v1
     v2: Pair = struct Pair (v0)
@@ -427,7 +427,7 @@ type Pair {
 
 function yieldAlloc(): int32 {
 b0:
-    v0: ref<int32, managed, readonly> = new int32
+    v0: ref<int32, managed, readonly> = new.zeroed int32
     v1: int32 = 1int32
     store v0, v1
     v2: Pair = struct Pair (v0)

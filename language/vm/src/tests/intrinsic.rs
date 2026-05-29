@@ -5,7 +5,6 @@ use crate::tests::{
 };
 use crate::{Value, Word};
 use destack_engine::UnsignedInt;
-use destack_heap::Payload;
 use destack_mir as mir;
 
 #[test]
@@ -174,7 +173,7 @@ fn test_atomic_cas_success_flag() {
     let mir = r#"
 function test(): boolean {
 b0:
-    v0: ref<atomic<int32>, raw> = raw.alloc atomic<int32>
+    v0: ref<atomic<int32>, raw> = raw.alloc.zeroed atomic<int32>
     v1: int32 = 10int32
     atomic.store v0, v1, relaxed
     v2: int32 = 10int32
@@ -191,7 +190,7 @@ fn test_atomic_cas_success_value() {
     let mir = r#"
 function test(): int32 {
 b0:
-    v0: ref<atomic<int32>, raw> = raw.alloc atomic<int32>
+    v0: ref<atomic<int32>, raw> = raw.alloc.zeroed atomic<int32>
     v1: int32 = 10int32
     atomic.store v0, v1, relaxed
     v2: int32 = 10int32
@@ -208,7 +207,7 @@ fn test_atomic_cas_failure_flag() {
     let mir = r#"
 function test(): boolean {
 b0:
-    v0: ref<atomic<int32>, raw> = raw.alloc atomic<int32>
+    v0: ref<atomic<int32>, raw> = raw.alloc.zeroed atomic<int32>
     v1: int32 = 10int32
     atomic.store v0, v1, relaxed
     v2: int32 = 11int32
@@ -225,7 +224,7 @@ fn test_atomic_cas_weak_success() {
     let mir = r#"
 function test(): boolean {
 b0:
-    v0: ref<atomic<int32>, raw> = raw.alloc atomic<int32>
+    v0: ref<atomic<int32>, raw> = raw.alloc.zeroed atomic<int32>
     v1: int32 = 5int32
     atomic.store v0, v1, relaxed
     v2: int32 = 5int32
@@ -242,7 +241,7 @@ fn test_atomic_fetch_umin() {
     let mir = r#"
 function test(): uint32 {
 b0:
-    v0: ref<atomic<uint32>, raw> = raw.alloc atomic<uint32>
+    v0: ref<atomic<uint32>, raw> = raw.alloc.zeroed atomic<uint32>
     v1: uint32 = 40uint32
     atomic.store v0, v1, relaxed
     v2: uint32 = 10uint32
@@ -259,7 +258,7 @@ fn test_atomic_fetch_umax() {
     let mir = r#"
 function test(): uint32 {
 b0:
-    v0: ref<atomic<uint32>, raw> = raw.alloc atomic<uint32>
+    v0: ref<atomic<uint32>, raw> = raw.alloc.zeroed atomic<uint32>
     v1: uint32 = 12uint32
     atomic.store v0, v1, relaxed
     v2: uint32 = 20uint32
@@ -276,7 +275,7 @@ fn test_atomic_store_load_managed_heap() {
     let mir = r#"
 function test(): int32 {
 b0:
-    v0: ref<atomic<int32>, managed> = new atomic<int32>
+    v0: ref<atomic<int32>, managed> = new.zeroed atomic<int32>
     v1: int32 = 42int32
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
@@ -290,7 +289,7 @@ fn test_atomic_store_load_shared_heap() {
     let mir = r#"
 function test(): int32 {
 b0:
-    v0: ref<atomic<int32>, managed, space(shared)> = new atomic<int32>
+    v0: ref<atomic<int32>, managed, space(shared)> = new.zeroed atomic<int32>
     v1: int32 = 37int32
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
@@ -304,7 +303,7 @@ fn test_atomic_store_load_unique_heap() {
     let mir = r#"
 function test(): int32 {
 b0:
-    v0: ref<atomic<int32>, unique> = new atomic<int32>
+    v0: ref<atomic<int32>, unique> = new.zeroed atomic<int32>
     v1: int32 = 43int32
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
@@ -319,7 +318,7 @@ fn test_atomic_store_load_unique_shared_heap() {
     let mir = r#"
 function test(): int32 {
 b0:
-    v0: ref<atomic<int32>, unique, space(shared)> = new atomic<int32>
+    v0: ref<atomic<int32>, unique, space(shared)> = new.zeroed atomic<int32>
     v1: int32 = 44int32
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
@@ -334,7 +333,7 @@ fn test_atomic_store_load_shared_raw() {
     let mir = r#"
 function test(): int32 {
 b0:
-    v0: ref<atomic<int32>, raw, space(shared)> = raw.alloc atomic<int32>
+    v0: ref<atomic<int32>, raw, space(shared)> = raw.alloc.zeroed atomic<int32>
     v1: int32 = 45int32
     atomic.store v0, v1, relaxed
     v2: int32 = atomic.load v0, relaxed
@@ -349,7 +348,7 @@ fn test_atomic_fetch_fadd() {
     let mir = r#"
 function test(): float64 {
 b0:
-    v0: ref<atomic<float64>, raw> = raw.alloc atomic<float64>
+    v0: ref<atomic<float64>, raw> = raw.alloc.zeroed atomic<float64>
     v1: float64 = 1.5float64
     atomic.store v0, v1, relaxed
     v2: float64 = 2.25float64
@@ -366,7 +365,7 @@ fn test_atomic_fetch_fmin() {
     let mir = r#"
 function test(): float64 {
 b0:
-    v0: ref<atomic<float64>, raw> = raw.alloc atomic<float64>
+    v0: ref<atomic<float64>, raw> = raw.alloc.zeroed atomic<float64>
     v1: float64 = 3.5float64
     atomic.store v0, v1, relaxed
     v2: float64 = 1.25float64
@@ -383,7 +382,7 @@ fn test_atomic_fetch_fmax() {
     let mir = r#"
 function test(): float64 {
 b0:
-    v0: ref<atomic<float64>, raw> = raw.alloc atomic<float64>
+    v0: ref<atomic<float64>, raw> = raw.alloc.zeroed atomic<float64>
     v1: float64 = 3.5float64
     atomic.store v0, v1, relaxed
     v2: float64 = 7.25float64
@@ -635,10 +634,9 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .isolate
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let layout = isolate.heap.allocation_plan(shape);
         let handle = isolate
             .heap
-            .allocate(&layout, Payload::Zeroed)
+            .allocate_dynamic_zeroed(shape)
             .expect("heap allocation should succeed");
 
         vec![
@@ -675,14 +673,13 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
             .isolate
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let layout = isolate.shared_heap.allocation_plan(shape);
         let mut allocator = isolate.shared_heap.allocation_cache();
         let handle = isolate
             .shared_heap
-            .allocate_zeroed(
+            .allocate_dynamic_zeroed(
                 &isolate.shared_gc,
                 &mut allocator,
-                &layout,
+                shape,
                 isolate.isolate.trace_table().as_ref(),
             )
             .expect("shared heap allocation should succeed");
@@ -721,10 +718,9 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .isolate
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let layout = isolate.heap.allocation_plan(shape);
         let handle = isolate
             .heap
-            .allocate(&layout, Payload::Zeroed)
+            .allocate_dynamic_zeroed(shape)
             .expect("heap allocation should succeed");
 
         vec![
@@ -811,7 +807,7 @@ fn test_terminator_panic() {
     let mir = r#"
 function test(): void {
 b0:
-    v0: ref<int32, managed, readonly> = new int32
+    v0: ref<int32, managed, readonly> = new.zeroed int32
     panic v0
 }
 "#;

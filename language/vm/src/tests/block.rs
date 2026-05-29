@@ -350,7 +350,7 @@ b0(v0: int32):
     branch v2, b2, b1
 b1:
     v3: int32 = 1int32
-    v4: ref<[int32; 512], raw, space(frame)> = frame.alloc [int32; 512]
+    v4: ref<[int32; 512], raw, space(frame)> = frame.alloc.zeroed [int32; 512]
     v5: int32 = int.sub v0, v3
     tailCall countdown(v5): (int32) -> int32
 b2:

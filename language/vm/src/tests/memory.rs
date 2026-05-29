@@ -70,20 +70,20 @@ fn test_new_allocates_heap_reference() {
     let mir = r#"
 function alloc(): ref<int32, managed, readonly> {
 b0:
-    v0: ref<int32, managed, readonly> = new int32
+    v0: ref<int32, managed, readonly> = new.zeroed int32
     return v0
 }"#;
     let output = run_mir_ok(mir, "alloc", &[]);
     assert!(matches!(output, Value::HeapReference(_)));
 }
 
-/// Shared heap allocation creates one shared heap allocation.
+/// Shared heap allocation creates one mutator-local shared heap allocation.
 #[test]
 fn test_new_allocates_shared_heap_reference() {
     let mir = r#"
 function alloc(): ref<int32, managed, readonly, space(shared)> {
 b0:
-    v0: ref<int32, managed, readonly, space(shared)> = new int32
+    v0: ref<int32, managed, readonly, space(shared)> = new.zeroed int32
     return v0
 }"#;
     let mut isolate = create_isolate(mir);
@@ -94,7 +94,8 @@ b0:
         panic!("expected shared heap reference, got {output:?}");
     };
 
-    assert!(isolate.shared_heap.is_heap_live(reference));
+    assert!(isolate.shared_cache.contains_heap_reference(reference));
+    assert!(!isolate.shared_heap.is_heap_live(reference));
 }
 
 /// Freeing unique heap allocations releases local heap storage immediately.
@@ -103,7 +104,7 @@ fn test_free_releases_unique_heap_allocation() {
     let mir = r#"
 function freeUnique(): int32 {
 b0:
-    v0: ref<int32, unique, readonly> = new int32
+    v0: ref<int32, unique, readonly> = new.zeroed int32
     free v0
     v1: int32 = 7int32
     return v1
@@ -123,7 +124,7 @@ fn test_free_releases_unique_shared_heap_allocation() {
     let mir = r#"
 function freeUnique(): int32 {
 b0:
-    v0: ref<int32, unique, readonly, space(shared)> = new int32
+    v0: ref<int32, unique, readonly, space(shared)> = new.zeroed int32
     free v0
     v1: int32 = 7int32
     return v1
@@ -143,13 +144,60 @@ fn test_load_store() {
     let mir = r#"
 function loadStore(): int32 {
 b0:
-    v0: ref<int32, managed, readonly> = new int32
+    v0: ref<int32, managed, readonly> = new.zeroed int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
     return v2
 }"#;
     run_mir_expect(mir, "loadStore", &[], Value::int32(42));
+}
+
+/// Uninitialized heap allocation completes after explicit stores.
+#[test]
+fn test_new_uninit_completes_heap_reference() {
+    let mir = r#"
+function loadStore(): int32 {
+b0:
+    v0: uninit<ref<int32, managed, readonly>> = new.uninit int32
+    v1: int32 = 42int32
+    store v0, v1
+    v2: ref<int32, managed, readonly> = new.complete v0
+    v3: int32 = load v2
+    return v3
+}"#;
+    run_mir_expect(mir, "loadStore", &[], Value::int32(42));
+}
+
+/// Uninitialized raw allocation can be initialized by direct stores.
+#[test]
+fn test_raw_alloc_uninit_load_store() {
+    let mir = r#"
+function rawUninit(): int32 {
+b0:
+    v0: ref<int32, raw, readonly> = raw.alloc.uninit int32
+    v1: int32 = 42int32
+    store v0, v1
+    v2: int32 = load v0
+    raw.free v0
+    return v2
+}"#;
+    run_mir_expect(mir, "rawUninit", &[], Value::int32(42));
+}
+
+/// Uninitialized frame allocation can be initialized by direct stores.
+#[test]
+fn test_frame_alloc_uninit_load_store() {
+    let mir = r#"
+function frameUninit(): int32 {
+b0:
+    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.uninit int32
+    v1: int32 = 42int32
+    store v0, v1
+    v2: int32 = load v0
+    return v2
+}"#;
+    run_mir_expect(mir, "frameUninit", &[], Value::int32(42));
 }
 
 /// Encode shared heap references as first-class runtime values.
@@ -263,7 +311,7 @@ fn test_new_slice_allocates_slice_value() {
 function allocArray(): slice<int32, managed> {
 b0:
     v0: int64 = 10int64
-    v1: slice<int32, managed> = new.slice int32, v0
+    v1: slice<int32, managed> = new.slice.zeroed int32, v0
     return v1
 }"#;
     let mut isolate = create_isolate(mir);
@@ -288,7 +336,7 @@ fn test_new_slice_allocates_shared_slice_value() {
 function allocArray(): slice<int32, managed, readonly, space(shared)> {
 b0:
     v0: int64 = 10int64
-    v1: slice<int32, managed, readonly, space(shared)> = new.slice int32, v0
+    v1: slice<int32, managed, readonly, space(shared)> = new.slice.zeroed int32, v0
     return v1
 }"#;
     let mut isolate = create_isolate(mir);
@@ -317,7 +365,7 @@ fn test_slice_element_address_loads_and_stores() {
 function accessSlice(): int32 {
 b0:
     v0: int64 = 3int64
-    v1: slice<int32, managed> = new.slice int32, v0
+    v1: slice<int32, managed> = new.slice.zeroed int32, v0
     v2: int64 = 1int64
     v3: ref<int32, managed> = element.address v1, v2
     v4: int32 = 42int32
@@ -586,7 +634,7 @@ fn test_field_address_loads_heap_field() {
     let mir = r#"
 function heapField(): int32 {
 b0:
-    v0: ref<(int32, int32), managed, readonly> = new (int32, int32)
+    v0: ref<(int32, int32), managed, readonly> = new.zeroed (int32, int32)
     v1: int32 = 42int32
     v2: ref<int32, managed, readonly> = field.address v0, 0
     store v2, v1
@@ -602,7 +650,7 @@ fn test_heap_borrowed_field_access() {
     let mir = r#"
 function heapBorrowedField(): int32 {
 b0:
-    v0: ref<(int32, int32), managed, readonly> = new (int32, int32)
+    v0: ref<(int32, int32), managed, readonly> = new.zeroed (int32, int32)
     v1: int32 = 42int32
     v2: ref<int32, borrowed, readonly> = field.address v0, 0
     store v2, v1
@@ -640,7 +688,7 @@ type Box {
 
 function allocBox(): ref<Box, managed, readonly> {
 b0:
-    v0: ref<Box, managed, readonly> = new Box
+    v0: ref<Box, managed, readonly> = new.zeroed Box
     return v0
 }"#;
 
@@ -671,7 +719,7 @@ type Box {
 function makeBox(v0: int32): ref<Box, managed, readonly> {
 b0(v0: int32):
     v1: Box = struct Box (v0)
-    v2: ref<Box, managed, readonly> = new Box
+    v2: ref<Box, managed, readonly> = new.zeroed Box
     store v2, v1
     return v2
 }"#;
@@ -699,7 +747,7 @@ type Packed {
 }
 function allocPacked(): ref<Packed, managed, readonly> {
 b0:
-    v0: ref<Packed, managed, readonly> = new Packed
+    v0: ref<Packed, managed, readonly> = new.zeroed Packed
     return v0
 }"#;
     let data_layout = DataLayout { pointer_bytes: 8 };
@@ -730,7 +778,7 @@ fn test_new_slice_uses_pointer_stride_for_heap_references() {
 function allocArray(): slice<ref<int32, managed, readonly>, managed> {
 b0:
     v0: int64 = 2int64
-    v1: slice<ref<int32, managed, readonly>, managed> = new.slice ref<int32, managed, readonly>, v0
+    v1: slice<ref<int32, managed, readonly>, managed> = new.slice.zeroed ref<int32, managed, readonly>, v0
     return v1
 }"#;
     let data_layout = DataLayout { pointer_bytes: 8 };
@@ -766,11 +814,11 @@ type Holder {
 
 function comparePaths(): int32 {
 b0:
-    v0: ref<int32, managed, readonly> = new int32
+    v0: ref<int32, managed, readonly> = new.zeroed int32
     v1: int32 = 41int32
     store v0, v1
     v2: Holder = struct Holder (v0)
-    v3: ref<Holder, managed, readonly> = new Holder
+    v3: ref<Holder, managed, readonly> = new.zeroed Holder
     store v3, v2
     v4: ref<ref<int32, managed, readonly>, managed, readonly> = field.address v3, 0
     v5: ref<int32, managed, readonly> = load v4
@@ -791,7 +839,7 @@ fn test_raw_allocate() {
     let mir = r#"
 function rawAlloc(): ref<int32, raw, readonly> {
 b0:
-    v0: ref<int32, raw, readonly> = raw.alloc int32
+    v0: ref<int32, raw, readonly> = raw.alloc.zeroed int32
     return v0
 }"#;
     let output = run_mir_ok(mir, "rawAlloc", &[]);
@@ -808,7 +856,7 @@ fn test_raw_allocate_shared() {
     let mir = r#"
 function rawAllocShared(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, space(shared)> = raw.alloc int32
+    v0: ref<int32, raw, readonly, space(shared)> = raw.alloc.zeroed int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
@@ -826,7 +874,7 @@ fn test_raw_free() {
     let mir = r#"
 function rawAllocFree(): int32 {
 b0:
-    v0: ref<int32, raw, readonly> = raw.alloc int32
+    v0: ref<int32, raw, readonly> = raw.alloc.zeroed int32
     v1: int32 = 42int32
     store v0, v1
     v2: int32 = load v0
@@ -843,7 +891,7 @@ fn test_raw_free_invalid() {
     let mir = r#"
 function doubleFree(): void {
 b0:
-    v0: ref<int32, raw, readonly> = raw.alloc int32
+    v0: ref<int32, raw, readonly> = raw.alloc.zeroed int32
     raw.free v0
     raw.free v0
     return
@@ -865,7 +913,7 @@ fn test_frame_allocate() {
     let mir = r#"
 function stackAlloc(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 99int32
     store v0, v1
     v2: int32 = load v0
@@ -880,7 +928,7 @@ fn test_frame_allocate_struct() {
     let mir = r#"
 function stackStruct(): int32 {
 b0:
-    v0: ref<(int32, int32), raw, readonly, space(frame)> = frame.alloc (int32, int32)
+    v0: ref<(int32, int32), raw, readonly, space(frame)> = frame.alloc.zeroed (int32, int32)
     v1: int32 = 10int32
     v2: ref<int32, borrowed, readonly, space(frame)> = field.address v0, 0
     store v2, v1
@@ -901,10 +949,10 @@ type Packed {
 }
 function stackPacked(): int32 {
 b0:
-    v0: ref<int32, managed, readonly> = new int32
+    v0: ref<int32, managed, readonly> = new.zeroed int32
     v1: int32 = 77int32
     store v0, v1
-    v2: ref<Packed, raw, readonly, space(frame)> = frame.alloc Packed
+    v2: ref<Packed, raw, readonly, space(frame)> = frame.alloc.zeroed Packed
     v3: ref<ref<int32, managed, readonly>, borrowed, readonly, space(frame)> = field.address v2, 1
     store v3, v0
     v4: ref<int32, managed, readonly> = load v3

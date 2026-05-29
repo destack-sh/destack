@@ -30,10 +30,10 @@ b0:
 
 function makeEnv(): ref<Env, managed> {
 b0:
-    v0: ref<int32, managed> = new int32
+    v0: ref<int32, managed> = new.zeroed int32
     v1: int32 = 0int32
     store v0, v1
-    v2: ref<Env, managed> = new Env
+    v2: ref<Env, managed> = new.zeroed Env
     v3: ref<ref<int32, managed>, managed> = field.address v2, 0
     store v3, v0
     v4: ref<int32, managed> = field.address v2, 1
@@ -78,7 +78,7 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 41int32
     store v0, v1
     v2: ref<int32, raw, readonly, space(frame)> = cast.bit v0 -> ref<int32, raw, readonly, space(frame)>
@@ -104,7 +104,7 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<int32, managed> = new int32
+    v0: ref<int32, managed> = new.zeroed int32
     v1: int32 = 99int32
     store v0, v1
     v2: () => int32 = callable.bind readEnv, v0
@@ -135,10 +135,10 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<int32, managed> = new int32
+    v0: ref<int32, managed> = new.zeroed int32
     v1: int32 = 0int32
     store v0, v1
-    v2: ref<Env, managed> = new Env
+    v2: ref<Env, managed> = new.zeroed Env
     v3: ref<ref<int32, managed>, managed> = field.address v2, 0
     store v3, v0
     v4: () => int32 = callable.bind increment, v2
@@ -169,7 +169,7 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<Env, managed> = new Env
+    v0: ref<Env, managed> = new.zeroed Env
     v1: ref<int32, managed> = field.address v0, 0
     v2: int32 = 40int32
     store v1, v2
@@ -198,8 +198,8 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<Env, managed> = new Env
-    v1: ref<Env, managed> = new Env
+    v0: ref<Env, managed> = new.zeroed Env
+    v1: ref<Env, managed> = new.zeroed Env
     v2: ref<int32, managed> = field.address v0, 0
     v3: ref<int32, managed> = field.address v1, 0
     v4: int32 = 10int32
@@ -234,7 +234,7 @@ b0:
 
 function makeEnv(v0: int32): ref<Env, managed> {
 b0(v0: int32):
-    v1: ref<Env, managed> = new Env
+    v1: ref<Env, managed> = new.zeroed Env
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
@@ -291,7 +291,7 @@ b0:
 
 function makeEnv(v0: int32): ref<Env, managed> {
 b0(v0: int32):
-    v1: ref<Env, managed> = new Env
+    v1: ref<Env, managed> = new.zeroed Env
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
@@ -300,7 +300,7 @@ b0(v0: int32):
 function caller(v0: int32): int32 {
 b0(v0: int32):
     v1: ref<Env, managed> = call makeEnv(v0): (int32) -> ref<Env, managed>
-    v2: ref<Holder, managed> = new Holder
+    v2: ref<Holder, managed> = new.zeroed Holder
     v3: ref<() => int32, managed> = field.address v2, 0
     v4: () => int32 = callable.bind readEnv, v1
     store v3, v4
@@ -340,7 +340,7 @@ b0:
 
 function makeInner(v0: int32): ref<InnerEnv, managed> {
 b0(v0: int32):
-    v1: ref<InnerEnv, managed> = new InnerEnv
+    v1: ref<InnerEnv, managed> = new.zeroed InnerEnv
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
@@ -349,7 +349,7 @@ b0(v0: int32):
 function makeOuter(v0: int32): ref<OuterEnv, managed> {
 b0(v0: int32):
     v1: ref<InnerEnv, managed> = call makeInner(v0): (int32) -> ref<InnerEnv, managed>
-    v2: ref<OuterEnv, managed> = new OuterEnv
+    v2: ref<OuterEnv, managed> = new.zeroed OuterEnv
     v3: ref<() => int32, managed> = field.address v2, 0
     v4: () => int32 = callable.bind inner, v1
     store v3, v4
@@ -381,7 +381,7 @@ b0(v0: int32):
 
 function caller(v0: int32): int32 {
 b0(v0: int32):
-    v1: ref<Holder, managed> = new Holder
+    v1: ref<Holder, managed> = new.zeroed Holder
     v2: ref<(int32) -> int32, managed> = field.address v1, 0
     v3: (int32) -> int32 = function.address double
     store v2, v3
@@ -413,7 +413,7 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<Env, raw, space(frame)> = frame.alloc Env
+    v0: ref<Env, raw, space(frame)> = frame.alloc.zeroed Env
     v1: ref<int32, raw, readonly, space(frame)> = field.address v0, 0
     v2: ref<int32, raw, readonly, space(frame)> = field.address v0, 1
     v3: int32 = 20int32
@@ -446,7 +446,7 @@ b0:
 
 function makeEnv(v0: int32): ref<Env, managed> {
 b0(v0: int32):
-    v1: ref<Env, managed> = new Env
+    v1: ref<Env, managed> = new.zeroed Env
     v2: ref<int32, managed> = field.address v1, 0
     store v2, v0
     return v1
