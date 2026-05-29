@@ -36,12 +36,12 @@ pub use crate::value_label::{LabelValueLoc, ValueLabelsRanges, ValueLocRange};
 pub use crate::verifier::verify_function;
 pub use crate::write::write_function;
 
+pub use cranelift_bforest as bforest;
+pub use cranelift_bitset as bitset;
+pub use cranelift_control as control;
+pub use cranelift_entity as entity;
 #[cfg(feature = "unwind")]
 pub use gimli;
-pub use {
-    cranelift_bforest as bforest, cranelift_bitset as bitset, cranelift_control as control,
-    cranelift_entity as entity,
-};
 
 // Pull in generated the `isle_numerics_methods` macro.
 include!(concat!(env!("ISLE_DIR"), "/isle_numerics.rs"));
