@@ -58,6 +58,38 @@ function bind(this: Handler, event: Event) {
 }
 ```
 
+### function with receiver shorthand
+
+Receiver shorthand stays first in the list.
+
+```ds
+function visit(&readonly this, node: Node): void { this.handle(node) }
+```
+
+```ds expected
+function visit(&readonly this, node: Node): void {
+    this.handle(node);
+}
+```
+
+### method with exclusive receiver
+
+Exclusive receiver shorthand formats like a normal receiver.
+
+```ds
+extension of Buffer {
+push(&exclusive this, value: uint8): void { undefined! }
+}
+```
+
+```ds expected
+extension of Buffer {
+    push(&exclusive this, value: uint8): void {
+        undefined!;
+    }
+}
+```
+
 ### destructured parameter
 
 Object destructuring in parameters preserves the pattern structure.
