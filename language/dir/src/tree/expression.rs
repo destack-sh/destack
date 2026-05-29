@@ -768,6 +768,18 @@ pub enum Expression {
         arguments: Vec<LocalNodeId<Argument>>,
     },
 
+    /// Fallible new constructor call with immediate allocation failure propagation.
+    ///
+    /// Examples:
+    /// ```
+    /// new? Foo()
+    /// new? Foo(1, 2, 3)
+    /// ```
+    NewMaybe {
+        ty: LocalNodeId<TypeExpression>,
+        arguments: Vec<LocalNodeId<Argument>>,
+    },
+
     /// Maybe unwrap an expression with `?` and propagate.
     /// Supports chaining with `?.`.
     Maybe {
