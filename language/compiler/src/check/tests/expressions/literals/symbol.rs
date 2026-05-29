@@ -15,10 +15,12 @@ const value: symbol = Symbol.create("id");
 const value: symbol = Symbol.create("id");
 /// @type.symbol symbol=value type=symbol
 /// @type.node source="Symbol.create(\"id\")" type=symbol
+/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source=Symbol.create type=(string | float64?) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
-/// @type.node source="\"id\"" type="id"
+/// @type.node source="\"id\"" type=string
 "#,
     );
 }
@@ -38,10 +40,12 @@ const value: string = Symbol.create("id");
 const value: string = Symbol.create("id");
 /// @type.symbol symbol=value type=string
 /// @type.node source="Symbol.create(\"id\")" type=symbol
+/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source=Symbol.create type=(string | float64?) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
-/// @type.node source="\"id\"" type="id"
+/// @type.node source="\"id\"" type=string
 
 "#,
         r#"
@@ -65,11 +69,13 @@ const value: symbol | string = Symbol.create("id");
         r#"
 const value: symbol | string = Symbol.create("id");
 /// @type.symbol symbol=value type=symbol | string
-/// @type.node source="Symbol.create(\"id\")" type=symbol | string
+/// @type.node source="Symbol.create(\"id\")" type=symbol
+/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source=Symbol.create type=(string | float64?) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
-/// @type.node source="\"id\"" type="id"
+/// @type.node source="\"id\"" type=string
 "#,
     );
 }
@@ -89,10 +95,12 @@ const value: number = Symbol.create("id");
 const value: number = Symbol.create("id");
 /// @type.symbol symbol=value type=float64
 /// @type.node source="Symbol.create(\"id\")" type=symbol
+/// @type.node source=Symbol type=types.symbol.Symbol
+/// @type.node source=Symbol.create type=(string | float64?) => symbol
 /// @resolution.name source=Symbol target=types.symbol.Symbol
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
-/// @type.node source="\"id\"" type="id"
+/// @type.node source="\"id\"" type=string
 
 "#,
         r#"

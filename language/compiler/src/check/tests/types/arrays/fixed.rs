@@ -17,9 +17,9 @@ declare const bytes: [uint8; 4];
 /// @type.symbol symbol=bytes type=[uint8; 4]
 
 const byte = bytes[1];
-/// @resolution.name source=bytes target=bytes
-/// @resolution.member source="bytes[1]" receiver=[uint8; 4] kind=builtin builtin=subscript.index
 /// @type.symbol symbol=byte type=uint8
+/// @resolution.name source=bytes target=bytes
+/// @resolution.member source=bytes[1] receiver=[uint8; 4] kind=builtin builtin=subscript.index
 "#,
     );
 }

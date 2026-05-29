@@ -124,14 +124,14 @@ const value: (number, string) = (1, 2);
         r#"
 const value: (number, string) = (1, 2);
 /// @type.symbol symbol=value type=(float64, string)
-/// @type.node source="(1, 2)" type=(float64, string)
+/// @type.node source="(1, 2)" type=(float64, 2)
 /// @type.node source=1 type=float64
 /// @type.node source=2 type=2
 
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=2 column=34 source="const value: (number, string) = (1, 2);"
+/// @diagnostic.label line=2 column=33 source="const value: (number, string) = (1, 2);"
 "#,
     );
 }

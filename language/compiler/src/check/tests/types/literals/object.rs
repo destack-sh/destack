@@ -80,9 +80,11 @@ const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string 
 /// @type.node source="{ env: { mode: \"dev\" } }" type={ readonly env: { readonly mode: "dev" } }
 /// @type.node source="{ mode: \"dev\" }" type={ readonly mode: "dev" }
 /// @type.node source="\"dev\"" type="dev"
+/// @type.symbol symbol=env type={ mode: string }
+/// @type.symbol symbol=mode#1 type=string
 
 const mode = value.env.mode;
-/// @type.symbol symbol=mode type="dev"
+/// @type.symbol symbol=mode#2 type="dev"
 /// @type.node source=value type={ readonly env: { readonly mode: "dev" } }
 /// @type.node source=value.env type={ readonly mode: "dev" }
 /// @type.node source=value.env.mode type="dev"

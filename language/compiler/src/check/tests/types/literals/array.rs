@@ -14,16 +14,17 @@ const first = values[0];
         DirRows::checked().with_reference_types(),
         r#"
 let values = [1, 2];
-/// @type.symbol symbol=values type=collections.array.Array<int32>
-/// @type.node source=[1, 2] type=collections.array.Array<int32>
+/// @type.symbol symbol=values type=Array<int32>
+/// @type.node source=[1, 2] type=Array<int32>
 /// @type.node source=1 type=int32
 /// @type.node source=2 type=int32
 
 const first = values[0];
 /// @type.symbol symbol=first type=int32
-/// @type.node source=values type=collections.array.Array<int32>
+/// @type.node source=values type=Array<int32>
 /// @type.node source=values[0] type=int32
 /// @resolution.name source=values target=values
+/// @resolution.member source=values[0] receiver=Array<int32> kind=builtin builtin=subscript.index
 /// @type.node source=0 type=0
 "#,
     );
@@ -43,16 +44,17 @@ const first = values[0];
         DirRows::checked().with_reference_types(),
         r#"
 const values: (1 | 2)[] = [1, 2];
-/// @type.symbol symbol=values type=collections.array.Array<1 | 2>
-/// @type.node source=[1, 2] type=collections.array.Array<1 | 2>
+/// @type.symbol symbol=values type=Array<1 | 2>
+/// @type.node source=[1, 2] type=Array<1 | 2>
 /// @type.node source=1 type=1 | 2
 /// @type.node source=2 type=1 | 2
 
 const first = values[0];
 /// @type.symbol symbol=first type=1 | 2
-/// @type.node source=values type=collections.array.Array<1 | 2>
+/// @type.node source=values type=Array<1 | 2>
 /// @type.node source=values[0] type=1 | 2
 /// @resolution.name source=values target=values
+/// @resolution.member source=values[0] receiver=Array<1 | 2> kind=builtin builtin=subscript.index
 /// @type.node source=0 type=0
 "#,
     );

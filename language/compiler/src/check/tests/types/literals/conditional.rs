@@ -15,7 +15,7 @@ const value = true ? 1 : 2;
 const value = true ? 1 : 2;
 /// @type.symbol symbol=value type=1 | 2
 /// @type.node source="true ? 1 : 2" type=1 | 2
-/// @type.node source=true type=true
+/// @type.node source=true type=boolean
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -36,10 +36,10 @@ let value = true ? 1 : 2;
         r#"
 let value = true ? 1 : 2;
 /// @type.symbol symbol=value type=int32
-/// @type.node source="true ? 1 : 2" type=int32
-/// @type.node source=true type=true
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
+/// @type.node source="true ? 1 : 2" type=1 | 2
+/// @type.node source=true type=boolean
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 "#,
     );
 }

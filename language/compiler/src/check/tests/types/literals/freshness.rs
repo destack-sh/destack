@@ -16,11 +16,14 @@ const value: Named = { name: "Ada", extra: true };
         r#"
 type Named = { name: string };
 /// @type.symbol symbol=Named type={ name: string }
+/// @type.symbol symbol=Named.name type=string
 
 const value: Named = { name: "Ada", extra: true };
+/// @type.symbol symbol=value type={ name: string }
 /// @resolution.name source=Named target=Named
-/// @type.node source="{ name: \"Ada\", extra: true }" type={ name: "Ada"; extra: true }
-/// @type.symbol symbol=value type=Named
+/// @type.node source="{ name: \"Ada\", extra: true }" type={ name: string; extra: boolean }
+/// @type.node source="\"Ada\"" type=string
+/// @type.node source=true type=boolean
 
 "#,
         r#"
@@ -47,15 +50,19 @@ const value: Named = source;
         r#"
 type Named = { name: string };
 /// @type.symbol symbol=Named type={ name: string }
+/// @type.symbol symbol=Named.name type=string
 
 const source = { name: "Ada", extra: true };
-/// @type.node source="{ name: \"Ada\", extra: true }" type={ name: string; extra: boolean }
 /// @type.symbol symbol=source type={ name: string; extra: boolean }
+/// @type.node source="{ name: \"Ada\", extra: true }" type={ name: string; extra: boolean }
+/// @type.node source="\"Ada\"" type=string
+/// @type.node source=true type=boolean
 
 const value: Named = source;
+/// @type.symbol symbol=value type={ name: string }
 /// @resolution.name source=Named target=Named
+/// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
-/// @type.symbol symbol=value type=Named
 "#,
     );
 }

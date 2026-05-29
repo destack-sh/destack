@@ -59,7 +59,7 @@ const value: RegExp | int32 = /abc/;
 const value: RegExp | int32 = /abc/;
 /// @type.symbol symbol=value type=regexp.regexp.RegExp | int32
 /// @resolution.name source=RegExp target=regexp.regexp.RegExp
-/// @type.node source=/abc/ type=regexp.regexp.RegExp | int32
+/// @type.node source=/abc/ type=regexp.regexp.RegExp
 "#,
     );
 }
