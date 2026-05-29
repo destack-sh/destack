@@ -322,7 +322,7 @@ impl DirSnapshotBuilder<'_> {
         let element = self.type_id_label(types, slice.element);
         let prefix = if slice.is_readonly { "readonly " } else { "" };
 
-        format!("{prefix}{element}[]")
+        format!("{prefix}[{element}]")
     }
 
     /// Return one tuple type label.
