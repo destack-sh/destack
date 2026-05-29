@@ -1,6 +1,5 @@
 use destack_vm::{
-    Continuation, Frame, HeapReference, Interpreter, Isolate, Program, RawPointer, StackPointer,
-    Word,
+    Continuation, Frame, HeapReference, Interpreter, Isolate, Program, StackPointer, Word,
 };
 
 fn main() {
@@ -18,7 +17,7 @@ fn main() {
         "HeapReference: {} bytes",
         std::mem::size_of::<HeapReference>()
     );
-    println!("RawPointer: {} bytes", std::mem::size_of::<RawPointer>());
+    println!("address: {} bytes", std::mem::size_of::<usize>());
     println!(
         "StackPointer: {} bytes",
         std::mem::size_of::<StackPointer>()

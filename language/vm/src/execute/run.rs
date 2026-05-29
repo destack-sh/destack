@@ -9,7 +9,7 @@ use crate::interpreter::{Continuation, Frame, Interpreter, Machine, Outcome};
 use crate::options::IsolateOptions;
 use crate::program::{CallTarget, Program};
 use crate::{SharedHeap, Word};
-use destack_heap::{Heap, SharedAllocationCache, SharedGcWorker};
+use destack_heap::{AllocationCache, GcWorker, Heap};
 
 impl Interpreter {
     /// Execute a function by id.
@@ -24,8 +24,8 @@ impl Interpreter {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<engine::Value> {
@@ -59,8 +59,8 @@ impl Interpreter {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
@@ -107,8 +107,8 @@ impl Interpreter {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         continuation: Continuation,
         received_value: engine::Value,
     ) -> RuntimeResult<Outcome> {
@@ -147,8 +147,8 @@ impl Interpreter {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         resume_frame_index: usize,
         frame_state: engine::FrameStateId,
         received_value: engine::Value,
@@ -211,8 +211,8 @@ impl Interpreter {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
@@ -307,8 +307,8 @@ impl Interpreter {
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
     ) -> RuntimeResult<Outcome> {
         let mut lowered_instructions_executed = 0;
 

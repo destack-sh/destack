@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_engine::{EngineId, StaticSpace, Value};
 use destack_heap::{
-    Allocator, Heap, HeapLimits, HeapOptions, SharedAllocationCache, SharedGcWorker, SharedHeap,
+    AllocationCache, Allocator, GcWorker, Heap, HeapLimits, HeapOptions, SharedHeap,
     SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir as mir;
@@ -21,9 +21,9 @@ pub(crate) struct Runtime {
     /// The runtime shared heap.
     shared: SharedHeap,
     /// The worker-local shared allocation cache.
-    shared_cache: SharedAllocationCache,
+    shared_cache: AllocationCache,
     /// The shared collector worker.
-    shared_gc: SharedGcWorker,
+    shared_gc: GcWorker,
     /// The benchmark entry function.
     entry: mir::LocalNodeId<mir::Function>,
 }

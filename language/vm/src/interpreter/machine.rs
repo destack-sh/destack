@@ -2,9 +2,9 @@ use std::{fmt, mem, ptr};
 
 use destack_engine as engine;
 use destack_heap::{
-    AllocationShape, AllocationSite as HeapAllocationSite, Heap, HeapReference, HeapResult,
-    Payload, RawAllocationShape, SharedAllocationCache, SharedGcWorker, SharedHeapReference,
-    SmallAllocationSite as HeapSmallAllocationSite, repeated_layout,
+    AllocationCache, AllocationShape, AllocationSite as HeapAllocationSite, GcWorker, Heap,
+    HeapReference, HeapResult, SharedHeapReference, SmallAllocationSite as HeapSmallAllocationSite,
+    repeated_layout,
 };
 use destack_mir::{self as mir, TraceId};
 use engine::StaticSpace;
@@ -19,7 +19,7 @@ use crate::program::{
     TensorDotId, TensorGatherId, TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId,
     U32RangeId,
 };
-use crate::{FramePointer, RawPointer, SharedHeap, SharedRawPointer, StaticPointer, Word};
+use crate::{FramePointer, SharedHeap, StaticPointer, Word};
 
 /// Execution context for one active interpreter frame.
 ///
@@ -36,9 +36,9 @@ pub(crate) struct Machine<'ctx, 'iso> {
     /// The runtime-shared heap borrowed for this dispatch step.
     shared: &'iso SharedHeap,
     /// Shared collector worker for allocation assist.
-    shared_gc: &'iso SharedGcWorker,
+    shared_gc: &'iso GcWorker,
     /// The worker cache for shared heap allocations borrowed for this dispatch step.
-    shared_cache: &'iso mut SharedAllocationCache,
+    shared_cache: &'iso mut AllocationCache,
     /// Interpreter owning the live stack.
     pub(crate) interpreter: &'ctx mut Interpreter,
 
@@ -71,8 +71,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         statics: &'iso mut StaticSpace,
         heap: &'iso mut Heap,
         shared: &'iso SharedHeap,
-        shared_gc: &'iso SharedGcWorker,
-        shared_cache: &'iso mut SharedAllocationCache,
+        shared_gc: &'iso GcWorker,
+        shared_cache: &'iso mut AllocationCache,
         interpreter: &'ctx mut Interpreter,
         frame_index: usize,
         function: &'iso Function,
@@ -693,22 +693,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.shared.heap_base_address() + reference.offset() + byte_offset
     }
 
-    /// Return one local raw native address.
-    #[inline(always)]
-    pub(crate) fn raw_address(&self, pointer: RawPointer, byte_offset: usize) -> usize {
-        self.heap.raw_base_address() + pointer.offset() + byte_offset
-    }
-
-    /// Return one shared raw native address.
-    #[inline(always)]
-    pub(crate) fn shared_raw_address(
-        &self,
-        pointer: SharedRawPointer,
-        byte_offset: usize,
-    ) -> usize {
-        self.shared.raw_base_address() + pointer.offset() + byte_offset
-    }
-
     /// Return whether one local heap reference is live.
     #[inline(always)]
     pub(crate) fn is_heap_live(&self, reference: HeapReference) -> bool {
@@ -719,54 +703,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     #[inline(always)]
     pub(crate) fn is_shared_heap_live(&self, reference: SharedHeapReference) -> bool {
         self.shared_cache.contains_heap_reference(reference) || self.shared.is_heap_live(reference)
-    }
-
-    /// Allocate one zeroed local raw allocation.
-    #[inline(always)]
-    pub(crate) fn allocate_raw_zeroed(
-        &mut self,
-        shape: RawAllocationShape,
-    ) -> HeapResult<RawPointer> {
-        self.heap.allocate_raw(shape, Payload::Zeroed)
-    }
-
-    /// Allocate one uninitialized local raw allocation.
-    #[inline(always)]
-    pub(crate) fn allocate_raw_uninit(
-        &mut self,
-        shape: RawAllocationShape,
-    ) -> HeapResult<RawPointer> {
-        self.heap.allocate_raw(shape, Payload::Uninit)
-    }
-
-    /// Allocate one zeroed shared raw allocation.
-    #[inline(always)]
-    pub(crate) fn allocate_shared_raw_zeroed(
-        &self,
-        shape: RawAllocationShape,
-    ) -> HeapResult<SharedRawPointer> {
-        self.shared.allocate_raw(shape, Payload::Zeroed)
-    }
-
-    /// Allocate one uninitialized shared raw allocation.
-    #[inline(always)]
-    pub(crate) fn allocate_shared_raw_uninit(
-        &self,
-        shape: RawAllocationShape,
-    ) -> HeapResult<SharedRawPointer> {
-        self.shared.allocate_raw(shape, Payload::Uninit)
-    }
-
-    /// Free one local raw allocation.
-    #[inline(always)]
-    pub(crate) fn free_raw(&mut self, pointer: RawPointer) -> HeapResult<()> {
-        self.heap.free_raw(pointer)
-    }
-
-    /// Free one shared raw allocation.
-    #[inline(always)]
-    pub(crate) fn free_shared_raw(&self, pointer: SharedRawPointer) -> HeapResult<()> {
-        self.shared.free_raw(pointer)
     }
 
     /// Free one local managed allocation.
@@ -815,28 +751,6 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     ) -> HeapResult<()> {
         self.shared
             .write_barrier(reference, offset, byte_len, self.program.trace_table())
-    }
-
-    /// Read one local raw allocation byte range.
-    #[inline(always)]
-    pub(crate) fn read_raw_bytes_into(
-        &self,
-        pointer: RawPointer,
-        start: usize,
-        destination: &mut [u8],
-    ) -> HeapResult<()> {
-        self.heap.read_raw_bytes_into(pointer, start, destination)
-    }
-
-    /// Write one local raw allocation byte range.
-    #[inline(always)]
-    pub(crate) fn write_raw_bytes(
-        &mut self,
-        pointer: RawPointer,
-        start: usize,
-        bytes: &[u8],
-    ) -> HeapResult<()> {
-        self.heap.write_raw_bytes(pointer, start, bytes)
     }
 
     /// Move the machine to another live frame.

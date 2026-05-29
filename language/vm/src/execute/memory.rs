@@ -74,19 +74,6 @@ pub(crate) fn execute_load_raw_bytes(
     Ok(())
 }
 
-/// Execute one byte range load from shared raw memory.
-#[inline(always)]
-pub(crate) fn execute_load_shared_raw_bytes(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (address, access, destination, destination_len) = load_bytes(machine, instruction);
-
-    access::load_shared_raw_bytes(machine, address, access, destination, destination_len)?;
-
-    Ok(())
-}
-
 /// Execute one byte range load from stack memory.
 #[inline(always)]
 pub(crate) fn execute_load_stack_bytes(
@@ -184,21 +171,6 @@ pub(crate) fn execute_store_raw_bytes(
 
     machine.with_frame_bytes_at(source, byte_len, |machine, source| {
         access::store_raw_bytes(machine, address, access, source)
-    })?;
-
-    Ok(())
-}
-
-/// Execute one byte range store into shared raw memory.
-#[inline(always)]
-pub(crate) fn execute_store_shared_raw_bytes(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (address, access, source, byte_len) = store_bytes(machine, instruction);
-
-    machine.with_frame_bytes_at(source, byte_len, |machine, source| {
-        access::store_shared_raw_bytes(machine, address, access, source)
     })?;
 
     Ok(())
@@ -401,21 +373,6 @@ pub(crate) fn execute_load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bo
     Ok(())
 }
 
-/// Execute shared raw scalar load.
-#[inline(always)]
-pub(crate) fn execute_load_shared_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (dest, pointer, byte_offset) = load_fields(machine, instruction);
-
-    let value =
-        access::load_shared_raw_scalar::<BYTE_LEN, IS_SIGNED>(machine, pointer, byte_offset);
-    machine.store_word_at(dest, value);
-
-    Ok(())
-}
-
 /// Execute stack scalar load.
 #[inline(always)]
 pub(crate) fn execute_load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
@@ -484,18 +441,6 @@ pub(crate) fn execute_store_raw_scalar<const BYTE_LEN: usize>(
 ) -> Result<(), Error> {
     let (pointer, value, byte_offset) = store_fields(machine, instruction);
     access::store_raw_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value);
-
-    Ok(())
-}
-
-/// Execute shared raw scalar store.
-#[inline(always)]
-pub(crate) fn execute_store_shared_raw_scalar<const BYTE_LEN: usize>(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (pointer, value, byte_offset) = store_fields(machine, instruction);
-    access::store_shared_raw_scalar::<BYTE_LEN>(machine, pointer, byte_offset, value);
 
     Ok(())
 }

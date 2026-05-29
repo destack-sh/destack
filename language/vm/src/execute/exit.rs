@@ -1,5 +1,5 @@
 use crate::Word;
-use destack_heap::{Heap, SharedAllocationCache, SharedGcWorker};
+use destack_heap::{AllocationCache, GcWorker, Heap};
 
 use super::frame::{frame_value_from_word, materialize_value, store_frame_value};
 use crate::SharedHeap;
@@ -14,8 +14,8 @@ impl Interpreter {
         program: &Program,
         heap: &mut Heap,
         shared: &SharedHeap,
-        shared_cache: &mut SharedAllocationCache,
-        shared_gc: &SharedGcWorker,
+        shared_cache: &mut AllocationCache,
+        shared_gc: &GcWorker,
         value: Word,
     ) -> RuntimeResult<Option<Outcome>> {
         // capture the returned value before the callee frame goes away

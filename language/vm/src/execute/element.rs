@@ -69,23 +69,7 @@ pub(crate) fn execute_address_raw_element(
     let array = machine.load_word_at(instruction.b);
     let index = load_array_index_at(machine, instruction.c);
     let element = instruction_element(machine, instruction.d);
-    let value = address::element_raw(machine, array.as_raw_pointer(), element, index);
-    publish_element_address(machine, dest, value);
-
-    Ok(())
-}
-
-/// Execute element addr on shared raw pointers.
-pub(crate) fn execute_address_shared_raw_element(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let dest = instruction.a;
-    let array = machine.load_word_at(instruction.b);
-    let index = load_array_index_at(machine, instruction.c);
-    let element = instruction_element(machine, instruction.d);
-
-    let value = address::element_shared_raw(machine, array.as_shared_raw_pointer(), element, index);
+    let value = address::element_raw(machine, array.as_address(), element, index);
     publish_element_address(machine, dest, value);
 
     Ok(())

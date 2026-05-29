@@ -221,11 +221,7 @@ pub(super) fn raw_pointee_type_for_value_layout(
         Some(ValueLayout::Pointer {
             pointee,
             pointer_class:
-                PointerClass::Raw
-                | PointerClass::SharedRaw
-                | PointerClass::Stack
-                | PointerClass::Frame
-                | PointerClass::Static,
+                PointerClass::Address | PointerClass::Stack | PointerClass::Frame | PointerClass::Static,
             ..
         }) => Some(pointee),
         _ => None,
@@ -279,7 +275,7 @@ pub(super) fn raw_pointee_type_for_value(
             ..
         } if matches!(
             pointer_class_from_reference(space.clone(), *kind),
-            PointerClass::Raw | PointerClass::Stack | PointerClass::Frame
+            PointerClass::Address | PointerClass::Stack | PointerClass::Frame
         ) =>
         {
             pointee.ty()
@@ -681,8 +677,6 @@ fn infer_instruction_layout(
         | mir::Instruction::NewComplete { result_type, .. }
         | mir::Instruction::NewSliceZeroed { result_type, .. }
         | mir::Instruction::NewSliceUninit { result_type, .. }
-        | mir::Instruction::RawAllocZeroed { result_type, .. }
-        | mir::Instruction::RawAllocUninit { result_type, .. }
         | mir::Instruction::AtomicLoad { result_type, .. } => {
             Some(value_layout_from_type(tree, result_type.ty()?))
         }
@@ -702,7 +696,6 @@ fn infer_instruction_layout(
         | mir::Instruction::AtomicStore { .. }
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. }
-        | mir::Instruction::RawFree { .. }
         | mir::Instruction::Free { .. }
         | mir::Instruction::Drop { .. }
         | mir::Instruction::Pin { .. }

@@ -3,10 +3,7 @@ use std::ptr;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
 use crate::program::{Projection, SlotProjection, WordLayout};
-use crate::{
-    FramePointer, HeapReference, RawPointer, SharedHeapReference, SharedRawPointer, StackPointer,
-    StaticPointer, Word,
-};
+use crate::{FramePointer, HeapReference, SharedHeapReference, StackPointer, StaticPointer, Word};
 
 const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 
@@ -52,20 +49,10 @@ fn shared_heap_address(
     machine.shared_heap_address(reference, byte_offset)
 }
 
-/// Return one local raw native address.
+/// Return one raw native address.
 #[inline(always)]
-fn local_raw_address(machine: &Machine<'_, '_>, pointer: RawPointer, byte_offset: usize) -> usize {
-    machine.raw_address(pointer, byte_offset)
-}
-
-/// Return one shared raw native address.
-#[inline(always)]
-fn shared_raw_address(
-    machine: &Machine<'_, '_>,
-    pointer: SharedRawPointer,
-    byte_offset: usize,
-) -> usize {
-    machine.shared_raw_address(pointer, byte_offset)
+fn raw_address(address: usize, byte_offset: usize) -> usize {
+    address + byte_offset
 }
 
 /// Load bytes from one native address.
@@ -196,101 +183,55 @@ pub(super) fn store_scalar_by_layout_at_address(address: usize, layout: WordLayo
     store_unsigned_raw(address, raw, layout.byte_len(POINTER_BYTE_LEN));
 }
 
-/// Load one scalar from local raw heap bytes.
+/// Load one scalar from raw memory.
 pub(crate) fn load_raw_scalar_by_layout(
-    machine: &mut Machine<'_, '_>,
+    _machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: Projection,
 ) -> Word {
     debug_assert_word_access(access);
 
-    let pointer = pointer.as_raw_pointer();
-    let address = local_raw_address(machine, pointer, access.byte_offset);
+    let address = raw_address(pointer.as_address(), access.byte_offset);
 
     load_scalar_by_layout_at_address(address, scalar_layout(access))
 }
 
-/// Load one scalar from shared raw heap bytes.
-pub(crate) fn load_shared_raw_scalar_by_layout(
-    machine: &mut Machine<'_, '_>,
-    pointer: Word,
-    access: Projection,
-) -> Word {
-    debug_assert_word_access(access);
-
-    let pointer = pointer.as_shared_raw_pointer();
-    let address = shared_raw_address(machine, pointer, access.byte_offset);
-
-    load_scalar_by_layout_at_address(address, scalar_layout(access))
-}
-
-/// Store one scalar into local raw heap bytes.
+/// Store one scalar into raw memory.
 pub(crate) fn store_raw_scalar_by_layout(
-    machine: &mut Machine<'_, '_>,
+    _machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: Projection,
     value: Word,
 ) {
     debug_assert_word_access(access);
-    let pointer = pointer.as_raw_pointer();
-    let address = local_raw_address(machine, pointer, access.byte_offset);
+    let address = raw_address(pointer.as_address(), access.byte_offset);
 
     store_scalar_by_layout_at_address(address, scalar_layout(access), value);
 }
 
-/// Store bytes into a local raw pointer.
+/// Store bytes into a raw pointer.
 pub(crate) fn store_raw_bytes(
-    machine: &mut Machine<'_, '_>,
+    _machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: Projection,
     bytes: &[u8],
 ) -> Result<(), Error> {
-    let pointer = pointer.as_raw_pointer();
-    let address = local_raw_address(machine, pointer, access.byte_offset);
+    let address = raw_address(pointer.as_address(), access.byte_offset);
     store_native_bytes(address, bytes);
 
     Ok(())
 }
 
-/// Store one scalar into shared raw heap bytes.
-pub(crate) fn store_shared_raw_scalar_by_layout(
-    machine: &mut Machine<'_, '_>,
-    pointer: Word,
-    access: Projection,
-    value: Word,
-) {
-    debug_assert_word_access(access);
-    let pointer = pointer.as_shared_raw_pointer();
-    let address = shared_raw_address(machine, pointer, access.byte_offset);
-
-    store_scalar_by_layout_at_address(address, scalar_layout(access), value);
-}
-
-/// Store bytes into a shared raw pointer.
-pub(crate) fn store_shared_raw_bytes(
-    machine: &mut Machine<'_, '_>,
-    pointer: Word,
-    access: Projection,
-    bytes: &[u8],
-) -> Result<(), Error> {
-    let pointer = pointer.as_shared_raw_pointer();
-    let address = shared_raw_address(machine, pointer, access.byte_offset);
-    store_native_bytes(address, bytes);
-
-    Ok(())
-}
-
-/// Load bytes from a local raw pointer.
+/// Load bytes from a raw pointer.
 #[inline(always)]
 pub(crate) fn load_raw_bytes(
-    machine: &mut Machine<'_, '_>,
+    _machine: &mut Machine<'_, '_>,
     pointer: Word,
     access: Projection,
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    let pointer = pointer.as_raw_pointer();
-    let address = local_raw_address(machine, pointer, access.byte_offset);
+    let address = raw_address(pointer.as_address(), access.byte_offset);
     load_native_bytes(address, destination, destination_len);
 
     Ok(())
@@ -323,22 +264,6 @@ pub(crate) fn load_shared_heap_bytes(
 ) -> Result<(), Error> {
     let reference = pointer.as_shared_heap_reference();
     let address = shared_heap_address(machine, reference, access.byte_offset);
-    load_native_bytes(address, destination, destination_len);
-
-    Ok(())
-}
-
-/// Load bytes from a shared raw pointer.
-#[inline(always)]
-pub(crate) fn load_shared_raw_bytes(
-    machine: &mut Machine<'_, '_>,
-    pointer: Word,
-    access: Projection,
-    destination: *mut u8,
-    destination_len: usize,
-) -> Result<(), Error> {
-    let pointer = pointer.as_shared_raw_pointer();
-    let address = shared_raw_address(machine, pointer, access.byte_offset);
     load_native_bytes(address, destination, destination_len);
 
     Ok(())
@@ -415,28 +340,14 @@ pub(crate) fn load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bo
     load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address)
 }
 
-/// Load one scalar from a local raw pointer.
+/// Load one scalar from a raw pointer.
 #[inline(always)]
 pub(crate) fn load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
+    _machine: &mut Machine<'_, '_>,
     pointer: Word,
     byte_offset: usize,
 ) -> Word {
-    let pointer = pointer.as_raw_pointer();
-    let address = local_raw_address(machine, pointer, byte_offset);
-
-    load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address)
-}
-
-/// Load one scalar from a shared raw pointer.
-#[inline(always)]
-pub(crate) fn load_shared_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
-    pointer: Word,
-    byte_offset: usize,
-) -> Word {
-    let pointer = pointer.as_shared_raw_pointer();
-    let address = shared_raw_address(machine, pointer, byte_offset);
+    let address = raw_address(pointer.as_address(), byte_offset);
 
     load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address)
 }
@@ -493,30 +404,15 @@ pub(crate) fn store_shared_heap_scalar<const BYTE_LEN: usize>(
     store_scalar_at_address::<BYTE_LEN>(address, value);
 }
 
-/// Store one scalar through a local raw pointer.
+/// Store one scalar through a raw pointer.
 #[inline(always)]
 pub(crate) fn store_raw_scalar<const BYTE_LEN: usize>(
-    machine: &mut Machine<'_, '_>,
+    _machine: &mut Machine<'_, '_>,
     pointer: Word,
     byte_offset: usize,
     value: Word,
 ) {
-    let pointer = pointer.as_raw_pointer();
-    let address = local_raw_address(machine, pointer, byte_offset);
-
-    store_scalar_at_address::<BYTE_LEN>(address, value);
-}
-
-/// Store one scalar through a shared raw pointer.
-#[inline(always)]
-pub(crate) fn store_shared_raw_scalar<const BYTE_LEN: usize>(
-    machine: &mut Machine<'_, '_>,
-    pointer: Word,
-    byte_offset: usize,
-    value: Word,
-) {
-    let pointer = pointer.as_shared_raw_pointer();
-    let address = shared_raw_address(machine, pointer, byte_offset);
+    let address = raw_address(pointer.as_address(), byte_offset);
 
     store_scalar_at_address::<BYTE_LEN>(address, value);
 }

@@ -1,6 +1,6 @@
 use destack_mir as mir;
 
-use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
+use destack_heap::{HeapReference, SharedHeapReference};
 
 use crate::program::{ConstValue, Instruction, Op};
 use crate::{Error, ReferenceSpace, Result, Word};
@@ -69,10 +69,7 @@ impl<'a> BlockLowerer<'a> {
             Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique) => {
                 Word::heap_reference(HeapReference::NULL)
             }
-            _ if matches!(reference.space(), ReferenceSpace::Shared) => {
-                Word::shared_raw_pointer(SharedRawPointer::NULL)
-            }
-            _ => Word::raw_pointer(RawPointer::NULL),
+            _ => Word::address(0),
         }
     }
 }

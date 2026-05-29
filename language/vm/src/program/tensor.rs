@@ -15,10 +15,8 @@ pub(crate) enum TensorAddress {
     Heap,
     /// Shared heap memory.
     SharedHeap,
-    /// Local raw memory.
-    Raw,
-    /// Shared raw memory.
-    SharedRaw,
+    /// Native address memory.
+    Address,
     /// Stack memory.
     Stack,
     /// Frame memory.
@@ -33,8 +31,7 @@ impl TensorAddress {
         Ok(match pointer_class {
             PointerClass::Heap | PointerClass::HeapAddress => Self::Heap,
             PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Self::SharedHeap,
-            PointerClass::Raw => Self::Raw,
-            PointerClass::SharedRaw => Self::SharedRaw,
+            PointerClass::Address => Self::Address,
             PointerClass::Stack => Self::Stack,
             PointerClass::Frame => Self::Frame,
             PointerClass::Static => Self::Static,

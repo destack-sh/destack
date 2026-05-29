@@ -180,64 +180,6 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one raw allocation.
-    pub(super) fn lower_raw_alloc(
-        &self,
-        destination: mir::ValueReference,
-        layout: mir::TypeReference,
-        initialization: AllocationInitialization,
-    ) -> Result<Instruction> {
-        // resolve raw destination and byte width
-        let destination = destination
-            .value()
-            .ok_or_else(|| Error::invalid_program("raw alloc destination"))?;
-        let layout = layout
-            .ty()
-            .ok_or_else(|| Error::invalid_program("raw alloc layout"))?;
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), destination);
-        let op = match pointer_class {
-            PointerClass::Raw => match initialization {
-                AllocationInitialization::Zeroed => Op::AllocateRawZeroed,
-                AllocationInitialization::Uninit => Op::AllocateRawUninit,
-            },
-            PointerClass::SharedRaw => match initialization {
-                AllocationInitialization::Zeroed => Op::AllocateSharedRawZeroed,
-                AllocationInitialization::Uninit => Op::AllocateSharedRawUninit,
-            },
-            _ => {
-                return Err(Error::invalid_pointer_type(format!("{pointer_class:?}")));
-            }
-        };
-
-        let layout = self.layout_for_type(layout)?;
-        let byte_len = layout.byte_len as u64;
-        let alignment = encode_alignment_log2(layout.alignment());
-
-        Ok(Instruction::new(
-            op,
-            word_offset(self, destination)?,
-            byte_len as u32,
-            (byte_len >> 32) as u32,
-            alignment,
-        ))
-    }
-
-    /// Lower one raw free.
-    pub(super) fn lower_raw_free(&self, pointer: mir::ValueReference) -> Result<Instruction> {
-        let pointer = pointer
-            .value()
-            .ok_or_else(|| Error::invalid_program("raw free pointer"))?;
-        let op = match pointer_class_for_value(self.value_layout_map(), pointer) {
-            PointerClass::Raw => Op::FreeRaw,
-            PointerClass::SharedRaw => Op::FreeSharedRaw,
-            _ => {
-                return Err(Error::invalid_pointer_type("non raw pointer"));
-            }
-        };
-
-        Ok(Instruction::new(op, word_offset(self, pointer)?, 0, 0, 0))
-    }
-
     /// Lower one frame allocation.
     pub(super) fn lower_frame_alloc(
         &self,

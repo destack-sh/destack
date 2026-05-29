@@ -43,8 +43,6 @@ pub enum ReferenceKind {
     Raw,
     /// Shared managed heap reference.
     SharedHeap,
-    /// Shared raw pointer.
-    SharedRaw,
 }
 
 /// Errors that can occur during VM execution.
@@ -728,7 +726,6 @@ impl ReferenceKind {
             Self::Heap => "heap",
             Self::Raw => "raw",
             Self::SharedHeap => "shared heap",
-            Self::SharedRaw => "shared raw",
         }
     }
 }
@@ -751,12 +748,8 @@ impl From<heap::HeapError> for Error {
             } => Self::heap_limit_exceeded(region.to_string(), used_bytes, max_bytes),
             heap::HeapError::InvalidReference { kind, .. } => match kind {
                 heap::HeapReferenceKind::Heap => Self::invalid_reference(ReferenceKind::Heap),
-                heap::HeapReferenceKind::Raw => Self::invalid_reference(ReferenceKind::Raw),
                 heap::HeapReferenceKind::SharedHeap => {
                     Self::invalid_reference(ReferenceKind::SharedHeap)
-                }
-                heap::HeapReferenceKind::SharedRaw => {
-                    Self::invalid_reference(ReferenceKind::SharedRaw)
                 }
             },
             error => Self::internal(error.to_string()),

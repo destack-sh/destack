@@ -1,13 +1,14 @@
 use std::cmp::Ordering;
+use std::{ptr, slice};
 
 use destack_mir as mir;
 use smallvec::SmallVec;
 
+use crate::Word;
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::program::{
     ArgumentRange, Instruction, Intrinsic, IntrinsicDest, PointerClass, ValueLayout,
 };
-use crate::{RawPointer, Word};
 
 use crate::interpreter::Machine;
 
@@ -664,22 +665,22 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         Ok((left, right, width))
     }
 
-    /// Return one raw pointer argument.
-    fn raw_pointer_argument(
+    /// Return one raw address argument.
+    fn raw_address_argument(
         &self,
         intrinsic: mir::Intrinsic,
         arguments: &[ValueLayout],
         args: &[Word],
         index: usize,
-    ) -> RuntimeResult<RawPointer> {
+    ) -> RuntimeResult<usize> {
         let value = *self.intrinsic_value(intrinsic, args, index)?;
         let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
 
         match layout {
             ValueLayout::Pointer {
-                pointer_class: PointerClass::Raw,
+                pointer_class: PointerClass::Address,
                 ..
-            } => Ok(value.as_raw_pointer()),
+            } => Ok(value.as_address()),
             _ => Err(self.runtime_error(Error::invalid_pointer_type(format!("{layout:?}")))),
         }
     }
@@ -1475,18 +1476,18 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Compute pointer difference.
     fn ptr_offset_from(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
-        let a = self.raw_pointer_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 0)?;
-        let b = self.raw_pointer_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 1)?;
+        let a = self.raw_address_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 0)?;
+        let b = self.raw_address_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 1)?;
 
-        Ok(Word::int(a.bits() as i64 - b.bits() as i64, 64))
+        Ok(Word::int(a as i64 - b as i64, 64))
     }
 
     // memory operations
 
     /// Copy memory between locations.
     fn memcpy(&mut self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
-        let destination = self.raw_pointer_argument(mir::Intrinsic::Memcpy, arguments, args, 0)?;
-        let source = self.raw_pointer_argument(mir::Intrinsic::Memcpy, arguments, args, 1)?;
+        let destination = self.raw_address_argument(mir::Intrinsic::Memcpy, arguments, args, 0)?;
+        let source = self.raw_address_argument(mir::Intrinsic::Memcpy, arguments, args, 1)?;
         let len = self.byte_count_argument(mir::Intrinsic::Memcpy, args, 2)?;
         if len == 0 {
             return Ok(Word::VOID);
@@ -1504,7 +1505,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Fill memory with a byte value.
     fn memset(&mut self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
-        let destination = self.raw_pointer_argument(mir::Intrinsic::Memset, arguments, args, 0)?;
+        let destination = self.raw_address_argument(mir::Intrinsic::Memset, arguments, args, 0)?;
         let byte = self
             .intrinsic_value(mir::Intrinsic::Memset, args, 1)?
             .as_uint() as u8;
@@ -1520,8 +1521,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Compare memory ranges.
     fn memcmp(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
-        let left = self.raw_pointer_argument(mir::Intrinsic::Memcmp, arguments, args, 0)?;
-        let right = self.raw_pointer_argument(mir::Intrinsic::Memcmp, arguments, args, 1)?;
+        let left = self.raw_address_argument(mir::Intrinsic::Memcmp, arguments, args, 0)?;
+        let right = self.raw_address_argument(mir::Intrinsic::Memcmp, arguments, args, 1)?;
         let len = self.byte_count_argument(mir::Intrinsic::Memcmp, args, 2)?;
         if len == 0 {
             return Ok(Word::int(0, 32));
@@ -1578,53 +1579,50 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     // memory op helpers
 
     /// Copy one raw byte range.
-    fn copy_memory(
-        &mut self,
-        destination: RawPointer,
-        source: RawPointer,
-        len: usize,
-    ) -> RuntimeResult<()> {
-        let mut bytes = vec![0; len];
+    fn copy_memory(&mut self, destination: usize, source: usize, len: usize) -> RuntimeResult<()> {
+        if len == 0 {
+            return Ok(());
+        }
 
-        self.read_raw_bytes_into(source, 0, &mut bytes)
-            .map_err(Error::from)
-            .map_err(|error| self.runtime_error(error))?;
-        self.write_raw_bytes(destination, 0, &bytes)
-            .map_err(Error::from)
-            .map_err(|error| self.runtime_error(error))?;
+        // SAFETY: raw pointer intrinsics require caller-provided valid byte ranges
+        unsafe {
+            let source = source as *const u8;
+            let destination = destination as *mut u8;
+            ptr::copy(source, destination, len);
+        }
 
         Ok(())
     }
 
     /// Set one raw byte range.
-    fn store_memory(&mut self, destination: RawPointer, byte: u8, len: usize) -> RuntimeResult<()> {
-        let bytes = vec![byte; len];
+    fn store_memory(&mut self, destination: usize, byte: u8, len: usize) -> RuntimeResult<()> {
+        if len == 0 {
+            return Ok(());
+        }
 
-        self.write_raw_bytes(destination, 0, &bytes)
-            .map_err(Error::from)
-            .map_err(|error| self.runtime_error(error))?;
+        // SAFETY: raw pointer intrinsics require caller-provided valid byte ranges
+        unsafe {
+            let destination = destination as *mut u8;
+            ptr::write_bytes(destination, byte, len);
+        }
 
         Ok(())
     }
 
     /// Compare one raw byte range.
-    fn compare_memory(
-        &self,
-        left: RawPointer,
-        right: RawPointer,
-        len: usize,
-    ) -> RuntimeResult<i32> {
-        let mut left_bytes = vec![0; len];
-        let mut right_bytes = vec![0; len];
+    fn compare_memory(&self, left: usize, right: usize, len: usize) -> RuntimeResult<i32> {
+        if len == 0 {
+            return Ok(0);
+        }
 
-        self.read_raw_bytes_into(left, 0, &mut left_bytes)
-            .map_err(Error::from)
-            .map_err(|error| self.runtime_error(error))?;
-        self.read_raw_bytes_into(right, 0, &mut right_bytes)
-            .map_err(Error::from)
-            .map_err(|error| self.runtime_error(error))?;
+        // SAFETY: raw pointer intrinsics require caller-provided valid byte ranges
+        let (left_bytes, right_bytes) = unsafe {
+            let left = slice::from_raw_parts(left as *const u8, len);
+            let right = slice::from_raw_parts(right as *const u8, len);
+            (left, right)
+        };
 
-        for (left, right) in left_bytes.into_iter().zip(right_bytes) {
+        for (left, right) in left_bytes.iter().zip(right_bytes) {
             match left.cmp(&right) {
                 Ordering::Less => return Ok(-1),
                 Ordering::Greater => return Ok(1),

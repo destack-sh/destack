@@ -302,28 +302,6 @@ impl<'a> BlockLowerer<'a> {
                 super::allocation::AllocationInitialization::Uninit,
             )?,
 
-            mir::Instruction::RawAllocZeroed {
-                destination,
-                layout,
-                ..
-            } => self.lower_raw_alloc(
-                *destination,
-                *layout,
-                super::allocation::AllocationInitialization::Zeroed,
-            )?,
-
-            mir::Instruction::RawAllocUninit {
-                destination,
-                layout,
-                ..
-            } => self.lower_raw_alloc(
-                *destination,
-                *layout,
-                super::allocation::AllocationInitialization::Uninit,
-            )?,
-
-            mir::Instruction::RawFree { pointer } => self.lower_raw_free(*pointer)?,
-
             mir::Instruction::FrameAllocZeroed {
                 destination,
                 layout,

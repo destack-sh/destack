@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
-use destack_heap::{HeapReference, RawPointer, SharedHeapReference, SharedRawPointer};
+use destack_heap::{HeapReference, SharedHeapReference};
 use serde::{Deserialize, Serialize};
 
 /// One engine value type.
@@ -25,10 +25,8 @@ pub enum ValueType {
     HeapReference,
     /// The shared heap reference type.
     SharedHeapReference,
-    /// The local raw pointer type.
-    RawPointer,
-    /// The shared raw pointer type.
-    SharedRawPointer,
+    /// The native address type.
+    Address,
 }
 
 /// Engine value type mismatch.
@@ -114,10 +112,8 @@ pub enum Value {
     HeapReference(HeapReference),
     /// One shared heap reference.
     SharedHeapReference(SharedHeapReference),
-    /// One raw heap pointer.
-    RawPointer(RawPointer),
-    /// One shared raw-space pointer.
-    SharedRawPointer(SharedRawPointer),
+    /// One native address.
+    Address(usize),
 }
 
 impl Value {
@@ -208,14 +204,9 @@ impl Value {
         Self::SharedHeapReference(reference)
     }
 
-    /// Create one raw pointer value.
-    pub const fn raw_pointer(pointer: RawPointer) -> Self {
-        Self::RawPointer(pointer)
-    }
-
-    /// Create one shared raw pointer value.
-    pub const fn shared_raw_pointer(pointer: SharedRawPointer) -> Self {
-        Self::SharedRawPointer(pointer)
+    /// Create one native address value.
+    pub const fn address(address: usize) -> Self {
+        Self::Address(address)
     }
 
     /// Return this value's type.
@@ -230,8 +221,7 @@ impl Value {
             Self::Char(_) => ValueType::Char,
             Self::HeapReference(_) => ValueType::HeapReference,
             Self::SharedHeapReference(_) => ValueType::SharedHeapReference,
-            Self::RawPointer(_) => ValueType::RawPointer,
-            Self::SharedRawPointer(_) => ValueType::SharedRawPointer,
+            Self::Address(_) => ValueType::Address,
         }
     }
 }
@@ -353,28 +343,14 @@ impl TryFrom<&Value> for SharedHeapReference {
     }
 }
 
-impl TryFrom<&Value> for RawPointer {
+impl TryFrom<&Value> for usize {
     type Error = ValueTypeMismatch;
 
     fn try_from(value: &Value) -> Result<Self, Self::Error> {
         match value {
-            Value::RawPointer(pointer) => Ok(*pointer),
+            Value::Address(address) => Ok(*address),
             value => Err(ValueTypeMismatch::new(
-                ValueType::RawPointer,
-                value.value_type(),
-            )),
-        }
-    }
-}
-
-impl TryFrom<&Value> for SharedRawPointer {
-    type Error = ValueTypeMismatch;
-
-    fn try_from(value: &Value) -> Result<Self, Self::Error> {
-        match value {
-            Value::SharedRawPointer(pointer) => Ok(*pointer),
-            value => Err(ValueTypeMismatch::new(
-                ValueType::SharedRawPointer,
+                ValueType::Address,
                 value.value_type(),
             )),
         }

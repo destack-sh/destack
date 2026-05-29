@@ -105,7 +105,7 @@ pub(crate) fn execute_address_shared_heap_slice_element(
     Ok(())
 }
 
-/// Execute slice element addr on local raw pointers.
+/// Execute slice element addr on raw pointers.
 pub(crate) fn execute_address_raw_slice_element(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
@@ -113,23 +113,7 @@ pub(crate) fn execute_address_raw_slice_element(
     let (dest, slice, index, access) = slice_address_fields(machine, instruction);
 
     let data = load_slice_data(machine, slice, access);
-    let value = address::element_raw(machine, data.as_raw_pointer(), access.element, index);
-
-    store_slice_element_address(machine, dest, value);
-
-    Ok(())
-}
-
-/// Execute slice element addr on shared raw pointers.
-pub(crate) fn execute_address_shared_raw_slice_element(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (dest, slice, index, access) = slice_address_fields(machine, instruction);
-
-    let data = load_slice_data(machine, slice, access);
-    let value =
-        address::element_shared_raw(machine, data.as_shared_raw_pointer(), access.element, index);
+    let value = address::element_raw(machine, data.as_address(), access.element, index);
 
     store_slice_element_address(machine, dest, value);
 
