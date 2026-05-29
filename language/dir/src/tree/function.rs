@@ -22,6 +22,15 @@ pub enum FunctionPhase {
     Comptime,
 }
 
+/// The source form used to spell a receiver.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ThisForm {
+    /// Shorthand receiver, for example `&readonly this`.
+    Implicit,
+    /// `this: T`.
+    Explicit,
+}
+
 /// The signature of a function.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionSignature {
@@ -37,6 +46,8 @@ pub struct FunctionSignature {
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the function.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
+    /// The source form used for the receiver.
+    pub this_form: Option<ThisForm>,
     /// The optional `this` parameter.
     pub this_parameter: Option<LocalNodeId<Parameter>>,
     /// The dynamic parameters of the function.
