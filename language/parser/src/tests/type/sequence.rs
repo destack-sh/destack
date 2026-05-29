@@ -64,6 +64,28 @@ fn test_parse_fixed_array_type() {
 }
 
 #[test]
+fn test_parse_fixed_array_type_length_infer_hole() {
+    let mut test = TestParser::new("type T = [EventTarget; _]");
+    let mut parser = test.prepare();
+    let expr_id = parser.eat_expression(parser.flags).unwrap();
+
+    // type T = [EventTarget; _]
+    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
+            assert_node!(parser.tree, *value, TypeExpression::FixedArray { length, .. } => {
+                assert_node!(parser.tree, *length, Expression::Type { value } => {
+                    assert_node!(parser.tree, *value, TypeExpression::Infer { form, name, constraint } => {
+                        assert_eq!(*form, InferForm::Hole);
+                        assert!(name.is_none());
+                        assert!(constraint.is_none());
+                    });
+                });
+            });
+        });
+    });
+}
+
+#[test]
 fn test_parse_fixed_array_type_value_length_expression() {
     let mut test = TestParser::new("type T<comptime N: uint> = [EventTarget; N * 2]");
     let mut parser = test.prepare();

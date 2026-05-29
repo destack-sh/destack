@@ -154,7 +154,7 @@ impl Parser {
         }
 
         self.bump();
-        if !self.current_token_is_plausible_parameter_head() {
+        if !self.current_token_can_start_parameter_head() {
             return false;
         }
 
@@ -163,10 +163,14 @@ impl Parser {
     }
 
     /// Return whether the current token can begin a parameter list.
-    fn current_token_is_plausible_parameter_head(&mut self) -> bool {
+    fn current_token_can_start_parameter_head(&mut self) -> bool {
+        if self.language.is_destack() && self.current_token_starts_this_form_parameter() {
+            return true;
+        }
+
         match self.peek_token_type() {
             TokenType::CloseParenthesis => true,
-            TokenType::Identifier => self.identifier_parameter_head_follow_is_plausible(),
+            TokenType::Identifier => self.identifier_parameter_head_follow_can_continue(),
             TokenType::OpenBrace | TokenType::OpenBracket | TokenType::Spread => true,
             TokenType::At => true,
             _ => false,
@@ -174,7 +178,7 @@ impl Parser {
     }
 
     /// Return whether an identifier can continue as a parameter head.
-    fn identifier_parameter_head_follow_is_plausible(&mut self) -> bool {
+    fn identifier_parameter_head_follow_can_continue(&mut self) -> bool {
         let token_type = self.next_token_type();
 
         // accept optional parameters only in annotation form
