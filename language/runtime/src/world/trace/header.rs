@@ -16,7 +16,7 @@ pub const TRACE_FORMAT_VERSION: u32 = 1;
 pub const TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK: u32 = 1024;
 
 /// Default maximum byte length of one trace chunk.
-pub const TRACE_DEFAULT_MAX_CHUNK_BYTES: u64 = 4 * 1024 * 1024;
+pub const TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES: u64 = 4 * 1024 * 1024;
 
 /// Trace header describing the execution environment.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,7 +42,7 @@ pub struct TraceHeader {
     /// Maximum number of events per chunk.
     pub max_events_per_chunk: u32,
     /// Maximum chunk size in bytes.
-    pub max_chunk_bytes: u64,
+    pub max_chunk_size_bytes: u64,
     /// Runtime environment.
     pub environment: Arc<Environment>,
 }
@@ -61,7 +61,7 @@ impl TraceHeader {
             replay_payload: BindingReplayPayload::Results,
             binding_registry_hash: 0,
             max_events_per_chunk: TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK,
-            max_chunk_bytes: TRACE_DEFAULT_MAX_CHUNK_BYTES,
+            max_chunk_size_bytes: TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES,
             environment: environment.into(),
         }
     }

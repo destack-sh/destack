@@ -20,9 +20,9 @@ unsafe impl Sync for AddressSpace {}
 
 impl AddressSpace {
     /// Reserve one virtual address space.
-    pub fn reserve(byte_len: usize, page_bytes: usize) -> MemoryResult<Self> {
+    pub fn reserve(byte_len: usize, page_size_bytes: usize) -> MemoryResult<Self> {
         let mapping = Self {
-            map: PageMap::reserve(byte_len, page_bytes)?,
+            map: PageMap::reserve(byte_len, page_size_bytes)?,
         };
 
         Ok(mapping)

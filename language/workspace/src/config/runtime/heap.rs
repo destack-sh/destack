@@ -1,4 +1,4 @@
-use destack_heap::{DEFAULT_GC_GROWTH_PERCENT, DEFAULT_YOUNG_BYTES};
+use destack_heap::{DEFAULT_GC_GROWTH_PERCENT, DEFAULT_YOUNG_SIZE_BYTES};
 use serde::{Deserialize, Serialize};
 
 /// Runtime heap configuration.
@@ -35,7 +35,7 @@ impl Default for HeapOptions {
 #[serde(rename_all = "camelCase")]
 pub struct LocalHeapOptions {
     /// The byte width for worker-local young space.
-    pub young_bytes: usize,
+    pub young_size_bytes: usize,
     /// Minimum heap bytes before normal growth pacing applies.
     pub min_bytes: Option<u64>,
     /// Hard limit for total retained local heap bytes.
@@ -45,7 +45,7 @@ pub struct LocalHeapOptions {
 impl Default for LocalHeapOptions {
     fn default() -> Self {
         Self {
-            young_bytes: DEFAULT_YOUNG_BYTES,
+            young_size_bytes: DEFAULT_YOUNG_SIZE_BYTES,
             min_bytes: None,
             max_bytes: None,
         }

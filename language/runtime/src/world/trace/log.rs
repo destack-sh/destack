@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::BranchId;
 use crate::world::trace::{
-    TRACE_DEFAULT_MAX_CHUNK_BYTES, TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK, TraceCheckpointIndex,
+    TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES, TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK, TraceCheckpointIndex,
     TraceCursor, TraceHeader, TraceRecord, TraceTrailer,
 };
 use postcard::experimental::serialized_size;
@@ -175,8 +175,8 @@ impl TraceLog {
         if header.max_events_per_chunk == 0 {
             header.max_events_per_chunk = TRACE_DEFAULT_MAX_EVENTS_PER_CHUNK;
         }
-        if header.max_chunk_bytes == 0 {
-            header.max_chunk_bytes = TRACE_DEFAULT_MAX_CHUNK_BYTES;
+        if header.max_chunk_size_bytes == 0 {
+            header.max_chunk_size_bytes = TRACE_DEFAULT_MAX_CHUNK_SIZE_BYTES;
         }
 
         let next_sequence = TraceSequence::new(0);
@@ -290,7 +290,7 @@ impl TraceLog {
             && state.tail.active.should_rotate_for_event(
                 record_len,
                 state.header.max_events_per_chunk as usize,
-                state.header.max_chunk_bytes,
+                state.header.max_chunk_size_bytes,
             );
         if is_rotation_required {
             state.seal_active_chunk(sequence);

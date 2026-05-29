@@ -143,9 +143,9 @@ fn fill_with_getrandom_flags(buffer: &mut [u8], flags: u32) -> io::Result<()> {
 ))]
 fn fill_with_getentropy(buffer: &mut [u8]) -> io::Result<()> {
     // getentropy supports at most 256 bytes per call
-    const MAX_CHUNK_BYTES: usize = 256;
+    const MAX_CHUNK_SIZE_BYTES: usize = 256;
 
-    for chunk in buffer.chunks_mut(MAX_CHUNK_BYTES) {
+    for chunk in buffer.chunks_mut(MAX_CHUNK_SIZE_BYTES) {
         loop {
             // SAFETY: chunk is a valid writable byte slice and getentropy accepts this length
             let status =
