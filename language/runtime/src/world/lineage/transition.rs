@@ -2,7 +2,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::World;
 use crate::world::trace::{Trace, TraceRecord, TraceSequence};
 
-use super::{BranchId, HistoryQuery, Moment};
+use super::{BranchId, LineageQuery, Moment};
 
 /// One transition class derived from one authoritative replay record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -113,37 +113,37 @@ impl TransitionSet {
     }
 }
 
-/// One history-rooted committed transition query.
+/// One lineage-rooted committed transition query.
 #[derive(Debug, Clone, Copy)]
 pub struct TransitionQuery<'a> {
-    /// The history query root that owns the query.
-    history: HistoryQuery<'a>,
+    /// The lineage query root that owns the query.
+    lineage: LineageQuery<'a>,
 }
 
 impl<'a> TransitionQuery<'a> {
-    /// Create one committed transition query on one history query root.
-    pub(super) const fn new(history: HistoryQuery<'a>) -> Self {
-        Self { history }
+    /// Create one committed transition query on one lineage query root.
+    pub(super) const fn new(lineage: LineageQuery<'a>) -> Self {
+        Self { lineage }
     }
 
     /// Return every committed transition visible on one branch.
     pub fn branch(self, branch_id: BranchId) -> RuntimeResult<TransitionSet> {
-        self.history.transitions_on(branch_id)
+        self.lineage.transitions_on(branch_id)
     }
 
     /// Return every committed transition visible on one branch and its descendants.
     pub fn descendants_of(self, branch_id: BranchId) -> RuntimeResult<TransitionSet> {
-        self.history.transitions_descendants_of(branch_id)
+        self.lineage.transitions_descendants_of(branch_id)
     }
 
     /// Return every committed transition up to one target moment.
     pub fn up_to(self, moment: Moment) -> RuntimeResult<TransitionSet> {
-        self.history.transitions_up_to(moment)
+        self.lineage.transitions_up_to(moment)
     }
 
     /// Return every committed transition in one exact branch-local range.
     pub fn between(self, start: Moment, end: Moment) -> RuntimeResult<TransitionSet> {
-        self.history.transitions_between(start, end)
+        self.lineage.transitions_between(start, end)
     }
 }
 

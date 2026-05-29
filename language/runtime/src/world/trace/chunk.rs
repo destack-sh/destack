@@ -79,7 +79,7 @@ pub(super) struct TracePrefix {
 }
 
 impl TracePrefix {
-    /// Create one prefix from parent history and frozen chunks.
+    /// Create one prefix from parent lineage and frozen chunks.
     pub(super) fn new(parent: Option<Arc<TracePrefix>>, chunks: Vec<TraceChunk>) -> Self {
         let parent_chunk_count = parent
             .as_ref()

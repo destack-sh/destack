@@ -94,55 +94,55 @@ impl MomentSet {
     }
 }
 
-/// One history-rooted committed moment query.
+/// One lineage-rooted committed moment query.
 #[derive(Debug, Clone, Copy)]
 pub struct MomentQuery<'a> {
-    /// The history query root that owns the query.
-    history: HistoryQuery<'a>,
+    /// The lineage query root that owns the query.
+    lineage: LineageQuery<'a>,
 }
 
 impl<'a> MomentQuery<'a> {
     /// Return every committed moment visible on one branch.
     pub fn branch(self, branch_id: BranchId) -> RuntimeResult<MomentSet> {
-        self.history.moments_on(branch_id)
+        self.lineage.moments_on(branch_id)
     }
 
     /// Return every committed moment up to one target moment.
     pub fn up_to(self, moment: Moment) -> RuntimeResult<MomentSet> {
-        self.history.moments_up_to(moment)
+        self.lineage.moments_up_to(moment)
     }
 
     /// Return every committed moment in one exact branch-local range.
     pub fn between(self, start: Moment, end: Moment) -> RuntimeResult<MomentSet> {
-        self.history.moments_between(start, end)
+        self.lineage.moments_between(start, end)
     }
 }
 
-/// One committed-history query root over shared history.
+/// One committed-lineage query root over shared lineage.
 #[derive(Debug, Clone, Copy)]
-pub struct HistoryQuery<'a> {
-    /// The world that owns the shared history.
+pub struct LineageQuery<'a> {
+    /// The world that owns the shared lineage.
     world: &'a World,
 }
 
-impl<'a> HistoryQuery<'a> {
+impl<'a> LineageQuery<'a> {
     /// Return metadata for one branch.
     pub fn branch(self, branch_id: BranchId) -> RuntimeResult<Branch> {
-        let history = self.world.history.read();
-        history.branch(branch_id)
+        let lineage = self.world.lineage.read();
+        lineage.branch(branch_id)
     }
 
-    /// Return every known branch in stable history order.
+    /// Return every known branch in stable lineage order.
     pub fn branches(self) -> BranchSet {
-        let history = self.world.history.read();
-        let branches = history.branches.values().cloned().collect();
+        let lineage = self.world.lineage.read();
+        let branches = lineage.branches.values().cloned().collect();
 
         BranchSet::new(branches)
     }
 
     /// Return one committed moment query root.
     pub fn moments(self) -> MomentQuery<'a> {
-        MomentQuery { history: self }
+        MomentQuery { lineage: self }
     }
 
     /// Return one committed event query root.
@@ -157,22 +157,22 @@ impl<'a> HistoryQuery<'a> {
 
     /// Return every branch that descends from one ancestor branch.
     pub fn descendants_of(self, branch_id: BranchId) -> RuntimeResult<BranchSet> {
-        let history = self.world.history.read();
-        let branches = history.descendant_branches(branch_id)?;
+        let lineage = self.world.lineage.read();
+        let branches = lineage.descendant_branches(branch_id)?;
 
         Ok(BranchSet::new(branches))
     }
 
     /// Return the branch-origin moment for one branch.
     pub fn branch_origin_moment(self, branch_id: BranchId) -> RuntimeResult<Moment> {
-        let history = self.world.history.read();
-        history.branch_origin_moment(branch_id)
+        let lineage = self.world.lineage.read();
+        lineage.branch_origin_moment(branch_id)
     }
 
     /// Return the committed head moment for one branch.
     pub fn branch_head_moment(self, branch_id: BranchId) -> RuntimeResult<Moment> {
-        let history = self.world.history.read();
-        history.branch_head_moment(branch_id)
+        let lineage = self.world.lineage.read();
+        lineage.branch_head_moment(branch_id)
     }
 
     /// Return one exact committed world view at one moment.
@@ -202,10 +202,10 @@ impl<'a> HistoryQuery<'a> {
         left_branch_id: BranchId,
         right_branch_id: BranchId,
     ) -> RuntimeResult<Divergence> {
-        let history = self.world.history.read();
-        let revision = history.common_ancestor_revision(left_branch_id, right_branch_id)?;
-        let left = history.branch_head_moment(left_branch_id)?;
-        let right = history.branch_head_moment(right_branch_id)?;
+        let lineage = self.world.lineage.read();
+        let revision = lineage.common_ancestor_revision(left_branch_id, right_branch_id)?;
+        let left = lineage.branch_head_moment(left_branch_id)?;
+        let right = lineage.branch_head_moment(right_branch_id)?;
 
         Ok(Divergence {
             base: Moment::new(revision.branch_id, revision.sequence),
@@ -305,7 +305,7 @@ impl<'a> HistoryQuery<'a> {
         Ok(TransitionSet::new(transitions))
     }
 
-    /// Validate one committed-history query range.
+    /// Validate one committed-lineage query range.
     fn require_committed_query_range(self, start: Moment, end: Moment) -> RuntimeResult<()> {
         if start.branch_id != end.branch_id {
             return Err(RuntimeError::moment_branch_mismatch(
@@ -341,8 +341,8 @@ impl<'a> HistoryQuery<'a> {
 
     /// Project committed observations into query events for one range.
     fn observation_events_between(self, start: Moment, end: Moment) -> RuntimeResult<Vec<Event>> {
-        let history = self.world.history.read();
-        let records = history.observation_records_between(start, end)?;
+        let lineage = self.world.lineage.read();
+        let records = lineage.observation_records_between(start, end)?;
 
         Ok(records.into_iter().map(Event::from_observation).collect())
     }
@@ -360,8 +360,8 @@ impl<'a> HistoryQuery<'a> {
     /// Build one replay trace for the committed head of one branch.
     fn replay_trace_for_branch(self, branch_id: BranchId) -> RuntimeResult<Trace> {
         let trace_image = {
-            let history = self.world.history.read();
-            let branch = history.branch(branch_id)?;
+            let lineage = self.world.lineage.read();
+            let branch = lineage.branch(branch_id)?;
             self.world.trace_image(branch.head_revision_id)?
         };
 
@@ -386,9 +386,9 @@ impl World {
         WorldTransitionQuery::new(self)
     }
 
-    /// Return one committed-history query root over shared history.
-    pub fn history(&self) -> HistoryQuery<'_> {
-        HistoryQuery { world: self }
+    /// Return one committed-lineage query root over shared lineage.
+    pub fn lineage(&self) -> LineageQuery<'_> {
+        LineageQuery { world: self }
     }
 
     /// Return every query event after one start moment and up to one end moment.
@@ -484,8 +484,8 @@ impl World {
     /// Project committed and live observation entries into query events for one range.
     fn observation_events_between(&self, start: Moment, end: Moment) -> RuntimeResult<Vec<Event>> {
         let committed_head = {
-            let history = self.history.read();
-            history.branch_head_moment(self.state.branch_id)?
+            let lineage = self.lineage.read();
+            lineage.branch_head_moment(self.state.branch_id)?
         };
 
         let mut events = Vec::new();
@@ -495,8 +495,8 @@ impl World {
                 self.state.branch_id,
                 TraceSequence::new(end.sequence.get().min(committed_head.sequence.get())),
             );
-            let history = self.history.read();
-            let records = history.observation_records_between(start, committed_end)?;
+            let lineage = self.lineage.read();
+            let records = lineage.observation_records_between(start, committed_end)?;
             events.extend(records.into_iter().map(Event::from_observation));
         }
 

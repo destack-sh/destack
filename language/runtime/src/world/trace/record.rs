@@ -23,7 +23,7 @@ pub enum TraceRecord {
     Entrypoint(EntrypointCall),
     /// One observed outcome that replay cannot derive.
     Outcome(Outcome),
-    /// One retained or user-visible history label.
+    /// One retained or user-visible lineage label.
     Label(String),
 }
 

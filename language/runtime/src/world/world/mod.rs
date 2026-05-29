@@ -1,4 +1,5 @@
 mod image;
+mod memory;
 mod mutation;
 mod resource;
 mod runtime;
@@ -8,10 +9,11 @@ mod tick;
 mod wake;
 mod world;
 
-pub use crate::world::history::*;
+pub use crate::world::lineage::*;
 pub(crate) use crate::world::topology;
 pub use crate::world::topology::*;
 pub use image::*;
+pub(crate) use memory::*;
 pub use mutation::*;
 pub use resource::*;
 pub use snapshot::*;
