@@ -8,7 +8,7 @@ use crate::declaration::signature::{
     format_where_clause_with_break, parameter_is_variadic, should_hug_function_parameters,
     write_empty_parameter_list_with_interior_comments, write_function_header_prefix,
     write_generic_parameter_list, write_grouped_parameters_with_return_type,
-    write_signature_hug_parameter_list, write_signature_parameter_list,
+    write_signature_hug_parameter_list_with_this, write_signature_parameter_list_with_this,
     write_signature_return_type,
 };
 use crate::declaration::statement::format_block;
@@ -285,11 +285,21 @@ pub(crate) fn write_function_parameters<'ast>(
     }
 
     if should_hug_function_parameters(f.context(), parameters, can_omit_parens) {
-        return write_signature_hug_parameter_list(f, parameters);
+        return write_signature_hug_parameter_list_with_this(
+            f,
+            signature.this_form,
+            signature.this_parameter,
+            &signature.parameters,
+        );
     }
 
     if function_declaration_is_test_call_argument(f.context(), node_id) {
-        return write_signature_hug_parameter_list(f, parameters);
+        return write_signature_hug_parameter_list_with_this(
+            f,
+            signature.this_form,
+            signature.this_parameter,
+            &signature.parameters,
+        );
     }
 
     let disallow_trailing_parameter_separator = parameters
@@ -297,7 +307,13 @@ pub(crate) fn write_function_parameters<'ast>(
         .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id))
         || (signature.form == FunctionForm::Lambda && parameters.len() == 1);
 
-    write_signature_parameter_list(f, parameters, disallow_trailing_parameter_separator)
+    write_signature_parameter_list_with_this(
+        f,
+        signature.this_form,
+        signature.this_parameter,
+        &signature.parameters,
+        disallow_trailing_parameter_separator,
+    )
 }
 
 /// Write one function return type.

@@ -9,8 +9,8 @@ use crate::declaration::signature::{
     default_generic_parameter_trailing_separator, format_where_clause_with_break,
     parameter_is_variadic, should_hug_function_parameters, write_function_abstraction_prefix,
     write_function_header_prefix, write_generic_parameter_list,
-    write_grouped_parameters_with_return_type, write_signature_hug_parameter_list,
-    write_signature_parameter_list, write_signature_return_type,
+    write_grouped_parameters_with_return_type, write_signature_hug_parameter_list_with_this,
+    write_signature_parameter_list_with_this, write_signature_return_type,
 };
 use crate::expression::format_type_template_literal;
 use crate::file::{
@@ -1814,6 +1814,7 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
 /// Write one list of callable parameters in type position.
 fn write_type_parameters_from_parts<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
+    this_form: Option<destack_dir::ThisForm>,
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameter_ids: &[LocalNodeId<Parameter>],
 ) -> FormatResult<()> {
@@ -1834,7 +1835,12 @@ fn write_type_parameters_from_parts<'ast>(
 
     // hugging
     if should_hug_function_parameters(f.context(), &parameters, false) {
-        return write_signature_hug_parameter_list(f, &parameters);
+        return write_signature_hug_parameter_list_with_this(
+            f,
+            this_form,
+            this_parameter,
+            parameter_ids,
+        );
     }
 
     // grouped list
@@ -1842,13 +1848,20 @@ fn write_type_parameters_from_parts<'ast>(
         .last()
         .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
 
-    write_signature_parameter_list(f, &parameters, disallow_trailing_parameter_separator)
+    write_signature_parameter_list_with_this(
+        f,
+        this_form,
+        this_parameter,
+        parameter_ids,
+        disallow_trailing_parameter_separator,
+    )
 }
 
 /// Write callable type parameters, value parameters, and return type.
 fn write_type_callable_parameters_with_return_type<'ast, H, R>(
     f: &mut DestackFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
+    this_form: Option<destack_dir::ThisForm>,
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameters: &[LocalNodeId<Parameter>],
     return_type: Option<LocalNodeId<TypeExpression>>,
@@ -1861,7 +1874,7 @@ where
     R: Format<DestackFormatContext<'ast>>,
 {
     let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        write_type_parameters_from_parts(f, this_parameter, parameters)
+        write_type_parameters_from_parts(f, this_form, this_parameter, parameters)
     });
 
     let parameter_count = parameters.len() + usize::from(this_parameter.is_some());
@@ -2020,6 +2033,7 @@ fn write_function_type<'ast>(
         write_type_callable_parameters_with_return_type(
             f,
             &function.generic_parameters,
+            function.this_form,
             function.this_parameter,
             &function.parameters,
             function.return_type,
@@ -2063,6 +2077,7 @@ fn write_constructor_type<'ast>(
         write_type_callable_parameters_with_return_type(
             f,
             &function.generic_parameters,
+            None,
             None,
             &function.parameters,
             function.return_type,
@@ -2150,6 +2165,7 @@ fn write_type_signature<'ast>(
         write_type_callable_parameters_with_return_type(
             f,
             &signature.generic_parameters,
+            signature.this_form,
             signature.this_parameter,
             &signature.parameters,
             signature.return_type,
@@ -2191,6 +2207,7 @@ fn write_call_signature<'ast>(
         write_type_callable_parameters_with_return_type(
             f,
             &signature.generic_parameters,
+            signature.this_form,
             signature.this_parameter,
             &signature.parameters,
             signature.return_type,
@@ -2238,6 +2255,7 @@ fn write_construct_signature<'ast>(
         write_type_callable_parameters_with_return_type(
             f,
             &signature.generic_parameters,
+            None,
             None,
             &signature.parameters,
             signature.return_type,

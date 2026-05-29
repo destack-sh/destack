@@ -8,8 +8,8 @@ use crate::declaration::signature::{
     format_where_clause_with_break, parameter_is_variadic, should_break_function_parameters,
     should_hug_function_parameters, write_empty_parameter_list_with_interior_comments,
     write_function_header_prefix, write_generic_parameter_list,
-    write_grouped_parameters_with_return_type, write_signature_hug_parameter_list,
-    write_signature_parameter_list, write_signature_return_type,
+    write_grouped_parameters_with_return_type, write_signature_hug_parameter_list_with_this,
+    write_signature_parameter_list_with_this, write_signature_return_type,
 };
 use crate::declaration::statement::write_block_body;
 use crate::expression::write_expression_without_prefix_annotations;
@@ -795,14 +795,21 @@ where
             if parameters.is_empty() {
                 write_empty_parameter_list_with_interior_comments(f, node_id)?;
             } else if should_hug_function_parameters(f.context(), parameters, false) {
-                write_signature_hug_parameter_list(f, parameters)?;
+                write_signature_hug_parameter_list_with_this(
+                    f,
+                    signature.this_form,
+                    signature.this_parameter,
+                    &signature.parameters,
+                )?;
             } else {
                 let disallow_trailing_parameter_separator = parameters
                     .last()
                     .is_some_and(|parameter_id| parameter_is_variadic(f.context(), *parameter_id));
-                write_signature_parameter_list(
+                write_signature_parameter_list_with_this(
                     f,
-                    parameters,
+                    signature.this_form,
+                    signature.this_parameter,
+                    &signature.parameters,
                     disallow_trailing_parameter_separator,
                 )?;
             }
