@@ -1,230 +1,384 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexSet;
 
 use crate::CompilerResult;
 use crate::check::{
-    ConstraintOrigin, GenericParameter, GenericSlot, GenericSlotId, Solution, StaticTerm, TypeTerm,
-    VariableId, VariableKind,
+    Condition, GenericParameter, GenericSlot, GenericSlotId, Origin, Solution, StaticTerm,
+    TypeTerm, VariableId, VariableKind,
 };
 
 use super::CheckState;
 
-/// Imported checked ids for one module.
-#[derive(Debug)]
-pub(in crate::check) struct ImportTable {
-    /// Dependency modules already imported into this module.
-    pub(in crate::check) modules: IndexSet<ModuleId>,
-    /// Imported symbol kinds keyed by source symbol.
-    pub(in crate::check) symbol_kinds: IndexMap<dir::GlobalSymbolId, dir::SymbolKind>,
-    /// Imported type ids keyed by source id.
-    pub(in crate::check) types: IndexMap<dir::GlobalTypeId, dir::LocalTypeId>,
-    /// Imported static ids keyed by source id.
-    pub(in crate::check) statics: IndexMap<dir::GlobalStaticId, dir::LocalStaticId>,
-}
-
-/// State for copying one checked module into the active module.
-struct CheckedModuleImport<'a> {
-    /// Source checked module.
-    source_module: ModuleId,
-    /// Source checked type table.
-    source_types: &'a dir::TypeTable<'a>,
-    /// Source checked static table.
-    source_statics: &'a dir::StaticTable<'a>,
-    /// Source checked generic table.
-    source_generics: &'a dir::GenericTable<'a>,
-    /// Imported type ids keyed by source id.
-    imported_types: IndexMap<dir::LocalTypeId, dir::LocalTypeId>,
-    /// Imported static ids keyed by source id.
-    imported_statics: IndexMap<dir::LocalStaticId, dir::LocalStaticId>,
-}
-
-impl ImportTable {
-    /// Create empty import state.
-    pub(in crate::check) fn new() -> Self {
-        Self {
-            modules: IndexSet::new(),
-            symbol_kinds: IndexMap::new(),
-            types: IndexMap::new(),
-            statics: IndexMap::new(),
-        }
-    }
-}
-
-impl<'a> CheckedModuleImport<'a> {
-    /// Create import state for one checked source module.
-    fn new(
-        source_module: ModuleId,
-        source_types: &'a dir::TypeTable<'a>,
-        source_statics: &'a dir::StaticTable<'a>,
-        source_generics: &'a dir::GenericTable<'a>,
-    ) -> Self {
-        Self {
-            source_module,
-            source_types,
-            source_statics,
-            source_generics,
-            imported_types: IndexMap::new(),
-            imported_statics: IndexMap::new(),
-        }
-    }
-
-    /// Return the committed slot for one source parameter type.
-    fn source_generic_slot(&self, parameter: dir::ParameterType) -> Option<dir::GenericSlot> {
-        self.source_generics
-            .iter_slots()
-            .map(|(_, slot)| slot)
-            .find(|slot| {
-                slot.owner() == parameter.owner
-                    && slot.key() == parameter.key
-                    && slot.index() == parameter.index
-            })
-            .cloned()
-    }
-}
-
 impl CheckState<'_> {
-    /// Import one checked dependency type into this module.
-    pub(in crate::check) fn import_dependency_type(
-        &mut self,
-        module: ModuleId,
-        source_module: ModuleId,
-        source: dir::LocalTypeId,
-        source_types: &dir::TypeTable<'_>,
-        source_statics: &dir::StaticTable<'_>,
-        source_generics: &dir::GenericTable<'_>,
-    ) -> dir::LocalTypeId {
-        let mut import =
-            CheckedModuleImport::new(source_module, source_types, source_statics, source_generics);
+    /// Import checked dependency modules visible to component modules.
+    pub(in crate::check) fn import_module_dependencies(&mut self) -> CompilerResult<()> {
+        let modules = self.modules.keys().copied().collect::<Vec<_>>();
 
-        self.import_type_id(module, source, &mut import)
+        // load dependency modules without broad symbol materialization
+        for module in modules {
+            let dependencies = self.dependency_modules(module);
+
+            for dependency in dependencies {
+                self.load_dependency(dependency)?;
+                self.module_mut(module).dependencies.insert(dependency);
+            }
+
+            let namespace_dependencies = self.namespace_dependency_modules(module);
+            for dependency in namespace_dependencies {
+                self.import_dependency_module_symbols(module, dependency)?;
+            }
+
+            let imports = self
+                .module(module)
+                .resolved
+                .imports
+                .symbol_targets()
+                .collect::<Vec<_>>();
+            for (alias, target) in imports {
+                if self.modules.contains_key(&target.module_id) {
+                    continue;
+                }
+
+                self.import_dependency_symbol_alias(module, alias, target)?;
+            }
+
+            let symbols = self.dependency_symbols(module);
+            for symbol in symbols {
+                self.import_dependency_symbol(module, symbol)?;
+            }
+        }
+
+        Ok(())
     }
 
-    /// Import checked values attached to one dependency symbol.
-    pub(in crate::check) fn import_symbol(
+    /// Return dependency modules that can be named from one component module.
+    fn dependency_modules(&self, module: ModuleId) -> IndexSet<ModuleId> {
+        let mut dependencies = IndexSet::new();
+        let imports = &self.module(module).resolved.imports;
+
+        // include direct dependency modules
+        for dependency in &imports.dependencies {
+            if !self.modules.contains_key(dependency) {
+                dependencies.insert(*dependency);
+            }
+        }
+
+        // include resolved explicit import targets
+        for (_, target) in imports.symbol_targets() {
+            let dependency = target.module_id;
+            if !self.modules.contains_key(&dependency) {
+                dependencies.insert(dependency);
+            }
+        }
+
+        // include resolved profile global targets
+        for target in imports
+            .global_symbol_by_key
+            .values()
+            .flat_map(|symbols| symbols.iter().copied())
+        {
+            let dependency = target.module_id;
+            if !self.modules.contains_key(&dependency) {
+                dependencies.insert(dependency);
+            }
+        }
+
+        // include syntax-required language items
+        for target in imports.language_symbols() {
+            let dependency = target.module_id;
+            if !self.modules.contains_key(&dependency) {
+                dependencies.insert(dependency);
+            }
+        }
+
+        dependencies
+    }
+
+    /// Return namespace import modules that require broad member visibility.
+    fn namespace_dependency_modules(&self, module: ModuleId) -> IndexSet<ModuleId> {
+        let mut dependencies = IndexSet::new();
+        let imports = &self.module(module).resolved.imports;
+
+        // include namespace import target modules
+        for target in imports.target_by_symbol.values() {
+            let dir::ImportTarget::Namespace(dependency) = target else {
+                continue;
+            };
+            if !self.modules.contains_key(dependency) {
+                dependencies.insert(*dependency);
+            }
+        }
+
+        dependencies
+    }
+
+    /// Return concrete dependency symbols selected by resolve.
+    fn dependency_symbols(&self, module: ModuleId) -> IndexSet<dir::GlobalSymbolId> {
+        let mut symbols = IndexSet::new();
+        let imports = &self.module(module).resolved.imports;
+
+        // include profile global symbols
+        for target in imports
+            .global_symbol_by_key
+            .values()
+            .flat_map(|symbols| symbols.iter().copied())
+        {
+            if !self.modules.contains_key(&target.module_id) {
+                symbols.insert(target);
+            }
+        }
+
+        // include syntax-required language item symbols
+        for target in imports.language_symbols() {
+            if !self.modules.contains_key(&target.module_id) {
+                symbols.insert(target);
+            }
+        }
+
+        symbols
+    }
+
+    /// Import one dependency symbol type as a local check variable.
+    pub(in crate::check) fn import_symbol_type_variable(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-        target: dir::GlobalSymbolId,
-        source_types: &dir::TypeTable<'_>,
-        source_statics: &dir::StaticTable<'_>,
-        source_generics: &dir::GenericTable<'_>,
-    ) {
-        let mut import = CheckedModuleImport::new(
-            target.module_id,
-            source_types,
-            source_statics,
-            source_generics,
+    ) -> VariableId {
+        assert!(
+            self.module(module).dependencies.contains(&symbol.module_id),
+            "dependency type symbol module must be visible"
         );
 
-        if let Some(ty) = source_types.get_symbol_type_id(target) {
-            self.import_symbol_type(module, symbol, ty, &mut import);
-        }
-        if let Some(value) = source_statics.get_symbol_static_id(target) {
-            self.import_symbol_static(module, symbol, value, &mut import);
-        }
-    }
-
-    /// Import one checked symbol type.
-    fn import_symbol_type(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-        source: dir::LocalTypeId,
-        import: &mut CheckedModuleImport<'_>,
-    ) {
-        let ty = self.import_type_id(module, source, import);
-        let variable = self.intern_symbol_type_variable(module, symbol);
-        let term = TypeTerm::Variable(self.materialize_type_id(ty.into_global(module)));
-
-        self.define_type(module, variable, term);
-    }
-
-    /// Import one checked symbol static value.
-    fn import_symbol_static(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-        source: dir::LocalStaticId,
-        import: &mut CheckedModuleImport<'_>,
-    ) {
-        let value = self.import_static_id(module, source, import);
-        let variable = self.intern_symbol_static_variable(module, symbol);
-        let term = StaticTerm::Variable(
-            self.materialize_static_id(ConstraintOrigin::Symbol(symbol), value.into_global(module)),
-        );
-
-        self.define_static(module, variable, term);
-    }
-
-    /// Import one checked type id into this module.
-    fn import_type_id(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalTypeId,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> dir::LocalTypeId {
-        let source_id = source.into_global(import.source_module);
-        if let Some(target) = self.imports(module).types.get(&source_id).copied() {
-            return target;
-        }
-        if let Some(target) = import.imported_types.get(&source).copied() {
-            return target;
-        }
-        let source_ty = import.source_types.get_type(source).clone();
-        let ty = self.import_type(module, source_ty.clone(), import);
-        let source_node = self.input(module).bound.module_node;
-        let target = self
-            .output_mut(module)
+        let source = self
+            .dependency(symbol.module_id)
             .types
-            .insert_imported_type_from_any(ty, source_node);
+            .get_symbol_type_id(symbol)
+            .unwrap_or_else(|| panic!("dependency type symbol {symbol:?} has no checked type"));
 
-        import.imported_types.insert(source, target);
-        self.imports_mut(module).types.insert(source_id, target);
-        if let dir::Type::Parameter(parameter) = source_ty {
-            self.record_imported_type_parameter(module, target, parameter, import);
-        }
-
-        target
+        self.import_dependency_type_variable(module, symbol.module_id, source)
     }
 
-    /// Record one imported type parameter as a real generic variable.
-    fn record_imported_type_parameter(
+    /// Import one dependency symbol value as a local check variable.
+    pub(in crate::check) fn import_symbol_static_variable(
         &mut self,
         module: ModuleId,
-        target: dir::LocalTypeId,
-        parameter: dir::ParameterType,
-        import: &mut CheckedModuleImport<'_>,
+        symbol: dir::GlobalSymbolId,
+    ) -> VariableId {
+        assert!(
+            self.module(module).dependencies.contains(&symbol.module_id),
+            "dependency static symbol module must be visible"
+        );
+
+        let source = self
+            .dependency(symbol.module_id)
+            .statics
+            .get_symbol_static_id(symbol)
+            .unwrap_or_else(|| panic!("dependency static symbol {symbol:?} has no checked value"));
+
+        self.import_dependency_static_variable(symbol.module_id, source)
+    }
+
+    /// Import one dependency type id as a local check variable.
+    pub(in crate::check) fn import_dependency_type_variable(
+        &mut self,
+        module: ModuleId,
+        dependency: ModuleId,
+        source: dir::LocalTypeId,
+    ) -> VariableId {
+        let source_id = source.into_global(dependency);
+        let parameter = match self.dependency(dependency).types.get_type(source) {
+            dir::Type::Parameter(parameter) => Some(*parameter),
+            _ => None,
+        };
+        if let Some(parameter) = parameter {
+            self.import_type_parameter_variable(module, source_id, parameter, dependency);
+        }
+
+        self.materialize_type_id(source_id)
+    }
+
+    /// Import the dependency type attached to one source node.
+    pub(in crate::check) fn import_dependency_node_type_variable(
+        &mut self,
+        module: ModuleId,
+        dependency: ModuleId,
+        source: dir::GlobalNodeIdAny,
+    ) -> VariableId {
+        assert_eq!(
+            source.module_id, dependency,
+            "dependency type node must belong to the imported module"
+        );
+
+        let source = self
+            .dependency(dependency)
+            .types
+            .get_node_type_id(source)
+            .unwrap_or_else(|| panic!("checked dependency node {source:?} has no type"));
+
+        self.import_dependency_type_variable(module, dependency, source)
+    }
+
+    /// Import one dependency static id as a local check variable.
+    fn import_dependency_static_variable(
+        &mut self,
+        dependency: ModuleId,
+        source: dir::LocalStaticId,
+    ) -> VariableId {
+        let origin = Origin::Node(
+            self.dependency(dependency)
+                .module_node
+                .into_global(dependency),
+        );
+
+        self.materialize_static_id(origin, source.into_global(dependency))
+    }
+
+    /// Import one checked dependency symbol through a local alias.
+    fn import_dependency_symbol_alias(
+        &mut self,
+        module: ModuleId,
+        alias: dir::GlobalSymbolId,
+        target: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        assert!(
+            self.module(module).dependencies.contains(&target.module_id),
+            "dependency alias target module must be visible"
+        );
+        let mut imported = IndexSet::new();
+
+        self.import_dependency_symbol_tree(module, target, &mut imported)?;
+        self.add_import_alias_definitions(module, alias, target);
+
+        Ok(())
+    }
+
+    /// Materialize checked values attached to one dependency symbol.
+    fn materialize_dependency_symbol(&mut self, module: ModuleId, target: dir::GlobalSymbolId) {
+        let ty = self
+            .dependency(target.module_id)
+            .types
+            .get_symbol_type_id(target);
+        if let Some(ty) = ty {
+            self.import_dependency_type_variable(module, target.module_id, ty);
+        }
+        let value = self
+            .dependency(target.module_id)
+            .statics
+            .get_symbol_static_id(target);
+        if let Some(value) = value {
+            self.import_dependency_static_variable(target.module_id, value);
+        }
+    }
+
+    /// Add local import alias definitions from a checked dependency symbol.
+    fn add_import_alias_definitions(
+        &mut self,
+        module: ModuleId,
+        alias: dir::GlobalSymbolId,
+        target: dir::GlobalSymbolId,
     ) {
-        let target_id = target.into_global(module);
+        assert_eq!(
+            alias.module_id, module,
+            "check import alias symbol must be local"
+        );
+
+        let ty = self
+            .dependency(target.module_id)
+            .types
+            .get_symbol_type_id(target);
+        if let Some(ty) = ty {
+            self.add_import_alias_type_definition(module, alias, ty, target.module_id);
+        }
+        let value = self
+            .dependency(target.module_id)
+            .statics
+            .get_symbol_static_id(target);
+        if let Some(value) = value {
+            self.add_import_alias_static_definition(module, alias, value, target.module_id);
+        }
+    }
+
+    /// Add one local import alias type definition.
+    fn add_import_alias_type_definition(
+        &mut self,
+        module: ModuleId,
+        alias: dir::GlobalSymbolId,
+        source: dir::LocalTypeId,
+        dependency: ModuleId,
+    ) {
+        let imported = self.import_dependency_type_variable(module, dependency, source);
+        let variable = self.intern_local_symbol_type_variable(module, alias);
+        let term = TypeTerm::Variable(imported);
+
+        self.add_type_definition(variable, term, Condition::Always);
+    }
+
+    /// Add one local import alias static definition.
+    fn add_import_alias_static_definition(
+        &mut self,
+        module: ModuleId,
+        alias: dir::GlobalSymbolId,
+        source: dir::LocalStaticId,
+        dependency: ModuleId,
+    ) {
+        let imported = self.import_dependency_static_variable(dependency, source);
+        let variable = self.intern_symbol_static_variable(module, alias);
+        let term = StaticTerm::Variable(imported);
+
+        self.add_static_definition(variable, term, Condition::Always);
+    }
+
+    /// Import one checked type parameter as a generic variable.
+    fn import_type_parameter_variable(
+        &mut self,
+        module: ModuleId,
+        target_id: dir::GlobalTypeId,
+        parameter: dir::GenericParameterRef,
+        dependency: ModuleId,
+    ) {
         if self.variables.type_by_id.contains_key(&target_id) {
             return;
         }
-        let Some(slot) = import.source_generic_slot(parameter) else {
-            return;
-        };
+        let slot = self
+            .dependency(dependency)
+            .generic_slot(parameter)
+            .unwrap_or_else(|| panic!("dependency generic parameter {parameter:?} has no slot"));
         let slot_id = GenericSlotId::from(parameter);
-        if let Some(variable) = self.generic_slot_variable(slot_id) {
+        if let Some(variable) = self.imported_generic_slot_variable(module, slot_id) {
             self.variables.type_by_id.insert(target_id, variable);
 
             return;
         }
 
-        let generic = self.import_generic_parameter(module, slot, import);
+        let generic = self.import_generic_parameter(module, slot, dependency);
         let variable = self.imported_generic_parameter_variable(module, &generic);
 
-        self.record_generic_parameter(variable, generic);
+        self.attach_imported_generic_parameter(module, variable, generic);
         self.variables.type_by_id.insert(target_id, variable);
 
         match self.variable(variable).kind {
             VariableKind::Type => {
                 let term = self.terms.push(TypeTerm::Parameter(slot_id));
-                self.solve_variable(variable, Solution::Type(term));
+                self.insert_known_solution(variable, Solution::Type(term));
             }
             VariableKind::Static => {
-                self.solve_imported_static_parameter(variable, parameter);
+                let term = self.terms.push(StaticTerm::Parameter(parameter.into()));
+                self.insert_known_solution(variable, Solution::Static(term));
             }
         }
+    }
+
+    /// Return the imported generic variable for one source slot.
+    fn imported_generic_slot_variable(
+        &self,
+        module: ModuleId,
+        slot_id: GenericSlotId,
+    ) -> Option<VariableId> {
+        self.module(module)
+            .imported_generic_by_slot
+            .get(&slot_id)
+            .copied()
     }
 
     /// Import one committed generic slot as check generic metadata.
@@ -232,7 +386,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         slot: dir::GenericSlot,
-        import: &mut CheckedModuleImport<'_>,
+        dependency: ModuleId,
     ) -> GenericParameter {
         let owner = slot.owner();
         let generic_slot = GenericSlot {
@@ -251,8 +405,12 @@ impl CheckState<'_> {
             } => GenericParameter::Type {
                 slot: generic_slot,
                 variance,
-                constraint: constraint.map(|id| self.import_type_variable(module, id, import)),
-                default: default.map(|id| self.import_type_variable(module, id, import)),
+                constraint: constraint.map(|id| {
+                    self.import_dependency_type_variable(module, dependency, id)
+                        .into()
+                }),
+                default: default
+                    .map(|id| self.import_dependency_type_variable(module, dependency, id)),
             },
             dir::GenericSlot::VariadicType {
                 variance,
@@ -262,8 +420,12 @@ impl CheckState<'_> {
             } => GenericParameter::VariadicType {
                 slot: generic_slot,
                 variance,
-                constraint: constraint.map(|id| self.import_type_variable(module, id, import)),
-                default: default.map(|id| self.import_type_variable(module, id, import)),
+                constraint: constraint.map(|id| {
+                    self.import_dependency_type_variable(module, dependency, id)
+                        .into()
+                }),
+                default: default
+                    .map(|id| self.import_dependency_type_variable(module, dependency, id)),
             },
             dir::GenericSlot::Static {
                 constraint,
@@ -271,8 +433,11 @@ impl CheckState<'_> {
                 ..
             } => GenericParameter::Static {
                 slot: generic_slot,
-                constraint: constraint.map(|id| self.import_type_variable(module, id, import)),
-                default: default.map(|id| self.import_static_variable(module, owner, id, import)),
+                constraint: constraint.map(|id| {
+                    self.import_dependency_type_variable(module, dependency, id)
+                        .into()
+                }),
+                default: default.map(|id| self.import_dependency_static_variable(dependency, id)),
             },
             dir::GenericSlot::VariadicStatic {
                 constraint,
@@ -280,35 +445,13 @@ impl CheckState<'_> {
                 ..
             } => GenericParameter::VariadicStatic {
                 slot: generic_slot,
-                constraint: constraint.map(|id| self.import_type_variable(module, id, import)),
-                default: default.map(|id| self.import_static_variable(module, owner, id, import)),
+                constraint: constraint.map(|id| {
+                    self.import_dependency_type_variable(module, dependency, id)
+                        .into()
+                }),
+                default: default.map(|id| self.import_dependency_static_variable(dependency, id)),
             },
         }
-    }
-
-    /// Return the imported type variable for one dependency type id.
-    fn import_type_variable(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalTypeId,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> VariableId {
-        let target = self.import_type_id(module, source, import);
-
-        self.materialize_type_id(target.into_global(module))
-    }
-
-    /// Return the imported static variable for one dependency static id.
-    fn import_static_variable(
-        &mut self,
-        module: ModuleId,
-        owner: dir::GlobalSymbolId,
-        source: dir::LocalStaticId,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> VariableId {
-        let target = self.import_static_id(module, source, import);
-
-        self.materialize_static_id(ConstraintOrigin::Symbol(owner), target.into_global(module))
     }
 
     /// Return a variable for one imported generic parameter.
@@ -322,417 +465,26 @@ impl CheckState<'_> {
         } else {
             VariableKind::Type
         };
+        let source = Origin::Node(self.module(module).bound.module_node.into_global(module));
 
-        match generic.slot().key {
-            dir::GenericSlotKey::Symbol(symbol) if generic.is_static() => {
-                self.intern_symbol_static_variable(module, symbol)
-            }
-            dir::GenericSlotKey::Symbol(symbol) => self.intern_symbol_type_variable(module, symbol),
-            dir::GenericSlotKey::Generated(_) => {
-                let source = ConstraintOrigin::Symbol(generic.slot().owner);
-
-                self.allocate_intermediate_variable(module, kind, source)
-            }
-        }
-    }
-
-    /// Solve one imported static parameter when it has a source symbol.
-    fn solve_imported_static_parameter(
-        &mut self,
-        variable: VariableId,
-        parameter: dir::ParameterType,
-    ) {
-        let dir::GenericSlotKey::Symbol(symbol) = parameter.key else {
-            return;
-        };
-        let term = StaticTerm::Literal(dir::StaticTerm::Symbol { symbol });
-        let term = self.terms.push(term);
-
-        self.solve_variable(variable, Solution::Static(term));
-    }
-
-    /// Import one checked type into this module.
-    fn import_type(
-        &mut self,
-        module: ModuleId,
-        ty: dir::Type,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> dir::Type {
-        match ty {
-            dir::Type::Parameter(_)
-            | dir::Type::Error
-            | dir::Type::Never
-            | dir::Type::Any
-            | dir::Type::Unknown
-            | dir::Type::Void
-            | dir::Type::Null
-            | dir::Type::Undefined
-            | dir::Type::Object
-            | dir::Type::Primitive(_)
-            | dir::Type::Literal(_)
-            | dir::Type::This
-            | dir::Type::Range(_) => ty,
-            dir::Type::Named(named) => dir::Type::Named(dir::NamedType {
-                symbol: named.symbol,
-                arguments: named
-                    .arguments
-                    .into_iter()
-                    .map(|argument| self.import_static_argument(module, argument, import))
-                    .collect(),
-            }),
-            dir::Type::Form(form) => dir::Type::Form(dir::FormType {
-                form: self.import_form(module, form.form, import),
-                value: self.import_type_id(module, form.value, import),
-            }),
-            dir::Type::Dynamic(erased) => dir::Type::Dynamic(dir::DynamicType {
-                constraint: self.import_type_id(module, erased.constraint, import),
-            }),
-            dir::Type::Predicate(predicate) => dir::Type::Predicate(dir::PredicateType {
-                asserts: predicate.asserts,
-                subject: predicate.subject,
-                target: predicate
-                    .target
-                    .map(|target| self.import_type_id(module, target, import)),
-            }),
-            dir::Type::Operation(operation) => {
-                dir::Type::Operation(self.import_type_operation(module, operation, import))
-            }
-            dir::Type::FixedArray(array) => dir::Type::FixedArray(dir::FixedArrayType {
-                element: self.import_type_id(module, array.element, import),
-                count: self.import_static_id(module, array.count, import),
-                is_readonly: array.is_readonly,
-            }),
-            dir::Type::Slice(slice) => dir::Type::Slice(dir::SliceType {
-                element: self.import_type_id(module, slice.element, import),
-                is_readonly: slice.is_readonly,
-            }),
-            dir::Type::Tuple(tuple) => dir::Type::Tuple(dir::TupleType {
-                form: tuple.form,
-                elements: tuple
-                    .elements
-                    .into_iter()
-                    .map(|element| dir::TypeElement {
-                        label: element.label,
-                        ty: self.import_type_id(module, element.ty, import),
-                        is_optional: element.is_optional,
-                        is_readonly: element.is_readonly,
-                        is_rest: element.is_rest,
-                    })
-                    .collect(),
-                is_readonly: tuple.is_readonly,
-            }),
-            dir::Type::Shape(shape) => dir::Type::Shape(dir::ShapeType {
-                fields: shape
-                    .fields
-                    .into_iter()
-                    .map(|field| dir::TypeField {
-                        key: field.key,
-                        ty: self.import_type_id(module, field.ty, import),
-                        is_optional: field.is_optional,
-                        is_readonly: field.is_readonly,
-                    })
-                    .collect(),
-                call_signatures: shape
-                    .call_signatures
-                    .into_iter()
-                    .map(|ty| self.import_type_id(module, ty, import))
-                    .collect(),
-                construct_signatures: shape
-                    .construct_signatures
-                    .into_iter()
-                    .map(|ty| self.import_type_id(module, ty, import))
-                    .collect(),
-                index_signatures: shape
-                    .index_signatures
-                    .into_iter()
-                    .map(|signature| dir::TypeIndexSignature {
-                        name: signature.name,
-                        key_type: self.import_type_id(module, signature.key_type, import),
-                        value_type: self.import_type_id(module, signature.value_type, import),
-                        is_optional: signature.is_optional,
-                        is_readonly: signature.is_readonly,
-                    })
-                    .collect(),
-            }),
-            dir::Type::Function(function) => dir::Type::Function(dir::FunctionTypeShape {
-                asynchrony: function.asynchrony,
-                generic_parameters: function
-                    .generic_parameters
-                    .into_iter()
-                    .map(|ty| self.import_type_id(module, ty, import))
-                    .collect(),
-                this_parameter: function
-                    .this_parameter
-                    .map(|ty| self.import_type_id(module, ty, import)),
-                parameters: function
-                    .parameters
-                    .into_iter()
-                    .map(|parameter| dir::FunctionParameterType {
-                        ty: self.import_type_id(module, parameter.ty, import),
-                        is_optional: parameter.is_optional,
-                        is_rest: parameter.is_rest,
-                    })
-                    .collect(),
-                return_type: function
-                    .return_type
-                    .map(|ty| self.import_type_id(module, ty, import)),
-                is_generator: function.is_generator,
-            }),
-            dir::Type::Closure(closure) => dir::Type::Closure(dir::ClosureType {
-                function: self.import_type_id(module, closure.function, import),
-                environment: self.import_type_id(module, closure.environment, import),
-            }),
-            dir::Type::Union(union) => dir::Type::Union(dir::UnionType {
-                elements: union
-                    .elements
-                    .into_iter()
-                    .map(|ty| self.import_type_id(module, ty, import))
-                    .collect(),
-            }),
-            dir::Type::Intersection(intersection) => {
-                dir::Type::Intersection(dir::IntersectionType {
-                    elements: intersection
-                        .elements
-                        .into_iter()
-                        .map(|ty| self.import_type_id(module, ty, import))
-                        .collect(),
-                })
-            }
-        }
-    }
-
-    /// Import one checked memory form constructor into this module.
-    fn import_form(
-        &mut self,
-        module: ModuleId,
-        form: dir::Form,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> dir::Form {
-        match form {
-            dir::Form::Borrowed { lifetime, access } => dir::Form::Borrowed {
-                lifetime: self.import_static_id(module, lifetime, import),
-                access: self.import_static_id(module, access, import),
-            },
-            dir::Form::Placed { place } => dir::Form::Placed {
-                place: self.import_static_id(module, place, import),
-            },
-            dir::Form::Managed | dir::Form::Owned | dir::Form::Raw | dir::Form::Readonly => form,
-        }
-    }
-
-    /// Import one checked type operation into this module.
-    fn import_type_operation(
-        &mut self,
-        module: ModuleId,
-        operation: dir::TypeOperation,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> dir::TypeOperation {
-        match operation {
-            dir::TypeOperation::BuiltinTypeFunction(_) => operation,
-            dir::TypeOperation::Conditional(conditional) => {
-                dir::TypeOperation::Conditional(dir::ConditionalType {
-                    distributive_symbol: conditional.distributive_symbol,
-                    left: self.import_type_id(module, conditional.left, import),
-                    right: self.import_type_id(module, conditional.right, import),
-                    then_type: self.import_type_id(module, conditional.then_type, import),
-                    else_type: self.import_type_id(module, conditional.else_type, import),
-                })
-            }
-            dir::TypeOperation::Mapped(mapped) => dir::TypeOperation::Mapped(dir::MappedType {
-                parameter: dir::MappedTypeParameter {
-                    name: mapped.parameter.name,
-                    symbol: mapped.parameter.symbol,
-                    constraint: self.import_type_id(module, mapped.parameter.constraint, import),
-                    key_remap: mapped
-                        .parameter
-                        .key_remap
-                        .map(|ty| self.import_type_id(module, ty, import)),
-                },
-                modifiers: mapped.modifiers,
-                value: self.import_type_id(module, mapped.value, import),
-            }),
-            dir::TypeOperation::Index(index) => dir::TypeOperation::Index(dir::IndexType {
-                left: self.import_type_id(module, index.left, import),
-                index: self.import_type_id(module, index.index, import),
-            }),
-            dir::TypeOperation::TemplateLiteral(template) => {
-                dir::TypeOperation::TemplateLiteral(dir::TemplateLiteralType {
-                    strings: template.strings,
-                    spans: template
-                        .spans
-                        .into_iter()
-                        .map(|ty| self.import_type_id(module, ty, import))
-                        .collect(),
-                })
-            }
-            dir::TypeOperation::Infer(infer) => dir::TypeOperation::Infer(dir::InferType {
-                name: infer.name,
-                constraint: infer
-                    .constraint
-                    .map(|ty| self.import_type_id(module, ty, import)),
-            }),
-            dir::TypeOperation::KeyOf(key) => dir::TypeOperation::KeyOf(dir::UnaryType {
-                target: self.import_type_id(module, key.target, import),
-            }),
-        }
-    }
-
-    /// Import one checked static argument into this module.
-    fn import_static_argument(
-        &mut self,
-        module: ModuleId,
-        argument: dir::StaticArgument,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> dir::StaticArgument {
-        dir::StaticArgument {
-            name: argument.name,
-            value: self.import_static_id(module, argument.value, import),
-        }
-    }
-
-    /// Import one checked static id into this module.
-    fn import_static_id(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalStaticId,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> dir::LocalStaticId {
-        let source_id = source.into_global(import.source_module);
-        if let Some(target) = self.imports(module).statics.get(&source_id).copied() {
-            return target;
-        }
-        if let Some(target) = import.imported_statics.get(&source).copied() {
-            return target;
-        }
-        let term = import.source_statics.get_static(source).clone();
-        let term = self.import_static(module, term, import);
-        let target = self.intern_static(module, term);
-
-        import.imported_statics.insert(source, target);
-        self.imports_mut(module).statics.insert(source_id, target);
-
-        target
-    }
-
-    /// Import one checked static value into this module.
-    fn import_static(
-        &mut self,
-        module: ModuleId,
-        term: dir::StaticTerm,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> dir::StaticTerm {
-        match term {
-            dir::StaticTerm::Type { ty } => dir::StaticTerm::Type {
-                ty: self.import_type_id(module, ty, import),
-            },
-            dir::StaticTerm::Array { elements } => dir::StaticTerm::Array {
-                elements: elements
-                    .into_iter()
-                    .map(|term| self.import_static(module, term, import))
-                    .collect(),
-            },
-            dir::StaticTerm::FixedArray { value, length } => dir::StaticTerm::FixedArray {
-                value: Box::new(self.import_static(module, *value, import)),
-                length: Box::new(self.import_static(module, *length, import)),
-            },
-            dir::StaticTerm::Tuple { elements } => dir::StaticTerm::Tuple {
-                elements: elements
-                    .into_iter()
-                    .map(|term| self.import_static(module, term, import))
-                    .collect(),
-            },
-            dir::StaticTerm::Object { properties } => dir::StaticTerm::Object {
-                properties: properties
-                    .into_iter()
-                    .map(|property| self.import_static_property(module, property, import))
-                    .collect(),
-            },
-            dir::StaticTerm::Struct { ty, properties } => dir::StaticTerm::Struct {
-                ty: self.import_type_id(module, ty, import),
-                properties: properties
-                    .into_iter()
-                    .map(|property| self.import_static_property(module, property, import))
-                    .collect(),
-            },
-            term => term,
-        }
-    }
-
-    /// Import one checked static property into this module.
-    fn import_static_property(
-        &mut self,
-        module: ModuleId,
-        property: dir::StaticProperty,
-        import: &mut CheckedModuleImport<'_>,
-    ) -> dir::StaticProperty {
-        match property {
-            dir::StaticProperty::Field { key, value } => dir::StaticProperty::Field {
-                key,
-                value: self.import_static(module, value, import),
-            },
-            dir::StaticProperty::Spread { value } => dir::StaticProperty::Spread {
-                value: self.import_static(module, value, import),
-            },
-            dir::StaticProperty::Method {
-                key,
-                signature,
-                body,
-            } => dir::StaticProperty::Method {
-                key,
-                signature,
-                body: self.import_static(module, body, import),
-            },
-        }
+        self.allocate_inference_variable(module, kind, source)
     }
 }
 
 impl CheckState<'_> {
-    /// Mark one dependency module as visible to one component module.
-    pub(in crate::check) fn mark_dependency_module(
-        &mut self,
-        module: ModuleId,
-        dependency_module: ModuleId,
-    ) -> CompilerResult<()> {
-        if self.inputs.contains_key(&dependency_module) {
-            return Ok(());
-        }
-        if self.imports(module).modules.contains(&dependency_module) {
-            return Ok(());
-        }
-
-        self.load_dependency_input(dependency_module)?;
-        self.imports_mut(module).modules.insert(dependency_module);
-
-        Ok(())
-    }
-
     /// Import one checked symbol from a dependency module into one component module.
-    pub(in crate::check) fn import_dependency_symbol(
+    fn import_dependency_symbol(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        if self.inputs.contains_key(&symbol.module_id) {
-            return Ok(());
-        }
-
-        self.mark_dependency_module(module, symbol.module_id)?;
-        let dependency = self.load_dependency_input(symbol.module_id)?;
-        let bindings = dependency.bindings.clone();
-        let types = dependency.types.clone();
-        let statics = dependency.statics.clone();
-        let generics = dependency.generics.clone();
+        assert!(
+            self.module(module).dependencies.contains(&symbol.module_id),
+            "dependency symbol module must be visible"
+        );
         let mut imported = IndexSet::new();
 
-        self.import_dependency_symbol_tree(
-            module,
-            symbol,
-            &bindings,
-            &types,
-            &statics,
-            &generics,
-            &mut imported,
-        )?;
+        self.import_dependency_symbol_tree(module, symbol, &mut imported)?;
 
         Ok(())
     }
@@ -742,31 +494,18 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-        bindings: &dir::BindingTable<'_>,
-        types: &dir::TypeTable<'_>,
-        statics: &dir::StaticTable<'_>,
-        generics: &dir::GenericTable<'_>,
         imported: &mut IndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<()> {
         if !imported.insert(symbol) {
             return Ok(());
         }
 
-        let kind = bindings.get_symbol(symbol.local_id).kind;
-        self.imports_mut(module).symbol_kinds.insert(symbol, kind);
-        self.import_symbol(module, symbol, symbol, types, statics, generics);
+        self.materialize_dependency_symbol(module, symbol);
 
-        let owned_symbols = Self::dependency_owned_symbols(bindings, symbol);
+        let owned_symbols =
+            Self::dependency_owned_symbols(&self.dependency(symbol.module_id).bindings, symbol);
         for owned_symbol in owned_symbols {
-            self.import_dependency_symbol_tree(
-                module,
-                owned_symbol,
-                bindings,
-                types,
-                statics,
-                generics,
-                imported,
-            )?;
+            self.import_dependency_symbol_tree(module, owned_symbol, imported)?;
         }
 
         Ok(())
@@ -777,55 +516,42 @@ impl CheckState<'_> {
         bindings: &dir::BindingTable<'_>,
         owner: dir::GlobalSymbolId,
     ) -> Vec<dir::GlobalSymbolId> {
-        for scope_id in bindings.scope_ids() {
-            let scope = bindings.get_scope_by_id(scope_id);
-            if scope.owner != Some(owner.local_id) {
-                continue;
-            }
+        let Some(scope) = bindings.scope_for_owner(owner.local_id) else {
+            return Vec::new();
+        };
+        let scope = bindings.get_scope(scope);
+        let named = scope
+            .named_symbols()
+            .map(|(_, symbol)| symbol.into_global(owner.module_id));
+        let anonymous = scope
+            .anonymous_symbols()
+            .map(|symbol| symbol.into_global(owner.module_id));
 
-            let named = scope
-                .named_symbols()
-                .map(|(_, symbol)| symbol.into_global(owner.module_id));
-            let anonymous = scope
-                .anonymous_symbols()
-                .map(|symbol| symbol.into_global(owner.module_id));
-
-            return named.chain(anonymous).collect();
-        }
-
-        Vec::new()
+        named.chain(anonymous).collect()
     }
 
     /// Import all checked symbols from one namespace dependency module.
-    pub(in crate::check) fn import_dependency_module_symbols(
+    fn import_dependency_module_symbols(
         &mut self,
         module: ModuleId,
         dependency_module: ModuleId,
     ) -> CompilerResult<()> {
-        if self.inputs.contains_key(&dependency_module) {
-            return Ok(());
-        }
-
-        self.mark_dependency_module(module, dependency_module)?;
-        let dependency = self.load_dependency_input(dependency_module)?;
-        let types = dependency.types.clone();
-        let statics = dependency.statics.clone();
-        let generics = dependency.generics.clone();
-        let symbols = dependency
+        assert!(
+            self.module(module)
+                .dependencies
+                .contains(&dependency_module),
+            "namespace dependency module must be visible"
+        );
+        let symbols = self
+            .dependency(dependency_module)
             .bindings
             .symbol_ids()
-            .map(|symbol| {
-                let global = symbol.into_global(dependency_module);
-                let kind = dependency.bindings.get_symbol(symbol).kind;
-
-                (global, kind)
-            })
+            .map(|symbol| symbol.into_global(dependency_module))
             .collect::<Vec<_>>();
 
         // import every namespace-visible checked symbol value
-        for (symbol, kind) in symbols {
-            self.imports_mut(module).symbol_kinds.insert(symbol, kind);
-            self.import_symbol(module, symbol, symbol, &types, &statics, &generics);
+        for symbol in symbols {
+            self.materialize_dependency_symbol(module, symbol);
         }
 
         Ok(())

@@ -23,7 +23,7 @@ impl CheckState<'_> {
         module: ModuleId,
         owner: dir::LocalNodeIdAny,
     ) -> Vec<DecoratorCall> {
-        let view = self.input(module).view();
+        let view = self.module(module).view();
         let decorators = view.get_decorators_any(owner);
         let mut calls = Vec::with_capacity(decorators.len());
 
@@ -41,7 +41,7 @@ impl CheckState<'_> {
         module: ModuleId,
         decorator: dir::LocalNodeId<dir::Decorator>,
     ) -> DecoratorCall {
-        let view = self.input(module).view();
+        let view = self.module(module).view();
         let expression = view.get(decorator).expression;
         let (callee, path, arguments) = self.decorator_call_surface(module, expression);
 
@@ -63,7 +63,7 @@ impl CheckState<'_> {
         Option<dir::Path>,
         Vec<dir::LocalNodeId<dir::Argument>>,
     ) {
-        let view = self.input(module).view();
+        let view = self.module(module).view();
 
         match view.get(expression) {
             dir::Expression::Parenthesized { expression } => {
@@ -90,7 +90,7 @@ impl CheckState<'_> {
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::Path> {
-        let view = self.input(module).view();
+        let view = self.module(module).view();
 
         match view.get(expression) {
             dir::Expression::Parenthesized { expression } => {

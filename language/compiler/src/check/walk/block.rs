@@ -16,15 +16,16 @@ impl CheckState<'_> {
 
         // define expression block output
         if block.context == dir::BlockContext::Expression {
-            let variable = self.intern_local_type_variable(tree.module_id, id);
+            let variable = self.intern_local_node_type_variable(tree.module_id, id);
             let term = match block.tail_expression {
-                Some(expression) => {
-                    TypeTerm::Variable(self.intern_local_type_variable(tree.module_id, expression))
-                }
+                Some(expression) => TypeTerm::Variable(
+                    self.intern_local_node_type_variable(tree.module_id, expression),
+                ),
                 None => TypeTerm::Literal(TypeLiteralTerm::Void),
             };
+            let condition = self.active_static_condition(tree.module_id);
 
-            self.define_type(tree.module_id, variable, term);
+            self.add_type_definition(variable, term, condition);
         }
 
         // walk leading statements

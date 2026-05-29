@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, IdentityDecision, IdentityFailure, IdentityResolution, TypeLiteralTerm, TypeTerm,
+    CheckState, IdentityFailure, IdentityResolution, IdentitySelection, TypeLiteralTerm, TypeTerm,
     VariableId,
 };
 
@@ -53,14 +53,14 @@ impl CheckState<'_> {
                 right: identity.right,
             };
 
-            self.record_identity_decision(identity.source, IdentityDecision::Resolved(resolution));
+            self.select_identity(identity.source, IdentitySelection::Resolved(resolution));
 
             return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::boolean())));
         }
 
-        self.record_identity_decision(
+        self.select_identity(
             identity.source,
-            IdentityDecision::Rejected(IdentityFailure::Incompatible),
+            IdentitySelection::Rejected(IdentityFailure::Incompatible),
         );
 
         Ok(None)
@@ -126,7 +126,7 @@ impl CheckState<'_> {
 
     /// Return whether one nominal symbol carries reference identity.
     fn symbol_supports_identity(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
-        let binding_table = self.input(symbol.module_id).binding_table();
+        let binding_table = self.module(symbol.module_id).binding_table();
         let symbol = binding_table.get_symbol(symbol.local_id);
 
         Ok(matches!(

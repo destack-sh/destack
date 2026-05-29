@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, ConstraintOrigin, GenericArgument, Progress, Reduction, TypeOperand,
-    TypeOperationTerm, TypeTerm, VariableId, VariableKind,
+    CheckState, GenericArgument, Origin, Progress, Reduction, TypeOperand, TypeOperationTerm,
+    TypeTerm, VariableId,
 };
 
 /// Runtime range expression term.
@@ -47,7 +47,7 @@ impl CheckState<'_> {
         let Some(item) = Self::range_language_item(range) else {
             return self.range_type(module, range.source, dir::LanguageItem::RangeFull, None);
         };
-        let element = self.range_element_type(module, range)?;
+        let element = self.range_element_type(range);
 
         self.range_type(module, range.source, item, Some(element))
     }
@@ -55,6 +55,7 @@ impl CheckState<'_> {
     /// Expect one runtime range value to use a contextual element type.
     pub(in crate::check) fn expect_range_value_term(
         &mut self,
+        origin: Origin,
         range: &RangeValueTerm,
         expected: &TypeTerm,
     ) -> CompilerResult<Progress> {
@@ -62,7 +63,7 @@ impl CheckState<'_> {
             return Ok(Progress::Unchanged);
         };
         let TypeTerm::Reference {
-            source: _,
+            origin: _,
             symbol,
             arguments,
         } = expected
@@ -79,10 +80,12 @@ impl CheckState<'_> {
 
         // push element context into present bounds
         if let Some(start) = range.start {
-            progress = progress.merge(self.solve_type_assignability(start, element)?);
+            progress =
+                progress.merge(self.solve_contextual_type_assignability(origin, start, element)?);
         }
         if let Some(end) = range.end {
-            progress = progress.merge(self.solve_type_assignability(end, element)?);
+            progress =
+                progress.merge(self.solve_contextual_type_assignability(origin, end, element)?);
         }
 
         Ok(progress)
@@ -103,23 +106,16 @@ impl CheckState<'_> {
     }
 
     /// Return the shared bound type for one range expression.
-    fn range_element_type(
-        &mut self,
-        module: ModuleId,
-        range: &RangeValueTerm,
-    ) -> CompilerResult<VariableId> {
-        let origin = ConstraintOrigin::Node(range.source);
+    fn range_element_type(&mut self, range: &RangeValueTerm) -> TypeOperand {
         let elements = range
             .referenced_variables()
             .into_iter()
             .map(TypeOperand::from)
             .collect();
         let operation = self.terms.push(TypeOperationTerm::BestCommon { elements });
-        let term = TypeTerm::Operation(operation);
-        let variable = self.allocate_intermediate_variable(module, VariableKind::Type, origin);
-        self.define_type(module, variable, term);
+        let term = self.terms.push(TypeTerm::Operation(operation));
 
-        Ok(variable)
+        term.into()
     }
 
     /// Return one nominal range language item type.
@@ -128,16 +124,16 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         item: dir::LanguageItem,
-        element: Option<VariableId>,
+        element: Option<TypeOperand>,
     ) -> CompilerResult<Reduction<TypeTerm>> {
-        let symbol = self.language_symbol(module, item)?;
+        let symbol = self.language_symbol(module, item);
         let arguments = element
             .into_iter()
             .map(|element| GenericArgument::Type(element.into()))
             .collect();
 
         Ok(Reduction::value(TypeTerm::Reference {
-            source: Some(source),
+            origin: Origin::Node(source),
             symbol,
             arguments,
         }))

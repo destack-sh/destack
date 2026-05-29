@@ -1,13 +1,13 @@
 use destack_dir as dir;
 
 use crate::check::{
-    CheckState, ConstraintOrigin, ExportLookup, GenericArgument, Obligation, ReceiverTerm,
-    StaticTerm, TypeOperationTerm, TypeTerm, VariableId, VariableKind,
+    CheckState, GenericArgument, Obligation, Origin, ReceiverTerm, StaticTerm, TypeOperationTerm,
+    TypeTerm, VariableId, VariableKind,
 };
 
 impl CheckState<'_> {
-    /// Resolve one identifier reference term.
-    pub(in crate::check) fn resolve_identifier_expression(
+    /// Build one identifier reference term.
+    pub(in crate::check) fn build_identifier_reference_term(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         name: dir::StringId,
@@ -21,13 +21,14 @@ impl CheckState<'_> {
         )?;
         let source = id.into_global_any(tree.module_id);
 
-        self.record_value_reference(source, symbol);
+        self.use_value_symbol(source, symbol);
+        self.check_value_read_assigned(source, id.into_any(), symbol);
 
         Some(self.value_reference_term(tree, id, symbol, &[]))
     }
 
-    /// Resolve one path reference term.
-    pub(in crate::check) fn resolve_reference_expression(
+    /// Build one qualified reference term.
+    pub(in crate::check) fn build_qualified_reference_term(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         path: &dir::Path,
@@ -35,10 +36,11 @@ impl CheckState<'_> {
         tree: &dir::Tree,
     ) -> Option<TypeTerm> {
         let symbol =
-            self.require_path_symbol(id.into_any(), path, tree, dir::SymbolSpace::Value)?;
+            self.require_path_symbol(tree.module_id, id.into_any(), path, dir::SymbolSpace::Value)?;
         let source = id.into_global_any(tree.module_id);
 
-        self.record_value_reference(source, symbol);
+        self.use_value_symbol(source, symbol);
+        self.check_value_read_assigned(source, id.into_any(), symbol);
 
         Some(self.value_reference_term(tree, id, symbol, generic_arguments))
     }
@@ -55,89 +57,21 @@ impl CheckState<'_> {
         if generic_arguments.is_empty()
             && let Some(narrowed) = self.flow_path_narrowing(tree, id)
         {
-            return TypeTerm::Variable(narrowed);
-        }
-
-        // explicit generic references instantiate the value symbol
-        if generic_arguments.is_empty() {
-            return TypeTerm::Variable(self.intern_symbol_type_variable(tree.module_id, symbol));
+            return narrowed.to_type_term(self);
         }
 
         let arguments = self.build_generic_arguments_for_owner(symbol, generic_arguments, tree);
         let source = id.into_global_any(tree.module_id);
 
         TypeTerm::Reference {
-            source: Some(source),
+            origin: Origin::Node(source),
             symbol,
             arguments,
         }
     }
 
-    /// Require a symbol named by one source path.
-    pub(in crate::check) fn require_path_symbol(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        path: &dir::Path,
-        tree: &dir::Tree,
-        space: dir::SymbolSpace,
-    ) -> Option<dir::GlobalSymbolId> {
-        match self.resolve_path_symbol(tree.module_id, source, path, space) {
-            Ok(ExportLookup::Found(symbol)) => Some(symbol),
-            Ok(ExportLookup::Missing) => {
-                self.report_unresolved_reference(tree.module_id, source, path);
-
-                None
-            }
-            Ok(ExportLookup::Ambiguous(_)) => {
-                self.report_ambiguous_reference(tree.module_id, source, path);
-
-                None
-            }
-            Err(error) => {
-                self.report_internal(tree.module_id, source, format!("{error:?}"));
-
-                None
-            }
-        }
-    }
-
-    /// Return the directly named callee symbol, when one is visible.
-    pub(in crate::check) fn direct_callee_symbol(
-        &mut self,
-        left: dir::LocalNodeId<dir::Expression>,
-        tree: &dir::Tree,
-    ) -> Option<dir::GlobalSymbolId> {
-        let symbol = match tree.get(left) {
-            // f()
-            dir::Expression::Identifier { name } => self
-                .lookup_symbol_by_name(
-                    tree.module_id,
-                    left.into_any(),
-                    *name,
-                    dir::SymbolSpace::Value,
-                )
-                .unique_symbol(),
-            // ns.f()
-            dir::Expression::QualifiedReference { path, .. } => {
-                match self.resolve_path_symbol(
-                    tree.module_id,
-                    left.into_any(),
-                    path,
-                    dir::SymbolSpace::Value,
-                ) {
-                    Ok(ExportLookup::Found(symbol)) => Some(symbol),
-                    Ok(ExportLookup::Missing | ExportLookup::Ambiguous(_)) | Err(_) => None,
-                }
-            }
-            // dynamic callee
-            _ => None,
-        };
-
-        symbol
-    }
-
-    /// Resolve one reference type expression term.
-    pub(in crate::check) fn resolve_reference_type_expression(
+    /// Build one reference type expression term.
+    pub(in crate::check) fn build_reference_type_term(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         path: &dir::Path,
@@ -160,23 +94,24 @@ impl CheckState<'_> {
             && self.symbol_kind(tree.module_id, symbol)
                 == Some(dir::SymbolKind::GenericValueParameter)
         {
-            self.record_name_resolution(source, symbol);
+            self.select_name(source, symbol);
 
-            let slot_id = self.generic_slot_for_symbol(symbol)?;
+            let slot_id = self.generic_slot_for_symbol(tree.module_id, symbol)?;
 
             return Some(TypeTerm::Parameter(slot_id));
         }
 
-        let symbol = self.require_path_symbol(id.into_any(), path, tree, dir::SymbolSpace::Type)?;
+        let symbol =
+            self.require_path_symbol(tree.module_id, id.into_any(), path, dir::SymbolSpace::Type)?;
 
-        self.record_name_resolution(source, symbol);
+        self.select_name(source, symbol);
 
         // direct generic parameter references are local type variables
         if generic_arguments.is_empty()
             && self.symbol_kind(tree.module_id, symbol)
                 == Some(dir::SymbolKind::GenericTypeParameter)
         {
-            let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
+            let variable = self.intern_local_symbol_type_variable(tree.module_id, symbol);
 
             return Some(TypeTerm::Variable(variable));
         }
@@ -202,25 +137,18 @@ impl CheckState<'_> {
                 return Some(TypeTerm::Operation(operation));
             }
             if Self::memory_static_intrinsic_item(item) {
-                let origin = ConstraintOrigin::Node(source);
-                let variable = self.allocate_intermediate_variable(
-                    tree.module_id,
-                    VariableKind::Static,
-                    origin,
-                );
                 let term = StaticTerm::Intrinsic {
                     item,
                     arguments: arguments.into(),
                 };
+                let term = self.terms.push(term);
 
-                self.define_static(tree.module_id, variable, term);
-
-                return Some(TypeTerm::StaticValue { value: variable });
+                return Some(TypeTerm::StaticValue { value: term.into() });
             }
         }
 
         Some(TypeTerm::Reference {
-            source: Some(source),
+            origin: Origin::Node(source),
             symbol,
             arguments,
         })
@@ -271,28 +199,51 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
     ) -> Option<VariableId> {
         let receiver = self.resolve_this_receiver(source)?;
-        let origin = ConstraintOrigin::Node(source);
+        let origin = Origin::Node(source);
         let module = source.module_id;
-        let variable = self.allocate_intermediate_variable(module, VariableKind::Type, origin);
+        let variable = self.allocate_inference_variable(module, VariableKind::Type, origin);
         let receiver = self.terms.push(ReceiverTerm {
             source,
             kind: dir::ReceiverKind::This,
             ty: receiver.ty,
         });
         let term = TypeTerm::Receiver(receiver);
+        let condition = self.active_static_condition(module);
 
-        self.define_type(module, variable, term);
+        self.add_type_definition(variable, term, condition);
 
         Some(variable)
     }
 
-    /// Record one resolved value reference side effect.
-    pub(in crate::check) fn record_value_reference(
+    /// Apply one resolved value reference.
+    pub(in crate::check) fn use_value_symbol(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) {
         self.capture_symbol_reference(source.module_id, symbol);
-        self.record_name_resolution(source, symbol);
+        self.select_name(source, symbol);
+    }
+
+    /// Check one value read against definite assignment flow.
+    fn check_value_read_assigned(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        anchor: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) {
+        if symbol.module_id != source.module_id {
+            return;
+        }
+        let bindings = self.module(symbol.module_id).binding_table();
+        let binding = bindings.get_symbol(symbol.local_id);
+        if binding.binding_mutability.is_none() {
+            return;
+        }
+        if self.flow(source.module_id).is_assigned(symbol) {
+            return;
+        }
+
+        self.report_use_before_assigned(source.module_id, anchor);
     }
 }

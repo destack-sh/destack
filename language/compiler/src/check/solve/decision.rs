@@ -28,3 +28,9 @@ impl Decision {
         }
     }
 }
+
+impl From<bool> for Decision {
+    fn from(value: bool) -> Self {
+        if value { Self::Yes } else { Self::No }
+    }
+}

@@ -11,7 +11,7 @@ impl CheckState<'_> {
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
         let symbol = self
-            .input(module)
+            .module(module)
             .binding_table()
             .symbol_for_declaration(node.into_global(module))?;
 
@@ -25,7 +25,7 @@ impl CheckState<'_> {
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
         let symbol = self
-            .input(module)
+            .module(module)
             .binding_table()
             .implicit_receiver_symbol(node.into_global(module))?;
 
@@ -39,17 +39,9 @@ impl CheckState<'_> {
         owner: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> Option<dir::GlobalSymbolId> {
-        let binding_table = self.input(module).binding_table();
-
-        // find the scope owned by the nominal declaration
-        for scope_id in binding_table.scope_ids() {
-            let scope = binding_table.get_scope_by_id(scope_id);
-            if scope.owner != Some(owner.local_id) {
-                continue;
-            }
-
-            let symbol = scope.find_symbol(key)?;
-
+        let binding_table = self.module(module).binding_table();
+        let lookup = binding_table.lookup_key_member(owner.local_id, key);
+        if let dir::SymbolLookup::Found(symbol) = lookup {
             return Some(symbol.into_global(module));
         }
 
@@ -62,9 +54,9 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
-        let binding_table = self.input(module).binding_table();
+        let binding_table = self.module(module).binding_table();
         let mut current = Some(node);
-        let view = self.input(module).view();
+        let view = self.module(module).view();
 
         // walk parents until a scoped symbol owner is found
         while let Some(node) = current {
@@ -76,28 +68,37 @@ impl CheckState<'_> {
                 }
             }
 
-            current = view.get_parent(node.id);
+            current = view.get_parent_any(node);
         }
 
         None
     }
 
-    /// Return one symbol's declaration node in this module.
+    /// Return one symbol's required declaration node.
     pub(in crate::check) fn symbol_source_node(
         &self,
-        module: ModuleId,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> dir::LocalNodeIdAny {
+        match self.local_symbol_source_node(symbol_id) {
+            Some(source) => source,
+            None => panic!("check symbol {symbol_id:?} has no source node"),
+        }
+    }
+
+    /// Return one symbol's declaration node when it belongs to a checked source module.
+    pub(in crate::check) fn local_symbol_source_node(
+        &self,
         symbol_id: dir::GlobalSymbolId,
     ) -> Option<dir::LocalNodeIdAny> {
-        if symbol_id.module_id != module {
+        let module = self.modules.get(&symbol_id.module_id)?;
+        let binding_table = module.binding_table();
+        let symbol = binding_table.get_symbol(symbol_id.local_id);
+        let declaration = symbol.declaration?;
+        if declaration.module_id != symbol_id.module_id {
             return None;
         }
-        let binding_table = self.input(module).binding_table();
-        let symbol = binding_table.get_symbol_maybe(symbol_id.local_id)?;
 
-        symbol
-            .declaration
-            .filter(|declaration| declaration.module_id == module)
-            .map(|declaration| declaration.local_id)
+        Some(declaration.local_id)
     }
 
     /// Return whether one local symbol is an imported alias.
@@ -110,7 +111,7 @@ impl CheckState<'_> {
             return false;
         }
 
-        self.input(module)
+        self.module(module)
             .resolved
             .imports
             .symbol_target(symbol.local_id)
@@ -123,31 +124,20 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::SymbolKind> {
-        if symbol.module_id == module {
-            let binding_table = self.input(module).binding_table();
+        if let Some(state) = self.modules.get(&symbol.module_id) {
+            let binding_table = state.binding_table();
             let symbol = binding_table.get_symbol(symbol.local_id);
 
             return Some(symbol.kind);
         }
 
-        self.imports(module).symbol_kinds.get(&symbol).copied()
-    }
+        if !self.module(module).dependencies.contains(&symbol.module_id) {
+            return None;
+        }
+        let dependency = self.dependency(symbol.module_id);
+        let symbol = dependency.bindings.get_symbol(symbol.local_id);
 
-    /// Return whether one symbol names a transparent type constraint.
-    pub(in crate::check) fn is_transparent_constraint_symbol(
-        &self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> bool {
-        matches!(
-            self.symbol_kind(module, symbol),
-            Some(
-                dir::SymbolKind::AssociatedType
-                    | dir::SymbolKind::Interface
-                    | dir::SymbolKind::NewtypeInterface
-                    | dir::SymbolKind::TypeAlias,
-            )
-        )
+        Some(symbol.kind)
     }
 
     /// Return the type symbol named by one interface heritage expression.
@@ -156,7 +146,7 @@ impl CheckState<'_> {
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
-        let view = self.input(module).view();
+        let view = self.module(module).view();
         match view.get(expression) {
             // Interface
             dir::Expression::Identifier { name } => self.require_symbol_by_name(

@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckError, CheckState, Decision, MatchCase, Obligation, TypeLiteralTerm, TypeOperand,
-    TypeTerm, VariableId,
+    CheckError, CheckState, Condition, Decision, MatchCase, Obligation, Origin, TypeLiteralTerm,
+    TypeOperand, TypeTerm, VariableId,
 };
 
 impl CheckState<'_> {
@@ -14,12 +14,13 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
         value: VariableId,
         cases: Vec<MatchCase>,
+        condition: Condition,
     ) {
         let obligation = Obligation::ExhaustiveMatch {
             source: source.into_global(value.module),
             value,
             cases,
-            condition: self.active_static_condition(value.module),
+            condition,
         };
 
         self.add_obligation(obligation);
@@ -33,35 +34,38 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         value: VariableId,
         cases: &[MatchCase],
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Option<CheckError>> {
         if self.match_has_default_case(cases) {
-            return Ok(());
+            return Ok(None);
         }
 
         let Some(values) = self.match_finite_values(value)? else {
-            return Ok(());
+            return Ok(None);
         };
 
         let mut is_exhaustive = true;
 
         // require every finite value to be covered
         for value in &values {
-            if !self.match_cases_cover_value(source.module_id, cases, value)? {
+            if !self.match_cases_cover_value(
+                Origin::Node(source),
+                source.module_id,
+                cases,
+                value,
+            )? {
                 is_exhaustive = false;
 
                 break;
             }
         }
         if is_exhaustive {
-            return Ok(());
+            return Ok(None);
         }
 
-        let (module, anchor) = self.source_anchor(source)?;
+        let (module, anchor) = self.source_anchor(source);
         let diagnostic = CheckError::NonExhaustivePattern { anchor, module };
 
-        self.diagnostics_mut(source.module_id).push(diagnostic);
-
-        Ok(())
+        Ok(Some(diagnostic))
     }
 
     /// Return whether a match has a default case.
@@ -128,12 +132,13 @@ impl CheckState<'_> {
     /// Return whether match cases cover one scalar literal.
     fn match_cases_cover_value(
         &mut self,
+        origin: Origin,
         module: ModuleId,
         cases: &[MatchCase],
         value: &dir::ScalarLiteral,
     ) -> CompilerResult<bool> {
         for case in cases {
-            if self.match_case_covers_value(module, case, value)? {
+            if self.match_case_covers_value(origin, module, case, value)? {
                 return Ok(true);
             }
         }
@@ -144,6 +149,7 @@ impl CheckState<'_> {
     /// Return whether one match case covers one scalar literal.
     fn match_case_covers_value(
         &mut self,
+        origin: Origin,
         module: ModuleId,
         case: &MatchCase,
         value: &dir::ScalarLiteral,
@@ -156,7 +162,7 @@ impl CheckState<'_> {
             } => {
                 let value = TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()));
 
-                self.pattern_covers_type(module, *pattern, &value)? == Decision::Yes
+                self.pattern_covers_type(origin, module, *pattern, &value)? == Decision::Yes
             }
             MatchCase::PatternTerm {
                 pattern: _,

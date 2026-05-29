@@ -3,20 +3,20 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Decision, GenericSubstitution, StaticTerm, VariableId};
+use crate::check::{CheckState, Decision, GenericSubstitution, Origin, StaticTerm, VariableId};
 
 /// One static boolean predicate with its reduction context.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct StaticPredicate {
-    /// The module whose checker state reduces this predicate.
-    pub(in crate::check) module: ModuleId,
+pub(in crate::check) struct ConditionPredicate {
+    /// The source that produced this predicate.
+    pub(in crate::check) origin: Origin,
     /// The static boolean term.
     pub(in crate::check) term: StaticTerm,
 }
 
 /// Static condition under which one checked item exists.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum StaticCondition {
+pub(in crate::check) enum Condition {
     /// The item is always present.
     Always,
     /// The item is never present.
@@ -24,11 +24,11 @@ pub(in crate::check) enum StaticCondition {
     /// The item is present when all condition predicates are true.
     When {
         /// Static boolean predicates that guard this item.
-        conditions: SmallVec<[StaticPredicate; 2]>,
+        conditions: SmallVec<[ConditionPredicate; 2]>,
     },
 }
 
-impl StaticPredicate {
+impl ConditionPredicate {
     /// Return variables whose changes can decide this predicate.
     pub(in crate::check) fn referenced_variables(
         &self,
@@ -45,7 +45,7 @@ impl StaticPredicate {
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let predicate = Self {
-            module,
+            origin: self.origin,
             term: self.term.substitute(module, substitution, state)?,
         };
 
@@ -53,7 +53,7 @@ impl StaticPredicate {
     }
 }
 
-impl StaticCondition {
+impl Condition {
     /// Return whether this condition excludes the item.
     pub(in crate::check) fn is_never(&self) -> bool {
         matches!(self, Self::Never)
@@ -113,15 +113,25 @@ impl StaticCondition {
     }
 }
 
-impl Default for StaticCondition {
+impl Default for Condition {
     fn default() -> Self {
         Self::Always
     }
 }
 
+impl From<&Condition> for Decision {
+    fn from(condition: &Condition) -> Self {
+        match condition {
+            Condition::Always => Self::Yes,
+            Condition::Never => Self::No,
+            Condition::When { .. } => Self::Undecidable,
+        }
+    }
+}
+
 impl CheckState<'_> {
     /// Decide whether one guarded symbol is available after generic substitution.
-    pub(in crate::check) fn decide_symbol_availability(
+    pub(in crate::check) fn reduce_symbol_availability(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
@@ -130,42 +140,33 @@ impl CheckState<'_> {
         let condition = self.symbol_availability(symbol);
         let condition = condition.substitute(module, substitution, self)?;
 
-        self.decide_static_condition(&condition)
+        self.reduce_condition_decision(&condition)
     }
 
     /// Return the static condition that gates one symbol.
-    fn symbol_availability(&self, symbol: dir::GlobalSymbolId) -> StaticCondition {
-        let Some(availability) = self.availability.get(&symbol.module_id) else {
-            return StaticCondition::Always;
+    fn symbol_availability(&self, symbol: dir::GlobalSymbolId) -> Condition {
+        let Some(module) = self.modules.get(&symbol.module_id) else {
+            return Condition::Always;
         };
-        let condition = availability.get(&symbol);
+        let condition = module.availability.get(&symbol);
 
-        condition.cloned().unwrap_or(StaticCondition::Always)
+        condition.cloned().unwrap_or(Condition::Always)
     }
 
-    /// Decide whether one static condition is active.
-    pub(in crate::check) fn decide_static_condition(
+    /// Reduce one static condition through solved predicate terms.
+    pub(in crate::check) fn reduce_condition(
         &mut self,
-        condition: &StaticCondition,
-    ) -> CompilerResult<Decision> {
-        match condition {
-            StaticCondition::Always => Ok(Decision::Yes),
-            StaticCondition::Never => Ok(Decision::No),
-            StaticCondition::When { conditions } => self.decide_static_conditions(conditions),
-        }
-    }
-
-    /// Decide whether all static predicate terms are true.
-    fn decide_static_conditions(
-        &mut self,
-        conditions: &[StaticPredicate],
-    ) -> CompilerResult<Decision> {
-        let mut decision = Decision::Yes;
+        condition: &Condition,
+    ) -> CompilerResult<Condition> {
+        let Condition::When { conditions } = condition else {
+            return Ok(condition.clone());
+        };
+        let mut remaining = SmallVec::new();
 
         // reduce predicates through solved static values
         for condition in conditions {
-            let Some(term) = self.reduce_static_term(condition.module, &condition.term)? else {
-                decision = Decision::Undecidable;
+            let Some(term) = self.reduce_static_term(condition.origin, &condition.term)? else {
+                remaining.push(condition.clone());
 
                 continue;
             };
@@ -176,11 +177,32 @@ impl CheckState<'_> {
                 }) => {}
                 StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
                     value: dir::ScalarLiteral::Boolean(false),
-                }) => return Ok(Decision::No),
-                _ => decision = Decision::Undecidable,
+                }) => return Ok(Condition::Never),
+                term => remaining.push(ConditionPredicate {
+                    origin: condition.origin,
+                    term,
+                }),
             }
         }
 
-        Ok(decision)
+        let condition = if remaining.is_empty() {
+            Condition::Always
+        } else {
+            Condition::When {
+                conditions: remaining,
+            }
+        };
+
+        Ok(condition)
+    }
+
+    /// Reduce one static condition to its current decision.
+    pub(in crate::check) fn reduce_condition_decision(
+        &mut self,
+        condition: &Condition,
+    ) -> CompilerResult<Decision> {
+        let condition = self.reduce_condition(condition)?;
+
+        Ok(Decision::from(&condition))
     }
 }

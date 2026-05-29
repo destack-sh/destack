@@ -16,14 +16,14 @@ impl CheckState<'_> {
         match match_case {
             // case pattern if guard => expression
             dir::MatchCase::Expression { selector, body } => {
-                // enter selector facts before the body
+                // enter selector flow before the body
                 self.walk_match_selector(tree, selector, value);
 
                 self.walk_expression(tree, *body, tree.get(*body));
             }
             // case pattern if guard { ... }
             dir::MatchCase::Block { selector, body } => {
-                // enter selector facts before the body
+                // enter selector flow before the body
                 self.walk_match_selector(tree, selector, value);
 
                 self.walk_block(tree, *body, tree.get(*body));
@@ -47,11 +47,14 @@ impl CheckState<'_> {
                 if let Some((value, path)) = value
                     && let Some(term) = self.build_pattern_term(tree.module_id, *pattern, tree)
                 {
+                    let condition = self.active_static_condition(tree.module_id);
+
                     self.constrain_pattern(
                         tree.module_id,
                         PatternRelation::Match(term),
                         pattern.into_any(),
                         value,
+                        condition,
                     );
 
                     if let Some(path) = path {
@@ -66,8 +69,10 @@ impl CheckState<'_> {
                 if let Some(guard) = guard {
                     self.walk_expression(tree, *guard, tree.get(*guard));
 
-                    let variable = self.intern_local_type_variable(tree.module_id, *guard);
-                    self.constrain_condition(guard.into_any(), variable);
+                    let variable = self.intern_local_node_type_variable(tree.module_id, *guard);
+                    let condition = self.active_static_condition(tree.module_id);
+
+                    self.constrain_condition(guard.into_any(), variable, condition);
                     self.apply_expression_narrowings(tree, *guard, ConditionBranch::True);
                 }
             }
@@ -107,7 +112,8 @@ impl CheckState<'_> {
             dir::MatchSelector::Default => MatchCase::Default,
             dir::MatchSelector::Pattern { pattern, guard } => MatchCase::PatternTerm {
                 pattern: self.build_pattern_term(tree.module_id, *pattern, tree)?,
-                guard: guard.map(|guard| self.intern_local_type_variable(tree.module_id, guard)),
+                guard: guard
+                    .map(|guard| self.intern_local_node_type_variable(tree.module_id, guard)),
             },
         };
 

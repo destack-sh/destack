@@ -264,7 +264,7 @@ pub enum CheckError {
 
     /// Static condition could not be evaluated to a boolean value.
     #[diagnostic(code = "EC401", message = "static condition requires boolean value")]
-    InvalidStaticCondition {
+    InvalidCondition {
         /// Report the static condition expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
@@ -396,19 +396,5 @@ pub enum CheckError {
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
-    },
-
-    // -------------------------------------------------------------------------
-    // 9xx: internal
-    // -------------------------------------------------------------------------
-    /// Internal check failure.
-    #[diagnostic(code = "EC900", message = "internal error: {message}")]
-    Internal {
-        /// Anchor the error to a module.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-        /// Describe the internal failure.
-        message: String,
     },
 }

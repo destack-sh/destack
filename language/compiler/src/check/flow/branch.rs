@@ -17,7 +17,7 @@ impl CheckState<'_> {
         self.flow(module).branch(checkpoint)
     }
 
-    /// Restore current flow facts to one checkpoint.
+    /// Restore current flow state to one checkpoint.
     pub(in crate::check) fn restore_flow(&mut self, module: ModuleId, checkpoint: FlowCheckpoint) {
         self.flow_mut(module).restore(checkpoint);
     }
@@ -44,7 +44,7 @@ impl CheckState<'_> {
             .merge_branches(checkpoint, left, right);
     }
 
-    /// Merge the facts common to all completed flow branches.
+    /// Merge the state common to all completed flow branches.
     pub(in crate::check) fn merge_flow_branches_from(
         &mut self,
         module: ModuleId,

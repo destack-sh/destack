@@ -3,101 +3,100 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallDecision, CallResolution, CallResolutionTarget, CheckState, ConstructDecision,
-    MemberDecision, MemberResolutionTarget, NameDecision, OperatorDecision, OperatorResolution,
-    OperatorTermKind, ReceiverDecision, VariableId,
+    CallResolution, CallResolutionTarget, CallSelection, CheckState, ConstructSelection,
+    MemberResolutionTarget, MemberSelection, NameSelection, OperatorResolution, OperatorSelection,
+    OperatorTermKind, ReceiverSelection, VariableId,
 };
+
+use super::CheckModuleOutput;
 
 impl CheckState<'_> {
     /// Commit resolved calls into the checked resolution table.
-    pub(super) fn commit_call_resolution_table(&mut self) -> CompilerResult<()> {
-        let environment = self.environment.clone();
+    pub(super) fn commit_call_resolution_table(
+        &mut self,
+        module: destack_source::ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+    ) -> CompilerResult<()> {
         let calls = self
             .solutions
             .call
             .values()
             .filter_map(|decision| match decision {
-                CallDecision::Resolved(call) => Some(call.clone()),
-                CallDecision::Rejected(_) => None,
+                CallSelection::Resolved(call) => Some(call.clone()),
+                CallSelection::Rejected(_) => None,
             })
             .collect::<Vec<_>>();
 
         // write calls resolved by solve
         for call in calls {
-            let module = call.source.module_id;
+            if call.source.module_id != module {
+                continue;
+            }
             let Some(parameters) = self.commit_function_parameter_type_ids(
                 module,
-                environment.as_ref(),
+                output,
+                environment,
                 &call.function.parameters,
                 call.source.local_id,
             ) else {
                 continue;
             };
-            let return_type = call
-                .function
-                .return_type
-                .and_then(|ty| self.commit_variable_type(environment.as_ref(), ty));
-            let (target, candidate) = build_call_target(self, environment.as_ref(), &call);
+            let return_type = call.function.return_type.and_then(|ty| {
+                self.commit_type_operand(module, output, environment, ty, call.source.local_id)
+            });
+            let target = build_call_target(self, module, output, environment, &call);
             let resolution = dir::CallResolution::new(target, parameters, return_type);
 
-            self.output_mut(module)
+            output
                 .resolutions
                 .set_call_resolution(call.source, resolution);
-
-            if call.member_source.is_some()
-                && let Some(candidate) = candidate
-                && let Some(member_node) = call.member_source
-            {
-                let receiver = candidate.receiver;
-                let target = dir::MemberTarget::Symbol(dir::MemberCandidate {
-                    receiver,
-                    symbol: candidate.symbol,
-                    instance: candidate.instance,
-                });
-                let resolution = dir::MemberResolution::new(receiver, target);
-
-                self.output_mut(module)
-                    .resolutions
-                    .set_member_resolution(member_node, resolution);
-            }
         }
 
         Ok(())
     }
 
     /// Commit resolved construct expressions into the checked resolution table.
-    pub(super) fn commit_construct_resolution_table(&mut self) -> CompilerResult<()> {
-        let environment = self.environment.clone();
+    pub(super) fn commit_construct_resolution_table(
+        &mut self,
+        module: destack_source::ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+    ) -> CompilerResult<()> {
         let constructs = self
             .solutions
             .construct
             .values()
             .filter_map(|decision| match decision {
-                ConstructDecision::Resolved(construct) => Some(construct.clone()),
-                ConstructDecision::Rejected(_) => None,
+                ConstructSelection::Resolved(construct) => Some(construct.clone()),
+                ConstructSelection::Rejected(_) => None,
             })
             .collect::<Vec<_>>();
 
         // write construct expressions resolved by solve
         for construct in constructs {
-            let module = construct.source.module_id;
+            if construct.source.module_id != module {
+                continue;
+            }
             let Some(parameters) = self.commit_function_parameter_type_ids(
                 module,
-                environment.as_ref(),
+                output,
+                environment,
                 &construct.function.parameters,
                 construct.source.local_id,
             ) else {
                 continue;
             };
-            let return_type = construct
-                .function
-                .return_type
-                .and_then(|ty| self.commit_variable_type(environment.as_ref(), ty));
+            let return_type = construct.function.return_type.and_then(|ty| {
+                self.commit_type_operand(module, output, environment, ty, construct.source.local_id)
+            });
             let target = match construct.symbol {
                 Some(symbol) => {
                     let instance = construct.instance.as_ref().and_then(|instance| {
                         self.commit_generic_instance(
-                            environment.as_ref(),
+                            module,
+                            output,
+                            environment,
                             construct.source,
                             instance,
                         )
@@ -114,7 +113,7 @@ impl CheckState<'_> {
             };
             let resolution = dir::CallResolution::new(target, parameters, return_type);
 
-            self.output_mut(module)
+            output
                 .resolutions
                 .set_call_resolution(construct.source, resolution);
         }
@@ -123,15 +122,19 @@ impl CheckState<'_> {
     }
 
     /// Commit accepted operators into the checked resolution table.
-    pub(super) fn commit_operator_resolution_table(&mut self) -> CompilerResult<()> {
-        let environment = self.environment.clone();
+    pub(super) fn commit_operator_resolution_table(
+        &mut self,
+        module: destack_source::ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+    ) -> CompilerResult<()> {
         let operators = self
             .solutions
             .operator
             .values()
             .filter_map(|decision| match decision {
-                OperatorDecision::Resolved(operator) => Some(operator.clone()),
-                OperatorDecision::Rejected(_) => None,
+                OperatorSelection::Resolved(operator) => Some(operator.clone()),
+                OperatorSelection::Rejected(_) => None,
             })
             .collect::<Vec<_>>();
 
@@ -145,17 +148,24 @@ impl CheckState<'_> {
                     argument,
                     result,
                 } => {
-                    let Some(receiver) = self.commit_variable_type(environment.as_ref(), receiver)
+                    if source.module_id != module {
+                        continue;
+                    }
+                    let Some(receiver) =
+                        self.commit_variable_type(module, output, environment, receiver)
                     else {
                         continue;
                     };
-                    let Some(return_type) = self.commit_variable_type(environment.as_ref(), result)
+                    let Some(return_type) =
+                        self.commit_variable_type(module, output, environment, result)
                     else {
                         continue;
                     };
                     let Some((target, parameters)) = build_builtin_operator_call(
                         self,
-                        environment.as_ref(),
+                        module,
+                        output,
+                        environment,
                         kind,
                         receiver,
                         argument,
@@ -165,9 +175,7 @@ impl CheckState<'_> {
                     let resolution =
                         dir::CallResolution::new(target, parameters, Some(return_type));
 
-                    self.output_mut(source.module_id)
-                        .resolutions
-                        .set_call_resolution(source, resolution);
+                    output.resolutions.set_call_resolution(source, resolution);
                 }
                 OperatorResolution::Method {
                     source,
@@ -175,21 +183,26 @@ impl CheckState<'_> {
                     receiver,
                     function,
                 } => {
-                    let Some(receiver) = self.commit_variable_type(environment.as_ref(), receiver)
+                    if source.module_id != module {
+                        continue;
+                    }
+                    let Some(receiver) =
+                        self.commit_variable_type(module, output, environment, receiver)
                     else {
                         continue;
                     };
                     let Some(parameters) = self.commit_function_parameter_type_ids(
-                        source.module_id,
-                        environment.as_ref(),
+                        module,
+                        output,
+                        environment,
                         &function.parameters,
                         source.local_id,
                     ) else {
                         continue;
                     };
-                    let return_type = function
-                        .return_type
-                        .and_then(|ty| self.commit_variable_type(environment.as_ref(), ty));
+                    let return_type = function.return_type.and_then(|ty| {
+                        self.commit_type_operand(module, output, environment, ty, source.local_id)
+                    });
                     let candidate = dir::CallCandidate {
                         receiver: Some(receiver),
                         symbol,
@@ -198,9 +211,7 @@ impl CheckState<'_> {
                     let target = dir::CallTarget::Symbol(candidate.clone());
                     let resolution = dir::CallResolution::new(target, parameters, return_type);
 
-                    self.output_mut(source.module_id)
-                        .resolutions
-                        .set_call_resolution(source, resolution);
+                    output.resolutions.set_call_resolution(source, resolution);
 
                     let target = dir::MemberTarget::Symbol(dir::MemberCandidate {
                         receiver: Some(receiver),
@@ -209,9 +220,7 @@ impl CheckState<'_> {
                     });
                     let resolution = dir::MemberResolution::new(Some(receiver), target);
 
-                    self.output_mut(source.module_id)
-                        .resolutions
-                        .set_member_resolution(source, resolution);
+                    output.resolutions.set_member_resolution(source, resolution);
                 }
             }
         }
@@ -222,20 +231,22 @@ impl CheckState<'_> {
 
 impl CheckState<'_> {
     /// Commit collected name resolutions into the checked resolution table.
-    pub(super) fn commit_name_resolution_table(&mut self, module: destack_source::ModuleId) {
+    pub(super) fn commit_name_resolution_table(
+        &mut self,
+        module: destack_source::ModuleId,
+        output: &mut CheckModuleOutput,
+    ) {
         let names = self.solutions.name.clone();
 
-        // write lexical resolutions recorded by check
+        // write lexical resolutions selected by check
         for (source, decision) in names {
             if source.module_id != module {
                 continue;
             }
-            let NameDecision::Resolved(resolution) = decision;
+            let NameSelection::Resolved(resolution) = decision;
             let resolution = dir::NameResolution::from_symbols(resolution.symbols);
 
-            self.output_mut(module)
-                .resolutions
-                .set_name_resolution(source, resolution);
+            output.resolutions.set_name_resolution(source, resolution);
         }
     }
 
@@ -243,24 +254,25 @@ impl CheckState<'_> {
     pub(super) fn commit_receiver_resolution_table(
         &mut self,
         module: destack_source::ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
     ) {
         let receivers = self.solutions.receiver.clone();
 
         // write contextual receiver resolutions
         for receiver in receivers.into_values() {
-            let ReceiverDecision::Resolved(receiver) = receiver;
+            let ReceiverSelection::Resolved(receiver) = receiver;
             if receiver.source.module_id != module {
                 continue;
             }
-            let ty = self.commit_variable_type(environment, receiver.ty);
+            let ty = self.commit_variable_type(module, output, environment, receiver.ty);
             let resolution = dir::ReceiverResolution {
                 kind: receiver.kind,
                 owner: receiver.owner,
                 ty,
             };
 
-            self.output_mut(module)
+            output
                 .resolutions
                 .set_receiver_resolution(receiver.source, resolution);
         }
@@ -270,6 +282,7 @@ impl CheckState<'_> {
     pub(super) fn commit_member_resolution_table(
         &mut self,
         module: destack_source::ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
     ) {
         let members = self
@@ -277,33 +290,41 @@ impl CheckState<'_> {
             .member
             .values()
             .filter_map(|decision| match decision {
-                MemberDecision::Resolved(member) if member.source.module_id == module => {
+                MemberSelection::Resolved(member) if member.source.module_id == module => {
                     Some(member)
                 }
-                MemberDecision::Rejected(_) => None,
-                MemberDecision::Resolved(_) => None,
+                MemberSelection::Rejected(_) => None,
+                MemberSelection::Resolved(_) => None,
             })
             .cloned()
             .collect::<Vec<_>>();
 
-        // write member solutions recorded by solve
+        // write member solutions selected by solve
         for member in members {
-            if self
-                .output(module)
+            if output
                 .resolutions
                 .member_resolution(member.source)
                 .is_some()
             {
                 continue;
             }
-            let Some(receiver) = self.commit_variable_type(environment, member.receiver) else {
+            let Some(receiver) =
+                self.commit_variable_type(module, output, environment, member.receiver)
+            else {
                 continue;
             };
             let target = match member.target {
+                MemberResolutionTarget::Builtin(member) => dir::MemberTarget::Builtin(member),
                 MemberResolutionTarget::Field(key) => dir::MemberTarget::Field(key),
                 MemberResolutionTarget::Symbol { symbol, instance } => {
                     let instance = instance.as_ref().and_then(|instance| {
-                        self.commit_generic_instance(environment, member.source, instance)
+                        self.commit_generic_instance(
+                            module,
+                            output,
+                            environment,
+                            member.source,
+                            instance,
+                        )
                     });
                     let candidate = dir::MemberCandidate {
                         receiver: Some(receiver),
@@ -313,10 +334,34 @@ impl CheckState<'_> {
 
                     dir::MemberTarget::Symbol(candidate)
                 }
+                MemberResolutionTarget::Select(candidates) => {
+                    let candidates = candidates
+                        .into_iter()
+                        .map(|candidate| {
+                            let instance = candidate.instance.as_ref().and_then(|instance| {
+                                self.commit_generic_instance(
+                                    module,
+                                    output,
+                                    environment,
+                                    member.source,
+                                    instance,
+                                )
+                            });
+
+                            dir::MemberCandidate {
+                                receiver: Some(receiver),
+                                symbol: candidate.symbol,
+                                instance,
+                            }
+                        })
+                        .collect();
+
+                    dir::MemberTarget::Select(candidates)
+                }
             };
             let resolution = dir::MemberResolution::new(Some(receiver), target);
 
-            self.output_mut(module)
+            output
                 .resolutions
                 .set_member_resolution(member.source, resolution);
         }
@@ -326,20 +371,23 @@ impl CheckState<'_> {
 /// Build one call target and its reusable symbol candidate.
 fn build_call_target(
     check: &mut CheckState<'_>,
+    module: destack_source::ModuleId,
+    output: &mut CheckModuleOutput,
     environment: &GlobalEnvironment,
     call: &CallResolution,
-) -> (dir::CallTarget, Option<dir::CallCandidate>) {
-    let target = match &call.target {
-        CallResolutionTarget::Value => (dir::CallTarget::Value, None),
+) -> dir::CallTarget {
+    match &call.target {
+        CallResolutionTarget::Value => dir::CallTarget::Value,
         CallResolutionTarget::Symbol {
             symbol,
             instance,
             receiver,
         } => {
-            let receiver =
-                receiver.and_then(|receiver| check.commit_variable_type(environment, receiver));
+            let receiver = receiver.and_then(|receiver| {
+                check.commit_variable_type(module, output, environment, receiver)
+            });
             let instance = instance.as_ref().and_then(|instance| {
-                check.commit_generic_instance(environment, call.source, instance)
+                check.commit_generic_instance(module, output, environment, call.source, instance)
             });
             let candidate = dir::CallCandidate {
                 receiver,
@@ -347,11 +395,41 @@ fn build_call_target(
                 instance,
             };
 
-            (dir::CallTarget::Symbol(candidate.clone()), Some(candidate))
+            dir::CallTarget::Symbol(candidate)
+        }
+        CallResolutionTarget::Select {
+            candidates,
+            receiver,
+        } => {
+            let receiver = receiver.and_then(|receiver| {
+                check.commit_variable_type(module, output, environment, receiver)
+            });
+            let candidates = candidates
+                .iter()
+                .map(|candidate| {
+                    let instance = candidate.instance.as_ref().and_then(|instance| {
+                        check.commit_generic_instance(
+                            module,
+                            output,
+                            environment,
+                            call.source,
+                            instance,
+                        )
+                    });
+
+                    dir::CallCandidate {
+                        receiver,
+                        symbol: candidate.symbol,
+                        instance,
+                    }
+                })
+                .collect();
+
+            dir::CallTarget::Select(candidates)
         }
         CallResolutionTarget::Constructor { symbol, instance } => {
             let instance = instance.as_ref().and_then(|instance| {
-                check.commit_generic_instance(environment, call.source, instance)
+                check.commit_generic_instance(module, output, environment, call.source, instance)
             });
             let candidate = dir::CallCandidate {
                 receiver: None,
@@ -359,19 +437,16 @@ fn build_call_target(
                 instance,
             };
 
-            (
-                dir::CallTarget::Construct(candidate.clone()),
-                Some(candidate),
-            )
+            dir::CallTarget::Construct(candidate)
         }
-    };
-
-    target
+    }
 }
 
 /// Build the builtin call shape for one operator.
 fn build_builtin_operator_call(
     check: &mut CheckState<'_>,
+    module: destack_source::ModuleId,
+    output: &mut CheckModuleOutput,
     environment: &GlobalEnvironment,
     kind: OperatorTermKind,
     receiver: dir::LocalTypeId,
@@ -385,7 +460,7 @@ fn build_builtin_operator_call(
         }
         OperatorTermKind::Binary(operator) => {
             let argument = argument?;
-            let argument = check.commit_variable_type(environment, argument)?;
+            let argument = check.commit_variable_type(module, output, environment, argument)?;
             let target = dir::CallTarget::Builtin(dir::BuiltinCall::BinaryOperator { operator });
 
             Some((target, vec![receiver, argument]))

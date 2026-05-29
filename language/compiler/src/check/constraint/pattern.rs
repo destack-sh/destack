@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    AssignPatternTerm, CheckState, Constraint, ConstraintOrigin, PatternTerm, TermId, TermTable,
+    AssignPatternTerm, CheckState, Condition, Constraint, Origin, PatternTerm, TermId, TypeOperand,
     VariableId,
 };
 
@@ -20,11 +20,11 @@ impl PatternRelation {
     /// Return variables referenced by this relation.
     pub(in crate::check) fn referenced_variables(
         &self,
-        terms: &TermTable,
+        state: &CheckState<'_>,
     ) -> SmallVec<[VariableId; 4]> {
         match self {
-            Self::Match(pattern) => terms.get(*pattern).referenced_variables(terms),
-            Self::Assign(pattern) => terms.get(*pattern).referenced_variables(terms),
+            Self::Match(pattern) => state.terms.get(*pattern).referenced_variables(&state.terms),
+            Self::Assign(pattern) => state.terms.get(*pattern).referenced_variables(state),
         }
     }
 }
@@ -36,14 +36,15 @@ impl CheckState<'_> {
         module: ModuleId,
         relation: PatternRelation,
         source: dir::LocalNodeIdAny,
-        value: VariableId,
+        value: impl Into<TypeOperand>,
+        condition: Condition,
     ) {
-        let origin = ConstraintOrigin::Node(source.into_global(module));
+        let origin = Origin::Node(source.into_global(module));
         let constraint = Constraint::Pattern {
             relation,
-            value,
+            value: value.into(),
             origin,
-            condition: self.active_static_condition(module),
+            condition,
         };
 
         self.add_constraint(constraint);

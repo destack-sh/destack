@@ -34,7 +34,7 @@ impl CheckState<'_> {
         node: dir::LocalNodeIdAny,
     ) -> dir::LocalScope {
         let mut current = Some(node);
-        let view = self.input(module).view();
+        let view = self.module(module).view();
 
         // find nearest parent with a scope
         while let Some(node) = current {
@@ -47,7 +47,7 @@ impl CheckState<'_> {
 
         // use module namespace when no child scope owns the node
         dir::LocalScope::new(
-            self.input(module).bound.namespace_scope,
+            self.module(module).bound.namespace_scope,
             dir::LocalScopeMark::end(),
         )
     }
@@ -57,32 +57,19 @@ impl CheckState<'_> {
         &self,
         module: ModuleId,
         bindings: &dir::BindingTable<'_>,
-        mut scope: dir::LocalScope,
+        scope: dir::LocalScope,
         key: dir::StaticKey,
         space: dir::SymbolSpace,
     ) -> SmallVec<[dir::GlobalSymbolId; 4]> {
-        loop {
-            let current = bindings.get_scope(scope);
-            let mut symbols = SmallVec::new();
-
-            // collect matching symbols in the current scope
-            for (binding_key, symbol) in current.named_symbols_up_to(scope.mark) {
-                if binding_key == key && bindings.get_symbol(symbol).kind.is_visible_in(space) {
-                    symbols.push(self.binding_target_symbol(module, symbol));
-                }
+        match bindings.lookup_symbol_from_scope(scope, key, space) {
+            dir::SymbolLookup::Found(symbol) => {
+                smallvec::smallvec![self.binding_target_symbol(module, symbol)]
             }
-
-            // use nearest visible scope hits
-            if !symbols.is_empty() {
-                return symbols;
-            }
-
-            // climb to the parent scope
-            let Some(parent) = current.parent else {
-                return SmallVec::new();
-            };
-
-            scope = dir::LocalScope::new(parent.id, dir::LocalScopeMark::end());
+            dir::SymbolLookup::Ambiguous(symbols) => symbols
+                .into_iter()
+                .map(|symbol| self.binding_target_symbol(module, symbol))
+                .collect(),
+            dir::SymbolLookup::Missing => SmallVec::new(),
         }
     }
 
@@ -92,7 +79,7 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::LocalSymbolId,
     ) -> dir::GlobalSymbolId {
-        match self.input(module).resolved.imports.symbol_target(symbol) {
+        match self.module(module).resolved.imports.symbol_target(symbol) {
             // imported aliases use their resolved target
             Some(dir::ImportTarget::Symbol(symbol)) => symbol,
 
@@ -141,11 +128,11 @@ impl CheckState<'_> {
         space: dir::SymbolSpace,
     ) -> NameLookup {
         let key = dir::StaticKey::Name(name);
-        let bindings = self.input(module).binding_table();
+        let bindings = self.module(module).binding_table();
         let scope = self.visible_scope(module, &bindings, source);
         let symbols = self.visible_scope_symbols(module, &bindings, scope, key, space);
         let symbols = if symbols.is_empty() {
-            self.input(module)
+            self.module(module)
                 .resolved
                 .imports
                 .global_symbols(key)

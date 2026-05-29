@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, Decision, VariableId};
+use crate::check::{CheckState, Decision, TypeOperand, VariableId};
 use crate::{CheckError, CompilerResult};
 
 impl CheckState<'_> {
@@ -8,39 +8,37 @@ impl CheckState<'_> {
     pub(in crate::check) fn check_try_propagates(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        value: VariableId,
+        value: TypeOperand,
         return_type: Option<VariableId>,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Option<CheckError>> {
         let Some(return_type) = return_type else {
-            let (module, anchor) = self.source_anchor(source)?;
+            let (module, anchor) = self.source_anchor(source);
             let diagnostic = CheckError::InvalidControlFlow {
                 anchor,
                 module,
                 message: "? can only propagate from a function body".to_owned(),
             };
 
-            self.diagnostics_mut(source.module_id).push(diagnostic);
-
-            return Ok(());
+            return Ok(Some(diagnostic));
         };
-        let decision = self.decide_try_propagation(source, value, return_type)?;
+        let decision = self.reduce_try_propagation(source, value, return_type)?;
 
         // reject incompatible failure propagation
         if decision == Decision::No {
-            let (module, anchor) = self.source_anchor(source)?;
+            let (module, anchor) = self.source_anchor(source);
             let diagnostic = CheckError::DoesNotImplement { anchor, module };
 
-            self.diagnostics_mut(source.module_id).push(diagnostic);
+            return Ok(Some(diagnostic));
         }
 
         // require more solved type information
         if decision == Decision::Undecidable {
-            let (module, anchor) = self.source_anchor(source)?;
+            let (module, anchor) = self.source_anchor(source);
             let diagnostic = CheckError::CannotSolve { anchor, module };
 
-            self.diagnostics_mut(source.module_id).push(diagnostic);
+            return Ok(Some(diagnostic));
         }
 
-        Ok(())
+        Ok(None)
     }
 }

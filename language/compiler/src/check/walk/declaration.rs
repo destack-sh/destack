@@ -35,11 +35,13 @@ impl CheckState<'_> {
                 // define the declaration symbol output
                 if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
                     if !declaration.is_nominal {
-                        let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
+                        let variable =
+                            self.intern_local_symbol_type_variable(tree.module_id, symbol);
                         let value =
-                            self.intern_local_type_variable(tree.module_id, declaration.value);
+                            self.intern_local_node_type_variable(tree.module_id, declaration.value);
+                        let condition = self.active_static_condition(tree.module_id);
 
-                        self.define_type(tree.module_id, variable, TypeTerm::Variable(value));
+                        self.add_type_definition(variable, TypeTerm::Variable(value), condition);
                     }
                 }
 
@@ -57,7 +59,7 @@ impl CheckState<'_> {
                 if declaration.is_nominal
                     && let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any())
                 {
-                    self.intern_symbol_type_variable(tree.module_id, symbol);
+                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // struct S { ... }
@@ -80,7 +82,7 @@ impl CheckState<'_> {
                 // walk members with a nominal receiver
                 let receiver = symbol.map(|symbol| MemberReceiverContext {
                     owner: Some(symbol),
-                    ty: self.intern_symbol_type_variable(tree.module_id, symbol),
+                    ty: self.intern_local_symbol_type_variable(tree.module_id, symbol),
                 });
 
                 for member in &declaration.members {
@@ -88,7 +90,7 @@ impl CheckState<'_> {
                 }
 
                 if let Some(symbol) = symbol {
-                    self.intern_symbol_type_variable(tree.module_id, symbol);
+                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // class C { ... }
@@ -118,7 +120,7 @@ impl CheckState<'_> {
                 // walk members with a nominal receiver
                 let receiver = symbol.map(|symbol| MemberReceiverContext {
                     owner: Some(symbol),
-                    ty: self.intern_symbol_type_variable(tree.module_id, symbol),
+                    ty: self.intern_local_symbol_type_variable(tree.module_id, symbol),
                 });
 
                 for member in &declaration.members {
@@ -126,7 +128,7 @@ impl CheckState<'_> {
                 }
 
                 if let Some(symbol) = symbol {
-                    self.intern_symbol_type_variable(tree.module_id, symbol);
+                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // enum E { ... }
@@ -152,7 +154,7 @@ impl CheckState<'_> {
                 // walk members with a nominal receiver
                 let receiver = symbol.map(|symbol| MemberReceiverContext {
                     owner: Some(symbol),
-                    ty: self.intern_symbol_type_variable(tree.module_id, symbol),
+                    ty: self.intern_local_symbol_type_variable(tree.module_id, symbol),
                 });
 
                 for member in &declaration.members {
@@ -160,7 +162,7 @@ impl CheckState<'_> {
                 }
 
                 if let Some(symbol) = symbol {
-                    self.intern_symbol_type_variable(tree.module_id, symbol);
+                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // interface I { ... }
@@ -168,7 +170,7 @@ impl CheckState<'_> {
                 // define the interface symbol output
                 if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
                     if !declaration.is_nominal {
-                        self.intern_symbol_type_variable(tree.module_id, symbol);
+                        self.intern_local_symbol_type_variable(tree.module_id, symbol);
                     }
                 }
 
@@ -199,13 +201,13 @@ impl CheckState<'_> {
                 if declaration.is_nominal
                     && let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any())
                 {
-                    self.intern_symbol_type_variable(tree.module_id, symbol);
+                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
                 }
             }
             // extension T { ... }
             dir::Declaration::Extension(declaration) => {
                 if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
-                    self.intern_symbol_type_variable(tree.module_id, symbol);
+                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
                 }
 
                 // walk generic header
@@ -229,7 +231,8 @@ impl CheckState<'_> {
                 // extension members receive the target type as `this`
                 let receiver = Some(MemberReceiverContext {
                     owner: None,
-                    ty: self.intern_local_type_variable(tree.module_id, declaration.target_type),
+                    ty: self
+                        .intern_local_node_type_variable(tree.module_id, declaration.target_type),
                 });
 
                 for member in &declaration.members {
@@ -242,14 +245,15 @@ impl CheckState<'_> {
 
                 // define the callable symbol output
                 if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
-                    let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
+                    let variable = self.intern_local_symbol_type_variable(tree.module_id, symbol);
                     let term = self.build_function_signature_term(
                         &declaration.signature,
                         return_type,
                         tree,
                     );
+                    let condition = self.active_static_condition(tree.module_id);
 
-                    self.define_type(tree.module_id, variable, TypeTerm::Function(term));
+                    self.add_type_definition(variable, TypeTerm::Function(term), condition);
 
                     // walk signature and body in the function flow frame
                     self.walk_function_declaration(
@@ -322,7 +326,7 @@ impl CheckState<'_> {
             dir::Expression::Block(block) => {
                 let block = tree.get(*block);
                 if block.context == dir::BlockContext::Expression {
-                    let value = self.intern_local_type_variable(tree.module_id, body);
+                    let value = self.intern_local_node_type_variable(tree.module_id, body);
 
                     self.constrain_return_value(tree.module_id, body.into_any(), value);
                 } else {
@@ -331,7 +335,7 @@ impl CheckState<'_> {
             }
             // expression
             _ => {
-                let value = self.intern_local_type_variable(tree.module_id, body);
+                let value = self.intern_local_node_type_variable(tree.module_id, body);
 
                 self.constrain_return_value(tree.module_id, body.into_any(), value);
             }
@@ -383,7 +387,7 @@ impl CheckState<'_> {
     ) -> Option<VariableId> {
         // use explicit return annotations
         if let Some(return_type) = declaration.signature.return_type {
-            return Some(self.intern_local_type_variable(tree.module_id, return_type));
+            return Some(self.intern_local_node_type_variable(tree.module_id, return_type));
         }
 
         // use concise expression bodies directly
@@ -392,14 +396,14 @@ impl CheckState<'_> {
             && let Some(body) = declaration.body
             && !matches!(tree.get(body), dir::Expression::Block(_))
         {
-            return Some(self.intern_local_type_variable(tree.module_id, body));
+            return Some(self.intern_local_node_type_variable(tree.module_id, body));
         }
 
         // declarations without bodies do not infer returns
         declaration.body?;
 
         // otherwise use the declaration node as the inferred output
-        Some(self.intern_local_type_variable(tree.module_id, id))
+        Some(self.intern_local_node_type_variable(tree.module_id, id))
     }
 
     /// Return the lexical receiver introduced by one function signature.
@@ -431,7 +435,7 @@ impl CheckState<'_> {
     ) -> Option<VariableId> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            return Some(self.intern_local_type_variable(module, return_type));
+            return Some(self.intern_local_node_type_variable(module, return_type));
         }
 
         // signatures without bodies do not infer returns

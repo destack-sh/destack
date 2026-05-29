@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, ConstraintOrigin, ControlTarget, FlowBranch, Obligation, TryFailureTerm, TryTarget,
+    CheckState, ControlTarget, FlowBranch, Obligation, Origin, TryFailureTerm, TryTarget,
     TypeLiteralTerm, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
     VariableKind,
 };
@@ -43,12 +43,15 @@ impl CheckState<'_> {
             // loop expression with no exit
             ([], None) => TypeTerm::Literal(TypeLiteralTerm::Never),
             // single break branch
-            ([value], None) => TypeTerm::Variable(*value),
+            ([value], None) => match value {
+                TypeOperand::Variable(value) => TypeTerm::Variable(*value),
+                TypeOperand::Term(value) => self.terms.get(*value).clone(),
+            },
             // multiple break and fallthrough branches
             (values, fallthrough) => {
                 let mut elements =
                     Vec::with_capacity(values.len() + usize::from(fallthrough.is_some()));
-                elements.extend(values.iter().copied().map(TypeOperand::from));
+                elements.extend(values.iter().copied());
                 if let Some(fallthrough) = fallthrough {
                     let term = self.terms.push(fallthrough);
 
@@ -61,7 +64,8 @@ impl CheckState<'_> {
             }
         };
 
-        self.define_type(module, target.result, term);
+        let condition = self.flow(module).current_static_condition();
+        self.add_type_definition(target.result, term, condition);
 
         target.break_branches
     }
@@ -73,8 +77,8 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
     ) -> VariableId {
         let source = source.into_global(module);
-        let origin = ConstraintOrigin::Node(source);
-        let failure = self.allocate_intermediate_variable(module, VariableKind::Type, origin);
+        let origin = Origin::Node(source);
+        let failure = self.allocate_inference_variable(module, VariableKind::Type, origin);
         let target = TryTarget {
             failure,
             failures: Vec::new(),
@@ -92,35 +96,35 @@ impl CheckState<'_> {
             // no propagated failure
             [] => TypeTerm::Literal(TypeLiteralTerm::Never),
             // single propagated failure
-            [failure] => TypeTerm::Variable(*failure),
+            [failure] => failure.to_type_term(self),
             // multiple propagated failures
             failures => {
                 let operation = self.terms.push(TypeOperationTerm::BestCommon {
-                    elements: failures.iter().copied().map(TypeOperand::from).collect(),
+                    elements: failures.to_vec(),
                 });
 
                 TypeTerm::Operation(operation)
             }
         };
 
-        self.define_type(module, target.failure, term);
+        let condition = self.flow(module).current_static_condition();
+        self.add_type_definition(target.failure, term, condition);
 
         target.failure
     }
 
-    /// Record one break value in its control target.
-    pub(in crate::check) fn record_break_value(
+    /// Apply one break to its control target.
+    pub(in crate::check) fn apply_break(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         label: Option<dir::StringId>,
         value: Option<VariableId>,
     ) {
-        let value = match value {
-            Some(value) => value,
-            None => self.define_void_type(module, source),
-        };
-        let origin = ConstraintOrigin::Node(source.into_global(module));
+        let value = value
+            .map(TypeOperand::from)
+            .unwrap_or_else(|| self.void_type_operand());
+        let origin = Origin::Node(source.into_global(module));
         let Some(index) = self.flow(module).find_break_target_index(label) else {
             self.report_invalid_control_flow(module, source, "break has no target");
 
@@ -130,16 +134,18 @@ impl CheckState<'_> {
         let branch = self.flow(module).branch(checkpoint);
         let result = self.flow(module).targets[index].result;
 
-        // record break value and captured branch flow
+        // store value and captured branch flow
         let target = &mut self.flow_mut(module).targets[index];
         target.break_values.push(value);
         target.break_branches.push(branch);
 
-        self.constrain_type(origin, TypeRelation::Assignable, value, result);
+        let condition = self.flow(module).current_static_condition();
+
+        self.add_type_constraint(origin, TypeRelation::Assignable, value, result, condition);
     }
 
-    /// Record one continue branch in its control target.
-    pub(in crate::check) fn record_continue_branch(
+    /// Apply one continue to its control target.
+    pub(in crate::check) fn apply_continue(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -170,23 +176,21 @@ impl CheckState<'_> {
         std::mem::take(&mut target.continue_branches)
     }
 
-    /// Record one try propagation against catch or the enclosing return type.
-    pub(in crate::check) fn record_try_propagation(
+    /// Apply one try propagation against catch or the enclosing return type.
+    pub(in crate::check) fn apply_try_propagation(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
-        value: VariableId,
+        value: impl Into<TypeOperand>,
     ) {
+        let value = value.into();
         if self.flow_mut(module).current_try_mut().is_some() {
             let source = source.into_global(module);
-            let origin = ConstraintOrigin::Node(source);
-            let failure = self.allocate_intermediate_variable(module, VariableKind::Type, origin);
             let tried = self.terms.push(TryFailureTerm { source, value });
-
-            self.define_type(module, failure, TypeTerm::TryFailure(tried));
+            let failure = self.terms.push(TypeTerm::TryFailure(tried));
 
             if let Some(target) = self.flow_mut(module).current_try_mut() {
-                target.failures.push(failure);
+                target.failures.push(failure.into());
             }
 
             return;
@@ -196,7 +200,7 @@ impl CheckState<'_> {
             source: source.into_global(module),
             value,
             return_type: self.current_return_type(module),
-            condition: self.active_static_condition(module),
+            condition: self.flow(module).current_static_condition(),
         });
     }
 }

@@ -4,43 +4,62 @@ use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::check::{
     CheckState, Definition, FormTerm, FunctionParameter, FunctionTerm, GenericArgument,
-    GenericInstance, Layout, LayoutDecision, LayoutField, LayoutResolution, LayoutShape,
-    LayoutType, ShapeMember, Solution, StaticOperand, StaticTerm, TermId, TupleElement,
+    GenericInstance, Layout, LayoutField, LayoutResolution, LayoutSelection, LayoutShape,
+    LayoutType, Origin, ShapeMember, Solution, StaticOperand, StaticTerm, TermId, TupleElement,
     TypeOperand, TypeOperationTerm, TypeTerm, VariableId, VariableOutput, VariantLayout,
 };
 
+use super::CheckModuleOutput;
+
 impl CheckState<'_> {
     /// Commit one module's solved checker state into checked DIR tables.
-    pub(in crate::check) fn commit_module(&mut self, module: ModuleId) {
+    pub(in crate::check) fn commit_module(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<CheckModuleOutput> {
         let environment = Arc::clone(&self.environment);
+        let mut output = CheckModuleOutput::new(module, self.module(module));
 
-        self.commit_type_and_static_tables(module, &environment);
-        self.commit_layout_table(module, &environment);
-        self.commit_relation_and_extension_tables(module, &environment);
-        self.commit_name_resolution_table(module);
-        self.commit_receiver_resolution_table(module, &environment);
-        self.commit_member_resolution_table(module, &environment);
-        self.commit_generic_slot_table(module, &environment);
-        self.commit_capture_table(module, &environment);
+        self.commit_coercion_table(module, &mut output, &environment)?;
+        self.commit_generic_instance_table(module, &mut output, &environment)?;
+        self.commit_call_resolution_table(module, &mut output, &environment)?;
+        self.commit_construct_resolution_table(module, &mut output, &environment)?;
+        self.commit_operator_resolution_table(module, &mut output, &environment)?;
+        self.commit_type_and_static_tables(module, &mut output, &environment);
+        self.commit_layout_table(module, &mut output, &environment);
+        self.commit_relation_and_extension_tables(module, &mut output, &environment);
+        self.commit_name_resolution_table(module, &mut output);
+        self.commit_receiver_resolution_table(module, &mut output, &environment);
+        self.commit_member_resolution_table(module, &mut output, &environment);
+        self.commit_generic_slot_table(module, &mut output, &environment);
+        self.commit_capture_table(module, &mut output, &environment);
+
+        Ok(output)
     }
 
     /// Commit solved layouts into the checked layout table.
-    fn commit_layout_table(&mut self, module: ModuleId, environment: &GlobalEnvironment) {
+    fn commit_layout_table(
+        &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+    ) {
         let layouts = self
             .solutions
             .layout
             .values()
             .filter_map(|decision| match decision {
-                LayoutDecision::Resolved(layout) => Some(layout.clone()),
-                LayoutDecision::Rejected(_) => None,
+                LayoutSelection::Resolved(layout) => Some(layout.clone()),
+                LayoutSelection::Rejected(_) => None,
             })
             .collect::<Vec<_>>();
 
         // write one layout binding per resolved query target
         for layout in layouts {
-            self.commit_layout_resolution(module, environment, &layout);
+            self.commit_layout_resolution(module, output, environment, &layout);
         }
     }
 
@@ -48,25 +67,28 @@ impl CheckState<'_> {
     fn commit_layout_resolution(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         resolution: &LayoutResolution,
     ) {
-        let Some(type_id) = self.commit_variable_type(environment, resolution.target) else {
+        let Some(type_id) =
+            self.commit_variable_type(module, output, environment, resolution.target)
+        else {
             return;
         };
-        let Some(layout_id) = self.commit_layout(module, environment, &resolution.layout) else {
+        let Some(layout_id) = self.commit_layout(module, output, environment, &resolution.layout)
+        else {
             return;
         };
 
-        self.output_mut(module)
-            .layouts
-            .set_type_layout(type_id, layout_id);
+        output.layouts.set_type_layout(type_id, layout_id);
     }
 
     /// Commit one layout tree.
     fn commit_layout(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         layout: &Layout,
     ) -> Option<dir::LocalLayoutId> {
@@ -75,24 +97,20 @@ impl CheckState<'_> {
             LayoutShape::Scalar => dir::LayoutShape::Scalar,
             LayoutShape::Dynamic => dir::LayoutShape::Dynamic,
             LayoutShape::Struct { fields } => {
-                let fields = self.commit_layout_fields(module, environment, fields)?;
+                let fields = self.commit_layout_fields(module, output, environment, fields)?;
 
                 dir::LayoutShape::Struct(dir::StructLayout { fields })
             }
             LayoutShape::Tuple { elements } => {
-                let elements = self.commit_layout_fields(module, environment, elements)?;
+                let elements = self.commit_layout_fields(module, output, environment, elements)?;
 
                 dir::LayoutShape::Tuple(dir::TupleLayout { elements })
             }
             LayoutShape::Variant { variants } => {
-                let variants = self.commit_variant_layouts(module, environment, variants)?;
+                let variants =
+                    self.commit_variant_layouts(module, output, environment, variants)?;
 
                 dir::LayoutShape::Variant(dir::VariantLayout { variants })
-            }
-            LayoutShape::Newtype { backing } => {
-                let backing = self.commit_layout(module, environment, backing)?;
-
-                dir::LayoutShape::Newtype(dir::NewtypeLayout { backing })
             }
             LayoutShape::Function => dir::LayoutShape::Function,
         };
@@ -102,13 +120,14 @@ impl CheckState<'_> {
             alignment: layout.alignment,
         };
 
-        Some(self.output_mut(module).layouts.insert_layout(layout))
+        Some(output.layouts.insert_layout(layout))
     }
 
     /// Commit aggregate layout fields.
     fn commit_layout_fields(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         fields: &[LayoutField],
     ) -> Option<Vec<dir::LayoutField>> {
@@ -116,8 +135,8 @@ impl CheckState<'_> {
 
         // commit fields in source layout order
         for field in fields {
-            let ty = self.commit_layout_type(environment, field.ty)?;
-            let layout = self.commit_layout(module, environment, &field.layout)?;
+            let ty = self.commit_layout_type(module, output, environment, field.ty)?;
+            let layout = self.commit_layout(module, output, environment, &field.layout)?;
             committed.push(dir::LayoutField {
                 key: field.key,
                 ty,
@@ -135,6 +154,7 @@ impl CheckState<'_> {
     fn commit_variant_layouts(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         variants: &[VariantLayout],
     ) -> Option<Vec<dir::VariantCaseLayout>> {
@@ -142,8 +162,8 @@ impl CheckState<'_> {
 
         // commit variants in source layout order
         for variant in variants {
-            let ty = self.commit_layout_type(environment, variant.ty)?;
-            let layout = self.commit_layout(module, environment, &variant.layout)?;
+            let ty = self.commit_layout_type(module, output, environment, variant.ty)?;
+            let layout = self.commit_layout(module, output, environment, &variant.layout)?;
             committed.push(dir::VariantCaseLayout { ty, layout });
         }
 
@@ -153,12 +173,14 @@ impl CheckState<'_> {
     /// Commit the type attached to one layout node.
     fn commit_layout_type(
         &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         ty: LayoutType,
     ) -> Option<dir::LocalTypeId> {
         match ty {
             LayoutType::Operand(TypeOperand::Variable(variable)) => {
-                self.commit_variable_type(environment, variable)
+                self.commit_variable_type(module, output, environment, variable)
             }
             LayoutType::Operand(TypeOperand::Term(_)) => None,
             LayoutType::TypeId(ty) => Some(ty),
@@ -166,7 +188,12 @@ impl CheckState<'_> {
     }
 
     /// Commit closure captures discovered while walking into the checked capture table.
-    fn commit_capture_table(&mut self, module: ModuleId, environment: &GlobalEnvironment) {
+    fn commit_capture_table(
+        &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+    ) {
         let captures = std::mem::take(self.captures_mut(module));
 
         // write one managed frame per captured function
@@ -178,8 +205,9 @@ impl CheckState<'_> {
 
             // commit captured binding types and split managed fields
             for symbol in function.symbols {
-                let variable = self.intern_symbol_type_variable(module, symbol);
-                let Some(ty) = self.commit_variable_type(environment, variable) else {
+                let variable = self.intern_local_symbol_type_variable(module, symbol);
+                let Some(ty) = self.commit_variable_type(module, output, environment, variable)
+                else {
                     continue;
                 };
                 let mode = self.capture_mode_for_symbol(directive.as_ref(), symbol);
@@ -192,7 +220,7 @@ impl CheckState<'_> {
             }
 
             let this = function.receiver.and_then(|receiver| {
-                let ty = self.commit_variable_type(environment, receiver.ty)?;
+                let ty = self.commit_variable_type(module, output, environment, receiver.ty)?;
                 let mode = directive
                     .as_ref()
                     .map(|directive| directive.default)
@@ -213,9 +241,8 @@ impl CheckState<'_> {
                 None
             } else {
                 let scope = self.capture_frame_scope(module, fields[0].symbol);
-                let ty = self.capture_frame_type(module, &fields);
-                let frame = self
-                    .output_mut(module)
+                let ty = self.capture_frame_type(module, output, &fields);
+                let frame = output
                     .captures
                     .push_frame(dir::CaptureFrame { scope, ty, fields });
 
@@ -224,7 +251,7 @@ impl CheckState<'_> {
 
             // bind every managed capture to the frame
             if let Some(frame) = frame {
-                let fields = self.output(module).captures.get_frame(frame).fields.clone();
+                let fields = output.captures.get_frame(frame).fields.clone();
                 for field in fields {
                     bindings.push(dir::CapturedBinding::Manage {
                         symbol: field.symbol,
@@ -260,9 +287,7 @@ impl CheckState<'_> {
                 directive,
             };
 
-            self.output_mut(module)
-                .captures
-                .set_capture(function.symbol, capture);
+            output.captures.set_capture(function.symbol, capture);
         }
     }
 
@@ -288,7 +313,7 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::StringId> {
-        let bindings = self.input(module).binding_table();
+        let bindings = self.module(module).binding_table();
         let entry = bindings.get_symbol(symbol.local_id);
 
         entry.name()
@@ -300,7 +325,7 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> dir::GlobalScopeId {
-        let bindings = self.input(module).binding_table();
+        let bindings = self.module(module).binding_table();
         let symbol = bindings.get_symbol(symbol.local_id);
 
         symbol.scope.id.into_global(module)
@@ -310,6 +335,7 @@ impl CheckState<'_> {
     fn capture_frame_type(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         fields: &[dir::CaptureFrameField],
     ) -> dir::LocalTypeId {
         let fields = fields
@@ -327,19 +353,72 @@ impl CheckState<'_> {
             construct_signatures: Vec::new(),
             index_signatures: Vec::new(),
         });
-        let source = self.input(module).bound.module_node;
-        let shape = self.intern_type(module, shape, source);
+        let source = self.module(module).bound.module_node;
+        let shape = self.commit_intern_type(module, output, shape, source);
         let frame = dir::Type::Form(dir::FormType {
             form: dir::Form::Managed,
             value: shape,
         });
 
-        self.intern_type(module, frame, source)
+        self.commit_intern_type(module, output, frame, source)
+    }
+
+    /// Intern one checked type into this module output.
+    pub(super) fn commit_intern_type(
+        &self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        ty: dir::Type,
+        source: dir::LocalNodeIdAny,
+    ) -> dir::LocalTypeId {
+        let existing_input = {
+            let types = self.module(module).type_table();
+
+            types
+                .iter_type_ids()
+                .find(|type_id| types.get_type(*type_id) == &ty)
+        };
+        if let Some(type_id) = existing_input {
+            return type_id;
+        }
+
+        let existing_output = output
+            .types
+            .iter_type_ids()
+            .find(|type_id| output.types.get_type(*type_id) == &ty);
+        if let Some(type_id) = existing_output {
+            return type_id;
+        }
+
+        output.types.insert_type_from_any(ty, source)
+    }
+
+    /// Intern one checked static value into this module output.
+    pub(super) fn commit_intern_static(
+        &self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        term: dir::StaticTerm,
+    ) -> dir::LocalStaticId {
+        let existing_input = {
+            let statics = self.module(module).static_table();
+
+            statics.find_static(&term)
+        };
+        if let Some(static_id) = existing_input {
+            return static_id;
+        }
+
+        if let Some(static_id) = output.statics.find_static(&term) {
+            return static_id;
+        }
+
+        output.statics.push_static(term)
     }
 
     /// Return the structural key for one capture frame field.
     fn capture_field_key(&self, module: ModuleId, symbol: dir::GlobalSymbolId) -> dir::StaticKey {
-        let bindings = self.input(module).binding_table();
+        let bindings = self.module(module).binding_table();
         let entry = bindings.get_symbol(symbol.local_id);
 
         entry
@@ -349,13 +428,18 @@ impl CheckState<'_> {
     }
 
     /// Commit solved variable values into the checked type and static tables.
-    fn commit_type_and_static_tables(&mut self, module: ModuleId, environment: &GlobalEnvironment) {
+    fn commit_type_and_static_tables(
+        &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+    ) {
         let entries = self
             .variables
             .variables
             .iter()
             .map(|variable| {
-                let value = self.solutions.solution.get(&variable.id).cloned();
+                let value = self.solutions.variable.get(&variable.id).cloned();
 
                 (variable.id, variable.output.clone(), value)
             })
@@ -365,24 +449,22 @@ impl CheckState<'_> {
         for (id, binding, value) in entries {
             match value {
                 Some(Solution::Type(term)) => {
-                    let term = self.terms.get(term).clone();
                     let source = self.variable_source_node(id);
-                    let Some(type_id) = self.commit_type_term(module, environment, &term, source)
+                    let term = self
+                        .commit_variable_term(id)
+                        .unwrap_or_else(|| self.terms.get(term).clone());
+                    let Some(type_id) =
+                        self.commit_type_term(module, output, environment, &term, source)
                     else {
                         continue;
                     };
 
                     match binding {
                         Some(VariableOutput::Node(node)) => {
-                            self.output_mut(module).types.set_node_type(node, type_id)
+                            output.types.set_node_type(node, type_id)
                         }
-                        Some(VariableOutput::Symbol(symbol))
-                            if symbol.module_id == module
-                                && !self.is_import_symbol(module, symbol) =>
-                        {
-                            self.output_mut(module)
-                                .types
-                                .set_symbol_type(symbol, type_id);
+                        Some(VariableOutput::Symbol(symbol)) if symbol.module_id == module => {
+                            output.types.set_symbol_type(symbol, type_id);
                         }
                         Some(VariableOutput::Generic(_))
                         | Some(VariableOutput::Symbol(_))
@@ -391,7 +473,8 @@ impl CheckState<'_> {
                 }
                 Some(Solution::Static(term)) => {
                     let term = self.terms.get(term).clone();
-                    let Some(static_id) = self.commit_static_term(module, environment, &term)
+                    let Some(static_id) =
+                        self.commit_static_term(module, output, environment, &term)
                     else {
                         continue;
                     };
@@ -406,11 +489,8 @@ impl CheckState<'_> {
                     };
                     if let Some(symbol) = symbol
                         && symbol.module_id == module
-                        && !self.is_import_symbol(module, symbol)
                     {
-                        self.output_mut(module)
-                            .statics
-                            .set_symbol_static(symbol, static_id);
+                        output.statics.set_symbol_static(symbol, static_id);
                     }
                 }
                 _ => {}
@@ -421,57 +501,76 @@ impl CheckState<'_> {
     /// Commit the solved type for one variable.
     pub(in crate::check) fn commit_variable_type(
         &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         variable: VariableId,
     ) -> Option<dir::LocalTypeId> {
-        let module = variable.module;
-        if let Some(type_id) = self.committed_variable_type(module, variable) {
+        if let Some(type_id) = self.output_variable_type(output, variable) {
             return Some(type_id);
         }
 
-        let term = self.variable_type_solution(variable)?.clone();
+        let term = self.commit_variable_term(variable)?;
         let source = self.variable_source_node(variable);
 
-        self.commit_type_term(module, environment, &term, source)
+        self.commit_type_term(module, output, environment, &term, source)
     }
 
     /// Commit one type operand.
     pub(in crate::check) fn commit_type_operand(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         operand: TypeOperand,
         source: dir::LocalNodeIdAny,
     ) -> Option<dir::LocalTypeId> {
         match operand {
-            TypeOperand::Variable(variable) => self.commit_variable_type(environment, variable),
+            TypeOperand::Variable(variable) => {
+                self.commit_type_variable(module, output, environment, variable, source)
+            }
             TypeOperand::Term(term) => {
                 let term = self.terms.get(term).clone();
 
-                self.commit_type_term(module, environment, &term, source)
+                self.commit_type_term(module, output, environment, &term, source)
             }
         }
     }
 
-    /// Commit the declared type definition for one variable.
-    pub(in crate::check) fn commit_variable_type_definition(
+    /// Commit one variable as a type inside one target module.
+    fn commit_type_variable(
         &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+        variable: VariableId,
+        source: dir::LocalNodeIdAny,
+    ) -> Option<dir::LocalTypeId> {
+        let term = self.commit_variable_term(variable)?;
+
+        self.commit_type_term(module, output, environment, &term, source)
+    }
+
+    /// Commit the declared type term for one variable.
+    pub(in crate::check) fn commit_declared_type_variable(
+        &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         variable: VariableId,
     ) -> Option<dir::LocalTypeId> {
-        let module = variable.module;
-        if let Some(type_id) = self.committed_variable_type(module, variable) {
+        if let Some(type_id) = self.output_variable_type(output, variable) {
             return Some(type_id);
         }
 
-        let term = self.variable_type_definition(variable)?;
+        let term = self.declared_type_variable_term(variable)?;
         let source = self.variable_source_node(variable);
 
-        self.commit_type_term(module, environment, &term, source)
+        self.commit_type_term(module, output, environment, &term, source)
     }
 
-    /// Return the declared type definition for one variable.
-    fn variable_type_definition(&self, variable: VariableId) -> Option<TypeTerm> {
+    /// Return the declared type term for one variable.
+    fn declared_type_variable_term(&self, variable: VariableId) -> Option<TypeTerm> {
         self.variables.definitions.iter().find_map(|definition| {
             let Definition::Type {
                 result,
@@ -487,17 +586,15 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return the existing committed type for one variable.
-    fn committed_variable_type(
+    /// Return the output type already attached to one variable.
+    fn output_variable_type(
         &self,
-        module: ModuleId,
+        output: &CheckModuleOutput,
         variable: VariableId,
     ) -> Option<dir::LocalTypeId> {
         match &self.variable(variable).output {
-            Some(VariableOutput::Node(node)) => self.output(module).types.get_node_type_id(*node),
-            Some(VariableOutput::Symbol(symbol)) => {
-                self.output(module).types.get_symbol_type_id(*symbol)
-            }
+            Some(VariableOutput::Node(node)) => output.types.get_node_type_id(*node),
+            Some(VariableOutput::Symbol(symbol)) => output.types.get_symbol_type_id(*symbol),
             Some(VariableOutput::Generic(_)) | None => None,
         }
     }
@@ -505,18 +602,21 @@ impl CheckState<'_> {
     /// Commit the solved static value for one variable.
     pub(super) fn commit_variable_static(
         &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         variable: VariableId,
     ) -> Option<dir::LocalStaticId> {
         let term = self.variable_static_solution(variable)?.clone();
 
-        self.commit_static_term(variable.module, environment, &term)
+        self.commit_static_term(module, output, environment, &term)
     }
 
     /// Commit one type term.
-    fn commit_type_term(
+    pub(super) fn commit_type_term(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         term: &TypeTerm,
         source: dir::LocalNodeIdAny,
@@ -527,32 +627,34 @@ impl CheckState<'_> {
             TypeTerm::This => dir::Type::This,
             TypeTerm::Intrinsic | TypeTerm::ConstAssertion => return None,
             TypeTerm::Variable(variable) => {
-                return self.commit_variable_type(environment, *variable);
+                return self.commit_type_variable(module, output, environment, *variable, source);
             }
             TypeTerm::Form { form, payload } => {
-                let value = self.commit_type_operand(module, environment, *payload, source)?;
-                let form = self.commit_form_term(module, environment, *form)?;
+                let value =
+                    self.commit_type_operand(module, output, environment, *payload, source)?;
+                let form = self.commit_form_term(module, output, environment, *form)?;
 
                 dir::Type::Form(dir::FormType { form, value })
             }
             TypeTerm::Reference {
-                source: application,
+                origin,
                 symbol,
                 arguments,
             } => {
                 let arguments =
-                    self.commit_argument_terms(module, environment, arguments, source)?;
-                let source = application
-                    .filter(|source| source.module_id == module)
-                    .map(|source| source.local_id)
-                    .unwrap_or(source);
+                    self.commit_argument_terms(module, output, environment, arguments, source)?;
+                let source = match origin {
+                    Origin::Node(node) if node.module_id == module => node.local_id,
+                    Origin::Node(_) | Origin::Symbol(_) => source,
+                };
 
-                self.commit_named_type(module, environment, *symbol, arguments, source)?
+                self.commit_named_type(module, output, environment, *symbol, arguments, source)?
             }
             TypeTerm::Array { element } => {
-                let element = self.commit_type_operand(module, environment, *element, source)?;
+                let element =
+                    self.commit_type_operand(module, output, environment, *element, source)?;
 
-                self.commit_array_type(module, environment, element)?
+                self.commit_array_type(module, output, environment, element)?
             }
             TypeTerm::Member(_) | TypeTerm::StaticValue { .. } => return None,
             TypeTerm::FixedArray {
@@ -560,8 +662,9 @@ impl CheckState<'_> {
                 length,
                 is_readonly,
             } => {
-                let element = self.commit_type_operand(module, environment, *element, source)?;
-                let count = self.commit_variable_static(environment, *length)?;
+                let element =
+                    self.commit_type_operand(module, output, environment, *element, source)?;
+                let count = self.commit_static_operand(module, output, environment, *length)?;
 
                 dir::Type::FixedArray(dir::FixedArrayType {
                     element,
@@ -573,7 +676,8 @@ impl CheckState<'_> {
                 element,
                 is_readonly,
             } => {
-                let element = self.commit_type_operand(module, environment, *element, source)?;
+                let element =
+                    self.commit_type_operand(module, output, environment, *element, source)?;
 
                 dir::Type::Slice(dir::SliceType {
                     element,
@@ -586,14 +690,25 @@ impl CheckState<'_> {
                 is_readonly,
             } => dir::Type::Tuple(dir::TupleType {
                 form: *form,
-                elements: self.commit_tuple_elements(module, environment, elements, source)?,
+                elements: self.commit_tuple_elements(
+                    module,
+                    output,
+                    environment,
+                    elements,
+                    source,
+                )?,
                 is_readonly: *is_readonly,
             }),
-            TypeTerm::Shape { members } => {
-                dir::Type::Shape(self.commit_shape_type(module, environment, members, source)?)
-            }
+            TypeTerm::Shape { members } => dir::Type::Shape(self.commit_shape_type(
+                module,
+                output,
+                environment,
+                members,
+                source,
+            )?),
             TypeTerm::Function(function) => dir::Type::Function(self.commit_function_type(
                 module,
+                output,
                 environment,
                 *function,
                 source,
@@ -608,12 +723,15 @@ impl CheckState<'_> {
                 is_inclusive: *is_inclusive,
             }),
             TypeTerm::Union { elements } => {
-                if let Some(ty) = self.commit_borrowed_union_type(environment, elements) {
+                if let Some(ty) =
+                    self.commit_borrowed_union_type(module, output, environment, elements)
+                {
                     ty
                 } else {
                     dir::Type::Union(dir::UnionType {
                         elements: self.commit_type_operands(
                             module,
+                            output,
                             environment,
                             elements,
                             source,
@@ -622,11 +740,21 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::Intersection { elements } => dir::Type::Intersection(dir::IntersectionType {
-                elements: self.commit_type_operands(module, environment, elements, source)?,
+                elements: self.commit_type_operands(
+                    module,
+                    output,
+                    environment,
+                    elements,
+                    source,
+                )?,
             }),
-            TypeTerm::Operation(operation) => {
-                dir::Type::Operation(self.commit_type_operation(environment, *operation)?)
-            }
+            TypeTerm::Operation(operation) => dir::Type::Operation(self.commit_type_operation(
+                module,
+                output,
+                environment,
+                *operation,
+                source,
+            )?),
             TypeTerm::Call(_)
             | TypeTerm::Construct(_)
             | TypeTerm::RangeValue(_)
@@ -654,10 +782,13 @@ impl CheckState<'_> {
             } => dir::Type::Predicate(dir::PredicateType {
                 asserts: *asserts,
                 subject: *subject,
-                target: target.and_then(|target| self.commit_variable_type(environment, target)),
+                target: target.and_then(|target| {
+                    self.commit_type_variable(module, output, environment, target, source)
+                }),
             }),
             TypeTerm::Dynamic { constraint } => {
-                let constraint = self.commit_variable_type(environment, *constraint)?;
+                let constraint =
+                    self.commit_type_variable(module, output, environment, *constraint, source)?;
 
                 dir::Type::Dynamic(dir::DynamicType { constraint })
             }
@@ -665,8 +796,10 @@ impl CheckState<'_> {
                 function,
                 environment: capture,
             } => {
-                let function = self.commit_variable_type(environment, *function)?;
-                let environment = self.commit_variable_type(environment, *capture)?;
+                let function =
+                    self.commit_type_variable(module, output, environment, *function, source)?;
+                let environment =
+                    self.commit_type_variable(module, output, environment, *capture, source)?;
 
                 dir::Type::Closure(dir::ClosureType {
                     function,
@@ -675,13 +808,14 @@ impl CheckState<'_> {
             }
         };
 
-        Some(self.intern_type(module, ty, source))
+        Some(self.commit_intern_type(module, output, ty, source))
     }
 
     /// Commit one static term.
     fn commit_static_term(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         term: &StaticTerm,
     ) -> Option<dir::LocalStaticId> {
@@ -691,12 +825,16 @@ impl CheckState<'_> {
                     return None;
                 };
 
-                return self.commit_static_term(module, environment, &term.clone());
+                return self.commit_static_term(module, output, environment, &term.clone());
             }
             StaticTerm::Literal(term) => term.clone(),
-            StaticTerm::Expression(expression) => {
-                self.commit_static_expression_term(module, environment, expression.local_id)?
-            }
+            StaticTerm::Parameter(parameter) => dir::StaticTerm::Parameter((*parameter).into()),
+            StaticTerm::Expression(expression) => self.commit_static_expression_term(
+                module,
+                output,
+                environment,
+                expression.local_id,
+            )?,
             StaticTerm::Member { .. }
             | StaticTerm::Join { .. }
             | StaticTerm::Layout(_)
@@ -708,43 +846,60 @@ impl CheckState<'_> {
             }
         };
 
-        Some(self.intern_static(module, term))
+        Some(self.commit_intern_static(module, output, term))
     }
 
     /// Commit one static operand.
     pub(in crate::check) fn commit_static_operand(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         operand: StaticOperand,
     ) -> Option<dir::LocalStaticId> {
         match operand {
-            StaticOperand::Variable(variable) => self.commit_variable_static(environment, variable),
+            StaticOperand::Variable(variable) => {
+                self.commit_static_variable(module, output, environment, variable)
+            }
             StaticOperand::Term(term) => {
                 let term = self.terms.get(term).clone();
 
-                self.commit_static_term(module, environment, &term)
+                self.commit_static_term(module, output, environment, &term)
             }
         }
+    }
+
+    /// Commit one variable as a static value inside one target module.
+    fn commit_static_variable(
+        &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+        variable: VariableId,
+    ) -> Option<dir::LocalStaticId> {
+        let term = self.variable_static_solution(variable)?.clone();
+
+        self.commit_static_term(module, output, environment, &term)
     }
 
     /// Commit one locally concrete static expression.
     fn commit_static_expression_term(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::StaticTerm> {
-        let expression = self.input(module).view().get(expression).clone();
+        let expression = self.module(module).view().get(expression).clone();
         let term = match expression {
             dir::Expression::ScalarLiteral(value) => dir::StaticTerm::ScalarLiteral { value },
             dir::Expression::ObjectExpression { properties } => {
-                self.commit_static_object_expression(module, environment, &properties)?
+                self.commit_static_object_expression(module, output, environment, &properties)?
             }
             dir::Expression::Type { value } => {
                 let node = value.into_global_any(module);
                 let variable = self.variables.type_by_node.get(&node).copied()?;
-                let ty = self.commit_variable_type(environment, variable)?;
+                let ty = self.commit_variable_type(module, output, environment, variable)?;
 
                 dir::StaticTerm::Type { ty }
             }
@@ -758,6 +913,7 @@ impl CheckState<'_> {
     fn commit_static_object_expression(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> Option<dir::StaticTerm> {
@@ -765,12 +921,13 @@ impl CheckState<'_> {
 
         // collect statically known fields
         for property in properties {
-            let property = self.input(module).view().get(*property).clone();
+            let property = self.module(module).view().get(*property).clone();
             let dir::Property::Field { key, value, .. } = property else {
                 return None;
             };
-            let key = key.static_key(self.input(module).view().tree())?;
-            let value = self.commit_static_expression_term(module, environment, value)?;
+            let view = self.module(module).view();
+            let key = key.static_key(view.tree())?;
+            let value = self.commit_static_expression_term(module, output, environment, value)?;
 
             terms.push(dir::StaticProperty::Field { key, value });
         }
@@ -782,6 +939,7 @@ impl CheckState<'_> {
     fn commit_form_term(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         form: TermId<FormTerm>,
     ) -> Option<dir::Form> {
@@ -790,14 +948,14 @@ impl CheckState<'_> {
             FormTerm::Managed => dir::Form::Managed,
             FormTerm::Owned => dir::Form::Owned,
             FormTerm::Borrowed { lifetime, access } => {
-                let lifetime = self.commit_static_operand(module, environment, lifetime)?;
-                let access = self.commit_static_operand(module, environment, access)?;
+                let lifetime = self.commit_static_operand(module, output, environment, lifetime)?;
+                let access = self.commit_static_operand(module, output, environment, access)?;
 
                 dir::Form::Borrowed { lifetime, access }
             }
             FormTerm::Raw => dir::Form::Raw,
             FormTerm::Placed { place } => {
-                let place = self.commit_static_operand(module, environment, place)?;
+                let place = self.commit_static_operand(module, output, environment, place)?;
 
                 dir::Form::Placed { place }
             }
@@ -810,6 +968,8 @@ impl CheckState<'_> {
     /// Commit a union of borrowed forms as one joined borrow.
     fn commit_borrowed_union_type(
         &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         elements: &[TypeOperand],
     ) -> Option<dir::Type> {
@@ -857,26 +1017,26 @@ impl CheckState<'_> {
         }
 
         let value = match value_variables.as_slice() {
-            [value] => self.commit_variable_type(environment, *value)?,
+            [value] => self.commit_variable_type(module, output, environment, *value)?,
             values => {
-                let elements = self.commit_type_variables(environment, values)?;
+                let source = self.variable_source_node(values[0]);
+                let elements =
+                    self.commit_type_variables(module, output, environment, values, source)?;
                 let ty = dir::Type::Union(dir::UnionType { elements });
 
-                self.intern_type(values[0].module, ty, self.variable_source_node(values[0]))
+                self.commit_intern_type(module, output, ty, source)
             }
         };
-        let access =
-            self.commit_static_operand(value_variables[0].module, environment, access_operand?)?;
+        let access = self.commit_static_operand(module, output, environment, access_operand?)?;
         let lifetimes = lifetime_operands
             .iter()
-            .map(|lifetime| {
-                self.commit_static_operand(value_variables[0].module, environment, *lifetime)
-            })
+            .map(|lifetime| self.commit_static_operand(module, output, environment, *lifetime))
             .collect::<Option<Vec<_>>>()?;
         let lifetime = match lifetimes.as_slice() {
             [lifetime] => *lifetime,
-            _ => self.intern_static(
-                value_variables[0].module,
+            _ => self.commit_intern_static(
+                module,
+                output,
                 dir::StaticTerm::Lifetime {
                     lifetime: dir::Lifetime::Join(lifetimes),
                 },
@@ -890,10 +1050,15 @@ impl CheckState<'_> {
     }
 
     /// Return one solved type term for commit.
-    fn commit_variable_term(&self, variable: VariableId) -> Option<TypeTerm> {
+    fn commit_variable_term(&mut self, variable: VariableId) -> Option<TypeTerm> {
+        let origin = self.variable(variable).source;
+        if let Ok(Some(term)) = self.reduce_type_operand(origin, TypeOperand::Variable(variable)) {
+            return Some(term);
+        }
         let term = self.variable_type_solution(variable)?.clone();
         match term {
             TypeTerm::Variable(source) if source != variable => self.commit_variable_term(source),
+            TypeTerm::Variable(_) => None,
             term => Some(term),
         }
     }
@@ -902,6 +1067,7 @@ impl CheckState<'_> {
     pub(super) fn commit_named_type(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         symbol: dir::GlobalSymbolId,
         arguments: Vec<dir::StaticArgument>,
@@ -909,13 +1075,12 @@ impl CheckState<'_> {
     ) -> Option<dir::Type> {
         if source.ty == dir::NodeType::TypeExpression && !arguments.is_empty() {
             let instance = dir::GenericInstance::new(symbol, arguments.clone());
-            let instance_id = self
-                .output(module)
+            let instance_id = output
                 .generics
                 .find_instance(&instance)
-                .unwrap_or_else(|| self.output_mut(module).generics.push_instance(instance));
+                .unwrap_or_else(|| output.generics.push_instance(instance));
 
-            self.output_mut(module)
+            output
                 .generics
                 .set_node_instance(source.into_global(module), instance_id);
         }
@@ -927,9 +1092,9 @@ impl CheckState<'_> {
         let ty = match item {
             dir::LanguageItem::Array => dir::Type::Named(dir::NamedType { symbol, arguments }),
             dir::LanguageItem::Function => {
-                let parameters = self.type_argument(module, &arguments, 0)?;
-                let return_type = self.type_argument(module, &arguments, 1)?;
-                let parameters = self.function_parameters_from_tuple(module, parameters)?;
+                let parameters = self.type_argument(module, output, &arguments, 0)?;
+                let return_type = self.type_argument(module, output, &arguments, 1)?;
+                let parameters = self.function_parameters_from_tuple(module, output, parameters)?;
 
                 dir::Type::Function(dir::FunctionTypeShape {
                     asynchrony: dir::Asynchrony::Sync,
@@ -941,9 +1106,9 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::ReadonlyArray => {
-                let element = self.type_argument(module, &arguments, 0)?;
-                let array = self.commit_array_type(module, environment, element)?;
-                let array = self.intern_type(module, array, source);
+                let element = self.type_argument(module, output, &arguments, 0)?;
+                let array = self.commit_array_type(module, output, environment, element)?;
+                let array = self.commit_intern_type(module, output, array, source);
 
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Readonly,
@@ -951,7 +1116,7 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::FixedArray => {
-                let element = self.type_argument(module, &arguments, 0)?;
+                let element = self.type_argument(module, output, &arguments, 0)?;
                 let count = self.static_argument(&arguments, 1)?;
 
                 dir::Type::FixedArray(dir::FixedArrayType {
@@ -961,7 +1126,7 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::Slice => {
-                let element = self.type_argument(module, &arguments, 0)?;
+                let element = self.type_argument(module, output, &arguments, 0)?;
 
                 dir::Type::Slice(dir::SliceType {
                     element,
@@ -969,7 +1134,7 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::Managed => {
-                let value = self.type_argument(module, &arguments, 0)?;
+                let value = self.type_argument(module, output, &arguments, 0)?;
 
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Managed,
@@ -977,7 +1142,7 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::Owned => {
-                let value = self.type_argument(module, &arguments, 0)?;
+                let value = self.type_argument(module, output, &arguments, 0)?;
 
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Owned,
@@ -985,7 +1150,7 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::Borrowed => {
-                let value = self.type_argument(module, &arguments, 0)?;
+                let value = self.type_argument(module, output, &arguments, 0)?;
                 let lifetime = self.static_argument(&arguments, 1)?;
                 let access = self.static_argument(&arguments, 2)?;
 
@@ -995,7 +1160,7 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::Raw => {
-                let value = self.type_argument(module, &arguments, 0)?;
+                let value = self.type_argument(module, output, &arguments, 0)?;
 
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Raw,
@@ -1003,7 +1168,7 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::Placed => {
-                let value = self.type_argument(module, &arguments, 0)?;
+                let value = self.type_argument(module, output, &arguments, 0)?;
                 let place = self.static_argument(&arguments, 1)?;
 
                 dir::Type::Form(dir::FormType {
@@ -1012,7 +1177,7 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::Readonly => {
-                let value = self.type_argument(module, &arguments, 0)?;
+                let value = self.type_argument(module, output, &arguments, 0)?;
 
                 dir::Type::Form(dir::FormType {
                     form: dir::Form::Readonly,
@@ -1020,7 +1185,7 @@ impl CheckState<'_> {
                 })
             }
             dir::LanguageItem::Dynamic => {
-                let constraint = self.type_argument(module, &arguments, 0)?;
+                let constraint = self.type_argument(module, output, &arguments, 0)?;
 
                 dir::Type::Dynamic(dir::DynamicType { constraint })
             }
@@ -1034,9 +1199,10 @@ impl CheckState<'_> {
     fn function_parameters_from_tuple(
         &self,
         module: ModuleId,
+        output: &CheckModuleOutput,
         parameters: dir::LocalTypeId,
     ) -> Option<Vec<dir::FunctionParameterType>> {
-        match self.local_type(module, parameters) {
+        match self.commit_type_value(module, output, parameters) {
             dir::Type::Tuple(tuple) => Some(
                 tuple
                     .elements
@@ -1057,11 +1223,12 @@ impl CheckState<'_> {
     fn commit_array_type(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         element: dir::LocalTypeId,
     ) -> Option<dir::Type> {
         let symbol = environment.language.symbol(dir::LanguageItem::Array)?;
-        let argument = self.commit_type_argument(module, element);
+        let argument = self.commit_type_argument(module, output, element);
 
         Some(dir::Type::Named(dir::NamedType {
             symbol,
@@ -1073,11 +1240,12 @@ impl CheckState<'_> {
     fn type_argument(
         &self,
         module: ModuleId,
+        output: &CheckModuleOutput,
         arguments: &[dir::StaticArgument],
         index: usize,
     ) -> Option<dir::LocalTypeId> {
         let argument = arguments.get(index)?;
-        let value = self.local_static(module, argument.value);
+        let value = self.commit_static_value(module, output, argument.value);
 
         match value {
             dir::StaticTerm::Type { ty } => Some(ty),
@@ -1094,15 +1262,48 @@ impl CheckState<'_> {
         arguments.get(index).map(|argument| argument.value)
     }
 
+    /// Return one committed type value visible during module output.
+    pub(super) fn commit_type_value(
+        &self,
+        module: ModuleId,
+        output: &CheckModuleOutput,
+        ty: dir::LocalTypeId,
+    ) -> dir::Type {
+        if let Some(value) = output.types.get_type_maybe(ty) {
+            return value.clone();
+        }
+
+        self.module(module).type_table().get_type(ty).clone()
+    }
+
+    /// Return one committed static value visible during module output.
+    pub(super) fn commit_static_value(
+        &self,
+        module: ModuleId,
+        output: &CheckModuleOutput,
+        value: dir::LocalStaticId,
+    ) -> dir::StaticTerm {
+        if let Some(term) = output.statics.get_static_maybe(value) {
+            return term.clone();
+        }
+
+        self.module(module).static_table().get_static(value).clone()
+    }
+
     /// Commit type variables.
     pub(in crate::check) fn commit_type_variables(
         &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         variables: &[VariableId],
+        source: dir::LocalNodeIdAny,
     ) -> Option<Vec<dir::LocalTypeId>> {
         variables
             .iter()
-            .map(|variable| self.commit_variable_type(environment, *variable))
+            .map(|variable| {
+                self.commit_type_variable(module, output, environment, *variable, source)
+            })
             .collect()
     }
 
@@ -1110,13 +1311,14 @@ impl CheckState<'_> {
     pub(in crate::check) fn commit_type_operands(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         operands: &[TypeOperand],
         source: dir::LocalNodeIdAny,
     ) -> Option<Vec<dir::LocalTypeId>> {
         operands
             .iter()
-            .map(|operand| self.commit_type_operand(module, environment, *operand, source))
+            .map(|operand| self.commit_type_operand(module, output, environment, *operand, source))
             .collect()
     }
 
@@ -1124,13 +1326,16 @@ impl CheckState<'_> {
     pub(in crate::check) fn commit_function_parameter_type_ids(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         parameters: &[FunctionParameter],
         source: dir::LocalNodeIdAny,
     ) -> Option<Vec<dir::LocalTypeId>> {
         parameters
             .iter()
-            .map(|parameter| self.commit_type_operand(module, environment, parameter.ty, source))
+            .map(|parameter| {
+                self.commit_type_operand(module, output, environment, parameter.ty, source)
+            })
             .collect()
     }
 
@@ -1138,6 +1343,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn commit_function_parameters(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         parameters: &[FunctionParameter],
         source: dir::LocalNodeIdAny,
@@ -1151,7 +1357,7 @@ impl CheckState<'_> {
                 let is_rest = parameter.is_rest;
 
                 Some(dir::FunctionParameterType {
-                    ty: self.commit_type_operand(module, environment, ty, source)?,
+                    ty: self.commit_type_operand(module, output, environment, ty, source)?,
                     is_optional,
                     is_rest,
                 })
@@ -1162,27 +1368,22 @@ impl CheckState<'_> {
     /// Commit one resolved generic instance.
     pub(in crate::check) fn commit_generic_instance(
         &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         node: dir::GlobalNodeIdAny,
         instance: &GenericInstance,
     ) -> Option<dir::LocalInstanceId> {
         let source = node.local_id;
         let arguments =
-            self.commit_argument_terms(node.module_id, environment, &instance.arguments, source)?;
+            self.commit_argument_terms(module, output, environment, &instance.arguments, source)?;
         let instance = dir::GenericInstance::new(instance.symbol, arguments);
-        let instance_id = self
-            .output(node.module_id)
+        let instance_id = output
             .generics
             .find_instance(&instance)
-            .unwrap_or_else(|| {
-                self.output_mut(node.module_id)
-                    .generics
-                    .push_instance(instance)
-            });
+            .unwrap_or_else(|| output.generics.push_instance(instance));
 
-        self.output_mut(node.module_id)
-            .generics
-            .set_node_instance(node, instance_id);
+        output.generics.set_node_instance(node, instance_id);
 
         Some(instance_id)
     }
@@ -1191,13 +1392,16 @@ impl CheckState<'_> {
     pub(super) fn commit_argument_terms(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         arguments: &[GenericArgument],
         source: dir::LocalNodeIdAny,
     ) -> Option<Vec<dir::StaticArgument>> {
         arguments
             .iter()
-            .map(|argument| self.commit_argument_term(module, environment, *argument, source))
+            .map(|argument| {
+                self.commit_argument_term(module, output, environment, *argument, source)
+            })
             .collect()
     }
 
@@ -1205,22 +1409,23 @@ impl CheckState<'_> {
     fn commit_argument_term(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         argument: GenericArgument,
         source: dir::LocalNodeIdAny,
     ) -> Option<dir::StaticArgument> {
         let value = match argument {
             GenericArgument::Type(operand) => {
-                let ty = self.commit_type_operand(module, environment, operand, source)?;
+                let ty = self.commit_type_operand(module, output, environment, operand, source)?;
 
-                self.commit_type_argument(module, ty).value
+                self.commit_type_argument(module, output, ty).value
             }
             GenericArgument::Static(operand) => {
-                self.commit_static_operand(module, environment, operand)?
+                self.commit_static_operand(module, output, environment, operand)?
             }
             GenericArgument::AssociatedType { name, value } => {
-                let ty = self.commit_type_operand(module, environment, value, source)?;
-                let value = self.commit_type_argument(module, ty).value;
+                let ty = self.commit_type_operand(module, output, environment, value, source)?;
+                let value = self.commit_type_argument(module, output, ty).value;
 
                 return Some(dir::StaticArgument {
                     name: Some(name),
@@ -1228,7 +1433,7 @@ impl CheckState<'_> {
                 });
             }
             GenericArgument::AssociatedConst { name, value } => {
-                let value = self.commit_static_operand(module, environment, value)?;
+                let value = self.commit_static_operand(module, output, environment, value)?;
 
                 return Some(dir::StaticArgument {
                     name: Some(name),
@@ -1248,9 +1453,10 @@ impl CheckState<'_> {
     fn commit_type_argument(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         ty: dir::LocalTypeId,
     ) -> dir::StaticArgument {
-        let value = self.intern_static(module, dir::StaticTerm::Type { ty });
+        let value = self.commit_intern_static(module, output, dir::StaticTerm::Type { ty });
 
         dir::StaticArgument::value(value)
     }
@@ -1259,6 +1465,7 @@ impl CheckState<'_> {
     fn commit_tuple_elements(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         elements: &[TupleElement],
         source: dir::LocalNodeIdAny,
@@ -1275,7 +1482,7 @@ impl CheckState<'_> {
 
                 Some(dir::TypeElement {
                     label,
-                    ty: self.commit_type_operand(module, environment, ty, source)?,
+                    ty: self.commit_type_operand(module, output, environment, ty, source)?,
                     is_optional,
                     is_readonly,
                     is_rest,
@@ -1288,6 +1495,7 @@ impl CheckState<'_> {
     fn commit_shape_type(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         members: &[ShapeMember],
         source: dir::LocalNodeIdAny,
@@ -1308,13 +1516,14 @@ impl CheckState<'_> {
                     is_readonly,
                 } => fields.push(dir::TypeField {
                     key,
-                    ty: self.commit_type_operand(module, environment, ty, source)?,
+                    ty: self.commit_type_operand(module, output, environment, ty, source)?,
                     is_optional,
                     is_readonly,
                 }),
                 ShapeMember::CallSignature { ty } => {
                     call_signatures.push(self.commit_type_operand(
                         module,
+                        output,
                         environment,
                         ty,
                         source,
@@ -1323,6 +1532,7 @@ impl CheckState<'_> {
                 ShapeMember::ConstructSignature { ty } => {
                     construct_signatures.push(self.commit_type_operand(
                         module,
+                        output,
                         environment,
                         ty,
                         source,
@@ -1336,9 +1546,16 @@ impl CheckState<'_> {
                     is_readonly,
                 } => index_signatures.push(dir::TypeIndexSignature {
                     name,
-                    key_type: self.commit_type_operand(module, environment, key_type, source)?,
+                    key_type: self.commit_type_operand(
+                        module,
+                        output,
+                        environment,
+                        key_type,
+                        source,
+                    )?,
                     value_type: self.commit_type_operand(
                         module,
+                        output,
                         environment,
                         value_type,
                         source,
@@ -1361,6 +1578,7 @@ impl CheckState<'_> {
     fn commit_function_type(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         function: TermId<FunctionTerm>,
         source: dir::LocalNodeIdAny,
@@ -1369,20 +1587,26 @@ impl CheckState<'_> {
 
         Some(dir::FunctionTypeShape {
             asynchrony: function.asynchrony,
-            generic_parameters: self
-                .commit_type_variables(environment, &function.generic_parameters)?,
-            this_parameter: function
-                .this_parameter
-                .and_then(|parameter| self.commit_variable_type(environment, parameter)),
+            generic_parameters: self.commit_type_variables(
+                module,
+                output,
+                environment,
+                &function.generic_parameters,
+                source,
+            )?,
+            this_parameter: function.this_parameter.and_then(|parameter| {
+                self.commit_type_operand(module, output, environment, parameter, source)
+            }),
             parameters: self.commit_function_parameters(
                 module,
+                output,
                 environment,
                 &function.parameters,
                 source,
             )?,
-            return_type: function
-                .return_type
-                .and_then(|return_type| self.commit_variable_type(environment, return_type)),
+            return_type: function.return_type.and_then(|return_type| {
+                self.commit_type_operand(module, output, environment, return_type, source)
+            }),
             is_generator: function.is_generator,
         })
     }
@@ -1390,8 +1614,11 @@ impl CheckState<'_> {
     /// Commit one type operation.
     fn commit_type_operation(
         &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         operation: TermId<TypeOperationTerm>,
+        source: dir::LocalNodeIdAny,
     ) -> Option<dir::TypeOperation> {
         let operation = self.terms.get(operation).clone();
         let operation = match operation {
@@ -1402,30 +1629,49 @@ impl CheckState<'_> {
                 else_type,
             } => dir::TypeOperation::Conditional(dir::ConditionalType {
                 distributive_symbol: None,
-                left: self.commit_variable_type(environment, left)?,
-                right: self.commit_variable_type(environment, right)?,
-                then_type: self.commit_variable_type(environment, then_type)?,
-                else_type: self.commit_variable_type(environment, else_type)?,
+                left: self.commit_type_variable(module, output, environment, left, source)?,
+                right: self.commit_type_variable(module, output, environment, right, source)?,
+                then_type: self.commit_type_variable(
+                    module,
+                    output,
+                    environment,
+                    then_type,
+                    source,
+                )?,
+                else_type: self.commit_type_variable(
+                    module,
+                    output,
+                    environment,
+                    else_type,
+                    source,
+                )?,
             }),
             TypeOperationTerm::Index { left, index } => dir::TypeOperation::Index(dir::IndexType {
-                left: self.commit_variable_type(environment, left)?,
-                index: self.commit_variable_type(environment, index)?,
+                left: self.commit_type_variable(module, output, environment, left, source)?,
+                index: self.commit_type_variable(module, output, environment, index, source)?,
             }),
             TypeOperationTerm::TemplateLiteral { strings, spans } => {
                 dir::TypeOperation::TemplateLiteral(dir::TemplateLiteralType {
                     strings,
-                    spans: self.commit_type_variables(environment, &spans)?,
+                    spans: self.commit_type_variables(
+                        module,
+                        output,
+                        environment,
+                        &spans,
+                        source,
+                    )?,
                 })
             }
             TypeOperationTerm::Infer { name, constraint } => {
                 dir::TypeOperation::Infer(dir::InferType {
                     name,
-                    constraint: constraint
-                        .and_then(|constraint| self.commit_variable_type(environment, constraint)),
+                    constraint: constraint.and_then(|constraint| {
+                        self.commit_type_variable(module, output, environment, constraint, source)
+                    }),
                 })
             }
             TypeOperationTerm::KeyOf { target } => dir::TypeOperation::KeyOf(dir::UnaryType {
-                target: self.commit_variable_type(environment, target)?,
+                target: self.commit_type_variable(module, output, environment, target, source)?,
             }),
             TypeOperationTerm::Mapped {
                 parameter,
@@ -1441,13 +1687,25 @@ impl CheckState<'_> {
                     parameter: dir::MappedTypeParameter {
                         name,
                         symbol,
-                        constraint: self.commit_variable_type(environment, constraint)?,
+                        constraint: self.commit_type_variable(
+                            module,
+                            output,
+                            environment,
+                            constraint,
+                            source,
+                        )?,
                         key_remap: key_remap.and_then(|key_remap| {
-                            self.commit_variable_type(environment, key_remap)
+                            self.commit_type_variable(
+                                module,
+                                output,
+                                environment,
+                                key_remap,
+                                source,
+                            )
                         }),
                     },
                     modifiers,
-                    value: self.commit_variable_type(environment, value)?,
+                    value: self.commit_type_variable(module, output, environment, value, source)?,
                 })
             }
             TypeOperationTerm::BestCommon { .. }

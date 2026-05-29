@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use indexmap::IndexSet;
 
 use crate::check::{
-    CheckState, ConstraintOrigin, FunctionFrame, GenericArgument, ReceiverCapture, TypeLiteralTerm,
-    TypeRelation, TypeTerm, VariableId, VariableKind,
+    CheckState, FunctionFrame, GenericArgument, Origin, ReceiverCapture, TypeLiteralTerm,
+    TypeOperand, TypeRelation, TypeTerm, VariableId,
 };
 
 impl CheckState<'_> {
@@ -54,20 +54,22 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
-        value: VariableId,
+        value: impl Into<TypeOperand>,
     ) {
         let Some(function) = self.flow(module).current_function() else {
             self.report_invalid_control_flow(module, source, "return has no target");
 
             return;
         };
-        let origin = ConstraintOrigin::Node(source.into_global(module));
+        let origin = Origin::Node(source.into_global(module));
+        let condition = self.flow(module).current_static_condition();
 
-        self.constrain_type(
+        self.add_type_constraint(
             origin,
             TypeRelation::Assignable,
             value,
             function.return_type,
+            condition,
         );
     }
 
@@ -90,18 +92,25 @@ impl CheckState<'_> {
 
             return;
         };
-        let origin = ConstraintOrigin::Node(source.into_global(module));
+        let origin = Origin::Node(source.into_global(module));
         let resume_type = function.resume_type;
         let asynchrony = function.asynchrony;
 
         // yield value
         if cardinality == dir::YieldCardinality::Scalar {
             let value = match value {
-                Some(value) => value,
-                None => self.define_void_type(module, source),
+                Some(value) => value.into(),
+                None => self.void_type_operand(),
             };
+            let condition = self.flow(module).current_static_condition();
 
-            self.constrain_type(origin, TypeRelation::Assignable, value, yield_type);
+            self.add_type_constraint(
+                origin,
+                TypeRelation::Assignable,
+                value,
+                yield_type,
+                condition,
+            );
         }
         // yield* values
         else if let (Some(value), Some(delegate_return_type), Some(resume_type)) =
@@ -111,22 +120,19 @@ impl CheckState<'_> {
                 dir::Asynchrony::Sync => dir::LanguageItem::Iterable,
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncIterable,
             };
-            let Ok(symbol) = self.language_symbol(module, item) else {
-                return;
-            };
+            let symbol = self.language_symbol(module, item);
             let yield_type = GenericArgument::Type(yield_type.into());
             let delegate_return_type = GenericArgument::Type(delegate_return_type.into());
             let resume_type = GenericArgument::Type(resume_type.into());
             let expected = TypeTerm::Reference {
-                source: Some(source.into_global(module)),
+                origin: Origin::Node(source.into_global(module)),
                 symbol,
                 arguments: vec![yield_type, delegate_return_type, resume_type].into(),
             };
-            let expected_variable =
-                self.allocate_intermediate_variable(module, VariableKind::Type, origin);
-            self.define_type(module, expected_variable, expected);
+            let expected = self.terms.push(expected);
+            let condition = self.flow(module).current_static_condition();
 
-            self.constrain_type(origin, TypeRelation::Assignable, value, expected_variable);
+            self.add_type_constraint(origin, TypeRelation::Assignable, value, expected, condition);
         }
         // reject malformed delegation
         else {
@@ -177,22 +183,16 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
-        let value = self.define_void_type(module, source);
+        let value = self.void_type_operand();
 
         self.constrain_return_value(module, source, value);
     }
 
-    /// Define one void type variable.
-    pub(in crate::check) fn define_void_type(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-    ) -> VariableId {
-        let origin = ConstraintOrigin::Node(source.into_global(module));
+    /// Return the void type operand.
+    pub(in crate::check) fn void_type_operand(&mut self) -> TypeOperand {
+        let term = TypeTerm::Literal(TypeLiteralTerm::Void);
+        let term = self.terms.push(term);
 
-        let variable = self.allocate_intermediate_variable(module, VariableKind::Type, origin);
-        self.define_type(module, variable, TypeTerm::Literal(TypeLiteralTerm::Void));
-
-        variable
+        term.into()
     }
 }

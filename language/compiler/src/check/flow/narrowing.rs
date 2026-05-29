@@ -1,8 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{
-    CheckState, ConstraintOrigin, FlowPath, TypeOperationTerm, TypeTerm, VariableId, VariableKind,
-};
+use crate::check::{CheckState, FlowPath, TypeOperand, TypeOperationTerm, TypeTerm, VariableId};
 
 impl CheckState<'_> {
     /// Return the stable flow path for one expression.
@@ -79,39 +77,41 @@ impl CheckState<'_> {
         &self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<VariableId> {
+    ) -> Option<TypeOperand> {
         let path = self.flow_path(tree, id)?;
 
         self.flow(tree.module_id).narrowings.get(&path).copied()
     }
 
-    /// Narrow one flow path to an exact type variable.
-    pub(in crate::check) fn narrow_flow_path(&mut self, path: FlowPath, ty: VariableId) {
-        self.flow_mut(ty.module).narrow(path, ty);
+    /// Narrow one flow path to an exact type operand.
+    pub(in crate::check) fn narrow_flow_path(
+        &mut self,
+        path: FlowPath,
+        ty: impl Into<TypeOperand>,
+    ) {
+        let module = path.root.module_id;
+
+        self.flow_mut(module).narrow(path, ty.into());
     }
 
     /// Narrow one flow path by excluding one tested type.
     pub(in crate::check) fn narrow_flow_path_excluding(
         &mut self,
-        source: dir::LocalNodeIdAny,
         path: FlowPath,
         original: VariableId,
-        excluded: VariableId,
+        excluded: impl Into<TypeOperand>,
     ) {
-        let origin = ConstraintOrigin::Node(source.into_global(original.module));
         let operation = self.terms.push(TypeOperationTerm::Exclude {
             source: original.into(),
             target: excluded.into(),
         });
-        let narrowed =
-            self.allocate_intermediate_variable(original.module, VariableKind::Type, origin);
-        self.define_type(original.module, narrowed, TypeTerm::Operation(operation));
+        let narrowed = self.terms.push(TypeTerm::Operation(operation));
 
-        self.flow_mut(original.module).narrow(path, narrowed);
+        self.flow_mut(original.module).narrow(path, narrowed.into());
     }
 
-    /// Clear flow narrowings invalidated by a write expression.
-    pub(in crate::check) fn clear_written_expression_narrowings(
+    /// Clear flow narrowings invalidated by mutating an expression.
+    pub(in crate::check) fn clear_mutated_expression_narrowings(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,

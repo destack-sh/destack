@@ -66,7 +66,7 @@ impl CheckState<'_> {
             return false;
         };
 
-        self.input(module).strings.get(*name) == "if"
+        self.module(module).strings.get(*name) == "if"
     }
 
     /// Return the static condition shape from `@if`.
@@ -82,7 +82,7 @@ impl CheckState<'_> {
                 return StaticIfCondition::Multiple;
             }
         };
-        let view = self.input(module).view();
+        let view = self.module(module).view();
         let dir::Argument::Positional { value } = view.get(*argument) else {
             return StaticIfCondition::Invalid {
                 argument: *argument,

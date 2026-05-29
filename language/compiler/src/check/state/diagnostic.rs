@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::check::Origin;
 use crate::{CheckError, DiagnosticAnchor};
 
 use super::CheckState;
@@ -15,7 +16,7 @@ impl CheckState<'_> {
         let anchor = self.diagnostic_anchor(module, source);
         let diagnostic = CheckError::MissingTypeAnnotation { anchor, module };
 
-        self.diagnostics_mut(module).push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Report invalid control flow at one source node.
@@ -32,7 +33,7 @@ impl CheckState<'_> {
             message: message.to_owned(),
         };
 
-        self.diagnostics_mut(module).push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Report an invalid yield expression at one source node.
@@ -49,7 +50,7 @@ impl CheckState<'_> {
             message: message.to_owned(),
         };
 
-        self.diagnostics_mut(module).push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Report an invalid await expression at one source node.
@@ -66,7 +67,7 @@ impl CheckState<'_> {
             message: message.to_owned(),
         };
 
-        self.diagnostics_mut(module).push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Report an invalid static condition at one source node.
@@ -76,9 +77,9 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::InvalidStaticCondition { anchor, module };
+        let diagnostic = CheckError::InvalidCondition { anchor, module };
 
-        self.diagnostics_mut(module).push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Report an unresolved reference at one source node.
@@ -95,7 +96,7 @@ impl CheckState<'_> {
             name: self.path_label(module, path),
         };
 
-        self.diagnostics_mut(module).push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Report an ambiguous reference at one source node.
@@ -112,24 +113,7 @@ impl CheckState<'_> {
             name: self.path_label(module, path),
         };
 
-        self.diagnostics_mut(module).push(diagnostic);
-    }
-
-    /// Report an internal check failure at one source node.
-    pub(in crate::check) fn report_internal(
-        &mut self,
-        module: ModuleId,
-        source: dir::LocalNodeIdAny,
-        message: String,
-    ) {
-        let anchor = self.diagnostic_anchor(module, source);
-        let diagnostic = CheckError::Internal {
-            anchor,
-            module,
-            message,
-        };
-
-        self.diagnostics_mut(module).push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Report a parsed type form that is not supported by the language model.
@@ -146,7 +130,7 @@ impl CheckState<'_> {
             name: name.into(),
         };
 
-        self.diagnostics_mut(module).push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Report an invalid writable place at one source node.
@@ -158,7 +142,62 @@ impl CheckState<'_> {
         let anchor = self.diagnostic_anchor(module, source);
         let diagnostic = CheckError::NotWritable { anchor, module };
 
-        self.diagnostics_mut(module).push(diagnostic);
+        self.module_mut(module).diagnostics.push(diagnostic);
+    }
+
+    /// Report a read from a binding that is not definitely assigned.
+    pub(in crate::check) fn report_use_before_assigned(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::UseBeforeAssigned { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic);
+    }
+
+    /// Return the diagnostic anchor for one source node.
+    pub(in crate::check) fn diagnostic_anchor(
+        &self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) -> DiagnosticAnchor {
+        let span = match self.module(module).parsed.tree.get_span_by_id(source.id) {
+            Some(span) => span,
+            None => panic!("check node {} has no source span", source.id),
+        };
+
+        DiagnosticAnchor::from(span)
+    }
+
+    /// Return the diagnostic anchor for one check origin.
+    pub(in crate::check) fn diagnostic_anchor_for_origin(
+        &self,
+        origin: Origin,
+    ) -> (ModuleId, DiagnosticAnchor) {
+        let module = origin.module();
+        let source = match origin {
+            Origin::Node(node) => node.local_id,
+            Origin::Symbol(symbol) => self.symbol_source_node(symbol),
+        };
+        let anchor = self.diagnostic_anchor(module, source);
+
+        (module, anchor)
+    }
+
+    /// Return a circular type diagnostic for one origin.
+    pub(in crate::check) fn circular_type_error(&self, origin: Origin) -> CheckError {
+        let (module, anchor) = self.diagnostic_anchor_for_origin(origin);
+
+        CheckError::CircularType { anchor, module }
+    }
+
+    /// Return a type complexity diagnostic for one origin.
+    pub(in crate::check) fn type_too_complex_error(&self, origin: Origin) -> CheckError {
+        let (module, anchor) = self.diagnostic_anchor_for_origin(origin);
+
+        CheckError::TypeTooComplex { anchor, module }
     }
 
     /// Return a human readable path label.
@@ -171,19 +210,9 @@ impl CheckState<'_> {
                 label.push('.');
             }
 
-            label.push_str(self.input(module).strings.get(*segment));
+            label.push_str(self.module(module).strings.get(*segment));
         }
 
         label
-    }
-
-    /// Return the diagnostic anchor for one source node.
-    fn diagnostic_anchor(&self, module: ModuleId, source: dir::LocalNodeIdAny) -> DiagnosticAnchor {
-        let span = match self.input(module).parsed.tree.get_span_by_id(source.id) {
-            Some(span) => span,
-            None => panic!("check node {} has no source span", source.id),
-        };
-
-        DiagnosticAnchor::from(span)
     }
 }

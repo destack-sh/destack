@@ -169,7 +169,7 @@ impl CheckState<'_> {
         match assign_pattern {
             // target
             dir::AssignPattern::Expression { value } => {
-                self.walk_expression(tree, *value, tree.get(*value));
+                self.walk_assignment_target(*value, tree);
             }
             // target = value
             dir::AssignPattern::Assign { pattern, value } => {
@@ -253,7 +253,7 @@ impl CheckState<'_> {
             // pattern = value
             dir::Pattern::Assign { pattern, value } => PatternTerm::Assign {
                 pattern: self.build_pattern_term(module, *pattern, tree)?,
-                value: self.intern_local_type_variable(module, *value),
+                value: self.intern_local_node_type_variable(module, *value),
             },
             // &pattern
             dir::Pattern::BorrowOf { mutability, right } => PatternTerm::BorrowOf {
@@ -276,7 +276,7 @@ impl CheckState<'_> {
             },
             // value
             dir::Pattern::Expression { value } => PatternTerm::Expression {
-                value: self.intern_local_type_variable(module, *value),
+                value: self.intern_local_node_type_variable(module, *value),
             },
             // start..end
             dir::Pattern::Range {
@@ -284,13 +284,13 @@ impl CheckState<'_> {
                 end,
                 end_kind,
             } => PatternTerm::Range {
-                start: start.map(|start| self.intern_local_type_variable(module, start)),
-                end: end.map(|end| self.intern_local_type_variable(module, end)),
+                start: start.map(|start| self.intern_local_node_type_variable(module, start)),
+                end: end.map(|end| self.intern_local_node_type_variable(module, end)),
                 end_kind: *end_kind,
             },
             // value is T
             dir::Pattern::TypeExpression { value } => PatternTerm::Type {
-                ty: self.intern_local_type_variable(module, *value),
+                ty: self.intern_local_node_type_variable(module, *value),
             },
             // [a, b]
             dir::Pattern::Tuple { fields } => PatternTerm::Tuple {
@@ -301,7 +301,7 @@ impl CheckState<'_> {
             },
             // T(a, b)
             dir::Pattern::Newtype { ty, fields } => PatternTerm::Newtype {
-                ty: self.intern_local_type_variable(module, *ty),
+                ty: self.intern_local_node_type_variable(module, *ty),
                 fields: fields
                     .iter()
                     .filter_map(|field| self.build_pattern_field_term(module, *field, tree))
@@ -323,7 +323,7 @@ impl CheckState<'_> {
             },
             // T { name }
             dir::Pattern::NominalObject { ty, fields } => PatternTerm::NominalObject {
-                ty: self.intern_local_type_variable(module, *ty),
+                ty: self.intern_local_node_type_variable(module, *ty),
                 fields: fields
                     .iter()
                     .filter_map(|field| self.build_pattern_field_term(module, *field, tree))
@@ -356,7 +356,7 @@ impl CheckState<'_> {
             },
             // { [key]: pattern }
             dir::PatternField::Computed { key, pattern } => PatternField::Computed {
-                key: self.intern_local_type_variable(module, *key),
+                key: self.intern_local_node_type_variable(module, *key),
                 pattern: self.build_pattern_term(module, *pattern, tree)?,
             },
             // [pattern]
@@ -384,12 +384,12 @@ impl CheckState<'_> {
         let term = match tree.get(id) {
             // target
             dir::AssignPattern::Expression { value } => AssignPatternTerm::Expression {
-                place: self.intern_local_type_variable(module, *value),
+                target: self.build_place(*value, tree)?.ty,
             },
             // target = value
             dir::AssignPattern::Assign { pattern, value } => AssignPatternTerm::Assign {
                 pattern: self.build_assign_pattern_term(module, *pattern, tree)?,
-                value: self.intern_local_type_variable(module, *value),
+                value: self.intern_local_node_type_variable(module, *value),
             },
             // [a, b]
             dir::AssignPattern::Sequence { fields } => AssignPatternTerm::Sequence {
@@ -426,7 +426,7 @@ impl CheckState<'_> {
             },
             // { [key]: pattern }
             dir::AssignPatternField::Computed { key, pattern } => AssignPatternField::Computed {
-                key: self.intern_local_type_variable(module, *key),
+                key: self.intern_local_node_type_variable(module, *key),
                 pattern: self.build_assign_pattern_term(module, *pattern, tree)?,
             },
             // [pattern]

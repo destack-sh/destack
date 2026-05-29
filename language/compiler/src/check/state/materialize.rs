@@ -1,8 +1,9 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    ConstraintOrigin, FormTerm, FunctionParameter, FunctionTerm, GenericArgument, MappedParameter,
+    FormTerm, FunctionParameter, FunctionTerm, GenericArgument, MappedParameter, Origin,
     ShapeMember, Solution, StaticTerm, TermId, TupleElement, TypeLiteralTerm, TypeOperand,
     TypeOperationTerm, TypeTerm, VariableId, VariableKind,
 };
@@ -16,16 +17,15 @@ impl CheckState<'_> {
             return variable;
         }
 
-        let source = self.local_type_source(id.module_id, id.local_id);
-        let origin = ConstraintOrigin::Node(source.into_global(id.module_id));
-        let variable =
-            self.allocate_intermediate_variable(id.module_id, VariableKind::Type, origin);
+        let source = self.visible_type_source(id);
+        let origin = Origin::Node(source.into_global(id.module_id));
+        let variable = self.allocate_inference_variable(id.module_id, VariableKind::Type, origin);
         self.variables.type_by_id.insert(id, variable);
 
-        let ty = self.local_type(id.module_id, id.local_id);
+        let ty = self.visible_type(id);
         let term = self.materialize_type_term(id.module_id, ty, origin);
         let term = self.terms.push(term);
-        self.solve_variable(variable, Solution::Type(term));
+        self.insert_known_solution(variable, Solution::Type(term));
 
         variable
     }
@@ -33,20 +33,19 @@ impl CheckState<'_> {
     /// Materialize one checked static id as a solved variable.
     pub(in crate::check) fn materialize_static_id(
         &mut self,
-        origin: ConstraintOrigin,
+        origin: Origin,
         id: dir::GlobalStaticId,
     ) -> VariableId {
         if let Some(variable) = self.variables.static_by_id.get(&id).copied() {
             return variable;
         }
 
-        let variable =
-            self.allocate_intermediate_variable(id.module_id, VariableKind::Static, origin);
+        let variable = self.allocate_inference_variable(id.module_id, VariableKind::Static, origin);
         self.variables.static_by_id.insert(id, variable);
 
-        let term = self.local_static(id.module_id, id.local_id);
+        let term = self.visible_static(id);
         let term = self.terms.push(StaticTerm::Literal(term));
-        self.solve_variable(variable, Solution::Static(term));
+        self.insert_known_solution(variable, Solution::Static(term));
 
         variable
     }
@@ -54,13 +53,13 @@ impl CheckState<'_> {
     /// Materialize one visible type as a solver term.
     fn materialize_type_term(
         &mut self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         ty: dir::Type,
-        origin: ConstraintOrigin,
+        origin: Origin,
     ) -> TypeTerm {
         match ty {
             dir::Type::Named(named) => TypeTerm::Reference {
-                source: None,
+                origin: Origin::Symbol(named.symbol),
                 symbol: named.symbol,
                 arguments: self.materialize_static_arguments(module, origin, named.arguments),
             },
@@ -82,7 +81,9 @@ impl CheckState<'_> {
                 element: self
                     .materialize_type_id(array.element.into_global(module))
                     .into(),
-                length: self.materialize_static_id(origin, array.count.into_global(module)),
+                length: self
+                    .materialize_static_id(origin, array.count.into_global(module))
+                    .into(),
                 is_readonly: array.is_readonly,
             },
             dir::Type::Slice(slice) => TypeTerm::Slice {
@@ -152,8 +153,8 @@ impl CheckState<'_> {
     /// Materialize one memory form.
     fn materialize_form(
         &mut self,
-        module: destack_source::ModuleId,
-        origin: ConstraintOrigin,
+        module: ModuleId,
+        origin: Origin,
         form: dir::Form,
     ) -> TermId<FormTerm> {
         let form = match form {
@@ -182,8 +183,8 @@ impl CheckState<'_> {
     /// Materialize static arguments.
     fn materialize_static_arguments(
         &mut self,
-        module: destack_source::ModuleId,
-        origin: ConstraintOrigin,
+        module: ModuleId,
+        origin: Origin,
         arguments: Vec<dir::StaticArgument>,
     ) -> SmallVec<[GenericArgument; 4]> {
         arguments
@@ -195,11 +196,11 @@ impl CheckState<'_> {
     /// Materialize one static argument.
     fn materialize_static_argument(
         &mut self,
-        module: destack_source::ModuleId,
-        origin: ConstraintOrigin,
+        module: ModuleId,
+        origin: Origin,
         argument: dir::StaticArgument,
     ) -> GenericArgument {
-        let value = self.local_static(module, argument.value);
+        let value = self.visible_static(argument.value.into_global(module));
         let argument = match value {
             // type argument
             dir::StaticTerm::Type { ty } => {
@@ -218,7 +219,7 @@ impl CheckState<'_> {
     /// Materialize tuple elements.
     fn materialize_tuple_elements(
         &mut self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         elements: Vec<dir::TypeElement>,
     ) -> SmallVec<[TupleElement; 4]> {
         elements
@@ -242,7 +243,7 @@ impl CheckState<'_> {
     /// Materialize shape members.
     fn materialize_shape_members(
         &mut self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         shape: dir::ShapeType,
     ) -> SmallVec<[ShapeMember; 8]> {
         let field_count = shape.fields.len();
@@ -303,7 +304,7 @@ impl CheckState<'_> {
     /// Materialize one function type.
     fn materialize_function(
         &mut self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         function: dir::FunctionTypeShape,
     ) -> TermId<FunctionTerm> {
         let parameters = function
@@ -329,11 +330,11 @@ impl CheckState<'_> {
                 .collect(),
             this_parameter: function
                 .this_parameter
-                .map(|ty| self.materialize_type_id(ty.into_global(module))),
+                .map(|ty| self.materialize_type_id(ty.into_global(module)).into()),
             parameters,
             return_type: function
                 .return_type
-                .map(|ty| self.materialize_type_id(ty.into_global(module))),
+                .map(|ty| self.materialize_type_id(ty.into_global(module)).into()),
             is_generator: function.is_generator,
         };
 
@@ -343,7 +344,7 @@ impl CheckState<'_> {
     /// Materialize one type operation.
     fn materialize_type_operation(
         &mut self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         operation: dir::TypeOperation,
     ) -> TypeTerm {
         let operation = match operation {
@@ -403,5 +404,40 @@ impl CheckState<'_> {
         let operation = self.terms.push(operation);
 
         TypeTerm::Operation(operation)
+    }
+
+    /// Return a visible checked type source.
+    fn visible_type_source(&self, id: dir::GlobalTypeId) -> dir::LocalNodeIdAny {
+        if let Some(module) = self.modules.get(&id.module_id) {
+            return module.type_table().get_type_source(id.local_id);
+        }
+
+        self.dependency(id.module_id)
+            .types
+            .get_type_source(id.local_id)
+    }
+
+    /// Return a visible checked type.
+    fn visible_type(&self, id: dir::GlobalTypeId) -> dir::Type {
+        if let Some(module) = self.modules.get(&id.module_id) {
+            return module.type_table().get_type(id.local_id).clone();
+        }
+
+        self.dependency(id.module_id)
+            .types
+            .get_type(id.local_id)
+            .clone()
+    }
+
+    /// Return a visible checked static value.
+    fn visible_static(&self, id: dir::GlobalStaticId) -> dir::StaticTerm {
+        if let Some(module) = self.modules.get(&id.module_id) {
+            return module.static_table().get_static(id.local_id).clone();
+        }
+
+        self.dependency(id.module_id)
+            .statics
+            .get_static(id.local_id)
+            .clone()
     }
 }

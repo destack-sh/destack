@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, TypeOperand, TypeRelation,
+    CheckState, Decision, GenericSubstitution, Origin, Progress, TypeOperand, TypeRelation,
 };
 
 /// Tuple element payload.
@@ -100,6 +100,7 @@ impl CheckState<'_> {
     /// Relate matching tuple elements by equality.
     pub(in crate::check) fn constrain_tuple_elements_equal(
         &mut self,
+        origin: Origin,
         left: &[TupleElement],
         right: &[TupleElement],
     ) -> CompilerResult<Progress> {
@@ -110,7 +111,7 @@ impl CheckState<'_> {
 
         // constrain each matching element
         for (left, right) in left.iter().zip(right) {
-            progress = progress.merge(self.solve_type_equality(left.ty, right.ty)?);
+            progress = progress.merge(self.solve_type_equality(origin, left.ty, right.ty)?);
         }
 
         Ok(progress)
@@ -119,6 +120,7 @@ impl CheckState<'_> {
     /// Relate matching tuple elements by assignability.
     pub(in crate::check) fn constrain_tuple_elements_assignable(
         &mut self,
+        origin: Origin,
         source: &[TupleElement],
         target: &[TupleElement],
     ) -> CompilerResult<Progress> {
@@ -129,7 +131,7 @@ impl CheckState<'_> {
 
         // constrain each matching element
         for (source, target) in source.iter().zip(target) {
-            progress = progress.merge(self.solve_type_assignability(source.ty, target.ty)?);
+            progress = progress.merge(self.solve_type_assignability(origin, source.ty, target.ty)?);
         }
 
         Ok(progress)
@@ -138,6 +140,7 @@ impl CheckState<'_> {
     /// Expect tuple elements to satisfy expected elements.
     pub(in crate::check) fn expect_tuple_element_terms(
         &mut self,
+        origin: Origin,
         elements: &[TupleElement],
         targets: &[TupleElement],
     ) -> CompilerResult<Progress> {
@@ -148,7 +151,8 @@ impl CheckState<'_> {
 
         // push each expected element type
         for (element, target) in elements.iter().zip(targets) {
-            progress = progress.merge(self.solve_type_assignability(element.ty, target.ty)?);
+            progress = progress
+                .merge(self.solve_contextual_type_assignability(origin, element.ty, target.ty)?);
         }
 
         Ok(progress)

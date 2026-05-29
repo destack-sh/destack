@@ -1,12 +1,12 @@
 use destack_dir as dir;
 
-use crate::check::VariableId;
+use crate::check::{TypeOperand, VariableId};
 
 /// Writable storage selected by source syntax.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct Place {
-    /// The place value type variable.
-    pub(in crate::check) ty: VariableId,
+    /// The selected storage type.
+    pub(in crate::check) ty: TypeOperand,
     /// How source syntax selected the place.
     pub(in crate::check) target: PlaceTarget,
     /// The source syntax node for diagnostics.
@@ -16,7 +16,7 @@ pub(in crate::check) struct Place {
 impl Place {
     /// Create a place.
     pub(in crate::check) fn new(
-        ty: VariableId,
+        ty: TypeOperand,
         target: PlaceTarget,
         source: dir::GlobalNodeIdAny,
     ) -> Self {

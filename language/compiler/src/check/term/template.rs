@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallTerm, CheckState, GenericArgument, Progress, Reduction, TypeLiteralTerm, TypeOperand,
-    TypeTerm, VariableId,
+    CallCallee, CallTerm, CheckState, GenericArgument, Origin, Progress, Reduction,
+    TypeLiteralTerm, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Runtime template string term.
@@ -91,6 +91,7 @@ impl CheckState<'_> {
     /// Reduce one tagged template as a tag function call.
     pub(in crate::check) fn reduce_tagged_template_term(
         &mut self,
+        origin: Origin,
         template: &TaggedTemplateTerm,
     ) -> CompilerResult<Reduction<TypeTerm>> {
         if self.tagged_template_has_unresolved_input(template)? {
@@ -99,12 +100,13 @@ impl CheckState<'_> {
 
         let call = self.tagged_template_call(template)?;
 
-        self.reduce_call_term(template.tag.module, &call)
+        self.reduce_call_term(origin, template.tag.module, &call)
     }
 
     /// Expect a tagged template call to produce the expected result.
     pub(in crate::check) fn expect_tagged_template_term(
         &mut self,
+        origin: Origin,
         template: &TaggedTemplateTerm,
         result: VariableId,
     ) -> CompilerResult<Progress> {
@@ -114,7 +116,7 @@ impl CheckState<'_> {
 
         let call = self.tagged_template_call(template)?;
 
-        self.expect_call_term(&call, result)
+        self.expect_call_term(origin, &call, result)
     }
 
     /// Return the lowered call shape for one tagged template.
@@ -132,9 +134,7 @@ impl CheckState<'_> {
 
         Ok(CallTerm {
             source: template.source,
-            callee: template.tag,
-            member: None,
-            candidates: Vec::new(),
+            callee: CallCallee::Value(template.tag),
             generic_arguments: template.generic_arguments.clone(),
             arguments: arguments.into(),
         })
@@ -146,7 +146,7 @@ impl CheckState<'_> {
         template: &TaggedTemplateTerm,
     ) -> CompilerResult<bool> {
         for variable in template.referenced_variables(self) {
-            if self.variable_solution(variable)?.is_none() {
+            if self.variable_solution(variable).is_none() {
                 return Ok(true);
             }
         }

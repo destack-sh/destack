@@ -1,21 +1,22 @@
+mod capture;
 mod component;
+mod dependency;
 mod diagnostic;
 mod generic;
 mod graph;
 mod import;
-mod input;
 mod materialize;
 mod module;
-mod output;
+mod origin;
 mod solution;
 mod symbol;
 mod variable;
 
+pub(in crate::check) use capture::*;
 pub(in crate::check) use component::*;
+pub(in crate::check) use dependency::*;
 pub(in crate::check) use generic::*;
-pub(in crate::check) use import::*;
-pub(in crate::check) use input::*;
 pub(in crate::check) use module::*;
-pub(in crate::check) use output::*;
+pub(in crate::check) use origin::*;
 pub(in crate::check) use solution::*;
 pub(in crate::check) use variable::*;
