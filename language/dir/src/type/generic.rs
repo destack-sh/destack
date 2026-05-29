@@ -116,7 +116,7 @@ impl GenericSlotIndex {
 }
 
 /// One declaration-side generic slot.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum GenericSlot {
     /// Type generic slot.
     Type {
