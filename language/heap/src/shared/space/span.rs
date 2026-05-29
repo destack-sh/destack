@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::allocator::{Bitmap, PageRun};
 use crate::{
-    HeapError, HeapResult, SmallSpanClass, local_reference_offsets, shared_reference_offsets,
-    slot_trace_map,
+    HeapError, HeapReference, HeapResult, ReferenceRange, SharedHeapReference, SmallSpanClass,
+    slot_trace_map, visit_untagged_reference_offsets,
 };
 
 /// The number of bits in one atomic bitmap word.
@@ -266,6 +266,8 @@ impl SharedSmallSpan {
 
     /// Write exact reference bits for one occupied slot.
     pub(crate) fn write_reference_bits(&self, slot_index: usize, trace_map: &TraceMap) {
+        debug_assert!(!trace_map.has_tagged_reference());
+
         if self.class.trace_id.is_some() {
             return;
         }
@@ -278,8 +280,8 @@ impl SharedSmallSpan {
         self.clear_reference_bits(slot_index);
 
         // encode both edge classes into side bitmaps
-        self.write_reference_offsets(slot_index, trace_map, true);
-        self.write_reference_offsets(slot_index, trace_map, false);
+        self.write_local_reference_offsets(slot_index, trace_map);
+        self.write_shared_reference_offsets(slot_index, trace_map);
     }
 
     /// Return whether one reserved slot must be cleared before zeroed reuse.
@@ -464,35 +466,44 @@ impl SharedSmallSpan {
         self.shared_reference_bits.clear_range(bit_start, bit_len);
     }
 
-    /// Write one reference kind into exact slot bits.
-    fn write_reference_offsets(&self, slot_index: usize, trace_map: &TraceMap, is_local: bool) {
-        let offsets = if is_local {
-            local_reference_offsets(trace_map)
-        } else {
-            shared_reference_offsets(trace_map)
-        };
-
-        self.write_direct_reference_offsets(slot_index, &offsets, is_local);
+    /// Write local reference offsets into exact slot bits.
+    fn write_local_reference_offsets(&self, slot_index: usize, trace_map: &TraceMap) {
+        visit_untagged_reference_offsets::<HeapReference>(
+            trace_map,
+            ReferenceRange::All,
+            &mut |offset| self.set_local_reference_bit(slot_index, offset),
+        );
     }
 
-    /// Write direct reference offsets into exact slot bits.
-    fn write_direct_reference_offsets(&self, slot_index: usize, offsets: &[u32], is_local: bool) {
-        for offset in offsets {
-            self.set_reference_bit(slot_index, *offset as usize, is_local);
-        }
+    /// Write shared reference offsets into exact slot bits.
+    fn write_shared_reference_offsets(&self, slot_index: usize, trace_map: &TraceMap) {
+        visit_untagged_reference_offsets::<SharedHeapReference>(
+            trace_map,
+            ReferenceRange::All,
+            &mut |offset| self.set_shared_reference_bit(slot_index, offset),
+        );
     }
 
-    /// Set one reference bit inside one slot.
-    fn set_reference_bit(&self, slot_index: usize, byte_offset: usize, is_local: bool) {
+    /// Set one local-reference bit inside one slot.
+    fn set_local_reference_bit(&self, slot_index: usize, byte_offset: usize) {
+        let bit_index = self.reference_bit_index(slot_index, byte_offset);
+
+        self.local_reference_bits.set(bit_index);
+    }
+
+    /// Set one shared-reference bit inside one slot.
+    fn set_shared_reference_bit(&self, slot_index: usize, byte_offset: usize) {
+        let bit_index = self.reference_bit_index(slot_index, byte_offset);
+
+        self.shared_reference_bits.set(bit_index);
+    }
+
+    /// Return one reference bit index inside this span.
+    fn reference_bit_index(&self, slot_index: usize, byte_offset: usize) -> usize {
         let word_bytes = std::mem::size_of::<usize>();
         let bit_len = self.class.size_class.div_ceil(word_bytes);
-        let bit_index = slot_index * bit_len + byte_offset / word_bytes;
 
-        if is_local {
-            self.local_reference_bits.set(bit_index);
-        } else {
-            self.shared_reference_bits.set(bit_index);
-        }
+        slot_index * bit_len + byte_offset / word_bytes
     }
 }
 
