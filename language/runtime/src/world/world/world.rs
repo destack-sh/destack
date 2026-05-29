@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_heap as heap;
 use parking_lot::RwLock;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -12,7 +11,7 @@ use crate::host::time::HostClockSource;
 use crate::host::{Host, HostError, ResourceId, compile_target_host};
 use crate::runtime::random::{Random, RandomSource, RandomStreamId};
 use crate::runtime::time::{Clock, ClockSource, Instant, Nanos};
-use crate::runtime::{Runtime, SharedCollector, SharedCollectorMode, WorkerId};
+use crate::runtime::{Runtime, WorkerId};
 use crate::simulation::Simulation;
 use crate::world::policy::Policy;
 use crate::world::scenario::Scenario;
@@ -27,7 +26,9 @@ pub(crate) use super::topology::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
     RuntimeId,
 };
-use super::{BranchId, History, Mutation, ROOT_BRANCH, Resource, WorldImage, WorldState};
+use super::{
+    BranchId, Lineage, Mutation, ROOT_BRANCH, Resource, WorldImage, WorldMemory, WorldState,
+};
 
 /// One interconnected runtime world.
 pub struct World {
@@ -39,10 +40,12 @@ pub struct World {
     pub(crate) poller: HostPollerInstance,
     /// Live runtimes owned by this world.
     pub(crate) runtimes: BTreeMap<RuntimeId, Runtime>,
+    /// Live memory services shared by this world.
+    pub(crate) memory: WorldMemory,
     /// Shared state used by runtimes and workers.
     pub(crate) state: WorldState,
-    /// History-root metadata for this live world.
-    pub(crate) history: Arc<RwLock<History>>,
+    /// Lineage-root metadata for this live world.
+    pub(crate) lineage: Arc<RwLock<Lineage>>,
 }
 
 impl std::fmt::Debug for World {
@@ -52,32 +55,25 @@ impl std::fmt::Debug for World {
             .field("host_queue", &self.host_queue)
             .field("poller", &"<host poller>")
             .field("runtimes", &self.runtimes)
+            .field("memory", &self.memory)
             .field("state", &self.state)
-            .field("history", &self.history)
+            .field("lineage", &self.lineage)
             .finish()
     }
 }
 
 impl World {
-    /// Create one world from public runtime options.
-    pub fn from_options(
-        options: &RuntimeOptions,
-        environment: impl Into<Arc<Environment>>,
-    ) -> RuntimeResult<Self> {
-        Self::new(options, environment)
-    }
-
     /// Suspend runtime shared GC while one quiescent world operation runs.
     pub(crate) fn quiesce_shared_gc(&self) {
         for runtime in self.runtimes.values() {
-            runtime.shared.quiesce();
+            runtime.heap.quiesce();
         }
     }
 
     /// Resume runtime shared GC after one quiescent world operation.
     pub(crate) fn resume_shared_gc(&self) {
         for runtime in self.runtimes.values() {
-            runtime.shared.resume();
+            runtime.heap.resume();
         }
     }
 
@@ -86,16 +82,7 @@ impl World {
         options: &RuntimeOptions,
         environment: impl Into<Arc<Environment>>,
     ) -> RuntimeResult<Self> {
-        Self::with_host_clock_source(options, environment, None)
-    }
-
-    /// Create one world from explicit runtime seed state and host clock source.
-    pub(crate) fn with_host_clock_source(
-        options: &RuntimeOptions,
-        environment: impl Into<Arc<Environment>>,
-        host_clock_source: Option<Arc<dyn HostClockSource>>,
-    ) -> RuntimeResult<Self> {
-        Self::empty(ROOT_BRANCH, options, environment, host_clock_source)
+        Self::empty(ROOT_BRANCH, options, environment, None)
     }
 
     /// Create one empty world shell for restore or replay.
@@ -162,15 +149,6 @@ impl World {
             observations: Observations::default(),
         };
 
-        // history backing
-        let allocator = Arc::new(
-            heap::Allocator::try_new(
-                heap::DEFAULT_PAGE_BYTES,
-                heap::DEFAULT_ALLOCATOR_CHUNK_BYTES,
-            )
-            .map_err(Box::<RuntimeError>::from)?,
-        );
-
         // root image mirrors the initial live state
         let root_image = Arc::new(WorldImage {
             next_runtime_id: state.next_runtime_id,
@@ -187,12 +165,8 @@ impl World {
             workers: BTreeMap::new(),
         });
         let root_trace_image = Arc::new(state.trace.capture_image());
-        let collector_mode = SharedCollectorMode::from_execution_mode(execution_mode);
-        let collector =
-            SharedCollector::new(collector_mode, format!("destack.collector.{branch_id:?}"))?;
-        let history = Arc::new(RwLock::new(History::new_root(
-            allocator,
-            collector,
+        let memory = WorldMemory::new(execution_mode, branch_id)?;
+        let lineage = Arc::new(RwLock::new(Lineage::new_root(
             root_image.clock.wall,
             root_image.clock.monotonic,
             root_trace_image.next_sequence(),
@@ -206,8 +180,9 @@ impl World {
             host_queue: HostQueue::new(),
             poller,
             runtimes: BTreeMap::new(),
+            memory,
             state,
-            history,
+            lineage,
         };
 
         Ok(world)
@@ -235,12 +210,12 @@ impl World {
 
     /// Snapshot world entity kind definitions.
     pub fn entity_kinds(&self) -> BTreeMap<EntityKind, EntityDefinition> {
-        self.state.topology.entity_kinds().clone()
+        self.state.topology.entity_kinds()
     }
 
     /// Snapshot world edge kind definitions.
     pub fn edge_kinds(&self) -> BTreeMap<EdgeKind, EdgeDefinition> {
-        self.state.topology.edge_kinds().clone()
+        self.state.topology.edge_kinds()
     }
 
     /// Snapshot world entities.
@@ -448,7 +423,7 @@ impl World {
         self.state.trace.record_outcome(outcome)
     }
 
-    /// Append one explicit history label to the active trace.
+    /// Append one explicit lineage label to the active trace.
     pub fn label(&self, label: impl Into<String>) -> RuntimeResult<TraceSequence> {
         self.state.trace.record_label(label.into())
     }

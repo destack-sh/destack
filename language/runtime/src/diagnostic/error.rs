@@ -999,27 +999,7 @@ impl From<heap::HeapError> for Box<RuntimeError> {
     /// Convert one heap failure into one runtime error.
     fn from(error: heap::HeapError) -> Self {
         match error {
-            heap::HeapError::InvalidPageBytes { .. }
-            | heap::HeapError::InvalidAllocatorChunkBytes { .. }
-            | heap::HeapError::InvalidSpaceBytes { .. }
-            | heap::HeapError::MisalignedAllocatorChunkBytes { .. }
-            | heap::HeapError::MisalignedSpaceBytes { .. }
-            | heap::HeapError::AllocatorPageBytesMismatch { .. }
-            | heap::HeapError::AllocatorChunkBytesMismatch { .. }
-            | heap::HeapError::InvalidGcTriggerPercent { .. }
-            | heap::HeapError::InvalidGcMinimumWorkBytes { .. }
-            | heap::HeapError::HeapYoungThresholdExceedsCapacity { .. }
-            | heap::HeapError::HeapYoungCapacityTooLarge { .. }
-            | heap::HeapError::InvalidSmallAllocationAlignmentBytes { .. }
-            | heap::HeapError::EmptySizeClassTable
-            | heap::HeapError::ZeroSizeClass
-            | heap::HeapError::NonMonotonicSizeClass { .. }
-            | heap::HeapError::InvalidSizeClassPolicyRange { .. }
-            | heap::HeapError::InvalidSizeClassPolicyAlignment { .. }
-            | heap::HeapError::InvalidSizeClassPolicyWaste { .. }
-            | heap::HeapError::InvalidSizeClass { .. }
-            | heap::HeapError::MisalignedSizeClass { .. }
-            | heap::HeapError::SmallSpanTooSmall { .. } => RuntimeError::Configuration {
+            heap::HeapError::Configuration { .. } => RuntimeError::Configuration {
                 scope: "heap".into(),
                 detail: error.to_string(),
             }

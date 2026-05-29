@@ -23,10 +23,8 @@ impl World {
     ) -> RuntimeResult<RuntimeId> {
         let environment = environment.into();
         let mode = self.state.trace.mode();
-        let history = self.history.read();
-        let allocator = history.allocator.clone();
-        let collector = history.collector.clone();
-        drop(history);
+        let allocator = self.memory.allocator.clone();
+        let collector = self.memory.shared_collector.clone();
         let world = &mut self.state;
         let mut runtime = Runtime::from_options_in_world(
             environment.clone(),
@@ -189,7 +187,7 @@ impl World {
         // clean worker-owned shared roots before dropping the runtime
         if let Some(runtime) = self.runtimes.get(&runtime_id) {
             for worker_id in &worker_ids {
-                runtime.shared.remove_worker(*worker_id);
+                runtime.heap.remove_worker(*worker_id);
             }
         }
 
@@ -261,10 +259,8 @@ impl World {
             .iter()
             .map(|(worker_id, worker)| (*worker_id, worker.image.clone()))
             .collect();
-        let history = self.history.read();
-        let allocator = history.allocator.clone();
-        let collector = history.collector.clone();
-        drop(history);
+        let allocator = self.memory.allocator.clone();
+        let collector = self.memory.shared_collector.clone();
 
         let runtime = Runtime::from_image(
             world,
@@ -308,7 +304,7 @@ impl World {
         let worker = {
             Worker::from_image(
                 world,
-                &runtime.shared,
+                &runtime.heap,
                 runtime.statics(),
                 runtime_id,
                 worker_id,

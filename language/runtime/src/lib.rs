@@ -1,5 +1,4 @@
 #![feature(default_field_values)]
-#![feature(str_as_str)]
 #![allow(clippy::too_many_arguments)]
 
 pub mod diagnostic;

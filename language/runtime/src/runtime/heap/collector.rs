@@ -10,7 +10,7 @@ use parking_lot::{Condvar, Mutex};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::heap::SharedRootSet;
 
-/// History-owned shared heap collection scheduler.
+/// World-owned shared heap GC scheduler.
 #[derive(Debug)]
 pub struct SharedCollector {
     /// Shared heap collector mode.
@@ -19,34 +19,34 @@ pub struct SharedCollector {
     thread: Mutex<Option<SharedCollectorThread>>,
 }
 
-/// Runtime-owned shared heap collection state.
+/// Runtime-owned shared heap GC state.
 #[derive(Debug)]
-pub struct SharedCollection {
-    /// Shared heap driven by this collection state.
+pub struct SharedGc {
+    /// Shared heap driven by this GC state.
     heap: Arc<SharedHeap>,
     /// Shared roots consumed by mark steps.
     roots: Arc<SharedRootSet>,
     /// Program trace table used by shared heap metadata.
     trace: Arc<mir::TraceTable>,
     /// Collection state changed by world and collector threads.
-    state: Mutex<SharedCollectionState>,
-    /// Wake quiescence waiters when pending collection work drains.
+    state: Mutex<SharedGcState>,
+    /// Wake quiescence waiters when pending GC work drains.
     quiesce: Condvar,
-    /// Terminal collection failure recorded by one collector run.
+    /// Terminal GC failure recorded by one collector run.
     failure: Mutex<Option<Box<RuntimeError>>>,
 }
 
-/// Shared heap collection scheduling mode.
+/// Shared heap GC scheduling mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SharedCollectorMode {
-    /// Run shared heap collection from world ticks and worker assists.
+    /// Run shared heap GC from world ticks and worker assists.
     Cooperative,
-    /// Run shared heap collection on one collector thread plus worker assists.
+    /// Run shared heap GC on one collector thread plus worker assists.
     Concurrent,
 }
 
 impl SharedCollectorMode {
-    /// Resolve shared heap collection mode for one execution mode.
+    /// Resolve shared heap GC mode for one execution mode.
     pub const fn from_execution_mode(mode: ExecutionMode) -> Self {
         match mode {
             ExecutionMode::Fast => Self::Concurrent,
@@ -62,19 +62,19 @@ impl SharedCollectorMode {
     }
 }
 
-/// Shared collection lifecycle state.
+/// Shared GC lifecycle state.
 #[derive(Debug, Default)]
-struct SharedCollectionState {
+struct SharedGcState {
     /// Pending scheduler state.
-    pending: SharedCollectionPending,
+    pending: SharedGcPending,
     /// Whether one collector thread is currently running a step.
     is_running: bool,
 }
 
-/// Pending collection scheduling state.
+/// Pending GC scheduling state.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-enum SharedCollectionPending {
-    /// No collection work is currently queued.
+enum SharedGcPending {
+    /// No GC work is currently queued.
     #[default]
     Idle,
     /// One collector wake is queued.
@@ -95,14 +95,14 @@ struct SharedCollectorThread {
 /// Shared collector thread message.
 #[derive(Debug)]
 enum SharedCollectorMessage {
-    /// Run one bounded shared heap collection step.
-    Wake(Arc<SharedCollection>),
+    /// Run one bounded shared heap GC step.
+    Wake(Arc<SharedGc>),
     /// Shut down the collector thread.
     Stop,
 }
 
 impl SharedCollector {
-    /// Create one history-owned shared collector.
+    /// Create one world-owned shared collector.
     pub(crate) fn new(
         mode: SharedCollectorMode,
         name: impl Into<String>,
@@ -125,8 +125,8 @@ impl SharedCollector {
         self.mode
     }
 
-    /// Wake concurrent collection for one world.
-    pub(crate) fn wake(self: &Arc<Self>, work: &Arc<SharedCollection>) {
+    /// Wake concurrent GC for one world.
+    pub(crate) fn wake(self: &Arc<Self>, work: &Arc<SharedGc>) {
         if !self.mode.is_concurrent() || !work.schedule() {
             return;
         }
@@ -144,8 +144,8 @@ impl SharedCollector {
     }
 }
 
-impl SharedCollection {
-    /// Create one runtime-owned shared collection state.
+impl SharedGc {
+    /// Create one runtime-owned shared GC state.
     pub(crate) fn new(
         heap: Arc<SharedHeap>,
         roots: Arc<SharedRootSet>,
@@ -155,44 +155,44 @@ impl SharedCollection {
             heap,
             roots,
             trace: trace_table,
-            state: Mutex::new(SharedCollectionState::default()),
+            state: Mutex::new(SharedGcState::default()),
             quiesce: Condvar::new(),
             failure: Mutex::new(None),
         })
     }
 
-    /// Return one pending collection failure when background collection failed.
+    /// Return one pending GC failure when background GC failed.
     pub(crate) fn take_failure(&self) -> Option<Box<RuntimeError>> {
         self.failure.lock().take()
     }
 
-    /// Suspend collection and wait for in-flight collection work to drain.
+    /// Suspend GC and wait for in-flight GC work to drain.
     pub(crate) fn quiesce(&self) {
         let mut state = self.state.lock();
-        state.pending = SharedCollectionPending::Suspended;
+        state.pending = SharedGcPending::Suspended;
 
-        while state.is_running || state.pending == SharedCollectionPending::Scheduled {
+        while state.is_running || state.pending == SharedGcPending::Scheduled {
             self.quiesce.wait(&mut state);
         }
     }
 
-    /// Resume collection after a quiescent world operation.
+    /// Resume GC after a quiescent world operation.
     pub(crate) fn resume(&self) {
         let mut state = self.state.lock();
-        if state.pending == SharedCollectionPending::Suspended {
-            state.pending = SharedCollectionPending::Idle;
+        if state.pending == SharedGcPending::Suspended {
+            state.pending = SharedGcPending::Idle;
         }
         self.quiesce.notify_all();
     }
 
-    /// Return whether concurrent collection work is queued or running.
+    /// Return whether concurrent GC work is queued or running.
     pub(crate) fn is_busy(&self) -> bool {
         let state = self.state.lock();
 
-        state.is_running || state.pending == SharedCollectionPending::Scheduled
+        state.is_running || state.pending == SharedGcPending::Scheduled
     }
 
-    /// Run one scheduled collection step on the collector thread.
+    /// Run one scheduled GC step on the collector thread.
     fn run_scheduled(self: &Arc<Self>, collector: &Arc<SharedCollector>) {
         if !self.begin_run() {
             return;
@@ -206,36 +206,36 @@ impl SharedCollection {
         }
     }
 
-    /// Mark one scheduled collection step as running.
+    /// Mark one scheduled GC step as running.
     fn begin_run(&self) -> bool {
         let mut state = self.state.lock();
-        if state.pending != SharedCollectionPending::Scheduled {
+        if state.pending != SharedGcPending::Scheduled {
             self.quiesce.notify_all();
 
             return false;
         }
 
-        state.pending = SharedCollectionPending::Idle;
+        state.pending = SharedGcPending::Idle;
         state.is_running = true;
 
         true
     }
 
-    /// Mark the running collection step as finished.
+    /// Mark the running GC step as finished.
     fn finish_run(&self) {
         let mut state = self.state.lock();
         state.is_running = false;
         self.quiesce.notify_all();
     }
 
-    /// Schedule one collection step.
+    /// Schedule one GC step.
     fn schedule(&self) -> bool {
         let mut state = self.state.lock();
-        if state.pending != SharedCollectionPending::Idle {
+        if state.pending != SharedGcPending::Idle {
             return false;
         }
 
-        state.pending = SharedCollectionPending::Scheduled;
+        state.pending = SharedGcPending::Scheduled;
 
         true
     }
@@ -243,8 +243,8 @@ impl SharedCollection {
     /// Clear scheduled work after one collector scheduling failure.
     fn fail_scheduled(&self, message: impl Into<String>) {
         let mut state = self.state.lock();
-        if state.pending == SharedCollectionPending::Scheduled {
-            state.pending = SharedCollectionPending::Idle;
+        if state.pending == SharedGcPending::Scheduled {
+            state.pending = SharedGcPending::Idle;
         }
         self.quiesce.notify_all();
         drop(state);
@@ -257,7 +257,7 @@ impl SharedCollection {
         );
     }
 
-    /// Run one bounded shared collection increment and retain one failure.
+    /// Run one bounded shared GC increment and retain one failure.
     fn collect_with_failure(&self) -> bool {
         match self.collect() {
             Ok(should_continue) => should_continue,
@@ -269,7 +269,7 @@ impl SharedCollection {
         }
     }
 
-    /// Run one bounded shared collection increment.
+    /// Run one bounded shared GC increment.
     fn collect(&self) -> RuntimeResult<bool> {
         if self.heap.gc_phase() == SharedGcPhase::Idle {
             return Ok(false);
@@ -323,7 +323,7 @@ impl SharedCollectorThread {
     }
 
     /// Wake the collector thread.
-    fn wake(&self, work: Arc<SharedCollection>) -> Result<(), SendError<SharedCollectorMessage>> {
+    fn wake(&self, work: Arc<SharedGc>) -> Result<(), SendError<SharedCollectorMessage>> {
         self.sender.send(SharedCollectorMessage::Wake(work))
     }
 }

@@ -21,9 +21,10 @@ use crate::runtime::engine::{CallContext, Continuation, Engine, Entry, MemoryCon
 use crate::runtime::scheduler::{Readiness, ScheduledTimer, Task, TaskId, TimerDeadline};
 use crate::runtime::time::Nanos;
 use crate::runtime::{
-    BindingCallContext, ExecutionContext, RuntimeId, SharedHeap, TickResult, Worker, WorkerId,
-    WorkerOptions, World, WorldState, current_runnable_scope,
+    BindingCallContext, ExecutionContext, RuntimeHeap, TickResult, Worker, WorkerId, WorkerOptions,
+    World, WorldState, current_runnable_scope,
 };
+use crate::world::RuntimeId;
 
 /// Build one resource id owned by the primary test worker.
 pub(crate) fn test_resource_id(local_id: u64) -> ResourceId {
@@ -130,7 +131,7 @@ pub(crate) struct TestRuntime {
     /// Wrapped worker under test.
     worker: Worker,
     /// Runtime-owned shared heap state used by the worker.
-    shared: SharedHeap,
+    heap: RuntimeHeap,
     /// Runtime-owned static bytes used by the worker.
     runtime_static: engine::StaticSpace,
 }
@@ -207,7 +208,7 @@ impl TestRuntime {
 
         Self {
             world,
-            shared,
+            heap: shared,
             runtime_static,
             worker,
         }
@@ -345,7 +346,7 @@ impl TestRuntime {
         self.worker
             .tick(
                 &mut self.world.state,
-                &self.shared,
+                &self.heap,
                 &self.runtime_static,
                 self.world.host.as_ref(),
                 &self.world.host_queue,
@@ -359,7 +360,7 @@ impl TestRuntime {
         self.worker
             .run_event_loop(
                 &mut self.world.state,
-                &self.shared,
+                &self.heap,
                 &self.runtime_static,
                 self.world.host.as_ref(),
                 &self.world.host_queue,
@@ -380,7 +381,7 @@ impl TestRuntime {
 
         let output = self.worker.run_event_loop(
             &mut self.world.state,
-            &self.shared,
+            &self.heap,
             &self.runtime_static,
             self.world.host.as_ref(),
             &self.world.host_queue,
@@ -423,7 +424,7 @@ impl TestRuntime {
             self.world.host.as_ref(),
             &self.world.host_queue,
             &mut self.world.state,
-            &self.shared,
+            &self.heap,
             &self.runtime_static,
             entry,
             value,
@@ -534,12 +535,10 @@ impl TestWorldRuntime {
 }
 
 /// Build runtime-owned shared heap state for one test world.
-pub(crate) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> SharedHeap {
-    let history = world.history.read();
-
-    SharedHeap::new(
-        history.allocator.clone(),
-        history.collector.clone(),
+pub(crate) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> RuntimeHeap {
+    RuntimeHeap::new(
+        world.memory.allocator.clone(),
+        world.memory.shared_collector.clone(),
         options,
         Arc::new(TraceTable::new()),
     )
@@ -550,7 +549,7 @@ pub(crate) fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> Sh
 fn worker_for_options(
     options: &RuntimeOptions,
     engine: impl Into<Engine>,
-) -> (World, SharedHeap, engine::StaticSpace, Worker) {
+) -> (World, RuntimeHeap, engine::StaticSpace, Worker) {
     let mut world =
         World::new(options, Environment::default()).expect("runtime test world should build");
 
@@ -586,14 +585,14 @@ pub(crate) fn start_worker_continuation(
     host: &dyn Host,
     host_queue: &HostQueue,
     world: &mut WorldState,
-    shared: &SharedHeap,
+    runtime_heap: &RuntimeHeap,
     runtime_static: &engine::StaticSpace,
     entry: &str,
     value: i32,
 ) -> Continuation {
     let mut call_context = binding_call_context(worker, host, host_queue, world);
     let Worker {
-        heap,
+        heap: worker_heap,
         statics,
         engine,
         shared_cache,
@@ -603,8 +602,8 @@ pub(crate) fn start_worker_continuation(
     let context = CallContext {
         runtime: std::ptr::NonNull::from(&mut call_context).cast(),
         memory: MemoryContext {
-            heap,
-            shared_heap: shared.heap.as_ref(),
+            heap: worker_heap,
+            shared_heap: runtime_heap.shared.as_ref(),
             shared_cache,
             shared_gc_worker,
             worker_static: statics,
