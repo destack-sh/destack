@@ -43,26 +43,20 @@ function escaped<L: Lifetime>(): ReadonlyBorrowed<Node, L> {
 
 ## bump
 
-### bump is a raw allocator
+### bump allocates typed values
 
-`Bump` implements the raw `Allocator` protocol and does not create owned values by itself.
+`Bump` owns uninitialized byte storage and returns typed arena borrows.
 
 ```ds
-import { Allocation, AllocationError, AllocationLayout } from "destack:memory";
+import { Result } from "destack:error";
+import { AllocationError } from "destack:memory";
 import { Bump } from "destack:memory/arena";
 
-declare function bump(): Bump;
-
-let allocator = bump();
-let layout = AllocationLayout.new(64, 8);
-
-function allocate(): Result<Allocation<uint8, "local">, AllocationError> {
-    return allocator.allocate(layout);
+struct Node {
+    value: int32;
 }
 
-function run(): void {
-    let allocation = allocate()?;
-
-    allocation satisfies Allocation<uint8, "local">;
+function allocate(bump: &exclusive Bump): Result<&exclusive Node, AllocationError> {
+    return bump.tryAlloc(^Node { value: 1 });
 }
 ```

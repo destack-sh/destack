@@ -56,21 +56,21 @@ function at(pointer: *int32): &readonly int32 {
 }
 ```
 
-## layout
+## allocation
 
-### layouts can be built from types
+### raw pointers do not allocate
 
-Allocator users can ask for the exact layout of typed storage.
+Raw pointers are non-owning views over storage created elsewhere.
 
 ```ds
-import { AllocationLayout } from "destack:memory";
-
 struct Point {
     x: float64;
     y: float64;
 }
 
-let layout = AllocationLayout.fromType<Point>();
+declare function source(): &Point;
 
-layout satisfies AllocationLayout;
+let pointer: *Point = source();
+
+pointer satisfies *Point;
 ```

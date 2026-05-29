@@ -1,0 +1,59 @@
+import { Error } from "destack:error";
+
+import { MaybeOwned } from "./cow/cow.ds";
+
+/// Allocation failed because the runtime could not reserve enough memory.
+export struct AllocationOutOfMemory {
+    /// Discriminant for allocation failure matching.
+    kind: "outOfMemory" = "outOfMemory";
+
+    /// Requested allocation size in bytes when known.
+    requestedBytes?: usize;
+
+    /// Human-readable diagnostic detail.
+    message?: string;
+}
+
+/// Allocation failed because the requested capacity cannot be represented.
+export struct AllocationCapacityOverflow {
+    /// Discriminant for allocation failure matching.
+    kind: "capacityOverflow" = "capacityOverflow";
+
+    /// Requested logical capacity when known.
+    requestedCapacity?: usize;
+
+    /// Element size in bytes when known.
+    elementSizeBytes?: usize;
+
+    /// Human-readable diagnostic detail.
+    message?: string;
+}
+
+/// Allocation failed because the runtime does not support the requested operation.
+export struct AllocationUnsupported {
+    /// Discriminant for allocation failure matching.
+    kind: "unsupported" = "unsupported";
+
+    /// Unsupported allocation operation when known.
+    operation?: string;
+
+    /// Human-readable diagnostic detail.
+    message?: string;
+}
+
+/// Allocation failure returned by typed fallible allocation APIs.
+export newtype AllocationError =
+    | AllocationOutOfMemory
+    | AllocationCapacityOverflow
+    | AllocationUnsupported;
+
+extension of AllocationError implements Error {
+    /// Format this error for users.
+    display(): MaybeOwned<string> {
+        match (this) {
+            AllocationOutOfMemory { message } => message ?? "out of memory"
+            AllocationCapacityOverflow { message } => message ?? "allocation capacity overflow"
+            AllocationUnsupported { message } => message ?? "allocation unsupported"
+        }
+    }
+}

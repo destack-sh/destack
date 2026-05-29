@@ -3,9 +3,9 @@ import { Result, todo } from "destack:error";
 import { Dereference } from "destack:ops";
 
 import { Access } from "./access.ds";
-import { AllocationError } from "./allocator.ds";
 import { Borrowed } from "./borrow.ds";
 import { Clone, Default, Unpin, Zeroable } from "./capability.ds";
+import { AllocationError } from "./error.ds";
 import { MaybeUninit } from "./init.ds";
 import { Owned } from "./owned.ds";
 import { Pin } from "./pin.ds";
