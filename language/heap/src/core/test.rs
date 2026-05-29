@@ -7,7 +7,7 @@ use crate::AllocationShape;
 pub(crate) struct TestLayout {
     /// The exact payload byte length.
     pub(crate) byte_len: usize,
-    /// The required allocation base alignment in bytes.
+    /// The required block base alignment in bytes.
     pub(crate) alignment: usize,
     /// The exact heap trace map.
     pub(crate) trace_map: TraceMap,
@@ -15,7 +15,7 @@ pub(crate) struct TestLayout {
 
 impl TestLayout {
     /// Return this test layout as one heap allocation site.
-    pub(crate) fn allocation(&self) -> AllocationShape<'_> {
+    pub(crate) fn block(&self) -> AllocationShape<'_> {
         AllocationShape::new(self.byte_len, self.alignment, None, &self.trace_map)
     }
 }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::allocator::{Bitmap, PageRun};
+use crate::allocator::{Bitmap, PageSpan};
 
 /// One live raw span.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -18,7 +18,7 @@ pub(crate) struct SmallSpan {
     /// The occupied slots in this span.
     pub(crate) occupied: Bitmap,
     /// The allocator pages for this span.
-    pub(crate) pages: PageRun,
+    pub(crate) pages: PageSpan,
 }
 
 /// One homogeneous raw small-span class.

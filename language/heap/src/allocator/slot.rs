@@ -2,26 +2,26 @@ use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapRepresentationError, HeapResult};
 
-/// One stable small-allocation slot inside one span.
+/// One stable small-block slot inside one span.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SpanSlot {
+pub struct Slot {
     /// The containing span index.
     span_index: u32,
     /// The slot index inside the span.
     slot_index: u32,
 }
 
-impl SpanSlot {
+impl Slot {
     /// Create one span slot.
     pub fn new(span_index: usize, slot_index: usize) -> HeapResult<Self> {
         let span_index = u32::try_from(span_index).map_err(|_| {
-            HeapError::representation(HeapRepresentationError::InvalidSmallSlot {
+            HeapError::representation(HeapRepresentationError::InvalidSlot {
                 span_index,
                 slot_index,
             })
         })?;
         let slot_index = u32::try_from(slot_index).map_err(|_| {
-            HeapError::representation(HeapRepresentationError::InvalidSmallSlot {
+            HeapError::representation(HeapRepresentationError::InvalidSlot {
                 span_index: span_index as usize,
                 slot_index,
             })

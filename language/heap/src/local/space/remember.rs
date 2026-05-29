@@ -1,7 +1,7 @@
 use destack_mir::{TraceMap, TraceTable};
 
-use super::{HeapSpace, LargeAllocationId, YoungGcPhase};
-use crate::local::gc::DirtyRegion;
+use super::{HeapSpace, LargeBlockId, YoungGcPhase};
+use crate::local::gc::DirtyExtent;
 use crate::{HeapError, HeapResult, overlaps_heap_range, overlaps_shared_range};
 
 impl HeapSpace {
@@ -31,17 +31,17 @@ impl HeapSpace {
             }
         }
 
-        // conservatively dirty every mature large allocation with heap references
-        for allocation_index in 0..self.large.allocations.len() {
-            let allocation_id = LargeAllocationId::new(allocation_index as u64 + 1);
-            let Some(allocation) = self.large_allocation(allocation_id) else {
+        // conservatively dirty every mature large block with heap references
+        for block_index in 0..self.large.blocks.len() {
+            let block_id = LargeBlockId::new(block_index as u64 + 1);
+            let Some(block) = self.large_block(block_id) else {
                 continue;
             };
-            if !allocation.trace_map.has_reference() {
+            if !block.trace_map.has_reference() {
                 continue;
             }
 
-            self.mark_large_allocation_dirty(allocation_id, 0, allocation.byte_len)?;
+            self.mark_large_block_dirty(block_id, 0, block.byte_len)?;
         }
 
         Ok(())
@@ -49,8 +49,8 @@ impl HeapSpace {
 
     /// Clear every mature remembered-set entry.
     fn clear_remembered_set(&mut self) {
-        self.collector.dirty_regions.clear();
-        self.collector.young_dirty_region_cursor = 0;
+        self.collector.dirty_extents.clear();
+        self.collector.young_dirty_extent_cursor = 0;
         self.collector.young_dirty_card_cursor = 0;
 
         for span_index in 0..self.small.spans.len() {
@@ -62,13 +62,13 @@ impl HeapSpace {
             span.is_dirty_queued = false;
         }
 
-        for allocation_index in 0..self.large.allocations.len() {
-            let Some(allocation) = self.large.allocations.get_mut(allocation_index) else {
+        for block_index in 0..self.large.blocks.len() {
+            let Some(block) = self.large.blocks.get_mut(block_index) else {
                 continue;
             };
 
-            allocation.dirty_cards.clear();
-            allocation.is_dirty_queued = false;
+            block.dirty_cards.clear();
+            block.is_dirty_queued = false;
         }
     }
 
@@ -109,8 +109,8 @@ impl HeapSpace {
         // queue the owning span once for the next minor collection
         if should_queue {
             self.collector
-                .dirty_regions
-                .push(DirtyRegion::Span(span_index));
+                .dirty_extents
+                .push(DirtyExtent::Span(span_index));
             if self.collector.young_phase == YoungGcPhase::Sweep {
                 self.collector.young_phase = YoungGcPhase::Mark;
             }
@@ -119,38 +119,38 @@ impl HeapSpace {
         Ok(())
     }
 
-    /// Remember one mature heap large-allocation write if it may touch references.
-    pub(crate) fn mark_large_allocation_dirty(
+    /// Remember one mature heap large-block write if it may touch references.
+    pub(crate) fn mark_large_block_dirty(
         &mut self,
-        allocation_id: LargeAllocationId,
+        block_id: LargeBlockId,
         byte_offset: usize,
         byte_len: usize,
     ) -> HeapResult<()> {
-        let Some(allocation) = self.large_allocation(allocation_id) else {
-            return Err(HeapError::internal("missing large allocation"));
+        let Some(block) = self.large_block(block_id) else {
+            return Err(HeapError::internal("missing large block"));
         };
-        let is_overlapping = overlaps_heap_range(&allocation.trace_map, byte_offset, byte_len);
+        let is_overlapping = overlaps_heap_range(&block.trace_map, byte_offset, byte_len);
         if !is_overlapping {
             return Ok(());
         }
 
         let mut should_queue = false;
 
-        // mark the overlapping card range on the owning allocation
-        if let Some(allocation) = self.large_allocation_mut(allocation_id) {
-            allocation.dirty_cards.mark_range(byte_offset, byte_len);
+        // mark the overlapping card range on the owning block
+        if let Some(block) = self.large_block_mut(block_id) {
+            block.dirty_cards.mark_range(byte_offset, byte_len);
 
-            if !allocation.is_dirty_queued {
-                allocation.is_dirty_queued = true;
+            if !block.is_dirty_queued {
+                block.is_dirty_queued = true;
                 should_queue = true;
             }
         }
 
-        // queue the owning allocation once for the next minor collection
+        // queue the owning block once for the next minor collection
         if should_queue {
             self.collector
-                .dirty_regions
-                .push(DirtyRegion::Large(allocation_id));
+                .dirty_extents
+                .push(DirtyExtent::Large(block_id));
             if self.collector.young_phase == YoungGcPhase::Sweep {
                 self.collector.young_phase = YoungGcPhase::Mark;
             }

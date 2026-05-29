@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Pointer to one local raw allocation.
+/// Pointer to one local raw block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct RawPointer(pub(crate) usize);
 

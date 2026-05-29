@@ -6,10 +6,10 @@ use destack_mir::TraceTable;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    CardSet, GcState, HeapPageMapEntry, HeapSpace, LargeAllocation, LargeAllocationId,
-    LargeAllocationImage, SmallSpan, SmallSpanImage, YoungImage, YoungRunCursor, YoungSpace,
+    CardSet, GcState, HeapPageMapEntry, HeapSpace, LargeBlock, LargeBlockId, LargeBlockImage,
+    SmallSpan, SmallSpanImage, YoungCursor, YoungImage, YoungSpace,
 };
-use crate::allocator::{Allocator, PageRun, PageRunCache, SizeClassTable};
+use crate::allocator::{Allocator, PageSpan, PageSpanCache, SizeClassTable};
 use crate::{
     AllocationUsage, Bitmap, CowTable, HeapAllocationError, HeapCaptureBlocker,
     HeapConfigurationError, HeapError, HeapResult, allocation_class,
@@ -31,15 +31,15 @@ pub(crate) struct HeapSpaceImage {
     page_size_bytes: usize,
     /// The reserved virtual byte capacity for heap space.
     space_size_bytes: usize,
-    /// The captured heap allocations in large space.
-    allocations: Box<[LargeAllocationImage]>,
+    /// The captured heap blocks in large space.
+    blocks: Box<[LargeBlockImage]>,
 
     /// The configured young-space byte width.
     young_size_bytes: usize,
     /// The configured maximum payload size routed to young space.
     max_young_allocation_bytes: usize,
-    /// The next heap allocation id to allocate in large space.
-    next_unused_large_allocation_id: u64,
+    /// The next heap block id to allocate in large space.
+    next_unused_large_block_id: u64,
     /// The next unused byte offset in heap space.
     next_offset: usize,
     /// The number of allocated heap references.
@@ -61,10 +61,10 @@ impl HeapSpaceImage {
         spans: Box<[SmallSpanImage]>,
         page_size_bytes: usize,
         space_size_bytes: usize,
-        allocations: Box<[LargeAllocationImage]>,
+        blocks: Box<[LargeBlockImage]>,
         young_size_bytes: usize,
         max_young_allocation_bytes: usize,
-        next_unused_large_allocation_id: u64,
+        next_unused_large_block_id: u64,
         next_offset: usize,
         allocated_count: usize,
         allocated_bytes: u64,
@@ -77,10 +77,10 @@ impl HeapSpaceImage {
             spans,
             page_size_bytes,
             space_size_bytes,
-            allocations,
+            blocks,
             young_size_bytes,
             max_young_allocation_bytes,
-            next_unused_large_allocation_id,
+            next_unused_large_block_id,
             next_offset,
             allocated_count,
             allocated_bytes,
@@ -118,9 +118,9 @@ impl HeapSpaceImage {
         self.space_size_bytes
     }
 
-    /// Return the captured heap allocations in large space.
-    pub(crate) fn allocations(&self) -> &[LargeAllocationImage] {
-        &self.allocations
+    /// Return the captured heap blocks in large space.
+    pub(crate) fn blocks(&self) -> &[LargeBlockImage] {
+        &self.blocks
     }
 
     /// Return this image with one explicit size-class table.
@@ -136,9 +136,9 @@ impl HeapSpaceImage {
         self.max_young_allocation_bytes
     }
 
-    /// Return the next heap allocation id in large space.
-    pub(crate) const fn next_unused_large_allocation_id(&self) -> u64 {
-        self.next_unused_large_allocation_id
+    /// Return the next heap block id in large space.
+    pub(crate) const fn next_unused_large_block_id(&self) -> u64 {
+        self.next_unused_large_block_id
     }
 
     /// Return the next unused byte offset in heap space.
@@ -164,14 +164,14 @@ impl HeapSpaceImage {
             .iter()
             .map(|span| span.bytes.len().div_ceil(self.page_size_bytes))
             .sum::<usize>();
-        let allocation_pages = self
-            .allocations()
+        let block_pages = self
+            .blocks()
             .iter()
-            .filter(|allocation| allocation.is_live)
-            .map(|allocation| allocation.bytes.len().div_ceil(self.page_size_bytes))
+            .filter(|block| block.is_live)
+            .map(|block| block.bytes.len().div_ceil(self.page_size_bytes))
             .sum::<usize>();
 
-        young_pages + span_pages + allocation_pages
+        young_pages + span_pages + block_pages
     }
 
     /// Return the captured collector state.
@@ -242,10 +242,10 @@ impl HeapSpace {
         self.check_branch_boundary()?;
         self.flush_branch_boundary()?;
 
-        // capture the live heap allocations directly
+        // capture the live heap blocks directly
         let young = self.capture_young_image()?;
         let spans = self.capture_span_images()?;
-        let allocations = self.capture_large_allocation_images()?;
+        let blocks = self.capture_large_block_images()?;
 
         // freeze the current heap image
         Ok(HeapSpaceImage::new(
@@ -255,10 +255,10 @@ impl HeapSpace {
             spans,
             self.allocator.page_size_bytes(),
             self.mapping.byte_len(),
-            allocations,
+            blocks,
             self.young.capacity_bytes,
             self.max_young_allocation_bytes,
-            self.large.next_unused_large_allocation_id,
+            self.large.next_unused_large_block_id,
             self.next_offset,
             self.usage.allocation_count(),
             self.usage.allocated_bytes(),
@@ -287,35 +287,35 @@ impl HeapSpace {
         let pages = allocator.allocate_pages(image.young().bytes().len())?;
         let ranges = image.young().ranges().to_vec();
         let live = image.young().live().clone();
-        let runs = image.young().runs().to_vec();
-        let run_bits = image.young().run_bits().to_vec();
-        let mut run_cache = Vec::new();
+        let spans = image.young().spans().to_vec();
+        let span_bits = image.young().span_bits().to_vec();
+        let mut span_cache = Vec::new();
         let page_count = image
             .young()
             .capacity_bytes()
             .div_ceil(image.young().page_size_bytes());
-        let mut page_runs = vec![None; page_count];
+        let mut page_spans = vec![None; page_count];
 
-        for (run_index, run) in runs.iter().enumerate() {
-            run.class().validate(
+        for (span_index, span) in spans.iter().enumerate() {
+            span.class().validate(
                 image.size_classes(),
                 image.young().page_size_bytes(),
                 image.small_bytes(),
             )?;
-            if run.byte_len() == 0 || run.byte_len() > run.class().size_class {
+            if span.byte_len() == 0 || span.byte_len() > span.class().size_class {
                 return Err(HeapError::invalid_allocation(
                     HeapAllocationError::ByteLengthMismatch {
-                        expected: run.class().size_class,
-                        actual: run.byte_len(),
+                        expected: span.class().size_class,
+                        actual: span.byte_len(),
                     },
                 ));
             }
 
             let class = allocation_class(
-                run.byte_len(),
+                span.byte_len(),
                 image.young().allocation_alignment_bytes(),
-                run.class().trace_id,
-                run.class().is_noscan,
+                span.class().trace_id,
+                span.class().is_noscan,
                 image.size_classes(),
                 image.young().page_size_bytes(),
                 image.small_bytes(),
@@ -323,23 +323,23 @@ impl HeapSpace {
             let Some(small) = class.small() else {
                 return Err(HeapError::invalid_allocation(
                     HeapAllocationError::ByteLengthMismatch {
-                        expected: run.class().size_class,
-                        actual: run.byte_len(),
+                        expected: span.class().size_class,
+                        actual: span.byte_len(),
                     },
                 ));
             };
             let cache_index = small.cache_index();
-            if run_cache.len() <= cache_index {
-                run_cache.resize(cache_index + 1, None);
+            if span_cache.len() <= cache_index {
+                span_cache.resize(cache_index + 1, None);
             }
-            if run.next_offset < run.end_offset {
-                run_cache[cache_index] = Some(run_index);
+            if span.next_offset < span.end_offset {
+                span_cache[cache_index] = Some(span_index);
             }
 
-            let page_start = run.first_offset / image.young().page_size_bytes();
-            let page_count = run.span_size_bytes() / image.young().page_size_bytes();
-            for page_run in page_runs.iter_mut().skip(page_start).take(page_count) {
-                *page_run = Some(run_index);
+            let page_start = span.first_offset / image.young().page_size_bytes();
+            let page_count = span.span_size_bytes() / image.young().page_size_bytes();
+            for page_span in page_spans.iter_mut().skip(page_start).take(page_count) {
+                *page_span = Some(span_index);
             }
         }
         Ok(YoungSpace {
@@ -354,20 +354,20 @@ impl HeapSpace {
             marked: Bitmap::with_capacity(image.young().ranges().len()),
             local_reference_bits: image.young().local_reference_bits().clone(),
             shared_reference_bits: image.young().shared_reference_bits().clone(),
-            runs,
-            run_bits,
-            run_cache,
-            run_cursor: YoungRunCursor::inactive(),
-            page_runs,
+            spans,
+            span_bits,
+            span_cache,
+            cursor: YoungCursor::inactive(),
+            page_spans,
         })
     }
 
     /// Fork the heap young space from one live space.
     fn fork_young_space(space: &Self) -> HeapResult<YoungSpace> {
-        let pages = space.allocator.share_page_run(space.young.pages)?;
+        let pages = space.allocator.share_page_span(space.young.pages)?;
 
-        for run in &space.young.runs {
-            run.class().validate(
+        for span in &space.young.spans {
+            span.class().validate(
                 &space.small.size_classes,
                 space.young.page_size_bytes,
                 space.small.span_size_bytes,
@@ -386,11 +386,11 @@ impl HeapSpace {
             marked: Bitmap::with_capacity(space.young.marked.capacity()),
             local_reference_bits: space.young.local_reference_bits.clone(),
             shared_reference_bits: space.young.shared_reference_bits.clone(),
-            runs: space.young.cloned_runs(),
-            run_bits: space.young.run_bits.clone(),
-            run_cache: space.young.run_cache.clone(),
-            run_cursor: space.young.run_cursor,
-            page_runs: space.young.page_runs.clone(),
+            spans: space.young.cloned_spans(),
+            span_bits: space.young.span_bits.clone(),
+            span_cache: space.young.span_cache.clone(),
+            cursor: space.young.cursor,
+            page_spans: space.young.page_spans.clone(),
         })
     }
 
@@ -403,7 +403,7 @@ impl HeapSpace {
 
         Ok(Self {
             allocator: space.allocator.clone(),
-            page_run_cache: PageRunCache::new(space.allocator.pages_per_chunk()),
+            page_span_cache: PageSpanCache::new(space.allocator.pages_per_chunk()),
             max_young_allocation_bytes: space.max_young_allocation_bytes,
             young,
             small,
@@ -419,7 +419,7 @@ impl HeapSpace {
         })
     }
 
-    /// Restore one heap space into fresh page runs.
+    /// Restore one heap space into fresh page spans.
     fn restore_state(allocator: Arc<Allocator>, image: &HeapSpaceImage) -> Result<Self, HeapError> {
         let young = Self::restore_young_space(allocator.as_ref(), image)?;
         let small = Self::restore_small_space(allocator.as_ref(), image)?;
@@ -434,7 +434,7 @@ impl HeapSpace {
 
         Ok(Self {
             allocator: allocator.clone(),
-            page_run_cache: PageRunCache::new(allocator.pages_per_chunk()),
+            page_span_cache: PageSpanCache::new(allocator.pages_per_chunk()),
             max_young_allocation_bytes,
             young,
             small,
@@ -559,7 +559,7 @@ impl HeapSpace {
 
     /// Fork one heap span into shared metadata pages.
     fn fork_span(space: &Self, span: &SmallSpan) -> HeapResult<SmallSpan> {
-        let pages = space.allocator.share_page_run(span.pages)?;
+        let pages = space.allocator.share_page_span(span.pages)?;
 
         Ok(SmallSpan {
             first_offset: span.first_offset,
@@ -583,93 +583,90 @@ impl HeapSpace {
         allocator: &Allocator,
         image: &HeapSpaceImage,
     ) -> Result<super::LargeSpace, HeapError> {
-        // rebuild the captured allocation images first
-        let allocations = image
-            .allocations()
+        // rebuild the captured block images first
+        let blocks = image
+            .blocks()
             .iter()
-            .map(|allocation| Self::restore_large_allocation(allocator, allocation))
+            .map(|block| Self::restore_large_block(allocator, block))
             .collect::<HeapResult<Vec<_>>>()?;
 
-        // rebuild the reusable allocation ids from the frozen table
-        let free_large_allocation_ids = Self::free_large_allocation_ids(image);
+        // rebuild the reusable block ids from the frozen table
+        let free_large_block_ids = Self::free_large_block_ids(image);
 
         Ok(super::LargeSpace {
-            allocations: CowTable::from_vec(allocations),
-            free_large_allocation_ids,
-            next_unused_large_allocation_id: image.next_unused_large_allocation_id(),
+            blocks: CowTable::from_vec(blocks),
+            free_large_block_ids,
+            next_unused_large_block_id: image.next_unused_large_block_id(),
         })
     }
 
     /// Fork the heap large space from one live space.
     fn fork_large_space(space: &Self) -> Result<super::LargeSpace, HeapError> {
-        // copy allocations from the live mapping
-        let allocations = space
+        // copy blocks from the live mapping
+        let blocks = space
             .large
-            .allocations
+            .blocks
             .iter()
-            .map(|allocation| Self::fork_large_allocation(space, allocation))
+            .map(|block| Self::fork_large_block(space, block))
             .collect::<HeapResult<Vec<_>>>()?;
 
         Ok(super::LargeSpace {
-            allocations: CowTable::from_vec(allocations),
-            free_large_allocation_ids: space.large.free_large_allocation_ids.clone(),
-            next_unused_large_allocation_id: space.large.next_unused_large_allocation_id,
+            blocks: CowTable::from_vec(blocks),
+            free_large_block_ids: space.large.free_large_block_ids.clone(),
+            next_unused_large_block_id: space.large.next_unused_large_block_id,
         })
     }
 
-    /// Restore one heap allocation from one frozen allocation image.
-    fn restore_large_allocation(
+    /// Restore one heap block from one frozen block image.
+    fn restore_large_block(
         allocator: &Allocator,
-        allocation: &LargeAllocationImage,
-    ) -> HeapResult<LargeAllocation> {
-        let pages = if allocation.is_live {
-            allocator.allocate_pages(allocation.bytes.len())?
+        block: &LargeBlockImage,
+    ) -> HeapResult<LargeBlock> {
+        let pages = if block.is_live {
+            allocator.allocate_pages(block.bytes.len())?
         } else {
-            PageRun::empty()
+            PageSpan::empty()
         };
 
-        Ok(LargeAllocation {
-            is_live: allocation.is_live,
-            first_offset: allocation.first_offset,
-            byte_len: allocation.byte_len,
+        Ok(LargeBlock {
+            is_live: block.is_live,
+            first_offset: block.first_offset,
+            byte_len: block.byte_len,
             pages,
-            trace_map: allocation.trace_map.clone(),
+            trace_map: block.trace_map.clone(),
             mark_epoch: 0,
-            dirty_cards: CardSet::with_len(allocation.byte_len),
+            dirty_cards: CardSet::with_len(block.byte_len),
             is_dirty_queued: false,
         })
     }
 
-    /// Fork one heap large allocation into shared metadata pages.
-    fn fork_large_allocation(
-        space: &Self,
-        allocation: &LargeAllocation,
-    ) -> HeapResult<LargeAllocation> {
-        let pages = if allocation.is_live {
-            space.allocator.share_page_run(allocation.pages)?
+    /// Fork one heap large block into shared metadata pages.
+    fn fork_large_block(space: &Self, block: &LargeBlock) -> HeapResult<LargeBlock> {
+        let pages = if block.is_live {
+            space.allocator.share_page_span(block.pages)?
         } else {
-            PageRun::empty()
+            PageSpan::empty()
         };
 
-        Ok(LargeAllocation {
-            is_live: allocation.is_live,
-            first_offset: allocation.first_offset,
-            byte_len: allocation.byte_len,
+        Ok(LargeBlock {
+            is_live: block.is_live,
+            first_offset: block.first_offset,
+            byte_len: block.byte_len,
             pages,
-            trace_map: allocation.trace_map.clone(),
-            mark_epoch: allocation.mark_epoch,
-            dirty_cards: allocation.dirty_cards.clone(),
-            is_dirty_queued: allocation.is_dirty_queued,
+            trace_map: block.trace_map.clone(),
+            mark_epoch: block.mark_epoch,
+            dirty_cards: block.dirty_cards.clone(),
+            is_dirty_queued: block.is_dirty_queued,
         })
     }
 
-    /// Return the reusable heap allocation ids from one frozen table.
-    fn free_large_allocation_ids(image: &HeapSpaceImage) -> Vec<u64> {
+    /// Return the reusable heap block ids from one frozen table.
+    fn free_large_block_ids(image: &HeapSpaceImage) -> Vec<u64> {
         image
-            .allocations()
+            .blocks()
             .iter()
             .enumerate()
-            .filter_map(|(index, allocation)| (!allocation.is_live).then_some(index as u64 + 1))
+            .filter_map(|(index, block)| (!block.is_live).then_some(index as u64 + 1))
             .collect()
     }
 
@@ -687,8 +684,8 @@ impl HeapSpace {
             self.young.allocation_alignment_bytes,
             bytes.into_boxed_slice(),
             ranges,
-            self.young.cloned_runs().into_boxed_slice(),
-            self.young.run_bits.clone().into_boxed_slice(),
+            self.young.cloned_spans().into_boxed_slice(),
+            self.young.span_bits.clone().into_boxed_slice(),
             live,
             self.young.local_reference_bits.clone(),
             self.young.shared_reference_bits.clone(),
@@ -723,36 +720,33 @@ impl HeapSpace {
         })
     }
 
-    /// Capture every live heap allocation image in large space.
-    fn capture_large_allocation_images(&self) -> HeapResult<Box<[LargeAllocationImage]>> {
+    /// Capture every live heap block image in large space.
+    fn capture_large_block_images(&self) -> HeapResult<Box<[LargeBlockImage]>> {
         self.large
-            .allocations
+            .blocks
             .iter()
-            .map(|allocation| self.capture_large_allocation_image(allocation))
+            .map(|block| self.capture_large_block_image(block))
             .collect::<HeapResult<Vec<_>>>()
             .map(Vec::into_boxed_slice)
     }
 
-    /// Capture one live heap allocation image in large space.
-    fn capture_large_allocation_image(
-        &self,
-        allocation: &LargeAllocation,
-    ) -> HeapResult<LargeAllocationImage> {
+    /// Capture one live heap block image in large space.
+    fn capture_large_block_image(&self, block: &LargeBlock) -> HeapResult<LargeBlockImage> {
         // capture the current retained bytes directly
-        let bytes = if allocation.is_live {
+        let bytes = if block.is_live {
             self.mapping
-                .read_bytes(allocation.first_offset, allocation.byte_len)?
+                .read_bytes(block.first_offset, block.byte_len)?
                 .into_boxed_slice()
         } else {
             Box::new([])
         };
 
-        Ok(LargeAllocationImage {
-            is_live: allocation.is_live,
-            first_offset: allocation.first_offset,
-            byte_len: allocation.byte_len,
+        Ok(LargeBlockImage {
+            is_live: block.is_live,
+            first_offset: block.first_offset,
+            byte_len: block.byte_len,
             bytes,
-            trace_map: allocation.trace_map.clone(),
+            trace_map: block.trace_map.clone(),
         })
     }
 }
@@ -766,10 +760,10 @@ fn image_retained_page_size_bytes(image: &HeapSpaceImage, page_size_bytes: usize
         .map(|span| retained_page_size_bytes(span.bytes.len(), page_size_bytes))
         .sum::<u64>();
     let allocation_bytes = image
-        .allocations()
+        .blocks()
         .iter()
-        .filter(|allocation| allocation.is_live)
-        .map(|allocation| retained_page_size_bytes(allocation.bytes.len(), page_size_bytes))
+        .filter(|block| block.is_live)
+        .map(|block| retained_page_size_bytes(block.bytes.len(), page_size_bytes))
         .sum::<u64>();
 
     young_size_bytes + span_size_bytes + allocation_bytes
@@ -784,21 +778,21 @@ fn retained_page_size_bytes(byte_len: usize, page_size_bytes: usize) -> u64 {
 fn restored_young_usage(image: &HeapSpaceImage) -> AllocationUsage {
     let mut usage = AllocationUsage::default();
 
-    // range allocations
+    // range blocks
     for (range_index, range) in image.young().ranges().iter().enumerate() {
         if image.young().live().contains(range_index) {
             usage.allocate(range.byte_len);
         }
     }
 
-    // fixed-size run allocations
-    for (run, bits) in image.young().runs().iter().zip(image.young().run_bits()) {
-        let reserved_count = run.reserved_slot_count_with(run.next_offset);
+    // fixed-size span blocks
+    for (span, bits) in image.young().spans().iter().zip(image.young().span_bits()) {
+        let reserved_count = span.reserved_slot_count_with(span.next_offset);
         let freed_count = bits.freed.count_ones();
         let occupied_count = reserved_count - freed_count;
 
         for _ in 0..occupied_count {
-            usage.allocate(run.class.size_class);
+            usage.allocate(span.class.size_class);
         }
     }
 
@@ -821,26 +815,26 @@ fn restore_image_mapping(image: &HeapSpaceImage, mapping: &mut AddressSpace) -> 
         mapping.write_bytes(span.first_offset, &span.bytes)?;
     }
 
-    // restore each captured large allocation range
-    for allocation in image.allocations() {
-        if !allocation.is_live || allocation.byte_len == 0 {
+    // restore each captured large block range
+    for block in image.blocks() {
+        if !block.is_live || block.byte_len == 0 {
             continue;
         }
 
-        mapping.write_bytes(allocation.first_offset, &allocation.bytes)?;
+        mapping.write_bytes(block.first_offset, &block.bytes)?;
     }
 
     Ok(())
 }
 
 impl HeapSpace {
-    /// Rebuild the page-map table from live place.
+    /// Rebuild the page-map table from live storage.
     fn rebuild_page_map(&mut self) -> HeapResult<()> {
         self.page_map.clear();
 
         let young_pages = self.young.pages;
 
-        self.map_page_run(0, &young_pages, |logical_page_index| {
+        self.map_page_span(0, &young_pages, |logical_page_index| {
             HeapPageMapEntry::Young { logical_page_index }
         });
 
@@ -850,24 +844,24 @@ impl HeapSpace {
             };
             let pages = span.pages;
 
-            self.map_page_run(span.first_offset, &pages, |logical_page_index| {
-                HeapPageMapEntry::Small {
+            self.map_page_span(span.first_offset, &pages, |logical_page_index| {
+                HeapPageMapEntry::MatureSpan {
                     span_index,
                     logical_page_index,
                 }
             });
         }
 
-        for allocation_index in 0..self.large.allocations.len() {
-            let allocation_id = LargeAllocationId::new(allocation_index as u64 + 1);
-            let Some(allocation) = self.large_allocation(allocation_id) else {
+        for block_index in 0..self.large.blocks.len() {
+            let block_id = LargeBlockId::new(block_index as u64 + 1);
+            let Some(block) = self.large_block(block_id) else {
                 continue;
             };
-            let pages = allocation.pages;
+            let pages = block.pages;
 
-            self.map_page_run(allocation.first_offset, &pages, |logical_page_index| {
-                HeapPageMapEntry::Large {
-                    allocation_id,
+            self.map_page_span(block.first_offset, &pages, |logical_page_index| {
+                HeapPageMapEntry::LargeBlock {
+                    block_id,
                     logical_page_index,
                 }
             });

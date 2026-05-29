@@ -13,9 +13,9 @@ pub(crate) use gc::SharedGcPacer;
 pub use gc::{SharedGcPhase, SharedGcWorker};
 pub use heap::{SharedHeap, SharedHeapImage, SharedHeapSnapshot};
 pub use options::SharedHeapOptions;
-pub use raw::{SharedRawAllocationImage, SharedRawPointer, SharedRawSpace, SharedRawSpaceImage};
+pub use raw::{SharedRawBlockImage, SharedRawPointer, SharedRawSpace, SharedRawSpaceImage};
 pub use space::{
-    SharedAllocationCache, SharedHeapLargeAllocationImage, SharedHeapReference,
+    SharedAllocationCache, SharedHeapLargeBlockImage, SharedHeapReference,
     SharedHeapSmallSpanImage, SharedHeapSpace, SharedHeapSpaceImage,
 };
 pub use usage::{SharedHeapSpaceUsage, SharedHeapUsage, SharedRawSpaceUsage};

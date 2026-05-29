@@ -5,7 +5,7 @@ use super::Heap;
 /// Exact heap-space usage for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct HeapSpaceUsage {
-    /// The number of live heap allocations.
+    /// The number of live heap blocks.
     pub allocation_count: usize,
     /// The logical live heap payload bytes.
     pub allocated_bytes: u64,
@@ -16,7 +16,7 @@ pub struct HeapSpaceUsage {
 /// Exact raw-space usage for one live heap.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct RawSpaceUsage {
-    /// The number of live raw allocations.
+    /// The number of live raw blocks.
     pub allocation_count: usize,
     /// The logical live raw payload bytes.
     pub allocated_bytes: u64,
@@ -59,12 +59,12 @@ impl Heap {
         }
     }
 
-    /// Return the number of live heap allocations.
+    /// Return the number of live heap blocks.
     pub fn heap_allocation_count(&self) -> usize {
         self.heap.allocation_count()
     }
 
-    /// Return the number of live raw allocations.
+    /// Return the number of live raw blocks.
     pub fn raw_allocation_count(&self) -> usize {
         self.raw.allocation_count()
     }

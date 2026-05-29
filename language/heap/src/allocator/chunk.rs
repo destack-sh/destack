@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use super::{PageId, PageRun};
+use super::{PageId, PageSpan};
 use crate::{HeapError, HeapRepresentationError, HeapResult};
 
 /// The number of chunk cells stored in one index segment.
@@ -12,8 +12,8 @@ const CHUNK_INDEX_SEGMENT_LEN: usize = 1024;
 pub(super) struct Chunk {
     /// The next never-allocated page inside this chunk.
     pub(super) next_unused_page: AtomicU32,
-    /// The run reference counts keyed by run-start page index inside this chunk.
-    run_ref_counts: Box<[AtomicU32]>,
+    /// The span reference counts keyed by span-start page index inside this chunk.
+    span_ref_counts: Box<[AtomicU32]>,
 }
 
 impl Chunk {
@@ -21,19 +21,19 @@ impl Chunk {
     pub(super) fn new(pages_per_chunk: usize) -> Self {
         Self {
             next_unused_page: AtomicU32::new(0),
-            run_ref_counts: std::iter::repeat_with(|| AtomicU32::new(0))
+            span_ref_counts: std::iter::repeat_with(|| AtomicU32::new(0))
                 .take(pages_per_chunk)
                 .collect(),
         }
     }
 
-    /// Allocate one run from this chunk.
-    pub(super) fn allocate_run(
+    /// Allocate one span from this chunk.
+    pub(super) fn allocate_span(
         &self,
         chunk_index: usize,
         page_count: usize,
         pages_per_chunk: usize,
-    ) -> HeapResult<Option<PageRun>> {
+    ) -> HeapResult<Option<PageSpan>> {
         debug_assert!(page_count <= pages_per_chunk);
         debug_assert!(u32::try_from(page_count).is_ok());
         let page_count = page_count as u32;
@@ -48,7 +48,7 @@ impl Chunk {
                 return Ok(None);
             }
 
-            // claim the run by moving the tail
+            // claim the span by moving the tail
             if self
                 .next_unused_page
                 .compare_exchange(start_page, end_page, Ordering::AcqRel, Ordering::Acquire)
@@ -62,10 +62,10 @@ impl Chunk {
         let first_page = chunk_index * pages_per_chunk + start_page;
         let first_page = PageId::new(first_page)?;
 
-        Ok(Some(PageRun::new(first_page, page_count as usize)?))
+        Ok(Some(PageSpan::new(first_page, page_count as usize)?))
     }
 
-    /// Report whether this chunk still has capacity for one run.
+    /// Report whether this chunk still has capacity for one span.
     pub(super) fn has_capacity(&self, page_count: usize, pages_per_chunk: usize) -> bool {
         let start_page = self.next_unused_page.load(Ordering::Acquire) as usize;
         let end_page = start_page + page_count;
@@ -73,12 +73,12 @@ impl Chunk {
         end_page <= pages_per_chunk
     }
 
-    /// Return one run reference count by chunk-local page index.
-    pub(super) fn run_ref_count(&self, chunk_page_index: usize) -> &AtomicU32 {
-        &self.run_ref_counts[chunk_page_index]
+    /// Return one span reference count by chunk-local page index.
+    pub(super) fn span_ref_count(&self, chunk_page_index: usize) -> &AtomicU32 {
+        &self.span_ref_counts[chunk_page_index]
     }
 
-    /// Raise the allocation watermark to the given page index.
+    /// Raise the block watermark to the given page index.
     pub(super) fn raise_watermark(&self, next_unused_page: usize) {
         self.next_unused_page
             .fetch_max(next_unused_page as u32, Ordering::AcqRel);

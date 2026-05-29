@@ -1,9 +1,9 @@
 use super::{
-    SharedHeapPageMapEntry, SharedHeapPlace, SharedHeapRegion, SharedHeapSpace, SharedHeapState,
-    SharedLargeAllocationId,
+    SharedHeapExtent, SharedHeapPageMapEntry, SharedHeapSpace, SharedHeapState, SharedHeapStorage,
+    SharedLargeBlockId,
 };
 use crate::SharedHeapReference;
-use crate::allocator::{PageRun, SpanSlot};
+use crate::allocator::{PageSpan, Slot};
 
 impl SharedHeapSpace {
     /// Return the page-map entry for one logical page.
@@ -15,17 +15,17 @@ impl SharedHeapSpace {
         store.page_map.get(page_index).copied().flatten()
     }
 
-    /// Record one page-map entry for every page in one logical page run.
-    pub(super) fn map_page_run(
+    /// Record one page-map entry for every page in one logical page span.
+    pub(super) fn map_page_span(
         &self,
         store: &mut SharedHeapState,
         first_offset: usize,
-        page_run: &PageRun,
+        page_span: &PageSpan,
         mut entry: impl FnMut(usize) -> SharedHeapPageMapEntry,
     ) {
         let first_page_index = first_offset / self.allocator.page_size_bytes();
 
-        for logical_page_index in 0..page_run.len() {
+        for logical_page_index in 0..page_span.len() {
             let page_index = first_page_index + logical_page_index;
 
             // grow the sparse logical page map to the touched page
@@ -37,16 +37,16 @@ impl SharedHeapSpace {
         }
     }
 
-    /// Clear every page-map entry for one logical page run.
-    pub(crate) fn unmap_page_run(
+    /// Clear every page-map entry for one logical page span.
+    pub(crate) fn unmap_page_span(
         &self,
         store: &mut SharedHeapState,
         first_offset: usize,
-        page_run: &PageRun,
+        page_span: &PageSpan,
     ) {
         let first_page_index = first_offset / self.allocator.page_size_bytes();
 
-        for logical_page_index in 0..page_run.len() {
+        for logical_page_index in 0..page_span.len() {
             let page_index = first_page_index + logical_page_index;
 
             // sparse trailing pages may never have been mapped
@@ -56,11 +56,11 @@ impl SharedHeapSpace {
         }
     }
 
-    /// Return the resolved region for one live shared heap reference.
-    pub(crate) fn resolve_region(
+    /// Return the resolved extent for one live shared heap reference.
+    pub(crate) fn resolve_extent(
         &self,
         reference: SharedHeapReference,
-    ) -> Option<SharedHeapRegion> {
+    ) -> Option<SharedHeapExtent> {
         let page_size_bytes = self.allocator.page_size_bytes();
         let page_index = reference.offset() / page_size_bytes;
         let page_offset = reference.offset() % page_size_bytes;
@@ -68,25 +68,25 @@ impl SharedHeapSpace {
         let entry = self.page_entry(&store, page_index)?;
 
         match entry {
-            SharedHeapPageMapEntry::Small {
+            SharedHeapPageMapEntry::SmallSpan {
                 span_index,
                 logical_page_index,
-            } => self.resolve_small_region(&store, span_index, logical_page_index, page_offset),
-            SharedHeapPageMapEntry::Large {
-                allocation_id,
+            } => self.resolve_small_extent(&store, span_index, logical_page_index, page_offset),
+            SharedHeapPageMapEntry::LargeBlock {
+                block_id,
                 logical_page_index,
-            } => self.resolve_large_region(&store, allocation_id, logical_page_index, page_offset),
+            } => self.resolve_large_extent(&store, block_id, logical_page_index, page_offset),
         }
     }
 
-    /// Return the resolved small-span region for one live shared heap reference.
-    fn resolve_small_region(
+    /// Return the resolved small-span extent for one live shared heap reference.
+    fn resolve_small_extent(
         &self,
         store: &SharedHeapState,
         span_index: usize,
         logical_page_index: usize,
         page_offset: usize,
-    ) -> Option<SharedHeapRegion> {
+    ) -> Option<SharedHeapExtent> {
         let span = store.small.spans.get(span_index)?.clone();
         let logical_byte_offset =
             logical_page_index * self.allocator.page_size_bytes() + page_offset;
@@ -105,49 +105,45 @@ impl SharedHeapSpace {
 
         let slot_base_offset = slot_index * span.class.size_class;
         let base_offset = span.first_offset + slot_base_offset;
-        let slot = SpanSlot::new(span_index, slot_index).ok()?;
+        let slot = Slot::new(span_index, slot_index).ok()?;
 
-        Some(SharedHeapRegion {
-            place: SharedHeapPlace::Small(slot),
+        Some(SharedHeapExtent {
+            storage: SharedHeapStorage::SmallSlot(slot),
             base: SharedHeapReference::new(base_offset),
             byte_offset: slot_offset,
             byte_len,
         })
     }
 
-    /// Return the resolved large-allocation region for one live shared heap reference.
-    fn resolve_large_region(
+    /// Return the resolved large-block extent for one live shared heap reference.
+    fn resolve_large_extent(
         &self,
         store: &SharedHeapState,
-        allocation_id: SharedLargeAllocationId,
+        block_id: SharedLargeBlockId,
         logical_page_index: usize,
         page_offset: usize,
-    ) -> Option<SharedHeapRegion> {
-        let allocation = store
-            .large
-            .allocations
-            .get(allocation_id.index().ok()?)?
-            .clone();
-        let allocation = allocation.read();
-        if !allocation.is_live {
+    ) -> Option<SharedHeapExtent> {
+        let block = store.large.blocks.get(block_id.index().ok()?)?.clone();
+        let block = block.read();
+        if !block.is_live {
             return None;
         }
 
         let logical_byte_offset =
             logical_page_index * self.allocator.page_size_bytes() + page_offset;
-        if allocation.byte_len == 0 {
+        if block.byte_len == 0 {
             if logical_byte_offset != 0 {
                 return None;
             }
-        } else if logical_byte_offset >= allocation.byte_len {
+        } else if logical_byte_offset >= block.byte_len {
             return None;
         }
 
-        Some(SharedHeapRegion {
-            place: SharedHeapPlace::Large(allocation_id),
-            base: SharedHeapReference::new(allocation.first_offset),
+        Some(SharedHeapExtent {
+            storage: SharedHeapStorage::LargeBlock(block_id),
+            base: SharedHeapReference::new(block.first_offset),
             byte_offset: logical_byte_offset,
-            byte_len: allocation.byte_len,
+            byte_len: block.byte_len,
         })
     }
 }

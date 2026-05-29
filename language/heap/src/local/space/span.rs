@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::CardSet;
 use crate::SmallSpanClass;
-use crate::allocator::{Bitmap, PageRun};
+use crate::allocator::{Bitmap, PageSpan};
 
 /// One live heap span.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,7 +28,7 @@ pub(crate) struct SmallSpan {
     /// The mark epoch represented by this span's mark bitmap.
     pub(crate) mark_epoch: u64,
     /// The allocator pages for this span.
-    pub(crate) pages: PageRun,
+    pub(crate) pages: PageSpan,
     /// The dirty cards remembered for young tracing.
     pub(crate) dirty_cards: CardSet,
     /// Whether this span is already queued for dirty-card scanning.

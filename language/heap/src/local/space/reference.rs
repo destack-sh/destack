@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{HeapError, HeapRepresentationError, HeapResult};
 
-/// Reference to one heap allocation.
+/// Reference to one heap block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct HeapReference(pub(crate) usize);
 

@@ -173,14 +173,14 @@ impl GcPacer {
         GcPressure::Idle
     }
 
-    /// Charge one allocation against the current collector runway.
+    /// Charge one block against the current collector runway.
     pub fn charge_allocation(&mut self, options: GcOptions, byte_len: usize) {
         let debt_bytes = self.allocation_debt_bytes(options, byte_len);
 
         self.assist_debt_bytes += debt_bytes;
     }
 
-    /// Return the collector work owed by one allocation.
+    /// Return the collector work owed by one block.
     pub fn allocation_debt_bytes(&self, options: GcOptions, byte_len: usize) -> u64 {
         if byte_len == 0 {
             return 0;
@@ -222,7 +222,7 @@ impl GcPacer {
         self.remaining_work_bytes.min(minimum_bytes) as usize
     }
 
-    /// Return one byte budget plus pending allocation assist work.
+    /// Return one byte budget plus pending block assist work.
     pub fn budget_bytes(&mut self, options: GcOptions, worker_count: usize) -> usize {
         let base_bytes = self.base_budget_bytes(options, worker_count);
         let assist_bytes = self.take_assist_budget_bytes(base_bytes);
@@ -287,9 +287,9 @@ pub enum GcKind {
 /// Summary statistics for a garbage collection cycle.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GcStats {
-    /// Number of allocations freed by the collection.
+    /// Number of blocks freed by the collection.
     pub freed_allocations: usize,
-    /// Number of live allocations after the collection.
+    /// Number of live blocks after the collection.
     pub live_allocations: usize,
     /// Number of bytes freed by the collection.
     pub freed_bytes: u64,

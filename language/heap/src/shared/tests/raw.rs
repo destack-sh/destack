@@ -15,7 +15,7 @@ fn test_shared_raw_space() -> SharedRawSpace {
 /// Reject one invalid shared raw pointer loudly.
 #[test]
 fn test_free_shared_rejects_invalid_pointer() {
-    // build a shared raw space with no allocation at offset 7
+    // build a shared raw space with no block at offset 7
     let shared = test_shared_raw_space();
 
     // reject one unknown address
@@ -25,16 +25,16 @@ fn test_free_shared_rejects_invalid_pointer() {
     assert_eq!(error, HeapError::invalid_shared_raw_pointer(pointer));
 }
 
-/// Reclaim one freed shared raw allocation and allow another allocation.
+/// Reclaim one freed shared raw block and allow another block.
 #[test]
 fn test_free_shared_reclaims_live_allocation() {
     // allocate one live shared raw payload
     let shared = test_shared_raw_space();
     let pointer = shared
         .allocate(RawAllocationShape::bytes(2), Payload::Bytes(&[0xAB, 0xCD]))
-        .expect("shared allocation should succeed");
+        .expect("shared block should succeed");
 
-    // freeing one live allocation should retire it immediately
+    // freeing one live block should retire it immediately
     assert!(shared.is_live(pointer));
     shared.free(pointer).expect("shared free should succeed");
     assert!(!shared.is_live(pointer));
@@ -42,25 +42,25 @@ fn test_free_shared_reclaims_live_allocation() {
     // allocate again to prove the shared raw space remains usable
     let next_pointer = shared
         .allocate(RawAllocationShape::bytes(1), Payload::Bytes(&[0xEF]))
-        .expect("shared allocation should succeed");
+        .expect("shared block should succeed");
 
     assert!(shared.is_live(next_pointer));
 }
 
-/// Clear bytes when reusing one freed shared raw allocation for zeroed payload.
+/// Clear bytes when reusing one freed shared raw block for zeroed payload.
 #[test]
 fn test_allocate_zeroed_shared_raw_clears_reused_allocation() {
-    // seed one nonzero shared raw allocation
+    // seed one nonzero shared raw block
     let shared = test_shared_raw_space();
     let pointer = shared
         .allocate(RawAllocationShape::bytes(2), Payload::Bytes(&[0xAB, 0xCD]))
-        .expect("shared allocation should succeed");
+        .expect("shared block should succeed");
 
-    // reuse the freed allocation with zeroed payload
+    // reuse the freed block with zeroed payload
     shared.free(pointer).expect("shared free should succeed");
     let pointer = shared
         .allocate(RawAllocationShape::bytes(2), Payload::Zeroed)
-        .expect("zeroed shared allocation should succeed");
+        .expect("zeroed shared block should succeed");
 
     assert_eq!(shared.read_bytes(pointer), Ok(vec![0, 0]));
 }
@@ -74,7 +74,7 @@ fn test_reject_shared_raw_allocation_byte_len_mismatch() {
     // provide fewer bytes than the requested shape
     let error = shared
         .allocate(RawAllocationShape::new(4, 1), Payload::Bytes(&[1, 2]))
-        .expect_err("shared allocation should reject mismatched bytes");
+        .expect_err("shared block should reject mismatched bytes");
 
     assert_eq!(
         error,
@@ -85,17 +85,17 @@ fn test_reject_shared_raw_allocation_byte_len_mismatch() {
     );
 }
 
-/// Honor the requested shared raw allocation base alignment.
+/// Honor the requested shared raw block base alignment.
 #[test]
 fn test_allocate_shared_raw_honors_alignment() {
     // build a default shared raw space
     let shared = test_shared_raw_space();
     let alignment = shared.page_size_bytes() * 2;
 
-    // align page-backed shared raw allocation bases
+    // align page-backed shared raw block bases
     let pointer = shared
         .allocate(RawAllocationShape::new(1, alignment), Payload::Zeroed)
-        .expect("aligned shared raw allocation should succeed");
+        .expect("aligned shared raw block should succeed");
 
     assert_eq!(pointer.offset() % alignment, 0);
 }
@@ -107,7 +107,7 @@ fn test_fork_shared_raw_write_is_independent() {
     let shared = test_shared_raw_space();
     let pointer = shared
         .allocate(RawAllocationShape::bytes(4), Payload::Bytes(&[1, 2, 3, 4]))
-        .expect("shared allocation should succeed");
+        .expect("shared block should succeed");
     let forked = shared.fork().expect("shared raw fork should succeed");
 
     // mutate the fork through the same logical pointer
@@ -119,14 +119,14 @@ fn test_fork_shared_raw_write_is_independent() {
     assert_eq!(forked.read_bytes(pointer), Ok(vec![1, 9, 8, 4]));
 }
 
-/// Keep zero-byte shared raw allocations addressable.
+/// Keep zero-byte shared raw blocks addressable.
 #[test]
 fn test_allocate_shared_zero_byte_raw_is_live() {
     // allocate a zero-byte payload as a real resource
     let shared = test_shared_raw_space();
     let pointer = shared
         .allocate(RawAllocationShape::bytes(0), Payload::Bytes(&[]))
-        .expect("zero-byte allocation should succeed");
+        .expect("zero-byte block should succeed");
 
     assert!(shared.is_live(pointer));
     assert_eq!(shared.byte_len(pointer), Ok(0));
@@ -142,10 +142,10 @@ fn test_shared_reads_reject_invalid_pointer_offset() {
             RawAllocationShape::bytes(3),
             Payload::Bytes(&[0xAA, 0xBB, 0xCC]),
         )
-        .expect("shared allocation should succeed");
+        .expect("shared block should succeed");
     let pointer = pointer.add_bytes(4);
 
-    // reject the interior pointer because it resolves outside the allocation
+    // reject the interior pointer because it resolves outside the block
     let error = shared
         .byte_len(pointer)
         .expect_err("shared byte_len should reject invalid offsets");

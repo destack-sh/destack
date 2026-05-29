@@ -1,6 +1,6 @@
 use destack_mir::{TraceMap, TraceTable};
 
-use super::{HeapPlace, HeapRegion, HeapSpace, YoungPlace};
+use super::{HeapExtent, HeapSpace, HeapStorage};
 use crate::{
     HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference,
     scan_references,
@@ -13,37 +13,36 @@ impl HeapSpace {
         self.mapping.base_address()
     }
 
-    /// Return whether one heap reference currently refers to one live allocation.
+    /// Return whether one heap reference currently refers to one live block.
     pub fn is_live(&self, reference: HeapReference) -> bool {
-        self.resolve_region(reference).is_some()
+        self.resolve_extent(reference).is_some()
     }
 
     /// Return whether one heap reference currently refers to young space.
     #[cfg(test)]
     pub(crate) fn is_young(&self, reference: HeapReference) -> bool {
         matches!(
-            self.resolve_region(reference).map(|region| region.place),
-            Some(HeapPlace::Young(YoungPlace::Range { .. }))
-                | Some(HeapPlace::Young(YoungPlace::Slot(_)))
+            self.resolve_extent(reference).map(|extent| extent.storage),
+            Some(HeapStorage::YoungRange { .. }) | Some(HeapStorage::YoungSlot(_))
         )
     }
 
-    /// Return the live place for one heap reference.
+    /// Return the live storage for one heap reference.
     #[cfg(test)]
-    pub(crate) fn place(&self, reference: HeapReference) -> Option<HeapPlace> {
-        Some(self.resolve_region(reference)?.place)
+    pub(crate) fn storage(&self, reference: HeapReference) -> Option<HeapStorage> {
+        Some(self.resolve_extent(reference)?.storage)
     }
 
     /// Return the trace map for one heap reference.
     pub fn scan(&self, reference: HeapReference, trace_table: &TraceTable) -> HeapResult<TraceMap> {
-        let Some(region) = self.resolve_region(reference) else {
+        let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
 
-        self.trace_map_for_place(region.place, trace_table)
+        self.trace_map_for_place(extent.storage, trace_table)
     }
 
-    /// Record one heap write barrier for one live heap allocation.
+    /// Record one heap write barrier for one live heap block.
     pub fn write_barrier(
         &mut self,
         reference: HeapReference,
@@ -51,9 +50,9 @@ impl HeapSpace {
         byte_len: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<()> {
-        let (region, byte_offset) = self.resolve_range(reference, start, byte_len)?;
+        let (extent, byte_offset) = self.resolve_range(reference, start, byte_len)?;
 
-        self.record_write_barrier(reference, region, byte_offset, byte_len, trace_table)
+        self.record_write_barrier(reference, extent, byte_offset, byte_len, trace_table)
     }
 
     /// Return old and new shared edges for one heap store before it writes.
@@ -64,21 +63,21 @@ impl HeapSpace {
         bytes: &[u8],
         trace_table: &TraceTable,
     ) -> HeapResult<Vec<SharedHeapReference>> {
-        let (region, byte_offset) = self.resolve_range(reference, start, bytes.len())?;
+        let (extent, byte_offset) = self.resolve_range(reference, start, bytes.len())?;
 
-        self.shared_write_barrier_region_bytes(region, byte_offset, bytes, trace_table)
+        self.shared_write_barrier_extent_bytes(extent, byte_offset, bytes, trace_table)
     }
 
     /// Return old and new shared edges for one already-resolved heap store.
-    fn shared_write_barrier_region_bytes(
+    fn shared_write_barrier_extent_bytes(
         &self,
-        region: HeapRegion,
+        extent: HeapExtent,
         byte_offset: usize,
         bytes: &[u8],
         trace_table: &TraceTable,
     ) -> HeapResult<Vec<SharedHeapReference>> {
         // skip ranges that cannot contain shared references
-        let trace_map = self.trace_map_for_place(region.place, trace_table)?;
+        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
         if !self.overlaps_shared_roots(&trace_map, byte_offset, bytes.len()) {
             return Ok(Vec::new());
         }
@@ -86,7 +85,7 @@ impl HeapSpace {
         let mut edges = Vec::new();
 
         // overwritten references
-        let base_address = self.mapping.base_address() + region.base.offset();
+        let base_address = self.mapping.base_address() + extent.base.offset();
         scan_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
@@ -108,57 +107,54 @@ impl HeapSpace {
         Ok(edges)
     }
 
-    /// Return one checked live region and byte offset for one heap range.
+    /// Return one checked live extent and byte offset for one heap range.
     fn resolve_range(
         &self,
         reference: HeapReference,
         start: usize,
         byte_len: usize,
-    ) -> HeapResult<(HeapRegion, usize)> {
-        // resolve live allocation
-        let Some(region) = self.resolve_region(reference) else {
+    ) -> HeapResult<(HeapExtent, usize)> {
+        // resolve live block
+        let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
 
-        // project caller range into the allocation payload
-        let byte_offset =
-            allocation_byte_offset(region.byte_offset, start, byte_len, region.byte_len)?;
+        // project caller range into the block payload
+        let byte_offset = block_byte_offset(extent.byte_offset, start, byte_len, extent.byte_len)?;
 
-        Ok((region, byte_offset))
+        Ok((extent, byte_offset))
     }
 
     /// Record all local-heap metadata affected by one write.
     pub(crate) fn record_write_barrier(
         &mut self,
         reference: HeapReference,
-        region: HeapRegion,
+        extent: HeapExtent,
         byte_offset: usize,
         byte_len: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<()> {
         // local collector metadata
-        self.record_local_write(region, byte_offset, byte_len, trace_table)?;
+        self.record_local_write(extent, byte_offset, byte_len, trace_table)?;
 
         // shared collector metadata
-        self.record_shared_edge_write(reference, region, byte_offset, byte_len, trace_table)
+        self.record_shared_edge_write(reference, extent, byte_offset, byte_len, trace_table)
     }
 
-    /// Record local collector metadata for one live heap region.
+    /// Record local collector metadata for one live heap extent.
     fn record_local_write(
         &mut self,
-        region: HeapRegion,
+        extent: HeapExtent,
         byte_offset: usize,
         byte_len: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<()> {
-        self.write_major_barrier(region, byte_offset, byte_len, trace_table)?;
+        self.write_major_barrier(extent, byte_offset, byte_len, trace_table)?;
 
-        // only mature regions need remembered-write bookkeeping
-        match region.place {
-            HeapPlace::Young(YoungPlace::Range { .. }) | HeapPlace::Young(YoungPlace::Slot(_)) => {
-                Ok(())
-            }
-            HeapPlace::Small(slot) => {
+        // only mature extents need remembered-write bookkeeping
+        match extent.storage {
+            HeapStorage::YoungRange { .. } | HeapStorage::YoungSlot(_) => Ok(()),
+            HeapStorage::MatureSlot(slot) => {
                 let trace_map =
                     self.small_slot_trace_map(slot.span_index(), slot.slot_index(), trace_table)?;
 
@@ -170,17 +166,17 @@ impl HeapSpace {
                     &trace_map,
                 )
             }
-            HeapPlace::Large(allocation_id) => {
-                self.mark_large_allocation_dirty(allocation_id, byte_offset, byte_len)
+            HeapStorage::LargeBlock(block_id) => {
+                self.mark_large_block_dirty(block_id, byte_offset, byte_len)
             }
         }
     }
 
-    /// Record local-to-shared edge metadata for one live heap region.
+    /// Record local-to-shared edge metadata for one live heap extent.
     fn record_shared_edge_write(
         &mut self,
         reference: HeapReference,
-        region: HeapRegion,
+        extent: HeapExtent,
         byte_offset: usize,
         byte_len: usize,
         trace_table: &TraceTable,
@@ -191,7 +187,7 @@ impl HeapSpace {
         }
 
         // skip writes that cannot touch shared references
-        let trace_map = self.trace_map_for_place(region.place, trace_table)?;
+        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
         if !self.overlaps_shared_roots(&trace_map, byte_offset, byte_len) {
             return Ok(());
         }
@@ -200,8 +196,8 @@ impl HeapSpace {
     }
 }
 
-/// Return one allocation-local byte offset for one visible range.
-fn allocation_byte_offset(
+/// Return one block-local byte offset for one visible range.
+fn block_byte_offset(
     base_offset: usize,
     start: usize,
     len: usize,
