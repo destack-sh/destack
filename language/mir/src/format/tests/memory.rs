@@ -7,12 +7,19 @@ fn test_format_allocation_family() {
         r#"
 function allocFamily(value0: int64): ref<int32, raw, space(frame)> {
 entry0(value0: int64):
-    value1: ref<int32, managed> = new int32
-    value2: slice<int32, managed> = new.slice int32, value0
-    value3: ref<int32, raw> = raw.alloc int32
+    value1: ref<int32, managed> = new.zeroed int32
+    value2: slice<int32, managed> = new.slice.zeroed int32, value0
+    value3: ref<int32, raw> = raw.alloc.zeroed int32
     raw.free value3
-    value4: ref<int32, raw, space(frame)> = frame.alloc int32
-    return value4
+    value4: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    value5: uninit<ref<int32, managed>> = new.uninit int32
+    value6: ref<int32, managed> = new.complete value5
+    value7: uninit<slice<int32, managed>> = new.slice.uninit int32, value0
+    value8: slice<int32, managed> = new.complete value7
+    value9: ref<int32, raw> = raw.alloc.uninit int32
+    raw.free value9
+    value10: ref<int32, raw, space(frame)> = frame.alloc.uninit int32
+    return value10
 }
 "#,
     );

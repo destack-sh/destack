@@ -520,6 +520,7 @@ fn type_alias_prefix(ty: &Type) -> &'static str {
         Type::Tuple { .. } => "Tuple",
         Type::Array { .. } => "Array",
         Type::Slice { .. } => "Slice",
+        Type::Uninit { .. } => "Uninit",
         Type::Variant { .. } => "Variant",
         Type::Atomic { .. } => "Atomic",
         Type::Reference { .. } => "Ref",
@@ -702,7 +703,12 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
             Instruction::CallIndirect { call, .. } => {
                 record_type_use(tree, call.signature, &mut counts);
             }
-            Instruction::New {
+            Instruction::NewZeroed {
+                layout,
+                result_type,
+                ..
+            }
+            | Instruction::NewUninit {
                 layout,
                 result_type,
                 ..
@@ -710,7 +716,15 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 record_type_use(tree, *layout, &mut counts);
                 record_type_use(tree, *result_type, &mut counts);
             }
-            Instruction::NewSlice {
+            Instruction::NewComplete { result_type, .. } => {
+                record_type_use(tree, *result_type, &mut counts);
+            }
+            Instruction::NewSliceZeroed {
+                element,
+                result_type,
+                ..
+            }
+            | Instruction::NewSliceUninit {
                 element,
                 result_type,
                 ..
@@ -718,7 +732,12 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 record_type_use(tree, *element, &mut counts);
                 record_type_use(tree, *result_type, &mut counts);
             }
-            Instruction::RawAlloc {
+            Instruction::RawAllocZeroed {
+                layout,
+                result_type,
+                ..
+            }
+            | Instruction::RawAllocUninit {
                 layout,
                 result_type,
                 ..
@@ -726,7 +745,12 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 record_type_use(tree, *layout, &mut counts);
                 record_type_use(tree, *result_type, &mut counts);
             }
-            Instruction::FrameAlloc {
+            Instruction::FrameAllocZeroed {
+                layout,
+                result_type,
+                ..
+            }
+            | Instruction::FrameAllocUninit {
                 layout,
                 result_type,
                 ..
@@ -804,7 +828,7 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, value, counts, visited);
         }
-        Type::Any { interface } => {
+        Type::Any { interface } | Type::Uninit { value: interface } => {
             let TypeReference::Type(interface) = *interface else {
                 return;
             };
@@ -1323,7 +1347,7 @@ fn collect_alias_dependencies(
             Type::Atomic { value } => {
                 record_dependency(*value, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::Any { interface } => {
+            Type::Any { interface } | Type::Uninit { value: interface } => {
                 record_dependency(*interface, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Array { element, .. } | Type::Slice { element, .. } => {

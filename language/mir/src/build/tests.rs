@@ -767,19 +767,19 @@ fn test_managed_reference_types() {
     ));
 }
 
-/// Allocation instruction: new.
+/// Allocation instruction: new.zeroed.
 #[test]
-fn test_build_new() {
+fn test_build_new_zeroed() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let ref_type = module.type_managed_reference(i32_type);
 
-    // build function with new
+    // build function with new.zeroed
     let mut builder = module.function("allocTest", &[], ref_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    let allocated_value = builder.new_(i32_type, ref_type);
+    let allocated_value = builder.new_zeroed(i32_type, ref_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -790,27 +790,27 @@ fn test_build_new() {
     let expected = "\
 function allocTest(): ref<int32, managed, readonly> {
 entry0:
-    value0: ref<int32, managed, readonly> = new int32
+    value0: ref<int32, managed, readonly> = new.zeroed int32
     return value0
 }";
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: new.slice.
+/// Allocation instruction: new.slice.zeroed.
 #[test]
-fn test_build_new_slice() {
+fn test_build_new_slice_zeroed() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
     let i64_type = module.type_i64();
     let slice_type = module.type_slice(i32_type);
 
-    // build function with new.slice
+    // build function with new.slice.zeroed
     let mut builder = module.function("allocArrayTest", &[i64_type], slice_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let length_value = builder.function_parameter(0);
-    let allocated_value = builder.new_slice(i32_type, length_value, slice_type);
+    let allocated_value = builder.new_slice_zeroed(i32_type, length_value, slice_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -821,7 +821,7 @@ fn test_build_new_slice() {
     let expected = "\
 function allocArrayTest(value0: int64): slice<int32, managed> {
 entry0(value0: int64):
-    value1: slice<int32, managed> = new.slice int32, value0
+    value1: slice<int32, managed> = new.slice.zeroed int32, value0
     return value1
 }";
     assert_eq!(output, expected);
@@ -867,7 +867,7 @@ entry0(value0: slice<int32, managed>, value1: int64, value2: int64):
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: raw.alloc and raw.free.
+/// Allocation instruction: raw.alloc.zeroed and raw.free.
 #[test]
 fn test_build_raw_alloc_and_free() {
     // setup
@@ -876,11 +876,11 @@ fn test_build_raw_alloc_and_free() {
     let void_type = module.type_void();
     let raw_ref_type = module.type_raw_pointer(i32_type);
 
-    // build function with raw.alloc and raw.free
+    // build function with raw.alloc.zeroed and raw.free
     let mut builder = module.function("rawAllocTest", &[], void_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    let allocated_value = builder.raw_alloc(i32_type, raw_ref_type);
+    let allocated_value = builder.raw_alloc_zeroed(i32_type, raw_ref_type);
     // use the allocation
     let const_val = builder.iconst_i32(42);
     builder.store(allocated_value, const_val);
@@ -896,7 +896,7 @@ fn test_build_raw_alloc_and_free() {
     let expected = "\
 function rawAllocTest(): void {
 entry0:
-    value0: ref<int32, raw, readonly> = raw.alloc int32
+    value0: ref<int32, raw, readonly> = raw.alloc.zeroed int32
     value1: int32 = 42int32
     store value0, value1
     raw.free value0
@@ -905,9 +905,9 @@ entry0:
     assert_eq!(output, expected);
 }
 
-/// Allocation instruction: frame.alloc.
+/// Allocation instruction: frame.alloc.zeroed.
 #[test]
-fn test_build_frame_alloc() {
+fn test_build_frame_alloc_zeroed() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_i32();
@@ -920,11 +920,11 @@ fn test_build_frame_alloc() {
         nullability: Nullability::None,
     });
 
-    // build function with frame.alloc
+    // build function with frame.alloc.zeroed
     let mut builder = module.function("stackAllocTest", &[], raw_ref_type);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    let allocated_value = builder.frame_alloc(i32_type, raw_ref_type);
+    let allocated_value = builder.frame_alloc_zeroed(i32_type, raw_ref_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish();
@@ -935,7 +935,7 @@ fn test_build_frame_alloc() {
     let expected = "\
 function stackAllocTest(): ref<int32, raw, readonly, space(frame)> {
 entry0:
-    value0: ref<int32, raw, readonly, space(frame)> = frame.alloc int32
+    value0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
     return value0
 }";
     assert_eq!(output, expected);

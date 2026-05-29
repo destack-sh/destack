@@ -925,36 +925,79 @@ impl Parser {
                     }
 
                     // allocation operations
-                    "new" => {
+                    "new.zeroed" => {
                         let layout = self.parse_type()?;
-                        Instruction::New {
+                        Instruction::NewZeroed {
                             destination,
                             layout: layout.into(),
                             result_type: destination_type.into(),
                         }
                     }
-                    "new.slice" => {
+                    "new.uninit" => {
+                        let layout = self.parse_type()?;
+                        Instruction::NewUninit {
+                            destination,
+                            layout: layout.into(),
+                            result_type: destination_type.into(),
+                        }
+                    }
+                    "new.complete" => {
+                        let value = self.parse_value()?;
+                        Instruction::NewComplete {
+                            destination,
+                            value,
+                            result_type: destination_type.into(),
+                        }
+                    }
+                    "new.slice.zeroed" => {
                         let element = self.parse_type()?;
                         self.eat_token(TokenType::Comma)?;
                         let length = self.parse_value()?;
-                        Instruction::NewSlice {
+                        Instruction::NewSliceZeroed {
                             destination,
                             element: element.into(),
                             length,
                             result_type: destination_type.into(),
                         }
                     }
-                    "raw.alloc" => {
+                    "new.slice.uninit" => {
+                        let element = self.parse_type()?;
+                        self.eat_token(TokenType::Comma)?;
+                        let length = self.parse_value()?;
+                        Instruction::NewSliceUninit {
+                            destination,
+                            element: element.into(),
+                            length,
+                            result_type: destination_type.into(),
+                        }
+                    }
+                    "raw.alloc.zeroed" => {
                         let layout = self.parse_type()?;
-                        Instruction::RawAlloc {
+                        Instruction::RawAllocZeroed {
                             destination,
                             layout: layout.into(),
                             result_type: destination_type.into(),
                         }
                     }
-                    "frame.alloc" => {
+                    "raw.alloc.uninit" => {
                         let layout = self.parse_type()?;
-                        Instruction::FrameAlloc {
+                        Instruction::RawAllocUninit {
+                            destination,
+                            layout: layout.into(),
+                            result_type: destination_type.into(),
+                        }
+                    }
+                    "frame.alloc.zeroed" => {
+                        let layout = self.parse_type()?;
+                        Instruction::FrameAllocZeroed {
+                            destination,
+                            layout: layout.into(),
+                            result_type: destination_type.into(),
+                        }
+                    }
+                    "frame.alloc.uninit" => {
+                        let layout = self.parse_type()?;
+                        Instruction::FrameAllocUninit {
                             destination,
                             layout: layout.into(),
                             result_type: destination_type.into(),

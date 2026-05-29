@@ -1404,7 +1404,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_call_signature_suffix(call.signature, f)
             }
 
-            Instruction::New {
+            Instruction::NewZeroed {
                 destination,
                 layout,
                 ..
@@ -1412,11 +1412,54 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [space(), token("="), space(), token("new"), space(), layout]
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("new.zeroed"),
+                        space(),
+                        layout
+                    ]
                 )
             }
 
-            Instruction::NewSlice {
+            Instruction::NewUninit {
+                destination,
+                layout,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("new.uninit"),
+                        space(),
+                        layout
+                    ]
+                )
+            }
+
+            Instruction::NewComplete {
+                destination, value, ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("new.complete"),
+                        space(),
+                        value
+                    ]
+                )
+            }
+
+            Instruction::NewSliceZeroed {
                 destination,
                 element,
                 length,
@@ -1429,7 +1472,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("new.slice"),
+                        token("new.slice.zeroed"),
                         space(),
                         element,
                         token(","),
@@ -1439,7 +1482,30 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )
             }
 
-            Instruction::RawAlloc {
+            Instruction::NewSliceUninit {
+                destination,
+                element,
+                length,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("new.slice.uninit"),
+                        space(),
+                        element,
+                        token(","),
+                        space(),
+                        length
+                    ]
+                )
+            }
+
+            Instruction::RawAllocZeroed {
                 destination,
                 layout,
                 ..
@@ -1451,7 +1517,26 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("raw.alloc"),
+                        token("raw.alloc.zeroed"),
+                        space(),
+                        layout
+                    ]
+                )
+            }
+
+            Instruction::RawAllocUninit {
+                destination,
+                layout,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("raw.alloc.uninit"),
                         space(),
                         layout
                     ]
@@ -1462,7 +1547,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(f, [token("raw.free"), space(), pointer])
             }
 
-            Instruction::FrameAlloc {
+            Instruction::FrameAllocZeroed {
                 destination,
                 layout,
                 ..
@@ -1474,7 +1559,26 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("frame.alloc"),
+                        token("frame.alloc.zeroed"),
+                        space(),
+                        layout
+                    ]
+                )
+            }
+
+            Instruction::FrameAllocUninit {
+                destination,
+                layout,
+                ..
+            } => {
+                format_typed_destination(*destination, f)?;
+                write!(
+                    f,
+                    [
+                        space(),
+                        token("="),
+                        space(),
+                        token("frame.alloc.uninit"),
                         space(),
                         layout
                     ]
