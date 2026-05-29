@@ -13,17 +13,17 @@ impl CheckState<'_> {
             let is_current = self.flow(module).is_current_function(index);
 
             if is_current {
-                self.record_this_receiver_resolution(source, receiver);
+                self.select_this_receiver(source, receiver);
             } else {
                 self.flow_mut(module).capture_receiver(receiver);
-                self.record_name_resolution(source, receiver.symbol);
+                self.select_name(source, receiver.symbol);
             }
 
             return Some(receiver);
         }
 
         if let Some(receiver) = self.flow(module).current_receiver() {
-            self.record_this_receiver_resolution(source, receiver);
+            self.select_this_receiver(source, receiver);
 
             return Some(receiver);
         }
@@ -31,7 +31,7 @@ impl CheckState<'_> {
         None
     }
 
-    /// Record one lexical value reference for capture analysis.
+    /// Capture one lexical value reference when required.
     pub(in crate::check) fn capture_symbol_reference(
         &mut self,
         module: destack_source::ModuleId,
@@ -40,7 +40,7 @@ impl CheckState<'_> {
         if symbol.module_id != module {
             return;
         }
-        if !self.inputs.contains_key(&module) {
+        if !self.modules.contains_key(&module) {
             return;
         }
         if self.is_import_symbol(module, symbol) {
@@ -68,7 +68,7 @@ impl CheckState<'_> {
         module: destack_source::ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> bool {
-        let bindings = self.input(module).binding_table();
+        let bindings = self.module(module).binding_table();
         let symbol = bindings.get_symbol(symbol.local_id);
         let scope = bindings.get_scope(symbol.scope);
 
@@ -85,7 +85,7 @@ impl CheckState<'_> {
         if symbol.module_id != module || function.module_id != module {
             return false;
         }
-        let bindings = self.input(module).binding_table();
+        let bindings = self.module(module).binding_table();
         let symbol = bindings.get_symbol(symbol.local_id);
         let mut scope = Some(symbol.scope.id);
 
@@ -102,14 +102,10 @@ impl CheckState<'_> {
         false
     }
 
-    /// Record the contextual receiver selected by one `this` expression.
-    fn record_this_receiver_resolution(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        receiver: ReceiverCapture,
-    ) {
+    /// Select the contextual receiver for one `this` expression.
+    fn select_this_receiver(&mut self, source: dir::GlobalNodeIdAny, receiver: ReceiverCapture) {
         let Some(owner) = receiver.owner else {
-            self.record_name_resolution(source, receiver.symbol);
+            self.select_name(source, receiver.symbol);
 
             return;
         };
@@ -120,6 +116,6 @@ impl CheckState<'_> {
             ty: receiver.ty,
         };
 
-        self.record_receiver_resolution(resolution);
+        self.select_receiver(resolution);
     }
 }

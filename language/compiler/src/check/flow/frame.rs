@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use indexmap::IndexSet;
 
-use crate::check::{FlowBranch, FlowCheckpoint, ReceiverCapture, VariableId};
+use crate::check::{FlowBranch, FlowCheckpoint, ReceiverCapture, TypeOperand, VariableId};
 
 /// A function body currently being walked.
 #[derive(Debug)]
@@ -40,7 +40,7 @@ pub(in crate::check) struct ControlTarget {
     /// The result type receiving break values.
     pub(in crate::check) result: VariableId,
     /// Break values collected while walking the control body.
-    pub(in crate::check) break_values: Vec<VariableId>,
+    pub(in crate::check) break_values: Vec<TypeOperand>,
     /// Flow branches collected at break sites.
     pub(in crate::check) break_branches: Vec<FlowBranch>,
     /// Flow branches collected at continue sites.
@@ -55,5 +55,5 @@ pub(in crate::check) struct TryTarget {
     /// The result type receiving propagated failures.
     pub(in crate::check) failure: VariableId,
     /// Failure values collected while walking the try body.
-    pub(in crate::check) failures: Vec<VariableId>,
+    pub(in crate::check) failures: Vec<TypeOperand>,
 }

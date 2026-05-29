@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    CheckState, ConstraintOrigin, FunctionParameter, FunctionTerm, GenericArgument,
-    ReceiverCapture, TermId, TypeRelation, TypeTerm, VariableId, VariableKind,
+    CheckState, FunctionParameter, FunctionTerm, GenericArgument, Origin, ReceiverCapture, TermId,
+    TypeOperand, TypeRelation, TypeTerm, VariableId, VariableKind,
 };
 
 impl CheckState<'_> {
@@ -21,7 +21,8 @@ impl CheckState<'_> {
             .collect();
         let this_parameter = signature
             .this_parameter
-            .and_then(|parameter| self.intern_parameter_type_variable(parameter, tree));
+            .and_then(|parameter| self.intern_parameter_type_variable(parameter, tree))
+            .map(TypeOperand::from);
 
         // collect runtime parameters
         let parameters = signature
@@ -35,7 +36,7 @@ impl CheckState<'_> {
             generic_parameters,
             this_parameter,
             parameters,
-            return_type,
+            return_type: return_type.map(TypeOperand::from),
             is_generator: signature.is_generator,
         };
 
@@ -57,7 +58,8 @@ impl CheckState<'_> {
             .collect();
         let this_parameter = declaration
             .this_parameter
-            .and_then(|parameter| self.intern_parameter_type_variable(parameter, tree));
+            .and_then(|parameter| self.intern_parameter_type_variable(parameter, tree))
+            .map(TypeOperand::from);
 
         // collect runtime parameters
         let parameters = declaration
@@ -71,7 +73,7 @@ impl CheckState<'_> {
             generic_parameters,
             this_parameter,
             parameters,
-            return_type,
+            return_type: return_type.map(TypeOperand::from),
             is_generator: false,
         };
 
@@ -104,7 +106,7 @@ impl CheckState<'_> {
             generic_parameters,
             this_parameter: None,
             parameters,
-            return_type,
+            return_type: return_type.map(TypeOperand::from),
             is_generator: false,
         };
 
@@ -128,28 +130,25 @@ impl CheckState<'_> {
         // build async result channel
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
             let source = body.into_global_any(tree.module_id);
-            let origin = ConstraintOrigin::Node(source);
+            let origin = Origin::Node(source);
             let completed =
-                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-            let Ok(symbol) = self.language_symbol(tree.module_id, dir::LanguageItem::Promise)
-            else {
-                return;
-            };
+                self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
+            let symbol = self.language_symbol(tree.module_id, dir::LanguageItem::Promise);
             let argument = GenericArgument::Type(completed.into());
             let promised = TypeTerm::Reference {
-                source: Some(source),
+                origin: Origin::Node(source),
                 symbol,
                 arguments: vec![argument].into(),
             };
-            let promised_variable =
-                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-            self.define_type(tree.module_id, promised_variable, promised);
+            let promised = self.terms.push(promised);
+            let condition = self.active_static_condition(tree.module_id);
 
-            self.constrain_type(
+            self.add_type_constraint(
                 origin,
                 TypeRelation::Assignable,
-                promised_variable,
+                promised,
                 return_type,
+                condition,
             );
             body_return_type = completed;
         }
@@ -157,13 +156,13 @@ impl CheckState<'_> {
         // build generator channels
         if signature.is_generator {
             let source = body.into_global_any(tree.module_id);
-            let origin = ConstraintOrigin::Node(source);
+            let origin = Origin::Node(source);
             let yielded =
-                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
+                self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
             let completed =
-                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
+                self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
             let resumed =
-                self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
+                self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -171,28 +170,25 @@ impl CheckState<'_> {
                 dir::Asynchrony::Async => dir::LanguageItem::AsyncGenerator,
             };
 
-            if let Ok(symbol) = self.language_symbol(tree.module_id, item) {
-                let yielded = GenericArgument::Type(yielded.into());
-                let completed = GenericArgument::Type(completed.into());
-                let resumed = GenericArgument::Type(resumed.into());
-                let generated = TypeTerm::Reference {
-                    source: Some(source),
-                    symbol,
-                    arguments: vec![yielded, completed, resumed].into(),
-                };
-                let generated_variable =
-                    self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-                self.define_type(tree.module_id, generated_variable, generated);
+            let symbol = self.language_symbol(tree.module_id, item);
+            let yielded_argument = GenericArgument::Type(yielded.into());
+            let completed_argument = GenericArgument::Type(completed.into());
+            let resumed_argument = GenericArgument::Type(resumed.into());
+            let generated = TypeTerm::Reference {
+                origin: Origin::Node(source),
+                symbol,
+                arguments: vec![yielded_argument, completed_argument, resumed_argument].into(),
+            };
+            let generated = self.terms.push(generated);
+            let condition = self.active_static_condition(tree.module_id);
 
-                self.constrain_type(
-                    origin,
-                    TypeRelation::Assignable,
-                    generated_variable,
-                    return_type,
-                );
-            } else {
-                return;
-            }
+            self.add_type_constraint(
+                origin,
+                TypeRelation::Assignable,
+                generated,
+                return_type,
+                condition,
+            );
 
             body_return_type = completed;
             yield_type = Some(yielded);
@@ -281,7 +277,7 @@ impl CheckState<'_> {
     ) -> Option<VariableId> {
         let parameter = tree.get(id);
 
-        self.record_generic_parameter_slot(tree.module_id, id, parameter)
+        self.bind_generic_parameter(tree.module_id, id, parameter)
     }
 
     /// Return the type variable for one runtime parameter.
@@ -300,9 +296,9 @@ impl CheckState<'_> {
 
         // contextual lambdas can receive a parameter type later
         let Some(declared_type) = parameter.declared_type() else {
-            return Some(self.intern_local_type_variable(tree.module_id, id));
+            return Some(self.intern_local_node_type_variable(tree.module_id, id));
         };
 
-        Some(self.intern_local_type_variable(tree.module_id, declared_type))
+        Some(self.intern_local_node_type_variable(tree.module_id, declared_type))
     }
 }

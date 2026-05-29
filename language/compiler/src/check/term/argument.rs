@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, StaticOperand, StaticRelation,
+    CheckState, Decision, GenericSubstitution, Origin, Progress, StaticOperand, StaticRelation,
     TypeOperand, TypeRelation, VariableId,
 };
 
@@ -294,6 +294,7 @@ impl CheckState<'_> {
     /// Constrain matching generic arguments by exact equality.
     pub(in crate::check) fn constrain_argument_list_equal(
         &mut self,
+        origin: Origin,
         left: &[GenericArgument],
         right: &[GenericArgument],
     ) -> CompilerResult<Progress> {
@@ -304,7 +305,7 @@ impl CheckState<'_> {
 
         // constrain matching argument slots
         for (left, right) in left.iter().zip(right) {
-            progress = progress.merge(self.constrain_argument_equal(left, right)?);
+            progress = progress.merge(self.constrain_argument_equal(origin, left, right)?);
         }
 
         Ok(progress)
@@ -313,13 +314,14 @@ impl CheckState<'_> {
     /// Constrain one generic argument by exact equality.
     fn constrain_argument_equal(
         &mut self,
+        origin: Origin,
         left: &GenericArgument,
         right: &GenericArgument,
     ) -> CompilerResult<Progress> {
         let progress = match (left, right) {
             (GenericArgument::Type(left), GenericArgument::Type(right))
             | (GenericArgument::SpreadType(left), GenericArgument::SpreadType(right)) => {
-                self.solve_type_equality(*left, *right)?
+                self.solve_type_equality(origin, *left, *right)?
             }
             (GenericArgument::Static(left), GenericArgument::Static(right))
             | (GenericArgument::SpreadStatic(left), GenericArgument::SpreadStatic(right)) => {
@@ -334,7 +336,7 @@ impl CheckState<'_> {
                     name: right_name,
                     value: right,
                 },
-            ) if left_name == right_name => self.solve_type_equality(*left, *right)?,
+            ) if left_name == right_name => self.solve_type_equality(origin, *left, *right)?,
             (
                 GenericArgument::AssociatedConst {
                     name: left_name,
@@ -348,7 +350,7 @@ impl CheckState<'_> {
             (left, right)
                 if let (Some(left), Some(right)) = (left.type_operand(), right.type_operand()) =>
             {
-                self.solve_type_equality(left, right)?
+                self.solve_type_equality(origin, left, right)?
             }
             (left, right)
                 if let (Some(left), Some(right)) =

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, ConstraintOrigin, ReceiverCapture, StaticTerm, TypeRelation, TypeTerm, VariableId,
+    CheckState, Origin, ReceiverCapture, StaticTerm, TypeRelation, TypeTerm, VariableId,
 };
 
 /// Receiver type available to instance members of one declaration.
@@ -57,10 +57,11 @@ impl CheckState<'_> {
                     *body,
                 );
                 if let Some(symbol) = symbol {
-                    let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
+                    let variable = self.intern_local_symbol_type_variable(tree.module_id, symbol);
                     let term = self.build_function_signature_term(signature, return_type, tree);
+                    let condition = self.active_static_condition(tree.module_id);
 
-                    self.define_type(tree.module_id, variable, TypeTerm::Function(term));
+                    self.add_type_definition(variable, TypeTerm::Function(term), condition);
                 }
 
                 self.walk_function_signature(tree, signature);
@@ -106,11 +107,12 @@ impl CheckState<'_> {
                 if let Some(value) = value
                     && let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any())
                 {
-                    let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
-                    let value = self.intern_local_type_variable(tree.module_id, *value);
+                    let variable = self.intern_local_symbol_type_variable(tree.module_id, symbol);
+                    let value = self.intern_local_node_type_variable(tree.module_id, *value);
                     let term = TypeTerm::Variable(value);
+                    let condition = self.active_static_condition(tree.module_id);
 
-                    self.define_type(tree.module_id, variable, term);
+                    self.add_type_definition(variable, term, condition);
                 }
 
                 // generic parameters
@@ -150,18 +152,24 @@ impl CheckState<'_> {
                 if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
                     // associated const type lives in type space
                     if let Some(declared_type) = declared_type {
-                        let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
-                        let declared_type = self.intern_local_type_variable(tree.module_id, *declared_type);
+                        let variable = self.intern_local_symbol_type_variable(tree.module_id, symbol);
+                        let declared_type = self.intern_local_node_type_variable(tree.module_id, *declared_type);
+                        let condition = self.active_static_condition(tree.module_id);
 
-                        self.define_type(tree.module_id, variable, TypeTerm::Variable(declared_type));
+                        self.add_type_definition(variable, TypeTerm::Variable(declared_type), condition);
                     }
 
                     // associated const value lives in static space
                     if let Some(value) = value {
                         let variable = self.intern_symbol_static_variable(tree.module_id, symbol);
-                        let value = self.define_static_expression_variable(tree.module_id, *value);
+                        let condition = self.active_static_condition(tree.module_id);
+                        let value = self.define_static_expression_variable(
+                            tree.module_id,
+                            *value,
+                            condition.clone(),
+                        );
 
-                        self.define_static(tree.module_id, variable, StaticTerm::Variable(value));
+                        self.add_static_definition(variable, StaticTerm::Variable(value), condition);
                     }
                 }
 
@@ -189,10 +197,11 @@ impl CheckState<'_> {
                 if let Some(declared_type) = declared_type {
                     if key.direct_static_key().is_some() {
                         if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
-                            let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
-                            let declared_type = self.intern_local_type_variable(tree.module_id, *declared_type);
+                            let variable = self.intern_local_symbol_type_variable(tree.module_id, symbol);
+                            let declared_type = self.intern_local_node_type_variable(tree.module_id, *declared_type);
+                            let condition = self.active_static_condition(tree.module_id);
 
-                            self.define_type(tree.module_id, variable, TypeTerm::Variable(declared_type));
+                            self.add_type_definition(variable, TypeTerm::Variable(declared_type), condition);
                         }
                     }
                 }
@@ -200,11 +209,12 @@ impl CheckState<'_> {
                 // defaults must fit the declared field type
                 if let (Some(declared_type), Some(default)) = (declared_type, default) {
                     let origin =
-                        ConstraintOrigin::Node((*default).into_global_any(tree.module_id));
-                    let value = self.intern_local_type_variable(tree.module_id, *default);
-                    let declared_type = self.intern_local_type_variable(tree.module_id, *declared_type);
+                        Origin::Node((*default).into_global_any(tree.module_id));
+                    let value = self.intern_local_node_type_variable(tree.module_id, *default);
+                    let declared_type = self.intern_local_node_type_variable(tree.module_id, *declared_type);
+                    let condition = self.active_static_condition(tree.module_id);
 
-                    self.constrain_type(origin, TypeRelation::Assignable, value, declared_type);
+                    self.add_type_constraint(origin, TypeRelation::Assignable, value, declared_type, condition);
                 }
 
                 // check computed member key in declaration context
@@ -248,15 +258,16 @@ impl CheckState<'_> {
                     self.member_receiver(tree, id, signature, *is_static, receiver_context);
                 let symbol = self.declaration_symbol(tree.module_id, id.into_any());
                 if let Some(symbol) = symbol {
-                    let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
+                    let variable = self.intern_local_symbol_type_variable(tree.module_id, symbol);
                     let return_type = self.method_return_type(tree.module_id, id, signature, *body, receiver);
                     let term = self.build_function_signature_term(signature, return_type, tree);
                     let function = self.terms.get_mut(term);
                     if function.this_parameter.is_none() && Self::method_type_uses_receiver(signature) {
-                        function.this_parameter = receiver.map(|receiver| receiver.ty);
+                        function.this_parameter = receiver.map(|receiver| receiver.ty.into());
                     }
+                    let condition = self.active_static_condition(tree.module_id);
 
-                    self.define_type(tree.module_id, variable, TypeTerm::Function(term));
+                    self.add_type_definition(variable, TypeTerm::Function(term), condition);
                 }
 
                 self.walk_function_signature(tree, signature);

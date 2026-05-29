@@ -58,6 +58,14 @@ impl<T: Term> Debug for Operand<T> {
 }
 
 impl Operand<TypeTerm> {
+    /// Return this operand as a type term.
+    pub(in crate::check) fn to_type_term(self, state: &CheckState<'_>) -> TypeTerm {
+        match self {
+            Self::Variable(variable) => TypeTerm::Variable(variable),
+            Self::Term(term) => state.terms.get(term).clone(),
+        }
+    }
+
     /// Return variables referenced by this operand.
     pub(in crate::check) fn referenced_variables(
         self,

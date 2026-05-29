@@ -1,11 +1,9 @@
-use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, StaticOperand, StaticRelation, StaticTerm,
-    VariableId,
+    CheckState, Decision, GenericSubstitution, Progress, StaticOperand, StaticRelation, VariableId,
 };
 
 /// Check-local memory form term.
@@ -142,9 +140,26 @@ impl CheckState<'_> {
 
         let decision = match (source, target) {
             (
-                FormTerm::Borrowed { access: source, .. },
-                FormTerm::Borrowed { access: target, .. },
-            ) => self.decide_access_assignable(*source, *target)?,
+                FormTerm::Borrowed {
+                    lifetime: source_lifetime,
+                    access: source_access,
+                },
+                FormTerm::Borrowed {
+                    lifetime: target_lifetime,
+                    access: target_access,
+                },
+            ) => {
+                let lifetime = self.decide_static_relation(
+                    StaticRelation::Assignable,
+                    *source_lifetime,
+                    *target_lifetime,
+                )?;
+                if lifetime != Decision::Yes {
+                    return Ok(lifetime);
+                }
+
+                self.decide_access_assignable(*source_access, *target_access)?
+            }
             (FormTerm::Placed { place: source }, FormTerm::Placed { place: target }) => {
                 self.decide_static_relation(StaticRelation::Equal, *source, *target)?
             }
@@ -164,18 +179,7 @@ impl CheckState<'_> {
         source: StaticOperand,
         target: StaticOperand,
     ) -> CompilerResult<Decision> {
-        let Some(source) = self.access_value(source)? else {
-            return Ok(Decision::Undecidable);
-        };
-        let Some(target) = self.access_value(target)? else {
-            return Ok(Decision::Undecidable);
-        };
-
-        if Self::access_rank(source) >= Self::access_rank(target) {
-            Ok(Decision::Yes)
-        } else {
-            Ok(Decision::No)
-        }
+        self.decide_static_relation(StaticRelation::Assignable, source, target)
     }
 
     /// Constrain two memory forms by equality.
@@ -223,8 +227,23 @@ impl CheckState<'_> {
             (FormTerm::Placed { place: source }, FormTerm::Placed { place: target }) => {
                 self.solve_static_equality(*source, *target)?
             }
-            (FormTerm::Borrowed { .. }, FormTerm::Borrowed { .. })
-            | (FormTerm::Managed, FormTerm::Managed)
+            (
+                FormTerm::Borrowed {
+                    lifetime: source_lifetime,
+                    access: source_access,
+                },
+                FormTerm::Borrowed {
+                    lifetime: target_lifetime,
+                    access: target_access,
+                },
+            ) => {
+                let lifetime =
+                    self.solve_static_assignability(*source_lifetime, *target_lifetime)?;
+                let access = self.solve_static_assignability(*source_access, *target_access)?;
+
+                lifetime.merge(access)
+            }
+            (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
             | (FormTerm::Raw, FormTerm::Raw)
             | (FormTerm::Readonly, FormTerm::Readonly) => Progress::Unchanged,
@@ -267,27 +286,5 @@ impl CheckState<'_> {
         };
 
         Ok(progress)
-    }
-
-    /// Return one solved access value.
-    fn access_value(&self, operand: StaticOperand) -> CompilerResult<Option<dir::Access>> {
-        let Some(term) = self.static_operand_term(operand)? else {
-            return Ok(None);
-        };
-        let access = match term {
-            StaticTerm::Literal(dir::StaticTerm::Access { access }) => Some(access),
-            _ => None,
-        };
-
-        Ok(access)
-    }
-
-    /// Return one access capability rank.
-    fn access_rank(access: dir::Access) -> u8 {
-        match access {
-            dir::Access::Readonly => 0,
-            dir::Access::Mutable => 1,
-            dir::Access::Exclusive => 2,
-        }
     }
 }

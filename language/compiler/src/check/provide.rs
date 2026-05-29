@@ -59,8 +59,8 @@ impl Compiler {
             .map_err(CompilerError::from)?;
 
         // check component
-        let mut check = CheckState::new(self, context, profile, component_modules, environment);
-        check.load()?;
+        let mut check = CheckState::new(self, context, profile, environment);
+        check.load(component_modules.as_slice())?;
         check.walk()?;
         check.prepare()?;
         check.solve()?;

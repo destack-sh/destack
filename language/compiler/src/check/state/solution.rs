@@ -2,42 +2,57 @@ use destack_dir as dir;
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckState, FunctionTerm, Layout, LayoutQuery, OperatorTermKind, Solution, TypeOperand,
+    CallInstantiation, CallInstantiationKey, CheckState, FunctionTerm, Layout, LayoutQuery,
+    OperatorTermKind, Solution, StaticOperand, TypeOperand,
 };
 
-use super::{GenericInstance, VariableBounds, VariableId};
+use super::{GenericInstance, VariableId};
 
-/// Solver solutions recorded for one check component.
+/// Solver solutions for one check component.
 #[derive(Debug)]
 pub(in crate::check) struct SolutionTable {
     /// Solved variable values.
-    pub(in crate::check) solution: IndexMap<VariableId, Solution>,
-    /// Variable relation bounds.
-    pub(in crate::check) bound: VariableBounds,
+    pub(in crate::check) variable: IndexMap<VariableId, Solution>,
+
+    /// Type operands that must be assignable to each variable.
+    pub(in crate::check) type_lower: IndexMap<VariableId, Vec<TypeOperand>>,
+    /// Type operands that each variable must be assignable to.
+    pub(in crate::check) type_upper: IndexMap<VariableId, Vec<TypeOperand>>,
+    /// Static operands that must be assignable to each variable.
+    pub(in crate::check) static_lower: IndexMap<VariableId, Vec<StaticOperand>>,
+    /// Static operands that each variable must be assignable to.
+    pub(in crate::check) static_upper: IndexMap<VariableId, Vec<StaticOperand>>,
+
     /// Runtime calls resolved or rejected by solve.
-    pub(in crate::check) call: IndexMap<dir::GlobalNodeIdAny, CallDecision>,
+    pub(in crate::check) call: IndexMap<dir::GlobalNodeIdAny, CallSelection>,
+    /// Call generic instantiations keyed by use site and selected target.
+    pub(in crate::check) call_instantiation: IndexMap<CallInstantiationKey, CallInstantiation>,
     /// Runtime construct expressions resolved or rejected by solve.
-    pub(in crate::check) construct: IndexMap<dir::GlobalNodeIdAny, ConstructDecision>,
+    pub(in crate::check) construct: IndexMap<dir::GlobalNodeIdAny, ConstructSelection>,
     /// Runtime operators resolved or rejected by solve.
-    pub(in crate::check) operator: IndexMap<dir::GlobalNodeIdAny, OperatorDecision>,
+    pub(in crate::check) operator: IndexMap<dir::GlobalNodeIdAny, OperatorSelection>,
     /// Runtime identity checks resolved or rejected by solve.
-    pub(in crate::check) identity: IndexMap<dir::GlobalNodeIdAny, IdentityDecision>,
+    pub(in crate::check) identity: IndexMap<dir::GlobalNodeIdAny, IdentitySelection>,
     /// Layout queries resolved or rejected by solve.
-    pub(in crate::check) layout: IndexMap<dir::GlobalNodeIdAny, LayoutDecision>,
+    pub(in crate::check) layout: IndexMap<dir::GlobalNodeIdAny, LayoutSelection>,
     /// Runtime members resolved or rejected by solve.
-    pub(in crate::check) member: IndexMap<dir::GlobalNodeIdAny, MemberDecision>,
+    pub(in crate::check) member: IndexMap<dir::GlobalNodeIdAny, MemberSelection>,
     /// Contextual receivers resolved by check.
-    pub(in crate::check) receiver: IndexMap<dir::GlobalNodeIdAny, ReceiverDecision>,
+    pub(in crate::check) receiver: IndexMap<dir::GlobalNodeIdAny, ReceiverSelection>,
     /// Lexical names resolved by check.
-    pub(in crate::check) name: IndexMap<dir::GlobalNodeIdAny, NameDecision>,
+    pub(in crate::check) name: IndexMap<dir::GlobalNodeIdAny, NameSelection>,
 }
 
 impl SolutionTable {
     /// Create empty solver solutions.
     pub(in crate::check) fn new() -> Self {
         Self {
-            solution: IndexMap::new(),
-            bound: VariableBounds::new(),
+            variable: IndexMap::new(),
+            call_instantiation: IndexMap::new(),
+            type_lower: IndexMap::new(),
+            type_upper: IndexMap::new(),
+            static_lower: IndexMap::new(),
+            static_upper: IndexMap::new(),
             call: IndexMap::new(),
             construct: IndexMap::new(),
             operator: IndexMap::new(),
@@ -47,6 +62,22 @@ impl SolutionTable {
             receiver: IndexMap::new(),
             name: IndexMap::new(),
         }
+    }
+}
+
+impl CheckState<'_> {
+    /// Insert one solution known before ordinary solver reduction.
+    pub(in crate::check) fn insert_known_solution(
+        &mut self,
+        variable: VariableId,
+        solution: Solution,
+    ) {
+        let previous = self.solutions.variable.insert(variable, solution);
+
+        assert!(
+            previous.is_none(),
+            "check variable {variable:?} already has a known solution"
+        );
     }
 }
 
@@ -68,7 +99,7 @@ impl NameResolution {
 
 /// Lexical name decision selected by check.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) enum NameDecision {
+pub(in crate::check) enum NameSelection {
     /// One lexical name was resolved.
     Resolved(NameResolution),
 }
@@ -88,7 +119,7 @@ pub(in crate::check) struct ReceiverResolution {
 
 /// Contextual receiver decision selected by check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum ReceiverDecision {
+pub(in crate::check) enum ReceiverSelection {
     /// One contextual receiver was resolved.
     Resolved(ReceiverResolution),
 }
@@ -98,8 +129,6 @@ pub(in crate::check) enum ReceiverDecision {
 pub(in crate::check) struct CallResolution {
     /// The source call expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The member expression node when a member call was resolved.
-    pub(in crate::check) member_source: Option<dir::GlobalNodeIdAny>,
     /// The resolved call target.
     pub(in crate::check) target: CallResolutionTarget,
     /// The resolved function signature.
@@ -117,6 +146,13 @@ pub(in crate::check) enum CallResolutionTarget {
         symbol: dir::GlobalSymbolId,
         /// The resolved generic instance.
         instance: Option<GenericInstance>,
+        /// The resolved receiver type for method calls.
+        receiver: Option<VariableId>,
+    },
+    /// Symbol-backed callable variants selected from a union receiver.
+    Select {
+        /// The resolved callable candidates.
+        candidates: Vec<SymbolCandidate>,
         /// The resolved receiver type for method calls.
         receiver: Option<VariableId>,
     },
@@ -141,9 +177,22 @@ impl CallResolutionTarget {
                 symbol: _,
                 instance: _,
                 receiver: _,
+            }
+            | Self::Select {
+                candidates: _,
+                receiver: _,
             } => (None, None),
         }
     }
+}
+
+/// One symbol-backed candidate selected by check.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct SymbolCandidate {
+    /// The selected declaration symbol.
+    pub(in crate::check) symbol: dir::GlobalSymbolId,
+    /// The selected generic instance.
+    pub(in crate::check) instance: Option<GenericInstance>,
 }
 
 /// Runtime call failure resolved by the solver.
@@ -162,9 +211,19 @@ pub(in crate::check) enum CallFailure {
     },
 }
 
+impl From<ConstructFailure> for CallFailure {
+    /// Convert construct failure detail to call failure detail.
+    fn from(failure: ConstructFailure) -> Self {
+        match failure {
+            ConstructFailure::NotConstructible => Self::NotCallable,
+            ConstructFailure::NoMatch => Self::NoMatch,
+        }
+    }
+}
+
 /// Runtime call decision resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum CallDecision {
+pub(in crate::check) enum CallSelection {
     /// One call target resolved.
     Resolved(CallResolution),
     /// Call resolution failed.
@@ -193,9 +252,19 @@ pub(in crate::check) enum ConstructFailure {
     NoMatch,
 }
 
+impl From<CallFailure> for ConstructFailure {
+    /// Convert call failure detail to construct failure detail.
+    fn from(failure: CallFailure) -> Self {
+        match failure {
+            CallFailure::NotCallable => Self::NotConstructible,
+            CallFailure::NoMatch | CallFailure::ArgumentType { .. } => Self::NoMatch,
+        }
+    }
+}
+
 /// Runtime construct decision resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum ConstructDecision {
+pub(in crate::check) enum ConstructSelection {
     /// One construct target resolved.
     Resolved(ConstructResolution),
     /// Construct resolution failed.
@@ -253,7 +322,7 @@ pub(in crate::check) enum OperatorFailureReason {
 
 /// Runtime operator decision resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum OperatorDecision {
+pub(in crate::check) enum OperatorSelection {
     /// One operator target resolved.
     Resolved(OperatorResolution),
     /// Operator resolution failed.
@@ -280,7 +349,7 @@ pub(in crate::check) enum IdentityFailure {
 
 /// Runtime identity equality decision resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum IdentityDecision {
+pub(in crate::check) enum IdentitySelection {
     /// One identity comparison resolved.
     Resolved(IdentityResolution),
     /// Identity comparison resolution failed.
@@ -313,7 +382,7 @@ pub(in crate::check) struct LayoutFailure {
 
 /// Layout query decision resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum LayoutDecision {
+pub(in crate::check) enum LayoutSelection {
     /// One layout resolved.
     Resolved(LayoutResolution),
     /// Layout resolution failed.
@@ -340,7 +409,7 @@ pub(in crate::check) enum MemberFailure {
 
 /// Runtime member decision resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum MemberDecision {
+pub(in crate::check) enum MemberSelection {
     /// One member target resolved.
     Resolved(MemberResolution),
     /// Member resolution failed.
@@ -350,6 +419,8 @@ pub(in crate::check) enum MemberDecision {
 /// Solved member target resolved by the solver.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum MemberResolutionTarget {
+    /// Compiler builtin member behavior.
+    Builtin(dir::BuiltinMember),
     /// Structural field resolved from a shape type.
     Field(dir::StaticKey),
     /// Symbol-backed member resolved from a nominal type.
@@ -359,76 +430,78 @@ pub(in crate::check) enum MemberResolutionTarget {
         /// The resolved generic instance.
         instance: Option<GenericInstance>,
     },
+    /// Symbol-backed members selected from a union receiver.
+    Select(Vec<SymbolCandidate>),
 }
 
 impl CheckState<'_> {
-    /// Record one call decision.
-    pub(in crate::check) fn record_call_decision(
+    /// Select one call decision.
+    pub(in crate::check) fn select_call(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        decision: CallDecision,
+        decision: CallSelection,
     ) {
         self.solutions.call.insert(source, decision);
     }
 
-    /// Record one construct decision.
-    pub(in crate::check) fn record_construct_decision(
+    /// Select one construct decision.
+    pub(in crate::check) fn select_construct(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        decision: ConstructDecision,
+        decision: ConstructSelection,
     ) {
         self.solutions.construct.insert(source, decision);
     }
 
-    /// Record one operator decision.
-    pub(in crate::check) fn record_operator_decision(&mut self, decision: OperatorDecision) {
+    /// Select one operator decision.
+    pub(in crate::check) fn select_operator(&mut self, decision: OperatorSelection) {
         let source = match &decision {
-            OperatorDecision::Resolved(operator) => match operator {
+            OperatorSelection::Resolved(operator) => match operator {
                 OperatorResolution::Builtin { source, .. }
                 | OperatorResolution::Method { source, .. } => *source,
             },
-            OperatorDecision::Rejected(failure) => failure.source,
+            OperatorSelection::Rejected(failure) => failure.source,
         };
 
         self.solutions.operator.insert(source, decision);
     }
 
-    /// Record one identity equality decision.
-    pub(in crate::check) fn record_identity_decision(
+    /// Select one identity equality decision.
+    pub(in crate::check) fn select_identity(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        decision: IdentityDecision,
+        decision: IdentitySelection,
     ) {
         self.solutions.identity.insert(source, decision);
     }
 
-    /// Record one concrete layout decision.
-    pub(in crate::check) fn record_layout_decision(
+    /// Select one concrete layout decision.
+    pub(in crate::check) fn select_layout(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        decision: LayoutDecision,
+        decision: LayoutSelection,
     ) {
         self.solutions.layout.insert(source, decision);
     }
 
-    /// Record one member decision.
-    pub(in crate::check) fn record_member_decision(
+    /// Select one member decision.
+    pub(in crate::check) fn select_member(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        decision: MemberDecision,
+        decision: MemberSelection,
     ) {
         self.solutions.member.insert(source, decision);
     }
 
-    /// Record one receiver resolution.
-    pub(in crate::check) fn record_receiver_resolution(&mut self, receiver: ReceiverResolution) {
+    /// Select one receiver resolution.
+    pub(in crate::check) fn select_receiver(&mut self, receiver: ReceiverResolution) {
         self.solutions
             .receiver
-            .insert(receiver.source, ReceiverDecision::Resolved(receiver));
+            .insert(receiver.source, ReceiverSelection::Resolved(receiver));
     }
 
-    /// Record one lexical name resolution.
-    pub(in crate::check) fn record_name_resolution(
+    /// Select one lexical name resolution.
+    pub(in crate::check) fn select_name(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -437,6 +510,6 @@ impl CheckState<'_> {
 
         self.solutions
             .name
-            .insert(source, NameDecision::Resolved(resolution));
+            .insert(source, NameSelection::Resolved(resolution));
     }
 }

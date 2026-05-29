@@ -4,12 +4,12 @@ use destack_source::{DiagnosticCollection, ModuleId};
 use indexmap::IndexSet;
 
 use crate::check::{
-    CallDecision, CallFailure, CheckError, CheckState, Constraint, ConstraintOrigin,
-    ConstructDecision, ConstructFailure, Definition, IdentityDecision, OperatorDecision,
-    OperatorFailureReason, OperatorTerm, OperatorTermKind, StaticRelation, StaticTerm,
-    TypeRelation, TypeTerm, VariableId,
+    CallFailure, CallSelection, CheckError, CheckState, Constraint, ConstructFailure,
+    ConstructSelection, Decision, Definition, IdentitySelection, OperatorFailureReason,
+    OperatorSelection, OperatorTerm, OperatorTermKind, Origin, ShapeMember, StaticRelation,
+    StaticTerm, TypeLiteralTerm, TypeRelation, TypeTerm, VariableId,
 };
-use crate::{CompilerError, CompilerResult, DiagnosticAnchor};
+use crate::{CompilerResult, DiagnosticAnchor};
 
 /// Source-only type markers that cannot be committed as DIR types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,34 +33,44 @@ impl TypeTermMarker {
 impl CheckState<'_> {
     /// Collect final diagnostics for one checked component.
     pub(in crate::check) fn collect_diagnostics(&mut self) -> CompilerResult<DiagnosticCollection> {
-        self.collect_definition_diagnostics()?;
-        self.collect_constraint_diagnostics()?;
-        self.collect_decision_diagnostics()?;
-        self.check_obligations()?;
+        let mut diagnostics = Vec::new();
+
+        self.collect_walk_diagnostics(&mut diagnostics);
+        self.collect_definition_diagnostics(&mut diagnostics)?;
+        self.collect_constraint_diagnostics(&mut diagnostics)?;
+        diagnostics.extend(self.check_obligations()?);
 
         let mut collection = DiagnosticCollection::new();
-        let modules = self.component_modules.clone();
 
-        // drain diagnostics in stable component order
-        for module in modules {
-            let diagnostics = std::mem::take(self.diagnostics_mut(module));
-
-            for diagnostic in diagnostics {
-                collection.insert(diagnostic.to_diagnostic(self.context)?);
-            }
+        // render diagnostics in production order
+        for diagnostic in diagnostics {
+            collection.insert(diagnostic.to_diagnostic(self.context)?);
         }
 
         Ok(collection)
     }
 
+    /// Collect diagnostics reported during walk.
+    fn collect_walk_diagnostics(&mut self, diagnostics: &mut Vec<CheckError>) {
+        let modules = self.modules.keys().copied().collect::<Vec<_>>();
+
+        // drain walk diagnostics in stable module order
+        for module in modules {
+            diagnostics.append(&mut self.module_mut(module).diagnostics);
+        }
+    }
+
     /// Collect diagnostics for definitions that did not solve.
-    fn collect_definition_diagnostics(&mut self) -> CompilerResult<()> {
+    fn collect_definition_diagnostics(
+        &mut self,
+        diagnostics: &mut Vec<CheckError>,
+    ) -> CompilerResult<()> {
         let definitions = self.variables.definitions.clone();
         let mut reported = IndexSet::new();
 
         // validate solved definitions
         for definition in definitions {
-            self.collect_definition_diagnostic(&definition, &mut reported)?;
+            self.collect_definition_diagnostic(&definition, diagnostics, &mut reported)?;
         }
 
         Ok(())
@@ -70,25 +80,16 @@ impl CheckState<'_> {
     fn collect_definition_diagnostic(
         &mut self,
         definition: &Definition,
+        diagnostics: &mut Vec<CheckError>,
         reported: &mut IndexSet<VariableId>,
     ) -> CompilerResult<()> {
         let condition = match definition {
             Definition::Type { condition, .. } | Definition::Static { condition, .. } => condition,
         };
-        match self.decide_static_condition(condition)? {
-            crate::check::Decision::No => return Ok(()),
-            crate::check::Decision::Undecidable => {
-                let origin = match definition {
-                    Definition::Type { origin, .. } | Definition::Static { origin, .. } => *origin,
-                };
-                let diagnostic = self.static_diagnostic(origin)?;
-                let module = self.diagnostic_module(origin);
-
-                self.diagnostics_mut(module).push(diagnostic);
-
-                return Ok(());
-            }
-            crate::check::Decision::Yes => {}
+        match self.reduce_condition_decision(condition)? {
+            Decision::No => return Ok(()),
+            Decision::Undecidable => return Ok(()),
+            Decision::Yes => {}
         }
 
         match definition {
@@ -99,7 +100,13 @@ impl CheckState<'_> {
                 condition: _,
             } => {
                 let term = self.terms.get(*term).clone();
-                self.collect_type_definition_diagnostic(*result, &term, *origin, reported)?;
+                self.collect_type_definition_diagnostic(
+                    *result,
+                    &term,
+                    *origin,
+                    diagnostics,
+                    reported,
+                )?;
             }
             Definition::Static {
                 result,
@@ -108,7 +115,13 @@ impl CheckState<'_> {
                 condition: _,
             } => {
                 let term = self.terms.get(*term).clone();
-                self.collect_static_definition_diagnostic(*result, &term, *origin, reported)?;
+                self.collect_static_definition_diagnostic(
+                    *result,
+                    &term,
+                    *origin,
+                    diagnostics,
+                    reported,
+                )?;
             }
         }
 
@@ -120,32 +133,30 @@ impl CheckState<'_> {
         &mut self,
         result: VariableId,
         term: &TypeTerm,
-        origin: ConstraintOrigin,
+        origin: Origin,
+        diagnostics: &mut Vec<CheckError>,
         reported: &mut IndexSet<VariableId>,
     ) -> CompilerResult<()> {
         if self.type_term_contains_marker(term, TypeTermMarker::Intrinsic)? {
             let diagnostic = self.invalid_intrinsic_type_diagnostic(origin)?;
-            let module = self.diagnostic_module(origin);
 
-            self.diagnostics_mut(module).push(diagnostic);
+            diagnostics.push(diagnostic);
 
             return Ok(());
         }
 
         if self.type_term_contains_marker(term, TypeTermMarker::Const)? {
             let diagnostic = self.invalid_const_type_diagnostic(origin)?;
-            let module = self.diagnostic_module(origin);
 
-            self.diagnostics_mut(module).push(diagnostic);
+            diagnostics.push(diagnostic);
 
             return Ok(());
         }
 
         if self.solved_type_term(result)?.is_none() && reported.insert(result) {
             let diagnostic = self.type_term_failure_diagnostic(term, origin)?;
-            let module = self.diagnostic_module(origin);
 
-            self.diagnostics_mut(module).push(diagnostic);
+            diagnostics.push(diagnostic);
         }
 
         Ok(())
@@ -194,7 +205,8 @@ impl CheckState<'_> {
         &mut self,
         result: VariableId,
         term: &StaticTerm,
-        origin: ConstraintOrigin,
+        origin: Origin,
+        diagnostics: &mut Vec<CheckError>,
         reported: &mut IndexSet<VariableId>,
     ) -> CompilerResult<()> {
         let solved = self.solved_static_term(result)?;
@@ -202,7 +214,7 @@ impl CheckState<'_> {
             (Some(StaticTerm::Literal(_)), StaticTerm::Expression(_)) => true,
             (Some(value), expected) => {
                 self.decide_static_term_relation(StaticRelation::Equal, value, expected)?
-                    != crate::check::Decision::No
+                    != Decision::No
             }
             (None, _) => false,
         };
@@ -210,7 +222,7 @@ impl CheckState<'_> {
         if !is_valid && reported.insert(result) {
             let diagnostic = self.static_term_failure_diagnostic(term, origin)?;
 
-            self.diagnostics_mut(result.module).push(diagnostic);
+            diagnostics.push(diagnostic);
         }
 
         Ok(())
@@ -220,12 +232,13 @@ impl CheckState<'_> {
     fn static_term_failure_diagnostic(
         &self,
         term: &StaticTerm,
-        origin: ConstraintOrigin,
+        origin: Origin,
     ) -> CompilerResult<CheckError> {
         match term {
             StaticTerm::Layout(_) => self.layout_not_realizable_diagnostic(origin),
             StaticTerm::Literal(_)
             | StaticTerm::Variable(_)
+            | StaticTerm::Parameter(_)
             | StaticTerm::Expression(_)
             | StaticTerm::Member { .. }
             | StaticTerm::Join { .. }
@@ -237,31 +250,31 @@ impl CheckState<'_> {
     }
 
     /// Collect diagnostics for final constraint decisions.
-    fn collect_constraint_diagnostics(&mut self) -> CompilerResult<()> {
+    fn collect_constraint_diagnostics(
+        &mut self,
+        diagnostics: &mut Vec<CheckError>,
+    ) -> CompilerResult<()> {
         let constraints = self.variables.constraints.clone();
 
         // render rejected constraints
         for constraint in constraints {
-            self.collect_constraint_diagnostic(&constraint)?;
+            self.collect_constraint_diagnostic(&constraint, diagnostics)?;
         }
 
         Ok(())
     }
 
     /// Collect one constraint diagnostic.
-    fn collect_constraint_diagnostic(&mut self, constraint: &Constraint) -> CompilerResult<()> {
+    fn collect_constraint_diagnostic(
+        &mut self,
+        constraint: &Constraint,
+        diagnostics: &mut Vec<CheckError>,
+    ) -> CompilerResult<()> {
         let condition = constraint.condition();
-        match self.decide_static_condition(&condition)? {
-            crate::check::Decision::No => return Ok(()),
-            crate::check::Decision::Undecidable => {
-                let diagnostic = self.static_diagnostic(constraint.origin())?;
-                let module = self.diagnostic_module(constraint.origin());
-
-                self.diagnostics_mut(module).push(diagnostic);
-
-                return Ok(());
-            }
-            crate::check::Decision::Yes => {}
+        match self.reduce_condition_decision(&condition)? {
+            Decision::No => return Ok(()),
+            Decision::Undecidable => return Ok(()),
+            Decision::Yes => {}
         }
 
         match constraint {
@@ -272,27 +285,31 @@ impl CheckState<'_> {
                 origin,
                 condition: _,
             } => {
-                let decision = self.decide_type_relation(*relation, *left, *right)?;
-                if decision != crate::check::Decision::Yes {
-                    let diagnostic = self.type_relation_diagnostic(*relation, *origin)?;
-                    let module = self.diagnostic_module(*origin);
+                let left = self.reduce_type_operand(*origin, *left)?;
+                let right = self.reduce_type_operand(*origin, *right)?;
+                if let (
+                    TypeRelation::Assignable,
+                    Some(TypeTerm::Shape { members: left }),
+                    Some(TypeTerm::Shape { members: right }),
+                ) = (*relation, &left, &right)
+                    && let Some(diagnostic) =
+                        self.fresh_object_excess_property_diagnostic(*origin, left, right)?
+                {
+                    diagnostics.push(diagnostic);
 
-                    self.diagnostics_mut(module).push(diagnostic);
+                    return Ok(());
                 }
-            }
-            Constraint::Static {
-                relation,
-                left,
-                right,
-                origin,
-                condition: _,
-            } => {
-                let decision = self.decide_static_relation(*relation, *left, *right)?;
-                if decision != crate::check::Decision::Yes {
-                    let diagnostic = self.static_diagnostic(*origin)?;
-                    let module = self.diagnostic_module(*origin);
 
-                    self.diagnostics_mut(module).push(diagnostic);
+                let decision = match (left, right) {
+                    (Some(left), Some(right)) => {
+                        self.decide_type_term_relation(*relation, &left, &right)?
+                    }
+                    _ => Decision::Undecidable,
+                };
+                if decision != Decision::Yes {
+                    let diagnostic = self.type_relation_diagnostic(*relation, *origin)?;
+
+                    diagnostics.push(diagnostic);
                 }
             }
             Constraint::Pattern {
@@ -301,12 +318,12 @@ impl CheckState<'_> {
                 origin,
                 condition: _,
             } => {
-                let decision = self.decide_pattern_relation(*value, relation)?;
-                if decision != crate::check::Decision::Yes {
+                let decision = self.reduce_pattern_relation(*origin, *value, relation)?;
+                if decision != Decision::Yes {
                     let diagnostic =
                         self.type_relation_diagnostic(TypeRelation::Satisfies, *origin)?;
 
-                    self.diagnostics_mut(value.module).push(diagnostic);
+                    diagnostics.push(diagnostic);
                 }
             }
         }
@@ -314,95 +331,136 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Collect diagnostics from rejected solver decisions.
-    fn collect_decision_diagnostics(&mut self) -> CompilerResult<()> {
-        let identities = self.solutions.identity.clone();
-        let calls = self.solutions.call.clone();
-        let constructs = self.solutions.construct.clone();
-        let operators = self.solutions.operator.clone();
-        let members = self.solutions.member.clone();
-        let layouts = self.solutions.layout.clone();
+    /// Return an excess property diagnostic for a fresh object literal.
+    fn fresh_object_excess_property_diagnostic(
+        &self,
+        origin: Origin,
+        source: &[ShapeMember],
+        target: &[ShapeMember],
+    ) -> CompilerResult<Option<CheckError>> {
+        let Origin::Node(source_node) = origin else {
+            return Ok(None);
+        };
+        if source_node.local_id.ty != dir::NodeType::Expression {
+            return Ok(None);
+        }
 
-        // render identity failures
-        for (source, decision) in identities {
-            if matches!(decision, IdentityDecision::Rejected(_)) {
-                let diagnostic =
-                    self.invalid_strict_equality_diagnostic(ConstraintOrigin::Node(source))?;
+        let module = source_node.module_id;
+        let expression = source_node.local_id.into_typed::<dir::Expression>();
+        let object_properties = {
+            let view = self.module(module).view();
+            let dir::Expression::ObjectExpression { properties } = view.get(expression) else {
+                return Ok(None);
+            };
 
-                self.diagnostics_mut(source.module_id).push(diagnostic);
+            properties.clone()
+        };
+
+        for property in object_properties {
+            let extra = self.fresh_object_excess_property(module, property, source, target)?;
+            if let Some((source, key)) = extra {
+                let anchor = self.diagnostic_anchor(module, source);
+                let key = self.static_key_label(module, key);
+                let diagnostic = CheckError::ExcessProperty {
+                    anchor,
+                    module,
+                    key,
+                };
+
+                return Ok(Some(diagnostic));
             }
         }
 
-        // render call failures
-        for (source, decision) in calls {
-            if let CallDecision::Rejected(failure) = decision {
-                let diagnostic =
-                    self.call_failure_diagnostic(source, ConstraintOrigin::Node(source), failure)?;
+        Ok(None)
+    }
 
-                self.diagnostics_mut(source.module_id).push(diagnostic);
+    /// Return one excess property from a fresh object literal.
+    fn fresh_object_excess_property(
+        &self,
+        module: ModuleId,
+        property: dir::LocalNodeId<dir::Property>,
+        source: &[ShapeMember],
+        target: &[ShapeMember],
+    ) -> CompilerResult<Option<(dir::LocalNodeIdAny, dir::StaticKey)>> {
+        let view = self.module(module).view();
+        let Some(key) = view.get(property).key() else {
+            return Ok(None);
+        };
+        let Some(key) = key.static_key(view.tree()) else {
+            return Ok(None);
+        };
+
+        if self.shape_field_type(source, key).is_none() {
+            return Ok(None);
+        }
+        if self.shape_accepts_key(target, key)? {
+            return Ok(None);
+        }
+
+        Ok(Some((property.into_any(), key)))
+    }
+
+    /// Return whether a target shape can accept one property key.
+    fn shape_accepts_key(
+        &self,
+        target: &[ShapeMember],
+        key: dir::StaticKey,
+    ) -> CompilerResult<bool> {
+        if self.shape_field_type(target, key).is_some() {
+            return Ok(true);
+        }
+
+        for member in target {
+            let ShapeMember::IndexSignature { key_type, .. } = member else {
+                continue;
+            };
+            let key_type = key_type.to_type_term(self);
+            let key = Self::static_key_type_term(key);
+            let decision =
+                self.decide_type_term_relation(TypeRelation::Assignable, &key, &key_type)?;
+            if decision != Decision::No {
+                return Ok(true);
             }
         }
 
-        // render construct failures
-        for (source, decision) in constructs {
-            if let ConstructDecision::Rejected(failure) = decision {
-                let diagnostic = self.construct_failure_diagnostic(
-                    source,
-                    ConstraintOrigin::Node(source),
-                    failure,
-                )?;
+        Ok(false)
+    }
 
-                self.diagnostics_mut(source.module_id).push(diagnostic);
+    /// Return a literal type term for a static property key.
+    fn static_key_type_term(key: dir::StaticKey) -> TypeTerm {
+        let literal = match key {
+            dir::StaticKey::Name(name) => TypeLiteralTerm::Scalar(dir::ScalarLiteral::String(name)),
+            dir::StaticKey::Index(index) => i64::try_from(index)
+                .map(|index| TypeLiteralTerm::Scalar(dir::ScalarLiteral::Integer(index)))
+                .unwrap_or_else(|_| TypeLiteralTerm::integer()),
+            dir::StaticKey::Symbol(_) => {
+                TypeLiteralTerm::Primitive(dir::PrimitiveType::UniqueSymbol)
             }
+        };
+
+        TypeTerm::Literal(literal)
+    }
+
+    /// Return a label for a static property key.
+    fn static_key_label(&self, module: ModuleId, key: dir::StaticKey) -> String {
+        match key {
+            dir::StaticKey::Name(name) => self.module(module).strings.get(name).to_owned(),
+            dir::StaticKey::Index(index) => format!("#{index}"),
+            dir::StaticKey::Symbol(symbol) => symbol.debug_string(&self.module(module).strings),
         }
-
-        // render operator failures
-        for (source, decision) in operators {
-            if let OperatorDecision::Rejected(failure) = decision {
-                let diagnostic = self.operator_failure_diagnostic(
-                    failure.kind,
-                    failure.reason,
-                    ConstraintOrigin::Node(source),
-                )?;
-
-                self.diagnostics_mut(source.module_id).push(diagnostic);
-            }
-        }
-
-        // render member failures
-        for (source, decision) in members {
-            if let crate::check::MemberDecision::Rejected(_) = decision {
-                let diagnostic = self.type_diagnostic(ConstraintOrigin::Node(source))?;
-
-                self.diagnostics_mut(source.module_id).push(diagnostic);
-            }
-        }
-
-        // render layout failures
-        for (source, decision) in layouts {
-            if matches!(decision, crate::check::LayoutDecision::Rejected(_)) {
-                let diagnostic =
-                    self.layout_not_realizable_diagnostic(ConstraintOrigin::Node(source))?;
-
-                self.diagnostics_mut(source.module_id).push(diagnostic);
-            }
-        }
-
-        Ok(())
     }
 
     /// Return a diagnostic for one failed type term.
     fn type_term_failure_diagnostic(
         &self,
         term: &TypeTerm,
-        origin: ConstraintOrigin,
+        origin: Origin,
     ) -> CompilerResult<CheckError> {
         let diagnostic = match term {
             TypeTerm::Member(member) => {
                 let member = self.terms.get(*member);
-                let origin = member.source.map_or(origin, ConstraintOrigin::Node);
 
-                self.missing_member_diagnostic(origin, member.key)?
+                self.missing_member_diagnostic(member.origin, member.key)?
             }
             TypeTerm::Call(call) => {
                 let call = self.terms.get(*call);
@@ -442,52 +500,52 @@ impl CheckState<'_> {
             TypeTerm::RangeValue(range) => {
                 let range = self.terms.get(*range);
 
-                self.type_diagnostic(ConstraintOrigin::Node(range.source))?
+                self.type_diagnostic(Origin::Node(range.source))?
             }
             TypeTerm::Tree(tree) => {
                 let tree = self.terms.get(*tree);
 
-                self.type_diagnostic(ConstraintOrigin::Node(tree.source))?
+                self.type_diagnostic(Origin::Node(tree.source))?
             }
             TypeTerm::TypeValue(value) => {
                 let value = self.terms.get(*value);
 
-                self.type_diagnostic(ConstraintOrigin::Node(value.source))?
+                self.type_diagnostic(Origin::Node(value.source))?
             }
             TypeTerm::ImportMeta(meta) => {
                 let meta = self.terms.get(*meta);
 
-                self.type_diagnostic(ConstraintOrigin::Node(meta.source))?
+                self.type_diagnostic(Origin::Node(meta.source))?
             }
             TypeTerm::Receiver(receiver) => {
                 let receiver = self.terms.get(*receiver);
 
-                self.type_diagnostic(ConstraintOrigin::Node(receiver.source))?
+                self.type_diagnostic(Origin::Node(receiver.source))?
             }
             TypeTerm::Super(term) => {
                 let term = self.terms.get(*term);
 
-                self.type_diagnostic(ConstraintOrigin::Node(term.source))?
+                self.type_diagnostic(Origin::Node(term.source))?
             }
             TypeTerm::KeyMembership(membership) => {
                 let membership = self.terms.get(*membership);
 
-                self.type_diagnostic(ConstraintOrigin::Node(membership.source))?
+                self.type_diagnostic(Origin::Node(membership.source))?
             }
             TypeTerm::InstanceCheck(instance) => {
                 let instance = self.terms.get(*instance);
 
-                self.type_diagnostic(ConstraintOrigin::Node(instance.source))?
+                self.type_diagnostic(Origin::Node(instance.source))?
             }
             TypeTerm::Yield(yielded) => {
                 let yielded = self.terms.get(*yielded);
 
-                self.type_diagnostic(ConstraintOrigin::Node(yielded.source))?
+                self.type_diagnostic(Origin::Node(yielded.source))?
             }
             TypeTerm::Template(template) => {
                 let template = self.terms.get(*template);
 
-                self.type_diagnostic(ConstraintOrigin::Node(template.source))?
+                self.type_diagnostic(Origin::Node(template.source))?
             }
             TypeTerm::TaggedTemplate(template) => {
                 let template = self.terms.get(*template);
@@ -503,7 +561,7 @@ impl CheckState<'_> {
 
     /// Return the diagnostic for one failed await expression.
     fn await_failure_diagnostic(&self, source: dir::GlobalNodeIdAny) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(ConstraintOrigin::Node(source))?;
+        let (module, anchor) = self.anchor(Origin::Node(source));
 
         Ok(CheckError::InvalidAwait {
             anchor,
@@ -518,11 +576,11 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<CheckError> {
         match self.solutions.identity.get(&source) {
-            Some(IdentityDecision::Rejected(_)) => {
-                self.invalid_strict_equality_diagnostic(ConstraintOrigin::Node(source))
+            Some(IdentitySelection::Rejected(_)) => {
+                self.invalid_strict_equality_diagnostic(Origin::Node(source))
             }
-            Some(IdentityDecision::Resolved(_)) | None => {
-                self.type_diagnostic(ConstraintOrigin::Node(source))
+            Some(IdentitySelection::Resolved(_)) | None => {
+                self.type_diagnostic(Origin::Node(source))
             }
         }
     }
@@ -531,13 +589,13 @@ impl CheckState<'_> {
     fn call_failure_from_decision(
         &self,
         source: dir::GlobalNodeIdAny,
-        origin: ConstraintOrigin,
+        origin: Origin,
     ) -> CompilerResult<CheckError> {
         match self.solutions.call.get(&source) {
-            Some(CallDecision::Rejected(failure)) => {
+            Some(CallSelection::Rejected(failure)) => {
                 self.call_failure_diagnostic(source, origin, failure.clone())
             }
-            Some(CallDecision::Resolved(_)) | None => self.type_diagnostic(origin),
+            Some(CallSelection::Resolved(_)) | None => self.type_diagnostic(origin),
         }
     }
 
@@ -545,7 +603,7 @@ impl CheckState<'_> {
     fn call_failure_diagnostic(
         &self,
         _source: dir::GlobalNodeIdAny,
-        origin: ConstraintOrigin,
+        origin: Origin,
         failure: CallFailure,
     ) -> CompilerResult<CheckError> {
         match failure {
@@ -569,15 +627,15 @@ impl CheckState<'_> {
     fn construct_failure_from_decision(
         &self,
         source: dir::GlobalNodeIdAny,
-        origin: ConstraintOrigin,
+        origin: Origin,
     ) -> CompilerResult<CheckError> {
         let failure = self
             .solutions
             .construct
             .get(&source)
             .and_then(|decision| match decision {
-                ConstructDecision::Rejected(failure) => Some(*failure),
-                ConstructDecision::Resolved(_) => None,
+                ConstructSelection::Rejected(failure) => Some(*failure),
+                ConstructSelection::Resolved(_) => None,
             });
 
         match failure {
@@ -590,7 +648,7 @@ impl CheckState<'_> {
     fn construct_failure_diagnostic(
         &self,
         _source: dir::GlobalNodeIdAny,
-        origin: ConstraintOrigin,
+        origin: Origin,
         failure: ConstructFailure,
     ) -> CompilerResult<CheckError> {
         match failure {
@@ -603,15 +661,15 @@ impl CheckState<'_> {
     fn operator_failure_from_decision(
         &self,
         operator: &OperatorTerm,
-        origin: ConstraintOrigin,
+        origin: Origin,
     ) -> CompilerResult<CheckError> {
         let failure = self
             .solutions
             .operator
             .get(&operator.source)
             .and_then(|decision| match decision {
-                OperatorDecision::Rejected(failure) => Some(*failure),
-                OperatorDecision::Resolved(_) => None,
+                OperatorSelection::Rejected(failure) => Some(*failure),
+                OperatorSelection::Resolved(_) => None,
             });
 
         match failure {
@@ -625,7 +683,7 @@ impl CheckState<'_> {
         &self,
         operator: OperatorTermKind,
         reason: OperatorFailureReason,
-        origin: ConstraintOrigin,
+        origin: Origin,
     ) -> CompilerResult<CheckError> {
         match reason {
             OperatorFailureReason::NoMatch => {
@@ -638,15 +696,15 @@ impl CheckState<'_> {
     }
 
     /// Return a generic type inference diagnostic.
-    fn type_diagnostic(&self, origin: ConstraintOrigin) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+    fn type_diagnostic(&self, origin: Origin) -> CompilerResult<CheckError> {
+        let (module, anchor) = self.anchor(origin);
 
         Ok(CheckError::CannotSolve { anchor, module })
     }
 
     /// Return a generic static evaluation diagnostic.
-    fn static_diagnostic(&self, origin: ConstraintOrigin) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+    fn static_diagnostic(&self, origin: Origin) -> CompilerResult<CheckError> {
+        let (module, anchor) = self.anchor(origin);
 
         Ok(CheckError::CannotSolve { anchor, module })
     }
@@ -654,11 +712,11 @@ impl CheckState<'_> {
     /// Return a missing member diagnostic.
     fn missing_member_diagnostic(
         &self,
-        origin: ConstraintOrigin,
+        origin: Origin,
         key: dir::StaticKey,
     ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
-        let key = key.debug_string(&self.input(module).strings);
+        let (module, anchor) = self.anchor(origin);
+        let key = key.debug_string(&self.module(module).strings);
 
         Ok(CheckError::MissingMember {
             anchor,
@@ -668,15 +726,15 @@ impl CheckState<'_> {
     }
 
     /// Return a non-callable callee diagnostic.
-    fn not_callable_diagnostic(&self, origin: ConstraintOrigin) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+    fn not_callable_diagnostic(&self, origin: Origin) -> CompilerResult<CheckError> {
+        let (module, anchor) = self.anchor(origin);
 
         Ok(CheckError::NotCallable { anchor, module })
     }
 
     /// Return a no matching call overload diagnostic.
-    fn no_matching_call_diagnostic(&self, origin: ConstraintOrigin) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+    fn no_matching_call_diagnostic(&self, origin: Origin) -> CompilerResult<CheckError> {
+        let (module, anchor) = self.anchor(origin);
 
         Ok(CheckError::NoMatchingCall { anchor, module })
     }
@@ -684,10 +742,10 @@ impl CheckState<'_> {
     /// Return a no matching operator diagnostic.
     fn no_matching_operator_diagnostic(
         &self,
-        origin: ConstraintOrigin,
+        origin: Origin,
         operator: OperatorTermKind,
     ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+        let (module, anchor) = self.anchor(origin);
         let operator = match operator {
             OperatorTermKind::Unary(operator) => operator.text(),
             OperatorTermKind::Binary(operator) => operator.text(),
@@ -702,11 +760,8 @@ impl CheckState<'_> {
     }
 
     /// Return an invalid strict equality diagnostic.
-    fn invalid_strict_equality_diagnostic(
-        &self,
-        origin: ConstraintOrigin,
-    ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+    fn invalid_strict_equality_diagnostic(&self, origin: Origin) -> CompilerResult<CheckError> {
+        let (module, anchor) = self.anchor(origin);
 
         Ok(CheckError::InvalidStrictEquality { anchor, module })
     }
@@ -715,9 +770,9 @@ impl CheckState<'_> {
     fn type_relation_diagnostic(
         &self,
         relation: TypeRelation,
-        origin: ConstraintOrigin,
+        origin: Origin,
     ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+        let (module, anchor) = self.anchor(origin);
         let diagnostic = match relation {
             TypeRelation::Equal => CheckError::CannotSolve { anchor, module },
             TypeRelation::Assignable => CheckError::NotAssignable { anchor, module },
@@ -731,68 +786,33 @@ impl CheckState<'_> {
     }
 
     /// Return an invalid intrinsic type diagnostic.
-    fn invalid_intrinsic_type_diagnostic(
-        &self,
-        origin: ConstraintOrigin,
-    ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+    fn invalid_intrinsic_type_diagnostic(&self, origin: Origin) -> CompilerResult<CheckError> {
+        let (module, anchor) = self.anchor(origin);
 
         Ok(CheckError::InvalidIntrinsicType { anchor, module })
     }
 
     /// Return an invalid const type diagnostic.
-    fn invalid_const_type_diagnostic(
-        &self,
-        origin: ConstraintOrigin,
-    ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+    fn invalid_const_type_diagnostic(&self, origin: Origin) -> CompilerResult<CheckError> {
+        let (module, anchor) = self.anchor(origin);
 
         Ok(CheckError::InvalidConstType { anchor, module })
     }
 
     /// Return a layout realization diagnostic.
-    fn layout_not_realizable_diagnostic(
-        &self,
-        origin: ConstraintOrigin,
-    ) -> CompilerResult<CheckError> {
-        let (module, anchor) = self.anchor(origin)?;
+    fn layout_not_realizable_diagnostic(&self, origin: Origin) -> CompilerResult<CheckError> {
+        let (module, anchor) = self.anchor(origin);
 
         Ok(CheckError::LayoutNotConcrete { anchor, module })
     }
 
-    /// Return the module that owns one diagnostic origin.
-    fn diagnostic_module(&self, origin: ConstraintOrigin) -> ModuleId {
-        match origin {
-            ConstraintOrigin::Node(node) => node.module_id,
-            ConstraintOrigin::Symbol(symbol) => symbol.module_id,
-        }
-    }
-
     /// Return the best diagnostic origin for one variable.
-    fn variable_diagnostic_origin(&self, variable: VariableId) -> ConstraintOrigin {
+    fn variable_diagnostic_origin(&self, variable: VariableId) -> Origin {
         self.variable(variable).source
     }
 
     /// Return the diagnostic anchor for a constraint origin.
-    fn anchor(&self, origin: ConstraintOrigin) -> CompilerResult<(ModuleId, DiagnosticAnchor)> {
-        let module = self.diagnostic_module(origin);
-        let source = match origin {
-            ConstraintOrigin::Node(node) => node.local_id,
-            ConstraintOrigin::Symbol(symbol) => self
-                .symbol_source_node(module, symbol)
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("check symbol {} has no source node", symbol.local_id.id),
-                })?,
-        };
-        let span = self
-            .input(module)
-            .parsed
-            .tree
-            .get_span_by_id(source.id)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("check node {} has no source span", source.id),
-            })?;
-
-        Ok((module, DiagnosticAnchor::from(span)))
+    fn anchor(&self, origin: Origin) -> (ModuleId, DiagnosticAnchor) {
+        self.diagnostic_anchor_for_origin(origin)
     }
 }

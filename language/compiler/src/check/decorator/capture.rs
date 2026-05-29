@@ -9,7 +9,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::CaptureDirective> {
         let module = symbol.module_id;
-        let source = self.symbol_source_node(module, symbol)?;
+        let source = self.symbol_source_node(symbol);
         let decorators = self.decorators_for_owner(module, source);
         let mut directive = None;
 
@@ -34,9 +34,9 @@ impl CheckState<'_> {
         let [argument] = arguments else {
             return None;
         };
-        let value = self.input(module).view().get(*argument).value()?;
+        let value = self.module(module).view().get(*argument).value()?;
 
-        match self.input(module).view().get(value) {
+        match self.module(module).view().get(value) {
             dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) => {
                 let default = self.capture_mode_from_string(module, *name)?;
 
@@ -63,17 +63,18 @@ impl CheckState<'_> {
 
         // read default and binding mode fields
         for property in properties {
-            let dir::Property::Field { key, value, .. } = self.input(module).view().get(*property)
+            let dir::Property::Field { key, value, .. } = self.module(module).view().get(*property)
             else {
                 return None;
             };
-            let key = key.static_key(self.input(module).view().tree())?;
+            let view = self.module(module).view();
+            let key = key.static_key(view.tree())?;
             let dir::StaticKey::Name(name) = key else {
                 return None;
             };
             let mode = self.capture_mode_from_expression(module, *value)?;
 
-            if self.input(module).strings.get(name) == "default" {
+            if self.module(module).strings.get(name) == "default" {
                 default = Some(mode);
             } else {
                 rules.push(dir::CaptureRule { name, mode });
@@ -93,7 +94,7 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::CaptureMode> {
         let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) =
-            self.input(module).view().get(expression)
+            self.module(module).view().get(expression)
         else {
             return None;
         };
@@ -107,7 +108,7 @@ impl CheckState<'_> {
         module: destack_source::ModuleId,
         name: dir::StringId,
     ) -> Option<dir::CaptureMode> {
-        let mode = match self.input(module).strings.get(name) {
+        let mode = match self.module(module).strings.get(name) {
             "manage" => dir::CaptureMode::Manage,
             "borrow" => dir::CaptureMode::Borrow,
             "copy" => dir::CaptureMode::Copy,

@@ -7,7 +7,7 @@ use crate::check::VariableId;
 pub(in crate::check) enum Progress {
     /// The reduction did not change any variable.
     Unchanged,
-    /// The work item changed these variables.
+    /// The solver task changed these variables.
     Changed(SmallVec<[VariableId; 4]>),
 }
 
@@ -15,15 +15,6 @@ impl Progress {
     /// Return one changed variable.
     pub(in crate::check) fn changed(variable: VariableId) -> Self {
         Self::Changed(smallvec::smallvec![variable])
-    }
-
-    /// Return progress from a conditional variable change.
-    pub(in crate::check) fn from_change(variable: VariableId, is_changed: bool) -> Self {
-        if is_changed {
-            Self::changed(variable)
-        } else {
-            Self::Unchanged
-        }
     }
 
     /// Return whether this progress did not change any variable.

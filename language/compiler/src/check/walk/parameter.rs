@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, ConstraintOrigin, GenericParameter, PatternRelation, StaticTerm, TypeRelation,
-    TypeTerm, VariableId, VariableOutput,
+    CheckState, GenericParameter, Origin, PatternRelation, StaticTerm, TypeRelation, TypeTerm,
+    VariableId, VariableOutput,
 };
 
 impl CheckState<'_> {
@@ -20,7 +20,7 @@ impl CheckState<'_> {
         }
         // walk valid generic parameter forms
         if !matches!(generic_parameter, dir::GenericParameter::Error) {
-            self.record_generic_parameter_slot(tree.module_id, id, generic_parameter);
+            self.bind_generic_parameter(tree.module_id, id, generic_parameter);
 
             match generic_parameter {
                 // <T>
@@ -105,8 +105,8 @@ impl CheckState<'_> {
         self.pop_static_condition(tree.module_id);
     }
 
-    /// Record the generic slot introduced by one generic parameter.
-    pub(in crate::check) fn record_generic_parameter_slot(
+    /// Bind the generic slot introduced by one generic parameter.
+    pub(in crate::check) fn bind_generic_parameter(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::GenericParameter>,
@@ -124,7 +124,7 @@ impl CheckState<'_> {
                 default,
                 ..
             } => {
-                let variable = self.intern_symbol_type_variable(module, symbol);
+                let variable = self.intern_local_symbol_type_variable(module, symbol);
                 if matches!(
                     self.variable(variable).output,
                     Some(VariableOutput::Generic(_))
@@ -134,8 +134,9 @@ impl CheckState<'_> {
 
                 let slot = self.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
-                let constraint = constraint.map(|id| self.intern_local_type_variable(module, id));
-                let default = default.map(|id| self.intern_local_type_variable(module, id));
+                let constraint =
+                    constraint.map(|id| self.intern_local_node_type_variable(module, id).into());
+                let default = default.map(|id| self.intern_local_node_type_variable(module, id));
                 let generic = GenericParameter::Type {
                     slot,
                     variance: *variance,
@@ -143,8 +144,10 @@ impl CheckState<'_> {
                     default,
                 };
 
-                self.record_generic_parameter(variable, generic);
-                self.define_type(module, variable, TypeTerm::Parameter(slot_id));
+                self.attach_generic_parameter(variable, generic);
+                let condition = self.active_static_condition(module);
+
+                self.add_type_definition(variable, TypeTerm::Parameter(slot_id), condition);
 
                 Some(variable)
             }
@@ -155,7 +158,7 @@ impl CheckState<'_> {
                 default,
                 ..
             } => {
-                let variable = self.intern_symbol_type_variable(module, symbol);
+                let variable = self.intern_local_symbol_type_variable(module, symbol);
                 if matches!(
                     self.variable(variable).output,
                     Some(VariableOutput::Generic(_))
@@ -165,8 +168,9 @@ impl CheckState<'_> {
 
                 let slot = self.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
-                let constraint = constraint.map(|id| self.intern_local_type_variable(module, id));
-                let default = default.map(|id| self.intern_local_type_variable(module, id));
+                let constraint =
+                    constraint.map(|id| self.intern_local_node_type_variable(module, id).into());
+                let default = default.map(|id| self.intern_local_node_type_variable(module, id));
                 let generic = GenericParameter::VariadicType {
                     slot,
                     variance: *variance,
@@ -174,8 +178,10 @@ impl CheckState<'_> {
                     default,
                 };
 
-                self.record_generic_parameter(variable, generic);
-                self.define_type(module, variable, TypeTerm::Parameter(slot_id));
+                self.attach_generic_parameter(variable, generic);
+                let condition = self.active_static_condition(module);
+
+                self.add_type_definition(variable, TypeTerm::Parameter(slot_id), condition);
 
                 Some(variable)
             }
@@ -194,21 +200,25 @@ impl CheckState<'_> {
                 }
 
                 let slot = self.allocate_explicit_generic_slot(owner, symbol);
+                let slot_id = slot.id();
                 let constraint =
-                    declared_type.map(|id| self.intern_local_type_variable(module, id));
-                let default = default.map(|id| self.define_static_expression_variable(module, id));
+                    declared_type.map(|id| self.intern_local_node_type_variable(module, id).into());
+                let default = default.map(|id| {
+                    let condition = self.active_static_condition(module);
+
+                    self.define_static_expression_variable(module, id, condition)
+                });
                 let generic = GenericParameter::Static {
                     slot,
                     constraint,
                     default,
                 };
 
-                self.record_generic_parameter(variable, generic);
-                self.define_static(
-                    module,
-                    variable,
-                    StaticTerm::Literal(dir::StaticTerm::Symbol { symbol }),
-                );
+                self.attach_generic_parameter(variable, generic);
+                let condition = self.active_static_condition(module);
+                let term = StaticTerm::Parameter(slot_id);
+
+                self.add_static_definition(variable, term, condition);
 
                 Some(variable)
             }
@@ -227,21 +237,25 @@ impl CheckState<'_> {
                 }
 
                 let slot = self.allocate_explicit_generic_slot(owner, symbol);
+                let slot_id = slot.id();
                 let constraint =
-                    declared_type.map(|id| self.intern_local_type_variable(module, id));
-                let default = default.map(|id| self.define_static_expression_variable(module, id));
+                    declared_type.map(|id| self.intern_local_node_type_variable(module, id).into());
+                let default = default.map(|id| {
+                    let condition = self.active_static_condition(module);
+
+                    self.define_static_expression_variable(module, id, condition)
+                });
                 let generic = GenericParameter::VariadicStatic {
                     slot,
                     constraint,
                     default,
                 };
 
-                self.record_generic_parameter(variable, generic);
-                self.define_static(
-                    module,
-                    variable,
-                    StaticTerm::Literal(dir::StaticTerm::Symbol { symbol }),
-                );
+                self.attach_generic_parameter(variable, generic);
+                let condition = self.active_static_condition(module);
+                let term = StaticTerm::Parameter(slot_id);
+
+                self.add_static_definition(variable, term, condition);
 
                 Some(variable)
             }
@@ -283,13 +297,16 @@ impl CheckState<'_> {
                             let variable =
                                 self.intern_symbol_static_variable(tree.module_id, symbol);
                             let term = StaticTerm::Literal(dir::StaticTerm::Symbol { symbol });
+                            let condition = self.active_static_condition(tree.module_id);
 
-                            self.define_static(tree.module_id, variable, term);
+                            self.add_static_definition(variable, term, condition);
                         } else if let Some(parameter_type) = parameter_type {
-                            let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
+                            let variable =
+                                self.intern_local_symbol_type_variable(tree.module_id, symbol);
                             let term = TypeTerm::Variable(parameter_type);
+                            let condition = self.active_static_condition(tree.module_id);
 
-                            self.define_type(tree.module_id, variable, term);
+                            self.add_type_definition(variable, term, condition);
                         }
                     }
 
@@ -321,13 +338,16 @@ impl CheckState<'_> {
                             let variable =
                                 self.intern_symbol_static_variable(tree.module_id, symbol);
                             let term = StaticTerm::Literal(dir::StaticTerm::Symbol { symbol });
+                            let condition = self.active_static_condition(tree.module_id);
 
-                            self.define_static(tree.module_id, variable, term);
+                            self.add_static_definition(variable, term, condition);
                         } else if let Some(parameter_type) = parameter_type {
-                            let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
+                            let variable =
+                                self.intern_local_symbol_type_variable(tree.module_id, symbol);
                             let term = TypeTerm::Variable(parameter_type);
+                            let condition = self.active_static_condition(tree.module_id);
 
-                            self.define_type(tree.module_id, variable, term);
+                            self.add_type_definition(variable, term, condition);
                         }
                     }
 
@@ -349,11 +369,14 @@ impl CheckState<'_> {
                     if let Some(parameter_type) = parameter_type {
                         if let Some(term) = self.build_pattern_term(tree.module_id, *pattern, tree)
                         {
+                            let condition = self.active_static_condition(tree.module_id);
+
                             self.constrain_pattern(
                                 tree.module_id,
                                 PatternRelation::Match(term),
                                 pattern.into_any(),
                                 parameter_type,
+                                condition,
                             );
                         }
 
@@ -389,11 +412,14 @@ impl CheckState<'_> {
                     if let Some(parameter_type) = self.intern_parameter_type_variable(id, tree) {
                         if let Some(term) = self.build_pattern_term(tree.module_id, *pattern, tree)
                         {
+                            let condition = self.active_static_condition(tree.module_id);
+
                             self.constrain_pattern(
                                 tree.module_id,
                                 PatternRelation::Match(term),
                                 pattern.into_any(),
                                 parameter_type,
+                                condition,
                             );
                         }
                     }
@@ -419,9 +445,16 @@ impl CheckState<'_> {
         default: dir::LocalNodeId<dir::Expression>,
         declared_type: VariableId,
     ) {
-        let value = self.intern_local_type_variable(module, default);
-        let origin = ConstraintOrigin::Node(default.into_global_any(module));
+        let value = self.intern_local_node_type_variable(module, default);
+        let origin = Origin::Node(default.into_global_any(module));
+        let condition = self.active_static_condition(module);
 
-        self.constrain_type(origin, TypeRelation::Assignable, value, declared_type);
+        self.add_type_constraint(
+            origin,
+            TypeRelation::Assignable,
+            value,
+            declared_type,
+            condition,
+        );
     }
 }

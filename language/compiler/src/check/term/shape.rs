@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, TypeOperand, TypeRelation, VariableId,
+    CheckState, Decision, GenericSubstitution, Origin, Progress, TypeOperand, TypeRelation,
+    VariableId,
 };
 
 /// Shape member payload.
@@ -177,9 +178,29 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
+    /// Decide structural shape constraint satisfaction.
+    pub(in crate::check) fn decide_shape_satisfies(
+        &self,
+        source: &[ShapeMember],
+        target: &[ShapeMember],
+    ) -> CompilerResult<Decision> {
+        let mut decision = Decision::Yes;
+
+        // require each target member from the source shape
+        for target in target {
+            decision = decision.and(self.decide_shape_member_satisfies(source, target)?);
+            if decision == Decision::No {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
     /// Relate matching shape fields by equality.
     pub(in crate::check) fn constrain_shape_members_equal(
         &mut self,
+        origin: Origin,
         left: &[ShapeMember],
         right: &[ShapeMember],
     ) -> CompilerResult<Progress> {
@@ -194,7 +215,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            progress = progress.merge(self.solve_type_equality(left_ty, right_ty)?);
+            progress = progress.merge(self.solve_type_equality(origin, left_ty, right_ty)?);
         }
 
         Ok(progress)
@@ -203,6 +224,7 @@ impl CheckState<'_> {
     /// Relate matching shape fields by assignability.
     pub(in crate::check) fn constrain_shape_members_assignable(
         &mut self,
+        origin: Origin,
         source: &[ShapeMember],
         target: &[ShapeMember],
     ) -> CompilerResult<Progress> {
@@ -217,7 +239,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            progress = progress.merge(self.solve_type_assignability(source_ty, target_ty)?);
+            progress = progress.merge(self.solve_type_assignability(origin, source_ty, target_ty)?);
         }
 
         Ok(progress)
@@ -226,6 +248,7 @@ impl CheckState<'_> {
     /// Expect shape fields to satisfy expected fields.
     pub(in crate::check) fn expect_shape_member_terms(
         &mut self,
+        origin: Origin,
         members: &[ShapeMember],
         targets: &[ShapeMember],
     ) -> CompilerResult<Progress> {
@@ -240,7 +263,8 @@ impl CheckState<'_> {
                 continue;
             };
 
-            progress = progress.merge(self.solve_type_assignability(member_ty, target_ty)?);
+            progress = progress
+                .merge(self.solve_contextual_type_assignability(origin, member_ty, target_ty)?);
         }
 
         Ok(progress)
@@ -332,6 +356,23 @@ impl CheckState<'_> {
         };
 
         self.decide_shape_member_value_assignable(source, target)
+    }
+
+    /// Decide constraint satisfaction for one target shape member.
+    fn decide_shape_member_satisfies(
+        &self,
+        source: &[ShapeMember],
+        target: &ShapeMember,
+    ) -> CompilerResult<Decision> {
+        let Some(source) = self.find_shape_member(source, target) else {
+            return Ok(if Self::shape_member_is_optional(target) {
+                Decision::Yes
+            } else {
+                Decision::No
+            });
+        };
+
+        self.decide_shape_member_value_satisfies(source, target)
     }
 
     /// Return a source member matching one target member.
@@ -430,6 +471,76 @@ impl CheckState<'_> {
                     )?;
                     let value = self.decide_type_relation(
                         TypeRelation::Assignable,
+                        *source_value,
+                        *target_value,
+                    )?;
+
+                    key.and(value)
+                }
+            }
+            _ => Decision::No,
+        };
+
+        Ok(decision)
+    }
+
+    /// Decide constraint satisfaction for two matched shape members.
+    fn decide_shape_member_value_satisfies(
+        &self,
+        source: &ShapeMember,
+        target: &ShapeMember,
+    ) -> CompilerResult<Decision> {
+        let decision = match (source, target) {
+            (
+                ShapeMember::Field {
+                    ty: source_type,
+                    is_optional: source_optional,
+                    ..
+                },
+                ShapeMember::Field {
+                    ty: target_type,
+                    is_optional: target_optional,
+                    ..
+                },
+            ) => {
+                if *source_optional && !*target_optional {
+                    Decision::No
+                } else {
+                    self.decide_type_relation(TypeRelation::Satisfies, *source_type, *target_type)?
+                }
+            }
+            (
+                ShapeMember::CallSignature { ty: source },
+                ShapeMember::CallSignature { ty: target },
+            )
+            | (
+                ShapeMember::ConstructSignature { ty: source },
+                ShapeMember::ConstructSignature { ty: target },
+            ) => self.decide_type_relation(TypeRelation::Satisfies, *source, *target)?,
+            (
+                ShapeMember::IndexSignature {
+                    key_type: source_key,
+                    value_type: source_value,
+                    is_optional: source_optional,
+                    ..
+                },
+                ShapeMember::IndexSignature {
+                    key_type: target_key,
+                    value_type: target_value,
+                    is_optional: target_optional,
+                    ..
+                },
+            ) => {
+                if *source_optional && !*target_optional {
+                    Decision::No
+                } else {
+                    let key = self.decide_type_relation(
+                        TypeRelation::Assignable,
+                        *target_key,
+                        *source_key,
+                    )?;
+                    let value = self.decide_type_relation(
+                        TypeRelation::Satisfies,
                         *source_value,
                         *target_value,
                     )?;

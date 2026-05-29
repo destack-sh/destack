@@ -1,8 +1,7 @@
 use destack_dir as dir;
 
 use crate::check::{
-    CheckState, Constraint, ConstraintOrigin, StaticOperand, TypeLiteralTerm, TypeOperand,
-    TypeTerm, VariableId,
+    CheckState, Condition, Constraint, Origin, TypeLiteralTerm, TypeOperand, TypeTerm, VariableId,
 };
 
 /// A relation between two type variables.
@@ -27,43 +26,26 @@ pub(in crate::check) enum TypeRelation {
 pub(in crate::check) enum StaticRelation {
     /// Static values must be equal.
     Equal,
+    /// Source must be assignable to target.
+    Assignable,
 }
 
 impl CheckState<'_> {
     /// Constrain two type variables.
-    pub(in crate::check) fn constrain_type(
+    pub(in crate::check) fn add_type_constraint(
         &mut self,
-        origin: ConstraintOrigin,
+        origin: Origin,
         relation: TypeRelation,
         left: impl Into<TypeOperand>,
         right: impl Into<TypeOperand>,
+        condition: Condition,
     ) {
         let constraint = Constraint::Type {
             relation,
             left: left.into(),
             right: right.into(),
             origin,
-            condition: self.active_static_condition(origin.module()),
-        };
-
-        self.add_constraint(constraint);
-    }
-
-    /// Constrain two static variables.
-    #[allow(dead_code)]
-    pub(in crate::check) fn constrain_static(
-        &mut self,
-        origin: ConstraintOrigin,
-        relation: StaticRelation,
-        left: impl Into<StaticOperand>,
-        right: impl Into<StaticOperand>,
-    ) {
-        let constraint = Constraint::Static {
-            relation,
-            left: left.into(),
-            right: right.into(),
-            origin,
-            condition: self.active_static_condition(origin.module()),
+            condition,
         };
 
         self.add_constraint(constraint);
@@ -74,12 +56,19 @@ impl CheckState<'_> {
         &mut self,
         source: dir::LocalNodeIdAny,
         condition: VariableId,
+        static_condition: Condition,
     ) {
-        let origin = ConstraintOrigin::Node(source.into_global(condition.module));
+        let origin = Origin::Node(source.into_global(condition.module));
         let expected = self
             .terms
             .push(TypeTerm::Literal(TypeLiteralTerm::boolean()));
 
-        self.constrain_type(origin, TypeRelation::Assignable, condition, expected);
+        self.add_type_constraint(
+            origin,
+            TypeRelation::Assignable,
+            condition,
+            expected,
+            static_condition,
+        );
     }
 }

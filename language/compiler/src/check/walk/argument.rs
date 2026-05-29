@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{CheckState, GenericArgument};
@@ -117,7 +118,8 @@ impl CheckState<'_> {
             .iter()
             .enumerate()
             .map(|(index, argument)| {
-                let is_static = self.generic_argument_is_static_for_owner(owner, index);
+                let is_static =
+                    self.generic_argument_is_static_for_owner(tree.module_id, owner, index);
 
                 self.build_generic_argument_term(*argument, Some(is_static), tree)
             })
@@ -144,50 +146,62 @@ impl CheckState<'_> {
             // <T> with no known generic owner
             dir::GenericArgument::Type { value } if is_static.is_none() => {
                 GenericArgument::TypeOrStatic {
-                    ty: self.intern_local_type_variable(module, *value).into(),
+                    ty: self.intern_local_node_type_variable(module, *value).into(),
                     value: self.static_argument_variable(*value, tree).into(),
                 }
             }
             // <...T> with no known generic owner
             dir::GenericArgument::SpreadType { value } if is_static.is_none() => {
                 GenericArgument::SpreadTypeOrStatic {
-                    ty: self.intern_local_type_variable(module, *value).into(),
+                    ty: self.intern_local_node_type_variable(module, *value).into(),
                     value: self.static_argument_variable(*value, tree).into(),
                 }
             }
             // <T>
             dir::GenericArgument::Type { value } => {
-                GenericArgument::Type(self.intern_local_type_variable(module, *value).into())
+                GenericArgument::Type(self.intern_local_node_type_variable(module, *value).into())
             }
             // <...T>
-            dir::GenericArgument::SpreadType { value } => {
-                GenericArgument::SpreadType(self.intern_local_type_variable(module, *value).into())
-            }
+            dir::GenericArgument::SpreadType { value } => GenericArgument::SpreadType(
+                self.intern_local_node_type_variable(module, *value).into(),
+            ),
             // <type Item = T>
             dir::GenericArgument::AssociatedType { name, value } => {
                 GenericArgument::AssociatedType {
                     name: *name,
-                    value: self.intern_local_type_variable(module, *value).into(),
+                    value: self.intern_local_node_type_variable(module, *value).into(),
                 }
             }
             // <C>
             dir::GenericArgument::Value { value } => GenericArgument::Static(
-                self.define_static_expression_variable(module, *value)
-                    .into(),
+                self.define_static_expression_variable(
+                    module,
+                    *value,
+                    self.active_static_condition(module),
+                )
+                .into(),
             ),
             // <comptime Size = N>
             dir::GenericArgument::AssociatedConst { name, value } => {
                 GenericArgument::AssociatedConst {
                     name: *name,
                     value: self
-                        .define_static_expression_variable(module, *value)
+                        .define_static_expression_variable(
+                            module,
+                            *value,
+                            self.active_static_condition(module),
+                        )
                         .into(),
                 }
             }
             // <...C>
             dir::GenericArgument::SpreadValue { value } => GenericArgument::SpreadStatic(
-                self.define_static_expression_variable(module, *value)
-                    .into(),
+                self.define_static_expression_variable(
+                    module,
+                    *value,
+                    self.active_static_condition(module),
+                )
+                .into(),
             ),
             // keep the argument arity visible to solve
             dir::GenericArgument::Error => {
@@ -204,13 +218,14 @@ impl CheckState<'_> {
     /// Return whether one generic argument position expects a static term.
     fn generic_argument_is_static_for_owner(
         &self,
+        module: ModuleId,
         owner: dir::GlobalSymbolId,
         index: usize,
     ) -> bool {
         let index = dir::GenericSlotIndex::new(index as u32);
         let mut variadic = None;
 
-        for (_, generic) in self.generic_parameters_for_owner(owner) {
+        for (_, generic) in self.generic_parameters_for_owner(module, owner) {
             if generic.slot().index == index {
                 return generic.is_static();
             }

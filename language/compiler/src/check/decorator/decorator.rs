@@ -133,17 +133,13 @@ impl CheckState<'_> {
             )
             .unique_symbol()
         {
-            return self.input(module).environment.language.item(symbol);
+            return self.environment.language.item(symbol);
         }
 
         // fall back to compiler known decorator exports
-        let name = self.input(module).strings.get(*name);
-        let symbol = self
-            .input(module)
-            .environment
-            .language
-            .symbol_by_name(name)?;
+        let name = self.module(module).strings.get(*name);
+        let symbol = self.environment.language.symbol_by_name(name)?;
 
-        self.input(module).environment.language.item(symbol)
+        self.environment.language.item(symbol)
     }
 }

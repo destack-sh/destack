@@ -2,17 +2,20 @@ use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, GenericArgument};
+use crate::check::{CheckState, Condition, GenericArgument};
+
+use super::CheckModuleOutput;
 
 impl CheckState<'_> {
     /// Commit declaration relations and extension entries into checked tables.
     pub(super) fn commit_relation_and_extension_tables(
         &mut self,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
     ) {
         let declarations = self
-            .input(module)
+            .module(module)
             .parsed
             .tree
             .iter_nodes_of_type::<dir::Declaration>()
@@ -30,12 +33,14 @@ impl CheckState<'_> {
                     self.commit_extends_relation(
                         environment,
                         module,
+                        output,
                         symbol,
                         declaration.extends_expression,
                     );
                     self.commit_implements_relations(
                         environment,
                         module,
+                        output,
                         symbol,
                         &declaration.implements_types,
                     );
@@ -44,6 +49,7 @@ impl CheckState<'_> {
                     self.commit_implements_relations(
                         environment,
                         module,
+                        output,
                         symbol,
                         &declaration.implements_types,
                     );
@@ -52,6 +58,7 @@ impl CheckState<'_> {
                     self.commit_implements_relations(
                         environment,
                         module,
+                        output,
                         symbol,
                         &declaration.implements_types,
                     );
@@ -60,15 +67,17 @@ impl CheckState<'_> {
                     self.commit_interface_extends_relations(
                         environment,
                         module,
+                        output,
                         symbol,
                         &declaration.extends,
                     );
                 }
                 dir::Declaration::Extension(declaration) => {
-                    self.commit_extension(environment, module, symbol, &declaration);
+                    self.commit_extension(environment, module, output, symbol, &declaration);
                     self.commit_implements_relations(
                         environment,
                         module,
+                        output,
                         symbol,
                         &declaration.implements_types,
                     );
@@ -83,6 +92,7 @@ impl CheckState<'_> {
         &mut self,
         environment: &GlobalEnvironment,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         symbol: dir::GlobalSymbolId,
         expression: Option<dir::LocalNodeId<dir::Expression>>,
     ) {
@@ -90,11 +100,11 @@ impl CheckState<'_> {
             return;
         };
         let variable = self.intern_node_type_variable(module, expression.into_global_any(module));
-        let Some(ty) = self.commit_variable_type(environment, variable) else {
+        let Some(ty) = self.commit_variable_type(module, output, environment, variable) else {
             return;
         };
 
-        self.output_mut(module)
+        output
             .relations
             .push_extends(symbol, dir::Relation::extends(ty));
     }
@@ -104,15 +114,17 @@ impl CheckState<'_> {
         &mut self,
         environment: &GlobalEnvironment,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         symbol: dir::GlobalSymbolId,
         extends: &[dir::InterfaceHeritage],
     ) {
         for heritage in extends {
-            let Some(parent) = self.interface_heritage_type(environment, module, heritage) else {
+            let Some(parent) = self.interface_heritage_type(environment, module, output, heritage)
+            else {
                 continue;
             };
 
-            self.output_mut(module)
+            output
                 .relations
                 .push_extends(symbol, dir::Relation::extends(parent));
         }
@@ -123,16 +135,18 @@ impl CheckState<'_> {
         &mut self,
         environment: &GlobalEnvironment,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         heritage: &dir::InterfaceHeritage,
     ) -> Option<dir::LocalTypeId> {
         let symbol = self.require_interface_heritage_symbol(module, heritage.expression)?;
         let arguments =
             self.build_committed_generic_argument_terms(module, &heritage.generic_arguments);
         let source = heritage.expression.into_global_any(module).local_id;
-        let arguments = self.commit_argument_terms(module, environment, &arguments, source)?;
-        let ty = self.commit_named_type(module, environment, symbol, arguments, source)?;
+        let arguments =
+            self.commit_argument_terms(module, output, environment, &arguments, source)?;
+        let ty = self.commit_named_type(module, output, environment, symbol, arguments, source)?;
 
-        Some(self.intern_type(module, ty, source))
+        Some(self.commit_intern_type(module, output, ty, source))
     }
 
     /// Commit implemented interface relations.
@@ -140,16 +154,17 @@ impl CheckState<'_> {
         &mut self,
         environment: &GlobalEnvironment,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         symbol: dir::GlobalSymbolId,
         implemented: &[dir::LocalNodeId<dir::TypeExpression>],
     ) {
         for implemented in implemented {
-            let variable = self.intern_local_type_variable(module, *implemented);
-            let Some(ty) = self.commit_variable_type(environment, variable) else {
+            let variable = self.intern_local_node_type_variable(module, *implemented);
+            let Some(ty) = self.commit_variable_type(module, output, environment, variable) else {
                 continue;
             };
 
-            self.output_mut(module)
+            output
                 .relations
                 .push_implements(symbol, dir::Relation::implements(ty));
         }
@@ -160,15 +175,17 @@ impl CheckState<'_> {
         &mut self,
         environment: &GlobalEnvironment,
         module: ModuleId,
+        output: &mut CheckModuleOutput,
         symbol: dir::GlobalSymbolId,
         declaration: &dir::ExtensionDeclaration,
     ) {
-        let target = self.intern_local_type_variable(module, declaration.target_type);
-        let Some(target_type) = self.commit_variable_type(environment, target) else {
+        let target = self.intern_local_node_type_variable(module, declaration.target_type);
+        let Some(target_type) = self.commit_variable_type(module, output, environment, target)
+        else {
             return;
         };
-        let target = self.local_type(module, target_type);
-        let Some(target_symbol) = self.type_nominal_symbol(module, &target) else {
+        let target = self.commit_type_value(module, output, target_type);
+        let Some(target_symbol) = self.type_nominal_symbol(module, output, &target) else {
             return;
         };
         let form = if target_symbol.module_id == module {
@@ -180,18 +197,21 @@ impl CheckState<'_> {
         };
         let extension = dir::Extension::new(symbol, form, target_symbol, target_type);
 
-        self.output_mut(module)
-            .extensions
-            .insert_extension(extension);
+        output.extensions.insert_extension(extension);
     }
 
     /// Return the nominal symbol named by one committed type.
-    fn type_nominal_symbol(&self, module: ModuleId, ty: &dir::Type) -> Option<dir::GlobalSymbolId> {
+    fn type_nominal_symbol(
+        &self,
+        module: ModuleId,
+        output: &CheckModuleOutput,
+        ty: &dir::Type,
+    ) -> Option<dir::GlobalSymbolId> {
         match ty {
             dir::Type::Form(form) => {
-                let ty = self.local_type(module, form.value);
+                let ty = self.commit_type_value(module, output, form.value);
 
-                self.type_nominal_symbol(module, &ty)
+                self.type_nominal_symbol(module, output, &ty)
             }
             dir::Type::Named(named) => Some(named.symbol),
             _ => None,
@@ -208,30 +228,34 @@ impl CheckState<'_> {
 
         // build terms from explicit argument syntax
         for argument in arguments {
-            let argument = self.input(module).view().get(*argument).clone();
+            let argument = self.module(module).view().get(*argument).clone();
             let term = match argument {
-                dir::GenericArgument::Type { value } => {
-                    GenericArgument::Type(self.intern_local_type_variable(module, value).into())
-                }
+                dir::GenericArgument::Type { value } => GenericArgument::Type(
+                    self.intern_local_node_type_variable(module, value).into(),
+                ),
                 dir::GenericArgument::SpreadType { value } => GenericArgument::SpreadType(
-                    self.intern_local_type_variable(module, value).into(),
+                    self.intern_local_node_type_variable(module, value).into(),
                 ),
                 dir::GenericArgument::AssociatedType { name, value } => {
                     GenericArgument::AssociatedType {
                         name,
-                        value: self.intern_local_type_variable(module, value).into(),
+                        value: self.intern_local_node_type_variable(module, value).into(),
                     }
                 }
                 dir::GenericArgument::Value { value } => GenericArgument::Static(
-                    self.define_static_expression_variable(module, value).into(),
+                    self.define_static_expression_variable(module, value, Condition::Always)
+                        .into(),
                 ),
                 dir::GenericArgument::SpreadValue { value } => GenericArgument::SpreadStatic(
-                    self.define_static_expression_variable(module, value).into(),
+                    self.define_static_expression_variable(module, value, Condition::Always)
+                        .into(),
                 ),
                 dir::GenericArgument::AssociatedConst { name, value } => {
                     GenericArgument::AssociatedConst {
                         name,
-                        value: self.define_static_expression_variable(module, value).into(),
+                        value: self
+                            .define_static_expression_variable(module, value, Condition::Always)
+                            .into(),
                     }
                 }
                 dir::GenericArgument::Error => continue,

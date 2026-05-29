@@ -1,59 +1,65 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::check::{
-    CheckError, CheckState, Obligation, Place, PlaceTarget, ShapeMember, TypeTerm, VariableId,
+    CheckError, CheckState, Condition, Decision, Obligation, Place, PlaceTarget, ShapeMember,
+    TypeTerm, VariableId,
 };
-use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Require one place to accept a write.
-    pub(in crate::check) fn require_writable_place(&mut self, place: Place) {
-        self.add_obligation(Obligation::WritablePlace {
-            place,
-            condition: self.active_static_condition(place.source.module_id),
-        });
+    pub(in crate::check) fn require_writable_place(&mut self, place: Place, condition: Condition) {
+        self.add_obligation(Obligation::WritablePlace { place, condition });
     }
 }
 
 impl CheckState<'_> {
     /// Check one writable place requirement.
-    pub(in crate::check) fn check_writable_place(&mut self, place: Place) -> CompilerResult<()> {
-        if self.is_writable_place(place)? {
-            return Ok(());
-        }
+    pub(in crate::check) fn check_writable_place(
+        &mut self,
+        place: Place,
+    ) -> CompilerResult<Option<CheckError>> {
+        let diagnostic = match self.decide_writable_place(place)? {
+            Decision::Yes => return Ok(None),
+            Decision::No => {
+                let (module, anchor) = self.source_anchor(place.source);
 
-        let (module, anchor) = self.source_anchor(place.source)?;
-        let diagnostic = CheckError::NotWritable { anchor, module };
+                CheckError::NotWritable { anchor, module }
+            }
+            Decision::Undecidable => {
+                let (module, anchor) = self.source_anchor(place.source);
 
-        self.diagnostics_mut(place.source.module_id)
-            .push(diagnostic);
+                CheckError::CannotSolve { anchor, module }
+            }
+        };
 
-        Ok(())
+        Ok(Some(diagnostic))
     }
 
     /// Return whether one place is writable.
-    fn is_writable_place(&self, place: Place) -> CompilerResult<bool> {
-        let is_writable = match place.target {
-            PlaceTarget::Binding { symbol } => self.is_writable_binding(place.source, symbol)?,
-            PlaceTarget::MemberTerm { owner, key } => self.is_writable_member(owner, key)?,
-            PlaceTarget::IndexTerm { .. } => true,
-            PlaceTarget::Dereference { .. } => true,
+    fn decide_writable_place(&self, place: Place) -> CompilerResult<Decision> {
+        let decision = match place.target {
+            PlaceTarget::Binding { symbol } => {
+                self.decide_writable_binding(place.source, symbol)?
+            }
+            PlaceTarget::MemberTerm { owner, key } => self.decide_writable_member(owner, key)?,
+            PlaceTarget::IndexTerm { .. } | PlaceTarget::Dereference { .. } => Decision::Yes,
         };
 
-        Ok(is_writable)
+        Ok(decision)
     }
 
     /// Return whether one local binding can be assigned.
-    fn is_writable_binding(
+    fn decide_writable_binding(
         &self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<Decision> {
         if symbol.module_id != source.module_id {
-            return Ok(false);
+            return Ok(Decision::No);
         }
 
-        let input = self.input(symbol.module_id);
+        let input = self.module(symbol.module_id);
         let bindings = input.binding_table();
         let local_symbol = bindings.get_symbol(symbol.local_id);
         let is_writable = local_symbol.binding_mutability.is_some_and(|mutability| {
@@ -67,15 +73,17 @@ impl CheckState<'_> {
             .symbol_target(symbol.local_id)
             .is_none();
 
-        Ok(is_writable)
+        Ok(Decision::from(is_writable))
     }
 
     /// Return whether one member target can be assigned.
-    fn is_writable_member(&self, owner: VariableId, key: dir::StaticKey) -> CompilerResult<bool> {
+    fn decide_writable_member(
+        &self,
+        owner: VariableId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Decision> {
         let Some(owner) = self.solved_type_term(owner)? else {
-            return Err(CompilerError::Internal {
-                message: format!("place owner {owner:?} was not solved"),
-            });
+            return Ok(Decision::Undecidable);
         };
 
         // structural fields carry their write access directly
@@ -88,13 +96,13 @@ impl CheckState<'_> {
                 } = member
                     && member_key.matches(&key)
                 {
-                    return Ok(!is_readonly);
+                    return Ok(Decision::from(!is_readonly));
                 }
             }
 
-            return Ok(true);
+            return Ok(Decision::Yes);
         }
 
-        Ok(true)
+        Ok(Decision::Yes)
     }
 }

@@ -4,8 +4,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, FormTerm, GenericSubstitution, LayoutDecision, LayoutFailure, LayoutResolution,
-    ShapeMember, StaticTerm, TypeOperand, TypeTerm, VariableId,
+    CheckState, FormTerm, GenericSubstitution, LayoutFailure, LayoutResolution, LayoutSelection,
+    ShapeMember, StaticOperand, StaticTerm, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Compile-time query over a concrete type layout.
@@ -70,12 +70,6 @@ pub(in crate::check) enum LayoutShape {
     Variant {
         /// The variant cases.
         variants: Vec<VariantLayout>,
-    },
-    /// Transparent nominal storage.
-    #[allow(dead_code)]
-    Newtype {
-        /// The backing type layout.
-        backing: Box<Layout>,
     },
     /// Runtime function or closure storage.
     Function,
@@ -149,12 +143,12 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let Some(value) = term.query.value(&layout) else {
-            self.record_layout_rejection(term)?;
+            self.select_layout_rejection(term)?;
 
             return Ok(None);
         };
 
-        self.record_layout_resolution(term, layout)?;
+        self.select_layout_resolution(term, layout)?;
 
         Ok(Some(dir::StaticTerm::ScalarLiteral {
             value: dir::ScalarLiteral::Integer(i64::from(value)),
@@ -321,7 +315,7 @@ impl CheckState<'_> {
                 Some(pointer_layout(pointer_bytes))
             }
             dir::Form::Owned | dir::Form::Placed { .. } | dir::Form::Readonly => {
-                let value = self.local_type(module, form.value);
+                let value = self.layout_type_value(module, form.value);
 
                 self.committed_type_layout(module, &value, pointer_bytes)?
             }
@@ -357,7 +351,7 @@ impl CheckState<'_> {
         array: &dir::FixedArrayType,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        let element_type = self.local_type(module, array.element);
+        let element_type = self.layout_type_value(module, array.element);
         let element = self.committed_type_layout(module, &element_type, pointer_bytes)?;
         let Some(element) = element else {
             return Ok(None);
@@ -386,13 +380,13 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         element: TypeOperand,
-        length: VariableId,
+        length: StaticOperand,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
         let Some(element) = self.type_operand_layout(module, element, pointer_bytes)? else {
             return Ok(None);
         };
-        let Some(length) = self.static_usize_variable(length)? else {
+        let Some(length) = self.static_usize_operand(length)? else {
             return Ok(None);
         };
         let Some(size) = element.size else {
@@ -536,7 +530,7 @@ impl CheckState<'_> {
         module: ModuleId,
         value: dir::LocalStaticId,
     ) -> CompilerResult<Option<u32>> {
-        let value = self.local_static(module, value);
+        let value = self.layout_static_value(module, value);
         let dir::StaticTerm::ScalarLiteral {
             value: dir::ScalarLiteral::Integer(value),
         } = value
@@ -547,10 +541,35 @@ impl CheckState<'_> {
         Ok(u32::try_from(value).ok())
     }
 
-    /// Return one solved static variable as a `usize`.
-    fn static_usize_variable(&self, value: VariableId) -> CompilerResult<Option<u32>> {
-        let Some(value) = self.solved_static_term(value)? else {
-            return Ok(None);
+    /// Return one checked type visible to layout reduction.
+    fn layout_type_value(&self, module: ModuleId, ty: dir::LocalTypeId) -> dir::Type {
+        if let Some(module) = self.modules.get(&module) {
+            return module.type_table().get_type(ty).clone();
+        }
+
+        self.dependency(module).types.get_type(ty).clone()
+    }
+
+    /// Return one checked static value visible to layout reduction.
+    fn layout_static_value(&self, module: ModuleId, value: dir::LocalStaticId) -> dir::StaticTerm {
+        if let Some(module) = self.modules.get(&module) {
+            return module.static_table().get_static(value).clone();
+        }
+
+        self.dependency(module).statics.get_static(value).clone()
+    }
+
+    /// Return one static operand as a `usize`.
+    fn static_usize_operand(&self, value: StaticOperand) -> CompilerResult<Option<u32>> {
+        let value = match value {
+            StaticOperand::Variable(variable) => {
+                let Some(value) = self.solved_static_term(variable)? else {
+                    return Ok(None);
+                };
+
+                value
+            }
+            StaticOperand::Term(term) => self.terms.get(term).clone(),
         };
         let StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
             value: dir::ScalarLiteral::Integer(value),
@@ -590,33 +609,33 @@ impl CheckState<'_> {
         Ok(bytes)
     }
 
-    /// Record a successful layout query.
-    fn record_layout_resolution(
+    /// Select a successful layout query.
+    fn select_layout_resolution(
         &mut self,
         term: &LayoutTerm,
         layout: Layout,
     ) -> CompilerResult<()> {
-        let decision = LayoutDecision::Resolved(LayoutResolution {
+        let decision = LayoutSelection::Resolved(LayoutResolution {
             source: term.source,
             target: term.target,
             query: term.query,
             layout,
         });
 
-        self.record_layout_decision(term.source, decision);
+        self.select_layout(term.source, decision);
 
         Ok(())
     }
 
-    /// Record a failed layout query.
-    fn record_layout_rejection(&mut self, term: &LayoutTerm) -> CompilerResult<()> {
-        let decision = LayoutDecision::Rejected(LayoutFailure {
+    /// Select a failed layout query.
+    fn select_layout_rejection(&mut self, term: &LayoutTerm) -> CompilerResult<()> {
+        let decision = LayoutSelection::Rejected(LayoutFailure {
             source: term.source,
             target: term.target,
             query: term.query,
         });
 
-        self.record_layout_decision(term.source, decision);
+        self.select_layout(term.source, decision);
 
         Ok(())
     }
@@ -633,7 +652,7 @@ impl LayoutType {
         match self {
             Self::Operand(operand) => state.type_operand_layout(module, operand, pointer_bytes),
             Self::TypeId(ty) => {
-                let ty = state.local_type(module, ty);
+                let ty = state.layout_type_value(module, ty);
 
                 state.committed_type_layout(module, &ty, pointer_bytes)
             }

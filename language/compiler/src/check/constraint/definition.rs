@@ -1,10 +1,7 @@
 use smallvec::SmallVec;
 
-use destack_source::ModuleId;
-
 use crate::check::{
-    CheckState, Constraint, ConstraintOrigin, StaticCondition, StaticTerm, TermId, TypeTerm,
-    VariableId,
+    CheckState, Condition, Constraint, Origin, StaticTerm, TermId, TypeTerm, VariableId,
 };
 
 /// One check variable definition.
@@ -21,9 +18,9 @@ pub(in crate::check) enum Definition {
         /// The type term assigned to it.
         term: TermId<TypeTerm>,
         /// The source that produced this definition.
-        origin: ConstraintOrigin,
+        origin: Origin,
         /// The static condition under which this definition exists.
-        condition: StaticCondition,
+        condition: Condition,
     },
     /// Define one static variable from one static term.
     ///
@@ -36,15 +33,22 @@ pub(in crate::check) enum Definition {
         /// The static term assigned to it.
         term: TermId<StaticTerm>,
         /// The source that produced this definition.
-        origin: ConstraintOrigin,
+        origin: Origin,
         /// The static condition under which this definition exists.
-        condition: StaticCondition,
+        condition: Condition,
     },
 }
 
 impl Definition {
+    /// Return the variable defined by this definition.
+    pub(in crate::check) fn result(&self) -> VariableId {
+        match self {
+            Self::Type { result, .. } | Self::Static { result, .. } => *result,
+        }
+    }
+
     /// Return variables watched by this definition.
-    pub(in crate::check) fn watched_variables(
+    pub(in crate::check) fn referenced_variables(
         &self,
         state: &CheckState<'_>,
     ) -> SmallVec<[VariableId; 4]> {
@@ -80,6 +84,7 @@ impl Definition {
 impl CheckState<'_> {
     /// Add one definition.
     pub(in crate::check) fn add_definition(&mut self, definition: Definition) {
+        self.variables.defined.insert(definition.result());
         self.variables.definitions.push(definition);
     }
 
@@ -88,16 +93,15 @@ impl CheckState<'_> {
         self.variables.constraints.push(constraint);
     }
 
-    /// Define one type variable from one term.
-    pub(in crate::check) fn define_type(
+    /// Add one type variable definition under one static condition.
+    pub(in crate::check) fn add_type_definition(
         &mut self,
-        module: ModuleId,
         variable: VariableId,
         term: TypeTerm,
+        condition: Condition,
     ) {
         let origin = self.variable(variable).source;
         let term = self.terms.push(term);
-        let condition = self.flow(module).current_static_condition();
         let definition = Definition::Type {
             result: variable,
             term,
@@ -108,16 +112,15 @@ impl CheckState<'_> {
         self.add_definition(definition);
     }
 
-    /// Define one static variable from one term.
-    pub(in crate::check) fn define_static(
+    /// Add one static variable definition under one static condition.
+    pub(in crate::check) fn add_static_definition(
         &mut self,
-        module: ModuleId,
         variable: VariableId,
         term: StaticTerm,
+        condition: Condition,
     ) {
         let origin = self.variable(variable).source;
         let term = self.terms.push(term);
-        let condition = self.flow(module).current_static_condition();
         let definition = Definition::Static {
             result: variable,
             term,

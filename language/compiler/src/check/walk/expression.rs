@@ -1,14 +1,13 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 
 use crate::check::{
-    AwaitTerm, CallCandidate, CallTerm, CheckState, ConstraintOrigin, ConstructTerm, FlowBranch,
-    FlowCheckpoint, FormTerm, GenericArgument, IdentityTerm, ImportMetaTerm, IndexSetTerm,
-    IndexTerm, InstanceCheckTerm, KeyMembershipTerm, MemberCallTerm, MemberTerm, OperatorTerm,
-    OperatorTermKind, PatternRelation, RangeValueTerm, ShapeMember, StaticTerm, SuperTerm,
-    TaggedTemplateTerm, TemplateTerm, TreeTerm, TryTerm, TryTermKind, TupleElement,
-    TypeLiteralTerm, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, TypeValueTerm,
-    VariableId, VariableKind, YieldTerm,
+    AwaitTerm, CallCallee, CallTerm, CheckState, ConstructTerm, FlowBranch, FlowCheckpoint,
+    FormTerm, GenericArgument, IdentityTerm, ImportMetaTerm, IndexSetTerm, IndexTerm,
+    InstanceCheckTerm, KeyMembershipTerm, MemberCallCallee, MemberCallTerm, MemberTerm,
+    OperatorTerm, OperatorTermKind, Origin, PatternRelation, RangeValueTerm, ShapeMember,
+    StaticTerm, SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm, TryTerm, TryTermKind,
+    TupleElement, TypeLiteralTerm, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm,
+    TypeValueTerm, VariableId, VariableKind, YieldTerm,
 };
 
 /// The condition branch being entered.
@@ -28,6 +27,18 @@ impl CheckState<'_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        destack_core::ensure_sufficient_stack(|| {
+            self.walk_expression_inner(tree, id, expression);
+        });
+    }
+
+    /// Walk one expression after stack growth is handled.
+    fn walk_expression_inner(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
         if !self.push_static_condition_for(tree, id.into_any(), None) {
             return;
         }
@@ -36,9 +47,9 @@ impl CheckState<'_> {
             dir::Expression::Declaration(declaration) => {
                 if tree.get(*declaration).symbol_kind().is_some() {
                     if let Some(symbol) = self.declaration_symbol(tree.module_id, (*declaration).into_any()) {
-                        let term = TypeTerm::Variable(self.intern_symbol_type_variable(tree.module_id, symbol));
+                        let term = TypeTerm::Variable(self.intern_local_symbol_type_variable(tree.module_id, symbol));
 
-                        self.define_expression_type(tree.module_id, id, term);
+                        self.define_node_type(tree.module_id, id, term);
                     }
                 }
 
@@ -46,9 +57,9 @@ impl CheckState<'_> {
             }
             // { ... }
             dir::Expression::Block(block) => {
-                let term = TypeTerm::Variable(self.intern_local_type_variable(tree.module_id, *block));
+                let term = TypeTerm::Variable(self.intern_local_node_type_variable(tree.module_id, *block));
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_block(tree, *block, tree.get(*block));
             }
             // label: body
@@ -57,7 +68,7 @@ impl CheckState<'_> {
             }
             // import { item } from "module"
             dir::Expression::Import { items, .. } => {
-                self.define_expression_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
 
                 if let Some(items) = items {
                     for item in items {
@@ -67,17 +78,32 @@ impl CheckState<'_> {
             }
             // export { item } from "module"
             dir::Expression::Export { items, .. } => {
-                self.define_expression_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
 
                 for item in items {
                     self.walk_dependency_item(tree, *item, tree.get(*item));
                 }
             }
             // let x = value
-            dir::Expression::Let { declarators, .. }
+            dir::Expression::Let {
+                declarators,
+                is_ambient,
+                ..
+            } => {
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+
+                for declarator in declarators {
+                    self.walk_declarator(tree, *declarator, tree.get(*declarator));
+                    if *is_ambient {
+                        self.mark_bindings_assigned(tree, tree.get(*declarator).pattern.into_any());
+                    } else {
+                        self.mark_declarator_assigned(tree, tree.get(*declarator));
+                    }
+                }
+            }
             // using x = value
-            | dir::Expression::Using { declarators, .. } => {
-                self.define_expression_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+            dir::Expression::Using { declarators, .. } => {
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
 
                 for declarator in declarators {
                     self.walk_declarator(tree, *declarator, tree.get(*declarator));
@@ -90,7 +116,7 @@ impl CheckState<'_> {
                 else_branch,
                 ..
             } => {
-                self.define_expression_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
                 self.walk_declarator(tree, *declarator, tree.get(*declarator));
 
                 let before_else = self.checkpoint_flow(tree.module_id);
@@ -113,24 +139,30 @@ impl CheckState<'_> {
                 else_expression,
                 ..
             } => {
-                let then_type = self.intern_local_type_variable(tree.module_id, *then_expression);
+                let then_type = self.intern_local_node_type_variable(tree.module_id, *then_expression);
                 let else_type = match else_expression {
-                    Some(else_expression) => self.intern_local_type_variable(tree.module_id, *else_expression),
-                    None => self.define_void_type(tree.module_id, id.into_any()),
+                    Some(else_expression) => self
+                        .intern_local_node_type_variable(tree.module_id, *else_expression)
+                        .into(),
+                    None => self.void_type_operand(),
                 };
-                let operation = self.terms.push(TypeOperationTerm::BestCommon {
-                    elements: vec![then_type.into(), else_type.into()],
-                });
-                let term = TypeTerm::Operation(operation);
+                let term = TypeTerm::Union {
+                    elements: vec![then_type.into(), else_type],
+                };
 
-                self.define_expression_type(tree.module_id, id, term);
-                self.walk_if_expression(tree, condition, *then_expression, *else_expression);
+                self.define_node_type(tree.module_id, id, term);
+                self.walk_if_expression(
+                    tree,
+                    condition,
+                    *then_expression,
+                    *else_expression,
+                );
             }
             // while condition { body }
             dir::Expression::While {
                 condition, body, ..
             } => {
-                self.intern_local_type_variable(tree.module_id, id);
+                self.intern_local_node_type_variable(tree.module_id, id);
                 self.walk_while_expression(tree, id, None, *condition, *body);
             }
             // for item of iterator { body }
@@ -141,8 +173,16 @@ impl CheckState<'_> {
                 body,
                 ..
             } => {
-                self.intern_local_type_variable(tree.module_id, id);
-                self.walk_for_each_expression(tree, id, None, *operator, binding, *iterator, *body);
+                self.intern_local_node_type_variable(tree.module_id, id);
+                self.walk_for_each_expression(
+                    tree,
+                    id,
+                    None,
+                    *operator,
+                    binding,
+                    *iterator,
+                    *body,
+                );
             }
             // for (initialization; condition; increment) { body }
             dir::Expression::For {
@@ -151,7 +191,7 @@ impl CheckState<'_> {
                 increment,
                 body,
             } => {
-                self.intern_local_type_variable(tree.module_id, id);
+                self.intern_local_node_type_variable(tree.module_id, id);
                 self.walk_for_expression(
                     tree,
                     id,
@@ -164,7 +204,7 @@ impl CheckState<'_> {
             }
             // loop { body }
             dir::Expression::Loop { body } => {
-                self.intern_local_type_variable(tree.module_id, id);
+                self.intern_local_node_type_variable(tree.module_id, id);
                 self.walk_loop_expression(tree, id, None, *body);
             }
             // try body catch error finally cleanup
@@ -173,21 +213,19 @@ impl CheckState<'_> {
                 catch,
                 finally,
             } => {
-                let body_type = self.intern_local_type_variable(tree.module_id, *body);
+                let body_type = self.intern_local_node_type_variable(tree.module_id, *body);
                 let term = match catch {
                     Some(catch) => {
-                        let catch_type = self.intern_local_type_variable(tree.module_id, tree.get(*catch).body);
+                        let catch_type = self.intern_local_node_type_variable(tree.module_id, tree.get(*catch).body);
 
-                        let operation = self.terms.push(TypeOperationTerm::BestCommon {
+                        TypeTerm::Union {
                             elements: vec![body_type.into(), catch_type.into()],
-                        });
-
-                        TypeTerm::Operation(operation)
+                        }
                     }
                     None => TypeTerm::Variable(body_type),
                 };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_try_expression(tree, id, *body, *catch, *finally);
             }
             // match value { case pattern => body }
@@ -197,39 +235,38 @@ impl CheckState<'_> {
                     .map(|case| match tree.get(*case) {
                         // case pattern => expression
                         dir::MatchCase::Expression { body, .. } => {
-                            self.intern_local_type_variable(tree.module_id, *body)
+                            self.intern_local_node_type_variable(tree.module_id, *body)
                         }
                         // case pattern => { ... }
                         dir::MatchCase::Block { body, .. } => {
-                            self.intern_local_type_variable(tree.module_id, *body)
+                            self.intern_local_node_type_variable(tree.module_id, *body)
                         }
                     })
                     .map(TypeOperand::from)
                     .collect();
-                let operation = self.terms.push(TypeOperationTerm::BestCommon { elements });
-                let term = TypeTerm::Operation(operation);
+                let term = TypeTerm::Union { elements };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_match_expression(tree, id, *value, cases);
             }
             // break value
             dir::Expression::Break { label, value } => {
-                self.define_expression_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Never));
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Never));
 
                 let value = if let Some(value) = value {
                     self.walk_expression(tree, *value, tree.get(*value));
 
-                    Some(self.intern_local_type_variable(tree.module_id, *value))
+                    Some(self.intern_local_node_type_variable(tree.module_id, *value))
                 } else {
                     None
                 };
 
-                self.record_break_value(tree.module_id, id.into_any(), *label, value);
+                self.apply_break(tree.module_id, id.into_any(), *label, value);
             }
             // continue
             dir::Expression::Continue { label } => {
-                self.define_expression_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Never));
-                self.record_continue_branch(tree.module_id, id.into_any(), *label);
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Never));
+                self.apply_continue(tree.module_id, id.into_any(), *label);
             }
             // await value
             dir::Expression::Await {
@@ -237,29 +274,29 @@ impl CheckState<'_> {
             } => {
                 self.validate_await_context(tree.module_id, id.into_any());
 
-                let value = self.intern_local_type_variable(tree.module_id, *awaited);
+                let value = self.intern_local_node_type_variable(tree.module_id, *awaited);
                 let await_term = self.terms.push(AwaitTerm {
                     source: id.into_global_any(tree.module_id),
-                    value,
+                    value: value.into(),
                 });
                 let term = TypeTerm::Await(await_term);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *awaited, tree.get(*awaited));
             }
             // throw value
             dir::Expression::Throw { value } => {
-                self.define_expression_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Never));
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Never));
                 self.walk_expression(tree, *value, tree.get(*value));
             }
             // return value
             dir::Expression::Return { value } => {
-                self.define_expression_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Never));
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Never));
 
                 if let Some(value) = value {
                     self.walk_expression(tree, *value, tree.get(*value));
 
-                    let value = self.intern_local_type_variable(tree.module_id, *value);
+                    let value = self.intern_local_node_type_variable(tree.module_id, *value);
                     self.constrain_return_value(tree.module_id, id.into_any(), value);
                 } else {
                     self.constrain_void_return(tree.module_id, id.into_any());
@@ -268,10 +305,10 @@ impl CheckState<'_> {
             // yield value
             dir::Expression::Yield { cardinality, value } => {
                 let source = id.into_global_any(tree.module_id);
-                let origin = ConstraintOrigin::Node(source);
-                let value_type = value.map(|value| self.intern_local_type_variable(tree.module_id, value));
+                let origin = Origin::Node(source);
+                let value_type = value.map(|value| self.intern_local_node_type_variable(tree.module_id, value));
                 let delegate_return_type = if *cardinality == dir::YieldCardinality::Generator {
-                    Some(self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin))
+                    Some(self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin))
                 } else {
                     None
                 };
@@ -285,7 +322,7 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::Yield(yield_term);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.constrain_yield_value(
                     tree.module_id,
                     id.into_any(),
@@ -300,8 +337,8 @@ impl CheckState<'_> {
             }
             // value
             dir::Expression::Identifier { name } => {
-                if let Some(term) = self.resolve_identifier_expression(id, *name, tree) {
-                    self.define_expression_type(tree.module_id, id, term);
+                if let Some(term) = self.build_identifier_reference_term(id, *name, tree) {
+                    self.define_node_type(tree.module_id, id, term);
                 }
             }
             // this
@@ -309,14 +346,26 @@ impl CheckState<'_> {
                 if let Some(receiver) =
                     self.define_this_receiver_variable(id.into_global_any(tree.module_id))
                 {
-                    self.define_expression_type(tree.module_id, id, TypeTerm::Variable(receiver));
+                    self.define_node_type(tree.module_id, id, TypeTerm::Variable(receiver));
                 }
             }
             // 1, "text", true
             dir::Expression::ScalarLiteral(value) => {
-                let term = TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()));
+                let term = match value {
+                    dir::ScalarLiteral::RegexString { .. } => {
+                        let symbol =
+                            self.language_symbol(tree.module_id, dir::LanguageItem::RegExp);
 
-                self.define_expression_type(tree.module_id, id, term);
+                        TypeTerm::Reference {
+                            origin: Origin::Node(id.into_global_any(tree.module_id)),
+                            symbol,
+                            arguments: Vec::new().into(),
+                        }
+                    }
+                    _ => TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone())),
+                };
+
+                self.define_node_type(tree.module_id, id, term);
             }
             // super
             dir::Expression::Super => {
@@ -327,7 +376,7 @@ impl CheckState<'_> {
                 let super_term = self.terms.push(SuperTerm { source, receiver });
                 let term = TypeTerm::Super(super_term);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
             }
             // import.meta
             dir::Expression::ImportMeta => {
@@ -336,7 +385,7 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::ImportMeta(import_meta);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
             }
             // #name
             dir::Expression::PrivateIdentifier { .. } => {}
@@ -354,9 +403,9 @@ impl CheckState<'_> {
                 generic_arguments,
             } => {
                 if let Some(term) =
-                    self.resolve_reference_expression(id, path, generic_arguments, tree)
+                    self.build_qualified_reference_term(id, path, generic_arguments, tree)
                 {
-                    self.define_expression_type(tree.module_id, id, term);
+                    self.define_node_type(tree.module_id, id, term);
                 }
 
                 for argument in generic_arguments {
@@ -370,9 +419,9 @@ impl CheckState<'_> {
                 end_kind,
             } => {
                 let start_variable =
-                    start.map(|start| self.intern_local_type_variable(tree.module_id, start));
+                    start.map(|start| self.intern_local_node_type_variable(tree.module_id, start));
                 let end_variable =
-                    end.map(|end| self.intern_local_type_variable(tree.module_id, end));
+                    end.map(|end| self.intern_local_node_type_variable(tree.module_id, end));
                 let range = self.terms.push(RangeValueTerm {
                     source: id.into_global_any(tree.module_id),
                     start: start_variable,
@@ -381,7 +430,7 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::RangeValue(range);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
 
                 if let Some(start) = start {
                     self.walk_expression(tree, *start, tree.get(*start));
@@ -392,7 +441,16 @@ impl CheckState<'_> {
             }
             // `text ${value}`
             dir::Expression::TemplateExpression { value } => {
-                let (strings, spans) = self.template_parts(value, tree);
+                let (strings, spans) = match value {
+                    // `text`
+                    dir::TemplateLiteral::String { string } => (vec![*string], Vec::new()),
+                    // `text ${value}`
+                    dir::TemplateLiteral::InterpolatedString { strings, arguments } => {
+                        let spans = self.argument_value_type_variables(arguments, tree);
+
+                        (strings.clone(), spans)
+                    }
+                };
                 let template = self.terms.push(TemplateTerm {
                     source: id.into_global_any(tree.module_id),
                     strings,
@@ -400,7 +458,7 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::Template(template);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_template_literal(tree, value);
             }
             // tag<T>`text ${value}`
@@ -409,9 +467,18 @@ impl CheckState<'_> {
                 generic_arguments,
                 value,
             } => {
-                let (strings, spans) = self.template_parts(value, tree);
+                let (strings, spans) = match value {
+                    // tag`text`
+                    dir::TemplateLiteral::String { string } => (vec![*string], Vec::new()),
+                    // tag`text ${value}`
+                    dir::TemplateLiteral::InterpolatedString { strings, arguments } => {
+                        let spans = self.argument_value_type_variables(arguments, tree);
+
+                        (strings.clone(), spans)
+                    }
+                };
                 let generic_arguments_term = self.build_generic_arguments(generic_arguments, tree);
-                let tag_variable = self.intern_local_type_variable(tree.module_id, *tag);
+                let tag_variable = self.intern_local_node_type_variable(tree.module_id, *tag);
                 let template = self.terms.push(TaggedTemplateTerm {
                     source: id.into_global_any(tree.module_id),
                     tag: tag_variable,
@@ -421,7 +488,7 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::TaggedTemplate(template);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *tag, tree.get(*tag));
 
                 for argument in generic_arguments {
@@ -432,29 +499,16 @@ impl CheckState<'_> {
             }
             // [a, b, c]
             dir::Expression::ArrayExpression { elements } => {
-                let origin = ConstraintOrigin::Node(id.into_global_any(tree.module_id));
                 let element_types = self.argument_value_type_variables(elements, tree);
-                let element = self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-                let length = dir::StaticTerm::ScalarLiteral {
-                    value: dir::ScalarLiteral::Integer(element_types.len() as i64),
-                };
-                let length_variable =
-                    self.allocate_intermediate_variable(tree.module_id, VariableKind::Static, origin);
-                self.define_static(tree.module_id, length_variable, StaticTerm::Literal(length));
                 let operation = self.terms.push(TypeOperationTerm::BestCommon {
                     elements: element_types.into_iter().map(TypeOperand::from).collect(),
                 });
-                let term = TypeTerm::Operation(operation);
-
-                self.define_type(tree.module_id, element, term);
-
-                let term = TypeTerm::FixedArray {
+                let element = self.terms.push(TypeTerm::Operation(operation));
+                let term = TypeTerm::Array {
                     element: element.into(),
-                    length: length_variable,
-                    is_readonly: false,
                 };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
 
                 for element in elements {
                     self.walk_argument(tree, *element, tree.get(*element));
@@ -462,13 +516,16 @@ impl CheckState<'_> {
             }
             // [value; length]
             dir::Expression::FixedArrayExpression { value, length } => {
+                let condition = self.active_static_condition(tree.module_id);
+                let length_variable =
+                    self.define_static_expression_variable(tree.module_id, *length, condition);
                 let term = TypeTerm::FixedArray {
-                    element: self.intern_local_type_variable(tree.module_id, *value).into(),
-                    length: self.define_static_expression_variable(tree.module_id, *length),
+                    element: self.intern_local_node_type_variable(tree.module_id, *value).into(),
+                    length: length_variable.into(),
                     is_readonly: false,
                 };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *value, tree.get(*value));
                 self.walk_expression(tree, *length, tree.get(*length));
             }
@@ -493,7 +550,7 @@ impl CheckState<'_> {
 
                     let element = TupleElement {
                         label,
-                        ty: self.intern_local_type_variable(tree.module_id, value).into(),
+                        ty: self.intern_local_node_type_variable(tree.module_id, value).into(),
                         is_optional: false,
                         is_readonly: false,
                         is_rest: matches!(argument, dir::Argument::Spread { .. }),
@@ -507,7 +564,7 @@ impl CheckState<'_> {
                     is_readonly: false,
                 };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
 
                 for element in elements {
                     self.walk_argument(tree, *element, tree.get(*element));
@@ -517,12 +574,12 @@ impl CheckState<'_> {
             dir::Expression::SequenceExpression { expressions } => {
                 let term = match expressions.last() {
                     Some(expression) => {
-                        TypeTerm::Variable(self.intern_local_type_variable(tree.module_id, *expression))
+                        TypeTerm::Variable(self.intern_local_node_type_variable(tree.module_id, *expression))
                     }
                     None => TypeTerm::Literal(TypeLiteralTerm::Void),
                 };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
 
                 for expression in expressions {
                     self.walk_expression(tree, *expression, tree.get(*expression));
@@ -531,6 +588,7 @@ impl CheckState<'_> {
             // { key: value }
             dir::Expression::ObjectExpression { properties } => {
                 let mut members = Vec::new();
+
                 for property in properties {
                     match tree.get(*property) {
                         // { key: value }
@@ -541,7 +599,7 @@ impl CheckState<'_> {
 
                             let member = ShapeMember::Field {
                                 key,
-                                ty: self.intern_local_type_variable(tree.module_id, *value).into(),
+                                ty: self.intern_local_node_type_variable(tree.module_id, *value).into(),
                                 is_optional: false,
                                 is_readonly: false,
                             };
@@ -555,8 +613,8 @@ impl CheckState<'_> {
                             };
                             let ty = self
                                 .declaration_symbol(tree.module_id, (*property).into_any())
-                                .map(|symbol| self.intern_symbol_type_variable(tree.module_id, symbol))
-                                .unwrap_or_else(|| self.intern_local_type_variable(tree.module_id, *property));
+                                .map(|symbol| self.intern_local_symbol_type_variable(tree.module_id, symbol))
+                                .unwrap_or_else(|| self.intern_local_node_type_variable(tree.module_id, *property));
 
                             let member = ShapeMember::Field {
                                 key,
@@ -579,7 +637,7 @@ impl CheckState<'_> {
                     members: members.into(),
                 };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
 
                 for property in properties {
                     self.walk_property(tree, *property, tree.get(*property));
@@ -588,37 +646,34 @@ impl CheckState<'_> {
             // Type { key: value }
             dir::Expression::StructExpression { ty, properties } => {
                 let source = id.into_global_any(tree.module_id);
-                let owner = self.intern_local_type_variable(tree.module_id, *ty);
+                let owner = self.intern_local_node_type_variable(tree.module_id, *ty);
 
                 for property in properties {
                     if let dir::Property::Field { key, value, .. } = tree.get(*property)
                         && let Some(key) = key.static_key(tree)
                     {
                         let member = self.terms.push(MemberTerm {
-                            source: None,
+                            origin: Origin::Node(source),
                             owner,
                             key,
                             arguments: Vec::new().into(),
                         });
                         let field = TypeTerm::Member(member);
-                        let field_variable = self.allocate_intermediate_variable(
-                            tree.module_id,
-                            VariableKind::Type,
-                            ConstraintOrigin::Node(source),
-                        );
-                        self.define_type(tree.module_id, field_variable, field);
-                        let value = self.intern_local_type_variable(tree.module_id, *value);
+                        let field = self.terms.push(field);
+                        let value = self.intern_local_node_type_variable(tree.module_id, *value);
+                        let condition = self.active_static_condition(tree.module_id);
 
-                        self.constrain_type(
-                            ConstraintOrigin::Node(source),
+                        self.add_type_constraint(
+                            Origin::Node(source),
                             TypeRelation::Assignable,
                             value,
-                            field_variable,
+                            field,
+                            condition,
                         );
                     }
                 }
 
-                self.define_expression_type(tree.module_id, id, TypeTerm::Variable(owner));
+                self.define_node_type(tree.module_id, id, TypeTerm::Variable(owner));
 
                 self.walk_type_expression(tree, *ty, tree.get(*ty));
                 for property in properties {
@@ -632,7 +687,7 @@ impl CheckState<'_> {
                 arguments,
                 elements,
             } => {
-                let tag = left.map(|left| self.intern_local_type_variable(tree.module_id, left));
+                let tag = left.map(|left| self.intern_local_node_type_variable(tree.module_id, left));
                 let generic_argument_terms = self.build_generic_arguments(generic_arguments, tree);
                 let argument_types = arguments
                     .as_ref()
@@ -651,7 +706,7 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::Tree(tree_term);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
 
                 if let Some(left) = left {
                     self.walk_expression(tree, *left, tree.get(*left));
@@ -672,28 +727,28 @@ impl CheckState<'_> {
             }
             // (value)
             dir::Expression::Parenthesized { expression: child } => {
-                let child_type = self.intern_local_type_variable(tree.module_id, *child);
+                let child_type = self.intern_local_node_type_variable(tree.module_id, *child);
 
-                self.define_expression_type(tree.module_id, id, TypeTerm::Variable(child_type));
+                self.define_node_type(tree.module_id, id, TypeTerm::Variable(child_type));
                 self.walk_expression(tree, *child, tree.get(*child));
             }
             // type T
             dir::Expression::Type { value } => {
-                let ty = self.intern_local_type_variable(tree.module_id, *value);
+                let ty = self.intern_local_node_type_variable(tree.module_id, *value);
                 let type_value = self.terms.push(TypeValueTerm {
                     source: id.into_global_any(tree.module_id),
                     ty,
                 });
                 let term = TypeTerm::TypeValue(type_value);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_type_expression(tree, *value, tree.get(*value));
             }
             // comptime value
             dir::Expression::Comptime { body } => {
-                let body_type = self.intern_local_type_variable(tree.module_id, *body);
+                let body_type = self.intern_local_node_type_variable(tree.module_id, *body);
 
-                self.define_expression_type(tree.module_id, id, TypeTerm::Variable(body_type));
+                self.define_node_type(tree.module_id, id, TypeTerm::Variable(body_type));
                 self.walk_expression(tree, *body, tree.get(*body));
             }
             // value as T
@@ -701,16 +756,28 @@ impl CheckState<'_> {
                 expression: child,
                 target_type,
             } => {
-                let child_type = self.intern_local_type_variable(tree.module_id, *child);
-                let target_type_variable = self.intern_local_type_variable(tree.module_id, *target_type);
-                let origin = ConstraintOrigin::Node(id.into_global_any(tree.module_id));
+                if matches!(tree.get(*target_type), dir::TypeExpression::Const) {
+                    let term = self.build_const_assertion_type(tree, *child);
 
-                self.define_expression_type(tree.module_id, id, TypeTerm::Variable(target_type_variable));
-                self.constrain_type(
+                    self.define_node_type(tree.module_id, id, term);
+                    self.walk_const_assertion_source(tree, *child);
+
+                    self.pop_static_condition(tree.module_id);
+                    return;
+                }
+
+                let child_type = self.intern_local_node_type_variable(tree.module_id, *child);
+                let target_type_variable = self.intern_local_node_type_variable(tree.module_id, *target_type);
+                let origin = Origin::Node(id.into_global_any(tree.module_id));
+
+                self.define_node_type(tree.module_id, id, TypeTerm::Variable(target_type_variable));
+                let condition = self.active_static_condition(tree.module_id);
+                self.add_type_constraint(
                     origin,
                     TypeRelation::Castable,
                     child_type,
                     target_type_variable,
+                    condition,
                 );
                 self.walk_expression(tree, *child, tree.get(*child));
                 self.walk_type_expression(tree, *target_type, tree.get(*target_type));
@@ -720,30 +787,32 @@ impl CheckState<'_> {
                 expression: child,
                 target_type,
             } => {
-                let child_type = self.intern_local_type_variable(tree.module_id, *child);
-                let target_type_variable = self.intern_local_type_variable(tree.module_id, *target_type);
-                let origin = ConstraintOrigin::Node(id.into_global_any(tree.module_id));
+                let child_type = self.intern_local_node_type_variable(tree.module_id, *child);
+                let target_type_variable = self.intern_local_node_type_variable(tree.module_id, *target_type);
+                let origin = Origin::Node(id.into_global_any(tree.module_id));
 
-                self.define_expression_type(tree.module_id, id, TypeTerm::Variable(child_type));
-                self.constrain_type(
+                self.define_node_type(tree.module_id, id, TypeTerm::Variable(child_type));
+                let condition = self.active_static_condition(tree.module_id);
+                self.add_type_constraint(
                     origin,
                     TypeRelation::Satisfies,
                     child_type,
                     target_type_variable,
+                    condition,
                 );
                 self.walk_expression(tree, *child, tree.get(*child));
                 self.walk_type_expression(tree, *target_type, tree.get(*target_type));
             }
             // value is T
             dir::Expression::Is { value, target_type } => {
-                self.define_expression_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::boolean()));
+                self.define_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::boolean()));
                 self.walk_expression(tree, *value, tree.get(*value));
                 self.walk_type_expression(tree, *target_type, tree.get(*target_type));
             }
             // value instanceof Target
             dir::Expression::InstanceOf { value, target } => {
-                let value_variable = self.intern_local_type_variable(tree.module_id, *value);
-                let target_variable = self.intern_local_type_variable(tree.module_id, *target);
+                let value_variable = self.intern_local_node_type_variable(tree.module_id, *value);
+                let target_variable = self.intern_local_node_type_variable(tree.module_id, *target);
                 let instance = self.terms.push(InstanceCheckTerm {
                     source: id.into_global_any(tree.module_id),
                     value: value_variable,
@@ -751,7 +820,7 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::InstanceCheck(instance);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *value, tree.get(*value));
                 self.walk_expression(tree, *target, tree.get(*target));
             }
@@ -765,7 +834,7 @@ impl CheckState<'_> {
                         | dir::UnaryOperator::PreDecrement
                 );
 
-                let receiver = self.intern_local_type_variable(tree.module_id, *right);
+                let receiver = self.intern_local_node_type_variable(tree.module_id, *right);
                 let operator = self.terms.push(OperatorTerm {
                     source: id.into_global_any(tree.module_id),
                     kind: OperatorTermKind::Unary(*operator),
@@ -774,14 +843,16 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::Operator(operator);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *right, tree.get(*right));
 
-                // record writes after reading the updated place
-                if is_update && let Some(place) = self.resolve_place(*right, tree) {
-                    self.clear_written_expression_narrowings(tree, *right);
+                // apply writes after reading the updated place
+                if is_update && let Some(place) = self.build_place(*right, tree) {
+                    let condition = self.active_static_condition(tree.module_id);
+
+                    self.clear_mutated_expression_narrowings(tree, *right);
                     self.mark_place_assigned(place);
-                    self.require_writable_place(place);
+                    self.require_writable_place(place, condition);
                 }
             }
             // ^value
@@ -789,32 +860,37 @@ impl CheckState<'_> {
                 let form = self.terms.push(FormTerm::Owned);
                 let term = TypeTerm::Form {
                     form,
-                    payload: self.intern_local_type_variable(tree.module_id, *right).into(),
+                    payload: self.intern_local_node_type_variable(tree.module_id, *right).into(),
                 };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *right, tree.get(*right));
             }
             // &value
             dir::Expression::BorrowOf {
                 mutability, right, ..
             } => {
-                let origin = ConstraintOrigin::Node(id.into_global_any(tree.module_id));
+                let origin = Origin::Node(id.into_global_any(tree.module_id));
                 let access = mutability
                     .map(dir::Mutability::access)
                     .unwrap_or(dir::Access::Mutable);
                 let access = dir::StaticTerm::Access { access };
-                let access_variable =
-                    self.allocate_intermediate_variable(tree.module_id, VariableKind::Static, origin);
-                self.define_static(tree.module_id, access_variable, StaticTerm::Literal(access));
-                let lifetime = self.allocate_intermediate_variable(tree.module_id, VariableKind::Static, origin);
-                let form = self.terms.push(FormTerm::Borrowed { lifetime: lifetime.into(), access: access_variable.into() });
+                let access = self.terms.push(StaticTerm::Literal(access));
+                let lifetime = self.allocate_inference_variable(
+                    tree.module_id,
+                    VariableKind::Static,
+                    origin,
+                );
+                let form = self.terms.push(FormTerm::Borrowed {
+                    lifetime: lifetime.into(),
+                    access: access.into(),
+                });
                 let term = TypeTerm::Form {
                     form,
-                    payload: self.intern_local_type_variable(tree.module_id, *right).into(),
+                    payload: self.intern_local_node_type_variable(tree.module_id, *right).into(),
                 };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *right, tree.get(*right));
             }
             // value.member
@@ -823,11 +899,11 @@ impl CheckState<'_> {
             | dir::Expression::PrivateMember { left, name } => {
                 if let Some(name) = name {
                     let term = if let Some(narrowed) = self.flow_path_narrowing(tree, id) {
-                        TypeTerm::Variable(narrowed)
+                        narrowed.to_type_term(self)
                     } else {
-                        let owner = self.intern_local_type_variable(tree.module_id, *left);
+                        let owner = self.intern_local_node_type_variable(tree.module_id, *left);
                         let member = self.terms.push(MemberTerm {
-                            source: Some(id.into_global_any(tree.module_id)),
+                            origin: Origin::Node(id.into_global_any(tree.module_id)),
                             owner,
                             key: dir::StaticKey::Name(*name),
                             arguments: Vec::new().into(),
@@ -836,7 +912,7 @@ impl CheckState<'_> {
                         TypeTerm::Member(member)
                     };
 
-                    self.define_expression_type(tree.module_id, id, term);
+                    self.define_node_type(tree.module_id, id, term);
                 }
 
                 self.walk_expression(tree, *left, tree.get(*left));
@@ -845,22 +921,24 @@ impl CheckState<'_> {
             dir::Expression::Index { left, index, .. } => {
                 if let Some(index) = index {
                     let term = if let Some(narrowed) = self.flow_path_narrowing(tree, id) {
-                        TypeTerm::Variable(narrowed)
+                        narrowed.to_type_term(self)
                     } else {
                         let index_node = *index;
-                        let receiver = self.intern_local_type_variable(tree.module_id, *left);
-                        let index = self.intern_local_type_variable(tree.module_id, index_node);
+                        let receiver = self.intern_local_node_type_variable(tree.module_id, *left);
+                        let index = self.intern_local_node_type_variable(tree.module_id, index_node);
                         let index_term = self.terms.push(IndexTerm {
                             source: id.into_global_any(tree.module_id),
                             receiver,
                             index,
-                            key: tree.get(index_node).static_key(),
+                            key: tree
+                                .get(index_node)
+                                .static_key(),
                         });
 
                         TypeTerm::Index(index_term)
                     };
 
-                    self.define_expression_type(tree.module_id, id, term);
+                    self.define_node_type(tree.module_id, id, term);
                 }
 
                 self.walk_expression(tree, *left, tree.get(*left));
@@ -874,19 +952,10 @@ impl CheckState<'_> {
                 left,
                 generic_arguments,
             } => {
-                if let Some(symbol) = self.direct_callee_symbol(*left, tree) {
-                    let source = id.into_global_any(tree.module_id);
-                    let arguments =
-                        self.build_generic_arguments_for_owner(symbol, generic_arguments, tree);
-                    let term = TypeTerm::Reference {
-                        source: Some(source),
-                        symbol,
-                        arguments,
-                    };
+                let term =
+                    TypeTerm::Variable(self.intern_local_node_type_variable(tree.module_id, *left));
 
-                    self.define_expression_type(tree.module_id, id, term);
-                }
-
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *left, tree.get(*left));
 
                 for argument in generic_arguments {
@@ -901,10 +970,10 @@ impl CheckState<'_> {
                 ..
             } => {
                 let source = id.into_global_any(tree.module_id);
-                let callee = self.intern_local_type_variable(tree.module_id, *left);
+                let callee = self.intern_local_node_type_variable(tree.module_id, *left);
 
                 // value.member()
-                let member = if let dir::Expression::Member {
+                let callee = if let dir::Expression::Member {
                     left,
                     name: Some(name),
                 }
@@ -915,49 +984,31 @@ impl CheckState<'_> {
                 } = tree.get(*left)
                 {
                     let member = MemberCallTerm {
-                        receiver: self.intern_local_type_variable(tree.module_id, *left),
+                        callee: MemberCallCallee::Source {
+                            source: (*left).into_global_any(tree.module_id),
+                        },
+                        receiver: self.intern_local_node_type_variable(tree.module_id, *left),
                         key: dir::StaticKey::Name(*name),
                         arguments: Vec::new().into(),
-                        protocol: None,
                     };
                     let member = self.terms.push(member);
 
-                    Some(member)
+                    CallCallee::Member(member)
                 } else {
-                    None
+                    CallCallee::Value(callee)
                 };
 
-                // seed directly named candidates
-                let candidates = match self.direct_callee_symbol(*left, tree) {
-                    Some(symbol) => {
-                        let ty = self.intern_symbol_type_variable(tree.module_id, symbol);
-
-                        vec![CallCandidate { symbol, ty }]
-                    }
-                    None => Vec::new(),
-                };
-                let generic_arguments_term = match candidates.first() {
-                    Some(candidate) => {
-                        self.build_generic_arguments_for_owner(
-                            candidate.symbol,
-                            generic_arguments,
-                            tree,
-                        )
-                    }
-                    None => self.build_generic_arguments(generic_arguments, tree),
-                };
+                let generic_arguments_term = self.build_generic_arguments(generic_arguments, tree);
                 let arguments_term = self.argument_value_type_variables(arguments, tree);
                 let call = self.terms.push(CallTerm {
                     source,
                     callee,
-                    member,
-                    candidates,
                     generic_arguments: generic_arguments_term,
                     arguments: arguments_term.into_iter().map(TypeOperand::from).collect(),
                 });
                 let term = TypeTerm::Call(call);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *left, tree.get(*left));
 
                 // arguments
@@ -970,7 +1021,7 @@ impl CheckState<'_> {
             }
             // new Type<T>(argument)
             dir::Expression::New { ty, arguments } => {
-                let callee = self.intern_local_type_variable(tree.module_id, *ty);
+                let callee = self.intern_local_node_type_variable(tree.module_id, *ty);
                 let argument_types = self.argument_value_type_variables(arguments, tree);
                 let construct = self.terms.push(ConstructTerm {
                     source: id.into_global_any(tree.module_id),
@@ -980,7 +1031,7 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::Construct(construct);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_type_expression(tree, *ty, tree.get(*ty));
 
                 // arguments
@@ -995,26 +1046,26 @@ impl CheckState<'_> {
                 self.validate_await_context(tree.module_id, id.into_any());
 
                 let source = id.into_global_any(tree.module_id);
-                let origin = ConstraintOrigin::Node(source);
-                let awaited_type = self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-                let value = self.intern_local_type_variable(tree.module_id, *awaited);
+                let value = self.intern_local_node_type_variable(tree.module_id, *awaited);
 
-                let await_term = self.terms.push(AwaitTerm { source, value });
-
-                self.define_type(tree.module_id, awaited_type, TypeTerm::Await(await_term));
+                let await_term = self.terms.push(AwaitTerm {
+                    source,
+                    value: value.into(),
+                });
+                let awaited_type = self.terms.push(TypeTerm::Await(await_term));
 
                 let term = TryTerm {
                     source,
-                    value: awaited_type,
+                    value: awaited_type.into(),
                     kind: TryTermKind::Maybe,
                 };
 
                 let tried = self.terms.push(term.clone());
 
-                self.define_expression_type(tree.module_id, id, TypeTerm::Try(tried));
+                self.define_node_type(tree.module_id, id, TypeTerm::Try(tried));
                 self.walk_expression(tree, *awaited, tree.get(*awaited));
 
-                self.record_try_propagation(tree.module_id, id.into_any(), term.value);
+                self.apply_try_propagation(tree.module_id, id.into_any(), term.value);
             }
             // await! value
             dir::Expression::AwaitMust {
@@ -1023,51 +1074,51 @@ impl CheckState<'_> {
                 self.validate_await_context(tree.module_id, id.into_any());
 
                 let source = id.into_global_any(tree.module_id);
-                let origin = ConstraintOrigin::Node(source);
-                let awaited_type = self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-                let value = self.intern_local_type_variable(tree.module_id, *awaited);
+                let value = self.intern_local_node_type_variable(tree.module_id, *awaited);
 
-                let await_term = self.terms.push(AwaitTerm { source, value });
-
-                self.define_type(tree.module_id, awaited_type, TypeTerm::Await(await_term));
+                let await_term = self.terms.push(AwaitTerm {
+                    source,
+                    value: value.into(),
+                });
+                let awaited_type = self.terms.push(TypeTerm::Await(await_term));
 
                 let term = TryTerm {
                     source,
-                    value: awaited_type,
+                    value: awaited_type.into(),
                     kind: TryTermKind::Must,
                 };
 
                 let term = self.terms.push(term);
 
-                self.define_expression_type(tree.module_id, id, TypeTerm::Try(term));
+                self.define_node_type(tree.module_id, id, TypeTerm::Try(term));
                 self.walk_expression(tree, *awaited, tree.get(*awaited));
             }
             // value?
             dir::Expression::Maybe { left, .. } => {
                 let tried = TryTerm {
                     source: id.into_global_any(tree.module_id),
-                    value: self.intern_local_type_variable(tree.module_id, *left),
+                    value: self.intern_local_node_type_variable(tree.module_id, *left).into(),
                     kind: TryTermKind::Maybe,
                 };
 
                 let term = self.terms.push(tried.clone());
 
-                self.define_expression_type(tree.module_id, id, TypeTerm::Try(term));
+                self.define_node_type(tree.module_id, id, TypeTerm::Try(term));
                 self.walk_expression(tree, *left, tree.get(*left));
 
-                self.record_try_propagation(tree.module_id, id.into_any(), tried.value);
+                self.apply_try_propagation(tree.module_id, id.into_any(), tried.value);
             }
             // value!
             dir::Expression::Must { left, .. } => {
-                let value = self.intern_local_type_variable(tree.module_id, *left);
+                let value = self.intern_local_node_type_variable(tree.module_id, *left);
                 let term = self.terms.push(TryTerm {
                     source: id.into_global_any(tree.module_id),
-                    value,
+                    value: value.into(),
                     kind: TryTermKind::Must,
                 });
                 let term = TypeTerm::Try(term);
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
                 self.walk_expression(tree, *left, tree.get(*left));
             }
             // left + right
@@ -1077,8 +1128,8 @@ impl CheckState<'_> {
                 right,
             } => {
                 let source = id.into_global_any(tree.module_id);
-                let left_type = self.intern_local_type_variable(tree.module_id, *left);
-                let right_type = self.intern_local_type_variable(tree.module_id, *right);
+                let left_type = self.intern_local_node_type_variable(tree.module_id, *left);
+                let right_type = self.intern_local_node_type_variable(tree.module_id, *right);
                 let term = match operator {
                     // left === right
                     dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict => {
@@ -1097,7 +1148,9 @@ impl CheckState<'_> {
                             source,
                             key: left_type,
                             receiver: right_type,
-                            static_key: tree.get(*left).static_key(),
+                            static_key: tree
+                                .get(*left)
+                                .static_key(),
                         });
 
                         TypeTerm::KeyMembership(membership)
@@ -1135,7 +1188,7 @@ impl CheckState<'_> {
                     }
                 };
 
-                self.define_expression_type(tree.module_id, id, term);
+                self.define_node_type(tree.module_id, id, term);
 
                 match operator {
                     // left && right
@@ -1197,7 +1250,7 @@ impl CheckState<'_> {
                 operator,
                 right,
             } => {
-                let value = self.intern_local_type_variable(tree.module_id, *right);
+                let value = self.intern_local_node_type_variable(tree.module_id, *right);
 
                 // direct assignment uses the right side value
                 let assigned_value = if *operator == dir::AssignOperator::Assign {
@@ -1208,7 +1261,7 @@ impl CheckState<'_> {
                     match tree.get(*left) {
                         // target
                         dir::AssignPattern::Expression { value: place } => {
-                            let receiver = self.intern_local_type_variable(tree.module_id, *place);
+                            let receiver = self.intern_local_node_type_variable(tree.module_id, *place);
                             let source = id.into_global_any(tree.module_id);
                             let term = if let Some(binary_operator) = operator.binary_operator() {
                                 let operator = self.terms.push(OperatorTerm {
@@ -1226,13 +1279,14 @@ impl CheckState<'_> {
 
                                 TypeTerm::Operation(operation)
                             };
-                            let result = self.allocate_intermediate_variable(
+                            let result = self.allocate_inference_variable(
                                 tree.module_id,
                                 VariableKind::Type,
-                                ConstraintOrigin::Node(source),
+                                Origin::Node(source),
                             );
+                            let condition = self.active_static_condition(tree.module_id);
 
-                            self.define_type(tree.module_id, result, term);
+                            self.add_type_definition(result, term, condition);
 
                             Some(result)
                         }
@@ -1245,7 +1299,7 @@ impl CheckState<'_> {
                     }
                 };
 
-                // index assignment dispatches through index set
+                // assign expression evaluates to the target storage type
                 if let Some(assigned_value) = assigned_value {
                     let term = match tree.get(*left) {
                         // target
@@ -1258,20 +1312,29 @@ impl CheckState<'_> {
                             {
                                 let index_node = *index;
                                 let receiver =
-                                    self.intern_local_type_variable(tree.module_id, *left);
+                                    self.intern_local_node_type_variable(tree.module_id, *left);
                                 let index =
-                                    self.intern_local_type_variable(tree.module_id, index_node);
+                                    self.intern_local_node_type_variable(tree.module_id, index_node);
                                 let set = self.terms.push(IndexSetTerm {
                                     source: id.into_global_any(tree.module_id),
                                     receiver,
                                     index,
                                     value: assigned_value,
-                                    key: tree.get(index_node).static_key(),
+                                    key: tree
+                                        .get(index_node)
+                                        .static_key(),
                                 });
 
                                 TypeTerm::IndexSet(set)
                             } else {
-                                TypeTerm::Variable(assigned_value)
+                                self.build_place(*place, tree)
+                                    .map(|place| place.ty.to_type_term(self))
+                                    .unwrap_or_else(|| {
+                                        TypeTerm::Variable(self.intern_local_node_type_variable(
+                                            tree.module_id,
+                                            *place,
+                                        ))
+                                    })
                             }
                         }
                         // target = value
@@ -1282,25 +1345,57 @@ impl CheckState<'_> {
                         | dir::AssignPattern::Object { .. } => TypeTerm::Variable(assigned_value),
                     };
 
-                    self.define_expression_type(tree.module_id, id, term);
+                    self.define_node_type(tree.module_id, id, term);
                 }
 
-                if let Some(pattern) = self.build_assign_pattern_term(tree.module_id, *left, tree) {
-                    let value = self.intern_local_type_variable(tree.module_id, id);
+                // check assigned value against target pattern
+                if let Some(assigned_value) = assigned_value {
+                    match tree.get(*left) {
+                        // target
+                        dir::AssignPattern::Expression { value: place } => {
+                            if let Some(place) = self.build_place(*place, tree) {
+                                let target = place.ty;
+                                let origin =
+                                    Origin::Node((*right).into_global_any(tree.module_id));
+                                let condition = self.active_static_condition(tree.module_id);
 
-                    self.constrain_pattern(
-                        tree.module_id,
-                        PatternRelation::Assign(pattern),
-                        (*left).into_any(),
-                        value,
-                    );
+                                self.add_type_constraint(
+                                    origin,
+                                    TypeRelation::Assignable,
+                                    assigned_value,
+                                    target,
+                                    condition,
+                                );
+                            }
+                        }
+                        // target = value
+                        dir::AssignPattern::Assign { .. }
+                        // [a, b]
+                        | dir::AssignPattern::Sequence { .. }
+                        // { a, b }
+                        | dir::AssignPattern::Object { .. } => {
+                            if let Some(pattern) =
+                                self.build_assign_pattern_term(tree.module_id, *left, tree)
+                            {
+                                let condition = self.active_static_condition(tree.module_id);
+
+                                self.constrain_pattern(
+                                    tree.module_id,
+                                    PatternRelation::Assign(pattern),
+                                    (*left).into_any(),
+                                    assigned_value,
+                                    condition,
+                                );
+                            }
+                        }
+                    }
                 }
 
                 self.walk_assign_pattern(tree, *left, tree.get(*left));
                 self.walk_expression(tree, *right, tree.get(*right));
 
-                // record writes after reading the assigned value
-                self.record_assign_pattern_writes(*left, tree);
+                // apply writes after reading the assigned value
+                self.apply_assign_pattern_write(*left, tree);
             }
         }
 
@@ -1311,11 +1406,212 @@ impl CheckState<'_> {
     pub(in crate::check) fn walk_where_clause(
         &mut self,
         tree: &dir::Tree,
-        _id: dir::LocalNodeId<dir::WhereClause>,
+        id: dir::LocalNodeId<dir::WhereClause>,
         where_clause: &dir::WhereClause,
     ) {
+        // constrain the left type by the right type
+        let left = self.intern_local_node_type_variable(tree.module_id, where_clause.left);
+        let right = self.intern_local_node_type_variable(tree.module_id, where_clause.right);
+        let origin = Origin::Node(id.into_global_any(tree.module_id));
+        let condition = self.active_static_condition(tree.module_id);
+
+        self.add_type_constraint(origin, TypeRelation::Satisfies, left, right, condition);
+
+        // walk both constraint operands
         self.walk_type_expression(tree, where_clause.left, tree.get(where_clause.left));
         self.walk_type_expression(tree, where_clause.right, tree.get(where_clause.right));
+    }
+
+    /// Return the deep readonly literal type for one const assertion.
+    fn build_const_assertion_type(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+    ) -> TypeTerm {
+        match tree.get(id) {
+            // 1, "text", true
+            dir::Expression::ScalarLiteral(value) => {
+                TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()))
+            }
+            // [a, b]
+            dir::Expression::ArrayExpression { elements } => {
+                let elements = self.build_const_assertion_tuple_elements(tree, elements);
+
+                TypeTerm::Tuple {
+                    form: dir::TupleForm::Array,
+                    elements: elements.into(),
+                    is_readonly: true,
+                }
+            }
+            // (a, b)
+            dir::Expression::TupleExpression { elements } => {
+                let elements = self.build_const_assertion_tuple_elements(tree, elements);
+
+                TypeTerm::Tuple {
+                    form: dir::TupleForm::Tuple,
+                    elements: elements.into(),
+                    is_readonly: true,
+                }
+            }
+            // { key: value }
+            dir::Expression::ObjectExpression { properties } => {
+                let members = self.build_const_assertion_shape_members(tree, properties);
+
+                TypeTerm::Shape {
+                    members: members.into(),
+                }
+            }
+            // fallback
+            _ => {
+                let ty = self.intern_local_node_type_variable(tree.module_id, id);
+
+                TypeTerm::Variable(ty)
+            }
+        }
+    }
+
+    /// Walk one const assertion source without widening aggregate literals.
+    fn walk_const_assertion_source(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+    ) {
+        match tree.get(id) {
+            // [a, b], (a, b)
+            dir::Expression::ArrayExpression { elements }
+            | dir::Expression::TupleExpression { elements } => {
+                let term = self.build_const_assertion_type(tree, id);
+
+                self.define_node_type(tree.module_id, id, term);
+
+                for element in elements {
+                    let Some(value) = tree.get(*element).value() else {
+                        continue;
+                    };
+
+                    self.walk_const_assertion_source(tree, value);
+                }
+            }
+            // { key: value }
+            dir::Expression::ObjectExpression { properties } => {
+                let term = self.build_const_assertion_type(tree, id);
+
+                self.define_node_type(tree.module_id, id, term);
+
+                for property in properties {
+                    match tree.get(*property) {
+                        // { key: value }
+                        dir::Property::Field { value, .. } => {
+                            self.walk_const_assertion_source(tree, *value);
+                        }
+                        // { method() {} }, { ...value }, damaged syntax
+                        dir::Property::Method { .. }
+                        | dir::Property::Spread { .. }
+                        | dir::Property::Error => {
+                            self.walk_property(tree, *property, tree.get(*property));
+                        }
+                    }
+                }
+            }
+            // fallback
+            _ => {
+                self.walk_expression(tree, id, tree.get(id));
+            }
+        }
+    }
+
+    /// Return tuple elements for one const assertion.
+    fn build_const_assertion_tuple_elements(
+        &mut self,
+        tree: &dir::Tree,
+        elements: &[dir::LocalNodeId<dir::Argument>],
+    ) -> Vec<TupleElement> {
+        let mut terms = Vec::new();
+
+        // keep tuple element order
+        for element in elements {
+            let argument = tree.get(*element);
+            let label = match argument {
+                // [label = value]
+                dir::Argument::Labeled { label, .. } => Some(*label),
+                // [...label: value]
+                dir::Argument::Spread { label, .. } => *label,
+                // [name: value], [value]
+                dir::Argument::Named { .. } | dir::Argument::Positional { .. } => None,
+                // ignore damaged syntax
+                dir::Argument::Error => continue,
+            };
+            let Some(value) = argument.value() else {
+                continue;
+            };
+            let ty = self.intern_local_node_type_variable(tree.module_id, value);
+
+            terms.push(TupleElement {
+                label,
+                ty: ty.into(),
+                is_optional: false,
+                is_readonly: false,
+                is_rest: matches!(argument, dir::Argument::Spread { .. }),
+            });
+        }
+
+        terms
+    }
+
+    /// Return object members for one const assertion.
+    fn build_const_assertion_shape_members(
+        &mut self,
+        tree: &dir::Tree,
+        properties: &[dir::LocalNodeId<dir::Property>],
+    ) -> Vec<ShapeMember> {
+        let mut members = Vec::new();
+
+        // keep object member order
+        for property in properties {
+            match tree.get(*property) {
+                // { key: value }
+                dir::Property::Field { key, value, .. } => {
+                    let Some(key) = key.static_key(tree) else {
+                        continue;
+                    };
+                    let ty = self.intern_local_node_type_variable(tree.module_id, *value);
+
+                    members.push(ShapeMember::Field {
+                        key,
+                        ty: ty.into(),
+                        is_optional: false,
+                        is_readonly: true,
+                    });
+                }
+                // { method() {} }
+                dir::Property::Method { key: Some(key), .. } => {
+                    let Some(key) = key.static_key(tree) else {
+                        continue;
+                    };
+                    let ty = self
+                        .declaration_symbol(tree.module_id, (*property).into_any())
+                        .map(|symbol| {
+                            self.intern_local_symbol_type_variable(tree.module_id, symbol)
+                        })
+                        .unwrap_or_else(|| {
+                            self.intern_local_node_type_variable(tree.module_id, *property)
+                        });
+
+                    members.push(ShapeMember::Field {
+                        key,
+                        ty: ty.into(),
+                        is_optional: false,
+                        is_readonly: true,
+                    });
+                }
+                // { []() {} }, { ...value }, damaged syntax
+                dir::Property::Method { key: None, .. }
+                | dir::Property::Spread { .. }
+                | dir::Property::Error => {}
+            }
+        }
+
+        members
     }
 
     /// Walk one template literal's expression arguments.
@@ -1332,52 +1628,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Define one expression output type.
-    fn define_expression_type(
-        &mut self,
-        module: ModuleId,
-        id: dir::LocalNodeId<dir::Expression>,
-        term: TypeTerm,
-    ) {
-        let variable = self.intern_local_type_variable(module, id);
-
-        self.define_type(module, variable, term);
-    }
-
-    /// Return the synthetic catch match failure binding.
-    fn catch_match_failure_symbol(
-        &self,
-        tree: &dir::Tree,
-        body: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalSymbolId> {
-        let dir::Expression::Match { value, .. } = tree.get(body) else {
-            return None;
-        };
-        let dir::Expression::Identifier { .. } = tree.get(*value) else {
-            return None;
-        };
-
-        self.declaration_symbol(tree.module_id, (*value).into_any())
-    }
-
-    /// Return template literal parts.
-    fn template_parts(
-        &mut self,
-        value: &dir::TemplateLiteral,
-        tree: &dir::Tree,
-    ) -> (Vec<dir::StringId>, Vec<VariableId>) {
-        match value {
-            // `text`
-            dir::TemplateLiteral::String { string } => (vec![*string], Vec::new()),
-            // `text ${value}`
-            dir::TemplateLiteral::InterpolatedString { strings, arguments } => {
-                let spans = self.argument_value_type_variables(arguments, tree);
-
-                (strings.clone(), spans)
-            }
-        }
-    }
-
     /// Return value type variables for expression arguments.
     pub(in crate::check) fn argument_value_type_variables(
         &mut self,
@@ -1387,12 +1637,12 @@ impl CheckState<'_> {
         arguments
             .iter()
             .filter_map(|argument| tree.get(*argument).value())
-            .map(|value| self.intern_local_type_variable(tree.module_id, value))
+            .map(|value| self.intern_local_node_type_variable(tree.module_id, value))
             .collect()
     }
 
-    /// Record all expression writes inside one assignment pattern.
-    fn record_assign_pattern_writes(
+    /// Apply expression writes inside one assignment pattern.
+    fn apply_assign_pattern_write(
         &mut self,
         id: dir::LocalNodeId<dir::AssignPattern>,
         tree: &dir::Tree,
@@ -1400,29 +1650,31 @@ impl CheckState<'_> {
         match tree.get(id) {
             // target
             dir::AssignPattern::Expression { value } => {
-                if let Some(place) = self.resolve_place(*value, tree) {
-                    self.clear_written_expression_narrowings(tree, *value);
+                if let Some(place) = self.build_place(*value, tree) {
+                    let condition = self.active_static_condition(tree.module_id);
+
+                    self.clear_mutated_expression_narrowings(tree, *value);
                     self.mark_place_assigned(place);
-                    self.require_writable_place(place);
+                    self.require_writable_place(place, condition);
                 }
             }
             // target = value
             dir::AssignPattern::Assign { pattern, .. } => {
-                self.record_assign_pattern_writes(*pattern, tree);
+                self.apply_assign_pattern_write(*pattern, tree);
             }
             // [a, b]
             dir::AssignPattern::Sequence { fields }
             // { a, b }
             | dir::AssignPattern::Object { fields } => {
                 for field in fields {
-                    self.record_assign_pattern_field_writes(*field, tree);
+                    self.apply_assign_pattern_field_write(*field, tree);
                 }
             }
         }
     }
 
-    /// Record all expression writes inside one assignment pattern field.
-    fn record_assign_pattern_field_writes(
+    /// Apply expression writes inside one assignment pattern field.
+    fn apply_assign_pattern_field_write(
         &mut self,
         id: dir::LocalNodeId<dir::AssignPatternField>,
         tree: &dir::Tree,
@@ -1437,13 +1689,13 @@ impl CheckState<'_> {
             | dir::AssignPatternField::Spread {
                 pattern: Some(pattern),
             } => {
-                self.record_assign_pattern_writes(*pattern, tree);
+                self.apply_assign_pattern_write(*pattern, tree);
             }
             // { [key]: pattern }
             dir::AssignPatternField::Computed { pattern, .. }
             // [pattern]
             | dir::AssignPatternField::Positional { pattern } => {
-                self.record_assign_pattern_writes(*pattern, tree);
+                self.apply_assign_pattern_write(*pattern, tree);
             }
             // { name }
             dir::AssignPatternField::Named { pattern: None, .. }
@@ -1464,16 +1716,17 @@ impl CheckState<'_> {
     ) {
         // attach loop labels directly to their control target
         if Self::expression_allows_continue_label(tree.get(body)) {
-            let term = TypeTerm::Variable(self.intern_local_type_variable(tree.module_id, body));
+            let term =
+                TypeTerm::Variable(self.intern_local_node_type_variable(tree.module_id, body));
 
-            self.define_expression_type(tree.module_id, id, term);
+            self.define_node_type(tree.module_id, id, term);
             self.walk_loop_expression_with_label(tree, body, label);
 
             return;
         }
 
         // enter labeled control target
-        let result = self.intern_local_type_variable(tree.module_id, id);
+        let result = self.intern_local_node_type_variable(tree.module_id, id);
         self.enter_control_target(tree.module_id, Some(label), false, result);
 
         // walk body with isolated flow
@@ -1481,7 +1734,7 @@ impl CheckState<'_> {
         self.walk_expression(tree, body, tree.get(body));
         let fallthrough = if self.expression_can_fall_through(tree, body) {
             Some(TypeTerm::Variable(
-                self.intern_local_type_variable(tree.module_id, body),
+                self.intern_local_node_type_variable(tree.module_id, body),
             ))
         } else {
             None
@@ -1515,7 +1768,7 @@ impl CheckState<'_> {
             dir::Expression::While {
                 condition, body, ..
             } => {
-                self.intern_local_type_variable(tree.module_id, id);
+                self.intern_local_node_type_variable(tree.module_id, id);
                 self.walk_while_expression(tree, id, Some(label), *condition, *body);
             }
             // label: for item of iterator { body }
@@ -1526,7 +1779,7 @@ impl CheckState<'_> {
                 body,
                 ..
             } => {
-                self.intern_local_type_variable(tree.module_id, id);
+                self.intern_local_node_type_variable(tree.module_id, id);
                 self.walk_for_each_expression(
                     tree,
                     id,
@@ -1544,7 +1797,7 @@ impl CheckState<'_> {
                 increment,
                 body,
             } => {
-                self.intern_local_type_variable(tree.module_id, id);
+                self.intern_local_node_type_variable(tree.module_id, id);
                 self.walk_for_expression(
                     tree,
                     id,
@@ -1557,7 +1810,7 @@ impl CheckState<'_> {
             }
             // label: loop { body }
             dir::Expression::Loop { body } => {
-                self.intern_local_type_variable(tree.module_id, id);
+                self.intern_local_node_type_variable(tree.module_id, id);
                 self.walk_loop_expression(tree, id, Some(label), *body);
             }
             // non loop labels are handled by walk_label_expression
@@ -1619,8 +1872,10 @@ impl CheckState<'_> {
             dir::IfCondition::Expression { condition } => {
                 self.walk_expression(tree, *condition, tree.get(*condition));
 
-                let variable = self.intern_local_type_variable(tree.module_id, *condition);
-                self.constrain_condition((*condition).into_any(), variable);
+                let variable = self.intern_local_node_type_variable(tree.module_id, *condition);
+                let static_condition = self.active_static_condition(tree.module_id);
+
+                self.constrain_condition((*condition).into_any(), variable, static_condition);
             }
             // if let pattern = value
             dir::IfCondition::Let { declarator, .. } => {
@@ -1721,7 +1976,7 @@ impl CheckState<'_> {
             dir::Expression::InstanceOf { value, target } => {
                 self.apply_instance_narrowing(tree, *value, *target, branch);
             }
-            // expressions without flow facts
+            // expressions without flow effects
             _ => {}
         }
     }
@@ -1737,16 +1992,16 @@ impl CheckState<'_> {
         let Some(path) = self.flow_path(tree, value) else {
             return;
         };
-        let target = self.intern_local_type_variable(tree.module_id, target_type);
+        let target = self.intern_local_node_type_variable(tree.module_id, target_type);
 
         match branch {
             ConditionBranch::True => {
                 self.narrow_flow_path(path, target);
             }
             ConditionBranch::False => {
-                let original = self.intern_local_type_variable(tree.module_id, value);
+                let original = self.intern_local_node_type_variable(tree.module_id, value);
 
-                self.narrow_flow_path_excluding(value.into_any(), path, original, target);
+                self.narrow_flow_path_excluding(path, original, target);
             }
         }
     }
@@ -1778,9 +2033,9 @@ impl CheckState<'_> {
                 self.narrow_flow_path(path, target);
             }
             ConditionBranch::False => {
-                let original = self.intern_local_type_variable(tree.module_id, *right);
+                let original = self.intern_local_node_type_variable(tree.module_id, *right);
 
-                self.narrow_flow_path_excluding((*right).into_any(), path, original, target);
+                self.narrow_flow_path_excluding(path, original, target);
             }
         }
     }
@@ -1803,12 +2058,14 @@ impl CheckState<'_> {
             return;
         };
         let source = value.into_global_any(tree.module_id);
-        let origin = ConstraintOrigin::Node(source);
-        let ty = self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-        self.define_type(
-            tree.module_id,
+        let origin = Origin::Node(source);
+        let ty = self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
+        let condition = self.active_static_condition(tree.module_id);
+
+        self.add_type_definition(
             ty,
             TypeTerm::Literal(TypeLiteralTerm::Unknown),
+            condition.clone(),
         );
         let member = ShapeMember::Field {
             key,
@@ -1816,14 +2073,13 @@ impl CheckState<'_> {
             is_optional: false,
             is_readonly: false,
         };
-        let target =
-            self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-        self.define_type(
-            tree.module_id,
+        let target = self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
+        self.add_type_definition(
             target,
             TypeTerm::Shape {
                 members: vec![member].into(),
             },
+            condition,
         );
 
         self.narrow_flow_path(path, target);
@@ -1840,16 +2096,16 @@ impl CheckState<'_> {
         let Some(path) = self.flow_path(tree, value) else {
             return;
         };
-        let target = self.intern_local_type_variable(tree.module_id, target);
+        let target = self.intern_local_node_type_variable(tree.module_id, target);
 
         match branch {
             ConditionBranch::True => {
                 self.narrow_flow_path(path, target);
             }
             ConditionBranch::False => {
-                let original = self.intern_local_type_variable(tree.module_id, value);
+                let original = self.intern_local_node_type_variable(tree.module_id, value);
 
-                self.narrow_flow_path_excluding(value.into_any(), path, original, target);
+                self.narrow_flow_path_excluding(path, original, target);
             }
         }
     }
@@ -1874,9 +2130,9 @@ impl CheckState<'_> {
                 self.narrow_flow_path(path, target);
             }
             ConditionBranch::False => {
-                let original = self.intern_local_type_variable(tree.module_id, value);
+                let original = self.intern_local_node_type_variable(tree.module_id, value);
 
-                self.narrow_flow_path_excluding(value.into_any(), path, original, target);
+                self.narrow_flow_path_excluding(path, original, target);
             }
         }
     }
@@ -1886,9 +2142,7 @@ impl CheckState<'_> {
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<VariableId> {
-        let source = id.into_global_any(tree.module_id);
-        let origin = ConstraintOrigin::Node(source);
+    ) -> Option<TypeOperand> {
         let term = match tree.get(id) {
             // literal
             dir::Expression::ScalarLiteral(value) => {
@@ -1904,11 +2158,9 @@ impl CheckState<'_> {
             _ => return None,
         };
 
-        let variable =
-            self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-        self.define_type(tree.module_id, variable, term);
+        let term = self.terms.push(term);
 
-        Some(variable)
+        Some(term.into())
     }
 
     /// Return the primitive type named by one `typeof` result string.
@@ -1916,11 +2168,11 @@ impl CheckState<'_> {
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<VariableId> {
+    ) -> Option<TypeOperand> {
         let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(value)) = tree.get(id) else {
             return None;
         };
-        let text = self.input(tree.module_id).strings.get(*value);
+        let text = self.module(tree.module_id).strings.get(*value);
         let literal = match text {
             // typeof value == "undefined"
             "undefined" => TypeLiteralTerm::Undefined,
@@ -1937,15 +2189,10 @@ impl CheckState<'_> {
             // unsupported typeof string
             _ => return None,
         };
-        let source = id.into_global_any(tree.module_id);
-        let origin = ConstraintOrigin::Node(source);
         let term = TypeTerm::Literal(literal);
+        let term = self.terms.push(term);
 
-        let variable =
-            self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-        self.define_type(tree.module_id, variable, term);
-
-        Some(variable)
+        Some(term.into())
     }
 
     /// Return whether one binary operator tests equality.
@@ -1978,14 +2225,16 @@ impl CheckState<'_> {
     ) {
         // walk condition in incoming flow
         self.walk_expression(tree, condition, tree.get(condition));
-        let condition_type = self.intern_local_type_variable(tree.module_id, condition);
-        self.constrain_condition(condition.into_any(), condition_type);
+        let condition_type = self.intern_local_node_type_variable(tree.module_id, condition);
+        let static_condition = self.active_static_condition(tree.module_id);
+
+        self.constrain_condition(condition.into_any(), condition_type, static_condition);
 
         // enter loop control target
-        let result = self.intern_local_type_variable(tree.module_id, id);
+        let result = self.intern_local_node_type_variable(tree.module_id, id);
         self.enter_control_target(tree.module_id, label, true, result);
 
-        // walk body under true condition facts
+        // walk body under true condition flow
         let before_body = self.checkpoint_flow(tree.module_id);
         self.apply_expression_narrowings(tree, condition, ConditionBranch::True);
         self.walk_block(tree, body, tree.get(body));
@@ -2025,7 +2274,7 @@ impl CheckState<'_> {
         self.constrain_for_each_binding(id, operator, pattern, iterator, tree);
 
         // enter loop control target
-        let result = self.intern_local_type_variable(tree.module_id, id);
+        let result = self.intern_local_node_type_variable(tree.module_id, id);
         self.enter_control_target(tree.module_id, label, true, result);
 
         // walk body with iteration binding assigned
@@ -2066,15 +2315,17 @@ impl CheckState<'_> {
         if let Some(condition) = condition {
             self.walk_expression(tree, condition, tree.get(condition));
 
-            let variable = self.intern_local_type_variable(tree.module_id, condition);
-            self.constrain_condition(condition.into_any(), variable);
+            let variable = self.intern_local_node_type_variable(tree.module_id, condition);
+            let static_condition = self.active_static_condition(tree.module_id);
+
+            self.constrain_condition(condition.into_any(), variable, static_condition);
         }
 
         // enter loop control target
-        let result = self.intern_local_type_variable(tree.module_id, id);
+        let result = self.intern_local_node_type_variable(tree.module_id, id);
         self.enter_control_target(tree.module_id, label, true, result);
 
-        // walk body under true condition facts
+        // walk body under true condition flow
         let before_body = self.checkpoint_flow(tree.module_id);
         if let Some(condition) = condition {
             self.apply_expression_narrowings(tree, condition, ConditionBranch::True);
@@ -2153,41 +2404,41 @@ impl CheckState<'_> {
         tree: &dir::Tree,
     ) {
         let source = id.into_global_any(tree.module_id);
-        let origin = ConstraintOrigin::Node(source);
-        let iterator_type = self.intern_local_type_variable(tree.module_id, iterator);
+        let origin = Origin::Node(source);
+        let iterator_type = self.intern_local_node_type_variable(tree.module_id, iterator);
         let value = match operator {
             // for (const item of iterable)
             dir::ForEachOperator::Of => {
                 let value =
-                    self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
+                    self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
                 let unknown =
-                    self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-                self.define_type(
-                    tree.module_id,
+                    self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
+                let condition = self.active_static_condition(tree.module_id);
+
+                self.add_type_definition(
                     unknown,
                     TypeTerm::Literal(TypeLiteralTerm::Unknown),
+                    condition.clone(),
                 );
-                let Ok(symbol) = self.language_symbol(tree.module_id, dir::LanguageItem::Iterable)
-                else {
-                    return;
-                };
+                let symbol = self.language_symbol(tree.module_id, dir::LanguageItem::Iterable);
                 let value_argument = GenericArgument::Type(value.into());
                 let first_unknown = GenericArgument::Type(unknown.into());
                 let second_unknown = GenericArgument::Type(unknown.into());
                 let iterable = TypeTerm::Reference {
-                    source: Some(source),
+                    origin: Origin::Node(source),
                     symbol,
                     arguments: vec![value_argument, first_unknown, second_unknown].into(),
                 };
                 let iterable_variable =
-                    self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-                self.define_type(tree.module_id, iterable_variable, iterable);
+                    self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
+                self.add_type_definition(iterable_variable, iterable, condition.clone());
 
-                self.constrain_type(
+                self.add_type_constraint(
                     origin,
                     TypeRelation::Assignable,
                     iterator_type,
                     iterable_variable,
+                    condition,
                 );
 
                 value
@@ -2199,19 +2450,24 @@ impl CheckState<'_> {
                 });
                 let term = TypeTerm::Operation(operation);
                 let variable =
-                    self.allocate_intermediate_variable(tree.module_id, VariableKind::Type, origin);
-                self.define_type(tree.module_id, variable, term);
+                    self.allocate_inference_variable(tree.module_id, VariableKind::Type, origin);
+                let condition = self.active_static_condition(tree.module_id);
+
+                self.add_type_definition(variable, term, condition);
 
                 variable
             }
         };
 
         if let Some(term) = self.build_pattern_term(tree.module_id, pattern, tree) {
+            let condition = self.active_static_condition(tree.module_id);
+
             self.constrain_pattern(
                 tree.module_id,
                 PatternRelation::Match(term),
                 pattern.into_any(),
                 value,
+                condition,
             );
         }
     }
@@ -2225,7 +2481,7 @@ impl CheckState<'_> {
         body: dir::LocalNodeId<dir::Block>,
     ) {
         // enter loop control target
-        let result = self.intern_local_type_variable(tree.module_id, id);
+        let result = self.intern_local_node_type_variable(tree.module_id, id);
         self.enter_control_target(tree.module_id, label, true, result);
 
         // walk body with isolated flow
@@ -2249,7 +2505,7 @@ impl CheckState<'_> {
     ) {
         let before = self.checkpoint_flow(tree.module_id);
 
-        // walk the body branch from the incoming facts
+        // walk the body branch from the incoming flow
         self.restore_flow(tree.module_id, before);
         if catch.is_some() {
             self.enter_try_target(tree.module_id, id.into_any());
@@ -2320,7 +2576,7 @@ impl CheckState<'_> {
         cases: &[dir::LocalNodeId<dir::MatchCase>],
     ) {
         self.walk_expression(tree, value, tree.get(value));
-        let value_type = self.intern_local_type_variable(tree.module_id, value);
+        let value_type = self.intern_local_node_type_variable(tree.module_id, value);
         let value_path = self.flow_path(tree, value);
         let mut active_cases = Vec::new();
 
@@ -2336,8 +2592,9 @@ impl CheckState<'_> {
             .map(|(case, _)| *case)
             .collect::<Vec<_>>();
         let case_terms = self.build_match_case_terms(tree, &active_case_ids);
+        let condition = self.active_static_condition(tree.module_id);
 
-        self.require_exhaustive_match(id.into_any(), value_type, case_terms);
+        self.require_exhaustive_match(id.into_any(), value_type, case_terms, condition);
 
         let before = self.checkpoint_flow(tree.module_id);
         let mut merged = None;
@@ -2517,23 +2774,33 @@ impl CheckState<'_> {
             self.walk_pattern(tree, pattern, tree.get(pattern));
 
             if let (Some(failure), Some(ty)) = (failure, catch.ty) {
-                let expected = self.intern_local_type_variable(tree.module_id, ty);
-                let origin = ConstraintOrigin::Node(ty.into_global_any(tree.module_id));
+                let expected = self.intern_local_node_type_variable(tree.module_id, ty);
+                let origin = Origin::Node(ty.into_global_any(tree.module_id));
+                let condition = self.active_static_condition(tree.module_id);
 
-                self.constrain_type(origin, TypeRelation::Assignable, failure, expected);
+                self.add_type_constraint(
+                    origin,
+                    TypeRelation::Assignable,
+                    failure,
+                    expected,
+                    condition,
+                );
             }
 
             if let Some(value) = catch
                 .ty
-                .map(|ty| self.intern_local_type_variable(tree.module_id, ty))
+                .map(|ty| self.intern_local_node_type_variable(tree.module_id, ty))
                 .or(failure)
                 && let Some(pattern_term) = self.build_pattern_term(tree.module_id, pattern, tree)
             {
+                let condition = self.active_static_condition(tree.module_id);
+
                 self.constrain_pattern(
                     tree.module_id,
                     PatternRelation::Match(pattern_term),
                     pattern.into_any(),
                     value,
+                    condition,
                 );
             }
 
@@ -2543,18 +2810,6 @@ impl CheckState<'_> {
         // catch (error: T)
         if let Some(ty) = catch.ty {
             self.walk_type_expression(tree, ty, tree.get(ty));
-        }
-
-        // catch match (failure)
-        if catch.pattern.is_none()
-            && catch.ty.is_none()
-            && let Some(failure) = failure
-            && let Some(symbol) = self.catch_match_failure_symbol(tree, catch.body)
-        {
-            let variable = self.intern_symbol_type_variable(tree.module_id, symbol);
-
-            self.define_type(tree.module_id, variable, TypeTerm::Variable(failure));
-            self.flow_mut(tree.module_id).mark_assigned(symbol);
         }
 
         // catch (...) { ... }

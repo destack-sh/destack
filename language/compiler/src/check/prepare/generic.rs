@@ -1,10 +1,9 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
-    CheckState, Definition, GenericParameter, Solution, TypeOperationTerm, TypeTerm, VariableId,
-    VariableKind, VariableOutput,
+    CheckState, Condition, Definition, FormTerm, GenericParameter, Origin, Solution, StaticOperand,
+    StaticTerm, TypeOperationTerm, TypeTerm, VariableId, VariableKind, VariableOutput,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -17,36 +16,37 @@ struct InducedGenericKey {
     leaf: VariableId,
 }
 
+/// Parameter to induce for one transparent leaf.
+#[derive(Debug, Clone, PartialEq)]
+enum InducedParameter {
+    /// Type parameter constrained by the transparent type leaf.
+    Type {
+        /// The generated type constraint.
+        constraint: TypeTerm,
+    },
+    /// Static parameter constrained by the transparent static domain.
+    Static {
+        /// The generated slot name prefix.
+        prefix: &'static str,
+        /// The generated static value type constraint.
+        constraint: TypeTerm,
+    },
+}
+
 impl CheckState<'_> {
     /// Prepare induced generic slots before solving constraints.
     pub(in crate::check) fn prepare_generics(&mut self) -> CompilerResult<()> {
-        let definitions = self.collect_type_definitions();
-        let mut owned = IndexMap::new();
+        let definitions = self.type_definitions_by_result();
+        let generics = self.collect_induced_generics(&definitions)?;
 
-        // collect transparent leaves directly from type expression definitions
-        for (variable, term) in definitions {
-            if !self.type_term_induces_generic(variable, &term)? {
-                continue;
-            }
-            let Some(owner) = self.induced_generic_owner(variable)? else {
-                continue;
-            };
-            let key = InducedGenericKey {
-                owner,
-                leaf: variable,
-            };
-
-            owned.entry(key).or_insert(term);
-        }
-
-        self.insert_induced_generics(owned)
+        self.insert_induced_generics(generics)
     }
 
-    /// Collect type definition terms keyed by result variable.
-    fn collect_type_definitions(&self) -> IndexMap<VariableId, TypeTerm> {
+    /// Return first type definitions keyed by result variable.
+    fn type_definitions_by_result(&self) -> IndexMap<VariableId, TypeTerm> {
         let mut definitions = IndexMap::new();
 
-        for definition in self.variables.definitions.iter() {
+        for definition in &self.variables.definitions {
             let Definition::Type {
                 result,
                 term,
@@ -57,117 +57,282 @@ impl CheckState<'_> {
                 continue;
             };
 
-            definitions.insert(*result, self.terms.get(*term).clone());
+            definitions
+                .entry(*result)
+                .or_insert_with(|| self.terms.get(*term).clone());
         }
 
         definitions
     }
 
-    /// Return the concrete owner that receives an induced generic leaf.
-    fn induced_generic_owner(
+    /// Collect induced generics from concrete declaration surfaces.
+    fn collect_induced_generics(
         &self,
-        variable: VariableId,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let Some(source) = self.type_expression_node(variable)? else {
-            return Ok(None);
-        };
-        let Some(owner) = self.scope_owner_symbol(source.module_id, source.local_id) else {
-            return Ok(None);
-        };
+        definitions: &IndexMap<VariableId, TypeTerm>,
+    ) -> CompilerResult<IndexMap<InducedGenericKey, InducedParameter>> {
+        let mut generics = IndexMap::new();
 
-        self.concrete_induced_generic_owner(owner)
-    }
-
-    /// Return the concrete declaration that can own induced generic slots.
-    fn concrete_induced_generic_owner(
-        &self,
-        mut symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        loop {
-            if !self.inputs.contains_key(&symbol.module_id) {
-                return Ok(None);
+        for (result, term) in definitions {
+            let Some(owner) = self.concrete_generic_owner(*result) else {
+                continue;
             };
-            let Some(kind) = self.symbol_kind(symbol.module_id, symbol) else {
-                return Ok(None);
-            };
+            let mut visited = IndexSet::new();
 
-            // transparent owners keep their own constraints transparent
-            if Self::symbol_kind_is_transparent_constraint_owner(kind) {
-                return Ok(None);
-            }
-
-            // concrete declarations receive generated slots
-            if Self::symbol_kind_accepts_induced_generics(kind) {
-                return Ok(Some(symbol));
-            }
-
-            let Some(source) = self.symbol_source_node(symbol.module_id, symbol) else {
-                return Ok(None);
-            };
-            let Some(owner) = self.scope_owner_symbol(symbol.module_id, source) else {
-                return Ok(None);
-            };
-            if owner == symbol {
-                return Ok(None);
-            }
-
-            symbol = owner;
+            self.collect_induced_generics_for_term(
+                owner,
+                term,
+                definitions,
+                &mut visited,
+                &mut generics,
+            )?;
         }
+
+        Ok(generics)
     }
 
-    /// Return whether one type term induces a generic.
-    fn type_term_induces_generic(
+    /// Return the concrete symbol that can receive induced generics.
+    fn concrete_generic_owner(&self, variable: VariableId) -> Option<dir::GlobalSymbolId> {
+        let Some(VariableOutput::Symbol(symbol)) = self.variable(variable).output else {
+            return None;
+        };
+        if !self.modules.contains_key(&symbol.module_id) {
+            return None;
+        }
+        let kind = self.symbol_kind(symbol.module_id, symbol)?;
+
+        Self::symbol_kind_accepts_induced_generics(kind).then_some(symbol)
+    }
+
+    /// Collect induced generics referenced by one type term.
+    fn collect_induced_generics_for_term(
         &self,
-        variable: VariableId,
+        owner: dir::GlobalSymbolId,
         term: &TypeTerm,
-    ) -> CompilerResult<bool> {
-        if self.type_expression_node(variable)?.is_none() {
-            return Ok(false);
+        definitions: &IndexMap<VariableId, TypeTerm>,
+        visited: &mut IndexSet<VariableId>,
+        generics: &mut IndexMap<InducedGenericKey, InducedParameter>,
+    ) -> CompilerResult<()> {
+        if let TypeTerm::Variable(variable) = term {
+            return self.collect_induced_generics_for_variable(
+                owner,
+                *variable,
+                definitions,
+                visited,
+                generics,
+            );
         }
 
-        match term {
-            // Writer
+        if let TypeTerm::Form { form, payload: _ } = term {
+            self.collect_induced_generics_for_form(owner, self.terms.get(*form), generics);
+        }
+
+        for variable in term.referenced_variables(self) {
+            self.collect_induced_generics_for_variable(
+                owner,
+                variable,
+                definitions,
+                visited,
+                generics,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Collect induced generics referenced by one type variable.
+    fn collect_induced_generics_for_variable(
+        &self,
+        owner: dir::GlobalSymbolId,
+        variable: VariableId,
+        definitions: &IndexMap<VariableId, TypeTerm>,
+        visited: &mut IndexSet<VariableId>,
+        generics: &mut IndexMap<InducedGenericKey, InducedParameter>,
+    ) -> CompilerResult<()> {
+        if !visited.insert(variable) {
+            return Ok(());
+        }
+        let Some(term) = definitions.get(&variable) else {
+            return Ok(());
+        };
+        if let Some(parameter) = self.induced_type_parameter(term, definitions, visited)? {
+            let key = InducedGenericKey {
+                owner,
+                leaf: variable,
+            };
+
+            generics.entry(key).or_insert(parameter);
+
+            return Ok(());
+        }
+
+        self.collect_induced_generics_for_term(owner, term, definitions, visited, generics)
+    }
+
+    /// Collect induced static generics referenced by one form.
+    fn collect_induced_generics_for_form(
+        &self,
+        owner: dir::GlobalSymbolId,
+        form: &FormTerm,
+        generics: &mut IndexMap<InducedGenericKey, InducedParameter>,
+    ) {
+        match form {
+            FormTerm::Borrowed { lifetime, access } => {
+                self.collect_induced_static_generic(
+                    owner,
+                    *lifetime,
+                    "L",
+                    dir::LanguageItem::Lifetime,
+                    generics,
+                );
+                self.collect_induced_static_generic(
+                    owner,
+                    *access,
+                    "A",
+                    dir::LanguageItem::Access,
+                    generics,
+                );
+            }
+            FormTerm::Placed { place } => {
+                self.collect_induced_static_generic(
+                    owner,
+                    *place,
+                    "P",
+                    dir::LanguageItem::Place,
+                    generics,
+                );
+            }
+            FormTerm::Managed | FormTerm::Owned | FormTerm::Raw | FormTerm::Readonly => {}
+        }
+    }
+
+    /// Collect one induced static generic.
+    fn collect_induced_static_generic(
+        &self,
+        owner: dir::GlobalSymbolId,
+        value: StaticOperand,
+        prefix: &'static str,
+        item: dir::LanguageItem,
+        generics: &mut IndexMap<InducedGenericKey, InducedParameter>,
+    ) {
+        let StaticOperand::Variable(variable) = value else {
+            return;
+        };
+        let state = self.variable(variable);
+        if state.kind != VariableKind::Static || state.output.is_some() {
+            return;
+        }
+        let symbol = self.language_symbol(variable.module, item);
+        let constraint = TypeTerm::Reference {
+            origin: Origin::Symbol(symbol),
+            symbol,
+            arguments: Vec::new().into(),
+        };
+        let key = InducedGenericKey {
+            owner,
+            leaf: variable,
+        };
+        let parameter = InducedParameter::Static { prefix, constraint };
+
+        generics.entry(key).or_insert(parameter);
+    }
+
+    /// Return the induced parameter represented by one transparent type term.
+    fn induced_type_parameter(
+        &self,
+        term: &TypeTerm,
+        definitions: &IndexMap<VariableId, TypeTerm>,
+        visited: &mut IndexSet<VariableId>,
+    ) -> CompilerResult<Option<InducedParameter>> {
+        let is_constraint = match term {
             TypeTerm::Reference {
+                origin: _,
                 symbol,
                 arguments: _,
-                source: _,
-            } => self.symbol_induces_generic_constraint(variable.module, *symbol),
-            // PlaceOf<T>
+            } => self.symbol_induces_generic_constraint(*symbol, definitions, visited)?,
             TypeTerm::Operation(operation) => match self.terms.get(*operation) {
                 TypeOperationTerm::Intrinsic { item, arguments: _ } => {
-                    Ok(Self::language_item_induces_generic_constraint(*item))
+                    Self::language_item_induces_generic_constraint(*item)
                 }
-                _ => Ok(false),
+                _ => false,
             },
-            _ => Ok(false),
-        }
-    }
-
-    /// Return the type expression node backing one variable.
-    fn type_expression_node(
-        &self,
-        variable: VariableId,
-    ) -> CompilerResult<Option<dir::GlobalNodeIdAny>> {
-        let Some(VariableOutput::Node(node)) = self.variable(variable).output else {
-            return Ok(None);
+            _ => false,
         };
-        if node.local_id.ty != dir::NodeType::TypeExpression {
+        if !is_constraint {
             return Ok(None);
         }
 
-        Ok(Some(node))
+        Ok(Some(InducedParameter::Type {
+            constraint: term.clone(),
+        }))
     }
 
-    /// Return whether one symbol names a constraint that induces a generic.
+    /// Return whether one symbol names a transparent constraint.
     fn symbol_induces_generic_constraint(
         &self,
-        module: ModuleId,
         symbol: dir::GlobalSymbolId,
+        definitions: &IndexMap<VariableId, TypeTerm>,
+        visited: &mut IndexSet<VariableId>,
     ) -> CompilerResult<bool> {
-        let is_transparent = self.is_transparent_constraint_symbol(module, symbol)
-            || self.symbol_is_memory_query_language_item(symbol);
+        if self.symbol_is_memory_query_language_item(symbol) {
+            return Ok(true);
+        }
+        let kind = self.symbol_kind(symbol.module_id, symbol);
+        let is_constraint = match kind {
+            Some(
+                dir::SymbolKind::AssociatedType
+                | dir::SymbolKind::Interface
+                | dir::SymbolKind::NewtypeInterface,
+            ) => true,
+            Some(dir::SymbolKind::TypeAlias) => {
+                self.type_alias_induces_generic_constraint(symbol, definitions, visited)?
+            }
+            Some(_) | None => false,
+        };
 
-        Ok(is_transparent)
+        Ok(is_constraint)
+    }
+
+    /// Return whether one alias expands to a transparent constraint.
+    fn type_alias_induces_generic_constraint(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        definitions: &IndexMap<VariableId, TypeTerm>,
+        visited: &mut IndexSet<VariableId>,
+    ) -> CompilerResult<bool> {
+        let Some(variable) = self.variables.type_by_symbol.get(&symbol).copied() else {
+            return Ok(false);
+        };
+
+        self.type_variable_induces_generic_constraint(variable, definitions, visited)
+    }
+
+    /// Return whether one type variable expands to a transparent constraint.
+    fn type_variable_induces_generic_constraint(
+        &self,
+        variable: VariableId,
+        definitions: &IndexMap<VariableId, TypeTerm>,
+        visited: &mut IndexSet<VariableId>,
+    ) -> CompilerResult<bool> {
+        if !visited.insert(variable) {
+            return Ok(false);
+        }
+        let Some(term) = definitions.get(&variable) else {
+            return Ok(false);
+        };
+        if self
+            .induced_type_parameter(term, definitions, visited)?
+            .is_some()
+        {
+            return Ok(true);
+        }
+
+        for variable in term.referenced_variables(self) {
+            if self.type_variable_induces_generic_constraint(variable, definitions, visited)? {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 
     /// Return whether one symbol names a memory query language item.
@@ -208,57 +373,97 @@ impl CheckState<'_> {
     /// Insert collected induced generic slots into the type graph.
     fn insert_induced_generics(
         &mut self,
-        generics: IndexMap<InducedGenericKey, TypeTerm>,
+        generics: IndexMap<InducedGenericKey, InducedParameter>,
     ) -> CompilerResult<()> {
-        for (key, term) in generics {
-            self.insert_induced_generic(key, term)?;
+        for (key, parameter) in generics {
+            match parameter {
+                InducedParameter::Type { constraint } => {
+                    self.insert_induced_type_generic(key, constraint)?;
+                }
+                InducedParameter::Static { prefix, constraint } => {
+                    self.insert_induced_static_generic(key, prefix, constraint)?;
+                }
+            }
         }
 
         Ok(())
     }
 
-    /// Insert one induced generic slot for one transparent leaf.
-    fn insert_induced_generic(
+    /// Insert one induced type generic slot.
+    fn insert_induced_type_generic(
         &mut self,
         key: InducedGenericKey,
-        term: TypeTerm,
+        constraint: TypeTerm,
     ) -> CompilerResult<()> {
-        if key.owner.module_id != key.leaf.module {
-            return Err(CompilerError::Internal {
-                message: "induced generic owner and leaf are in different modules".to_string(),
-            });
-        }
-        let module = key.leaf.module;
-        let origin = self.variable_origin(key.leaf)?;
-        let bound = self.allocate_intermediate_variable(module, VariableKind::Type, origin);
+        self.assert_induced_generic_is_local(key)?;
 
-        // keep the original transparent constraint as the generated slot bound
-        self.define_type(module, bound, term);
-
-        // create the generated generic parameter
+        let constraint = self.terms.push(constraint);
         let slot = self.allocate_induced_generic_slot(key.owner, "T");
         let slot_id = slot.id();
         let generic = GenericParameter::Type {
             slot,
             variance: None,
-            constraint: Some(bound),
+            constraint: Some(constraint.into()),
             default: None,
         };
-        let variable = self.allocate_variable(
-            module,
+        let variable = self.allocate_output_variable(
+            key.leaf.module,
             VariableKind::Type,
             VariableOutput::Generic(generic.clone()),
         );
-        self.record_generic_parameter(variable, generic);
+        self.attach_generic_parameter(variable, generic);
+        self.add_type_definition(variable, TypeTerm::Parameter(slot_id), Condition::Always);
 
-        self.define_type(module, variable, TypeTerm::Parameter(slot_id));
-
-        // make the transparent leaf solve as the generated parameter
+        // rewrite the transparent leaf as the induced parameter
         let term = self.terms.push(TypeTerm::Parameter(slot_id));
-        self.solve_variable(key.leaf, Solution::Type(term));
+        self.insert_known_solution(key.leaf, Solution::Type(term));
         self.add_induced_generic_to_owner_function(key.owner, variable);
 
         Ok(())
+    }
+
+    /// Insert one induced static generic slot.
+    fn insert_induced_static_generic(
+        &mut self,
+        key: InducedGenericKey,
+        prefix: &'static str,
+        constraint: TypeTerm,
+    ) -> CompilerResult<()> {
+        self.assert_induced_generic_is_local(key)?;
+
+        let constraint = self.terms.push(constraint);
+        let slot = self.allocate_induced_generic_slot(key.owner, prefix);
+        let slot_id = slot.id();
+        let generic = GenericParameter::Static {
+            slot,
+            constraint: Some(constraint.into()),
+            default: None,
+        };
+        let variable = self.allocate_output_variable(
+            key.leaf.module,
+            VariableKind::Static,
+            VariableOutput::Generic(generic.clone()),
+        );
+        self.attach_generic_parameter(variable, generic);
+        self.add_static_definition(variable, StaticTerm::Parameter(slot_id), Condition::Always);
+
+        // rewrite the transparent leaf as the induced parameter
+        let term = self.terms.push(StaticTerm::Parameter(slot_id));
+        self.insert_known_solution(key.leaf, Solution::Static(term));
+        self.add_induced_generic_to_owner_function(key.owner, variable);
+
+        Ok(())
+    }
+
+    /// Assert that one induced generic belongs to its owner module.
+    fn assert_induced_generic_is_local(&self, key: InducedGenericKey) -> CompilerResult<()> {
+        if key.owner.module_id == key.leaf.module {
+            return Ok(());
+        }
+
+        Err(CompilerError::Internal {
+            message: "induced generic owner and leaf are in different modules".to_string(),
+        })
     }
 
     /// Return whether one symbol kind accepts induced generics.
@@ -273,18 +478,6 @@ impl CheckState<'_> {
         )
     }
 
-    /// Return whether one symbol kind is a transparent constraint owner.
-    fn symbol_kind_is_transparent_constraint_owner(kind: dir::SymbolKind) -> bool {
-        matches!(
-            kind,
-            dir::SymbolKind::AssociatedType
-                | dir::SymbolKind::Interface
-                | dir::SymbolKind::NewtypeInterface
-        )
-    }
-}
-
-impl CheckState<'_> {
     /// Add one induced generic parameter to an owner function type.
     fn add_induced_generic_to_owner_function(
         &mut self,
@@ -294,27 +487,28 @@ impl CheckState<'_> {
         let Some(owner_type) = self.variables.type_by_symbol.get(&owner).copied() else {
             return;
         };
+        let function = self
+            .variables
+            .definitions
+            .iter()
+            .find_map(|definition| match definition {
+                Definition::Type { result, term, .. } if *result == owner_type => {
+                    let TypeTerm::Function(function) = self.terms.get(*term) else {
+                        return None;
+                    };
 
-        let definitions = self.variables.definitions.clone();
-        for definition in definitions {
-            let Definition::Type { result, term, .. } = definition else {
-                continue;
-            };
-            if result != owner_type {
-                continue;
-            }
-            let TypeTerm::Function(function) = self.terms.get(term) else {
-                return;
-            };
-            let function = *function;
-            let function = self.terms.get_mut(function);
-
-            // append induced owner generics after explicit generics
-            if !function.generic_parameters.contains(&parameter) {
-                function.generic_parameters.push(parameter);
-            }
-
+                    Some(*function)
+                }
+                _ => None,
+            });
+        let Some(function) = function else {
             return;
+        };
+        let function = self.terms.get_mut(function);
+
+        // append induced owner generics after explicit generics
+        if !function.generic_parameters.contains(&parameter) {
+            function.generic_parameters.push(parameter);
         }
     }
 }

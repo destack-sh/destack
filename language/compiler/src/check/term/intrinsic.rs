@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, ConstraintOrigin, FormTerm, GenericArgument, StaticOperand, StaticTerm, TermId,
-    TypeOperand, TypeTerm, VariableId, VariableKind,
+    CheckState, FormTerm, GenericArgument, StaticOperand, StaticTerm, TermId, TypeOperand,
+    TypeTerm, VariableId,
 };
 
 impl CheckState<'_> {
@@ -327,8 +327,6 @@ impl CheckState<'_> {
         ownership: VariableId,
         lifetime: StaticOperand,
     ) -> CompilerResult<Option<TermId<FormTerm>>> {
-        let module = ownership.module;
-        let origin = self.variable_origin(ownership)?;
         let Some(ownership) = self.ownership_value(ownership)? else {
             return Ok(None);
         };
@@ -337,7 +335,7 @@ impl CheckState<'_> {
             "owned" => FormTerm::Owned,
             "borrowed" => FormTerm::Borrowed {
                 lifetime,
-                access: self.mutable_access_variable(module, origin)?.into(),
+                access: self.mutable_access_operand(),
             },
             "raw" => FormTerm::Raw,
             _ => return Ok(None),
@@ -623,6 +621,7 @@ impl CheckState<'_> {
         let value = match term {
             StaticTerm::Literal(payload) => Some(payload),
             StaticTerm::Variable(_)
+            | StaticTerm::Parameter(_)
             | StaticTerm::Expression(_)
             | StaticTerm::Member { .. }
             | StaticTerm::Join { .. }
@@ -689,7 +688,7 @@ impl CheckState<'_> {
             dir::StaticTerm::Space { space } => Some(dir::Place::Space(*space)),
             dir::StaticTerm::ScalarLiteral {
                 value: dir::ScalarLiteral::String(string),
-            } => match self.input(module).strings.get(*string) {
+            } => match self.module(module).strings.get(*string) {
                 "ambient" => Some(dir::Place::Ambient),
                 "local" => Some(dir::Place::Space(dir::Space::Local)),
                 "shared" => Some(dir::Place::Space(dir::Space::Shared)),
@@ -732,7 +731,7 @@ impl CheckState<'_> {
         let name = match term {
             dir::StaticTerm::ScalarLiteral {
                 value: dir::ScalarLiteral::String(string),
-            } => Some(self.input(module).strings.get(*string)),
+            } => Some(self.module(module).strings.get(*string)),
             _ => None,
         };
 
@@ -745,7 +744,7 @@ impl CheckState<'_> {
         module: ModuleId,
         string: dir::StringId,
     ) -> CompilerResult<Option<dir::Space>> {
-        let space = match self.input(module).strings.get(string) {
+        let space = match self.module(module).strings.get(string) {
             "local" => Some(dir::Space::Local),
             "shared" => Some(dir::Space::Shared),
             "static" => Some(dir::Space::Static),
@@ -758,7 +757,7 @@ impl CheckState<'_> {
 
     /// Return one static ownership label.
     fn ownership_static(&self, module: ModuleId, name: &str) -> CompilerResult<dir::StaticTerm> {
-        let string = self.input(module).strings.intern(name);
+        let string = self.module(module).strings.intern(name);
 
         Ok(dir::StaticTerm::ScalarLiteral {
             value: dir::ScalarLiteral::String(string),
@@ -772,21 +771,13 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return a solved mutable access variable.
-    fn mutable_access_variable(
-        &mut self,
-        module: ModuleId,
-        origin: ConstraintOrigin,
-    ) -> CompilerResult<VariableId> {
-        let variable = self.allocate_intermediate_variable(module, VariableKind::Static, origin);
-        self.define_static(
-            module,
-            variable,
-            StaticTerm::Literal(dir::StaticTerm::Access {
-                access: dir::Access::Mutable,
-            }),
-        );
+    /// Return the mutable access operand.
+    fn mutable_access_operand(&mut self) -> StaticOperand {
+        let term = StaticTerm::Literal(dir::StaticTerm::Access {
+            access: dir::Access::Mutable,
+        });
+        let term = self.terms.push(term);
 
-        Ok(variable)
+        term.into()
     }
 }

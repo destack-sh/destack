@@ -1,196 +1,149 @@
+use std::sync::Arc;
+
+use destack_artifact::{DirBound, DirExpanded, DirParsed, DirResolved, ProfileKey};
+use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
+use destack_workspace::Module;
+use indexmap::{IndexMap, IndexSet};
 
-use crate::CheckError;
-use crate::check::{CheckState, FlowState, StaticCondition};
+use crate::check::{
+    Capture, CheckError, CheckState, Condition, FlowState, GenericSlotId, VariableId,
+};
 
-use super::{CheckInputState, CheckOutputState, ImportTable};
+/// State owned by one module inside a checked component.
+pub(in crate::check) struct CheckModuleState {
+    // input state
+    /// The requested module id.
+    pub(in crate::check) module_id: ModuleId,
+    /// The requested source module.
+    pub(in crate::check) module: Arc<Module>,
+    /// The active semantic profile.
+    pub(in crate::check) profile: ProfileKey,
+    /// The shared string pool.
+    pub(in crate::check) strings: Arc<StringPool>,
+    /// The parsed DIR input.
+    pub(in crate::check) parsed: Arc<DirParsed>,
+    /// The bound DIR input.
+    pub(in crate::check) bound: Arc<DirBound>,
+    /// The resolved DIR input.
+    pub(in crate::check) resolved: Arc<DirResolved>,
+    /// The expanded DIR input.
+    pub(in crate::check) expanded: Arc<DirExpanded>,
+
+    // working state
+    /// Out-of-component modules visible from this module.
+    pub(in crate::check) dependencies: IndexSet<ModuleId>,
+    /// Imported generic variables keyed by owning source symbol.
+    pub(in crate::check) imported_generics: IndexMap<dir::GlobalSymbolId, Vec<VariableId>>,
+    /// Imported generic variables keyed by generic slot.
+    pub(in crate::check) imported_generic_by_slot: IndexMap<GenericSlotId, VariableId>,
+    /// Imported generic variables keyed by parameter symbol.
+    pub(in crate::check) imported_generic_by_symbol: IndexMap<dir::GlobalSymbolId, VariableId>,
+    /// Captures discovered while walking this module.
+    pub(in crate::check) captures: Vec<Capture>,
+    /// Static availability of declarations in this module.
+    pub(in crate::check) availability: IndexMap<dir::GlobalSymbolId, Condition>,
+    /// Diagnostics reported while walking this module.
+    pub(in crate::check) diagnostics: Vec<CheckError>,
+}
+
+impl CheckModuleState {
+    /// Create module state from loaded inputs and empty output tables.
+    pub(in crate::check) fn new(
+        module_id: ModuleId,
+        module: Arc<Module>,
+        profile: ProfileKey,
+        strings: Arc<StringPool>,
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        resolved: Arc<DirResolved>,
+        expanded: Arc<DirExpanded>,
+    ) -> Self {
+        Self {
+            module_id,
+            module,
+            profile,
+            strings,
+            parsed,
+            bound,
+            resolved,
+            expanded,
+            dependencies: IndexSet::new(),
+            imported_generics: IndexMap::new(),
+            imported_generic_by_slot: IndexMap::new(),
+            imported_generic_by_symbol: IndexMap::new(),
+            captures: Vec::new(),
+            availability: IndexMap::new(),
+            diagnostics: Vec::new(),
+        }
+    }
+
+    /// Return the post-expansion DIR tree view visible to check.
+    pub(in crate::check) fn view(&self) -> dir::View<'_> {
+        dir::View::with_patches(
+            &self.parsed.tree,
+            std::slice::from_ref(&self.expanded.patch),
+        )
+    }
+
+    /// Return the cumulative binding table visible to check.
+    pub(in crate::check) fn binding_table(&self) -> dir::BindingTable<'static> {
+        self.expanded.binding_table(&self.bound)
+    }
+
+    /// Return the cumulative type table visible to check inputs.
+    pub(in crate::check) fn type_table(&self) -> dir::TypeTable<'static> {
+        self.expanded.type_table(&self.bound)
+    }
+
+    /// Return the cumulative static table visible to check inputs.
+    pub(in crate::check) fn static_table(&self) -> dir::StaticTable<'static> {
+        self.expanded.static_table(&self.bound)
+    }
+}
 
 impl CheckState<'_> {
-    /// Return loaded input for one module.
-    pub(in crate::check) fn input(&self, module: ModuleId) -> &CheckInputState {
-        match self.inputs.get(&module) {
-            Some(input) => input,
-            None => panic!("check input {module:?} was not loaded"),
+    /// Return loaded state for one module.
+    pub(in crate::check) fn module(&self, module: ModuleId) -> &CheckModuleState {
+        match self.modules.get(&module) {
+            Some(state) => state,
+            None => panic!("check module {module:?} was not loaded"),
         }
     }
 
-    /// Return loaded input for one module mutably.
-    pub(in crate::check) fn input_mut(&mut self, module: ModuleId) -> &mut CheckInputState {
-        match self.inputs.get_mut(&module) {
-            Some(input) => input,
-            None => panic!("check input {module:?} was not loaded"),
-        }
-    }
-
-    /// Return checked output for one module.
-    pub(in crate::check) fn output(&self, module: ModuleId) -> &CheckOutputState {
-        match self.outputs.get(&module) {
-            Some(output) => output,
-            None => panic!("check output {module:?} was not loaded"),
-        }
-    }
-
-    /// Return checked output for one module mutably.
-    pub(in crate::check) fn output_mut(&mut self, module: ModuleId) -> &mut CheckOutputState {
-        match self.outputs.get_mut(&module) {
-            Some(output) => output,
-            None => panic!("check output {module:?} was not loaded"),
-        }
-    }
-
-    /// Return imported dependency ids for one module.
-    pub(in crate::check) fn imports(&self, module: ModuleId) -> &ImportTable {
-        match self.imports.get(&module) {
-            Some(imports) => imports,
-            None => panic!("check imports {module:?} were not loaded"),
-        }
-    }
-
-    /// Return imported dependency ids for one module mutably.
-    pub(in crate::check) fn imports_mut(&mut self, module: ModuleId) -> &mut ImportTable {
-        match self.imports.get_mut(&module) {
-            Some(imports) => imports,
-            None => panic!("check imports {module:?} were not loaded"),
+    /// Return loaded state for one module mutably.
+    pub(in crate::check) fn module_mut(&mut self, module: ModuleId) -> &mut CheckModuleState {
+        match self.modules.get_mut(&module) {
+            Some(state) => state,
+            None => panic!("check module {module:?} was not loaded"),
         }
     }
 
     /// Return flow state for one module.
     pub(in crate::check) fn flow(&self, module: ModuleId) -> &FlowState {
-        match self.flows.get(&module) {
-            Some(flow) => flow,
-            None => panic!("check flow {module:?} was not loaded"),
-        }
+        self.flow
+            .get(&module)
+            .unwrap_or_else(|| panic!("check module {module:?} has no active flow state"))
     }
 
     /// Return flow state for one module mutably.
     pub(in crate::check) fn flow_mut(&mut self, module: ModuleId) -> &mut FlowState {
-        match self.flows.get_mut(&module) {
-            Some(flow) => flow,
-            None => panic!("check flow {module:?} was not loaded"),
-        }
+        self.flow
+            .get_mut(&module)
+            .unwrap_or_else(|| panic!("check module {module:?} has no active flow state"))
     }
 
     /// Return captures for one module mutably.
     pub(in crate::check) fn captures_mut(&mut self, module: ModuleId) -> &mut Vec<Capture> {
-        match self.captures.get_mut(&module) {
-            Some(captures) => captures,
-            None => panic!("check captures {module:?} were not loaded"),
-        }
+        &mut self.module_mut(module).captures
     }
 
     /// Return static availability for one module mutably.
     pub(in crate::check) fn availability_mut(
         &mut self,
         module: ModuleId,
-    ) -> &mut indexmap::IndexMap<dir::GlobalSymbolId, StaticCondition> {
-        match self.availability.get_mut(&module) {
-            Some(availability) => availability,
-            None => panic!("check availability {module:?} was not loaded"),
-        }
+    ) -> &mut indexmap::IndexMap<dir::GlobalSymbolId, Condition> {
+        &mut self.module_mut(module).availability
     }
-
-    /// Return diagnostics for one module mutably.
-    pub(in crate::check) fn diagnostics_mut(&mut self, module: ModuleId) -> &mut Vec<CheckError> {
-        match self.diagnostics.get_mut(&module) {
-            Some(diagnostics) => diagnostics,
-            None => panic!("check diagnostics {module:?} were not loaded"),
-        }
-    }
-
-    /// Add one checked type.
-    pub(in crate::check) fn intern_type(
-        &mut self,
-        module: ModuleId,
-        ty: dir::Type,
-        source: dir::LocalNodeIdAny,
-    ) -> dir::LocalTypeId {
-        for type_id in self.output(module).types.iter_type_ids() {
-            if self.output(module).types.get_type(type_id) == &ty {
-                return type_id;
-            }
-        }
-
-        self.output_mut(module)
-            .types
-            .insert_type_from_any(ty, source)
-    }
-
-    /// Add or reuse one checked static value.
-    pub(in crate::check) fn intern_static(
-        &mut self,
-        module: ModuleId,
-        term: dir::StaticTerm,
-    ) -> dir::LocalStaticId {
-        let table = self.input(module).static_table();
-        let output = &mut self.output_mut(module).statics;
-
-        table.intern_static(output, term)
-    }
-
-    /// Return one local type from output or input.
-    pub(in crate::check) fn local_type(
-        &self,
-        module: ModuleId,
-        type_id: dir::LocalTypeId,
-    ) -> dir::Type {
-        if let Some(ty) = self.output(module).types.get_type_maybe(type_id) {
-            return ty.clone();
-        }
-
-        self.input(module).type_table().get_type(type_id).clone()
-    }
-
-    /// Return one local type source from output or input.
-    pub(in crate::check) fn local_type_source(
-        &self,
-        module: ModuleId,
-        type_id: dir::LocalTypeId,
-    ) -> dir::LocalNodeIdAny {
-        if self.output(module).types.get_type_maybe(type_id).is_some() {
-            return self.output(module).types.get_type_source(type_id);
-        }
-
-        self.input(module).type_table().get_type_source(type_id)
-    }
-
-    /// Return one local static value from output or input.
-    pub(in crate::check) fn local_static(
-        &self,
-        module: ModuleId,
-        static_id: dir::LocalStaticId,
-    ) -> dir::StaticTerm {
-        if let Some(term) = self.output(module).statics.get_static_maybe(static_id) {
-            return term.clone();
-        }
-
-        self.input(module)
-            .static_table()
-            .get_static(static_id)
-            .clone()
-    }
-}
-
-/// Captures discovered for one walked function body.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct Capture {
-    /// The function symbol.
-    pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// Outer symbols read by this function.
-    pub(in crate::check) symbols: Vec<dir::GlobalSymbolId>,
-    /// Outer receiver read by this function.
-    pub(in crate::check) receiver: Option<ReceiverCapture>,
-    /// The explicit capture directive.
-    pub(in crate::check) directive: Option<dir::CaptureDirective>,
-}
-
-/// Receiver captured by one walked function body.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct ReceiverCapture {
-    /// The receiver symbol.
-    pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// The nominal owner that supplies contextual `this`, when any.
-    pub(in crate::check) owner: Option<dir::GlobalSymbolId>,
-    /// The receiver type variable.
-    pub(in crate::check) ty: super::VariableId,
 }

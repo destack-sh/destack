@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::{CompilerError, CompilerResult, DiagnosticAnchor};
+use crate::{CompilerResult, DiagnosticAnchor};
 
 use crate::check::{
-    CheckError, CheckState, Decision, PatternTerm, Place, StaticCondition, TermId, TypeOperand,
+    CheckError, CheckState, Condition, Decision, PatternTerm, Place, TermId, TypeOperand,
     VariableId,
 };
 
@@ -41,7 +41,7 @@ pub(in crate::check) enum Obligation {
         /// The active match cases in source order.
         cases: Vec<MatchCase>,
         /// The static condition under which this obligation exists.
-        condition: StaticCondition,
+        condition: Condition,
     },
     /// Binding patterns in non-matching positions must always succeed.
     ///
@@ -56,7 +56,7 @@ pub(in crate::check) enum Obligation {
         /// The matched value type.
         value: VariableId,
         /// The static condition under which this obligation exists.
-        condition: StaticCondition,
+        condition: Condition,
     },
     /// Try propagation must fit the enclosing return type.
     ///
@@ -67,11 +67,11 @@ pub(in crate::check) enum Obligation {
         /// The try expression.
         source: dir::GlobalNodeIdAny,
         /// The tried value type.
-        value: VariableId,
+        value: TypeOperand,
         /// The enclosing function return type.
         return_type: Option<VariableId>,
         /// The static condition under which this obligation exists.
-        condition: StaticCondition,
+        condition: Condition,
     },
     /// A place assignment must target writable storage.
     ///
@@ -82,7 +82,7 @@ pub(in crate::check) enum Obligation {
         /// The place being written.
         place: Place,
         /// The static condition under which this obligation exists.
-        condition: StaticCondition,
+        condition: Condition,
     },
     /// A `Dynamic<T>` constraint must support runtime dynamic dispatch.
     DynamicSafe {
@@ -91,32 +91,33 @@ pub(in crate::check) enum Obligation {
         /// The constraint that must be dynamically representable.
         constraint: TypeOperand,
         /// The static condition under which this obligation exists.
-        condition: StaticCondition,
+        condition: Condition,
     },
 }
 
 impl CheckState<'_> {
     /// Add one check obligation.
     pub(in crate::check) fn add_obligation(&mut self, obligation: Obligation) {
-        self.variables.obligations.push(obligation);
+        self.obligations.push(obligation);
     }
 }
 
 impl CheckState<'_> {
     /// Check solved obligations for diagnostics.
-    pub(in crate::check) fn check_obligations(&mut self) -> CompilerResult<()> {
-        let obligations = self.variables.obligations.clone();
+    pub(in crate::check) fn check_obligations(&mut self) -> CompilerResult<Vec<CheckError>> {
+        let obligations = self.obligations.clone();
+        let mut diagnostics = Vec::new();
 
         // check obligations in collection order
         for obligation in obligations {
-            self.check_obligation(obligation)?;
+            diagnostics.extend(self.check_obligation(obligation)?);
         }
 
-        Ok(())
+        Ok(diagnostics)
     }
 
     /// Check one solved obligation for diagnostics.
-    fn check_obligation(&mut self, obligation: Obligation) -> CompilerResult<()> {
+    fn check_obligation(&mut self, obligation: Obligation) -> CompilerResult<Option<CheckError>> {
         match obligation {
             Obligation::ExhaustiveMatch {
                 source,
@@ -124,8 +125,11 @@ impl CheckState<'_> {
                 cases,
                 condition,
             } => {
-                if self.check_obligation_condition(source, &condition)? {
-                    self.check_match_exhaustive(source, value, &cases)?;
+                if let Some(diagnostic) = self.check_obligation_condition(source, &condition)? {
+                    return Ok(Some(diagnostic));
+                }
+                if self.obligation_is_active(&condition)? {
+                    return self.check_match_exhaustive(source, value, &cases);
                 }
             }
             Obligation::IrrefutablePattern {
@@ -134,8 +138,11 @@ impl CheckState<'_> {
                 value,
                 condition,
             } => {
-                if self.check_obligation_condition(source, &condition)? {
-                    self.check_irrefutable_pattern(source, pattern, value)?;
+                if let Some(diagnostic) = self.check_obligation_condition(source, &condition)? {
+                    return Ok(Some(diagnostic));
+                }
+                if self.obligation_is_active(&condition)? {
+                    return self.check_irrefutable_pattern(source, pattern, value);
                 }
             }
             Obligation::TryPropagation {
@@ -144,39 +151,49 @@ impl CheckState<'_> {
                 return_type,
                 condition,
             } => {
-                if self.check_obligation_condition(source, &condition)? {
-                    self.check_try_propagates(source, value, return_type)?;
+                if let Some(diagnostic) = self.check_obligation_condition(source, &condition)? {
+                    return Ok(Some(diagnostic));
+                }
+                if self.obligation_is_active(&condition)? {
+                    return self.check_try_propagates(source, value, return_type);
                 }
             }
             Obligation::WritablePlace { place, condition } => {
-                if self.check_obligation_condition(place.source, &condition)? {
-                    self.check_writable_place(place)?;
+                if let Some(diagnostic) =
+                    self.check_obligation_condition(place.source, &condition)?
+                {
+                    return Ok(Some(diagnostic));
+                }
+                if self.obligation_is_active(&condition)? {
+                    return self.check_writable_place(place);
                 }
             }
             Obligation::DynamicSafe { .. } => {}
         }
 
-        Ok(())
+        Ok(None)
     }
 
-    /// Report undecidable guards and return whether an obligation is active.
+    /// Return an undecidable guard diagnostic for one obligation when needed.
     fn check_obligation_condition(
         &mut self,
         source: dir::GlobalNodeIdAny,
-        condition: &StaticCondition,
-    ) -> CompilerResult<bool> {
-        let is_active = match self.decide_static_condition(condition)? {
-            Decision::Yes => true,
-            Decision::No => false,
+        condition: &Condition,
+    ) -> CompilerResult<Option<CheckError>> {
+        let diagnostic = match self.reduce_condition_decision(condition)? {
+            Decision::Yes | Decision::No => None,
             Decision::Undecidable => {
-                let (module, anchor) = self.source_anchor(source)?;
-                let diagnostic = CheckError::CannotSolve { anchor, module };
-
-                self.diagnostics_mut(source.module_id).push(diagnostic);
-
-                false
+                let (module, anchor) = self.source_anchor(source);
+                Some(CheckError::CannotSolve { anchor, module })
             }
         };
+
+        Ok(diagnostic)
+    }
+
+    /// Return whether an obligation condition is active.
+    fn obligation_is_active(&mut self, condition: &Condition) -> CompilerResult<bool> {
+        let is_active = self.reduce_condition_decision(condition)? == Decision::Yes;
 
         Ok(is_active)
     }
@@ -185,19 +202,10 @@ impl CheckState<'_> {
     pub(in crate::check) fn source_anchor(
         &self,
         source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<(ModuleId, DiagnosticAnchor)> {
+    ) -> (ModuleId, DiagnosticAnchor) {
         let module = source.module_id;
-        let Some(span) = self
-            .input(module)
-            .parsed
-            .tree
-            .get_span_by_id(source.local_id.id)
-        else {
-            return Err(CompilerError::Internal {
-                message: format!("check node {} has no source span", source.local_id.id),
-            });
-        };
+        let anchor = self.diagnostic_anchor(module, source.local_id);
 
-        Ok((module, DiagnosticAnchor::from(span)))
+        (module, anchor)
     }
 }

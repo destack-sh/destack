@@ -1,13 +1,14 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, ConstraintOrigin, GenericArgument};
+use crate::check::{CheckState, GenericArgument, TypeOperand};
 
 use super::{VariableId, VariableOutput};
 
-/// Stable key for one inferred generic argument.
+/// Stable key for one omitted call instantiation argument.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) struct GenericArgumentKey {
+pub(in crate::check) struct CallInstantiationArgumentKey {
     /// The syntax node that owns the generic use.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The generic declaration being instantiated.
@@ -60,7 +61,7 @@ impl GenericSlot {
     }
 }
 
-impl From<GenericSlotId> for dir::ParameterType {
+impl From<GenericSlotId> for dir::GenericParameterRef {
     fn from(reference: GenericSlotId) -> Self {
         Self {
             owner: reference.owner,
@@ -70,8 +71,8 @@ impl From<GenericSlotId> for dir::ParameterType {
     }
 }
 
-impl From<dir::ParameterType> for GenericSlotId {
-    fn from(parameter: dir::ParameterType) -> Self {
+impl From<dir::GenericParameterRef> for GenericSlotId {
+    fn from(parameter: dir::GenericParameterRef) -> Self {
         Self {
             owner: parameter.owner,
             key: parameter.key,
@@ -90,7 +91,7 @@ pub(in crate::check) enum GenericParameter {
         /// The slot variance.
         variance: Option<dir::VarianceModifier>,
         /// The optional type constraint.
-        constraint: Option<VariableId>,
+        constraint: Option<TypeOperand>,
         /// The optional type default.
         default: Option<VariableId>,
     },
@@ -101,7 +102,7 @@ pub(in crate::check) enum GenericParameter {
         /// The slot variance.
         variance: Option<dir::VarianceModifier>,
         /// The optional type constraint.
-        constraint: Option<VariableId>,
+        constraint: Option<TypeOperand>,
         /// The optional type default.
         default: Option<VariableId>,
     },
@@ -110,7 +111,7 @@ pub(in crate::check) enum GenericParameter {
         /// The slot identity.
         slot: GenericSlot,
         /// The optional static value type constraint.
-        constraint: Option<VariableId>,
+        constraint: Option<TypeOperand>,
         /// The optional static default.
         default: Option<VariableId>,
     },
@@ -119,7 +120,7 @@ pub(in crate::check) enum GenericParameter {
         /// The slot identity.
         slot: GenericSlot,
         /// The optional static value type constraint.
-        constraint: Option<VariableId>,
+        constraint: Option<TypeOperand>,
         /// The optional static default.
         default: Option<VariableId>,
     },
@@ -155,7 +156,7 @@ impl GenericParameter {
     }
 
     /// Return this generic parameter's type constraint.
-    pub(in crate::check) fn type_constraint(&self) -> Option<VariableId> {
+    pub(in crate::check) fn type_constraint(&self) -> Option<TypeOperand> {
         match self {
             Self::Type { constraint, .. } | Self::VariadicType { constraint, .. } => *constraint,
             Self::Static { .. } | Self::VariadicStatic { .. } => None,
@@ -167,16 +168,35 @@ impl CheckState<'_> {
     /// Return an existing static generic parameter variable for one symbol.
     pub(in crate::check) fn generic_static_variable_for_symbol(
         &self,
+        module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> Option<VariableId> {
-        let variable = self.variables.static_by_symbol.get(&symbol).copied()?;
-        let Some(VariableOutput::Generic(generic)) =
-            &self.variables.variables[variable.index as usize].output
-        else {
-            return None;
-        };
+        let variable = if self.modules.contains_key(&symbol.module_id) {
+            self.variables
+                .generic_parameter_by_symbol
+                .get(&symbol)
+                .copied()
+        } else {
+            self.module(module)
+                .imported_generic_by_symbol
+                .get(&symbol)
+                .copied()
+        }?;
+        let (_, generic) = self.variable_generic_parameter(variable)?;
 
         generic.is_static().then_some(variable)
+    }
+
+    /// Return solver-created generic argument variables owned by one call site.
+    pub(in crate::check) fn call_instantiation_variables(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> SmallVec<[VariableId; 4]> {
+        self.variables
+            .call_instantiation_argument
+            .iter()
+            .filter_map(|(key, variable)| (key.source == source).then_some(*variable))
+            .collect()
     }
 
     /// Return generic parameters in allocation order.
@@ -185,15 +205,10 @@ impl CheckState<'_> {
     ) -> impl Iterator<Item = (VariableId, GenericParameter)> {
         let parameters = self
             .variables
-            .variables
-            .iter()
-            .filter_map(|variable| {
-                if let Some(VariableOutput::Generic(generic)) = &variable.output {
-                    Some((variable.id, generic.clone()))
-                } else {
-                    None
-                }
-            })
+            .generic_parameter_by_owner
+            .values()
+            .flatten()
+            .filter_map(|variable| self.variable_generic_parameter(*variable))
             .collect::<Vec<_>>();
 
         parameters.into_iter()
@@ -202,68 +217,115 @@ impl CheckState<'_> {
     /// Return generic parameters owned by one symbol.
     pub(in crate::check) fn generic_parameters_for_owner(
         &self,
+        module: ModuleId,
         owner: dir::GlobalSymbolId,
     ) -> impl Iterator<Item = (VariableId, GenericParameter)> {
-        let parameters = self
-            .variables
-            .generic_parameter_by_owner
-            .get(&owner)
+        let variables = if self.modules.contains_key(&owner.module_id) {
+            self.variables
+                .generic_parameter_by_owner
+                .get(&owner)
+                .map(Vec::as_slice)
+        } else {
+            self.module(module)
+                .imported_generics
+                .get(&owner)
+                .map(Vec::as_slice)
+        };
+        let parameters = variables
             .into_iter()
             .flatten()
-            .filter_map(|variable| {
-                let Some(VariableOutput::Generic(generic)) =
-                    &self.variables.variables[variable.index as usize].output
-                else {
-                    return None;
-                };
-
-                Some((*variable, generic.clone()))
-            })
+            .copied()
+            .filter_map(|variable| self.variable_generic_parameter(variable))
             .collect::<Vec<_>>();
 
         parameters.into_iter()
     }
 
-    /// Return the generic parameter variable for one slot.
-    pub(in crate::check) fn generic_slot_variable(
+    /// Return one variable's generic parameter metadata.
+    fn variable_generic_parameter(
         &self,
-        slot: GenericSlotId,
-    ) -> Option<VariableId> {
-        self.generic_parameters_for_owner(slot.owner)
-            .find_map(|(variable, generic)| (generic.slot().id() == slot).then_some(variable))
+        variable: VariableId,
+    ) -> Option<(VariableId, GenericParameter)> {
+        let Some(VariableOutput::Generic(generic)) =
+            &self.variables.variables[variable.index as usize].output
+        else {
+            return None;
+        };
+
+        Some((variable, generic.clone()))
     }
 
     /// Return the generic slot declared by one parameter symbol.
     pub(in crate::check) fn generic_slot_for_symbol(
         &self,
+        module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> Option<GenericSlotId> {
-        self.generic_parameters().find_map(|(_, generic)| {
-            if generic.slot().key == dir::GenericSlotKey::Symbol(symbol) {
-                Some(generic.slot().id())
-            } else {
-                None
-            }
-        })
+        let variable = if self.modules.contains_key(&symbol.module_id) {
+            self.variables
+                .generic_parameter_by_symbol
+                .get(&symbol)
+                .copied()
+        } else {
+            self.module(module)
+                .imported_generic_by_symbol
+                .get(&symbol)
+                .copied()
+        }?;
+        let (_, generic) = self.variable_generic_parameter(variable)?;
+
+        Some(generic.slot().id())
     }
 
-    /// Record one variable as a generic slot.
-    pub(in crate::check) fn record_generic_parameter(
+    /// Attach one variable to a generic slot.
+    pub(in crate::check) fn attach_generic_parameter(
         &mut self,
         variable: VariableId,
         generic: GenericParameter,
     ) {
         let owner = generic.slot().owner;
-        let source = ConstraintOrigin::Symbol(owner);
+        let key = generic.slot().key;
 
         let check_variable = &mut self.variables.variables[variable.index as usize];
-        check_variable.source = source;
         check_variable.output = Some(VariableOutput::Generic(generic));
         self.variables
             .generic_parameter_by_owner
             .entry(owner)
             .or_default()
             .push(variable);
+        if let dir::GenericSlotKey::Symbol(symbol) = key {
+            self.variables
+                .generic_parameter_by_symbol
+                .insert(symbol, variable);
+        }
+    }
+
+    /// Attach one imported variable to a generic slot.
+    pub(in crate::check) fn attach_imported_generic_parameter(
+        &mut self,
+        module: ModuleId,
+        variable: VariableId,
+        generic: GenericParameter,
+    ) {
+        let owner = generic.slot().owner;
+        let key = generic.slot().key;
+        let slot_id = generic.slot().id();
+
+        let check_variable = &mut self.variables.variables[variable.index as usize];
+        check_variable.output = Some(VariableOutput::Generic(generic));
+        self.module_mut(module)
+            .imported_generics
+            .entry(owner)
+            .or_default()
+            .push(variable);
+        self.module_mut(module)
+            .imported_generic_by_slot
+            .insert(slot_id, variable);
+        if let dir::GenericSlotKey::Symbol(symbol) = key {
+            self.module_mut(module)
+                .imported_generic_by_symbol
+                .insert(symbol, variable);
+        }
     }
 
     /// Allocate one explicit generic slot for one owner.
@@ -304,7 +366,7 @@ impl CheckState<'_> {
         prefix: &str,
         index: dir::GenericSlotIndex,
     ) -> dir::StringId {
-        self.input_mut(owner.module_id)
+        self.module_mut(owner.module_id)
             .strings
             .intern(&format!("{prefix}{}", index.get()))
     }

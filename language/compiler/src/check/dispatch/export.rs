@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use crate::check::CheckState;
 use crate::{CompilerError, CompilerResult};
 
-use super::lookup::NameLookup;
+use super::name::NameLookup;
 
 /// Result of looking up an exported symbol during check.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -37,8 +37,8 @@ pub(in crate::check) enum ExportLookupState {
 }
 
 impl CheckState<'_> {
-    /// Resolve one source path that starts from lexical name lookup.
-    pub(in crate::check) fn resolve_path_symbol(
+    /// Look up one source path that starts from lexical name lookup.
+    pub(in crate::check) fn lookup_path_symbol(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -68,11 +68,11 @@ impl CheckState<'_> {
             return Ok(ExportLookup::Missing);
         };
 
-        self.resolve_export_path_tail(module, tail)
+        self.lookup_export_path_tail(module, tail)
     }
 
-    /// Resolve one exported symbol through direct and indirect exports.
-    pub(in crate::check) fn resolve_export_symbol(
+    /// Look up one exported symbol through direct and indirect exports.
+    pub(in crate::check) fn lookup_export_symbol(
         &mut self,
         module: ModuleId,
         key: dir::ExportKey,
@@ -105,8 +105,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Resolve the tail of one namespace export path.
-    fn resolve_export_path_tail(
+    /// Look up the tail of one namespace export path.
+    fn lookup_export_path_tail(
         &mut self,
         mut module: ModuleId,
         tail: &[dir::StringId],
@@ -118,7 +118,7 @@ impl CheckState<'_> {
         // walk through namespace segments
         for segment in parents {
             let key = dir::ExportKey::named(dir::StaticKey::Name(*segment));
-            let symbol = match self.resolve_export_symbol(module, key)? {
+            let symbol = match self.lookup_export_symbol(module, key)? {
                 // exactly one namespace symbol
                 ExportLookup::Found(symbol) => symbol,
                 // no namespace symbol
@@ -135,7 +135,7 @@ impl CheckState<'_> {
 
         let key = dir::ExportKey::named(dir::StaticKey::Name(*last));
 
-        self.resolve_export_symbol(module, key)
+        self.lookup_export_symbol(module, key)
     }
 
     /// Return the target module selected by one namespace symbol.
@@ -149,7 +149,7 @@ impl CheckState<'_> {
         }
 
         let local = symbol.local_id;
-        let target = self.input(module).resolved.imports.symbol_target(local);
+        let target = self.module(module).resolved.imports.symbol_target(local);
         let target = match target {
             Some(dir::ImportTarget::Namespace(module)) => Some(module),
             Some(dir::ImportTarget::Symbol(_)) | None => None,
@@ -158,7 +158,7 @@ impl CheckState<'_> {
         Ok(target)
     }
 
-    /// Resolve one exported symbol without consulting the lookup cache.
+    /// Compute one exported symbol without consulting the lookup cache.
     fn compute_export_symbol(
         &mut self,
         module: ModuleId,
@@ -170,14 +170,14 @@ impl CheckState<'_> {
             .map_err(CompilerError::from)?;
 
         if let Some(export) = exported.exports.export_by_key.get(&key).copied() {
-            return self.resolve_export_entry(module, export);
+            return self.lookup_export_entry(module, export);
         }
 
-        self.resolve_star_export_symbol(key, &exported.exports)
+        self.lookup_star_export_symbol(key, &exported.exports)
     }
 
-    /// Resolve one concrete export entry.
-    fn resolve_export_entry(
+    /// Look up one concrete export entry.
+    fn lookup_export_entry(
         &mut self,
         module: ModuleId,
         export: dir::ExportEntry,
@@ -195,13 +195,13 @@ impl CheckState<'_> {
                     return Ok(ExportLookup::Missing);
                 };
 
-                self.resolve_export_symbol(target, key)
+                self.lookup_export_symbol(target, key)
             }
         }
     }
 
-    /// Resolve one named export through star exports.
-    fn resolve_star_export_symbol(
+    /// Look up one named export through star exports.
+    fn lookup_star_export_symbol(
         &mut self,
         key: dir::ExportKey,
         exports: &dir::ExportTable,
@@ -218,7 +218,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            let symbol = match self.resolve_export_symbol(target, key)? {
+            let symbol = match self.lookup_export_symbol(target, key)? {
                 ExportLookup::Found(symbol) => symbol,
                 ExportLookup::Missing => continue,
                 ExportLookup::Ambiguous(symbols) => return Ok(ExportLookup::Ambiguous(symbols)),
@@ -239,6 +239,33 @@ impl CheckState<'_> {
         match resolved {
             Some(symbol) => Ok(ExportLookup::Found(symbol)),
             None => Ok(ExportLookup::Missing),
+        }
+    }
+
+    /// Require a symbol named by one source path.
+    pub(in crate::check) fn require_path_symbol(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+        path: &dir::Path,
+        space: dir::SymbolSpace,
+    ) -> Option<dir::GlobalSymbolId> {
+        let lookup = self
+            .lookup_path_symbol(module, source, path, space)
+            .unwrap_or_else(|_| panic!("export lookup failed for checked module {module:?}"));
+
+        match lookup {
+            ExportLookup::Found(symbol) => Some(symbol),
+            ExportLookup::Missing => {
+                self.report_unresolved_reference(module, source, path);
+
+                None
+            }
+            ExportLookup::Ambiguous(_) => {
+                self.report_ambiguous_reference(module, source, path);
+
+                None
+            }
         }
     }
 }
