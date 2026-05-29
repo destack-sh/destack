@@ -23,7 +23,7 @@ b0:
 
 function bench.yieldFrame(): int32 {
 b0:
-    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, readonly, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 1int32
     store v0, v1
     yield v1, b1(v0)

@@ -40,14 +40,20 @@ fn bench_footprint(criterion: &mut Criterion) {
                 (world, runtime_id, engine)
             },
             |(mut world, runtime_id, engine)| {
-                black_box(runtime.spawn_worker(&mut world, runtime_id, engine))
+                runtime.spawn_worker(&mut world, runtime_id, engine);
+
+                black_box(())
             },
             BatchSize::SmallInput,
         )
     });
 
     group.bench_function("launch.empty", |bencher| {
-        bencher.iter(|| black_box(runtime.launch()))
+        bencher.iter(|| {
+            runtime.launch();
+
+            black_box(())
+        })
     });
 
     group.bench_function("vm.isolate.build", |bencher| {

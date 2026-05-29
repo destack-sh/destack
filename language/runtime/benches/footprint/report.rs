@@ -2,7 +2,10 @@ use std::mem::size_of;
 use std::sync::Once;
 
 use destack_engine::StaticSpace;
-use destack_heap::{Heap, SharedHeap};
+use destack_heap::{
+    Allocator, Heap, HeapOptions, HeapSpace, RawSpace, SharedAllocationCache, SharedGcWorker,
+    SharedHeap, SharedHeapOptions, SharedHeapSpace, SharedRawSpace, SizeClassTable,
+};
 use destack_runtime::diagnostic::DiagnosticStore;
 use destack_runtime::host::HostPollResult;
 use destack_runtime::host::binding::BindingRegistry;
@@ -29,6 +32,7 @@ pub(crate) fn print_once() {
         let vm = VmScenario::new();
 
         print_type_sizes();
+        print_component_sizes();
         print_allocations(&runtime, vm);
         print_vm_machine_breakdown(vm);
     });
@@ -70,6 +74,38 @@ fn print_type_sizes() {
 
     eprintln!();
     eprintln!("runtime footprint: static type sizes");
+    eprintln!("{:<12} {:<24} {:>12}", "module", "type", "size");
+    eprintln!("{:-<12} {:-<24} {:-<12}", "", "", "");
+    for (module, name, bytes) in rows {
+        eprintln!("{module:<12} {name:<24} {:>12}", format_bytes(bytes as i64));
+    }
+}
+
+/// Print public component sizes inside the larger owner nouns.
+fn print_component_sizes() {
+    let rows = [
+        ("heap", "Allocator", size_of::<Allocator>()),
+        ("heap", "SizeClassTable", size_of::<SizeClassTable>()),
+        ("heap", "HeapOptions", size_of::<HeapOptions>()),
+        ("heap", "HeapSpace", size_of::<HeapSpace>()),
+        ("heap", "RawSpace", size_of::<RawSpace>()),
+        ("heap", "SharedHeapOptions", size_of::<SharedHeapOptions>()),
+        ("heap", "SharedHeapSpace", size_of::<SharedHeapSpace>()),
+        ("heap", "SharedRawSpace", size_of::<SharedRawSpace>()),
+        (
+            "heap",
+            "SharedAllocationCache",
+            size_of::<SharedAllocationCache>(),
+        ),
+        ("heap", "SharedGcWorker", size_of::<SharedGcWorker>()),
+        ("host", "ResourceTable", size_of::<ResourceTable>()),
+        ("host", "BindingRegistry", size_of::<BindingRegistry>()),
+        ("runtime", "EventLoop", size_of::<EventLoop>()),
+        ("engine", "StaticSpace", size_of::<StaticSpace>()),
+    ];
+
+    eprintln!();
+    eprintln!("runtime footprint: public component sizes");
     eprintln!("{:<12} {:<24} {:>12}", "module", "type", "size");
     eprintln!("{:-<12} {:-<24} {:-<12}", "", "", "");
     for (module, name, bytes) in rows {
