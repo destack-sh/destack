@@ -27,20 +27,21 @@ pub(crate) fn local_heap() -> Heap {
         .expect("heap should build")
 }
 
-/// Build one shared heap and worker-local allocator.
-pub(crate) fn shared_worker_heap() -> SharedWorkerHeap {
+/// Build one shared heap without registering a worker.
+pub(crate) fn shared_heap() -> SharedHeap {
     let options = SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_bytes, options.allocator_chunk_bytes)
             .expect("allocator should build"),
     );
-    let shared = SharedHeap::with_allocator_limits_and_options(
-        allocator,
-        SharedHeapLimits::default(),
-        options,
-    )
-    .expect("shared heap should build");
 
+    SharedHeap::with_allocator_limits_and_options(allocator, SharedHeapLimits::default(), options)
+        .expect("shared heap should build")
+}
+
+/// Build one shared heap and worker-local allocator.
+pub(crate) fn shared_worker_heap() -> SharedWorkerHeap {
+    let shared = shared_heap();
     let allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 

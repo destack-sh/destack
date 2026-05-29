@@ -87,21 +87,19 @@ impl ObjectGraphWorkload {
             Some(record_trace_id),
             trace_map,
         );
-        let leaf_layout = heap.allocation_plan(leaf_shape);
-        let record_layout = heap.allocation_plan(record_shape);
         let mut records = Vec::with_capacity(self.objects);
 
         // allocate leaf and record pairs
         for index in 0..self.objects {
             let leaf = heap
-                .allocate_zeroed(&leaf_layout)
+                .allocate_dynamic_zeroed(leaf_shape)
                 .expect("leaf allocation should succeed");
             let mut record = vec![0u8; self.record_bytes];
             write_word(&mut record, 0, leaf.bits());
             write_word(&mut record, REFERENCE_BYTES, index);
 
             let reference = heap
-                .allocate_bytes(&record_layout, &record)
+                .allocate_dynamic_bytes(record_shape, &record)
                 .expect("record allocation should succeed");
             records.push(reference);
         }
@@ -130,21 +128,19 @@ impl ObjectGraphWorkload {
             Some(record_trace_id),
             trace_map,
         );
-        let leaf_layout = shared.allocation_plan(leaf_shape);
-        let record_layout = shared.allocation_plan(record_shape);
         let mut records = Vec::with_capacity(self.objects);
 
         // allocate leaf and record pairs through one worker cache
         for index in 0..self.objects {
             let leaf = shared
-                .allocate_zeroed(worker, cache, &leaf_layout, &trace_table)
+                .allocate_dynamic_zeroed(worker, cache, leaf_shape, &trace_table)
                 .expect("shared leaf allocation should succeed");
             let mut record = vec![0u8; self.record_bytes];
             write_word(&mut record, 0, leaf.bits());
             write_word(&mut record, REFERENCE_BYTES, index);
 
             let reference = shared
-                .allocate_bytes(worker, cache, &record_layout, &record, &trace_table)
+                .allocate_dynamic_bytes(worker, cache, record_shape, &record, &trace_table)
                 .expect("shared record allocation should succeed");
             records.push(reference);
         }
@@ -187,20 +183,18 @@ impl ReferenceArrayWorkload {
             Some(trace_id),
             &trace_map,
         );
-        let leaf_layout = heap.allocation_plan(leaf_shape);
-        let array_layout = heap.allocation_plan(array_shape);
         let mut payload = vec![0u8; self.objects * REFERENCE_BYTES];
 
         // build the array payload from fresh leaf references
         for index in 0..self.objects {
             let leaf = heap
-                .allocate_zeroed(&leaf_layout)
+                .allocate_dynamic_zeroed(leaf_shape)
                 .expect("leaf allocation should succeed");
             write_word(&mut payload, index * REFERENCE_BYTES, leaf.bits());
         }
 
         let reference = heap
-            .allocate_bytes(&array_layout, &payload)
+            .allocate_dynamic_bytes(array_shape, &payload)
             .expect("reference array allocation should succeed");
 
         ReferenceArray {
@@ -227,20 +221,18 @@ impl ReferenceArrayWorkload {
             Some(trace_id),
             &trace_map,
         );
-        let leaf_layout = shared.allocation_plan(leaf_shape);
-        let array_layout = shared.allocation_plan(array_shape);
         let mut payload = vec![0u8; self.objects * REFERENCE_BYTES];
 
         // build the array payload from fresh leaf references
         for index in 0..self.objects {
             let leaf = shared
-                .allocate_zeroed(worker, cache, &leaf_layout, &trace_table)
+                .allocate_dynamic_zeroed(worker, cache, leaf_shape, &trace_table)
                 .expect("shared leaf allocation should succeed");
             write_word(&mut payload, index * REFERENCE_BYTES, leaf.bits());
         }
 
         let reference = shared
-            .allocate_bytes(worker, cache, &array_layout, &payload, &trace_table)
+            .allocate_dynamic_bytes(worker, cache, array_shape, &payload, &trace_table)
             .expect("shared reference array allocation should succeed");
 
         ReferenceArray {

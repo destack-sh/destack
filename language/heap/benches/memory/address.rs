@@ -2,7 +2,8 @@ use std::hint::black_box;
 use std::ptr::write_volatile;
 use std::time::{Duration, Instant};
 
-use criterion::{BatchSize, BenchmarkId, Criterion, Throughput};
+use criterion::measurement::WallTime;
+use criterion::{BatchSize, BenchmarkGroup, BenchmarkId, Criterion, Throughput};
 
 use crate::config::{
     FORK_ANCESTOR_COUNTS, FORK_DIRTY_PAGE_COUNTS, FORK_LARGE_ACTIVE_BYTES, FORK_LARGE_ANCESTORS,
@@ -16,6 +17,16 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("heap_address_space");
     group.throughput(Throughput::Bytes(SPACE_BYTES as u64));
 
+    bench_reservation(&mut group);
+    bench_lineage_forks(&mut group);
+    bench_fork_writes(&mut group);
+    bench_fork_phases(&mut group);
+
+    group.finish();
+}
+
+/// Register basic address-space reservation and materialization benchmarks.
+fn bench_reservation(group: &mut BenchmarkGroup<'_, WallTime>) {
     // reserve virtual memory without touching pages
     group.bench_function("reserve", |bencher| {
         bencher.iter(|| black_box(AddressSpaceShape::reserved().reserve()));
@@ -45,18 +56,21 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                 bencher.iter_batched(
                     || AddressSpaceShape::materialized_pages(*page_count).materialize(),
                     |space| {
-                        black_box(
-                            space
-                                .fork_lazy()
-                                .expect("address space fork should succeed"),
-                        )
+                        let child = space
+                            .fork_lazy()
+                            .expect("address space fork should succeed");
+
+                        black_box(child)
                     },
                     BatchSize::SmallInput,
                 );
             },
         );
     }
+}
 
+/// Register nested lineage fork benchmarks.
+fn bench_lineage_forks(group: &mut BenchmarkGroup<'_, WallTime>) {
     // fork a live lineage across nesting and dirty-page counts
     for page_count in FORK_MATERIALIZED_PAGES {
         for ancestor_count in FORK_ANCESTOR_COUNTS {
@@ -122,7 +136,10 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
             }
         }
     }
+}
 
+/// Register first-write fork benchmarks.
+fn bench_fork_writes(group: &mut BenchmarkGroup<'_, WallTime>) {
     // measure the first bulk child copy after one fork
     for page_count in FORK_MATERIALIZED_PAGES {
         group.bench_with_input(
@@ -132,11 +149,7 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                 let page = vec![0xEF; PAGE_BYTES];
 
                 bencher.iter_batched(
-                    || {
-                        let shape = AddressSpaceShape::materialized_pages(*page_count);
-
-                        shape.fork_lazy_pair()
-                    },
+                    || AddressSpaceShape::materialized_pages(*page_count).fork_lazy_pair(),
                     |(parent, child)| {
                         child
                             .write_bytes(0, black_box(&page))
@@ -158,11 +171,7 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
             page_count,
             |bencher, page_count| {
                 bencher.iter_batched(
-                    || {
-                        let shape = AddressSpaceShape::materialized_pages(*page_count);
-
-                        shape.fork_lazy_word()
-                    },
+                    || AddressSpaceShape::materialized_pages(*page_count).fork_lazy_word(),
                     |(parent, child, address)| {
                         write_word(address, black_box(0xEFEF_EFEF_EFEF_EFEF));
 
@@ -189,19 +198,11 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                 |bencher, &(page_count, store_count)| {
                     bencher.iter_batched(
                         || {
-                            let shape = AddressSpaceShape::materialized_pages(page_count);
-
-                            shape.fork_lazy_pages(store_count)
+                            AddressSpaceShape::materialized_pages(page_count)
+                                .fork_lazy_pages(store_count)
                         },
                         |(parent, child, base_address)| {
-                            // write one word per page to measure first-write fault count
-                            for page_index in 0..store_count {
-                                write_page_word(
-                                    base_address,
-                                    page_index,
-                                    black_box(0xEFEF_EFEF_EFEF_EFEF ^ page_index),
-                                );
-                            }
+                            write_page_words(base_address, store_count, 0xEFEF_EFEF_EFEF_EFEF);
 
                             black_box(parent);
                             black_box(child);
@@ -212,8 +213,10 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
             );
         }
     }
+}
 
-    // isolate fork, drop, fault, and steady-store phases
+/// Register fork phase isolation benchmarks.
+fn bench_fork_phases(group: &mut BenchmarkGroup<'_, WallTime>) {
     for page_count in FORK_MATERIALIZED_PAGES {
         group.bench_with_input(
             BenchmarkId::new("fork_phase/fork_eager", page_count),
@@ -222,11 +225,11 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                 bencher.iter_batched(
                     || AddressSpaceShape::materialized_pages(*page_count).materialize(),
                     |space| {
-                        black_box(
-                            space
-                                .fork_eager(0..space.byte_len())
-                                .expect("eager fork should succeed"),
-                        );
+                        let child = space
+                            .fork_eager(0..space.byte_len())
+                            .expect("eager fork should succeed");
+
+                        black_box(child);
                     },
                     BatchSize::SmallInput,
                 );
@@ -238,19 +241,15 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
             page_count,
             |bencher, page_count| {
                 bencher.iter_custom(|iterations| {
-                    let mut elapsed = Duration::ZERO;
+                    measure_address_phase(
+                        iterations,
+                        || AddressSpaceShape::materialized_pages(*page_count).fork_lazy_pair(),
+                        |(parent, child)| {
+                            drop(black_box(child));
 
-                    for _ in 0..iterations {
-                        let shape = AddressSpaceShape::materialized_pages(*page_count);
-                        let (parent, child) = shape.fork_lazy_pair();
-                        let start = Instant::now();
-
-                        drop(black_box(child));
-                        elapsed += start.elapsed();
-                        black_box(parent);
-                    }
-
-                    elapsed
+                            parent
+                        },
+                    )
                 });
             },
         );
@@ -260,21 +259,15 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
             page_count,
             |bencher, page_count| {
                 bencher.iter_custom(|iterations| {
-                    let mut elapsed = Duration::ZERO;
+                    measure_address_phase(
+                        iterations,
+                        || AddressSpaceShape::materialized_pages(*page_count).fork_lazy_word(),
+                        |(parent, child, address)| {
+                            write_word(address, black_box(0xEFEF_EFEF_EFEF_EFEF));
 
-                    for _ in 0..iterations {
-                        let shape = AddressSpaceShape::materialized_pages(*page_count);
-                        let (parent, child, address) = shape.fork_lazy_word();
-                        let start = Instant::now();
-
-                        write_word(address, black_box(0xEFEF_EFEF_EFEF_EFEF));
-
-                        elapsed += start.elapsed();
-                        black_box(parent);
-                        black_box(child);
-                    }
-
-                    elapsed
+                            (parent, child)
+                        },
+                    )
                 });
             },
         );
@@ -284,23 +277,22 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
             page_count,
             |bencher, page_count| {
                 bencher.iter_custom(|iterations| {
-                    let mut elapsed = Duration::ZERO;
+                    measure_address_phase(
+                        iterations,
+                        || {
+                            let fork =
+                                AddressSpaceShape::materialized_pages(*page_count).fork_lazy_word();
 
-                    for _ in 0..iterations {
-                        let shape = AddressSpaceShape::materialized_pages(*page_count);
-                        let (parent, child, address) = shape.fork_lazy_word();
+                            write_word(fork.2, black_box(0xAAAA_AAAA_AAAA_AAAA));
 
-                        write_word(address, black_box(0xAAAA_AAAA_AAAA_AAAA));
-                        let start = Instant::now();
+                            fork
+                        },
+                        |(parent, child, address)| {
+                            write_word(address, black_box(0xBBBB_BBBB_BBBB_BBBB));
 
-                        write_word(address, black_box(0xBBBB_BBBB_BBBB_BBBB));
-
-                        elapsed += start.elapsed();
-                        black_box(parent);
-                        black_box(child);
-                    }
-
-                    elapsed
+                            (parent, child)
+                        },
+                    )
                 });
             },
         );
@@ -310,21 +302,15 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
             page_count,
             |bencher, page_count| {
                 bencher.iter_custom(|iterations| {
-                    let mut elapsed = Duration::ZERO;
+                    measure_address_phase(
+                        iterations,
+                        || AddressSpaceShape::materialized_pages(*page_count).fork_eager_word(),
+                        |(parent, child, address)| {
+                            write_word(address, black_box(0xDDDD_DDDD_DDDD_DDDD));
 
-                    for _ in 0..iterations {
-                        let shape = AddressSpaceShape::materialized_pages(*page_count);
-                        let (parent, child, address) = shape.fork_eager_word();
-                        let start = Instant::now();
-
-                        write_word(address, black_box(0xDDDD_DDDD_DDDD_DDDD));
-
-                        elapsed += start.elapsed();
-                        black_box(parent);
-                        black_box(child);
-                    }
-
-                    elapsed
+                            (parent, child)
+                        },
+                    )
                 });
             },
         );
@@ -340,35 +326,45 @@ pub(crate) fn bench_address_space(criterion: &mut Criterion) {
                 &(*page_count, store_count),
                 |bencher, &(page_count, store_count)| {
                     bencher.iter_custom(|iterations| {
-                        let mut elapsed = Duration::ZERO;
+                        measure_address_phase(
+                            iterations,
+                            || {
+                                AddressSpaceShape::materialized_pages(page_count)
+                                    .fork_lazy_pages(store_count)
+                            },
+                            |(parent, child, base_address)| {
+                                write_page_words(base_address, store_count, 0xCFCF_CFCF_CFCF_CFCF);
 
-                        for _ in 0..iterations {
-                            let shape = AddressSpaceShape::materialized_pages(page_count);
-                            let (parent, child, base_address) = shape.fork_lazy_pages(store_count);
-                            let start = Instant::now();
-
-                            // write one word per page to time only first-write faults
-                            for page_index in 0..store_count {
-                                write_page_word(
-                                    base_address,
-                                    page_index,
-                                    black_box(0xCFCF_CFCF_CFCF_CFCF ^ page_index),
-                                );
-                            }
-
-                            elapsed += start.elapsed();
-                            black_box(parent);
-                            black_box(child);
-                        }
-
-                        elapsed
+                                (parent, child)
+                            },
+                        )
                     });
                 },
             );
         }
     }
+}
 
-    group.finish();
+/// Measure one address-space phase with setup outside the timed region.
+fn measure_address_phase<T, K>(
+    iterations: u64,
+    mut prepare: impl FnMut() -> T,
+    mut measure: impl FnMut(T) -> K,
+) -> Duration {
+    let mut elapsed = Duration::ZERO;
+
+    // rebuild the address-space shape for each criterion iteration
+    for _ in 0..iterations {
+        let input = prepare();
+        let start = Instant::now();
+
+        let keepalive = measure(input);
+
+        elapsed += start.elapsed();
+        black_box(keepalive);
+    }
+
+    elapsed
 }
 
 /// Store one volatile word through an exposed benchmark address.
@@ -377,6 +373,17 @@ fn write_word(address: *mut usize, value: usize) {
     // address-space fixtures expose valid writable word addresses
     unsafe {
         write_volatile(address, value);
+    }
+}
+
+/// Store one volatile word on each benchmark page.
+#[inline(always)]
+fn write_page_words(base_address: *mut usize, page_count: usize, seed: usize) {
+    // write one word per page to time first-write faults
+    for page_index in 0..page_count {
+        let value = seed ^ page_index;
+
+        write_page_word(base_address, page_index, black_box(value));
     }
 }
 
