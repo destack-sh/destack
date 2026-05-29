@@ -797,10 +797,10 @@ type InlineBytes<T> = [uint8; sizeOf<T>()];
 In general, userland shouldn't _have_ to care about type layouts for everyday use cases unless there is a specific reason to care.
 The idea as always is that users should opt-in to additional control and complexity as needed, and everything else should behave "as expected" in TypeScript.
 That said, there is a core distinction in types that Destack reifies differently than other languages (including TypeScript and Rust):
- - **Concrete types**: nominal types with a specific representation (e.g., `class`, `struct`, `newtype`, primitives)
- - **Transparent constraints**: type constraints without a specific known representation (e.g., `type`, `interface`, `newtype interface`)
+ - **Concrete types**: types with a real, fixed representation (e.g., `class`, `struct`, `newtype`, primitives, implicitly represented via the `Concrete` trait)
+ - **Transparent constraints**: type constraints without any specific representation (e.g., `type`, `interface`, `newtype interface`, these are `!Concrete`)
 
-The presence of existential types and monomorphisation in some form is of course not special in itself, but Destack applies it much more aggressively than is typically done.
+Having existential types and monomorphisation is of course not special in itself, but Destack applies it much more aggressively than is typically done.
 Essentially, Destack's `interface T` behaves like Rust explicit `impl T` (or Swift's `some T`) by default, and the `dyn T` variant is the explicit less-used alternative. 
 
 | Form | Example | Meaning |
@@ -833,7 +833,7 @@ type Writer = {
 }
 ```
 
-The same rule applies to aggregate types, that is, storing a transparent constraint keeps the container generic; using `Dynamic<T>` asks for a fixed erased representation:
+The same rule applies to aggregate types, that is, storing a transparent constraint induces a `Concrete` constraint on the stored value; and then wrapping it in `Dynamic<T>` get us a fixed erased representation:
 
 ```ds
 struct Logger {
@@ -842,7 +842,7 @@ struct Logger {
 
 // behaves as if written with an induced generic parameter
 struct Logger<T: Writer> {
-    writer: T;
+    writer: T; // requires T: Concrete once realised
 }
 
 struct ErasedLogger {
@@ -857,8 +857,33 @@ Here the annotation is transparent, and the object expression supplies the concr
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
 ```
 
-It should be noted that `newtype` is always treated as a concrete type, whereas `newtype` on an `interface` is merely a nominality modifier.
+It should be noted that `newtype` is a concrete type, whereas `newtype` on an `interface` is just a nominality modifier (we couldn't think of a better naming here).
 So, `newtype Shape = Rectangle | Circle` creates a concrete variant layout for `Shape`, while `type Shape = Rectangle | Circle` remains a transparent union constraint until a value or storage boundary chooses a representation.
+
+```ds
+type Shape = Rectangle | Circle; // transparent constraint
+newtype Shape = Rectangle | Circle; // concrete layout
+```
+
+For function parameters, transparent types induce implicit generics, and for return parameters they behave like an existential that hides the concrete _specific_ representation from the caller.
+Return types in functions _must_ have _one_ specific concrete representation on all joined paths even if the declared return type is transparent and more general.
+(This is because otherwise we wouldn't know which function representation to use ahead of time.)
+
+```ds
+type Shape = Rectangle | Circle; // transparent constraint
+
+function foo(): Shape {
+    return Rectangle(); // this is fine
+}
+
+function bar(): Shape { // ERROR, this is ambiguous
+    if (getRandom() > 4) {
+        return Circle();
+    } else {
+        return Rectangle();
+    }
+}
+```
 
 ### Dynamic
 
@@ -1770,7 +1795,7 @@ Relatedly, restrictions may be used to allow or disallow more fundamental reachi
 ```ds
 @noHeap
 @noUnsafe
-@exclusiveMutableBorrows
+@noAliasingMutableBorrows
 module {}
 ```
 
