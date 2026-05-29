@@ -36,6 +36,7 @@ fn class_extends_expression_needs_parentheses(expression: &Expression) -> bool {
         Expression::ObjectExpression { .. }
             | Expression::StructExpression { .. }
             | Expression::New { .. }
+            | Expression::NewMaybe { .. }
             | Expression::Unary { .. }
             | Expression::Await { .. }
             | Expression::AwaitMaybe { .. }

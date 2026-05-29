@@ -149,8 +149,13 @@ pub(crate) fn format_new_expression<'ast>(
     node_id: LocalNodeId<Expression>,
     ty: LocalNodeId<TypeExpression>,
     arguments: &[LocalNodeId<Argument>],
+    is_maybe: bool,
 ) -> FormatResult<()> {
-    write!(f, [token("new"), space()])?;
+    write!(f, [token("new")])?;
+    if is_maybe {
+        write!(f, [token("?")])?;
+    }
+    write!(f, [space()])?;
 
     let callee_following_span_start = arguments
         .first()

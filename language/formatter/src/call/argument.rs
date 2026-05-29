@@ -148,7 +148,10 @@ fn argument_uses_call_node_comments(
     match parent_type {
         NodeType::Expression => matches!(
             context.tree.get(LocalNodeId::<Expression>::new(parent_id)),
-            Expression::Call { .. } | Expression::New { .. } | Expression::Import { .. }
+            Expression::Call { .. }
+                | Expression::New { .. }
+                | Expression::NewMaybe { .. }
+                | Expression::Import { .. }
         ),
         NodeType::TypeExpression => false,
         _ => false,

@@ -48,6 +48,19 @@ fn test_format_new_expression_does_not_use_test_call_layout() {
     );
 }
 
+/// Fallible new expressions should keep the `new?` marker attached.
+#[test]
+fn test_format_new_maybe_expression() {
+    assert_format_program!(
+        r#"new? User("florian");
+"#,
+        r#"new? User("florian");
+"#,
+        FileType::TypeScript,
+        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+    );
+}
+
 /// Mixed argument families should use the expected grouped-last layout.
 #[test]
 fn test_format_grouped_last_argument_layout() {
