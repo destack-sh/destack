@@ -42,9 +42,9 @@ pub struct Worker {
     pub(crate) handles: HeapHandleTable,
 
     /// Shared GC worker queue handle.
-    pub(crate) shared_gc_worker: heap::SharedGcWorker,
+    pub(crate) shared_gc_worker: heap::GcWorker,
     /// Worker-local shared allocation cache.
-    pub(crate) shared_cache: heap::SharedAllocationCache,
+    pub(crate) shared_cache: heap::AllocationCache,
     /// Authoritative worker heap.
     pub(crate) heap: heap::Heap,
     /// Worker-owned static byte space.
@@ -634,7 +634,7 @@ impl Worker {
         execution_mode: ExecutionMode,
         runtime_heap: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
-        shared_gc_worker: heap::SharedGcWorker,
+        shared_gc_worker: heap::GcWorker,
     ) -> RuntimeResult<Option<Self>> {
         // host-retained handles need their owning host resource to fork them
         if !self.handles.is_empty() {

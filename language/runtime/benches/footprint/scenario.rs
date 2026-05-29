@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_engine::{EngineId, StaticSpace};
 use destack_heap::{
-    Allocator, Heap, HeapLimits, HeapOptions, SharedAllocationCache, SharedGcWorker, SharedHeap,
+    AllocationCache, Allocator, GcWorker, Heap, HeapLimits, HeapOptions, SharedHeap,
     SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir::parse::{ParseOptions, Parser};
@@ -142,9 +142,9 @@ pub(crate) struct VmMachine {
     /// Runtime shared heap.
     shared: SharedHeap,
     /// Worker-local shared allocation cache.
-    shared_cache: SharedAllocationCache,
+    shared_cache: AllocationCache,
     /// Shared collector worker.
-    shared_gc: SharedGcWorker,
+    shared_gc: GcWorker,
 }
 
 impl VmMachine {

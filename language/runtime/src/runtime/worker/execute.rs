@@ -327,7 +327,7 @@ impl Worker {
     fn assist_shared_gc(&mut self, runtime_shared: &RuntimeHeap) -> RuntimeResult<bool> {
         let shared = runtime_shared.shared.as_ref();
         let budget_bytes = shared.take_assist_budget_bytes();
-        if budget_bytes == 0 || shared.gc_phase() == heap::SharedGcPhase::Idle {
+        if budget_bytes == 0 || shared.gc_phase() == heap::GcPhase::Idle {
             return Ok(false);
         }
 

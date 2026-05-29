@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, SendError, Sender};
 use std::thread::{self, JoinHandle};
 
-use destack_heap::{SharedGcPhase, SharedHeap};
+use destack_heap::{GcPhase, SharedHeap};
 use destack_mir as mir;
 use destack_workspace::ExecutionMode;
 use parking_lot::{Condvar, Mutex};
@@ -29,7 +29,7 @@ pub struct SharedGc {
     /// Program trace table used by shared heap metadata.
     trace: Arc<mir::TraceTable>,
     /// Collection state changed by world and collector threads.
-    state: Mutex<SharedGcState>,
+    state: Mutex<CollectorState>,
     /// Wake quiescence waiters when pending GC work drains.
     quiesce: Condvar,
     /// Terminal GC failure recorded by one collector run.
@@ -64,7 +64,7 @@ impl SharedCollectorMode {
 
 /// Shared GC lifecycle state.
 #[derive(Debug, Default)]
-struct SharedGcState {
+struct CollectorState {
     /// Pending scheduler state.
     pending: SharedGcPending,
     /// Whether one collector thread is currently running a step.
@@ -155,7 +155,7 @@ impl SharedGc {
             heap,
             roots,
             trace: trace_table,
-            state: Mutex::new(SharedGcState::default()),
+            state: Mutex::new(CollectorState::default()),
             quiesce: Condvar::new(),
             failure: Mutex::new(None),
         })
@@ -271,7 +271,7 @@ impl SharedGc {
 
     /// Run one bounded shared GC increment.
     fn collect(&self) -> RuntimeResult<bool> {
-        if self.heap.gc_phase() == SharedGcPhase::Idle {
+        if self.heap.gc_phase() == GcPhase::Idle {
             return Ok(false);
         }
 
@@ -288,15 +288,15 @@ impl SharedGc {
             )
             .map_err(Box::<RuntimeError>::from)?;
 
-        if self.heap.gc_phase() != SharedGcPhase::Mark || roots_complete {
+        if self.heap.gc_phase() != GcPhase::Mark || roots_complete {
             self.roots.clear_termination();
         } else if self.heap.mark_idle() {
             self.roots.request_termination();
         }
 
-        let is_active = self.heap.gc_phase() != SharedGcPhase::Idle;
+        let is_active = self.heap.gc_phase() != GcPhase::Idle;
         let is_waiting_on_roots =
-            self.heap.gc_phase() == SharedGcPhase::Mark && self.heap.mark_idle() && !roots_complete;
+            self.heap.gc_phase() == GcPhase::Mark && self.heap.mark_idle() && !roots_complete;
 
         Ok(progress.made_progress() || (is_active && !is_waiting_on_roots))
     }

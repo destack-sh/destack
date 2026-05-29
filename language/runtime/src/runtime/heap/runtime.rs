@@ -93,7 +93,7 @@ impl RuntimeHeap {
     }
 
     /// Register one shared GC worker.
-    pub(crate) fn register_collector_worker(&self) -> heap::SharedGcWorker {
+    pub(crate) fn register_collector_worker(&self) -> heap::GcWorker {
         self.shared.register_collector_worker()
     }
 
@@ -121,9 +121,7 @@ impl RuntimeHeap {
     pub(crate) fn resume(&self) {
         self.gc.resume();
 
-        if self.collector.mode().is_concurrent()
-            && self.shared.gc_phase() != heap::SharedGcPhase::Idle
-        {
+        if self.collector.mode().is_concurrent() && self.shared.gc_phase() != heap::GcPhase::Idle {
             self.collector.wake(&self.gc);
         }
     }
@@ -135,7 +133,7 @@ impl RuntimeHeap {
 
     /// Return whether the shared heap is currently marking.
     pub(crate) fn is_marking(&self) -> bool {
-        self.shared.gc_phase() == heap::SharedGcPhase::Mark
+        self.shared.gc_phase() == heap::GcPhase::Mark
     }
 
     /// Return the bounded shared local-edge scan work for one worker tick.
