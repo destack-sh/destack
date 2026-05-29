@@ -120,12 +120,13 @@ impl ModuleLowerer<'_> {
 
     /// Lower a name from DIR into JS AST.
     pub fn lower_name(&mut self, name: dir::Name) -> js::Name {
-        let name_id = name.string();
-
         match name {
-            dir::Name::Identifier(_) => js::Name::Identifier(name_id),
-            dir::Name::String(_) => js::Name::String(name_id),
-            dir::Name::Number(_) => js::Name::String(name_id),
+            dir::Name::Identifier(name) => js::Name::Identifier(name),
+            dir::Name::String(name) => js::Name::String(name),
+            dir::Name::Index(index) => {
+                let name = self.strings.intern(&index.to_string());
+                js::Name::String(name)
+            }
         }
     }
 
@@ -161,9 +162,13 @@ impl ModuleLowerer<'_> {
         key: dir::StaticKey,
     ) -> CodegenJsResult<js::Key> {
         let key = match key {
-            dir::StaticKey::Name(name) | dir::StaticKey::Number(name) => {
+            dir::StaticKey::Name(name) => {
                 let name = self.lower_string_to_name(name);
                 js::Key::Name(name)
+            }
+            dir::StaticKey::Index(index) => {
+                let name = self.strings.intern(&index.to_string());
+                js::Key::Name(js::Name::String(name))
             }
             dir::StaticKey::Symbol(symbol) => {
                 let expression_id = self.lower_symbol_key_expression(source_id, symbol)?;

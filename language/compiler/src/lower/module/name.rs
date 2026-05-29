@@ -39,9 +39,8 @@ const STRING_LITERAL_SLUG_MAX: usize = 32;
 /// Convert a static key into a canonical string.
 fn static_key_string(key: &dir::StaticKey, strings: &StringPool) -> String {
     match key {
-        dir::StaticKey::Name(name_id) | dir::StaticKey::Number(name_id) => {
-            strings.get(*name_id).to_string()
-        }
+        dir::StaticKey::Name(name_id) => strings.get(*name_id).to_string(),
+        dir::StaticKey::Index(index) => index.to_string(),
         dir::StaticKey::Symbol(symbol_key) => match symbol_key {
             dir::SymbolKey::Registry(name_id) => {
                 let name = strings.get(*name_id);
@@ -1249,7 +1248,7 @@ fn string_literal_name_suffix(slug: &str) -> String {
 
 /// Convert a static key to a field name.
 ///
-/// For name and number keys, returns the string directly.
+/// For name and index keys, returns the string directly.
 /// For symbol keys, generates a synthetic name with `@` prefix to avoid conflicts.
 pub(crate) fn static_key_to_field_name(
     key: &dir::StaticKey,
@@ -1275,15 +1274,14 @@ mod tests {
         assert_eq!(result, name);
     }
 
-    /// Number keys return the string directly.
+    /// Index keys return the decimal index string.
     #[test]
-    fn test_static_key_number() {
+    fn test_static_key_index() {
         let mut builder = mir::ModuleBuilder::new();
-        let num = builder.intern("42");
-        let key = dir::StaticKey::Number(num);
+        let key = dir::StaticKey::Index(42);
 
         let result = static_key_to_field_name(&key, &mut builder);
-        assert_eq!(result, num);
+        assert_eq!(builder.strings().get(result), "42");
     }
 
     /// Registry symbol keys get synthetic names with @ prefix.

@@ -671,9 +671,8 @@ impl Compiler {
                     js::Name::String(name)
                 }
             }
-            dir::StaticKey::Number(name) => {
-                let name = target_strings.get(name);
-                let name = module.strings.intern(&name);
+            dir::StaticKey::Index(index) => {
+                let name = module.strings.intern(&index.to_string());
                 js::Name::String(name)
             }
             dir::StaticKey::Symbol(_) => {

@@ -128,9 +128,8 @@ impl<'a> ExportState<'a> {
     /// Render one static export key.
     pub(in crate::export) fn static_key_text(&self, key: dir::StaticKey) -> String {
         match key {
-            dir::StaticKey::Name(name) | dir::StaticKey::Number(name) => {
-                self.strings().get(name).to_string()
-            }
+            dir::StaticKey::Name(name) => self.strings().get(name).to_string(),
+            dir::StaticKey::Index(index) => index.to_string(),
             dir::StaticKey::Symbol(symbol) => symbol.debug_string(self.strings()),
         }
     }

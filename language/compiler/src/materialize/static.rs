@@ -389,7 +389,7 @@ impl Compiler {
     ) -> MaterializeResult<dir::Key> {
         match key {
             dir::StaticKey::Name(name) => Ok(dir::Key::Name(dir::Name::String(name))),
-            dir::StaticKey::Number(name) => Ok(dir::Key::Name(dir::Name::Number(name))),
+            dir::StaticKey::Index(index) => Ok(dir::Key::Name(dir::Name::Index(index))),
             dir::StaticKey::Symbol(_) => Err(MaterializeError::UnsupportedConstruct {
                 anchor: anchor_id
                     .into_global(module_id)

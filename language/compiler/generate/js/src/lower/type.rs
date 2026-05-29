@@ -256,8 +256,7 @@ impl ModuleLowerer<'_> {
                 }
 
                 let symbol = self.symbols.get_symbol(dir::LocalSymbolId::from(symbol_id));
-                let Some(dir::StaticKey::Name(name) | dir::StaticKey::Number(name)) = symbol.key
-                else {
+                let Some(dir::StaticKey::Name(name)) = symbol.key else {
                     return Err(CodegenJsError::UnsupportedConstruct {
                         node: source_id.into_global(self.module.id),
                         message: Some(
@@ -509,7 +508,7 @@ impl ModuleLowerer<'_> {
         }
 
         let symbol = self.symbols.get_symbol(dir::LocalSymbolId::from(symbol_id));
-        let Some(dir::StaticKey::Name(name) | dir::StaticKey::Number(name)) = symbol.key else {
+        let Some(dir::StaticKey::Name(name)) = symbol.key else {
             return Err(CodegenJsError::UnsupportedConstruct {
                 node: source_id.into_global(self.module.id),
                 message: Some(
