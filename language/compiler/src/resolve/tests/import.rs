@@ -118,6 +118,29 @@ import type { Foo } from "./dep.ds";
 }
 
 #[test]
+fn test_resolve_records_builtin_star_import_target() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+import { todo } from "destack:error";
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries(),
+        r#"
+import { todo } from "destack:error";
+/// @import.symbol symbol=todo target=error.panic.todo
+
+/// @import.summary symbols=1
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_reports_missing_named_import() {
     let compiler = TestSession::new()
         .module(
