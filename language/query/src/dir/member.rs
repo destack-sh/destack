@@ -29,7 +29,7 @@ pub(crate) enum MemberName {
     /// A resolved string name.
     String(String),
     /// A numeric index.
-    Index(i64),
+    Index(usize),
     /// A computed key (cannot be displayed directly).
     Computed,
 }
@@ -215,7 +215,7 @@ fn resolve_type_members_inner(
             .iter()
             .enumerate()
             .map(|(i, element)| MemberCandidate {
-                name: MemberName::Index(i as i64),
+                name: MemberName::Index(i),
                 type_id: Some(element.ty),
                 kind: MemberKind::Field,
                 symbol_id: None,
@@ -425,7 +425,7 @@ fn static_key_to_member_name(key: &StaticKey, strings: &destack_core::StringPool
     // convert the key into a displayable member name
     match key {
         StaticKey::Name(string_id) => MemberName::String(strings.get(*string_id).to_string()),
-        StaticKey::Number(string_id) => MemberName::String(strings.get(*string_id).to_string()),
+        StaticKey::Index(index) => MemberName::Index(*index),
         StaticKey::Symbol(_) => MemberName::Computed,
     }
 }
