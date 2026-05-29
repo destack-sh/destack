@@ -91,27 +91,27 @@ extension<T> of LinkedList<T> implements
     }
 
     /// Push `value` to the back.
-    pushBack(this: &exclusive LinkedList<T>, value: T): void {
+    pushBack(&exclusive this, value: T): void {
         todo("LinkedList.pushBack");
     }
 
     /// Push `value` to the front.
-    pushFront(this: &exclusive LinkedList<T>, value: T): void {
+    pushFront(&exclusive this, value: T): void {
         todo("LinkedList.pushFront");
     }
 
     /// Append all `values` to the back.
-    extend(this: &exclusive LinkedList<T>, values: Iterable<T>): void {
+    extend(&exclusive this, values: Iterable<T>): void {
         todo("LinkedList.extend");
     }
 
     /// Remove and return the back element.
-    popBack(this: &exclusive LinkedList<T>): T | undefined {
+    popBack(&exclusive this): T | undefined {
         todo("LinkedList.popBack")
     }
 
     /// Remove and return the front element.
-    popFront(this: &exclusive LinkedList<T>): T | undefined {
+    popFront(&exclusive this): T | undefined {
         todo("LinkedList.popFront")
     }
 
@@ -130,35 +130,32 @@ extension<T> of LinkedList<T> implements
     }
 
     /// Remove all elements.
-    clear(this: &exclusive LinkedList<T>): void {
+    clear(&exclusive this): void {
         todo("LinkedList.clear");
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(this: &exclusive LinkedList<T>, predicate: (value: &T, index: usize) => boolean): void {
+    retain(&exclusive this, predicate: (value: &T, index: usize) => boolean): void {
         todo("LinkedList.retain");
     }
 
     /// Remove all elements and return them.
-    drain(this: &exclusive LinkedList<T>): Iterator<T> {
+    drain(&exclusive this): Iterator<T> {
         todo("LinkedList.drain")
     }
 
     /// Remove elements accepted by `predicate` and return them.
-    extractIf(
-        this: &exclusive LinkedList<T>,
-        predicate: (value: &T, index: usize) => boolean,
-    ): Iterator<T> {
+    extractIf(&exclusive this, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
         todo("LinkedList.extractIf")
     }
 
     /// Reserve room for at least `additional` more nodes.
-    reserve(this: &exclusive LinkedList<T>, additional: usize): void {
+    reserve(&exclusive this, additional: usize): void {
         todo("LinkedList.reserve");
     }
 
     /// Shrink node storage to fit the current length.
-    shrinkToFit(this: &exclusive LinkedList<T>): void {
+    shrinkToFit(&exclusive this): void {
         todo("LinkedList.shrinkToFit");
     }
 
@@ -175,7 +172,7 @@ extension<T> of LinkedList<T> implements
     }
 
     /// Consume this list into owned values.
-    iterator(this: ^LinkedList<T>): Iterator<T> {
+    iterator(^this): Iterator<T> {
         todo("LinkedList.iterator")
     }
 }

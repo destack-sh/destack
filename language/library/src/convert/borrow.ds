@@ -23,5 +23,5 @@ export newtype interface ToOwned {
     type Owned;
 
     /// Copy this value into owned storage.
-    toOwned(this: &readonly this): this.Owned;
+    toOwned(&readonly this): this.Owned;
 }

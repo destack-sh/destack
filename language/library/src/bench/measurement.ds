@@ -85,12 +85,12 @@ export class Measure {
     }
 
     /// Record processed bytes.
-    bytes(this: &exclusive Measure, value: uint64): void {
+    bytes(&exclusive this, value: uint64): void {
         this.processedBytes = value;
     }
 
     /// Record processed items.
-    items(this: &exclusive Measure, value: uint64): void {
+    items(&exclusive this, value: uint64): void {
         this.processedItems = value;
     }
 }

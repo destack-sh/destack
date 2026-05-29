@@ -49,13 +49,12 @@ extension<Borrowed, Owned = ^BaseOf<Borrowed>> of Cow<Borrowed, Owned> {
     }
 
     /// Borrow owned storage, cloning first if needed.
-    toExclusive(this: &exclusive Cow<Borrowed, Owned>): &exclusive Owned
-    where BaseOf<Borrowed>: Clone {
+    toExclusive(&exclusive this): &exclusive Owned where BaseOf<Borrowed>: Clone {
         todo("Cow.toExclusive")
     }
 
     /// Move or clone this value into owned storage.
-    intoOwned(this: Cow<Borrowed, Owned>): Owned where BaseOf<Borrowed>: Clone {
+    intoOwned(this): Owned where BaseOf<Borrowed>: Clone {
         todo("Cow.intoOwned")
     }
 }

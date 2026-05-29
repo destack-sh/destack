@@ -48,42 +48,42 @@ extension of StringBuilder {
     }
 
     /// Remove all text.
-    clear(this: &exclusive StringBuilder): void {
+    clear(&exclusive this): void {
         todo("StringBuilder.clear");
     }
 
     /// Reserve at least `additional` more bytes.
-    reserve(this: &exclusive StringBuilder, additional: usize): void {
+    reserve(&exclusive this, additional: usize): void {
         todo("StringBuilder.reserve");
     }
 
     /// Reserve exactly `additional` more bytes.
-    reserveExact(this: &exclusive StringBuilder, additional: usize): void {
+    reserveExact(&exclusive this, additional: usize): void {
         todo("StringBuilder.reserveExact");
     }
 
     /// Append text.
-    append(this: &exclusive StringBuilder, value: &readonly StringSlice): void {
+    append(&exclusive this, value: &readonly StringSlice): void {
         todo("StringBuilder.append");
     }
 
     /// Append one Unicode scalar value.
-    appendChar(this: &exclusive StringBuilder, value: char): void {
+    appendChar(&exclusive this, value: char): void {
         todo("StringBuilder.appendChar");
     }
 
     /// Append one Unicode code point.
-    appendCodePoint(this: &exclusive StringBuilder, value: number): void {
+    appendCodePoint(&exclusive this, value: number): void {
         todo("StringBuilder.appendCodePoint");
     }
 
     /// Return the current text without consuming the builder.
-    toString(this: &readonly StringBuilder): ^string {
+    toString(&readonly this): ^string {
         todo("StringBuilder.toString")
     }
 
     /// Consume the builder and return its string.
-    intoString(this: ^StringBuilder): ^string {
+    intoString(^this): ^string {
         todo("StringBuilder.intoString")
     }
 }

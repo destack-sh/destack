@@ -117,7 +117,7 @@ extension<T> of Array<T> implements
     }
 
     /// Replace the element at `index`.
-    indexSet(this: &exclusive Array<T>, index: usize, value: T): void {
+    indexSet(&exclusive this, index: usize, value: T): void {
         todo("Array.indexSet");
     }
 
@@ -142,85 +142,82 @@ extension<T> of Array<T> implements
     }
 
     /// Append `value`.
-    push(this: &exclusive Array<T>, value: T): void {
+    push(&exclusive this, value: T): void {
         todo("Array.push");
     }
 
     /// Append `values`.
-    push(this: &exclusive Array<T>, ...values: T[]): number {
+    push(&exclusive this, ...values: T[]): number {
         todo("Array.push")
     }
 
     /// Append all `values`.
-    extend(this: &exclusive Array<T>, values: Iterable<T>): void {
+    extend(&exclusive this, values: Iterable<T>): void {
         todo("Array.extend");
     }
 
     /// Remove and return the last element.
-    pop(this: &exclusive Array<T>): T | undefined {
+    pop(&exclusive this): T | undefined {
         todo("Array.pop")
     }
 
     /// Remove and return the first element.
-    shift(this: &exclusive Array<T>): T | undefined {
+    shift(&exclusive this): T | undefined {
         todo("Array.shift")
     }
 
     /// Prepend `values`.
-    unshift(this: &exclusive Array<T>, ...values: T[]): number {
+    unshift(&exclusive this, ...values: T[]): number {
         todo("Array.unshift")
     }
 
     /// Insert `value` at `index`.
-    insert(this: &exclusive Array<T>, index: usize, value: T): void {
+    insert(&exclusive this, index: usize, value: T): void {
         todo("Array.insert");
     }
 
     /// Remove and return the element at `index`.
-    removeAt(this: &exclusive Array<T>, index: usize): T {
+    removeAt(&exclusive this, index: usize): T {
         todo("Array.removeAt")
     }
 
     /// Swap-remove the element at `index`.
-    swapRemove(this: &exclusive Array<T>, index: usize): T {
+    swapRemove(&exclusive this, index: usize): T {
         todo("Array.swapRemove")
     }
 
     /// Remove all elements.
-    clear(this: &exclusive Array<T>): void {
+    clear(&exclusive this): void {
         todo("Array.clear");
     }
 
     /// Overwrite a range with `value`.
-    fill(this: &exclusive Array<T>, value: T, start?: number, end?: number): this {
+    fill(&exclusive this, value: T, start?: number, end?: number): this {
         todo("Array.fill")
     }
 
     /// Copy a range within this array.
-    copyWithin(this: &exclusive Array<T>, target: number, start: number, end?: number): this {
+    copyWithin(&exclusive this, target: number, start: number, end?: number): this {
         todo("Array.copyWithin")
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(this: &exclusive Array<T>, predicate: (value: &T, index: usize) => boolean): void {
+    retain(&exclusive this, predicate: (value: &T, index: usize) => boolean): void {
         todo("Array.retain");
     }
 
     /// Remove all elements and return them.
-    drain(this: &exclusive Array<T>): Iterator<T> {
+    drain(&exclusive this): Iterator<T> {
         todo("Array.drain")
     }
 
     /// Remove elements accepted by `predicate` and return them.
-    extractIf(
-        this: &exclusive Array<T>,
-        predicate: (value: &T, index: usize) => boolean,
-    ): Iterator<T> {
+    extractIf(&exclusive this, predicate: (value: &T, index: usize) => boolean): Iterator<T> {
         todo("Array.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(this: &exclusive Array<T>, additional: usize): void {
+    reserve(&exclusive this, additional: usize): void {
         todo("Array.reserve");
     }
 
@@ -230,7 +227,7 @@ extension<T> of Array<T> implements
     }
 
     /// Shrink capacity to fit the current length.
-    shrinkToFit(this: &exclusive Array<T>): void {
+    shrinkToFit(&exclusive this): void {
         todo("Array.shrinkToFit");
     }
 
@@ -310,7 +307,7 @@ extension<T> of Array<T> implements
     }
 
     /// Reverse this array in place.
-    reverse(this: &exclusive Array<T>): this {
+    reverse(&exclusive this): this {
         todo("Array.reverse")
     }
 
@@ -320,7 +317,7 @@ extension<T> of Array<T> implements
     }
 
     /// Sort this array in place.
-    sort(this: &exclusive Array<T>, compare?: (a: &readonly T, b: &readonly T) => number): this {
+    sort(&exclusive this, compare?: (a: &readonly T, b: &readonly T) => number): this {
         todo("Array.sort")
     }
 
@@ -330,12 +327,7 @@ extension<T> of Array<T> implements
     }
 
     /// Splice this array.
-    splice(
-        this: &exclusive Array<T>,
-        start: number,
-        deleteCount?: number,
-        ...items: T[]
-    ): ^Array<T> {
+    splice(&exclusive this, start: number, deleteCount?: number, ...items: T[]): ^Array<T> {
         todo("Array.splice")
     }
 
@@ -385,7 +377,7 @@ extension<T> of Array<T> implements
     }
 
     /// Consume this array into owned values.
-    iterator(this: ^Array<T>): Iterator<T> {
+    iterator(^this): Iterator<T> {
         todo("Array.iterator")
     }
 
@@ -412,7 +404,7 @@ extension<T> of Slice<T> implements ToOwned where T: Clone {
     type Owned = ^Array<T>;
 
     /// Copy this slice into owned array storage.
-    toOwned(this: &readonly Slice<T>): ^Array<T> {
+    toOwned(&readonly this): ^Array<T> {
         todo("Slice.toOwned")
     }
 }

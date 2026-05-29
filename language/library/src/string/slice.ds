@@ -11,17 +11,17 @@ extension of StringSlice implements ToOwned, As<Slice<uint8>, "readonly"> {
     type Owned = ^string;
 
     /// Copy this slice into an owned string.
-    toOwned(this: &readonly StringSlice): ^string {
+    toOwned(&readonly this): ^string {
         todo("StringSlice.toOwned")
     }
 
     /// Borrow this string slice as readonly bytes.
-    as(this: &readonly StringSlice): &readonly Slice<uint8> {
+    as(&readonly this): &readonly Slice<uint8> {
         todo("StringSlice.as")
     }
 
     /// Borrow this string slice as readonly bytes.
-    asBytes(this: &readonly StringSlice): &readonly Slice<uint8> {
+    asBytes(&readonly this): &readonly Slice<uint8> {
         this.as()
     }
 }

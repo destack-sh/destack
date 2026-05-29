@@ -50,7 +50,7 @@ export class FaultSet {
     }
 
     /// Return whether no fault triggered.
-    isEmpty(this: &readonly FaultSet): boolean {
+    isEmpty(&readonly this): boolean {
         this.faults.length == 0
     }
 }

@@ -66,17 +66,17 @@ extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A>, As<T, 
     }
 
     /// Move the value out of this box.
-    intoInner(this: Box<T>): ^T {
+    intoInner(this): ^T {
         todo("Box.intoInner")
     }
 
     /// Leak this box and borrow its allocation for static lifetime.
-    leak(this: Box<T>): Borrowed<T, "static"> {
+    leak(this): Borrowed<T, "static"> {
         this.intoUnique().leak()
     }
 
     /// Move this box into its unique heap handle.
-    intoUnique(this: Box<T>): Unique<Owned<T>> {
+    intoUnique(this): Unique<Owned<T>> {
         todo("Box.intoUnique")
     }
 
@@ -91,7 +91,7 @@ extension<T, A: Access = "readonly"> of Box<T> implements Dereference<A>, As<T, 
     }
 
     /// Borrow the boxed value with exclusive access.
-    asExclusive(this: &exclusive Box<T>): &exclusive T {
+    asExclusive(&exclusive this): &exclusive T {
         todo("Box.asExclusive")
     }
 

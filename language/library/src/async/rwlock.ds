@@ -35,12 +35,12 @@ export class AsyncRwLock<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(this: &exclusive AsyncRwLock<T>): &exclusive T {
+    getExclusive(&exclusive this): &exclusive T {
         todo("AsyncRwLock.getExclusive")
     }
 
     /// Consume this lock and return the protected value.
-    intoInner(this: ^AsyncRwLock<T>): T {
+    intoInner(^this): T {
         todo("AsyncRwLock.intoInner")
     }
 }
@@ -94,7 +94,7 @@ extension<T> of AsyncRwLockWriteGuard<T> implements Dispose, Dereference<"exclus
     }
 
     /// Downgrade this write guard to a read guard.
-    downgrade(this: AsyncRwLockWriteGuard<T>): AsyncRwLockReadGuard<T> {
+    downgrade(this): AsyncRwLockReadGuard<T> {
         todo("AsyncRwLockWriteGuard.downgrade")
     }
 }

@@ -11,5 +11,5 @@ export newtype Unique<T> = intrinsic;
 extension<T> of Unique<Owned<T>> {
     /// Leak this allocation and borrow it for static lifetime.
     @intrinsic("memory.unique.leak")
-    leak(this: Unique<Owned<T>>): Borrowed<T, "static">;
+    leak(this): Borrowed<T, "static">;
 }

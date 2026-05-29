@@ -106,19 +106,19 @@ export newtype interface Edge {
     type Kind: EdgeKind;
 
     /// Return this value's edge identifier.
-    edgeId(this: &readonly this): EdgeId;
+    edgeId(&readonly this): EdgeId;
 
     /// Return this value's source entity.
-    edgeFrom(this: &readonly this): EntityId;
+    edgeFrom(&readonly this): EntityId;
 
     /// Return this value's destination entity.
-    edgeTo(this: &readonly this): EntityId;
+    edgeTo(&readonly this): EntityId;
 
     /// Return this value's edge name.
-    edgeName(this: &readonly this): string | undefined;
+    edgeName(&readonly this): string | undefined;
 
     /// Return this value's edge labels.
-    edgeLabels(this: &readonly this): LabelSet | undefined;
+    edgeLabels(&readonly this): LabelSet | undefined;
 }
 
 /// Match every topology edge.

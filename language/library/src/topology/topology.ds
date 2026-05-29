@@ -19,42 +19,42 @@ export class Topology {
     constructor() {}
 
     /// Add one entity record.
-    addEntity(this: &exclusive Topology, entity: EntityRecord): EntityRef {
+    addEntity(&exclusive this, entity: EntityRecord): EntityRef {
         todo("topology.Topology.addEntity")
     }
 
     /// Add one edge record.
-    addEdge(this: &exclusive Topology, edge: EdgeRecord): EdgeRef {
+    addEdge(&exclusive this, edge: EdgeRecord): EdgeRef {
         todo("topology.Topology.addEdge")
     }
 
     /// Observe one entity-like value.
-    observe<T: Entity>(this: &exclusive Topology, value: &readonly T): EntityRef {
+    observe<T: Entity>(&exclusive this, value: &readonly T): EntityRef {
         this.addEntity(entityOf(value))
     }
 
     /// Observe one edge-like value.
-    connect<T: Edge>(this: &exclusive Topology, value: &readonly T): EdgeRef {
+    connect<T: Edge>(&exclusive this, value: &readonly T): EdgeRef {
         this.addEdge(edgeOf(value))
     }
 
     /// Remove one entity.
-    removeEntity(this: &exclusive Topology, id: EntityId): boolean {
+    removeEntity(&exclusive this, id: EntityId): boolean {
         todo("topology.Topology.removeEntity")
     }
 
     /// Remove one edge.
-    removeEdge(this: &exclusive Topology, id: EdgeId): boolean {
+    removeEdge(&exclusive this, id: EdgeId): boolean {
         todo("topology.Topology.removeEdge")
     }
 
     /// Return entities matching `selector`.
-    entities(this: &readonly Topology, selector?: EntitySelector): [EntityRecord] {
+    entities(&readonly this, selector?: EntitySelector): [EntityRecord] {
         todo("topology.Topology.entities")
     }
 
     /// Return edges matching `selector`.
-    edges(this: &readonly Topology, selector?: EdgeSelector): [EdgeRecord] {
+    edges(&readonly this, selector?: EdgeSelector): [EdgeRecord] {
         todo("topology.Topology.edges")
     }
 }

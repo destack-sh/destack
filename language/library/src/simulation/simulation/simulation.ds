@@ -20,28 +20,28 @@ export class Simulation {
     }
 
     /// Return context overrides for this simulation.
-    context(this: &readonly Simulation): ContextPatch {
+    context(&readonly this): ContextPatch {
         todo("simulation.Simulation.context")
     }
 
     /// Run `body` inside this simulation context.
-    run<T>(this: &readonly Simulation, body: () => T): T {
+    run<T>(&readonly this, body: () => T): T {
         Context.with(this.context(), body)
     }
 
     /// Describe this simulation world's causal trace.
-    trace(this: &readonly Simulation): Result<runtime.Trace, HostError> {
+    trace(&readonly this): Result<runtime.Trace, HostError> {
         runtime.traceDescribe(this.world.handle)
     }
 
     /// Add one scenario rule.
-    rule(this: &exclusive Simulation, rule: Rule): RuleId {
+    rule(&exclusive this, rule: Rule): RuleId {
         this.scenario.add(rule)
     }
 
     /// Create one runtime in this simulation.
     runtime(
-        this: &readonly Simulation,
+        &readonly this,
         options?: runtime.RuntimeCreateOptions,
     ): Result<runtime.Runtime, HostError> {
         todo("simulation.Simulation.runtime")
@@ -49,7 +49,7 @@ export class Simulation {
 
     /// Create one worker in `owner`.
     worker(
-        this: &readonly Simulation,
+        &readonly this,
         owner: runtime.Runtime,
         options?: runtime.WorkerCreateOptions,
     ): Result<runtime.Worker, HostError> {
@@ -57,7 +57,7 @@ export class Simulation {
     }
 
     /// Advance this simulation by one deterministic step.
-    step(this: &exclusive Simulation): Result<runtime.TickResult, HostError> {
+    step(&exclusive this): Result<runtime.TickResult, HostError> {
         todo("simulation.Simulation.step")
     }
 }

@@ -24,43 +24,43 @@ export extension<T> of MaybeUninit<T> implements Default {
 
     /// Initialize this storage with `value`.
     @intrinsic("memory.init.write")
-    write(this: &exclusive MaybeUninit<T>, value: T): &exclusive T;
+    write(&exclusive this, value: T): &exclusive T;
 
     /// Return a raw pointer to the storage.
     @intrinsic("memory.init.asPointer")
-    asPointer(this: &MaybeUninit<T>): *T;
+    asPointer(&this): *T;
 
     /// Return an exclusive raw pointer to the storage.
     @intrinsic("memory.init.asExclusivePointer")
-    asExclusivePointer(this: &exclusive MaybeUninit<T>): *T;
+    asExclusivePointer(&exclusive this): *T;
 
     /// Borrow initialized storage.
     @unsafe
     @intrinsic("memory.init.assumeInitReference")
-    assumeInitReference(this: &MaybeUninit<T>): &T;
+    assumeInitReference(&this): &T;
 
     /// Borrow initialized storage with readonly access.
     @unsafe
     @intrinsic("memory.init.assumeInitReadonlyReference")
-    assumeInitReadonlyReference(this: &readonly MaybeUninit<T>): &readonly T;
+    assumeInitReadonlyReference(&readonly this): &readonly T;
 
     /// Borrow initialized storage with exclusive access.
     @unsafe
     @intrinsic("memory.init.assumeInitExclusiveReference")
-    assumeInitExclusiveReference(this: &exclusive MaybeUninit<T>): &exclusive T;
+    assumeInitExclusiveReference(&exclusive this): &exclusive T;
 
     /// Move initialized storage out as `T`.
     @unsafe
     @intrinsic("memory.init.assumeInit")
-    assumeInit(this: MaybeUninit<T>): T;
+    assumeInit(this): T;
 
     /// Copy initialized storage out without ending this storage.
     @unsafe
     @intrinsic("memory.init.assumeInitRead")
-    assumeInitRead(this: &MaybeUninit<T>): T;
+    assumeInitRead(&this): T;
 
     /// Drop initialized storage in place.
     @unsafe
     @intrinsic("memory.init.assumeInitDrop")
-    assumeInitDrop(this: &exclusive MaybeUninit<T>): void;
+    assumeInitDrop(&exclusive this): void;
 }

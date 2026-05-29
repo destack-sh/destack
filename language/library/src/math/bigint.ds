@@ -95,43 +95,43 @@ extension of BigInt implements
     }
 
     /// Return the absolute value.
-    abs(this: &readonly bigint): bigint {
+    abs(&readonly this): bigint {
         todo("BigInt.abs")
     }
 
     /// Return the greatest common divisor with `other`.
-    gcd(this: &readonly bigint, other: bigint): bigint {
+    gcd(&readonly this, other: bigint): bigint {
         todo("BigInt.gcd")
     }
 
     /// Return the least common multiple with `other`.
-    lcm(this: &readonly bigint, other: bigint): bigint {
+    lcm(&readonly this, other: bigint): bigint {
         todo("BigInt.lcm")
     }
 
     /// Return -1, 0, or 1 according to this integer's sign.
-    signum(this: &readonly bigint): int32 {
+    signum(&readonly this): int32 {
         todo("BigInt.signum")
     }
 
     /// Return a float64 approximation.
-    toNumber(this: &readonly bigint): number {
+    toNumber(&readonly this): number {
         todo("BigInt.toNumber")
     }
 
     /// Return the primitive bigint value.
-    valueOf(this: &readonly bigint): bigint {
+    valueOf(&readonly this): bigint {
         todo("BigInt.valueOf")
     }
 
     /// Return this integer as a string.
-    toString(this: &readonly bigint, radix?: number): MaybeOwned<string> {
+    toString(&readonly this, radix?: number): MaybeOwned<string> {
         todo("BigInt.toString")
     }
 
     /// Return this integer as a locale-aware string.
     toLocaleString(
-        this: &readonly bigint,
+        &readonly this,
         locales?: string | string[],
         options?: NumberFormatOptions,
     ): MaybeOwned<string> {
@@ -139,72 +139,72 @@ extension of BigInt implements
     }
 
     /// Return whether this integer equals `other`.
-    equal(this: &readonly bigint, other: bigint): boolean {
+    equal(&readonly this, other: bigint): boolean {
         todo("BigInt.equal")
     }
 
     /// Compare with `other`.
-    compare(this: &readonly bigint, other: bigint): Ordering {
+    compare(&readonly this, other: bigint): Ordering {
         todo("BigInt.compare")
     }
 
     /// Add `other`.
-    add(this: &readonly bigint, other: bigint): this.Output {
+    add(&readonly this, other: bigint): this.Output {
         todo("BigInt.add")
     }
 
     /// Subtract `other`.
-    subtract(this: &readonly bigint, other: bigint): this.Output {
+    subtract(&readonly this, other: bigint): this.Output {
         todo("BigInt.subtract")
     }
 
     /// Multiply by `other`.
-    multiply(this: &readonly bigint, other: bigint): this.Output {
+    multiply(&readonly this, other: bigint): this.Output {
         todo("BigInt.multiply")
     }
 
     /// Divide by `other`.
-    divide(this: &readonly bigint, other: bigint): this.Output {
+    divide(&readonly this, other: bigint): this.Output {
         todo("BigInt.divide")
     }
 
     /// Return the remainder after division by `other`.
-    remainder(this: &readonly bigint, other: bigint): this.Output {
+    remainder(&readonly this, other: bigint): this.Output {
         todo("BigInt.remainder")
     }
 
     /// Raise this integer to `exponent`.
-    power(this: &readonly bigint, exponent: bigint): this.Output {
+    power(&readonly this, exponent: bigint): this.Output {
         todo("BigInt.power")
     }
 
     /// Return the bitwise and with `other`.
-    and(this: &readonly bigint, other: bigint): this.Output {
+    and(&readonly this, other: bigint): this.Output {
         todo("BigInt.and")
     }
 
     /// Return the bitwise or with `other`.
-    or(this: &readonly bigint, other: bigint): this.Output {
+    or(&readonly this, other: bigint): this.Output {
         todo("BigInt.or")
     }
 
     /// Return the bitwise xor with `other`.
-    xor(this: &readonly bigint, other: bigint): this.Output {
+    xor(&readonly this, other: bigint): this.Output {
         todo("BigInt.xor")
     }
 
     /// Return the bitwise complement.
-    not(this: &readonly bigint): this.Output {
+    not(&readonly this): this.Output {
         todo("BigInt.not")
     }
 
     /// Shift left by `amount`.
-    shiftLeft(this: &readonly bigint, amount: usize): this.Output {
+    shiftLeft(&readonly this, amount: usize): this.Output {
         todo("BigInt.shiftLeft")
     }
 
     /// Shift right by `amount`.
-    shiftRight(this: &readonly bigint, amount: usize): this.Output {
+    shiftRight(&readonly this, amount: usize): this.Output {
         todo("BigInt.shiftRight")
     }
 }

@@ -43,7 +43,7 @@ export class OnceCell<T> {
     }
 
     /// Move the value out when initialized.
-    take(this: &exclusive OnceCell<T>): T | undefined {
+    take(&exclusive this): T | undefined {
         todo("OnceCell.take")
     }
 }

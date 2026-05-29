@@ -120,17 +120,17 @@ export class RegExp {
     }
 
     /// Execute the pattern against `input`.
-    exec(this: &exclusive RegExp, input: string): RegExpMatch | null {
+    exec(&exclusive this, input: string): RegExpMatch | null {
         todo("RegExp.exec")
     }
 
     /// Return whether the pattern matches `input`.
-    test(this: &exclusive RegExp, input: string): boolean {
+    test(&exclusive this, input: string): boolean {
         todo("RegExp.test")
     }
 
     /// Return the literal regular expression spelling.
-    toString(this: &readonly RegExp): MaybeOwned<string> {
+    toString(&readonly this): MaybeOwned<string> {
         todo("RegExp.toString")
     }
 }

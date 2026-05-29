@@ -51,7 +51,7 @@ extension<T, comptime Rank: int, A: Access> of TensorView<T, Rank, A> implements
     }
 
     /// Borrow the element at `coordinate` with readonly access.
-    index(this: &readonly TensorView<T, Rank, A>, coordinate: Coordinate<Rank>): &readonly T {
+    index(&readonly this, coordinate: Coordinate<Rank>): &readonly T {
         todo("TensorView.index")
     }
 }
@@ -92,11 +92,7 @@ extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> {
 extension<T, comptime Rank: int> of TensorView<T, Rank, "exclusive"> implements
     IndexSet<Coordinate<Rank>, T> {
     /// Store `value` at `coordinate`.
-    indexSet(
-        this: &exclusive TensorView<T, Rank, "exclusive">,
-        coordinate: Coordinate<Rank>,
-        value: T,
-    ): void {
+    indexSet(&exclusive this, coordinate: Coordinate<Rank>, value: T): void {
         todo("TensorView.indexSet");
     }
 }

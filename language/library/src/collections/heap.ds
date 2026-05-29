@@ -61,60 +61,57 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
     }
 
     /// Borrow the greatest element with readonly access.
-    peek(this: &readonly BinaryHeap<T>): &readonly T | undefined {
+    peek(&readonly this): &readonly T | undefined {
         todo("BinaryHeap.peek")
     }
 
     /// Push `value`.
-    push(this: &exclusive BinaryHeap<T>, value: T): void {
+    push(&exclusive this, value: T): void {
         todo("BinaryHeap.push");
     }
 
     /// Push all `values`.
-    extend(this: &exclusive BinaryHeap<T>, values: Iterable<T>): void {
+    extend(&exclusive this, values: Iterable<T>): void {
         todo("BinaryHeap.extend");
     }
 
     /// Remove and return the greatest element.
-    pop(this: &exclusive BinaryHeap<T>): T | undefined {
+    pop(&exclusive this): T | undefined {
         todo("BinaryHeap.pop")
     }
 
     /// Remove all elements.
-    clear(this: &exclusive BinaryHeap<T>): void {
+    clear(&exclusive this): void {
         todo("BinaryHeap.clear");
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(this: &exclusive BinaryHeap<T>, predicate: (value: &readonly T) => boolean): void {
+    retain(&exclusive this, predicate: (value: &readonly T) => boolean): void {
         todo("BinaryHeap.retain");
     }
 
     /// Remove all values and return them.
-    drain(this: &exclusive BinaryHeap<T>): Iterator<T> {
+    drain(&exclusive this): Iterator<T> {
         todo("BinaryHeap.drain")
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(
-        this: &exclusive BinaryHeap<T>,
-        predicate: (value: &readonly T) => boolean,
-    ): Iterator<T> {
+    extractIf(&exclusive this, predicate: (value: &readonly T) => boolean): Iterator<T> {
         todo("BinaryHeap.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(this: &exclusive BinaryHeap<T>, additional: usize): void {
+    reserve(&exclusive this, additional: usize): void {
         todo("BinaryHeap.reserve");
     }
 
     /// Shrink capacity to fit current elements.
-    shrinkToFit(this: &exclusive BinaryHeap<T>): void {
+    shrinkToFit(&exclusive this): void {
         todo("BinaryHeap.shrinkToFit");
     }
 
     /// Convert this heap into a sorted array.
-    intoSortedArray(this: BinaryHeap<T>): ^Array<T> {
+    intoSortedArray(this): ^Array<T> {
         todo("BinaryHeap.intoSortedArray")
     }
 
@@ -124,12 +121,12 @@ extension<T: Compare<T>> of BinaryHeap<T> implements
     }
 
     /// Return an iterator over readonly borrowed values.
-    iterator(this: &readonly BinaryHeap<T>): Iterator<&readonly T> {
+    iterator(&readonly this): Iterator<&readonly T> {
         todo("BinaryHeap.iterator")
     }
 
     /// Consume this heap into owned values.
-    iterator(this: BinaryHeap<T>): Iterator<T> {
+    iterator(this): Iterator<T> {
         todo("BinaryHeap.iterator")
     }
 }

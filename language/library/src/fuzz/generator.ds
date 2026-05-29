@@ -88,32 +88,32 @@ export class Generator<T> {
     }
 
     /// Generate optional values.
-    optional(this: &readonly Generator<T>): Generator<T | undefined> {
+    optional(&readonly this): Generator<T | undefined> {
         todo("fuzz.Generator.optional")
     }
 
     /// Map generated values.
-    map<U>(this: &readonly Generator<T>, body: (value: T) => U): Generator<U> {
+    map<U>(&readonly this, body: (value: T) => U): Generator<U> {
         todo("fuzz.Generator.map")
     }
 
     /// Generate another value from each generated value.
-    flatMap<U>(this: &readonly Generator<T>, body: (value: T) => Generator<U>): Generator<U> {
+    flatMap<U>(&readonly this, body: (value: T) => Generator<U>): Generator<U> {
         todo("fuzz.Generator.flatMap")
     }
 
     /// Keep generated values that match `predicate`.
-    filter(this: &readonly Generator<T>, predicate: (value: T) => boolean): Generator<T> {
+    filter(&readonly this, predicate: (value: T) => boolean): Generator<T> {
         todo("fuzz.Generator.filter")
     }
 
     /// Generate a pair from this generator and `other`.
-    and<U>(this: &readonly Generator<T>, other: Generator<U>): Generator<(T, U)> {
+    and<U>(&readonly this, other: Generator<U>): Generator<(T, U)> {
         todo("fuzz.Generator.and")
     }
 
     /// Shrink `value` toward simpler generated values.
-    shrink(this: &readonly Generator<T>, value: T): Generator<T> {
+    shrink(&readonly this, value: T): Generator<T> {
         todo("fuzz.Generator.shrink")
     }
 }

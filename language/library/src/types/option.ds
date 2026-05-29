@@ -35,17 +35,17 @@ extension<T> of Option<T> {
     }
 
     /// Return true when this option has a value.
-    isSome(this: &readonly Option<T>): boolean {
+    isSome(&readonly this): boolean {
         this != null
     }
 
     /// Return true when this option is empty.
-    isNone(this: &readonly Option<T>): boolean {
+    isNone(&readonly this): boolean {
         this == null
     }
 
     /// Return true when this option has a value accepted by `predicate`.
-    isSomeAnd(this: &readonly Option<T>, predicate: (value: &readonly T) => boolean): boolean {
+    isSomeAnd(&readonly this, predicate: (value: &readonly T) => boolean): boolean {
         match (this) {
             null => false
             value => predicate(&readonly value)
@@ -53,7 +53,7 @@ extension<T> of Option<T> {
     }
 
     /// Return true when this option is empty or has a value accepted by `predicate`.
-    isNoneOr(this: &readonly Option<T>, predicate: (value: &readonly T) => boolean): boolean {
+    isNoneOr(&readonly this, predicate: (value: &readonly T) => boolean): boolean {
         match (this) {
             null => true
             value => predicate(&readonly value)
@@ -61,17 +61,17 @@ extension<T> of Option<T> {
     }
 
     /// Borrow the value as readonly access.
-    asReadonly(this: &readonly Option<T>): Option<&readonly T> {
+    asReadonly(&readonly this): Option<&readonly T> {
         todo("Option.asReadonly")
     }
 
     /// Borrow the value as mutable access.
-    asMutable(this: &Option<T>): Option<&T> {
+    asMutable(&this): Option<&T> {
         todo("Option.asMutable")
     }
 
     /// Borrow the value as exclusive access.
-    asExclusive(this: &exclusive Option<T>): Option<&exclusive T> {
+    asExclusive(&exclusive this): Option<&exclusive T> {
         todo("Option.asExclusive")
     }
 
@@ -267,37 +267,37 @@ extension<T> of Option<T> {
     }
 
     /// Replace this option with a value and return a borrow to it.
-    insert(this: &exclusive Option<T>, value: T): &exclusive T {
+    insert(&exclusive this, value: T): &exclusive T {
         todo("Option.insert")
     }
 
     /// Return the existing value or insert `value`.
-    getOrInsert(this: &exclusive Option<T>, value: T): &exclusive T {
+    getOrInsert(&exclusive this, value: T): &exclusive T {
         todo("Option.getOrInsert")
     }
 
     /// Return the existing value or insert the default value.
-    getOrInsertDefault(this: &exclusive Option<T>): &exclusive T where T: Default {
+    getOrInsertDefault(&exclusive this): &exclusive T where T: Default {
         todo("Option.getOrInsertDefault")
     }
 
     /// Return the existing value or insert a computed value.
-    getOrInsertWith(this: &exclusive Option<T>, f: () => T): &exclusive T {
+    getOrInsertWith(&exclusive this, f: () => T): &exclusive T {
         todo("Option.getOrInsertWith")
     }
 
     /// Take the value and leave none.
-    take(this: &exclusive Option<T>): Option<T> {
+    take(&exclusive this): Option<T> {
         todo("Option.take")
     }
 
     /// Take the value when `predicate` accepts it.
-    takeIf(this: &exclusive Option<T>, predicate: (value: &T) => boolean): Option<T> {
+    takeIf(&exclusive this, predicate: (value: &T) => boolean): Option<T> {
         todo("Option.takeIf")
     }
 
     /// Replace this option and return the previous value.
-    replace(this: &exclusive Option<T>, value: T): Option<T> {
+    replace(&exclusive this, value: T): Option<T> {
         todo("Option.replace")
     }
 }

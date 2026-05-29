@@ -215,7 +215,7 @@ extension<T, comptime Rank: int> of Tensor<T, Rank> implements
     }
 
     /// Store `value` at `coordinate`.
-    indexSet(this: &exclusive Tensor<T, Rank>, coordinate: Coordinate<Rank>, value: T): void {
+    indexSet(&exclusive this, coordinate: Coordinate<Rank>, value: T): void {
         todo("Tensor.indexSet");
     }
 }

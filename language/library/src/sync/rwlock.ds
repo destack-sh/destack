@@ -38,12 +38,12 @@ export class RwLock<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(this: &exclusive RwLock<T>): &exclusive T {
+    getExclusive(&exclusive this): &exclusive T {
         todo("RwLock.getExclusive")
     }
 
     /// Consume this lock and return the protected value.
-    intoInner(this: ^RwLock<T>): T {
+    intoInner(^this): T {
         todo("RwLock.intoInner")
     }
 }
@@ -97,7 +97,7 @@ extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"exclusive">
     }
 
     /// Downgrade this write guard to a read guard.
-    downgrade(this: RwLockWriteGuard<T>): RwLockReadGuard<T> {
+    downgrade(this): RwLockReadGuard<T> {
         todo("RwLockWriteGuard.downgrade")
     }
 }

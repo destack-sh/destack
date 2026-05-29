@@ -33,21 +33,21 @@ export function binding(name: string): Selector {
 
 extension of Selector {
     /// Return this selector with one facet.
-    facet(this: Selector, name: string): Selector {
+    facet(this, name: string): Selector {
         this.facet = name;
 
         this
     }
 
     /// Return this selector with one operation.
-    operation(this: Selector, name: string): Selector {
+    operation(this, name: string): Selector {
         this.operation = name;
 
         this
     }
 
     /// Return this selector with one action.
-    action(this: Selector, name: string): Selector {
+    action(this, name: string): Selector {
         this.action = name;
 
         this

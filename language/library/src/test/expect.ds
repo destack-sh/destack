@@ -22,12 +22,7 @@ export class Expect<T> {
     }
 
     /// Check one assertion result.
-    check(
-        this: &readonly Expect<T>,
-        condition: boolean,
-        message: string,
-        negatedMessage?: string,
-    ): void {
+    check(&readonly this, condition: boolean, message: string, negatedMessage?: string): void {
         assert.assert(
             this.isNegated ? !condition : condition,
             this.isNegated ? (negatedMessage ?? message) : message,
@@ -35,7 +30,7 @@ export class Expect<T> {
     }
 
     /// Assert that the value equals `expected`.
-    toEqual(this: &readonly Expect<T>, expected: T): void {
+    toEqual(&readonly this, expected: T): void {
         if (this.isNegated) {
             assert.notDeepEqual(this.value, expected)
         } else {
@@ -44,7 +39,7 @@ export class Expect<T> {
     }
 
     /// Assert that the value strictly equals `expected`.
-    toBe(this: &readonly Expect<T>, expected: T): void {
+    toBe(&readonly this, expected: T): void {
         if (this.isNegated) {
             assert.notSame(this.value, expected)
         } else {
@@ -53,7 +48,7 @@ export class Expect<T> {
     }
 
     /// Assert that the value deeply equals `expected`.
-    toStrictEqual(this: &readonly Expect<T>, expected: T): void {
+    toStrictEqual(&readonly this, expected: T): void {
         if (this.isNegated) {
             assert.notDeepEqual(this.value, expected)
         } else {
@@ -71,17 +66,17 @@ export class Expect<T> {
     }
 
     /// Assert that the value is true.
-    toBeTruthy(this: &readonly Expect<T>): void {
+    toBeTruthy(&readonly this): void {
         this.check(!!this.value, "expected value to be truthy", "expected value to be falsy");
     }
 
     /// Assert that the value is false.
-    toBeFalsy(this: &readonly Expect<T>): void {
+    toBeFalsy(&readonly this): void {
         this.check(!this.value, "expected value to be falsy", "expected value to be truthy");
     }
 
     /// Assert that the value is null.
-    toBeNull(this: &readonly Expect<T>): void {
+    toBeNull(&readonly this): void {
         this.check(
             this.value === null,
             "expected value to be null",
@@ -90,7 +85,7 @@ export class Expect<T> {
     }
 
     /// Assert that the value is undefined.
-    toBeUndefined(this: &readonly Expect<T>): void {
+    toBeUndefined(&readonly this): void {
         this.check(
             this.value === undefined,
             "expected value to be undefined",
@@ -99,7 +94,7 @@ export class Expect<T> {
     }
 
     /// Assert that the value is defined.
-    toBeDefined(this: &readonly Expect<T>): void {
+    toBeDefined(&readonly this): void {
         this.check(
             this.value !== undefined,
             "expected value to be defined",
@@ -108,7 +103,7 @@ export class Expect<T> {
     }
 
     /// Assert that the value is greater than `expected`.
-    toBeGreaterThan(this: &readonly Expect<T>, expected: number): void {
+    toBeGreaterThan(&readonly this, expected: number): void {
         this.check(
             (this.value as number) > expected,
             "expected value to be greater",
@@ -117,7 +112,7 @@ export class Expect<T> {
     }
 
     /// Assert that the value is less than `expected`.
-    toBeLessThan(this: &readonly Expect<T>, expected: number): void {
+    toBeLessThan(&readonly this, expected: number): void {
         this.check(
             (this.value as number) < expected,
             "expected value to be less",
