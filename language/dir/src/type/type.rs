@@ -67,7 +67,7 @@ pub struct MappedTypeParameter {
 
 /// A semantic type parameter reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ParameterType {
+pub struct GenericParameterRef {
     /// The owner that declared the referenced generic slot.
     pub owner: GlobalSymbolId,
     /// The referenced generic slot key.
@@ -76,7 +76,7 @@ pub struct ParameterType {
     pub index: GenericSlotIndex,
 }
 
-impl ParameterType {
+impl GenericParameterRef {
     /// Return a parameter reference for an explicit source symbol.
     pub fn explicit(
         owner: GlobalSymbolId,
@@ -403,7 +403,7 @@ pub enum Type {
     Literal(ScalarLiteral),
 
     /// Generic parameter reference.
-    Parameter(ParameterType),
+    Parameter(GenericParameterRef),
     /// Named type declaration reference.
     Named(NamedType),
     /// This type in a type predicate or method signature.

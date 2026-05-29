@@ -418,7 +418,7 @@ pub fn format_type_reference(
 
 /// Format one generic parameter reference.
 pub fn format_parameter_type(
-    parameter: &dir::ParameterType,
+    parameter: &dir::GenericParameterRef,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
     match parameter.key {
@@ -638,6 +638,7 @@ pub fn format_static_term(
     let strings = ctx.dir().strings();
 
     match term {
+        dir::StaticTerm::Parameter(parameter) => format_parameter_type(parameter, ctx),
         dir::StaticTerm::ScalarLiteral { value } => format_scalar_literal(value, strings),
         dir::StaticTerm::Symbol { symbol } => format_symbol_name(*symbol, ctx),
         dir::StaticTerm::Access { access } => format!("{access:?}").to_lowercase(),
@@ -694,7 +695,6 @@ fn format_lifetime(lifetime: &dir::Lifetime, ctx: &ModuleQueryContext<'_>) -> St
     match lifetime {
         dir::Lifetime::Static => "static".to_string(),
         dir::Lifetime::Symbol(symbol) => format_symbol_name(*symbol, ctx),
-        dir::Lifetime::Generated(name) => ctx.dir().strings().get(*name).to_string(),
         dir::Lifetime::Join(elements) => {
             let elements = elements
                 .iter()

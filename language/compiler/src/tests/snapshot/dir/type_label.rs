@@ -609,7 +609,7 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one generic parameter label.
-    fn parameter_type_label(&self, parameter: &dir::ParameterType) -> String {
+    fn parameter_type_label(&self, parameter: &dir::GenericParameterRef) -> String {
         match parameter.key {
             dir::GenericSlotKey::Symbol(symbol) => self.symbol_label(symbol),
             dir::GenericSlotKey::Generated(name) => {
@@ -625,7 +625,7 @@ impl DirSnapshotBuilder<'_> {
     fn generic_slot_signature_suffix(
         &self,
         types: &dir::TypeTable<'_>,
-        parameter: &dir::ParameterType,
+        parameter: &dir::GenericParameterRef,
     ) -> String {
         let Some(slot) = self.generic_slot_for_parameter(parameter) else {
             return String::new();
@@ -676,7 +676,7 @@ impl DirSnapshotBuilder<'_> {
     /// Return the generic slot represented by one parameter type.
     fn generic_slot_for_parameter(
         &self,
-        parameter: &dir::ParameterType,
+        parameter: &dir::GenericParameterRef,
     ) -> Option<&dir::GenericSlot> {
         let generics = self.generics.as_ref()?;
 

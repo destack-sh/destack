@@ -580,6 +580,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Render one static term label.
     pub(crate) fn static_term_label(&self, term: &dir::StaticTerm) -> String {
         match term {
+            dir::StaticTerm::Parameter(parameter) => self.generic_parameter_label(parameter),
             dir::StaticTerm::Symbol { symbol } => self.symbol_path_label(*symbol),
             dir::StaticTerm::Access { access } => {
                 Self::string_literal_label(&Self::variant_label(access))
@@ -924,12 +925,24 @@ impl<'a> DirSnapshotBuilder<'a> {
         match lifetime {
             dir::Lifetime::Static => "static".to_string(),
             dir::Lifetime::Symbol(symbol) => self.symbol_path_label(*symbol),
-            dir::Lifetime::Generated(name) => self.strings.get(*name).to_string(),
             dir::Lifetime::Join(elements) => elements
                 .iter()
                 .map(|element| self.static_label(*element))
                 .collect::<Vec<_>>()
                 .join(" | "),
+        }
+    }
+
+    /// Render one generic parameter label.
+    fn generic_parameter_label(&self, parameter: &dir::GenericParameterRef) -> String {
+        match parameter.key {
+            dir::GenericSlotKey::Symbol(symbol) => self.symbol_path_label(symbol),
+            dir::GenericSlotKey::Generated(name) => {
+                let owner = self.symbol_path_label(parameter.owner);
+                let name = self.strings.get(name);
+
+                format!("{owner}.{name}")
+            }
         }
     }
 

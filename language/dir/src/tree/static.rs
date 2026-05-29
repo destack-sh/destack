@@ -3,13 +3,15 @@ use serde::{Deserialize, Serialize};
 use destack_source::ModuleId;
 
 use crate::{
-    Declaration, FunctionSignature, GlobalSymbolId, LocalNodeId, LocalTypeId, ScalarLiteral,
-    StaticKey, StringId, TypeLiteral,
+    Declaration, FunctionSignature, GenericParameterRef, GlobalSymbolId, LocalNodeId, LocalTypeId,
+    ScalarLiteral, StaticKey, StringId, TypeLiteral,
 };
 
 /// Static value produced by checked static evaluation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StaticTerm {
+    /// Generic parameter reference.
+    Parameter(GenericParameterRef),
     /// Static symbol reference.
     Symbol { symbol: GlobalSymbolId },
     /// Normalized access value.
@@ -98,8 +100,6 @@ pub enum Lifetime {
     Static,
     /// Symbolic lifetime parameter or associated constant.
     Symbol(GlobalSymbolId),
-    /// Generated lifetime parameter induced during check.
-    Generated(StringId),
     /// Joined lifetime value.
     Join(Vec<LocalStaticId>),
 }
