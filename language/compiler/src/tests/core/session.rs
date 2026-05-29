@@ -554,11 +554,23 @@ impl TestSession {
             builder.add_expanded(selection, &expanded);
         }
 
+        // load resolved imports when semantic labels need language items
+        let resolved = if selection.uses_type_labels() || selection.includes_import() {
+            Some(self.dir_resolved(entry))
+        } else {
+            None
+        };
+
+        if let Some(resolved) = &resolved {
+            builder.add_language_items(&resolved.imports);
+        }
+
         builder.add_checked(selection, &bound, &expanded, &checked);
 
-        if selection.includes_import() {
-            let resolved = self.dir_resolved(entry);
-            builder.add_resolved(selection, &resolved);
+        if let Some(resolved) = &resolved {
+            if selection.includes_import() {
+                builder.add_resolved(selection, resolved);
+            }
         }
 
         builder.render()

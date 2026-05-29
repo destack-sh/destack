@@ -82,16 +82,57 @@ impl DirSnapshotBuilder<'_> {
 
     /// Return one named type label.
     fn named_type_label(&self, named: &dir::NamedType) -> String {
-        // render the source declaration path first
-        let symbol = self.symbol_path_label(named.symbol);
         if named.arguments.is_empty() {
-            return symbol;
+            return self.symbol_path_label(named.symbol);
+        }
+
+        if let Some(label) = self.collection_type_label(named.symbol, &named.arguments) {
+            return label;
         }
 
         // render static arguments only when the reference is applied
         let arguments = self.static_argument_list_label(&named.arguments);
+        let symbol = self.symbol_path_label(named.symbol);
 
         format!("{symbol}<{arguments}>")
+    }
+
+    /// Return one collection type label.
+    pub(super) fn collection_type_label(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        arguments: &[dir::StaticArgument],
+    ) -> Option<String> {
+        let item = self.language_item_by_symbol.get(&symbol)?;
+        let unnamed = arguments.iter().all(|argument| argument.name.is_none());
+        if !unnamed {
+            return None;
+        }
+
+        match (item, arguments) {
+            (dir::LanguageItem::Array, [element]) => {
+                let element = self.static_argument_value_label(element.value);
+
+                Some(format!("Array<{element}>"))
+            }
+            (dir::LanguageItem::ReadonlyArray, [element]) => {
+                let element = self.static_argument_value_label(element.value);
+
+                Some(format!("ReadonlyArray<{element}>"))
+            }
+            (dir::LanguageItem::FixedArray, [element, count]) => {
+                let element = self.static_argument_value_label(element.value);
+                let count = self.static_argument_value_label(count.value);
+
+                Some(format!("FixedArray<{element}, {count}>"))
+            }
+            (dir::LanguageItem::Slice, [element]) => {
+                let element = self.static_argument_value_label(element.value);
+
+                Some(format!("Slice<{element}>"))
+            }
+            _ => None,
+        }
     }
 
     /// Return one form type label.
