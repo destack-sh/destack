@@ -18,14 +18,14 @@ const tuple = ["id", 42] as const;
 /// @type.symbol symbol=tuple type=readonly ["id", 42]
 
 const name = tuple[0];
-/// @resolution.name source=tuple target=tuple
-/// @resolution.member source="tuple[0]" receiver=readonly ["id", 42] kind=symbol target=0
 /// @type.symbol symbol=name type="id"
+/// @resolution.name source=tuple target=tuple
+/// @resolution.member source=tuple[0] receiver=readonly ["id", 42] kind=builtin builtin=subscript.index
 
 const count = tuple[1];
-/// @resolution.name source=tuple target=tuple
-/// @resolution.member source="tuple[1]" receiver=readonly ["id", 42] kind=symbol target=1
 /// @type.symbol symbol=count type=42
+/// @resolution.name source=tuple target=tuple
+/// @resolution.member source=tuple[1] receiver=readonly ["id", 42] kind=builtin builtin=subscript.index
 "#,
     );
 }

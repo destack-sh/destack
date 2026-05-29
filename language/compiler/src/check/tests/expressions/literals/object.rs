@@ -88,7 +88,6 @@ const value = { a: 1, b: "two" } as const;
 const value = { a: 1, b: "two" } as const;
 /// @type.symbol symbol=value type={ readonly a: 1; readonly b: "two" }
 /// @type.node source="{ a: 1, b: \"two\" } as const" type={ readonly a: 1; readonly b: "two" }
-/// @type.node source="{ a: 1, b: \"two\" }" type={ readonly a: 1; readonly b: "two" }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 "#,
@@ -109,14 +108,16 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
         r#"
 const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.symbol symbol=value type={ a: float64; b: string }
-/// @type.node source="{ a: 1, b: 2 }" type={ a: float64; b: string }
+/// @type.symbol symbol=a type=float64
+/// @type.symbol symbol=b type=string
+/// @type.node source="{ a: 1, b: 2 }" type={ a: float64; b: 2 }
 /// @type.node source=1 type=float64
 /// @type.node source=2 type=2
 
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=2 column=46 source="const value: { a: number; b: string } = { a: 1, b: 2 };"
+/// @diagnostic.label line=2 column=41 source="const value: { a: number; b: string } = { a: 1, b: 2 };"
 "#,
     );
 }

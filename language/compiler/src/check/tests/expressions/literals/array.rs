@@ -13,8 +13,8 @@ let values = [1, 2];
         DirRows::checked().with_reference_types(),
         r#"
 let values = [1, 2];
-/// @type.symbol symbol=values type=collections.array.Array<int32>
-/// @type.node source=[1, 2] type=collections.array.Array<int32>
+/// @type.symbol symbol=values type=Array<int32>
+/// @type.node source=[1, 2] type=Array<int32>
 /// @type.node source=1 type=int32
 /// @type.node source=2 type=int32
 "#,
@@ -34,8 +34,8 @@ const values = [1, 2];
         DirRows::checked().with_reference_types(),
         r#"
 const values = [1, 2];
-/// @type.symbol symbol=values type=collections.array.Array<int32>
-/// @type.node source=[1, 2] type=collections.array.Array<int32>
+/// @type.symbol symbol=values type=Array<int32>
+/// @type.node source=[1, 2] type=Array<int32>
 /// @type.node source=1 type=int32
 /// @type.node source=2 type=int32
 "#,
@@ -84,8 +84,8 @@ const values = [];
         DirRows::checked().with_reference_types(),
         r#"
 const values = [];
-/// @type.symbol symbol=values type=collections.array.Array<unknown>
-/// @type.node source=[] type=collections.array.Array<unknown>
+/// @type.symbol symbol=values type=Array<unknown>
+/// @type.node source=[] type=Array<unknown>
 "#,
     );
 }
@@ -103,8 +103,8 @@ let values = [1, "two", true];
         DirRows::checked().with_reference_types(),
         r#"
 let values = [1, "two", true];
-/// @type.symbol symbol=values type=collections.array.Array<int32 | string | boolean>
-/// @type.node source="[1, \"two\", true]" type=collections.array.Array<int32 | string | boolean>
+/// @type.symbol symbol=values type=Array<int32 | string | boolean>
+/// @type.node source=[1, "two", true] type=Array<int32 | string | boolean>
 /// @type.node source=1 type=int32 | string | boolean
 /// @type.node source="\"two\"" type=int32 | string | boolean
 /// @type.node source=true type=int32 | string | boolean
@@ -125,8 +125,8 @@ const values: number[] = [1, 2, 3];
         DirRows::checked().with_reference_types(),
         r#"
 const values: number[] = [1, 2, 3];
-/// @type.symbol symbol=values type=collections.array.Array<float64>
-/// @type.node source=[1, 2, 3] type=collections.array.Array<float64>
+/// @type.symbol symbol=values type=Array<float64>
+/// @type.node source=[1, 2, 3] type=Array<float64>
 /// @type.node source=1 type=float64
 /// @type.node source=2 type=float64
 /// @type.node source=3 type=float64
@@ -147,15 +147,15 @@ const values: number[] = [1, "two"];
         DirRows::checked().with_reference_types(),
         r#"
 const values: number[] = [1, "two"];
-/// @type.symbol symbol=values type=collections.array.Array<float64>
-/// @type.node source="[1, \"two\"]" type=collections.array.Array<float64>
+/// @type.symbol symbol=values type=Array<float64>
+/// @type.node source=[1, "two"] type=Array<float64 | string>
 /// @type.node source=1 type=float64
 /// @type.node source="\"two\"" type="two"
 
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=2 column=31 source="const values: number[] = [1, \"two\"];"
+/// @diagnostic.label line=2 column=26 source="const values: number[] = [1, \"two\"];"
 "#,
     );
 }

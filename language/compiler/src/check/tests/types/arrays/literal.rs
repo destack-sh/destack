@@ -35,15 +35,15 @@ const pair: [int32; 2] = [1, 2, 3];
         r#"
 const pair: [int32; 2] = [1, 2, 3];
 /// @type.symbol symbol=pair type=[int32; 2]
-/// @type.node source=[1, 2, 3] type=[int32; 2]
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @type.node source=3 type=int32
+/// @type.node source=[1, 2, 3] type=Array<int32>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type is not assignable"
-/// @diagnostic.label line=2 column=28 source="const pair: [int32; 2] = [1, 2, 3];"
+/// @diagnostic.label line=2 column=26 source="const pair: [int32; 2] = [1, 2, 3];"
 "#,
     );
 }
@@ -152,12 +152,11 @@ const values = [1, 2, 3] as [_; _];
         r#"
 const values = [1, 2, 3] as [_; _];
 /// @type.symbol symbol=values type=[int32; 3]
-/// @type.node source="[1, 2, 3] as [_; _]" type=[int32; 3]
+/// @type.node source=[1, 2, 3] as [_; _] type=[int32; 3]
 /// @type.node source=[1, 2, 3] type=[int32; 3]
 /// @type.node source=1 type=int32
 /// @type.node source=2 type=int32
 /// @type.node source=3 type=int32
-/// @coercion.node source="[1, 2, 3] as [_; _]" from=[int32; 3] to=[int32; 3] origin=explicit
 "#,
     );
 }
@@ -175,13 +174,15 @@ const values = [1, 2, 3] as Slice<_>;
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 const values = [1, 2, 3] as Slice<_>;
-/// @type.symbol symbol=values type=Slice<int32>
-/// @type.node source="[1, 2, 3] as Slice<_>" type=Slice<int32>
-/// @type.node source=[1, 2, 3] type=Slice<int32>
+/// @type.symbol symbol=values type=[int32]
+/// @type.node source="[1, 2, 3] as Slice<_>" type=[int32]
+/// @type.node source=[1, 2, 3] type=[int32]
 /// @type.node source=1 type=int32
 /// @type.node source=2 type=int32
 /// @type.node source=3 type=int32
-/// @coercion.node source="[1, 2, 3] as Slice<_>" from=Slice<int32> to=Slice<int32> origin=explicit
+/// @generic.application source=Slice<_> id=Slice<int32>
+/// @resolution.name source=Slice target=collections.slice.Slice
+/// @generic.instance id=Slice<int32> symbol=collections.slice.Slice arguments=[int32]
 "#,
     );
 }
@@ -199,13 +200,12 @@ const values = [1, 2, 3] as [_];
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 const values = [1, 2, 3] as [_];
-/// @type.symbol symbol=values type=Slice<int32>
-/// @type.node source="[1, 2, 3] as [_]" type=Slice<int32>
-/// @type.node source=[1, 2, 3] type=Slice<int32>
+/// @type.symbol symbol=values type=[int32]
+/// @type.node source=[1, 2, 3] as [_] type=[int32]
+/// @type.node source=[1, 2, 3] type=[int32]
 /// @type.node source=1 type=int32
 /// @type.node source=2 type=int32
 /// @type.node source=3 type=int32
-/// @coercion.node source="[1, 2, 3] as [_]" from=Slice<int32> to=Slice<int32> origin=explicit
 "#,
     );
 }

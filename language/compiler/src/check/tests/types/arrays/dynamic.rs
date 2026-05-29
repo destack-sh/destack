@@ -15,16 +15,16 @@ const byte = bytes[index];
         DirRows::checked(),
         r#"
 declare const bytes: uint8[];
-/// @type.symbol symbol=bytes type=uint8[]
+/// @type.symbol symbol=bytes type=Array<uint8>
 
 declare const index: usize;
 /// @type.symbol symbol=index type=usize
 
 const byte = bytes[index];
-/// @resolution.name source=bytes target=bytes
-/// @resolution.name source=index target=index
-/// @resolution.member source="bytes[index]" receiver=uint8[] kind=builtin builtin=subscript.index
 /// @type.symbol symbol=byte type=uint8
+/// @resolution.name source=bytes target=bytes
+/// @resolution.member source=bytes[index] receiver=Array<uint8> kind=builtin builtin=subscript.index
+/// @resolution.name source=index target=index
 "#,
     );
 }

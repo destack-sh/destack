@@ -40,7 +40,7 @@ const greeting: string = `hello`;
         r#"
 const greeting: string = `hello`;
 /// @type.symbol symbol=greeting type=string
-/// @type.node source="`hello`" type=string
+/// @type.node source=`hello` type=string
 "#,
     );
 }
@@ -59,7 +59,7 @@ const value: number = `hello`;
         r#"
 const value: number = `hello`;
 /// @type.symbol symbol=value type=float64
-/// @type.node source="`hello`" type=string
+/// @type.node source=`hello` type=string
 
 "#,
         r#"

@@ -17,10 +17,13 @@ declare const bytes: [uint8; 4];
 /// @type.symbol symbol=bytes type=[uint8; 4]
 
 const slice = bytes[1..3];
+/// @type.symbol symbol=slice type=[uint8]
+/// @type.node source=bytes type=[uint8; 4]
+/// @type.node source=bytes[1..3] type=[uint8]
 /// @resolution.name source=bytes target=bytes
-/// @type.node source=1..3 type=1..3
-/// @resolution.member source="bytes[1..3]" receiver=[uint8; 4] kind=builtin builtin=subscript.slice
-/// @type.symbol symbol=slice type=Slice<uint8>
+/// @resolution.member source=bytes[1..3] receiver=[uint8; 4] kind=builtin builtin=subscript.slice
+/// @type.node source=1 type=1
+/// @type.node source=3 type=3
 "#,
     );
 }
