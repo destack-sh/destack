@@ -25,7 +25,7 @@ declare_mir_pass! {
     /// ```mir
     /// function before(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     v1 = frame.alloc int32 -> ref<int32, raw, space(frame)>
+    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     jump b3
@@ -40,7 +40,7 @@ declare_mir_pass! {
     /// ```mir
     /// function after(v0: boolean): int32 {
     /// b0(v0: boolean):
-    ///     v1 = frame.alloc int32 -> ref<int32, raw, space(frame)>
+    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
     ///     branch v0, b1, b2
     /// b1:
     ///     v4 = load v1 -> int32
@@ -554,7 +554,7 @@ mod tests {
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -572,7 +572,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -605,7 +605,7 @@ b1:
 b2:
     jump b3
 b3:
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: int32 = load v1
     return v2
 }"#;
@@ -621,7 +621,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     jump b3
@@ -645,7 +645,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -665,7 +665,7 @@ external function readOnly(): void"#;
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -703,7 +703,7 @@ external function readOnly(): void"#;
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     jump b3
@@ -739,7 +739,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     jump b3
@@ -781,7 +781,7 @@ b3:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     jump b3
@@ -805,7 +805,7 @@ b3:
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     v3: int32 = 1int32
@@ -825,7 +825,7 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     v3: int32 = 1int32
@@ -853,7 +853,7 @@ b4:
         let input = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -873,7 +873,7 @@ b3:
         let expected = r#"
 function test(v0: boolean): int32 {
 b0(v0: boolean):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     v2: int32 = 1int32
@@ -902,7 +902,7 @@ b3(v6: int32):
         let input = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b2
 b1:
     v3: int32 = 1int32
@@ -923,7 +923,7 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: boolean): int32 {
 b0(v0: boolean, v1: boolean):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     branch v0, b1, b3
 b1:
     v3: int32 = 1int32

@@ -556,7 +556,7 @@ external function Renderable.draw(Renderable.object): int32
 function castRenderable(value0: int32): Renderable {
 entry0(value0: int32):
     value1: Sprite = struct Sprite (value0)
-    value2: ref<Sprite, managed, readonly> = new Sprite
+    value2: ref<Sprite, managed, readonly> = new.zeroed Sprite
     store value2, value1
     value3: ref<void, managed, readonly> = cast.bit value2 -> ref<void, managed, readonly>
     value4: ref<[usize; 2], raw, readonly, space(static)> = global.address Sprite#as#Renderable#interface_table

@@ -151,10 +151,15 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::CallIndirect { .. } => false,
 
         // allocations have side effects
-        mir::Instruction::New { .. }
-        | mir::Instruction::NewSlice { .. }
-        | mir::Instruction::RawAlloc { .. }
-        | mir::Instruction::FrameAlloc { .. } => false,
+        mir::Instruction::NewZeroed { .. }
+        | mir::Instruction::NewUninit { .. }
+        | mir::Instruction::NewComplete { .. }
+        | mir::Instruction::NewSliceZeroed { .. }
+        | mir::Instruction::NewSliceUninit { .. }
+        | mir::Instruction::RawAllocZeroed { .. }
+        | mir::Instruction::RawAllocUninit { .. }
+        | mir::Instruction::FrameAllocZeroed { .. }
+        | mir::Instruction::FrameAllocUninit { .. } => false,
 
         // deallocation has side effects
         mir::Instruction::RawFree { .. } | mir::Instruction::Free { .. } => false,
@@ -318,10 +323,15 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::CallIndirect { .. } => true,
 
         // allocations have side effects (memory allocation)
-        mir::Instruction::New { .. }
-        | mir::Instruction::NewSlice { .. }
-        | mir::Instruction::RawAlloc { .. }
-        | mir::Instruction::FrameAlloc { .. } => true,
+        mir::Instruction::NewZeroed { .. }
+        | mir::Instruction::NewUninit { .. }
+        | mir::Instruction::NewComplete { .. }
+        | mir::Instruction::NewSliceZeroed { .. }
+        | mir::Instruction::NewSliceUninit { .. }
+        | mir::Instruction::RawAllocZeroed { .. }
+        | mir::Instruction::RawAllocUninit { .. }
+        | mir::Instruction::FrameAllocZeroed { .. }
+        | mir::Instruction::FrameAllocUninit { .. } => true,
 
         // deallocation has side effects
         mir::Instruction::RawFree { .. } | mir::Instruction::Free { .. } => true,
@@ -376,15 +386,20 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::AtomicRmw { .. }
             | mir::Instruction::AtomicFence { .. }
             | mir::Instruction::BarrierWrite { .. }
-            | mir::Instruction::New { .. }
-            | mir::Instruction::NewSlice { .. }
-            | mir::Instruction::RawAlloc { .. }
+            | mir::Instruction::NewZeroed { .. }
+            | mir::Instruction::NewUninit { .. }
+            | mir::Instruction::NewComplete { .. }
+            | mir::Instruction::NewSliceZeroed { .. }
+            | mir::Instruction::NewSliceUninit { .. }
+            | mir::Instruction::RawAllocZeroed { .. }
+            | mir::Instruction::RawAllocUninit { .. }
             | mir::Instruction::RawFree { .. }
             | mir::Instruction::Free { .. }
             | mir::Instruction::Pin { .. }
             | mir::Instruction::Unpin { .. }
             | mir::Instruction::Drop { .. }
-            | mir::Instruction::FrameAlloc { .. }
+            | mir::Instruction::FrameAllocZeroed { .. }
+            | mir::Instruction::FrameAllocUninit { .. }
     )
 }
 
@@ -1107,15 +1122,35 @@ pub fn instruction_substitute_uses(
             callee: substitute(callee),
             call: call.clone(),
         },
-        mir::Instruction::NewSlice {
+        mir::Instruction::NewSliceZeroed {
             destination,
             element,
             length,
             result_type,
-        } => mir::Instruction::NewSlice {
+        } => mir::Instruction::NewSliceZeroed {
             destination: *destination,
             element: *element,
             length: substitute(length),
+            result_type: *result_type,
+        },
+        mir::Instruction::NewSliceUninit {
+            destination,
+            element,
+            length,
+            result_type,
+        } => mir::Instruction::NewSliceUninit {
+            destination: *destination,
+            element: *element,
+            length: substitute(length),
+            result_type: *result_type,
+        },
+        mir::Instruction::NewComplete {
+            destination,
+            value,
+            result_type,
+        } => mir::Instruction::NewComplete {
+            destination: *destination,
+            value: substitute(value),
             result_type: *result_type,
         },
         mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
@@ -1133,9 +1168,12 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::Array { .. }
         | mir::Instruction::Call { .. }
         | mir::Instruction::CallableEnvironment { .. }
-        | mir::Instruction::New { .. }
-        | mir::Instruction::RawAlloc { .. }
-        | mir::Instruction::FrameAlloc { .. }
+        | mir::Instruction::NewZeroed { .. }
+        | mir::Instruction::NewUninit { .. }
+        | mir::Instruction::RawAllocZeroed { .. }
+        | mir::Instruction::RawAllocUninit { .. }
+        | mir::Instruction::FrameAllocZeroed { .. }
+        | mir::Instruction::FrameAllocUninit { .. }
         | mir::Instruction::Intrinsic { .. } => instruction.clone(),
     }
 }
@@ -2672,31 +2710,69 @@ pub fn instruction_map(
             callee: remap(*callee),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
-        mir::Instruction::New {
+        mir::Instruction::NewZeroed {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::New {
+        } => mir::Instruction::NewZeroed {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
         },
-        mir::Instruction::NewSlice {
+        mir::Instruction::NewUninit {
+            destination,
+            layout,
+            result_type,
+        } => mir::Instruction::NewUninit {
+            destination: remap(*destination),
+            layout: *layout,
+            result_type: *result_type,
+        },
+        mir::Instruction::NewComplete {
+            destination,
+            value,
+            result_type,
+        } => mir::Instruction::NewComplete {
+            destination: remap(*destination),
+            value: remap(*value),
+            result_type: *result_type,
+        },
+        mir::Instruction::NewSliceZeroed {
             destination,
             element,
             length,
             result_type,
-        } => mir::Instruction::NewSlice {
+        } => mir::Instruction::NewSliceZeroed {
             destination: remap(*destination),
             element: *element,
             length: remap(*length),
             result_type: *result_type,
         },
-        mir::Instruction::RawAlloc {
+        mir::Instruction::NewSliceUninit {
+            destination,
+            element,
+            length,
+            result_type,
+        } => mir::Instruction::NewSliceUninit {
+            destination: remap(*destination),
+            element: *element,
+            length: remap(*length),
+            result_type: *result_type,
+        },
+        mir::Instruction::RawAllocZeroed {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::RawAlloc {
+        } => mir::Instruction::RawAllocZeroed {
+            destination: remap(*destination),
+            layout: *layout,
+            result_type: *result_type,
+        },
+        mir::Instruction::RawAllocUninit {
+            destination,
+            layout,
+            result_type,
+        } => mir::Instruction::RawAllocUninit {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
@@ -2704,11 +2780,20 @@ pub fn instruction_map(
         mir::Instruction::RawFree { pointer } => mir::Instruction::RawFree {
             pointer: remap(*pointer),
         },
-        mir::Instruction::FrameAlloc {
+        mir::Instruction::FrameAllocZeroed {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::FrameAlloc {
+        } => mir::Instruction::FrameAllocZeroed {
+            destination: remap(*destination),
+            layout: *layout,
+            result_type: *result_type,
+        },
+        mir::Instruction::FrameAllocUninit {
+            destination,
+            layout,
+            result_type,
+        } => mir::Instruction::FrameAllocUninit {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
@@ -3364,31 +3449,69 @@ pub fn instruction_map_with_locals(
             length: remap(*length),
             result_type: *result_type,
         },
-        mir::Instruction::New {
+        mir::Instruction::NewZeroed {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::New {
+        } => mir::Instruction::NewZeroed {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
         },
-        mir::Instruction::NewSlice {
+        mir::Instruction::NewUninit {
+            destination,
+            layout,
+            result_type,
+        } => mir::Instruction::NewUninit {
+            destination: remap(*destination),
+            layout: *layout,
+            result_type: *result_type,
+        },
+        mir::Instruction::NewComplete {
+            destination,
+            value,
+            result_type,
+        } => mir::Instruction::NewComplete {
+            destination: remap(*destination),
+            value: remap(*value),
+            result_type: *result_type,
+        },
+        mir::Instruction::NewSliceZeroed {
             destination,
             element,
             length,
             result_type,
-        } => mir::Instruction::NewSlice {
+        } => mir::Instruction::NewSliceZeroed {
             destination: remap(*destination),
             element: *element,
             length: remap(*length),
             result_type: *result_type,
         },
-        mir::Instruction::RawAlloc {
+        mir::Instruction::NewSliceUninit {
+            destination,
+            element,
+            length,
+            result_type,
+        } => mir::Instruction::NewSliceUninit {
+            destination: remap(*destination),
+            element: *element,
+            length: remap(*length),
+            result_type: *result_type,
+        },
+        mir::Instruction::RawAllocZeroed {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::RawAlloc {
+        } => mir::Instruction::RawAllocZeroed {
+            destination: remap(*destination),
+            layout: *layout,
+            result_type: *result_type,
+        },
+        mir::Instruction::RawAllocUninit {
+            destination,
+            layout,
+            result_type,
+        } => mir::Instruction::RawAllocUninit {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,
@@ -3414,11 +3537,20 @@ pub fn instruction_map_with_locals(
         mir::Instruction::Drop { place } => mir::Instruction::Drop {
             place: place_map_values_and_locals(place, value_map, local_map),
         },
-        mir::Instruction::FrameAlloc {
+        mir::Instruction::FrameAllocZeroed {
             destination,
             layout,
             result_type,
-        } => mir::Instruction::FrameAlloc {
+        } => mir::Instruction::FrameAllocZeroed {
+            destination: remap(*destination),
+            layout: *layout,
+            result_type: *result_type,
+        },
+        mir::Instruction::FrameAllocUninit {
+            destination,
+            layout,
+            result_type,
+        } => mir::Instruction::FrameAllocUninit {
             destination: remap(*destination),
             layout: *layout,
             result_type: *result_type,

@@ -259,7 +259,7 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: ref<User, managed, readonly> = new User
+    /// v1: ref<User, managed, readonly> = new.zeroed User
     /// v2: void = call User.constructor(v1, v0)
     /// ```
     pub(crate) fn lower_new_expression(
@@ -510,7 +510,7 @@ impl FunctionLowerer<'_> {
         // allocate when returning a typed reference
         let value = match reference_kind {
             Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique) => {
-                let pointer = self.state.builder.new_(instance_type, result_type);
+                let pointer = self.state.builder.new_zeroed(instance_type, result_type);
                 self.state.builder.store(pointer, instance_value);
                 pointer
             }

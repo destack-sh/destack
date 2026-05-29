@@ -1367,15 +1367,20 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
             INLINE_COST_CALL_INDIRECT
         }
         mir::Instruction::CallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
-        mir::Instruction::New { .. }
-        | mir::Instruction::NewSlice { .. }
-        | mir::Instruction::RawAlloc { .. }
+        mir::Instruction::NewZeroed { .. }
+        | mir::Instruction::NewUninit { .. }
+        | mir::Instruction::NewComplete { .. }
+        | mir::Instruction::NewSliceZeroed { .. }
+        | mir::Instruction::NewSliceUninit { .. }
+        | mir::Instruction::RawAllocZeroed { .. }
+        | mir::Instruction::RawAllocUninit { .. }
         | mir::Instruction::RawFree { .. }
         | mir::Instruction::Free { .. }
         | mir::Instruction::Pin { .. }
         | mir::Instruction::Unpin { .. }
         | mir::Instruction::Drop { .. }
-        | mir::Instruction::FrameAlloc { .. } => INLINE_COST_ALLOC,
+        | mir::Instruction::FrameAllocZeroed { .. }
+        | mir::Instruction::FrameAllocUninit { .. } => INLINE_COST_ALLOC,
         mir::Instruction::Intrinsic { intrinsic, .. } => {
             if intrinsic.has_memory_effects() {
                 INLINE_COST_MEMORY + 2

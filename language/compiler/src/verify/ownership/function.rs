@@ -412,12 +412,21 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             } => {
                 self.propagate_sources(*pointer, *destination);
             }
-            mir::Instruction::FrameAlloc { destination, .. }
-            | mir::Instruction::New { destination, .. }
-            | mir::Instruction::NewSlice { destination, .. }
-            | mir::Instruction::RawAlloc { destination, .. } => {
+            mir::Instruction::FrameAllocZeroed { destination, .. }
+            | mir::Instruction::FrameAllocUninit { destination, .. }
+            | mir::Instruction::NewZeroed { destination, .. }
+            | mir::Instruction::NewUninit { destination, .. }
+            | mir::Instruction::NewSliceZeroed { destination, .. }
+            | mir::Instruction::NewSliceUninit { destination, .. }
+            | mir::Instruction::RawAllocZeroed { destination, .. }
+            | mir::Instruction::RawAllocUninit { destination, .. } => {
                 let sources = self.sources_for_destination_storage(*destination);
                 self.define_sources(*destination, sources);
+            }
+            mir::Instruction::NewComplete {
+                destination, value, ..
+            } => {
+                self.propagate_sources(*value, *destination);
             }
             mir::Instruction::GlobalAddr { destination, .. } => {
                 self.define_sources(*destination, BorrowSources::one(BorrowSource::Static));
@@ -1689,6 +1698,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return BorrowSources::none();
         };
 
+        let ty = self.storage_type(ty);
         let ty = self.tree.get(ty);
         match ty.reference_kind() {
             // keep managed storage alive through the managed handle
@@ -1719,6 +1729,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             return BorrowSources::none();
         };
 
+        let ty = self.storage_type(ty);
         let ty = self.tree.get(ty);
         match ty.reference_kind() {
             Some(mir::ReferenceKind::Managed) => self.managed_source_for_type(ty, None),
@@ -1736,6 +1747,18 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         };
 
         BorrowSources::one(BorrowSource::Managed { space, parameter })
+    }
+
+    /// Return the initialized storage type represented by one type.
+    fn storage_type(&self, ty: mir::LocalNodeId<mir::Type>) -> mir::LocalNodeId<mir::Type> {
+        let mir::Type::Uninit { value } = self.tree.get(ty) else {
+            return ty;
+        };
+        let Some(value) = value.ty() else {
+            return ty;
+        };
+
+        value
     }
 
     /// Return the space for a reference-like type.

@@ -72,7 +72,7 @@ type Box {
 function sumBox(value0: int32): int32 {
 entry0(value0: int32):
     value1: Box = struct Box (value0)
-    value2: ref<Box, managed, readonly> = new Box
+    value2: ref<Box, managed, readonly> = new.zeroed Box
     store value2, value1
     value3: Box = load value2
     value4: int32 = field.get value3, 0
@@ -139,7 +139,7 @@ entry0(value0: int32):
     value1: ref<[ref<void, raw, readonly, space(static), nullable>; 2], raw, readonly, space(static)> = global.address PacketHeader#vtable
     value2: ref<void, raw, readonly, space(static)> = cast.bit value1 -> ref<void, raw, readonly, space(static)>
     value3: PacketHeader = struct PacketHeader (value2, value0)
-    value4: ref<PacketHeader, managed, readonly> = new PacketHeader
+    value4: ref<PacketHeader, managed, readonly> = new.zeroed PacketHeader
     store value4, value3
     value5: PacketHeader = load value4
     value6: int32 = field.get value5, 1

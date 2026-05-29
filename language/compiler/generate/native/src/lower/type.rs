@@ -115,6 +115,14 @@ pub(crate) fn lower_type(
             type_id.into_any(),
         )),
 
+        mir::Type::Uninit { value } => {
+            let value = value.ty().ok_or_else(|| CodegenCraneliftError::Internal {
+                message: "missing or malformed MIR type in native lowering: uninit value type"
+                    .into(),
+            })?;
+            lower_type(tree, value, pointer_bytes)
+        }
+
         mir::Type::Closure { .. } => Err(CodegenCraneliftError::unsupported_type(
             "callables must be lowered to aggregate operations",
             type_id.into_any(),

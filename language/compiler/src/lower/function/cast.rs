@@ -1214,7 +1214,7 @@ impl FunctionLowerer<'_> {
         );
 
         // allocate and store the value
-        let pointer = self.state.builder.new_(value_type, ref_type);
+        let pointer = self.state.builder.new_zeroed(value_type, ref_type);
         self.state.builder.store(pointer, value);
 
         // return the managed reference

@@ -25,8 +25,8 @@ declare_mir_pass! {
     /// ```mir
     /// function before(v0: uint32): void {
     /// b0(v0: uint32):
-    ///     v1 = frame.alloc int32 -> ref<int32, raw, space(frame)>
-    ///     v2 = frame.alloc int32 -> ref<int32, raw, space(frame)>
+    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
+    ///     v2 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     jump b1(v3)
@@ -50,8 +50,8 @@ declare_mir_pass! {
     /// ```mir
     /// function after(v0: uint32): void {
     /// b0(v0: uint32):
-    ///     v1 = frame.alloc int32 -> ref<int32, raw, space(frame)>
-    ///     v2 = frame.alloc int32 -> ref<int32, raw, space(frame)>
+    ///     v1 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
+    ///     v2 = frame.alloc.zeroed int32 -> ref<int32, raw, space(frame)>
     ///     v3 = 0uint32
     ///     v4 = 1uint32
     ///     jump b1(v3)
@@ -779,8 +779,8 @@ mod tests {
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -803,8 +803,8 @@ b3:
         let expected = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -841,7 +841,7 @@ b5(v13: uint32):
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -872,7 +872,7 @@ b3:
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -905,9 +905,9 @@ b0(v0: uint32):
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
-    v3: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v4: uint32 = 0uint32
     v5: uint32 = 1uint32
     jump b1(v4)
@@ -931,9 +931,9 @@ b3:
         let expected = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
-    v3: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v3: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v4: uint32 = 0uint32
     v5: uint32 = 1uint32
     jump b1(v4)
@@ -1029,7 +1029,7 @@ b5(v10: uint32):
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -1058,7 +1058,7 @@ b3:
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -1086,7 +1086,7 @@ b3:
         let input = r#"
 function test(v0: boolean, v1: uint32): void {
 b0(v0: boolean, v1: uint32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     branch v0, b2(v3), b1(v3)
@@ -1108,7 +1108,7 @@ b4:
         let expected = r#"
 function test(v0: boolean, v1: uint32): void {
 b0(v0: boolean, v1: uint32):
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     branch v0, b2(v3), b1(v3)
@@ -1138,8 +1138,8 @@ b4:
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -1171,8 +1171,8 @@ b3:
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
-    v2: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
+    v2: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v3: uint32 = 0uint32
     v4: uint32 = 1uint32
     jump b1(v3)
@@ -1202,7 +1202,7 @@ b3:
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -1230,7 +1230,7 @@ b3(v10: uint32):
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)
@@ -1260,7 +1260,7 @@ b4:
         let input = r#"
 function test(v0: uint32): void {
 b0(v0: uint32):
-    v1: ref<int32, raw, space(frame)> = frame.alloc int32
+    v1: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v2: uint32 = 0uint32
     v3: uint32 = 1uint32
     jump b1(v2)

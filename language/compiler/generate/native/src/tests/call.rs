@@ -237,7 +237,7 @@ b0:
 
 function caller(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = frame.alloc int32
+    v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 7int32
     store v0, v1
     v2: () => int32 = callable.bind read_env, v0

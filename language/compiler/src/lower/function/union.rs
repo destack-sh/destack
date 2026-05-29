@@ -77,7 +77,7 @@ impl FunctionLowerer<'_> {
         let storage_pointer = self
             .state
             .builder
-            .frame_alloc(storage_type, storage_ref_type);
+            .frame_alloc_zeroed(storage_type, storage_ref_type);
 
         // zero initialize the storage
         let storage_zero = self.inline_union_storage_zero_value(storage_type, node)?;
@@ -117,7 +117,7 @@ impl FunctionLowerer<'_> {
         let storage_pointer = self
             .state
             .builder
-            .frame_alloc(storage_type, storage_ref_type);
+            .frame_alloc_zeroed(storage_type, storage_ref_type);
 
         // store the storage into the scratch memory
         self.state.builder.store(storage_pointer, storage_value);

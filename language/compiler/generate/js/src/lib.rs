@@ -1,5 +1,3 @@
-#![feature(default_field_values)]
-
 mod backend;
 mod diagnostic;
 mod dumper;

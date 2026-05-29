@@ -104,7 +104,7 @@ fn test_skip_drop_for_managed_allocation() {
         r#"
 function test(): void {
 b0:
-    v0: ref<int32, managed> = new int32
+    v0: ref<int32, managed> = new.zeroed int32
     return
 }"#,
     );
@@ -112,7 +112,7 @@ b0:
     program.assert_dropped_mir(
         r#"function test(): void {
 entry0:
-    value0: ref<int32, managed> = new int32
+    value0: ref<int32, managed> = new.zeroed int32
     return
 }
 "#,
@@ -126,7 +126,7 @@ fn test_skip_drop_for_managed_slice_allocation() {
 function test(): void {
 b0:
     v0: int64 = 4int64
-    v1: slice<int32, managed> = new.slice int32, v0
+    v1: slice<int32, managed> = new.slice.zeroed int32, v0
     return
 }"#,
     );
@@ -135,7 +135,7 @@ b0:
         r#"function test(): void {
 entry0:
     value0: int64 = 4int64
-    value1: slice<int32, managed> = new.slice int32, value0
+    value1: slice<int32, managed> = new.slice.zeroed int32, value0
     return
 }
 "#,
@@ -205,7 +205,7 @@ fn test_insert_drop_for_unique_slice_allocation() {
 function test(): void {
 b0:
     v0: int64 = 4int64
-    v1: slice<int32, unique> = new.slice int32, v0
+    v1: slice<int32, unique> = new.slice.zeroed int32, v0
     return
 }"#,
     );
@@ -214,7 +214,7 @@ b0:
         r#"function test(): void {
 entry0:
     value0: int64 = 4int64
-    value1: slice<int32, unique> = new.slice int32, value0
+    value1: slice<int32, unique> = new.slice.zeroed int32, value0
     free value1
     drop value1
     return

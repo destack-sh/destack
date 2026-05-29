@@ -246,7 +246,8 @@ impl TestProgram {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
     ) -> mir::Value {
         // extract the destination value from the instruction
-        let mir::Instruction::FrameAlloc { destination, .. } = self.tree.get(instruction_id) else {
+        let mir::Instruction::FrameAllocZeroed { destination, .. } = self.tree.get(instruction_id)
+        else {
             panic!("expected stack allocation");
         };
 
@@ -269,7 +270,7 @@ impl TestProgram {
             .instructions
             .iter()
             .filter_map(|instruction_id| {
-                if let mir::Instruction::FrameAlloc { destination, .. } =
+                if let mir::Instruction::FrameAllocZeroed { destination, .. } =
                     self.tree.get(*instruction_id)
                 {
                     Some(

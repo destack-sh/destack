@@ -38,6 +38,8 @@ pub enum TypeKey {
     Atomic { value: Box<TypeKey> },
     /// Erased Any value type.
     Any { interface: Box<TypeKey> },
+    /// Linear uninitialized allocation token type.
+    Uninit { value: Box<TypeKey> },
     /// Reference or pointer type.
     Reference {
         kind: mir::ReferenceKind,
@@ -177,6 +179,9 @@ impl TypeKey {
             },
             mir::Type::Any { interface } => TypeKey::Any {
                 interface: Box::new(Self::from_type_reference(*interface, tree)),
+            },
+            mir::Type::Uninit { value } => TypeKey::Uninit {
+                value: Box::new(Self::from_type_reference(*value, tree)),
             },
 
             mir::Type::Reference {
@@ -366,6 +371,7 @@ impl TypeKey {
             TypeKey::Int { width, .. } => bytes_for_width(*width),
             TypeKey::Isize | TypeKey::Usize => bytes_for_width(pointer_width_bits),
             TypeKey::Float { width } => bytes_for_width(*width),
+            TypeKey::Uninit { value } => value.byte_size(pointer_width_bits),
             TypeKey::Newtype { inner, .. } => inner.byte_size(pointer_width_bits),
             TypeKey::Array {
                 element,
