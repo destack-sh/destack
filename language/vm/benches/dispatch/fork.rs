@@ -25,7 +25,7 @@ pub(crate) fn bench_fork(criterion: &mut Criterion) {
                 (runtime, root)
             },
             |(mut runtime, root)| {
-                let fork = runtime.heap.fork().expect("benchmark heap should fork");
+                let fork = runtime.fork_heap();
 
                 black_box((fork, root))
             },
@@ -43,7 +43,7 @@ pub(crate) fn bench_fork(criterion: &mut Criterion) {
                 (runtime, root, mutate)
             },
             |(mut runtime, root, mutate)| {
-                runtime.heap = runtime.heap.fork().expect("benchmark heap should fork");
+                runtime.heap = runtime.fork_heap();
                 let arguments = [root, Value::int32(ITERATIONS)];
                 let output = runtime.run_with_arguments(mutate, &arguments);
 
