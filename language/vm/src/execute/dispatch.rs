@@ -591,6 +591,30 @@ macro_rules! dispatch_instruction {
                     instruction
                 ))
             }
+            Op::AllocateHeapZeroedBranch => {
+                $transfer!(super::execute_allocate_heap_zeroed_branch(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateHeapUninitBranch => {
+                $transfer!(super::execute_allocate_heap_uninit_branch(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedHeapZeroedBranch => {
+                $transfer!(super::execute_allocate_shared_heap_zeroed_branch(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedHeapUninitBranch => {
+                $transfer!(super::execute_allocate_shared_heap_uninit_branch(
+                    $machine,
+                    instruction
+                ))
+            }
             Op::AllocateSliceZeroed => {
                 $step!(super::execute_allocate_slice_zeroed($machine, instruction))
             }
@@ -605,6 +629,30 @@ macro_rules! dispatch_instruction {
             }
             Op::AllocateSharedSliceUninit => {
                 $step!(super::execute_allocate_shared_slice_uninit(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSliceZeroedBranch => {
+                $transfer!(super::execute_allocate_slice_zeroed_branch(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSliceUninitBranch => {
+                $transfer!(super::execute_allocate_slice_uninit_branch(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedSliceZeroedBranch => {
+                $transfer!(super::execute_allocate_shared_slice_zeroed_branch(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::AllocateSharedSliceUninitBranch => {
+                $transfer!(super::execute_allocate_shared_slice_uninit_branch(
                     $machine,
                     instruction
                 ))

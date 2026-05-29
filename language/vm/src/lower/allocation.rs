@@ -2,8 +2,8 @@ use destack_heap::{AllocationClass, HeapOptions, SharedHeapOptions};
 use destack_mir as mir;
 
 use crate::program::{
-    AllocationSite, Instruction, Layout, Op, PointerClass, SmallAllocationSite,
-    pointer_class_from_reference, repr_type,
+    AllocationBranch, AllocationSite, Edge, Instruction, Layout, Op, PointerClass,
+    SliceAllocationBranch, SmallAllocationSite, pointer_class_from_reference, repr_type,
 };
 use crate::{Error, Result};
 
@@ -79,6 +79,42 @@ impl<'a> BlockLowerer<'a> {
             0,
             0,
         ))
+    }
+
+    /// Lower one fallible heap allocation.
+    pub(super) fn lower_new_try(
+        &self,
+        pool: &mut Pool<'_, '_>,
+        layout: mir::TypeReference,
+        success: &mir::BlockTarget,
+        failure: &mir::BlockTarget,
+        initialization: AllocationInitialization,
+    ) -> Result<Instruction> {
+        let allocation_type = layout
+            .ty()
+            .ok_or_else(|| Error::invalid_program("new.try layout"))?;
+        let (result, success) = self.lower_allocation_success(pool, success)?;
+
+        let layout = self.layout_for_type(allocation_type)?;
+        let pointer_class = pointer_class_for_value(self.value_layout_map(), result);
+        let (allocation, _) = allocation_site(
+            pool,
+            pointer_class,
+            layout,
+            self.heap_options,
+            self.shared_heap_options,
+        )?;
+        let allocation = pool.allocation_site(allocation);
+        let failure = self.lower_block_edge(pool, failure, "new.try failure")?;
+        let record = AllocationBranch {
+            destination: word_offset(self, result)?,
+            allocation,
+            success,
+            failure,
+        };
+        let op = allocation_branch_op(pointer_class, initialization)?;
+
+        Ok(pool.instruction_with_side(op, record))
     }
 
     /// Lower one heap allocation completion.
@@ -178,6 +214,112 @@ impl<'a> BlockLowerer<'a> {
             element.0,
             access.0,
         ))
+    }
+
+    /// Lower one fallible slice allocation.
+    pub(super) fn lower_new_slice_try(
+        &self,
+        pool: &mut Pool<'_, '_>,
+        element: mir::TypeReference,
+        length: mir::ValueReference,
+        success: &mir::BlockTarget,
+        failure: &mir::BlockTarget,
+        initialization: AllocationInitialization,
+    ) -> Result<Instruction> {
+        let element_type = element
+            .ty()
+            .ok_or_else(|| Error::invalid_program("new.slice.try element type"))?;
+        let (result, success) = self.lower_allocation_success(pool, success)?;
+        let result_type = self.value_type_for_value(result)?;
+        let length = length
+            .value()
+            .ok_or_else(|| Error::invalid_program("new.slice.try length"))?;
+
+        let element_layout = self.layout_for_type(element_type)?;
+        let pointer_class = slice_backing_pointer_class(self.tree, result_type)?;
+        let (element, _) = allocation_site(
+            pool,
+            pointer_class,
+            element_layout,
+            self.heap_options,
+            self.shared_heap_options,
+        )?;
+        let element = pool.allocation_site(element);
+        let access = slice_projection(self.tree, self.layouts(), result_type)
+            .ok_or(Error::invalid_instruction())?;
+        let failure = self.lower_block_edge(pool, failure, "new.slice.try failure")?;
+        let record = SliceAllocationBranch {
+            destination: value_offset(self, result)?,
+            length: word_offset(self, length)?,
+            element,
+            access: pool.slice_projection(access),
+            success,
+            failure,
+        };
+        let op = slice_allocation_branch_op(pointer_class, initialization)?;
+
+        Ok(pool.instruction_with_side(op, record))
+    }
+
+    /// Lower one fallible allocation success edge and return its result parameter.
+    fn lower_allocation_success(
+        &self,
+        pool: &mut Pool<'_, '_>,
+        target: &mir::BlockTarget,
+    ) -> Result<(mir::Value, Edge)> {
+        let target_block = (target.block)
+            .block()
+            .ok_or_else(|| Error::invalid_program("allocation success target"))?;
+        let target_index = self.block_index_by_id[&target_block];
+        let target_parameters = self.block_parameter[target_index].as_slice();
+        let Some((&result, remaining_parameters)) = target_parameters.split_first() else {
+            return Err(Error::invalid_program("allocation success parameter"));
+        };
+        let arguments = target
+            .arguments
+            .iter()
+            .map(|argument| {
+                (*argument)
+                    .value()
+                    .ok_or_else(|| Error::invalid_program("allocation success argument"))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let moves = pool.edge_moves(remaining_parameters, &arguments)?;
+        let edge = Edge {
+            target: target_index as u32,
+            moves,
+        };
+
+        Ok((result, edge))
+    }
+
+    /// Lower one normal block edge.
+    fn lower_block_edge(
+        &self,
+        pool: &mut Pool<'_, '_>,
+        target: &mir::BlockTarget,
+        context: &str,
+    ) -> Result<Edge> {
+        let target_block = (target.block)
+            .block()
+            .ok_or_else(|| Error::invalid_program(context))?;
+        let target_index = self.block_index_by_id[&target_block];
+        let target_parameters = self.block_parameter[target_index].as_slice();
+        let arguments = target
+            .arguments
+            .iter()
+            .map(|argument| {
+                (*argument)
+                    .value()
+                    .ok_or_else(|| Error::invalid_program(context))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let moves = pool.edge_moves(target_parameters, &arguments)?;
+
+        Ok(Edge {
+            target: target_index as u32,
+            moves,
+        })
     }
 
     /// Lower one frame allocation.
@@ -396,6 +538,42 @@ fn allocation_op(
         }
         (PointerClass::SharedHeap, None, _, AllocationInitialization::Uninit) => {
             Ok(Op::AllocateSharedHeapUninit)
+        }
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
+    }
+}
+
+/// Select one fallible heap allocation operation from destination space.
+fn allocation_branch_op(
+    pointer_class: PointerClass,
+    initialization: AllocationInitialization,
+) -> Result<Op> {
+    match (pointer_class, initialization) {
+        (PointerClass::Heap, AllocationInitialization::Zeroed) => Ok(Op::AllocateHeapZeroedBranch),
+        (PointerClass::Heap, AllocationInitialization::Uninit) => Ok(Op::AllocateHeapUninitBranch),
+        (PointerClass::SharedHeap, AllocationInitialization::Zeroed) => {
+            Ok(Op::AllocateSharedHeapZeroedBranch)
+        }
+        (PointerClass::SharedHeap, AllocationInitialization::Uninit) => {
+            Ok(Op::AllocateSharedHeapUninitBranch)
+        }
+        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
+    }
+}
+
+/// Select one fallible slice allocation operation from destination space.
+fn slice_allocation_branch_op(
+    pointer_class: PointerClass,
+    initialization: AllocationInitialization,
+) -> Result<Op> {
+    match (pointer_class, initialization) {
+        (PointerClass::Heap, AllocationInitialization::Zeroed) => Ok(Op::AllocateSliceZeroedBranch),
+        (PointerClass::Heap, AllocationInitialization::Uninit) => Ok(Op::AllocateSliceUninitBranch),
+        (PointerClass::SharedHeap, AllocationInitialization::Zeroed) => {
+            Ok(Op::AllocateSharedSliceZeroedBranch)
+        }
+        (PointerClass::SharedHeap, AllocationInitialization::Uninit) => {
+            Ok(Op::AllocateSharedSliceUninitBranch)
         }
         _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }

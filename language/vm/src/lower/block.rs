@@ -78,6 +78,29 @@ impl BlockOrder {
                             .ok_or_else(|| Error::invalid_program("check failure target"))?,
                     );
                 }
+                mir::Terminator::NewZeroedTry {
+                    success, failure, ..
+                }
+                | mir::Terminator::NewUninitTry {
+                    success, failure, ..
+                }
+                | mir::Terminator::NewSliceZeroedTry {
+                    success, failure, ..
+                }
+                | mir::Terminator::NewSliceUninitTry {
+                    success, failure, ..
+                } => {
+                    queue.push(
+                        (success.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("allocation success target"))?,
+                    );
+                    queue.push(
+                        (failure.block)
+                            .block()
+                            .ok_or_else(|| Error::invalid_program("allocation failure target"))?,
+                    );
+                }
                 mir::Terminator::Switch { cases, default, .. } => {
                     for case in cases {
                         queue.push(

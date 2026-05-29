@@ -19,6 +19,8 @@ pub struct Interpreter {
     pub(crate) frames: Vec<Frame>,
     /// Page-backed byte stack for frame data.
     pub(crate) stack: Stack,
+    /// Last fallible allocation failure observed by this interpreter.
+    pub(crate) allocation_failure: Option<Error>,
 }
 
 /// Coroutine-capable interpreter outcome.
@@ -41,12 +43,14 @@ impl Interpreter {
         Ok(Self {
             frames: Vec::new(),
             stack,
+            allocation_failure: None,
         })
     }
 
     /// Prepare the stack arena for one top-level run.
     pub(crate) fn reset_stack(&mut self, options: &IsolateOptions) -> RuntimeResult<()> {
         self.frames.clear();
+        self.allocation_failure = None;
         self.stack.reset(options.limits.stack_bytes)?;
 
         Ok(())
@@ -96,7 +100,11 @@ impl Interpreter {
             frames.push(frame.fork(base));
         }
 
-        Ok(Self { frames, stack })
+        Ok(Self {
+            frames,
+            stack,
+            allocation_failure: self.allocation_failure.clone(),
+        })
     }
 
     /// Create one interpreter from an immutable image.
@@ -108,6 +116,7 @@ impl Interpreter {
         let mut interpreter = Self {
             frames: Vec::with_capacity(image.frames.len()),
             stack: Stack::from_image(&image.stack, options.limits.stack_bytes)?,
+            allocation_failure: None,
         };
 
         // restore frame metadata over stack image byte ranges
