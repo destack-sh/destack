@@ -21,6 +21,31 @@ entry0(value0: int64):
     );
 }
 
+/// Formats fallible allocation terminators canonically.
+#[test]
+fn test_format_fallible_allocation_family() {
+    assert_format(
+        r#"
+function allocTry(value0: int64): int32 {
+entry0(value0: int64):
+    new.zeroed.try int32 -> block1, block2
+
+block1(value1: ref<int32, managed>):
+    new.slice.uninit.try int32, value0 -> block3, block2
+
+block2:
+    value4: int32 = 0int32
+    return value4
+
+block3(value2: uninit<slice<int32, managed>>):
+    value3: slice<int32, managed> = new.complete value2
+    value5: int32 = 1int32
+    return value5
+}
+"#,
+    );
+}
+
 /// Formats slice descriptors canonically.
 #[test]
 fn test_format_slice_descriptor() {

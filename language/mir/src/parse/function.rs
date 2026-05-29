@@ -456,6 +456,7 @@ impl Parser {
                 || self.peek_token(TokenType::TailCallIndirect)
                 || self.peek_token(TokenType::TailCallClass)
                 || self.peek_token(TokenType::TailCallInterface)
+                || self.is_allocation_try_terminator_line()
                 || (self.is_call_terminator_line()
                     && (self.peek_token(TokenType::Call)
                         || self.peek_token(TokenType::CallIndirect)
@@ -1000,12 +1001,105 @@ impl Parser {
                     unwind: None,
                 })
             }
+            TokenType::Identifier => self.parse_allocation_try_terminator(&token),
             _ => Err(ParseError::unexpected(
                 "terminator",
                 self.token_type(&token),
                 token.start,
             )),
         }
+    }
+
+    /// Return whether the current line starts a fallible allocation terminator.
+    fn is_allocation_try_terminator_line(&self) -> bool {
+        let Some(token) = self.peek() else {
+            return false;
+        };
+        if self.token_type(token) != TokenType::Identifier {
+            return false;
+        }
+
+        matches!(
+            self.tree.source_text(token.span),
+            "new.zeroed.try" | "new.uninit.try" | "new.slice.zeroed.try" | "new.slice.uninit.try"
+        )
+    }
+
+    /// Parse a fallible allocation terminator.
+    fn parse_allocation_try_terminator(&mut self, token: &Token) -> ParseResult<Terminator> {
+        let opcode = self.tree.source_text(token.span).to_string();
+        self.bump();
+
+        match opcode.as_str() {
+            "new.zeroed.try" => {
+                let layout = self.parse_type()?;
+                let (success, failure) = self.parse_allocation_targets()?;
+
+                Ok(Terminator::NewZeroedTry {
+                    layout: layout.into(),
+                    success,
+                    failure,
+                })
+            }
+            "new.uninit.try" => {
+                let layout = self.parse_type()?;
+                let (success, failure) = self.parse_allocation_targets()?;
+
+                Ok(Terminator::NewUninitTry {
+                    layout: layout.into(),
+                    success,
+                    failure,
+                })
+            }
+            "new.slice.zeroed.try" => {
+                let element = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let length = self.parse_value()?;
+                let (success, failure) = self.parse_allocation_targets()?;
+
+                Ok(Terminator::NewSliceZeroedTry {
+                    element: element.into(),
+                    length,
+                    success,
+                    failure,
+                })
+            }
+            "new.slice.uninit.try" => {
+                let element = self.parse_type()?;
+                self.eat_token(TokenType::Comma)?;
+                let length = self.parse_value()?;
+                let (success, failure) = self.parse_allocation_targets()?;
+
+                Ok(Terminator::NewSliceUninitTry {
+                    element: element.into(),
+                    length,
+                    success,
+                    failure,
+                })
+            }
+            _ => Err(ParseError::unexpected(
+                "terminator",
+                self.token_type(token),
+                token.start,
+            )),
+        }
+    }
+
+    /// Parse success and failure targets for a fallible allocation terminator.
+    fn parse_allocation_targets(&mut self) -> ParseResult<(BlockTarget, BlockTarget)> {
+        self.eat_token(TokenType::Arrow)?;
+
+        let success = BlockTarget {
+            block: self.parse_block_ref()?,
+            arguments: self.parse_optional_block_arguments()?,
+        };
+        self.eat_token(TokenType::Comma)?;
+        let failure = BlockTarget {
+            block: self.parse_block_ref()?,
+            arguments: self.parse_optional_block_arguments()?,
+        };
+
+        Ok((success, failure))
     }
 
     /// Parse a check kind and its operands.

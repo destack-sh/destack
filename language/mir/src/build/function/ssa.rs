@@ -277,6 +277,25 @@ impl<'a> FunctionBuilder<'a> {
                     failure.arguments.push(value.into());
                 }
             }
+            Terminator::NewZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewUninitTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceZeroedTry {
+                success, failure, ..
+            }
+            | Terminator::NewSliceUninitTry {
+                success, failure, ..
+            } => {
+                if success.block == BlockReference::Block(to_block) {
+                    success.arguments.push(value.into());
+                }
+                if failure.block == BlockReference::Block(to_block) {
+                    failure.arguments.push(value.into());
+                }
+            }
             Terminator::Switch { default, cases, .. } => {
                 if default.block == BlockReference::Block(to_block) {
                     default.arguments.push(value.into());
