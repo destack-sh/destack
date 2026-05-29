@@ -2,7 +2,7 @@ import { type Expression } from "./expression.ds";
 import { type Symbol } from "./symbol.ds";
 
 /// A declaration or property name.
-export type Name = IdentifierName | StringName | NumberName;
+export type Name = IdentifierName | StringName | IndexName;
 
 /// A regular identifier name.
 export interface IdentifierName {
@@ -20,12 +20,12 @@ export interface StringName {
     value: string;
 }
 
-/// A numeric property name.
-export interface NumberName {
+/// A positional index name.
+export interface IndexName {
     /// The name kind.
-    kind: "number";
-    /// The source numeric text.
-    value: string;
+    kind: "index";
+    /// The positional index.
+    value: usize;
 }
 
 /// A value or type property key.
@@ -75,7 +75,7 @@ export interface RegistrySymbolKey {
 }
 
 /// A static property key.
-export type StaticKey = StaticNameKey | StaticNumberKey | StaticSymbolKey;
+export type StaticKey = StaticNameKey | StaticIndexKey | StaticSymbolKey;
 
 /// A string-like static key.
 export interface StaticNameKey {
@@ -85,12 +85,12 @@ export interface StaticNameKey {
     name: string;
 }
 
-/// A number-like static key.
-export interface StaticNumberKey {
+/// An index-like static key.
+export interface StaticIndexKey {
     /// The key kind.
-    kind: "number";
-    /// The source numeric text.
-    name: string;
+    kind: "index";
+    /// The positional index.
+    index: usize;
 }
 
 /// A symbol-like static key.
