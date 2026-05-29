@@ -257,10 +257,86 @@ just build
 just test
 ```
 
-## Commits
+### Commits
 
 - Typically, agents aren't supposed to commit or merge directly without being explicitly instructed to.
 - For commit message format, follow `CONTRIBUTING.md#commit-style`.
 - We typically work with branches and worktrees off a main branch.
 - We try to frequently rebase of main and merge back into main.
 - When merging into main, try to fast-forward or cherry-pick to retain the commit history (except when there are a _lot_ of small commits, feel free to squash then).
+
+## Working Style
+
+- In general, there are two good ways of shaping out what some software should look like: big boxes with lines, and tracer bullets.
+- We like to use both, and we like to use both in tandem, they are very complementary. The whole point of writing software is to model and solve some real world problem (in a way that is machine-emphatic and actually executable efficiently.)
+- Usually, we should try to figure out the main nouns and verbs (data structures, fields, and methods) first, and the main call flows between them. Who owns what state, who reads / writes what where and in what order. 
+- The agent should always try to behave in accordance with this and proactively work this way, and suggest the right tools, media forms, representation, and questions to nail down the final design before we get started.
+- Data structures are incredibly important and I usually want to see them first since they clarify so much about the design. Whenever possible, this should be actual code in whichever languages we're using showing the real changes to / additions of data structures (and which values and value ranges we expect them to have).
+- Code and actual logic is always useful to show and illustrate ideas, even in pseudocode form, but ideally in a real form that we actually expect to execute on some level. Think like an API designer here, since really, everything is an API in some sense.
+- When possible, we should first think through what the example use cases would write in code to do the thing that we're trying to implement, where they're coming from, what the limits and expectatinos and environment is, and so on:
+```
+const user = service.signup(...); // user from API or wherever
+// ... some more illustrative logic ...
+```
+- When possible, we should model the noun trees and the main boxes and lines in ASCII form, either as literal ASCII art with boxes and lines and/or with nice noun trees and schemas. Ideally we should annotate exact field names and types, though both can be complementary
+```
+Heap // per owner
+├── HeapOptions
+├── HeapLimits
+├── GcPacer
+├── GcRequest
+└── HeapStorage
+    ├── Arc<Allocator>
+    ├── PageSpanCache
+    ├── AddressSpace
+    ├── YoungSpace
+    │   ├── YoungCursor
+    │   ├── YoungRange[]
+    │   ├── YoungSpan[]
+    │   └── page_spans[]
+    ├── SmallSpace
+    │   ├── SizeClassTable
+    │   ├── SmallSpan[]
+    │   └── partial_spans
+    ├── LargeSpace
+    │   ├── LargeBlock[]
+    │   └── free_large_block_ids
+    ├── page_map: logical page -> HeapPageMapEntry
+    ├── AllocationUsage
+    ├── young AllocationUsage
+    ├── GcState
+    └── LocalGcState
+
+/// One pending local GC request.
+pub(super) enum GcRequest {
+    /// Run one young mark-and-sweep cycle.
+    Minor,
+    /// Run one full mark-and-sweep cycle.
+    Full,
+}
+
+/// One heap small space.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct SmallSpace {
+    /// The configured size-class table.
+    pub(crate) size_classes: SizeClassTable,
+    /// The configured span width.
+    pub(crate) span_size_bytes: usize,
+    /// The live heap spans.
+    pub(crate) spans: CowTable<SmallSpan>,
+    /// The reusable non-full spans per exact small-span class.
+    pub(crate) partial_spans: BTreeMap<SmallSpanClass, Vec<usize>>,
+}
+
+// ... and so on ...
+```
+- When possible, we should literally think thorugh example use cases for every main scenario, and then trace it out across real state and call flows in a tree form:
+```
+UserService.signup(name: string, email: string, password: string, session, ...)
+ -> User.create(..., session)
+   -> User.validate(...)
+   -> User.save(...)
+   -> NotificationService.send()
+    -> Workflow::trigger()
+   -> Session.commit(...)
+```
