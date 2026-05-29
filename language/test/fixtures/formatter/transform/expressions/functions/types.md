@@ -14,6 +14,22 @@ type Predicate = (value: string) => boolean
 type Predicate = (value: string) => boolean;
 ```
 
+### function type with receiver shorthand
+
+Receiver shorthand is preserved in function types.
+
+```ds
+type PlainVisitor = (this, value: Node) => void
+type Visitor = (readonly this, value: Node) => void
+type BorrowingVisitor = (&readonly this, value: Node) => void
+```
+
+```ds expected
+type PlainVisitor = (this, value: Node) => void;
+type Visitor = (readonly this, value: Node) => void;
+type BorrowingVisitor = (&readonly this, value: Node) => void;
+```
+
 ### function type predicate return
 
 Function type returns can narrow their parameter type.
