@@ -1,4 +1,7 @@
-use destack_heap::{self as heap, AllocationSite as HeapAllocationSite};
+use destack_heap::{
+    self as heap, AllocationSite as HeapAllocationSite,
+    SmallAllocationSite as HeapSmallAllocationSite,
+};
 use destack_mir::{TraceId, TraceMap};
 
 /// The allocation site consumed by heap allocation instructions.
@@ -6,6 +9,17 @@ use destack_mir::{TraceId, TraceMap};
 pub(crate) struct AllocationSite {
     /// The heap-ready allocation site.
     pub heap: HeapAllocationSite,
+    /// The exact heap trace map id.
+    pub trace_map: TraceId,
+}
+
+/// The small allocation site consumed by small heap allocation instructions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SmallAllocationSite {
+    /// The full heap-ready allocation site for cold allocation.
+    pub heap: HeapAllocationSite,
+    /// The heap-ready small allocation site for cursor reservation.
+    pub small: HeapSmallAllocationSite,
     /// The exact heap trace map id.
     pub trace_map: TraceId,
 }

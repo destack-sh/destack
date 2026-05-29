@@ -2,7 +2,8 @@ use destack_heap::{AllocationClass, HeapOptions, SharedHeapOptions};
 use destack_mir as mir;
 
 use crate::program::{
-    AllocationSite, Instruction, Layout, Op, PointerClass, pointer_class_from_reference, repr_type,
+    AllocationSite, Instruction, Layout, Op, PointerClass, SmallAllocationSite,
+    pointer_class_from_reference, repr_type,
 };
 use crate::{Error, Result};
 
@@ -55,12 +56,26 @@ impl<'a> BlockLowerer<'a> {
             allocation.heap.has_shared_reference,
             initialization,
         )?;
-        let allocation = pool.allocation_site(allocation);
+        // pool the side-table shape consumed by the selected opcode
+        let allocation = if is_small_allocation_op(op) {
+            let Some(small) = allocation.heap.small_site() else {
+                return Err(Error::invalid_program("small allocation site"));
+            };
+
+            let allocation = SmallAllocationSite {
+                heap: allocation.heap,
+                small,
+                trace_map: allocation.trace_map,
+            };
+            pool.small_allocation_site(allocation).0
+        } else {
+            pool.allocation_site(allocation).0
+        };
 
         Ok(Instruction::new(
             op,
             word_offset(self, destination)?,
-            allocation.0,
+            allocation,
             0,
             0,
         ))
@@ -442,6 +457,21 @@ fn allocation_op(
         }
         _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
+}
+
+/// Return whether one allocation operation consumes a small allocation site.
+fn is_small_allocation_op(op: Op) -> bool {
+    matches!(
+        op,
+        Op::AllocateHeapSmallNoscanZeroed
+            | Op::AllocateHeapSmallNoscanUninit
+            | Op::AllocateHeapSmallScanZeroed
+            | Op::AllocateHeapSmallScanUninit
+            | Op::AllocateHeapSmallSharedEdgeZeroed
+            | Op::AllocateHeapSmallSharedEdgeUninit
+            | Op::AllocateSharedHeapSmallZeroed
+            | Op::AllocateSharedHeapSmallUninit
+    )
 }
 
 /// Select one free operation for one unique heap reference type.

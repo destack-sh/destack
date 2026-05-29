@@ -7,8 +7,9 @@ use crate::program::{
     AllocationSite, AllocationSiteId, ArgumentRange, CallTarget, Check, CheckId, ConstValue,
     ConstValueId, Edge, EdgeId, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Op,
     Projection, ProjectionId, SideRecord, SideTableBuilder, SliceProjection, SliceProjectionId,
-    SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId,
-    TensorGatherId, TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
+    SmallAllocationSite, SmallAllocationSiteId, SwitchCase, SwitchCasesId, SwitchTable,
+    SwitchTableId, TensorConvolutionId, TensorDotId, TensorGatherId, TensorLayout, TensorLayoutId,
+    TensorScatterId, TensorWindowId, U32RangeId,
 };
 use crate::{Error, Result};
 
@@ -66,6 +67,14 @@ impl<'layout, 'table> Pool<'layout, 'table> {
     /// Return one pooled allocation site id.
     pub(super) fn allocation_site(&mut self, allocation: AllocationSite) -> AllocationSiteId {
         self.side_table.push_allocation_site(allocation)
+    }
+
+    /// Return one pooled small allocation site id.
+    pub(super) fn small_allocation_site(
+        &mut self,
+        allocation: SmallAllocationSite,
+    ) -> SmallAllocationSiteId {
+        self.side_table.push_small_allocation_site(allocation)
     }
 
     /// Return one pooled constant id.
