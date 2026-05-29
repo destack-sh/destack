@@ -18,7 +18,7 @@ import { Time } from "destack:time/host";
 import { Tls } from "destack:tls/host";
 import { Tty } from "destack:tty/host";
 
-import { ContextValue } from "./key.ds";
+import { ContextEntry } from "./entry.ds";
 
 /// Scoped context override payload.
 @languageItem("context.ContextPatch")
@@ -59,6 +59,6 @@ export struct ContextPatch {
     tls?: Dynamic<Tls>;
     /// TTY binding family override.
     tty?: Dynamic<Tty>;
-    /// Userland context values.
-    values?: [ContextValue<unknown>];
+    /// Userland context entries.
+    entries?: [ContextEntry<unknown>];
 }

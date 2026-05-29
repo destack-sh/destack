@@ -9,12 +9,3 @@ export class ContextKey<T> {
         this.name = name;
     }
 }
-
-/// One typed context value.
-@languageItem("context.ContextValue")
-export struct ContextValue<T> {
-    /// Context value key.
-    key: ContextKey<T>;
-    /// Context value payload.
-    value: T;
-}

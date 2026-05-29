@@ -43,6 +43,16 @@ export class Context {
         return result;
     }
 
+    /// Run async `body` with scoped context overrides.
+    static async withAsync<T>(patch: ContextPatch, body: () => Promise<T>): Promise<T> {
+        const token = pushContext(patch);
+        const result = await body();
+
+        popContext(token);
+
+        return result;
+    }
+
     /// Current accessibility binding family.
     @intrinsic("context.accessibility")
     get accessibility(): Dynamic<Accessibility>;
@@ -146,12 +156,12 @@ export declare function pushContext(patch: &readonly ContextPatch): ContextToken
 @intrinsic("context.pop")
 export declare function popContext(token: ContextToken): void;
 
-/// Return one userland context value.
+/// Return one userland context entry value.
 @languageItem("context.get")
 @intrinsic("context.get")
 export declare function getContextValue<T>(context: Context, key: ContextKey<T>): T | undefined;
 
-/// Return one required userland context value.
+/// Return one required userland context entry value.
 @languageItem("context.require")
 @intrinsic("context.require")
 export declare function requireContextValue<T>(context: Context, key: ContextKey<T>): T;
