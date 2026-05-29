@@ -767,37 +767,6 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeReference,
     },
-
-    // raw allocation
-    /// Allocate zeroed raw heap storage (`raw.alloc.zeroed`).
-    ///
-    /// The caller must release the result with `raw.free`.
-    RawAllocZeroed {
-        /// The SSA value to define with the allocated pointer.
-        destination: ValueReference,
-        /// The type of the value to allocate.
-        layout: TypeReference,
-        /// The result type of the allocation.
-        result_type: TypeReference,
-    },
-    /// Allocate uninitialized raw heap storage (`raw.alloc.uninit`).
-    ///
-    /// The caller must initialize the pointee before reading and release the result with `raw.free`.
-    RawAllocUninit {
-        /// The SSA value to define with the allocated pointer.
-        destination: ValueReference,
-        /// The type of the value to allocate.
-        layout: TypeReference,
-        /// The result type of the allocation.
-        result_type: TypeReference,
-    },
-    /// Release raw heap storage (`raw.free`).
-    ///
-    /// This is only valid for raw references produced by `raw.alloc.zeroed` or `raw.alloc.uninit`.
-    RawFree {
-        /// The pointer to free.
-        pointer: ValueReference,
-    },
     /// Release unique heap storage (`free`).
     ///
     /// This is only valid for unique references after drop elaboration has run.
@@ -1019,11 +988,8 @@ impl Instruction {
             | Instruction::NewComplete { destination, .. }
             | Instruction::NewSliceZeroed { destination, .. }
             | Instruction::NewSliceUninit { destination, .. }
-            | Instruction::RawAllocZeroed { destination, .. }
-            | Instruction::RawAllocUninit { destination, .. }
             | Instruction::FrameAllocZeroed { destination, .. }
             | Instruction::FrameAllocUninit { destination, .. } => Some(*destination),
-            Instruction::RawFree { .. } => None,
             Instruction::Free { .. } => None,
             Instruction::Drop { .. } => None,
             Instruction::Pin { destination, .. } => Some(*destination),
@@ -1150,8 +1116,6 @@ impl Instruction {
             Instruction::NewComplete { value, .. } => smallvec![*value],
             Instruction::NewSliceZeroed { length, .. }
             | Instruction::NewSliceUninit { length, .. } => smallvec![*length],
-            Instruction::RawAllocZeroed { .. } | Instruction::RawAllocUninit { .. } => smallvec![],
-            Instruction::RawFree { pointer } => smallvec![*pointer],
             Instruction::Free { value } => smallvec![*value],
             Instruction::Drop { place } => place.value_references(),
             Instruction::Pin { value, .. } => smallvec![*value],
