@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
 
 use crate::host::ResourceKind;
 use crate::world::scenario::{edge_kind_faults, entity_kind_faults, resource_kind_faults};
 
-use super::{EdgeDefinition, EntityDefinition, EntityKind};
+use super::{EdgeDefinition, EdgeKind, EntityDefinition, EntityKind};
 
 /// Builtin entity kind descriptor.
 struct BuiltinEntityKindDescriptor {
@@ -120,6 +121,25 @@ const BUILTIN_EDGE_KIND_DESCRIPTORS: &[BuiltinEdgeKindDescriptor] = &[
         kind_id: "host.process.pipe",
     },
 ];
+
+/// Builtin entity kind definitions by kind id.
+pub(super) static BUILTIN_ENTITY_KINDS: LazyLock<BTreeMap<EntityKind, EntityDefinition>> =
+    LazyLock::new(|| {
+        builtin_entity_kinds()
+            .into_iter()
+            .chain(builtin_resource_entity_kinds())
+            .map(|definition| (definition.kind.clone(), definition))
+            .collect()
+    });
+
+/// Builtin edge kind definitions by kind id.
+pub(super) static BUILTIN_EDGE_KINDS: LazyLock<BTreeMap<EdgeKind, EdgeDefinition>> =
+    LazyLock::new(|| {
+        builtin_edge_kinds()
+            .into_iter()
+            .map(|definition| (definition.kind.clone(), definition))
+            .collect()
+    });
 
 /// Return builtin entity kind definitions.
 pub(super) fn builtin_entity_kinds() -> Vec<EntityDefinition> {

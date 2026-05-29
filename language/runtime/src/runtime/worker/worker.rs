@@ -12,7 +12,7 @@ use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::engine::{Continuation, Engine, Image, MemoryContext};
 use crate::runtime::heap::{HeapHandle, HeapHandleTable, resolve_local_heap_options};
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
-use crate::runtime::{RuntimeFinalizers, RuntimeFinalizersImage, ScenarioRunner, SharedHeap};
+use crate::runtime::{RuntimeFinalizers, RuntimeFinalizersImage, RuntimeHeap, ScenarioRunner};
 use crate::world::scenario::ScenarioRunnerSnapshot;
 use crate::world::{Entity, EntityKind, RuntimeId, WorldState};
 use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
@@ -192,7 +192,7 @@ impl Worker {
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        runtime_heap: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         worker_options: WorkerOptions,
         engine: impl Into<Engine>,
@@ -204,7 +204,7 @@ impl Worker {
             environment,
             options,
             world,
-            shared,
+            runtime_heap,
             runtime_static,
             runtime_id,
             worker_id,
@@ -217,7 +217,7 @@ impl Worker {
         environment: impl Into<Arc<Environment>>,
         options: &RuntimeOptions,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        runtime_heap: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
         worker_options: WorkerOptions,
@@ -230,7 +230,7 @@ impl Worker {
             environment,
             options,
             world,
-            shared,
+            runtime_heap,
             runtime_static,
             runtime_id,
             worker_id,
@@ -243,7 +243,7 @@ impl Worker {
         environment: Arc<Environment>,
         options: &RuntimeOptions,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        runtime_heap: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
@@ -268,18 +268,18 @@ impl Worker {
         // heap and statics
         let heap_options = resolve_local_heap_options(&options.heap)?;
         let heap = heap::Heap::with_allocator_limits_and_options(
-            shared.allocator.clone(),
+            runtime_heap.allocator.clone(),
             heap_options.limits,
             heap_options.options,
         )
         .map_err(Box::<RuntimeError>::from)?;
         let mut heap = heap;
         let mut statics = engine::StaticSpace::empty();
-        let shared_gc_worker = shared.register_collector_worker();
-        let mut shared_cache = shared.heap.allocation_cache();
+        let shared_gc_worker = runtime_heap.register_collector_worker();
+        let mut shared_cache = runtime_heap.shared.allocation_cache();
         let context = MemoryContext {
             heap: &mut heap,
-            shared_heap: shared.heap.as_ref(),
+            shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
             shared_gc_worker: &shared_gc_worker,
             worker_static: &mut statics,
@@ -574,7 +574,7 @@ impl Worker {
     pub(crate) fn capture_image(
         &mut self,
         mode: CaptureMode,
-        shared: &SharedHeap,
+        runtime_heap: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
     ) -> RuntimeResult<WorkerImage> {
         // host-retained local handles cannot be materialized without the owning host state
@@ -619,7 +619,7 @@ impl Worker {
             statics: self.statics.clone(),
             engine_image: self.engine.image(engine::MemoryContext {
                 heap: &mut self.heap,
-                shared_heap: shared.heap.as_ref(),
+                shared_heap: runtime_heap.shared.as_ref(),
                 shared_cache: &mut self.shared_cache,
                 shared_gc_worker: &self.shared_gc_worker,
                 worker_static: &mut self.statics,
@@ -632,7 +632,7 @@ impl Worker {
     pub(crate) fn try_fork(
         &mut self,
         execution_mode: ExecutionMode,
-        shared: &SharedHeap,
+        runtime_heap: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         shared_gc_worker: heap::SharedGcWorker,
     ) -> RuntimeResult<Option<Self>> {
@@ -666,10 +666,10 @@ impl Worker {
         let trace_table = self.engine.trace_table()?;
         let mut heap = self.heap.fork(trace_table.as_ref())?;
         let mut statics = self.statics.clone();
-        let mut shared_cache = shared.heap.allocation_cache();
+        let mut shared_cache = runtime_heap.shared.allocation_cache();
         let mut engine = self.engine.fork(engine::MemoryContext {
             heap: &mut heap,
-            shared_heap: shared.heap.as_ref(),
+            shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
             shared_gc_worker: &shared_gc_worker,
             worker_static: &mut statics,
@@ -700,7 +700,7 @@ impl Worker {
     /// Restore one worker from one materialized image.
     pub(crate) fn from_image(
         world: &mut WorldState,
-        shared: &SharedHeap,
+        runtime_heap: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
@@ -738,19 +738,19 @@ impl Worker {
         let heap_options = resolve_local_heap_options(&options.heap)?;
         let mut heap = heap::Heap::from_snapshot_with_allocator(
             &image.heap,
-            shared.allocator.clone(),
+            runtime_heap.allocator.clone(),
             heap_options.limits,
             trace_table.as_ref(),
         )
         .map_err(Box::<RuntimeError>::from)?;
         let mut statics = image.statics.clone();
-        let shared_gc_worker = shared.register_collector_worker();
-        let mut shared_cache = shared.heap.allocation_cache();
+        let shared_gc_worker = runtime_heap.register_collector_worker();
+        let mut shared_cache = runtime_heap.shared.allocation_cache();
 
         // restore backend execution state over the restored heap
         let context = MemoryContext {
             heap: &mut heap,
-            shared_heap: shared.heap.as_ref(),
+            shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
             shared_gc_worker: &shared_gc_worker,
             worker_static: &mut statics,
@@ -760,7 +760,7 @@ impl Worker {
         engine.restore(
             engine::MemoryContext {
                 heap: &mut heap,
-                shared_heap: shared.heap.as_ref(),
+                shared_heap: runtime_heap.shared.as_ref(),
                 shared_cache: &mut shared_cache,
                 shared_gc_worker: &shared_gc_worker,
                 worker_static: &mut statics,

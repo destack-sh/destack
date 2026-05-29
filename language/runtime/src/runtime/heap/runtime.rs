@@ -5,27 +5,27 @@ use destack_mir as mir;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::heap::{SharedRootEpoch, SharedRootSet, resolve_shared_heap_options};
-use crate::runtime::{SharedCollection, SharedCollector, WorkerId};
+use crate::runtime::{SharedCollector, SharedGc, WorkerId};
 use destack_workspace::RuntimeOptions;
 
-/// Runtime-owned shared heap and collection state.
+/// Runtime-owned heap and GC state.
 #[derive(Debug)]
-pub(crate) struct SharedHeap {
-    /// History-owned allocator backing runtime and worker heaps.
+pub(crate) struct RuntimeHeap {
+    /// World-owned allocator backing runtime and worker heaps.
     pub(crate) allocator: Arc<heap::Allocator>,
     /// Shared heap visible to every worker in this runtime.
-    pub(crate) heap: Arc<heap::SharedHeap>,
+    pub(crate) shared: Arc<heap::SharedHeap>,
     /// Program trace table used by shared heap metadata.
     trace: Arc<mir::TraceTable>,
     /// Shared heap roots published by workers for the active mark cycle.
     roots: Arc<SharedRootSet>,
-    /// Runtime-owned collection state for this shared heap.
-    collection: Arc<SharedCollection>,
-    /// History-owned collection scheduler.
+    /// Runtime-owned GC state for this shared heap.
+    gc: Arc<SharedGc>,
+    /// World-owned GC scheduler.
     collector: Arc<SharedCollector>,
 }
 
-impl SharedHeap {
+impl RuntimeHeap {
     /// Create runtime-owned shared heap state from runtime options.
     pub(crate) fn new(
         allocator: Arc<heap::Allocator>,
@@ -69,7 +69,7 @@ impl SharedHeap {
 
     /// Fork runtime-owned shared heap state for one child world.
     pub(crate) fn fork(&self, collector: Arc<SharedCollector>) -> RuntimeResult<Self> {
-        let shared = Arc::new(self.heap.fork().map_err(Box::<RuntimeError>::from)?);
+        let shared = Arc::new(self.shared.fork().map_err(Box::<RuntimeError>::from)?);
 
         Ok(Self::from_heap(
             self.allocator.clone(),
@@ -81,7 +81,7 @@ impl SharedHeap {
 
     /// Capture the shared heap snapshot.
     pub(crate) fn snapshot(&self) -> RuntimeResult<heap::SharedHeapSnapshot> {
-        self.heap
+        self.shared
             .image()
             .map(|image| image.snapshot())
             .map_err(Box::<RuntimeError>::from)
@@ -94,7 +94,7 @@ impl SharedHeap {
 
     /// Register one shared GC worker.
     pub(crate) fn register_collector_worker(&self) -> heap::SharedGcWorker {
-        self.heap.register_collector_worker()
+        self.shared.register_collector_worker()
     }
 
     /// Return the runtime program trace table.
@@ -102,40 +102,40 @@ impl SharedHeap {
         self.trace.as_ref()
     }
 
-    /// Return whether shared collection work is active.
-    pub(crate) fn collection_busy(&self) -> bool {
-        self.collection.is_busy()
+    /// Return whether shared GC work is active.
+    pub(crate) fn gc_busy(&self) -> bool {
+        self.gc.is_busy()
     }
 
     /// Return one shared collector failure if one was recorded.
-    pub(crate) fn take_collection_failure(&self) -> Option<Box<RuntimeError>> {
-        self.collection.take_failure()
+    pub(crate) fn take_gc_failure(&self) -> Option<Box<RuntimeError>> {
+        self.gc.take_failure()
     }
 
     /// Suspend shared GC and wait for in-flight work to drain.
     pub(crate) fn quiesce(&self) {
-        self.collection.quiesce();
+        self.gc.quiesce();
     }
 
     /// Resume shared GC after one quiescent operation.
     pub(crate) fn resume(&self) {
-        self.collection.resume();
+        self.gc.resume();
 
         if self.collector.mode().is_concurrent()
-            && self.heap.gc_phase() != heap::SharedGcPhase::Idle
+            && self.shared.gc_phase() != heap::SharedGcPhase::Idle
         {
-            self.collector.wake(&self.collection);
+            self.collector.wake(&self.gc);
         }
     }
 
     /// Wake concurrent shared GC work.
     pub(crate) fn wake(&self) {
-        self.collector.wake(&self.collection);
+        self.collector.wake(&self.gc);
     }
 
     /// Return whether the shared heap is currently marking.
     pub(crate) fn is_marking(&self) -> bool {
-        self.heap.gc_phase() == heap::SharedGcPhase::Mark
+        self.shared.gc_phase() == heap::SharedGcPhase::Mark
     }
 
     /// Return the bounded shared local-edge scan work for one worker tick.
@@ -200,7 +200,7 @@ impl SharedHeap {
         self.wake();
     }
 
-    /// Return whether concurrent collection is enabled.
+    /// Return whether concurrent GC is enabled.
     pub(crate) fn is_concurrent(&self) -> bool {
         self.collector.mode().is_concurrent()
     }
@@ -213,14 +213,14 @@ impl SharedHeap {
         trace: Arc<mir::TraceTable>,
     ) -> Self {
         let roots = Arc::new(SharedRootSet::default());
-        let collection = SharedCollection::new(shared.clone(), roots.clone(), trace.clone());
+        let gc = SharedGc::new(shared.clone(), roots.clone(), trace.clone());
 
         Self {
             allocator,
-            heap: shared,
+            shared,
             trace,
             roots,
-            collection,
+            gc,
             collector,
         }
     }

@@ -8,7 +8,7 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Host;
 use crate::host::core::{HostQueue, poll_host_events};
 use crate::host::poller::HostPoller;
-use crate::runtime::SharedHeap;
+use crate::runtime::RuntimeHeap;
 use crate::runtime::engine::{Continuation, Entry, Outcome};
 use crate::runtime::scheduler::{Microtask, Task, TaskId, Wake};
 use crate::runtime::time::{ClockSource, Nanos};
@@ -16,8 +16,6 @@ use crate::world::WorldState;
 use destack_engine as engine;
 use destack_heap as heap;
 
-/// The default maximum number of microtasks drained in one turn.
-const DEFAULT_MICROTASK_BUDGET: usize = usize::MAX;
 /// The default maximum nested microtask depth.
 const DEFAULT_MAX_MICROTASK_DEPTH: usize = usize::MAX;
 
@@ -49,7 +47,7 @@ impl Worker {
     pub(crate) fn run_entrypoint(
         &mut self,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        shared: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -72,7 +70,7 @@ impl Worker {
             runtime: NonNull::from(&mut call_context).cast(),
             memory: engine::MemoryContext {
                 heap,
-                shared_heap: shared.heap.as_ref(),
+                shared_heap: shared.shared.as_ref(),
                 shared_cache,
                 shared_gc_worker,
                 worker_static: statics,
@@ -116,7 +114,7 @@ impl Worker {
     pub(crate) fn run_event_loop(
         &mut self,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        shared: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -186,7 +184,7 @@ impl Worker {
     pub(crate) fn tick(
         &mut self,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        shared: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -210,7 +208,7 @@ impl Worker {
     }
 
     /// Run cooperative GC work at one worker safepoint.
-    fn collect_at_safepoint(&mut self, shared: &SharedHeap, is_idle: bool) -> RuntimeResult<bool> {
+    fn collect_at_safepoint(&mut self, shared: &RuntimeHeap, is_idle: bool) -> RuntimeResult<bool> {
         let prioritize_shared = shared.is_terminating()
             || shared.pending_root_epoch(self.id).is_some()
             || (shared.is_marking() && !self.shared_edge_scan_idle());
@@ -239,7 +237,7 @@ impl Worker {
     }
 
     /// Run one GC safepoint step with shared heap work first.
-    fn collect_shared_priority_step(&mut self, shared: &SharedHeap) -> RuntimeResult<bool> {
+    fn collect_shared_priority_step(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
         // direct shared roots
         if self.assist_shared_root_scan(shared)? {
             return Ok(true);
@@ -264,7 +262,7 @@ impl Worker {
     }
 
     /// Run one GC safepoint step with local heap work first.
-    fn collect_local_priority_step(&mut self, shared: &SharedHeap) -> RuntimeResult<bool> {
+    fn collect_local_priority_step(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
         // local heap work
         if self.collect_local_step()?.made_progress() {
             return Ok(true);
@@ -289,7 +287,7 @@ impl Worker {
     }
 
     /// Publish one pending direct shared-root scan from this worker safepoint.
-    fn assist_shared_root_scan(&mut self, shared: &SharedHeap) -> RuntimeResult<bool> {
+    fn assist_shared_root_scan(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
         // active pass
         let Some(epoch) = shared.pending_root_epoch(self.id) else {
             return Ok(false);
@@ -303,7 +301,7 @@ impl Worker {
     }
 
     /// Assist one active shared reference pass from this worker safepoint.
-    fn assist_shared_edge_scan(&mut self, shared: &SharedHeap) -> RuntimeResult<bool> {
+    fn assist_shared_edge_scan(&mut self, shared: &RuntimeHeap) -> RuntimeResult<bool> {
         if !shared.is_marking() || self.shared_edge_scan_idle() {
             return Ok(false);
         }
@@ -326,14 +324,14 @@ impl Worker {
     }
 
     /// Assist one active shared collection from this worker safepoint.
-    fn assist_shared_gc(&mut self, runtime_heap: &SharedHeap) -> RuntimeResult<bool> {
-        let shared = runtime_heap.heap.as_ref();
+    fn assist_shared_gc(&mut self, runtime_shared: &RuntimeHeap) -> RuntimeResult<bool> {
+        let shared = runtime_shared.shared.as_ref();
         let budget_bytes = shared.take_assist_budget_bytes();
         if budget_bytes == 0 || shared.gc_phase() == heap::SharedGcPhase::Idle {
             return Ok(false);
         }
 
-        let shared_roots = runtime_heap.roots();
+        let shared_roots = runtime_shared.roots();
         let roots = shared_roots.roots_snapshot();
         let roots_complete = shared_roots.roots_complete();
         let progress = shared
@@ -342,7 +340,7 @@ impl Worker {
                 roots.as_ref(),
                 roots_complete,
                 budget_bytes,
-                runtime_heap.trace_table(),
+                runtime_shared.trace_table(),
             )
             .map_err(Box::<RuntimeError>::from)?;
 
@@ -354,7 +352,7 @@ impl Worker {
     fn tick_loop(
         &mut self,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        shared: &RuntimeHeap,
         statics: &engine::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -364,13 +362,9 @@ impl Worker {
         let mut progressed = false;
         // drain microtasks before selecting other work
         if self.event_loop.has_microtasks() {
-            let (drained, budget_exhausted) =
-                self.drain_microtasks(world, shared, statics, host, host_queue)?;
+            let drained = self.drain_microtasks(world, shared, statics, host, host_queue)?;
             if drained > 0 {
                 progressed = true;
-            }
-            if budget_exhausted {
-                return Ok((progressed, None));
             }
         }
 
@@ -447,7 +441,7 @@ impl Worker {
     fn execute_dequeued_task(
         &mut self,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        shared: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -499,7 +493,7 @@ impl Worker {
     fn execute_microtask(
         &mut self,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        shared: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -538,25 +532,18 @@ impl Worker {
         }
     }
 
-    /// Drain all pending microtasks. Returns (drained_microtasks, budget_exhausted)
+    /// Drain all pending microtasks.
     fn drain_microtasks(
         &mut self,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        shared: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
-    ) -> RuntimeResult<(usize, bool)> {
-        // drain microtasks until the queue or budget is exhausted
+    ) -> RuntimeResult<usize> {
+        // drain microtasks until the queue is exhausted
         let mut num_drained_microtasks = 0usize;
-        let mut budget_exhausted = false;
         loop {
-            // stop when the configured budget is consumed
-            if num_drained_microtasks >= DEFAULT_MICROTASK_BUDGET {
-                budget_exhausted = self.event_loop.has_microtasks();
-                break;
-            }
-
             let Some(microtask) = self.event_loop.pop_microtask() else {
                 break;
             };
@@ -573,14 +560,14 @@ impl Worker {
             num_drained_microtasks = num_drained_microtasks.saturating_add(1);
         }
 
-        Ok((num_drained_microtasks, budget_exhausted))
+        Ok(num_drained_microtasks)
     }
 
     /// Resume one engine continuation with one runtime value.
     fn execute_runnable(
         &mut self,
         world: &mut WorldState,
-        shared: &SharedHeap,
+        shared: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
         host: &dyn Host,
         host_queue: &HostQueue,
@@ -600,7 +587,7 @@ impl Worker {
             runtime: NonNull::from(&mut call_context).cast(),
             memory: engine::MemoryContext {
                 heap,
-                shared_heap: shared.heap.as_ref(),
+                shared_heap: shared.shared.as_ref(),
                 shared_cache,
                 shared_gc_worker,
                 worker_static: statics,

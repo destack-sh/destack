@@ -5,7 +5,7 @@ use crate::host::resource::ResourceRebinders;
 use crate::host::{Host, HostEvent};
 use crate::runtime::SharedCollector;
 use crate::runtime::engine::{Engine, Entry};
-use crate::runtime::heap::SharedHeap;
+use crate::runtime::heap::RuntimeHeap;
 use crate::runtime::scheduler::{
     HostWake, Readiness, ResourceWake, ScheduledTimer, TickResult, Wake,
 };
@@ -28,8 +28,8 @@ pub struct Runtime {
     pub(crate) environment: Arc<Environment>,
     /// Runtime options captured for worker defaults and reconstruction.
     options: Arc<RuntimeOptions>,
-    /// Runtime-owned shared heap and collection state.
-    pub(crate) shared: SharedHeap,
+    /// Runtime-owned shared heap and GC state.
+    pub(crate) heap: RuntimeHeap,
     /// Runtime-owned static byte space.
     statics: engine::StaticSpace,
     /// All active workers keyed by identifier.
@@ -63,7 +63,7 @@ impl std::fmt::Debug for Runtime {
             .field("runtime_id", &self.id)
             .field("environment", &self.environment)
             .field("options", &self.options)
-            .field("shared", &self.shared)
+            .field("heap", &self.heap)
             .field("workers", &self.workers)
             .field("default_worker_id", &self.default_worker_id)
             .field("next_worker_cursor", &self.next_worker_cursor)
@@ -84,7 +84,7 @@ impl Runtime {
         let environment = environment.into();
         let engine = engine.into();
         let trace_table = engine.trace_table()?;
-        let shared = SharedHeap::new(allocator, collector, options, trace_table)?;
+        let shared = RuntimeHeap::new(allocator, collector, options, trace_table)?;
         let statics = engine::StaticSpace::empty();
         let default_worker = Worker::new_in_world(
             environment.clone(),
@@ -153,7 +153,7 @@ impl Runtime {
 
     /// Publish worker-local shared heap buffers across all workers.
     pub(crate) fn flush_shared_caches(&mut self) {
-        let shared = self.shared.heap.as_ref();
+        let shared = self.heap.shared.as_ref();
 
         for worker in self.workers.values_mut() {
             worker.flush_shared_cache(shared);
@@ -182,10 +182,10 @@ impl Runtime {
     pub(crate) fn with_worker_context<R>(
         &mut self,
         worker_id: WorkerId,
-        callback: impl FnOnce(&SharedHeap, &engine::StaticSpace, &mut Worker) -> R,
+        callback: impl FnOnce(&RuntimeHeap, &engine::StaticSpace, &mut Worker) -> R,
     ) -> RuntimeResult<R> {
         let Runtime {
-            shared,
+            heap,
             statics,
             workers,
             ..
@@ -195,7 +195,7 @@ impl Runtime {
             .map(Box::as_mut)
             .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
 
-        Ok(callback(shared, statics, worker))
+        Ok(callback(heap, statics, worker))
     }
 
     /// Spawn one additional worker in this runtime.
@@ -210,7 +210,7 @@ impl Runtime {
             self.environment.clone(),
             &self.options,
             world,
-            &self.shared,
+            &self.heap,
             &self.statics,
             self.id,
             worker_options,
@@ -261,7 +261,7 @@ impl Runtime {
             .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
         worker.run_entrypoint(
             world,
-            &self.shared,
+            &self.heap,
             &self.statics,
             host,
             host_queue,
@@ -285,7 +285,7 @@ impl Runtime {
         } else {
             self.next_worker_cursor % worker_count
         };
-        let shared = &self.shared;
+        let shared = &self.heap;
         let statics = &self.statics;
         let workers = &mut self.workers;
 
@@ -312,7 +312,7 @@ impl Runtime {
     fn new(
         environment: Arc<Environment>,
         options: &RuntimeOptions,
-        shared: SharedHeap,
+        shared: RuntimeHeap,
         runtime_static: engine::StaticSpace,
         default_worker: Worker,
     ) -> RuntimeResult<Self> {
@@ -329,7 +329,7 @@ impl Runtime {
             id: runtime_id,
             environment,
             options,
-            shared,
+            heap: shared,
             statics: runtime_static,
             workers,
             default_worker_id,
@@ -349,7 +349,7 @@ impl Runtime {
         }
 
         // active shared mark cycles must see the new worker roots
-        if self.shared.is_marking() {
+        if self.heap.is_marking() {
             self.join_mark(worker_id)?;
         }
 
@@ -363,7 +363,7 @@ impl Runtime {
             .ok_or(RuntimeError::worker_not_found(worker_id.0))?;
 
         worker.start_shared_edge_scan();
-        self.shared.join_mark(worker_id);
+        self.heap.join_mark(worker_id);
 
         Ok(())
     }
@@ -412,7 +412,7 @@ impl Runtime {
         poller_events: &[PollerEvent],
     ) -> RuntimeResult<bool> {
         let mut handled_any = false;
-        let is_marking_shared = self.shared.is_marking();
+        let is_marking_shared = self.heap.is_marking();
 
         // host events
         for event in host_events {
@@ -439,7 +439,7 @@ impl Runtime {
         is_marking_shared: bool,
     ) -> RuntimeResult<bool> {
         let kind = event.kind();
-        let shared = &self.shared;
+        let shared = &self.heap;
         let mut handled_any = false;
 
         for (worker_id, worker) in &mut self.workers {
@@ -470,7 +470,7 @@ impl Runtime {
         is_marking_shared: bool,
     ) -> RuntimeResult<bool> {
         let readiness = Readiness::from_poller_mask(event.mask);
-        let shared = &self.shared;
+        let shared = &self.heap;
         let mut handled_any = false;
 
         for (worker_id, worker) in &mut self.workers {
@@ -522,6 +522,9 @@ impl Runtime {
         &mut self,
         mode: CaptureMode,
     ) -> RuntimeResult<(Arc<RuntimeImage>, BTreeMap<WorkerId, Arc<WorkerImage>>)> {
+        // publish worker-local shared allocations before capturing the shared heap
+        self.flush_shared_caches();
+
         // shared worker options
         let mut interned_options = vec![self.options.clone()];
 
@@ -530,7 +533,7 @@ impl Runtime {
             default_worker_id: self.default_worker_id,
             environment: self.environment.clone(),
             options: self.options.clone(),
-            shared_heap: self.shared.snapshot()?,
+            shared_heap: self.heap.snapshot()?,
             statics: self.statics.clone(),
             next_worker_cursor: self.next_worker_cursor,
         });
@@ -538,7 +541,7 @@ impl Runtime {
         // worker images
         let mut worker_images = BTreeMap::new();
         for worker in self.workers.values_mut() {
-            let mut image = worker.capture_image(mode, &self.shared, &self.statics)?;
+            let mut image = worker.capture_image(mode, &self.heap, &self.statics)?;
 
             // collapse one shared options payload across matching workers
             if let Some(options) = image.options.explicit_options() {
@@ -571,7 +574,7 @@ impl Runtime {
             .get_mut(&worker_id)
             .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
 
-        worker.capture_image(mode, &self.shared, &self.statics)
+        worker.capture_image(mode, &self.heap, &self.statics)
     }
 
     /// Fork one live runtime when all owned workers are quiescent.
@@ -580,7 +583,7 @@ impl Runtime {
         execution_mode: ExecutionMode,
         collector: Arc<SharedCollector>,
     ) -> RuntimeResult<Option<Self>> {
-        let shared = self.shared.fork(collector)?;
+        let shared = self.heap.fork(collector)?;
 
         // fork each owned worker first
         let mut workers = BTreeMap::new();
@@ -598,7 +601,7 @@ impl Runtime {
             id: self.id,
             environment: self.environment.clone(),
             options: self.options.clone(),
-            shared,
+            heap: shared,
             statics: self.statics.clone(),
             workers,
             default_worker_id: self.default_worker_id,
@@ -626,7 +629,7 @@ impl Runtime {
         };
         let first_engine = Engine::from_image(&first_worker_image.engine_image)?;
         let trace_table = first_engine.trace_table()?;
-        let shared = SharedHeap::from_snapshot(
+        let shared = RuntimeHeap::from_snapshot(
             &image.shared_heap,
             &image.options,
             allocator,
@@ -669,7 +672,7 @@ impl Runtime {
             id: runtime_id,
             environment,
             options: image.options.clone(),
-            shared,
+            heap: shared,
             statics,
             workers,
             default_worker_id: image.default_worker_id,
@@ -707,10 +710,11 @@ mod tests {
         compile_target_host,
     };
     use crate::runtime::tests::{TestEngine, TestWorldRuntime, start_worker_continuation};
-    use crate::runtime::{SharedHeap, TickResult, Worker, WorkerOptions};
+    use crate::runtime::{RuntimeHeap, TickResult, Worker, WorkerOptions};
     use crate::world::World;
+    use destack_core::CaptureMode;
     use destack_engine as engine;
-    use destack_heap::{AllocationShape, Payload};
+    use destack_heap::AllocationShape;
     use destack_mir::{TraceMap, TraceTable};
     use destack_workspace::{Environment, RuntimeOptions};
 
@@ -721,26 +725,17 @@ mod tests {
     ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
         let trace_map = TraceMap::Empty;
         let shape = AllocationShape::new(bytes.len(), 1, None, &trace_map);
-        let layout = heap.allocation_plan(shape);
         let mut allocator = heap.allocation_cache();
         let worker = heap.register_collector_worker();
 
-        heap.allocate(
-            &worker,
-            &mut allocator,
-            &layout,
-            Payload::Bytes(bytes),
-            &TraceTable::new(),
-        )
+        heap.allocate_dynamic_bytes(&worker, &mut allocator, shape, bytes, &TraceTable::new())
     }
 
     /// Build runtime-owned shared heap state for one test world.
-    fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> SharedHeap {
-        let history = world.history.read();
-
-        SharedHeap::new(
-            history.allocator.clone(),
-            history.collector.clone(),
+    fn runtime_shared_heap(world: &World, options: &RuntimeOptions) -> RuntimeHeap {
+        RuntimeHeap::new(
+            world.memory.allocator.clone(),
+            world.memory.shared_collector.clone(),
             options,
             Arc::new(TraceTable::new()),
         )
@@ -785,7 +780,7 @@ mod tests {
         )
         .expect("worker should construct");
         let worker_id = worker.id;
-        let shared_root = allocate_shared_bytes(shared.heap.as_ref(), &[0xA1])
+        let shared_root = allocate_shared_bytes(shared.shared.as_ref(), &[0xA1])
             .expect("shared allocation should succeed");
         let host = compile_target_host(None);
         let host_queue = HostQueue::new();
@@ -821,25 +816,19 @@ mod tests {
         .expect("runtime should construct");
 
         // active shared mark
-        runtime.shared.heap.request_gc();
+        runtime.heap.shared.request_gc();
         runtime
             .tick_shared_gc()
             .expect("shared gc should start through runtime roots");
 
-        assert!(runtime.shared.is_marking());
+        assert!(runtime.heap.is_marking());
 
         // initial publication drains before events mutate roots
         let outcome = runtime
             .tick(world_state, host.as_ref(), &host_queue)
             .expect("runtime tick should publish initial roots");
         assert_eq!(outcome, TickResult::Progress);
-        assert!(
-            runtime
-                .shared
-                .roots()
-                .pending_root_epoch(worker_id)
-                .is_none()
-        );
+        assert!(runtime.heap.roots().pending_root_epoch(worker_id).is_none());
 
         // events should requeue the touched worker even before it ticks
         let handled = runtime
@@ -854,13 +843,58 @@ mod tests {
             .expect("event delivery should succeed");
 
         assert!(handled);
-        assert!(
-            runtime
-                .shared
-                .roots()
-                .pending_root_epoch(worker_id)
-                .is_some()
-        );
+        assert!(runtime.heap.roots().pending_root_epoch(worker_id).is_some());
+    }
+
+    /// Capture publishes worker-local shared allocation caches before imaging shared heap.
+    #[test]
+    fn test_capture_image_flushes_worker_shared_cache() {
+        let options = RuntimeOptions::default();
+        let mut world =
+            World::new(&options, Environment::default()).expect("world should construct");
+        let shared = runtime_shared_heap(&world, &options);
+        let world_state = &mut world.state;
+        let mut worker = Worker::new_in_world(
+            destack_workspace::Environment::default(),
+            &options,
+            world_state,
+            &shared,
+            &engine::StaticSpace::empty(),
+            WorkerOptions::default(),
+            TestEngine::default(),
+        )
+        .expect("worker should construct");
+        let trace_map = TraceMap::Empty;
+        let shape = AllocationShape::new(16, 1, None, &trace_map);
+
+        // allocate through the worker cache without reaching a normal flush point
+        let _reference = shared
+            .shared
+            .allocate_dynamic_zeroed(
+                &worker.shared_gc_worker,
+                &mut worker.shared_cache,
+                shape,
+                shared.trace_table(),
+            )
+            .expect("shared allocation should succeed");
+
+        assert_eq!(shared.shared.usage().heap.allocation_count, 0);
+
+        let mut runtime = Runtime::new(
+            Arc::new(destack_workspace::Environment::default()),
+            &options,
+            shared,
+            engine::StaticSpace::empty(),
+            worker,
+        )
+        .expect("runtime should construct");
+
+        // runtime capture must materialize the worker-local shared run
+        let _image = runtime
+            .capture_image(CaptureMode::Suspend)
+            .expect("runtime image should capture");
+
+        assert_eq!(runtime.heap.shared.usage().heap.allocation_count, 1);
     }
 
     /// Publish direct shared roots from the owning worker checkpoint during marking.
@@ -883,7 +917,7 @@ mod tests {
         )
         .expect("worker should construct");
         let worker_id = worker.id;
-        let shared_root = allocate_shared_bytes(shared.heap.as_ref(), &[0xB2])
+        let shared_root = allocate_shared_bytes(shared.shared.as_ref(), &[0xB2])
             .expect("shared allocation should succeed");
         let host = compile_target_host(None);
         let host_queue = HostQueue::new();
@@ -919,19 +953,13 @@ mod tests {
         .expect("runtime should construct");
 
         // active shared mark
-        runtime.shared.heap.request_gc();
+        runtime.heap.shared.request_gc();
         runtime
             .tick_shared_gc()
             .expect("shared gc should start through runtime roots");
-        runtime.shared.queue_root_scan(worker_id);
+        runtime.heap.queue_root_scan(worker_id);
 
-        assert!(
-            runtime
-                .shared
-                .roots()
-                .pending_root_epoch(worker_id)
-                .is_some()
-        );
+        assert!(runtime.heap.roots().pending_root_epoch(worker_id).is_some());
 
         // one runtime tick should let the owning worker publish its direct roots
         let outcome = runtime
@@ -939,15 +967,9 @@ mod tests {
             .expect("runtime tick should succeed");
 
         assert_eq!(outcome, TickResult::Progress);
-        assert!(
-            runtime
-                .shared
-                .roots()
-                .pending_root_epoch(worker_id)
-                .is_none()
-        );
+        assert!(runtime.heap.roots().pending_root_epoch(worker_id).is_none());
         assert_eq!(
-            runtime.shared.roots().roots_snapshot().as_ref(),
+            runtime.heap.roots().roots_snapshot().as_ref(),
             &[shared_root]
         );
     }

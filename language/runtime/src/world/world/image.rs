@@ -279,10 +279,8 @@ impl World {
                     .filter(|(worker_id, _)| image.runtime_owns_worker(*runtime_id, **worker_id))
                     .map(|(worker_id, worker_image)| (*worker_id, worker_image.clone()))
                     .collect::<BTreeMap<_, _>>();
-                let (allocator, collector) = {
-                    let history = self.history.read();
-                    (history.allocator.clone(), history.collector.clone())
-                };
+                let allocator = self.memory.allocator.clone();
+                let collector = self.memory.shared_collector.clone();
 
                 let runtime = Runtime::from_image(
                     &mut self.state,

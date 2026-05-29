@@ -3,8 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 use super::builtin::{
-    builtin_edge_kinds, builtin_entity_kinds, builtin_resource_entity_kinds, is_builtin_edge_kind,
-    is_builtin_entity_kind,
+    BUILTIN_EDGE_KINDS, BUILTIN_ENTITY_KINDS, is_builtin_edge_kind, is_builtin_entity_kind,
 };
 use super::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
@@ -15,34 +14,16 @@ use crate::world::Resource;
 use crate::world::scenario::{base_edge_faults, base_entity_faults};
 
 /// World topology graph and kind catalog.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct Topology {
-    /// Registered entity kinds by kind id.
+    /// User-defined entity kinds by kind id.
     entity_kinds: BTreeMap<EntityKind, EntityDefinition>,
-    /// Registered edge kinds by kind id.
+    /// User-defined edge kinds by kind id.
     edge_kinds: BTreeMap<EdgeKind, EdgeDefinition>,
     /// Topology entities by entity identifier.
     entities: BTreeMap<EntityId, Entity>,
     /// Topology edges by edge identifier.
     edges: BTreeMap<EdgeId, Edge>,
-}
-
-impl Default for Topology {
-    fn default() -> Self {
-        Self {
-            entity_kinds: builtin_entity_kinds()
-                .into_iter()
-                .chain(builtin_resource_entity_kinds())
-                .map(|kind| (kind.kind.clone(), kind))
-                .collect(),
-            edge_kinds: builtin_edge_kinds()
-                .into_iter()
-                .map(|kind| (kind.kind.clone(), kind))
-                .collect(),
-            entities: BTreeMap::new(),
-            edges: BTreeMap::new(),
-        }
-    }
 }
 
 impl Topology {
@@ -52,25 +33,43 @@ impl Topology {
     }
 
     /// Return all registered entity kinds.
-    pub(crate) fn entity_kinds(&self) -> &BTreeMap<EntityKind, EntityDefinition> {
-        &self.entity_kinds
+    pub(crate) fn entity_kinds(&self) -> BTreeMap<EntityKind, EntityDefinition> {
+        let mut kinds = BUILTIN_ENTITY_KINDS.clone();
+        kinds.extend(self.entity_kinds.clone());
+
+        kinds
     }
 
     /// Return all registered edge kinds.
-    pub(crate) fn edge_kinds(&self) -> &BTreeMap<EdgeKind, EdgeDefinition> {
-        &self.edge_kinds
+    pub(crate) fn edge_kinds(&self) -> BTreeMap<EdgeKind, EdgeDefinition> {
+        let mut kinds = BUILTIN_EDGE_KINDS.clone();
+        kinds.extend(self.edge_kinds.clone());
+
+        kinds
+    }
+
+    /// Return one registered entity kind by kind id.
+    pub(crate) fn entity_kind(&self, kind: &str) -> Option<&EntityDefinition> {
+        self.entity_kinds
+            .get(kind)
+            .or_else(|| BUILTIN_ENTITY_KINDS.get(kind))
+    }
+
+    /// Return one registered edge kind by kind id.
+    pub(crate) fn edge_kind(&self, kind: &str) -> Option<&EdgeDefinition> {
+        self.edge_kinds
+            .get(kind)
+            .or_else(|| BUILTIN_EDGE_KINDS.get(kind))
     }
 
     /// Return one entity kind supported fault set by kind id.
     pub(crate) fn entity_kind_supported_faults(&self, kind: &str) -> Option<&BTreeSet<String>> {
-        self.entity_kinds
-            .get(kind)
-            .map(|kind| &kind.supported_faults)
+        self.entity_kind(kind).map(|kind| &kind.supported_faults)
     }
 
     /// Return one edge kind supported fault set by kind id.
     pub(crate) fn edge_kind_supported_faults(&self, kind: &str) -> Option<&BTreeSet<String>> {
-        self.edge_kinds.get(kind).map(|kind| &kind.supported_faults)
+        self.edge_kind(kind).map(|kind| &kind.supported_faults)
     }
 
     /// Return all topology entities.
@@ -288,7 +287,7 @@ impl Topology {
         }
 
         // reject duplicate kind identifiers
-        if self.entity_kinds.contains_key(kind.kind.as_str()) {
+        if self.has_entity_kind(kind.kind.as_str()) {
             return Err(TopologyError::DuplicateEntityKind {
                 kind: kind.kind.clone(),
             });
@@ -313,7 +312,7 @@ impl Topology {
         }
 
         // reject duplicate kind identifiers
-        if self.edge_kinds.contains_key(kind.kind.as_str()) {
+        if self.has_edge_kind(kind.kind.as_str()) {
             return Err(TopologyError::DuplicateEdgeKind {
                 kind: kind.kind.clone(),
             });
@@ -408,7 +407,7 @@ impl Topology {
 
     /// Expect one entity kind to be defined.
     fn expect_entity_kind(&self, kind_id: &str) -> TopologyResult<()> {
-        if self.entity_kinds.contains_key(kind_id) {
+        if self.has_entity_kind(kind_id) {
             return Ok(());
         }
 
@@ -419,7 +418,7 @@ impl Topology {
 
     /// Expect one edge kind to be defined.
     fn expect_edge_kind(&self, kind_id: &str) -> TopologyResult<()> {
-        if self.edge_kinds.contains_key(kind_id) {
+        if self.has_edge_kind(kind_id) {
             return Ok(());
         }
 
@@ -438,6 +437,16 @@ impl Topology {
             entity_id: EntityId::from(entity_id),
             role,
         })
+    }
+
+    /// Return whether one entity kind is registered.
+    fn has_entity_kind(&self, kind_id: &str) -> bool {
+        self.entity_kinds.contains_key(kind_id) || BUILTIN_ENTITY_KINDS.contains_key(kind_id)
+    }
+
+    /// Return whether one edge kind is registered.
+    fn has_edge_kind(&self, kind_id: &str) -> bool {
+        self.edge_kinds.contains_key(kind_id) || BUILTIN_EDGE_KINDS.contains_key(kind_id)
     }
 
     /// Remove all incident edges for one entity and return the number removed.
