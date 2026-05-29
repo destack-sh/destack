@@ -749,18 +749,16 @@ impl From<heap::HeapError> for Error {
                 used_bytes,
                 max_bytes,
             } => Self::heap_limit_exceeded(region.to_string(), used_bytes, max_bytes),
-            heap::HeapError::InvalidRawPointer { .. } => {
-                Self::invalid_reference(ReferenceKind::Raw)
-            }
-            heap::HeapError::InvalidSharedRawPointer { .. } => {
-                Self::invalid_reference(ReferenceKind::SharedRaw)
-            }
-            heap::HeapError::InvalidHeapReference { .. } => {
-                Self::invalid_reference(ReferenceKind::Heap)
-            }
-            heap::HeapError::InvalidSharedHeapReference { .. } => {
-                Self::invalid_reference(ReferenceKind::SharedHeap)
-            }
+            heap::HeapError::InvalidReference { kind, .. } => match kind {
+                heap::HeapReferenceKind::Heap => Self::invalid_reference(ReferenceKind::Heap),
+                heap::HeapReferenceKind::Raw => Self::invalid_reference(ReferenceKind::Raw),
+                heap::HeapReferenceKind::SharedHeap => {
+                    Self::invalid_reference(ReferenceKind::SharedHeap)
+                }
+                heap::HeapReferenceKind::SharedRaw => {
+                    Self::invalid_reference(ReferenceKind::SharedRaw)
+                }
+            },
             error => Self::internal(error.to_string()),
         }
     }

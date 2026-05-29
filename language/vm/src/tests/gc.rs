@@ -1,7 +1,7 @@
 use crate::Word;
 use crate::tests::{create_test_heap, trace_table};
 use destack_heap::{
-    AllocationShape, Heap, HeapError, HeapReference, HeapResult, Payload, RootSlot,
+    AllocationShape, Heap, HeapAllocationError, HeapError, HeapReference, HeapResult, RootSlot,
     visit_heap_references,
 };
 use destack_mir::TraceMap;
@@ -10,9 +10,8 @@ use destack_mir::TraceMap;
 fn allocate(heap: &mut Heap) -> HeapReference {
     let trace_map = TraceMap::empty();
     let shape = AllocationShape::new(1, 1, None, &trace_map);
-    let layout = heap.allocation_plan(shape);
 
-    heap.allocate(&layout, Payload::Bytes(&[0]))
+    heap.allocate_dynamic_bytes(shape, &[0])
         .expect("heap allocation should succeed")
 }
 
@@ -37,9 +36,8 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Word>) -> HeapReference {
         }
     };
     let shape = AllocationShape::new(bytes.len(), Word::BYTE_LEN, None, &trace_map);
-    let layout = heap.allocation_plan(shape);
 
-    heap.allocate(&layout, Payload::Bytes(&bytes))
+    heap.allocate_dynamic_bytes(shape, &bytes)
         .expect("heap allocation should succeed")
 }
 
@@ -106,11 +104,13 @@ fn test_reject_zero_byte_heap_allocation() {
     let mut heap = create_test_heap();
     let trace_map = TraceMap::empty();
     let shape = AllocationShape::new(0, 1, None, &trace_map);
-    let layout = heap.allocation_plan(shape);
 
-    let result = heap.allocate(&layout, Payload::Zeroed);
+    let result = heap.allocate_dynamic_zeroed(shape);
 
-    assert_eq!(result, Err(HeapError::ZeroSizeAllocation));
+    assert_eq!(
+        result,
+        Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize))
+    );
 }
 
 /// Garbage collection removes cells not reachable from roots.
@@ -192,12 +192,11 @@ fn test_gc_handles_cycles() {
         shared_offsets: Vec::new().into_boxed_slice(),
     };
     let shape = AllocationShape::new(Word::BYTE_LEN, Word::BYTE_LEN, None, &trace_map);
-    let layout = heap.allocation_plan(shape);
     let a = heap
-        .allocate(&layout, Payload::Zeroed)
+        .allocate_dynamic_zeroed(shape)
         .expect("heap allocation should succeed");
     let b = heap
-        .allocate(&layout, Payload::Zeroed)
+        .allocate_dynamic_zeroed(shape)
         .expect("heap allocation should succeed");
 
     write_cell_bytes(&mut heap, a, &Word::heap_reference(b).to_byte_array());
@@ -329,10 +328,7 @@ fn test_gc_invalid_root_fails() {
         .collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect_err("invalid roots should fail collection");
 
-    assert_eq!(
-        error,
-        HeapError::InvalidHeapReference { reference: invalid }
-    );
+    assert_eq!(error, HeapError::invalid_heap_reference(invalid));
     assert_eq!(allocation_count(&heap), 1);
     assert!(contains(&heap, valid));
 }

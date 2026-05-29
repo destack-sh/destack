@@ -165,10 +165,9 @@ impl TestIsolate {
             .isolate
             .allocation_shape(layout_id)
             .unwrap_or_else(|error| panic!("failed to resolve allocation shape: {error}"));
-        let layout = self.heap.allocation_plan(shape);
         let reference = self
             .heap
-            .allocate_bytes(&layout, &bytes)
+            .allocate_dynamic_bytes(shape, &bytes)
             .unwrap_or_else(|error| panic!("failed to allocate materialized value: {error}"));
 
         Word::heap_reference(reference)
@@ -550,7 +549,7 @@ type Box {
 function sumBox(v0: int32): int32 {
 b0(v0: int32):
     v1: Box = struct Box (v0)
-    v2: ref<Box, managed, readonly> = new Box
+    v2: ref<Box, managed, readonly> = new.zeroed Box
     store v2, v1
     v3: ref<int32, managed, readonly> = field.address v2, 0
     v4: int32 = load v3
@@ -575,7 +574,7 @@ type Box {
 function readValueClass(v0: int32): int32 {
 b0(v0: int32):
     v1: Box = struct Box (v0)
-    v2: ref<Box, managed, readonly> = new Box
+    v2: ref<Box, managed, readonly> = new.zeroed Box
     store v2, v1
     v3: int32 = call Box.get(v2): (ref<Box, managed, readonly>) -> int32
     return v3
@@ -611,7 +610,7 @@ b0:
 function run(): int32 {
 b0:
     v0: Fn = function.address target
-    v1: ref<Holder, managed, readonly> = new Holder
+    v1: ref<Holder, managed, readonly> = new.zeroed Holder
     v2: Holder = struct Holder (v0)
     store v1, v2
     v3: ref<Fn, managed, readonly> = field.address v1, 0
@@ -667,7 +666,7 @@ b0:
 
 function GreeterImpl.constructor(v0: int32): ref<GreeterImpl, managed, readonly> {
 b0(v0: int32):
-    v1: ref<GreeterImpl, managed, readonly> = new GreeterImpl
+    v1: ref<GreeterImpl, managed, readonly> = new.zeroed GreeterImpl
     v2: ref<[ref<void, raw, readonly, space(local), nullable>; 3], raw, readonly, space(local)> = global.address GreeterImpl#vtable
     v3: ref<void, raw, readonly, space(local)> = cast.bit v2 -> ref<void, raw, readonly, space(local)>
     v4: int32 = 0int32

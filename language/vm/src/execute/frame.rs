@@ -265,10 +265,6 @@ fn store_argument_bytes(
     }
 
     let reference = value.as_shared_heap_reference();
-    if !machine.is_shared_heap_live(reference) {
-        machine.flush_shared_cache();
-    }
-
     if machine.is_shared_heap_live(reference) {
         let address = machine.shared_heap_address(reference, 0);
 
@@ -461,18 +457,18 @@ pub(crate) fn materialize_value(
 
             match boundary_pointer_class(program, value.ty) {
                 PointerClass::Heap => {
-                    let layout = heap.allocation_plan(shape);
-                    let reference = heap.allocate_bytes(&layout, &bytes).map_err(Error::from)?;
+                    let reference = heap
+                        .allocate_dynamic_bytes(shape, &bytes)
+                        .map_err(Error::from)?;
 
                     Ok(engine::Value::HeapReference(reference))
                 }
                 PointerClass::SharedHeap => {
-                    let layout = shared.allocation_plan(shape);
                     let reference = shared
-                        .allocate_bytes(
+                        .allocate_dynamic_bytes(
                             shared_gc,
                             shared_cache,
-                            &layout,
+                            shape,
                             &bytes,
                             program.trace_table(),
                         )

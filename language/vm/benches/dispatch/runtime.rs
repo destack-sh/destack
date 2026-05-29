@@ -105,6 +105,15 @@ impl Runtime {
             .function_id_by_name(name)
             .expect("benchmark entry should exist")
     }
+
+    /// Fork the benchmark heap with the isolate trace table.
+    pub(crate) fn fork_heap(&mut self) -> Heap {
+        let trace_table = self.isolate.trace_table();
+
+        self.heap
+            .fork(trace_table.as_ref())
+            .expect("benchmark heap should fork")
+    }
 }
 
 /// Create one worker heap for benchmark execution.
