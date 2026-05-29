@@ -10,12 +10,12 @@ use crate::world::{World, WorldImage};
 
 use super::{BranchId, ImageId};
 
-/// Revision metadata for one world history.
+/// Revision metadata for one world lineage.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Revision {
     /// The branch that owns this revision.
     pub branch_id: BranchId,
-    /// The parent revision in this branch history.
+    /// The parent revision in this branch lineage.
     pub parent_revision_id: Option<RevisionId>,
     /// The trace sequence captured by this revision.
     pub sequence: TraceSequence,
@@ -29,7 +29,7 @@ pub struct Revision {
     pub labels: BTreeMap<String, String>,
 }
 
-/// Revision identifier for one world history.
+/// Revision identifier for one world lineage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct RevisionId(u128);
 
@@ -47,31 +47,37 @@ impl RevisionId {
 
 impl World {
     /// Return the active branch revision identifier for this world.
-    pub fn revision_id(&self) -> RevisionId {
-        let history = self.history.read();
-        let branch = history
+    pub fn revision_id(&self) -> RuntimeResult<RevisionId> {
+        let lineage = self.lineage.read();
+        let branch = lineage
             .branches
             .get(&self.state.branch_id)
-            .expect("world history must contain the active branch");
+            .ok_or_else(|| RuntimeError::branch_not_found(self.state.branch_id.get()).boxed())?;
 
-        branch.head_revision_id
+        Ok(branch.head_revision_id)
     }
 
     /// Return metadata for the active branch revision.
-    pub fn current_revision(&self) -> Revision {
-        let history = self.history.read();
-        let revision = history
+    pub fn current_revision(&self) -> RuntimeResult<Revision> {
+        let lineage = self.lineage.read();
+        let branch = lineage
+            .branches
+            .get(&self.state.branch_id)
+            .ok_or_else(|| RuntimeError::branch_not_found(self.state.branch_id.get()).boxed())?;
+        let revision = lineage
             .revisions
-            .get(&self.revision_id())
-            .expect("world history must contain the active revision");
+            .get(&branch.head_revision_id)
+            .ok_or_else(|| {
+                RuntimeError::revision_not_found(branch.head_revision_id.get()).boxed()
+            })?;
 
-        revision.clone()
+        Ok(revision.clone())
     }
 
     /// Return metadata for one specific revision.
     pub fn revision(&self, revision_id: RevisionId) -> RuntimeResult<Revision> {
-        let history = self.history.read();
-        let revision = history
+        let lineage = self.lineage.read();
+        let revision = lineage
             .revisions
             .get(&revision_id)
             .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())?;
@@ -85,12 +91,12 @@ impl World {
         revision_id: RevisionId,
     ) -> RuntimeResult<(Revision, Arc<WorldImage>, Arc<TraceImage>)> {
         let revision = {
-            let history = self.history.read();
-            history.revision(revision_id)?
+            let lineage = self.lineage.read();
+            lineage.revision(revision_id)?
         };
 
-        let history = self.history.read();
-        let image = history
+        let lineage = self.lineage.read();
+        let image = lineage
             .image(revision.image_id)
             .map_err(|error| match error.as_ref() {
                 RuntimeError::Entity {
@@ -101,7 +107,7 @@ impl World {
                 }
                 _ => error,
             })?;
-        let trace_image = history.trace_image(revision_id)?;
+        let trace_image = lineage.trace_image(revision_id)?;
 
         Ok((revision, image, trace_image))
     }
@@ -111,20 +117,20 @@ impl World {
         &self,
         revision_id: RevisionId,
     ) -> RuntimeResult<RevisionId> {
-        let history = self.history.read();
+        let lineage = self.lineage.read();
 
-        history.nearest_image_revision(revision_id, |image_id| history.contains_image(image_id))
+        lineage.nearest_image_revision(revision_id, |image_id| lineage.contains_image(image_id))
     }
 
     /// Return one retained trace image by revision identifier.
     pub(crate) fn trace_image(&self, revision_id: RevisionId) -> RuntimeResult<Arc<TraceImage>> {
-        let history = self.history.read();
+        let lineage = self.lineage.read();
 
-        history.trace_image(revision_id)
+        lineage.trace_image(revision_id)
     }
 
     /// Return identifiers for all known revisions in stable order.
     pub fn revisions(&self) -> Vec<RevisionId> {
-        self.history.read().revisions.keys().copied().collect()
+        self.lineage.read().revisions.keys().copied().collect()
     }
 }

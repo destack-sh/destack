@@ -40,7 +40,7 @@ impl TraceSequence {
 pub(super) struct TraceTail {
     /// The current mutable active chunk.
     active: TraceChunk,
-    /// The completed local chunks not yet folded into shared history.
+    /// The completed local chunks not yet folded into shared lineage.
     sealed: Vec<TraceChunk>,
 }
 
@@ -128,7 +128,7 @@ impl TraceState {
         self.tail.sealed.push(sealed_chunk);
     }
 
-    /// Fold the local sealed tail into shared immutable history.
+    /// Fold the local sealed tail into shared immutable lineage.
     fn materialize_tail(&mut self) {
         // keep the active chunk synchronized before materialization
         self.seal_active_chunk(self.next_sequence);
@@ -256,7 +256,7 @@ impl TraceLog {
         let checkpoints = trailer.checkpoints;
         let head = (!chunks.is_empty()).then(|| Arc::new(TracePrefix::new(None, chunks)));
 
-        // restore one fresh empty tail after the captured immutable history
+        // restore one fresh empty tail after the captured immutable lineage
         let tail = TraceTail::new(next_sequence);
 
         *current = TraceState {
@@ -368,9 +368,9 @@ mod tests {
         TraceHeader::new(Environment::default())
     }
 
-    /// Capture one trace image should materialize the local tail into shared history.
+    /// Capture one trace image should materialize the local tail into shared lineage.
     #[test]
-    fn test_image_materializes_shared_history() {
+    fn test_image_materializes_shared_lineage() {
         let log = TraceLog::new(test_trace_header());
         log.record_event(TraceRecord::Outcome(Outcome::TimeAdvance(Instant::new(1))))
             .expect("record tick");

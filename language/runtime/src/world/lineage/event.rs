@@ -7,7 +7,7 @@ use crate::world::trace::{
 };
 use crate::world::{Mutation, World};
 
-use super::{BranchId, HistoryQuery, Moment};
+use super::{BranchId, LineageQuery, Moment};
 
 /// Query-visible event class projected from trace and custom event state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -18,7 +18,7 @@ pub enum EventKind {
     Entrypoint,
     /// One observed outcome that replay could not derive.
     Outcome,
-    /// One retained or user-visible history label.
+    /// One retained or user-visible lineage label.
     Label,
     /// One emitted custom event.
     Custom,
@@ -315,37 +315,37 @@ impl EventSet {
     }
 }
 
-/// One history-rooted committed event query.
+/// One lineage-rooted committed event query.
 #[derive(Debug, Clone, Copy)]
 pub struct EventQuery<'a> {
-    /// The history query root that owns the query.
-    history: HistoryQuery<'a>,
+    /// The lineage query root that owns the query.
+    lineage: LineageQuery<'a>,
 }
 
 impl<'a> EventQuery<'a> {
-    /// Create one committed event query on one history query root.
-    pub(super) const fn new(history: HistoryQuery<'a>) -> Self {
-        Self { history }
+    /// Create one committed event query on one lineage query root.
+    pub(super) const fn new(lineage: LineageQuery<'a>) -> Self {
+        Self { lineage }
     }
 
     /// Return every committed event visible on one branch.
     pub fn branch(self, branch_id: BranchId) -> RuntimeResult<EventSet> {
-        self.history.events_on(branch_id)
+        self.lineage.events_on(branch_id)
     }
 
     /// Return every committed event visible on one branch and its descendants.
     pub fn descendants_of(self, branch_id: BranchId) -> RuntimeResult<EventSet> {
-        self.history.events_descendants_of(branch_id)
+        self.lineage.events_descendants_of(branch_id)
     }
 
     /// Return every committed event up to one target moment.
     pub fn up_to(self, moment: Moment) -> RuntimeResult<EventSet> {
-        self.history.events_up_to(moment)
+        self.lineage.events_up_to(moment)
     }
 
     /// Return every committed event in one exact branch-local range.
     pub fn between(self, start: Moment, end: Moment) -> RuntimeResult<EventSet> {
-        self.history.events_between(start, end)
+        self.lineage.events_between(start, end)
     }
 }
 

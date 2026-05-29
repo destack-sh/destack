@@ -1,12 +1,11 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::time::Instant;
-use crate::runtime::{RuntimeImage, SharedCollector, WorkerId, WorkerImage};
+use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
 use crate::world::trace::{ObservationEntry, TraceImage, TraceSequence};
 use crate::world::{RuntimeId, WorldImage};
 
@@ -28,13 +27,9 @@ const INITIAL_REVISION_ID: u128 = 1;
 const INITIAL_CHECKPOINT_ID: u128 = 1;
 /// First allocated image identifier after the root image.
 const INITIAL_IMAGE_ID: u128 = 1;
-/// History-root metadata and durable restore metadata.
+/// Lineage-root metadata and durable restore metadata.
 #[derive(Debug)]
-pub(crate) struct History {
-    /// The shared allocator backing retained and live world images in this history.
-    pub(crate) allocator: Arc<heap::Allocator>,
-    /// The collector scheduler shared by live worlds in this history.
-    pub(crate) collector: Arc<SharedCollector>,
+pub(crate) struct Lineage {
     /// The next branch identifier to allocate.
     pub next_branch_id: u128,
     /// The next revision identifier to allocate.
@@ -57,23 +52,19 @@ pub(crate) struct History {
     runtime_images: Vec<Arc<RuntimeImage>>,
     /// The canonical retained worker image payloads.
     worker_images: Vec<Arc<WorkerImage>>,
-    /// The committed observation history keyed by branch.
+    /// The committed observation lineage keyed by branch.
     pub observations: BTreeMap<BranchId, Vec<ObservationEntry>>,
 }
 
-/// Durable history metadata captured in one world snapshot.
+/// Durable lineage metadata captured in one world snapshot.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HistorySnapshot {
+pub struct LineageSnapshot {
     /// The next branch identifier to allocate.
     pub next_branch_id: u128,
     /// The next revision identifier to allocate.
     pub next_revision_id: u128,
     /// The next checkpoint identifier to allocate.
     pub next_checkpoint_id: u128,
-    /// The shared allocator page width.
-    pub allocator_page_bytes: usize,
-    /// The shared allocator chunk width.
-    pub allocator_chunk_bytes: usize,
     /// The next image identifier to allocate.
     pub next_image_id: u128,
     /// The known branch metadata records.
@@ -86,19 +77,17 @@ pub struct HistorySnapshot {
     pub images: BTreeMap<ImageId, WorldImage>,
     /// The known trace image payloads keyed by trace image identifier.
     pub trace_images: BTreeMap<RevisionId, TraceImage>,
-    /// The committed observation history keyed by branch.
+    /// The committed observation lineage keyed by branch.
     pub observations: BTreeMap<BranchId, Vec<ObservationEntry>>,
 }
 
-impl History {
-    /// Capture one durable history snapshot for all retained history.
-    pub(crate) fn full_snapshot(&self) -> RuntimeResult<HistorySnapshot> {
-        Ok(HistorySnapshot {
+impl Lineage {
+    /// Capture one durable lineage snapshot for all retained lineage.
+    pub(crate) fn full_snapshot(&self) -> RuntimeResult<LineageSnapshot> {
+        Ok(LineageSnapshot {
             next_branch_id: self.next_branch_id,
             next_revision_id: self.next_revision_id,
             next_checkpoint_id: self.next_checkpoint_id,
-            allocator_page_bytes: self.allocator.page_bytes(),
-            allocator_chunk_bytes: self.allocator.chunk_bytes(),
             next_image_id: self.next_image_id,
             branches: self.branches.clone(),
             revisions: self.revisions.clone(),
@@ -117,17 +106,17 @@ impl History {
         })
     }
 
-    /// Capture one durable history snapshot for one exact revision closure.
+    /// Capture one durable lineage snapshot for one exact revision closure.
     pub(crate) fn exact_snapshot(
         &self,
         revision_id: RevisionId,
         image: &WorldImage,
         trace_image: &TraceImage,
-    ) -> RuntimeResult<HistorySnapshot> {
+    ) -> RuntimeResult<LineageSnapshot> {
         let revision = self.revision(revision_id)?;
         let branch = self.branch(revision.branch_id)?;
 
-        // exact snapshot history
+        // exact snapshot lineage
         let branch = Branch {
             origin: BranchOrigin::Root,
             head_revision_id: revision_id,
@@ -158,12 +147,10 @@ impl History {
             .map(|records| BTreeMap::from([(revision.branch_id, records)]))
             .unwrap_or_default();
 
-        Ok(HistorySnapshot {
+        Ok(LineageSnapshot {
             next_branch_id: self.next_branch_id,
             next_revision_id: self.next_revision_id,
             next_checkpoint_id: self.next_checkpoint_id,
-            allocator_page_bytes: self.allocator.page_bytes(),
-            allocator_chunk_bytes: self.allocator.chunk_bytes(),
             next_image_id: self.next_image_id,
             branches: BTreeMap::from([(branch.id, branch)]),
             revisions: BTreeMap::from([(revision_id, revision)]),
@@ -174,10 +161,8 @@ impl History {
         })
     }
 
-    /// Create one history with one fully materialized root revision.
+    /// Create one lineage with one fully materialized root revision.
     pub(crate) fn new_root(
-        allocator: Arc<heap::Allocator>,
-        collector: Arc<SharedCollector>,
         wall: Instant,
         mono: Instant,
         sequence: TraceSequence,
@@ -218,8 +203,6 @@ impl History {
         );
 
         Self {
-            allocator,
-            collector,
             next_branch_id: INITIAL_BRANCH_ID,
             next_revision_id: INITIAL_REVISION_ID,
             next_checkpoint_id: INITIAL_CHECKPOINT_ID,
@@ -235,15 +218,8 @@ impl History {
         }
     }
 
-    /// Rebuild history state from one durable history snapshot.
-    pub(crate) fn from_snapshot(
-        snapshot: HistorySnapshot,
-        collector: Arc<SharedCollector>,
-    ) -> RuntimeResult<Self> {
-        let allocator = Arc::new(heap::Allocator::try_new(
-            snapshot.allocator_page_bytes,
-            snapshot.allocator_chunk_bytes,
-        )?);
+    /// Rebuild lineage state from one durable lineage snapshot.
+    pub(crate) fn from_snapshot(snapshot: LineageSnapshot) -> RuntimeResult<Self> {
         let images = snapshot
             .images
             .into_iter()
@@ -255,9 +231,7 @@ impl History {
             .map(|(revision_id, trace_image)| (revision_id, Arc::new(trace_image)))
             .collect();
 
-        let mut history = Self {
-            allocator,
-            collector,
+        let mut lineage = Self {
             next_branch_id: snapshot.next_branch_id,
             next_revision_id: snapshot.next_revision_id,
             next_checkpoint_id: snapshot.next_checkpoint_id,
@@ -271,9 +245,9 @@ impl History {
             runtime_images: Vec::new(),
             worker_images: Vec::new(),
         };
-        history.rebuild_image_tables();
+        lineage.rebuild_image_tables();
 
-        Ok(history)
+        Ok(lineage)
     }
 
     /// Allocate one new branch identifier.
@@ -305,15 +279,21 @@ impl History {
     }
 
     /// Set the current head revision for one branch.
-    pub(crate) fn set_branch_head(&mut self, branch_id: BranchId, revision_id: RevisionId) {
+    pub(crate) fn set_branch_head(
+        &mut self,
+        branch_id: BranchId,
+        revision_id: RevisionId,
+    ) -> RuntimeResult<()> {
         self.revisions
             .get(&revision_id)
-            .expect("world history must contain the requested revision");
+            .ok_or_else(|| RuntimeError::revision_not_found(revision_id.get()).boxed())?;
         let branch = self
             .branches
             .get_mut(&branch_id)
-            .expect("world history must contain the requested branch");
+            .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
         branch.head_revision_id = revision_id;
+
+        Ok(())
     }
 
     /// Create one child branch from one parent revision.
@@ -322,7 +302,7 @@ impl History {
         parent_revision_id: RevisionId,
         name: String,
     ) -> RuntimeResult<Branch> {
-        // resolve the parent revision before mutating history state
+        // resolve the parent revision before mutating lineage state
         self.revisions
             .get(&parent_revision_id)
             .ok_or_else(|| RuntimeError::revision_not_found(parent_revision_id.get()).boxed())?;
@@ -624,7 +604,7 @@ impl History {
         }
 
         Err(RuntimeError::Internal {
-            message: "branches in one history must share a common ancestor revision".to_string(),
+            message: "branches in one lineage must share a common ancestor revision".to_string(),
         }
         .boxed())
     }
@@ -803,7 +783,7 @@ impl History {
         worker_image
     }
 
-    /// Canonicalize runtime images while rebuilding retained history state.
+    /// Canonicalize runtime images while rebuilding retained lineage state.
     fn rebuild_runtime_image_entries(&mut self, image: &mut WorldImage) {
         for runtime_image in image.runtimes.values_mut() {
             if let Some(existing_runtime_image) =
@@ -819,7 +799,7 @@ impl History {
         }
     }
 
-    /// Canonicalize worker images while rebuilding retained history state.
+    /// Canonicalize worker images while rebuilding retained lineage state.
     fn rebuild_worker_image_entries(&mut self, image: &mut WorldImage) {
         for worker_image in image.workers.values_mut() {
             if let Some(existing_worker_image) =

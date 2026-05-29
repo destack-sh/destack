@@ -3,10 +3,8 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::BindingReplayPayload;
 use crate::host::resource::ResourceRebinders;
-use crate::runtime::random::RandomSource;
-use crate::runtime::time::ClockSource;
-use crate::world::history::{
-    CheckpointId, History, HistorySnapshot, ImageId, Revision, RevisionId,
+use crate::world::lineage::{
+    CheckpointId, ImageId, Lineage, LineageSnapshot, Revision, RevisionId,
 };
 use destack_workspace::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 use postcard::to_allocvec;
@@ -22,8 +20,8 @@ pub struct WorldSnapshot {
     pub options: SnapshotOptions,
     /// The revision selected for restore from this snapshot.
     pub revision_id: RevisionId,
-    /// The captured history metadata.
-    pub history: HistorySnapshot,
+    /// The captured lineage metadata.
+    pub lineage: LineageSnapshot,
 }
 
 impl WorldSnapshot {
@@ -31,19 +29,19 @@ impl WorldSnapshot {
     pub const fn new(
         options: SnapshotOptions,
         revision_id: RevisionId,
-        history: HistorySnapshot,
+        lineage: LineageSnapshot,
     ) -> Self {
         Self {
             format_version: 1,
             options,
             revision_id,
-            history,
+            lineage,
         }
     }
 
     /// Return the captured revision metadata.
     pub fn revision(&self) -> RuntimeResult<&Revision> {
-        self.history
+        self.lineage
             .revisions
             .get(&self.revision_id)
             .ok_or_else(|| RuntimeError::revision_not_found(self.revision_id.get()).boxed())
@@ -53,7 +51,7 @@ impl WorldSnapshot {
     pub fn image(&self) -> RuntimeResult<&WorldImage> {
         let revision = self.revision()?;
 
-        self.history.images.get(&revision.image_id).ok_or_else(|| {
+        self.lineage.images.get(&revision.image_id).ok_or_else(|| {
             RuntimeError::revision_image_missing(self.revision_id.get(), revision.image_id.get())
                 .boxed()
         })
@@ -79,10 +77,6 @@ impl WorldSnapshot {
 pub struct SnapshotOptions {
     /// Execution mode for the rebuilt world.
     pub execution: ExecutionMode,
-    /// Effective world clock source.
-    pub clock_source: ClockSource,
-    /// Effective world random source.
-    pub random_source: RandomSource,
     /// Replay payload policy used for the trace.
     pub replay_payload: ReplayPayloadMode,
     /// Trace chunk sizing in megabytes, when configured.
@@ -105,8 +99,6 @@ impl World {
 
         SnapshotOptions {
             execution: self.state.trace.mode(),
-            clock_source: self.state.clock.source(),
-            random_source: self.state.random.source(),
             replay_payload,
             replay_chunk_size_mb,
         }
@@ -125,21 +117,21 @@ impl World {
 
     /// Return metadata for one stored image.
     pub fn image_info(&self, image_id: ImageId) -> RuntimeResult<WorldImage> {
-        let image = self.history.read().image(image_id)?;
+        let image = self.lineage.read().image(image_id)?;
 
         Ok(image.as_ref().clone())
     }
 
     /// Return identifiers for all stored images in stable order.
     pub fn image_ids(&self) -> Vec<ImageId> {
-        self.history.read().image_ids()
+        self.lineage.read().image_ids()
     }
 
     /// Return the revision that owns one stored image.
     pub fn revision_for_image(&self, image_id: ImageId) -> RuntimeResult<RevisionId> {
-        let history = self.history.read();
-        history.image(image_id)?;
-        let revision = history.revision_for_image_id(image_id).ok_or_else(|| {
+        let lineage = self.lineage.read();
+        lineage.image(image_id)?;
+        let revision = lineage.revision_for_image_id(image_id).ok_or_else(|| {
             RuntimeError::inconsistent_image(format!(
                 "image {} does not belong to one revision",
                 image_id.get()
@@ -150,19 +142,19 @@ impl World {
         Ok(revision)
     }
 
-    /// Create one history-wide serialized snapshot from one stored image.
-    pub fn snapshot_history(&self, image_id: ImageId) -> RuntimeResult<WorldSnapshot> {
-        let (revision, history_snapshot) = {
+    /// Create one lineage-wide serialized snapshot from one stored image.
+    pub fn snapshot_lineage(&self, image_id: ImageId) -> RuntimeResult<WorldSnapshot> {
+        let (revision, lineage_snapshot) = {
             let revision = self.revision_for_image(image_id)?;
-            let history = self.history.read();
+            let lineage = self.lineage.read();
 
-            (revision, history.full_snapshot()?)
+            (revision, lineage.full_snapshot()?)
         };
 
         Ok(WorldSnapshot::new(
             self.snapshot_options(),
             revision,
-            history_snapshot,
+            lineage_snapshot,
         ))
     }
 
@@ -190,23 +182,23 @@ impl World {
         self.snapshot_revision(revision)
     }
 
-    /// Create one history-wide serialized snapshot from one specific revision.
-    pub fn snapshot_history_revision(
+    /// Create one lineage-wide serialized snapshot from one specific revision.
+    pub fn snapshot_lineage_revision(
         &self,
         revision_id: RevisionId,
     ) -> RuntimeResult<WorldSnapshot> {
         let revision = {
-            let history = self.history.read();
-            history.revision(revision_id)?
+            let lineage = self.lineage.read();
+            lineage.revision(revision_id)?
         };
 
-        if self.history.read().contains_image(revision.image_id) {
-            return self.snapshot_history(revision.image_id);
+        if self.lineage.read().contains_image(revision.image_id) {
+            return self.snapshot_lineage(revision.image_id);
         }
 
         let (target_revision, base_revision, image, trace_image) = {
-            let history = self.history.read();
-            let target_revision = history.revision(revision_id)?;
+            let lineage = self.lineage.read();
+            let target_revision = lineage.revision(revision_id)?;
             let base_revision = self.nearest_image_revision(revision_id)?;
             let (base_revision, image, _) = self.revision_data(base_revision)?;
             let trace_image = self.trace_image(revision_id)?;
@@ -215,33 +207,33 @@ impl World {
         };
         let image =
             self.revision_image(&target_revision, &base_revision, &image, &trace_image, None)?;
-        let mut history_snapshot = self.history.read().full_snapshot()?;
-        history_snapshot.images.insert(revision.image_id, image);
+        let mut lineage_snapshot = self.lineage.read().full_snapshot()?;
+        lineage_snapshot.images.insert(revision.image_id, image);
 
         Ok(WorldSnapshot::new(
             self.snapshot_options(),
             revision_id,
-            history_snapshot,
+            lineage_snapshot,
         ))
     }
 
     /// Create one exact serialized snapshot from one specific revision.
     pub fn snapshot_revision(&self, revision_id: RevisionId) -> RuntimeResult<WorldSnapshot> {
         let (image, trace_image) = {
-            let history = self.history.read();
-            let revision = history.revision(revision_id)?;
+            let lineage = self.lineage.read();
+            let revision = lineage.revision(revision_id)?;
 
-            if history.contains_image(revision.image_id) {
-                let image = history.image(revision.image_id)?;
-                let trace_image = history.trace_image(revision_id)?;
+            if lineage.contains_image(revision.image_id) {
+                let image = lineage.image(revision.image_id)?;
+                let trace_image = lineage.trace_image(revision_id)?;
 
                 (image.as_ref().clone(), trace_image.as_ref().clone())
             } else {
-                drop(history);
+                drop(lineage);
 
                 let (target_revision, base_revision, image, trace_image) = {
-                    let history = self.history.read();
-                    let target_revision = history.revision(revision_id)?;
+                    let lineage = self.lineage.read();
+                    let target_revision = lineage.revision(revision_id)?;
                     let base_revision = self.nearest_image_revision(revision_id)?;
                     let (base_revision, image, _) = self.revision_data(base_revision)?;
                     let trace_image = self.trace_image(revision_id)?;
@@ -259,26 +251,26 @@ impl World {
                 (image, trace_image.as_ref().clone())
             }
         };
-        let history_snapshot =
-            self.history
+        let lineage_snapshot =
+            self.lineage
                 .read()
                 .exact_snapshot(revision_id, &image, &trace_image)?;
 
         Ok(WorldSnapshot::new(
             self.snapshot_options(),
             revision_id,
-            history_snapshot,
+            lineage_snapshot,
         ))
     }
 
-    /// Create one history-wide serialized snapshot from one stored checkpoint.
-    pub fn snapshot_history_checkpoint(
+    /// Create one lineage-wide serialized snapshot from one stored checkpoint.
+    pub fn snapshot_lineage_checkpoint(
         &self,
         checkpoint_id: CheckpointId,
     ) -> RuntimeResult<WorldSnapshot> {
         let revision = {
-            let history = self.history.read();
-            let checkpoint = history
+            let lineage = self.lineage.read();
+            let checkpoint = lineage
                 .checkpoints
                 .get(&checkpoint_id)
                 .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
@@ -286,14 +278,14 @@ impl World {
             checkpoint.revision_id
         };
 
-        self.snapshot_history_revision(revision)
+        self.snapshot_lineage_revision(revision)
     }
 
     /// Create one exact serialized snapshot from one stored checkpoint.
     pub fn snapshot_checkpoint(&self, checkpoint_id: CheckpointId) -> RuntimeResult<WorldSnapshot> {
         let revision = {
-            let history = self.history.read();
-            let checkpoint = history
+            let lineage = self.lineage.read();
+            let checkpoint = lineage
                 .checkpoints
                 .get(&checkpoint_id)
                 .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
@@ -312,7 +304,7 @@ impl World {
         let options = Self::runtime_options_from_snapshot(snapshot);
         let revision = snapshot.revision()?;
         let trace_image = snapshot
-            .history
+            .lineage
             .trace_images
             .get(&snapshot.revision_id)
             .ok_or_else(|| {
@@ -351,8 +343,7 @@ impl World {
             .boxed());
         }
 
-        let collector = self.history.read().collector.clone();
-        *self.history.write() = History::from_snapshot(snapshot.history.clone(), collector)?;
+        *self.lineage.write() = Lineage::from_snapshot(snapshot.lineage.clone())?;
         let (image, trace_image) = {
             let (_, image, trace_image) = self.revision_data(snapshot.revision_id)?;
 

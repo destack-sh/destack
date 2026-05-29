@@ -22,8 +22,8 @@ impl World {
     /// Restore this branch to one specific revision.
     pub fn rewind_revision(&mut self, revision_id: RevisionId) -> RuntimeResult<()> {
         let (target_revision, base_revision, image, trace_image) = {
-            let history = self.history.read();
-            let target_revision = history.revision(revision_id)?;
+            let lineage = self.lineage.read();
+            let target_revision = lineage.revision(revision_id)?;
             let base_revision = self.nearest_image_revision(revision_id)?;
             let (base_revision, image, _) = self.revision_data(base_revision)?;
             let trace_image = self.trace_image(revision_id)?;
@@ -48,8 +48,8 @@ impl World {
         }
 
         let (anchor_revision, base_revision, image) = {
-            let history = self.history.read();
-            let head_revision = history.head_revision(moment.branch_id)?;
+            let lineage = self.lineage.read();
+            let head_revision = lineage.head_revision(moment.branch_id)?;
             if head_revision.sequence.get() < moment.sequence.get() {
                 return Err(RuntimeError::moment_not_found(
                     moment.branch_id.get(),
@@ -58,7 +58,7 @@ impl World {
                 .boxed());
             }
             let anchor_revision_id =
-                history.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
+                lineage.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
             let base_revision = self.nearest_image_revision(anchor_revision_id)?;
             let (base_revision, image, _) = self.revision_data(base_revision)?;
 
@@ -90,15 +90,15 @@ impl World {
         let image = self.capture_image(mode)?;
         let trace_image = self.state.trace.capture_image();
 
-        // commit the revision in one authoritative history update
+        // commit the revision in one authoritative lineage update
         let retain_image = self.state.trace.mode() != ExecutionMode::Record
             || checkpoint_name.is_some()
             || !matches!(mode, CaptureMode::Suspend);
-        let image_id = self.history.write().allocate_image_id();
+        let image_id = self.lineage.write().allocate_image_id();
         let mut image = image;
 
         if retain_image {
-            self.history
+            self.lineage
                 .write()
                 .retain_image_payloads(self.state.branch_id, &mut image)?;
         }
@@ -106,8 +106,8 @@ impl World {
         let image = Arc::new(image);
         let trace_image = Arc::new(trace_image);
         let (revision_id, revision, checkpoint) = {
-            let mut history = self.history.write();
-            history.commit_revision(
+            let mut lineage = self.lineage.write();
+            lineage.commit_revision(
                 self.state.branch_id,
                 image_id,
                 trace_image.next_sequence(),
@@ -118,12 +118,12 @@ impl World {
         };
 
         {
-            let mut history = self.history.write();
+            let mut lineage = self.lineage.write();
             if retain_image {
-                history.insert_image(image_id, image.clone());
+                lineage.insert_image(image_id, image.clone());
             }
 
-            history.insert_trace_image(revision_id, trace_image);
+            lineage.insert_trace_image(revision_id, trace_image);
         }
 
         let observations = self
@@ -132,8 +132,8 @@ impl World {
             .drain_through(self.state.branch_id, revision.sequence);
 
         if !observations.is_empty() {
-            let mut history = self.history.write();
-            history.record_observations(self.state.branch_id, observations);
+            let mut lineage = self.lineage.write();
+            lineage.record_observations(self.state.branch_id, observations);
         }
 
         Ok((revision_id, revision, image, checkpoint))
@@ -153,7 +153,7 @@ impl World {
         self.snapshot_revision(revision)
     }
 
-    /// Restore one specific revision image and update branch history.
+    /// Restore one specific revision image and update branch lineage.
     pub(crate) fn restore_revision_image(
         &mut self,
         revision_id: RevisionId,
@@ -165,8 +165,8 @@ impl World {
         self.state.trace.restore_image(trace_image)?;
         self.state.trace.set_branch_id(self.state.branch_id);
 
-        let mut history = self.history.write();
-        history.set_branch_head(self.state.branch_id, revision_id);
+        let mut lineage = self.lineage.write();
+        lineage.set_branch_head(self.state.branch_id, revision_id)?;
 
         Ok(())
     }
@@ -177,12 +177,12 @@ impl World {
         revision_id: RevisionId,
         name: String,
     ) -> RuntimeResult<World> {
-        // resolve the retained fork point before mutating history
+        // resolve the retained fork point before mutating lineage
         let (target_revision, head_revision) = {
-            let history = self.history.read();
+            let lineage = self.lineage.read();
             (
-                history.revision(revision_id)?,
-                history.head_revision(self.state.branch_id)?,
+                lineage.revision(revision_id)?,
+                lineage.head_revision(self.state.branch_id)?,
             )
         };
         let base_revision = self.nearest_image_revision(revision_id)?;
@@ -191,15 +191,15 @@ impl World {
 
         // allocate the child branch after retained resolution is complete
         let child_branch = {
-            let mut history = self.history.write();
-            history.fork_branch(revision_id, name)?
+            let mut lineage = self.lineage.write();
+            lineage.fork_branch(revision_id, name)?
         };
 
         // child trace: clone header but switch to the child branch
         let trace_header = self.fork_trace_header(child_branch.id);
 
         // direct live fork: current committed head with no uncommitted tail
-        if revision_id == self.revision_id()
+        if revision_id == self.revision_id()?
             && self.state.trace.log().next_sequence() == head_revision.sequence
             && let Some(child) =
                 self.try_fork_live_child(child_branch.id, trace_header.clone(), &trace_image)?
@@ -207,7 +207,7 @@ impl World {
             return Ok(child);
         }
 
-        // child world: fresh mutable state over shared history data
+        // child world: fresh mutable state over shared lineage data
         let mut child = self.fork_child_world(child_branch.id, trace_header)?;
 
         // restore the child to the fork checkpoint
@@ -306,8 +306,8 @@ impl World {
     /// Materialize one exact image for one committed moment.
     pub(crate) fn image_at_moment(&self, moment: Moment) -> RuntimeResult<WorldImage> {
         let (_anchor_revision, base_revision, image) = {
-            let history = self.history.read();
-            let head_revision = history.head_revision(moment.branch_id)?;
+            let lineage = self.lineage.read();
+            let head_revision = lineage.head_revision(moment.branch_id)?;
             if head_revision.sequence.get() < moment.sequence.get() {
                 return Err(RuntimeError::moment_not_found(
                     moment.branch_id.get(),
@@ -316,7 +316,7 @@ impl World {
                 .boxed());
             }
             let anchor_revision =
-                history.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
+                lineage.latest_revision_at_or_before(moment.branch_id, moment.sequence)?;
             let base_revision = self.nearest_image_revision(anchor_revision)?;
             let (base_revision, image, _) = self.revision_data(base_revision)?;
 
@@ -455,8 +455,9 @@ impl World {
             host_queue: HostQueue::new(),
             poller,
             runtimes: Default::default(),
+            memory: self.memory.clone(),
             state,
-            history: self.history.clone(),
+            lineage: self.lineage.clone(),
         })
     }
 
@@ -472,7 +473,7 @@ impl World {
         let result = (|| {
             // direct live fork still requires all runtimes to be quiescent
             let execution_mode = self.state.trace.mode();
-            let collector = self.history.read().collector.clone();
+            let collector = self.memory.shared_collector.clone();
             let mut runtimes = BTreeMap::new();
             for (runtime_id, runtime) in &mut self.runtimes {
                 let Some(runtime) = runtime.try_fork(execution_mode, collector.clone())? else {
@@ -514,8 +515,9 @@ impl World {
                 host_queue: HostQueue::new(),
                 poller,
                 runtimes,
+                memory: self.memory.clone(),
                 state,
-                history: self.history.clone(),
+                lineage: self.lineage.clone(),
             }))
         })();
 

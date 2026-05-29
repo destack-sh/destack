@@ -7,7 +7,7 @@ use crate::world::World;
 
 use super::RevisionId;
 
-/// Branch identifier for one world history.
+/// Branch identifier for one world lineage.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct BranchId(u128);
 
@@ -23,14 +23,14 @@ impl BranchId {
     }
 }
 
-/// Branch metadata for one world history.
+/// Branch metadata for one world lineage.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Branch {
     /// The branch identifier.
     pub id: BranchId,
     /// The current head revision for this branch.
     pub head_revision_id: RevisionId,
-    /// The branch origin in the world history.
+    /// The branch origin in the world lineage.
     pub origin: BranchOrigin,
     /// The branch name.
     pub name: String,
@@ -38,10 +38,10 @@ pub struct Branch {
     pub labels: BTreeMap<String, String>,
 }
 
-/// Branch origin in one world history.
+/// Branch origin in one world lineage.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BranchOrigin {
-    /// The root branch for one new world history.
+    /// The root branch for one new world lineage.
     Root,
     /// One child branch forked from one parent revision.
     Fork {
@@ -57,20 +57,20 @@ impl World {
     }
 
     /// Return the active branch metadata for this world.
-    pub fn branch(&self) -> Branch {
-        let history = self.history.read();
-        let branch = history
+    pub fn branch(&self) -> RuntimeResult<Branch> {
+        let lineage = self.lineage.read();
+        let branch = lineage
             .branches
             .get(&self.state.branch_id)
-            .expect("world history must contain the active branch");
+            .ok_or_else(|| RuntimeError::branch_not_found(self.state.branch_id.get()).boxed())?;
 
-        branch.clone()
+        Ok(branch.clone())
     }
 
     /// Return metadata for one specific branch.
     pub fn branch_info(&self, branch_id: BranchId) -> RuntimeResult<Branch> {
-        let history = self.history.read();
-        let branch = history
+        let lineage = self.lineage.read();
+        let branch = lineage
             .branches
             .get(&branch_id)
             .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
@@ -80,7 +80,7 @@ impl World {
 
     /// Return identifiers for all known branches in stable order.
     pub fn branch_ids(&self) -> Vec<BranchId> {
-        self.history.read().branches.keys().copied().collect()
+        self.lineage.read().branches.keys().copied().collect()
     }
 
     /// Set one label on one specific branch.
@@ -90,8 +90,8 @@ impl World {
         key: impl Into<String>,
         value: impl Into<String>,
     ) -> RuntimeResult<()> {
-        let mut history = self.history.write();
-        let branch = history
+        let mut lineage = self.lineage.write();
+        let branch = lineage
             .branches
             .get_mut(&branch_id)
             .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;

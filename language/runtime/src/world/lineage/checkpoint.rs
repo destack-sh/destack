@@ -89,8 +89,8 @@ impl World {
 
     /// Return metadata for one stored checkpoint.
     pub fn checkpoint_info(&self, checkpoint_id: CheckpointId) -> RuntimeResult<Checkpoint> {
-        let history = self.history.read();
-        let checkpoint = history
+        let lineage = self.lineage.read();
+        let checkpoint = lineage
             .checkpoints
             .get(&checkpoint_id)
             .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
@@ -100,7 +100,7 @@ impl World {
 
     /// Return identifiers for all stored checkpoints in stable order.
     pub fn checkpoint_ids(&self) -> Vec<CheckpointId> {
-        self.history.read().checkpoints.keys().copied().collect()
+        self.lineage.read().checkpoints.keys().copied().collect()
     }
 
     /// Set one label on one specific checkpoint.
@@ -110,8 +110,8 @@ impl World {
         key: impl Into<String>,
         value: impl Into<String>,
     ) -> RuntimeResult<()> {
-        let mut history = self.history.write();
-        let checkpoint = history
+        let mut lineage = self.lineage.write();
+        let checkpoint = lineage
             .checkpoints
             .get_mut(&checkpoint_id)
             .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;
@@ -125,8 +125,8 @@ impl World {
         &self,
         checkpoint_id: CheckpointId,
     ) -> RuntimeResult<RevisionId> {
-        let history = self.history.read();
-        let checkpoint = history
+        let lineage = self.lineage.read();
+        let checkpoint = lineage
             .checkpoints
             .get(&checkpoint_id)
             .ok_or_else(|| RuntimeError::checkpoint_not_found(checkpoint_id.get()).boxed())?;

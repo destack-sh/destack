@@ -223,7 +223,7 @@ impl World {
                     let runtime = self.runtime_mut(runtime_id)?;
 
                     runtime.remove_worker(worker_id)?;
-                    runtime.shared.remove_worker(worker_id);
+                    runtime.heap.remove_worker(worker_id);
                 }
                 // detached worker metadata
                 else if self.state.topology.worker_subject(worker_id).is_none() {

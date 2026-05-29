@@ -162,13 +162,13 @@ impl WorldView {
     }
 
     /// Return all topology entity kinds visible at this moment.
-    pub fn entity_kinds(&self) -> &BTreeMap<EntityKind, EntityDefinition> {
+    pub fn entity_kinds(&self) -> BTreeMap<EntityKind, EntityDefinition> {
         self.image.topology.entity_kinds()
     }
 
     /// Return one topology entity kind by id when present.
     pub fn entity_kind(&self, kind_id: &str) -> Option<&EntityDefinition> {
-        self.image.topology.entity_kinds().get(kind_id)
+        self.image.topology.entity_kind(kind_id)
     }
 
     /// Return one topology edge by id when present.
@@ -177,12 +177,12 @@ impl WorldView {
     }
 
     /// Return all topology edge kinds visible at this moment.
-    pub fn edge_kinds(&self) -> &BTreeMap<EdgeKind, EdgeDefinition> {
+    pub fn edge_kinds(&self) -> BTreeMap<EdgeKind, EdgeDefinition> {
         self.image.topology.edge_kinds()
     }
 
     /// Return one topology edge kind by id when present.
     pub fn edge_kind(&self, kind_id: &str) -> Option<&EdgeDefinition> {
-        self.image.topology.edge_kinds().get(kind_id)
+        self.image.topology.edge_kind(kind_id)
     }
 }

@@ -23,7 +23,7 @@ struct TracePrefixRange {
 struct TracePrefixCache {
     /// Current shared prefix this cache was built from.
     head: Option<Arc<TracePrefix>>,
-    /// Shared history ranges in oldest-to-newest order.
+    /// Shared lineage ranges in oldest-to-newest order.
     ranges: Vec<TracePrefixRange>,
 }
 
@@ -249,7 +249,7 @@ impl TraceCursor {
         cache: &'a TracePrefixCache,
         index: usize,
     ) -> Option<&'a TraceChunk> {
-        // read shared immutable history first
+        // read shared immutable lineage first
         for range in &cache.ranges {
             let range_end = range.start_chunk + range.prefix.chunks.len();
 
@@ -277,7 +277,7 @@ impl TraceCursor {
         cache: &TracePrefixCache,
         sequence: TraceSequence,
     ) -> RuntimeResult<TraceReadCursor> {
-        // shared immutable history
+        // shared immutable lineage
         for range in &cache.ranges {
             for (local_chunk_index, chunk) in range.prefix.chunks.iter().enumerate() {
                 if !sequence_in_chunk(sequence, chunk) {
