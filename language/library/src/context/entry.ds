@@ -1,0 +1,17 @@
+import { ContextKey } from "./key.ds";
+
+/// One typed context entry.
+@languageItem("context.ContextEntry")
+export struct ContextEntry<T> {
+    /// Context entry key.
+    key: ContextKey<T>;
+    /// Context entry payload.
+    value: T;
+}
+
+export extension<T> of ContextKey<T> {
+    /// Create a context entry for this key.
+    entry(value: T): ContextEntry<T> {
+        return ContextEntry { key: this, value };
+    }
+}

@@ -1,3 +1,4 @@
 export * from "./context.ds";
+export * from "./entry.ds";
 export * from "./key.ds";
 export * from "./patch.ds";
