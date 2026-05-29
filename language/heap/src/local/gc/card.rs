@@ -32,7 +32,7 @@ impl CardSet {
         let start_card = start / DEFAULT_CARD_SIZE_BYTES;
         let end_card = end.div_ceil(DEFAULT_CARD_SIZE_BYTES);
 
-        // mark the covered card run in one bitmap update
+        // mark the covered card span in one bitmap update
         self.dirty.set_range(start_card, end_card - start_card);
     }
 

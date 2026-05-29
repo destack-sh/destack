@@ -12,7 +12,7 @@ use crate::{
 pub struct AllocationShape<'a> {
     /// The exact payload byte length.
     pub byte_len: usize,
-    /// The required allocation base alignment in bytes.
+    /// The required block base alignment in bytes.
     pub alignment: usize,
     /// The canonical trace id when this payload has table-backed metadata.
     pub trace_id: Option<TraceId>,
@@ -29,7 +29,7 @@ pub struct AllocationShape<'a> {
 pub struct AllocationSite {
     /// The exact payload byte length.
     pub byte_len: usize,
-    /// The required allocation base alignment in bytes.
+    /// The required block base alignment in bytes.
     pub alignment: usize,
     /// The canonical trace id when this site has table-backed metadata.
     pub trace_id: Option<TraceId>,
@@ -42,7 +42,7 @@ pub struct AllocationSite {
 }
 
 impl AllocationSite {
-    /// Return whether this site describes a valid non-empty heap allocation.
+    /// Return whether this site describes a valid non-empty heap block.
     #[inline(always)]
     pub const fn is_empty(&self) -> bool {
         self.byte_len == 0
@@ -96,7 +96,7 @@ impl<'a> AllocationShape<'a> {
         }
     }
 
-    /// Return whether this shape describes a valid non-empty heap allocation.
+    /// Return whether this shape describes a valid non-empty heap block.
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.byte_len == 0
@@ -108,7 +108,7 @@ impl<'a> AllocationShape<'a> {
 pub struct RawAllocationShape {
     /// The exact payload byte length.
     pub byte_len: usize,
-    /// The required allocation base alignment in bytes.
+    /// The required block base alignment in bytes.
     pub alignment: usize,
 }
 
@@ -132,9 +132,9 @@ impl RawAllocationShape {
 /// One allocator-ready allocation class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AllocationClass {
-    /// One allocation backed by a small-span slot.
+    /// One block backed by a small-span slot.
     Small(SmallAllocationPlan),
-    /// One allocation backed by a dedicated page run.
+    /// One block backed by a dedicated page span.
     Large,
 }
 
@@ -153,7 +153,7 @@ impl AllocationClass {
 pub struct AllocationPlan<'a> {
     /// The exact payload byte length.
     pub byte_len: usize,
-    /// The required allocation base alignment in bytes.
+    /// The required block base alignment in bytes.
     pub alignment: usize,
     /// The canonical trace id when this payload has table-backed metadata.
     pub trace_id: Option<TraceId>,
@@ -168,7 +168,7 @@ pub struct AllocationPlan<'a> {
 }
 
 impl<'a> AllocationPlan<'a> {
-    /// Return whether this plan describes a valid non-empty heap allocation.
+    /// Return whether this plan describes a valid non-empty heap block.
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.byte_len == 0

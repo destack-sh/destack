@@ -19,7 +19,7 @@ pub(crate) fn execute_allocate_heap_zeroed(
     let dest = instruction.a;
     let allocation = AllocationSiteId(instruction.b);
 
-    // allocate from the compiled site
+    // allocate from the allocation site
     let reference = machine.allocate_zeroed_heap(allocation)?;
 
     // store result
@@ -52,7 +52,7 @@ pub(crate) fn execute_allocate_heap_small_noscan_zeroed(
     let dest = instruction.a;
     let allocation = SmallAllocationSiteId(instruction.b);
 
-    // allocate from the specialized site
+    // allocate from the small allocation site
     let reference = machine.allocate_zeroed_heap_small_noscan(allocation)?;
 
     // store result
@@ -85,7 +85,7 @@ pub(crate) fn execute_allocate_heap_small_scan_zeroed(
     let dest = instruction.a;
     let allocation = SmallAllocationSiteId(instruction.b);
 
-    // allocate from the specialized site
+    // allocate from the small allocation site
     let reference = machine.allocate_zeroed_heap_small_scan(allocation)?;
 
     // store result
@@ -118,7 +118,7 @@ pub(crate) fn execute_allocate_heap_small_shared_edge_zeroed(
     let dest = instruction.a;
     let allocation = SmallAllocationSiteId(instruction.b);
 
-    // allocate from the specialized site
+    // allocate from the small allocation site
     let reference = machine.allocate_zeroed_heap_small_shared_edge(allocation)?;
 
     // store result
@@ -150,7 +150,7 @@ pub(crate) fn execute_allocate_shared_heap_zeroed(
     let dest = instruction.a;
     let allocation = AllocationSiteId(instruction.b);
 
-    // allocate from the compiled site
+    // allocate from the allocation site
     let reference = machine.allocate_zeroed_shared_heap(allocation)?;
 
     // store result
@@ -181,7 +181,7 @@ pub(crate) fn execute_allocate_shared_heap_small_zeroed(
     let dest = instruction.a;
     let allocation = SmallAllocationSiteId(instruction.b);
 
-    // allocate from the specialized site
+    // allocate from the small allocation site
     let reference = machine.allocate_zeroed_shared_heap_small(allocation)?;
 
     // store result

@@ -855,10 +855,7 @@ fn execute_vector_reduce_elements(
     let mut result = load_vector_element(machine, *vector_offset, *vector_element, 0)?;
     for element_index in 1..element_count {
         let value = load_vector_element(machine, *vector_offset, *vector_element, element_index)?;
-        match operation(*element_layout, result, value) {
-            Ok(value) => result = value,
-            Err(error) => return Err(error),
-        }
+        result = operation(*element_layout, result, value)?;
     }
 
     machine.store_word_at(*dest_offset, result);

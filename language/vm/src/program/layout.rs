@@ -429,7 +429,6 @@ fn build_layout(
             kind,
             element: _,
             space,
-            access: _,
             ..
         } => build_slice_layout(tree, *kind, space.clone(), layout_id)?,
         mir::Type::Closure { .. } => scalar_layout(

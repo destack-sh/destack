@@ -1,4 +1,4 @@
-use destack_heap::DEFAULT_PAGE_SIZE_BYTES;
+use destack_heap::DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;
 use destack_memory::AddressSpace;
 use serde::{Deserialize, Serialize};
 
@@ -20,8 +20,8 @@ impl Stack {
     /// Create one empty stack with a hard byte limit.
     pub(crate) fn new(limit_bytes: usize) -> RuntimeResult<Self> {
         // create the backing address space once
-        let space =
-            AddressSpace::reserve(limit_bytes, DEFAULT_PAGE_SIZE_BYTES).map_err(Error::from)?;
+        let space = AddressSpace::reserve(limit_bytes, DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES)
+            .map_err(Error::from)?;
 
         Ok(Self {
             space,

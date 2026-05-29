@@ -116,7 +116,6 @@ pub(super) fn slice_projection(
         element,
         kind,
         space,
-        access: _,
         ..
     } = tree.get(repr_type(tree, slice_type))
     else {

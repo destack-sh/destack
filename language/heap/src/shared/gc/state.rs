@@ -83,7 +83,7 @@ impl SharedGcState {
         self.sweep.lock().cursor = cursor;
     }
 
-    /// Record allocation bytes freed by sweep.
+    /// Record block bytes freed by sweep.
     pub(crate) fn record_sweep_freed(&self, freed_allocations: usize, freed_bytes: u64) {
         let mut sweep = self.sweep.lock();
 
@@ -148,9 +148,9 @@ impl SharedGcState {
 pub(crate) enum SharedTraceWork {
     /// One shared small span with marked slots to scan.
     SmallSpan(usize),
-    /// One range of one shared large allocation to scan.
+    /// One range of one shared large block to scan.
     Large {
-        /// The shared allocation reference.
+        /// The shared block reference.
         reference: SharedHeapReference,
         /// The range start in bytes.
         start: usize,
@@ -417,18 +417,18 @@ pub(crate) struct SharedSweepCursor {
     pub(crate) small_slot_index: usize,
     /// The small span table length captured when sweep started.
     pub(crate) small_span_limit: usize,
-    /// The next large allocation index to sweep.
+    /// The next large block index to sweep.
     pub(crate) large_index: usize,
-    /// The large allocation table length captured when sweep started.
+    /// The large block table length captured when sweep started.
     pub(crate) large_limit: usize,
 }
 
 /// Active shared sweep state.
 #[derive(Debug, Default)]
 struct SharedSweepState {
-    /// The next allocation to sweep.
+    /// The next block to sweep.
     cursor: SharedSweepCursor,
-    /// The allocations freed so far in the active cycle.
+    /// The blocks freed so far in the active cycle.
     freed_allocations: usize,
     /// The bytes freed so far in the active cycle.
     freed_bytes: u64,

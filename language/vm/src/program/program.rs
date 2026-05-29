@@ -232,7 +232,7 @@ impl Program {
     pub(crate) fn trace_map(&self, id: mir::TraceId) -> Result<&mir::TraceMap> {
         self.trace_table
             .trace(id)
-            .ok_or_else(|| Error::internal(format!("missing program trace map {:?}", id)))
+            .ok_or_else(|| Error::internal(format!("missing program trace map {id:?}")))
     }
 
     /// Return the canonical program trace table.
@@ -548,7 +548,7 @@ fn payload_initializer_bytes(
     }
 
     let mut bytes = vec![0u8; layout.byte_len];
-    for (element, range) in elements.iter().zip(ranges.into_iter()) {
+    for (element, range) in elements.iter().zip(ranges) {
         let value_bytes = initializer_bytes(tree, types, element, range.ty)?;
         if value_bytes.len() != range.byte_len {
             return Err(Error::type_mismatch(

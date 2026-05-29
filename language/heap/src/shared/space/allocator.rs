@@ -1,28 +1,26 @@
 use std::sync::Arc;
 
 use super::{SharedSmallSpan, SpanList};
-use crate::allocator::SpanSlot;
-use crate::{
-    AllocationPlan, AllocationUsage, SharedHeapReference, SmallAllocationPlan, SmallSpanClass,
-};
+use crate::allocator::Slot;
+use crate::{AllocationUsage, SharedHeapReference, SmallAllocationPlan, SmallSpanClass};
 
 /// One mutator-local shared allocation cache.
 #[derive(Debug)]
 pub struct SharedAllocationCache {
-    /// The mutator-local dense allocation runs.
-    pub(super) runs: Vec<SmallRun>,
-    /// The mutator-local small allocation buckets.
-    pub(super) small: Vec<SmallBucket>,
+    /// The mutator-local small allocation caches.
+    pub(super) small: Vec<SmallSizeClassCache>,
 }
 
 // SAFETY: runtime worker ownership keeps one shared cache on one worker at a time
 unsafe impl Send for SharedAllocationCache {}
 
-/// One mutator-local small allocation bucket.
+/// One mutator-local block cache for one small size class.
 #[derive(Debug)]
-pub(super) struct SmallBucket {
-    /// The homogeneous payload class allocated by this bucket.
+pub(super) struct SmallSizeClassCache {
+    /// The homogeneous payload class allocated by this cache.
     pub(super) class: SmallSpanClass,
+    /// The dense allocation cursor for fresh spans.
+    pub(super) cursor: SpanCursor,
     /// The shared span table index.
     pub(super) span_index: u32,
     /// The shared span itself.
@@ -35,57 +33,41 @@ pub(super) struct SmallBucket {
     pub(super) next_slot: usize,
 }
 
-/// One mutator-local dense shared small allocation run.
+/// One mutator-local dense shared small block cursor.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct SmallRun {
-    /// The next byte offset allocated from this run.
+pub(super) struct SpanCursor {
+    /// The next byte offset allocated from this cursor.
     pub(super) next_offset: usize,
     /// The next byte offset already published into usage accounting.
     pub(super) accounted_offset: usize,
-    /// The byte offset after this run.
+    /// The byte offset after this cursor.
     pub(super) end_offset: usize,
 }
 
-/// One slot reserved from a shared small allocation bucket.
+/// One slot reserved from a shared small allocation cache.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct SmallSlot {
     /// The slot index inside the span.
     pub(super) slot_index: usize,
-    /// Whether the slot belongs to the dense run.
+    /// Whether the slot belongs to the dense cursor.
     pub(super) is_dense: bool,
 }
 
-/// One shared small allocation from a mutator-local bucket.
+/// One shared small reservation from a mutator-local cache.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct SmallAllocation {
+pub(super) struct ReservedSlot {
     /// The allocated small slot.
-    pub(super) slot: SpanSlot,
-    /// The base shared heap reference for the slot.
-    pub(super) reference: SharedHeapReference,
-    /// Whether the allocation came from a dense worker run.
+    pub(super) slot: Slot,
+    /// Whether the block came from a dense worker cursor.
     pub(super) is_dense: bool,
-    /// Whether the bucket still owns usable slots.
-    pub(super) keep_bucket: bool,
+    /// Whether the cache still owns usable slots.
+    pub(super) keep_cache: bool,
 }
 
 impl SharedAllocationCache {
     /// Create one empty mutator-local shared allocation cache.
     pub(super) fn new() -> Self {
-        Self {
-            runs: Vec::new(),
-            small: Vec::new(),
-        }
-    }
-
-    /// Return the byte charge for acquiring an allocation run.
-    #[inline(always)]
-    pub(crate) fn plan_run_charge_bytes(&self, layout: &AllocationPlan<'_>) -> usize {
-        // small allocations acquire one span at a time
-        if let Some(small) = layout.class.small() {
-            return small.class.span_size_bytes;
-        }
-
-        layout.byte_len
+        Self { small: Vec::new() }
     }
 
     /// Ensure the exact small allocation cache entry exists.
@@ -94,8 +76,7 @@ impl SharedAllocationCache {
         let cache_index = small.cache_index();
 
         while self.small.len() <= cache_index {
-            self.small.push(SmallBucket::inactive());
-            self.runs.push(SmallRun::inactive());
+            self.small.push(SmallSizeClassCache::inactive());
         }
 
         if self.small[cache_index].class == SmallSpanClass::EMPTY {
@@ -109,14 +90,15 @@ impl SharedAllocationCache {
     pub fn contains_heap_reference(&self, reference: SharedHeapReference) -> bool {
         let offset = reference.offset();
 
-        // dense runs are private to the owning mutator until flushed
-        for cache_index in 0..self.small.len() {
-            let run = &self.runs[cache_index];
-            if run.end_offset == 0 {
+        // dense spans are private to the owning mutator until flushed
+        for size_class_cache in &self.small {
+            if size_class_cache.cursor.end_offset == 0 {
                 continue;
             }
 
-            if offset >= run.accounted_offset && offset < run.next_offset {
+            if offset >= size_class_cache.cursor.accounted_offset
+                && offset < size_class_cache.cursor.next_offset
+            {
                 return true;
             }
         }
@@ -125,8 +107,8 @@ impl SharedAllocationCache {
     }
 }
 
-impl SmallRun {
-    /// Return an inactive dense run.
+impl SpanCursor {
+    /// Return an inactive dense cursor.
     pub(super) const fn inactive() -> Self {
         Self {
             next_offset: 0,
@@ -135,22 +117,22 @@ impl SmallRun {
         }
     }
 
-    /// Reserve one reference from this dense run.
+    /// Reserve one reference from this dense cursor.
     #[inline(always)]
     pub(super) fn reserve_reference(&mut self, size_class: usize) -> Option<SharedHeapReference> {
-        // run exhausted
+        // cursor exhausted
         if size_class > self.end_offset - self.next_offset {
             return None;
         }
 
-        // bump the dense run
+        // bump the dense cursor
         let reference = SharedHeapReference::new(self.next_offset);
         self.next_offset += size_class;
 
         Some(reference)
     }
 
-    /// Reserve one slot index from this dense run.
+    /// Reserve one slot index from this dense cursor.
     #[inline(always)]
     pub(super) fn reserve_slot(
         &mut self,
@@ -167,10 +149,10 @@ impl SmallRun {
         })
     }
 
-    /// Return the current dense-run slot index.
+    /// Return the current dense-cursor slot index.
     #[inline(always)]
     pub(super) fn next_slot(&self, first_offset: usize, size_class: usize) -> usize {
-        // inactive run
+        // inactive cursor
         if self.end_offset == 0 {
             return 0;
         }
@@ -178,20 +160,20 @@ impl SmallRun {
         (self.next_offset - first_offset) / size_class
     }
 
-    /// Return whether this dense run still has one full slot.
+    /// Return whether this dense cursor still has one full slot.
     #[inline(always)]
     pub(super) fn has_available_slot(&self, size_class: usize) -> bool {
         size_class <= self.end_offset - self.next_offset
     }
 
-    /// Install one dense run.
+    /// Install one dense cursor.
     pub(super) fn install(&mut self, next_offset: usize, end_offset: usize) {
         self.next_offset = next_offset;
         self.accounted_offset = next_offset;
         self.end_offset = end_offset;
     }
 
-    /// Return the uncommitted usage held by this run.
+    /// Return the uncommitted usage held by this cursor.
     #[inline(always)]
     pub(super) fn pending_usage(&self, size_class: usize) -> AllocationUsage {
         if self.end_offset == 0 {
@@ -204,7 +186,7 @@ impl SmallRun {
         AllocationUsage::new(allocation_count, allocated_bytes as u64)
     }
 
-    /// Flush uncommitted run usage.
+    /// Flush uncommitted cursor usage.
     #[inline(always)]
     pub(super) fn flush_usage(&mut self, size_class: usize) -> AllocationUsage {
         let usage = self.pending_usage(size_class);
@@ -213,7 +195,7 @@ impl SmallRun {
         usage
     }
 
-    /// Clear this dense run.
+    /// Clear this dense cursor.
     pub(super) fn clear(&mut self) {
         self.next_offset = 0;
         self.accounted_offset = 0;
@@ -221,11 +203,12 @@ impl SmallRun {
     }
 }
 
-impl SmallBucket {
-    /// Return an inactive small allocation bucket.
+impl SmallSizeClassCache {
+    /// Return an inactive small allocation cache.
     pub(super) const fn inactive() -> Self {
         Self {
             class: SmallSpanClass::EMPTY,
+            cursor: SpanCursor::inactive(),
             span_index: 0,
             span: None,
             first_offset: 0,
@@ -236,10 +219,12 @@ impl SmallBucket {
 
     /// Reserve one slot from this allocator.
     #[inline(always)]
-    pub(super) fn reserve_slot(&mut self, run: &mut SmallRun) -> Option<SmallSlot> {
-        // dense run path
-        if run.end_offset > 0 {
-            return run.reserve_slot(self.first_offset, self.class.size_class);
+    pub(super) fn reserve_slot(&mut self) -> Option<SmallSlot> {
+        // dense cursor path
+        if self.cursor.end_offset > 0 {
+            return self
+                .cursor
+                .reserve_slot(self.first_offset, self.class.size_class);
         }
 
         // first pass through never-tried slots
@@ -267,12 +252,12 @@ impl SmallBucket {
             })
     }
 
-    /// Return whether this bucket can still allocate locally.
+    /// Return whether this cache can still allocate locally.
     #[inline(always)]
-    pub(super) fn has_available_slot(&self, run: &SmallRun) -> bool {
-        // dense run capacity
-        if run.end_offset > 0 {
-            return run.has_available_slot(self.class.size_class);
+    pub(super) fn has_available_slot(&self) -> bool {
+        // dense cursor capacity
+        if self.cursor.end_offset > 0 {
+            return self.cursor.has_available_slot(self.class.size_class);
         }
 
         // never-tried slots remain
@@ -286,25 +271,28 @@ impl SmallBucket {
             .is_some_and(|span| span.occupied_count() < self.slot_count)
     }
 
-    /// Publish allocated run slots from this bucket.
+    /// Publish allocated cursor slots from this cache.
     #[inline(always)]
-    pub(super) fn publish_run(&self, run: &SmallRun) {
-        // non-dense buckets have no run state to publish
-        if run.end_offset == 0 {
+    pub(super) fn publish_cursor(&self) {
+        // non-dense caches have no cursor state to publish
+        if self.cursor.end_offset == 0 {
             return;
         }
 
         // publish every dense slot reserved so far
         if let Some(span) = &self.span {
-            span.publish_dense_len(run.next_slot(self.first_offset, self.class.size_class));
+            span.publish_dense_len(
+                self.cursor
+                    .next_slot(self.first_offset, self.class.size_class),
+            );
         }
     }
 
-    /// Finish this bucket after its last usable slot.
+    /// Finish this cache after its last usable slot.
     #[inline(always)]
-    pub(super) fn finish(&self, run: &SmallRun) {
+    pub(super) fn finish(&self) {
         // publish pending dense slots before list transition
-        self.publish_run(run);
+        self.publish_cursor();
 
         // no reusable worker-local slots remain
         if let Some(span) = &self.span {
@@ -320,21 +308,20 @@ impl SmallBucket {
         SharedHeapReference::new(mapping_offset)
     }
 
-    /// Return whether this bucket currently owns a span.
+    /// Return whether this cache currently owns a span.
     #[inline(always)]
     pub(super) fn is_active(&self) -> bool {
         self.span.is_some()
     }
 
-    /// Install one shared small span into this bucket.
+    /// Install one shared small span into this cache.
     pub(super) fn install(
         &mut self,
-        run: &mut SmallRun,
         span_index: usize,
         span: Arc<SharedSmallSpan>,
-        use_dense_run: bool,
+        use_dense_cursor: bool,
     ) {
-        // initialize bucket metadata from the span
+        // initialize cache metadata from the span
         let next_slot = span.first_free_slot();
 
         self.span_index = span_index as u32;
@@ -344,34 +331,34 @@ impl SmallBucket {
         self.slot_count = span.slot_count;
         self.next_slot = next_slot;
 
-        // dense runs cover newly mapped spans
-        let end_offset = if use_dense_run {
+        // dense spans cover newly mapped spans
+        let end_offset = if use_dense_cursor {
             span.first_offset + span.class.size_class * span.slot_count
         } else {
             0
         };
         let next_offset = span.first_offset + span.class.size_class * next_slot;
 
-        // publish run bounds to the allocator hot path
-        run.install(next_offset, end_offset);
+        // publish cursor bounds to the allocator hot path
+        self.cursor.install(next_offset, end_offset);
     }
 
-    /// Clear the current shared small span from this bucket.
-    pub(super) fn clear(&mut self, run: &mut SmallRun) {
-        // clear bucket metadata
+    /// Clear the current shared small span from this cache.
+    pub(super) fn clear(&mut self) {
+        // clear cache metadata
         self.span = None;
         self.span_index = 0;
         self.first_offset = 0;
         self.slot_count = 0;
         self.next_slot = 0;
 
-        // clear paired dense run
-        run.clear();
+        // clear paired dense cursor
+        self.cursor.clear();
     }
 
     /// Return the span slot for one trusted slot index.
     #[inline(always)]
-    pub(super) fn span_slot(&self, slot_index: usize) -> SpanSlot {
-        SpanSlot::from_raw(self.span_index, slot_index as u32)
+    pub(super) fn span_slot(&self, slot_index: usize) -> Slot {
+        Slot::from_raw(self.span_index, slot_index as u32)
     }
 }

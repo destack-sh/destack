@@ -4,7 +4,7 @@ use destack_mir::{TraceMap, TraceTable};
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
-use crate::allocator::{Bitmap, PageRun};
+use crate::allocator::{Bitmap, PageSpan};
 use crate::{
     HeapError, HeapReference, HeapResult, ReferenceRange, SharedHeapReference, SmallSpanClass,
     slot_trace_map, visit_untagged_reference_offsets,
@@ -24,7 +24,7 @@ pub(crate) struct SharedSmallSpan {
     pub(crate) slot_count: usize,
     /// The number of occupied slots in this span.
     pub(crate) occupied_count: AtomicUsize,
-    /// The number of occupied slots represented as one dense run.
+    /// The number of occupied slots represented as one dense span.
     dense_len: AtomicUsize,
     /// The next likely free slot search cursor.
     pub(crate) free_cursor: AtomicUsize,
@@ -48,10 +48,10 @@ pub(crate) struct SharedSmallSpan {
     mark_epoch: AtomicU64,
     /// The lazy mark reset lock.
     mark_reset: Mutex<()>,
-    /// The allocation list this span belongs to.
+    /// The block list this span belongs to.
     pub(crate) list: AtomicSpanList,
     /// The allocator pages for this span.
-    pub(crate) pages: RwLock<PageRun>,
+    pub(crate) pages: RwLock<PageSpan>,
 }
 
 impl SharedSmallSpan {
@@ -60,7 +60,7 @@ impl SharedSmallSpan {
         first_offset: usize,
         class: SmallSpanClass,
         slot_count: usize,
-        pages: PageRun,
+        pages: PageSpan,
         list: SpanList,
     ) -> Self {
         let scan_word_count = class.size_class.div_ceil(std::mem::size_of::<usize>());
@@ -95,7 +95,7 @@ impl SharedSmallSpan {
         occupied: &Bitmap,
         local_reference_bits: &Bitmap,
         shared_reference_bits: &Bitmap,
-        pages: PageRun,
+        pages: PageSpan,
         list: SpanList,
     ) -> Self {
         let occupied_count = occupied.count_ones();
@@ -151,8 +151,8 @@ impl SharedSmallSpan {
         self.free_cursor.store(0, Ordering::Release);
     }
 
-    /// Return the current page run.
-    pub(crate) fn pages(&self) -> PageRun {
+    /// Return the current page span.
+    pub(crate) fn pages(&self) -> PageSpan {
         *self.pages.read()
     }
 
@@ -171,14 +171,14 @@ impl SharedSmallSpan {
         self.next_free_slot(0)
     }
 
-    /// Replace the current page run.
-    pub(crate) fn set_pages(&self, pages: PageRun) {
+    /// Replace the current page span.
+    pub(crate) fn set_pages(&self, pages: PageSpan) {
         *self.pages.write() = pages;
     }
 
-    /// Take the current page run.
-    pub(crate) fn take_pages(&self) -> PageRun {
-        std::mem::replace(&mut *self.pages.write(), PageRun::empty())
+    /// Take the current page span.
+    pub(crate) fn take_pages(&self) -> PageSpan {
+        std::mem::replace(&mut *self.pages.write(), PageSpan::empty())
     }
 
     /// Reserve one free slot if available.
@@ -215,16 +215,16 @@ impl SharedSmallSpan {
         self.reserved.try_set(slot_index)
     }
 
-    /// Publish initialized dense-run slots.
+    /// Publish initialized dense-span slots.
     #[inline(always)]
     pub(crate) fn publish_dense_len(&self, dense_len: usize) {
-        // make initialized bytes visible through the dense run
+        // make initialized bytes visible through the dense span
         self.dense_len.store(dense_len, Ordering::Relaxed);
     }
 
     /// Publish one initialized reserved slot.
     pub(crate) fn publish_slot(&self, slot_index: usize) {
-        // keep reusable-slot discovery consistent after dense runs
+        // keep reusable-slot discovery consistent after dense spans
         self.reserved.set(slot_index);
 
         // make initialized bytes visible to scanners
@@ -243,7 +243,7 @@ impl SharedSmallSpan {
 
     /// Release one occupied slot.
     pub(crate) fn release_slot(&self, slot_index: usize) -> bool {
-        self.materialize_dense_run();
+        self.materialize_dense_cursor();
 
         // reject double frees and stale releases
         if !self.occupied.try_clear(slot_index) {
@@ -275,9 +275,6 @@ impl SharedSmallSpan {
         if !trace_map.has_reference() {
             return;
         }
-
-        // replace stale metadata from a previous occupant
-        self.clear_reference_bits(slot_index);
 
         // encode both edge classes into side bitmaps
         self.write_local_reference_offsets(slot_index, trace_map);
@@ -406,7 +403,7 @@ impl SharedSmallSpan {
         let mut occupied = self.occupied.snapshot();
         let dense_len = self.dense_len.load(Ordering::Relaxed);
 
-        // dense-run slots are live but not represented in the occupied bitmap
+        // dense-span slots are live but not represented in the occupied bitmap
         for slot_index in 0..dense_len {
             occupied.set(slot_index);
         }
@@ -433,14 +430,14 @@ impl SharedSmallSpan {
             .unwrap_or(self.slot_count)
     }
 
-    /// Move dense-run slots into the occupied bitmap.
-    fn materialize_dense_run(&self) {
+    /// Move dense-span slots into the occupied bitmap.
+    fn materialize_dense_cursor(&self) {
         let dense_len = self.dense_len.swap(0, Ordering::AcqRel);
         if dense_len == 0 {
             return;
         }
 
-        // record each dense-run slot in the bitmap form
+        // record each dense-span slot in the bitmap form
         let mut materialized_count = 0usize;
         for slot_index in 0..dense_len {
             if self.reserved.try_set(slot_index) {
@@ -526,16 +523,16 @@ pub struct SharedHeapSmallSpanImage {
     pub bytes: Box<[u8]>,
 }
 
-/// One shared small-span allocation list.
+/// One shared small-span block list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SpanList {
     /// The central partial list.
     Central,
     /// One worker-local cache.
     Worker,
-    /// No allocation list because the span has no free slots.
+    /// No block list because the span has no free slots.
     Full,
-    /// No allocation list because the span has no mapped pages.
+    /// No block list because the span has no mapped pages.
     Released,
 }
 

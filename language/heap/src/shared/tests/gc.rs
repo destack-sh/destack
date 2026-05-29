@@ -47,12 +47,12 @@ fn test_shared_heap(
     (heap, allocator, worker, layouts)
 }
 
-/// Publish worker-local shared allocations before a direct heap collection.
+/// Publish worker-local shared blocks before a direct heap collection.
 fn flush_shared_cache(shared: &SharedHeap, cache: &mut SharedAllocationCache) {
     shared.flush_allocation_cache(cache);
 }
 
-/// Reject one zero-size shared managed heap allocation.
+/// Reject one zero-size shared managed heap block.
 #[test]
 fn test_allocate_shared_rejects_zero_size_layout() {
     // build one shared heap with an invalid zero-size layout
@@ -61,14 +61,14 @@ fn test_allocate_shared_rejects_zero_size_layout() {
 
     // reject zero-size shared managed objects loudly
     let error = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[]),
             trace_table(),
         )
-        .expect_err("shared heap allocation should reject zero-size layouts");
+        .expect_err("shared heap block should reject zero-size layouts");
 
     assert_eq!(
         error,
@@ -76,31 +76,31 @@ fn test_allocate_shared_rejects_zero_size_layout() {
     );
 }
 
-/// Keep worker-run allocations mutator-live while deferring accounting until allocator flush.
+/// Keep worker-cursor blocks mutator-live while deferring accounting until allocator flush.
 #[test]
-fn test_allocate_shared_zeroed_worker_run_defers_accounting() {
-    // allocate two zeroed slots from a worker-local run
+fn test_allocate_shared_zeroed_worker_cache_defers_accounting() {
+    // allocate two zeroed slots from a worker-local cursor
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(8, TraceMap::empty())]);
-    let layout = shared.allocation_plan(layout_ids[0].allocation());
+    let layout = shared.allocation_plan(layout_ids[0].block());
 
     let first = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
             &layout,
             Payload::Zeroed,
             trace_table(),
         )
-        .expect("first shared allocation should succeed");
+        .expect("first shared block should succeed");
     let second = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
             &layout,
             Payload::Zeroed,
             trace_table(),
         )
-        .expect("second shared allocation should succeed");
+        .expect("second shared block should succeed");
 
     // worker-local slots are mutator-live before global publication
     assert!(allocator.contains_heap_reference(first));
@@ -117,7 +117,7 @@ fn test_allocate_shared_zeroed_worker_run_defers_accounting() {
     assert_eq!(shared.heap_allocation_count(), 2);
 }
 
-/// Miss specialized shared zeroed allocation when the active bucket has a different trace id.
+/// Miss specialized shared zeroed block when the active cache has a different trace id.
 #[test]
 fn test_reserve_shared_zeroed_misses_different_trace_class() {
     let first_map = TraceMap::Fixed {
@@ -141,7 +141,7 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
         .small()
         .expect("second site should be small");
 
-    // prime one worker bucket with the first trace class
+    // prime one worker cache with the first trace class
     let _first = shared
         .allocate_zeroed(
             &worker,
@@ -150,39 +150,39 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
             &first_map,
             &trace_table,
         )
-        .expect("first shared allocation should succeed");
+        .expect("first shared block should succeed");
 
-    // fast path must not reuse that bucket for another trace class
-    let second = shared.reserve_small_zeroed(&mut allocator, second_small);
+    // reject cached cursor reuse across trace classes
+    let second = shared.reserve_small_from_cache(&mut allocator, second_small);
 
     assert_eq!(second, None);
 }
 
-/// Keep byte-initialized worker-run allocations mutator-live while deferring accounting.
+/// Keep byte-initialized worker-cursor blocks mutator-live while deferring accounting.
 #[test]
-fn test_allocate_shared_bytes_worker_run_defers_accounting() {
-    // allocate two byte-initialized slots from a worker-local run
+fn test_allocate_shared_bytes_worker_cache_defers_accounting() {
+    // allocate two byte-initialized slots from a worker-local cursor
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(8, TraceMap::empty())]);
-    let layout = shared.allocation_plan(layout_ids[0].allocation());
+    let layout = shared.allocation_plan(layout_ids[0].block());
 
     let first = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
             &layout,
             Payload::Bytes(&[1, 2, 3, 4, 5, 6, 7, 8]),
             trace_table(),
         )
-        .expect("first shared allocation should succeed");
+        .expect("first shared block should succeed");
     let second = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
             &layout,
             Payload::Bytes(&[8, 7, 6, 5, 4, 3, 2, 1]),
             trace_table(),
         )
-        .expect("second shared allocation should succeed");
+        .expect("second shared block should succeed");
 
     // worker-local slots are mutator-live before global publication
     assert!(allocator.contains_heap_reference(first));
@@ -199,30 +199,30 @@ fn test_allocate_shared_bytes_worker_run_defers_accounting() {
     assert_eq!(shared.heap_allocation_count(), 2);
 }
 
-/// Free unreachable shared heap allocations and record the completed shared GC cycle.
+/// Free unreachable shared heap blocks and record the completed shared GC cycle.
 #[test]
 fn test_collect_shared_frees_unreachable_entries() {
     // root 1,2,3 and leave 4,5,6 unreachable
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(3, TraceMap::empty())]);
     let layout = &layout_ids[0];
     let reachable = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let unreachable = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[4, 5, 6]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // publish worker-local slots before direct full collection
     flush_shared_cache(&shared, &mut allocator);
@@ -274,23 +274,23 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
 
     // allocate a full slot and a live short slot
     let first = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(full_layout.allocation()),
+            &shared.allocation_plan(full_layout.block()),
             Payload::Bytes(&[0xAA; 8]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let second = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(short_layout.allocation()),
+            &shared.allocation_plan(short_layout.block()),
             Payload::Bytes(&[0xBB]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // collect with only the short slot rooted so the full slot is freed
     flush_shared_cache(&shared, &mut allocator);
@@ -302,14 +302,14 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
 
     // reuse the freed slot with a shorter payload
     let reused = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(short_layout.allocation()),
+            &shared.allocation_plan(short_layout.block()),
             Payload::Bytes(&[0xCC]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     assert!(shared.is_heap_live(second));
     assert!(shared.is_heap_live(reused));
@@ -336,23 +336,23 @@ fn test_collect_shared_keeps_reachable_children() {
 
     // root the parent and make the child reachable only through payload bytes
     let child = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.allocation()),
+            &shared.allocation_plan(child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let parent = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.allocation()),
+            &shared.allocation_plan(parent_layout.block()),
             Payload::Bytes(&child.bits().to_le_bytes()),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // publish worker-local slots before direct full collection
     flush_shared_cache(&shared, &mut allocator);
@@ -389,23 +389,23 @@ fn test_collect_shared_keeps_table_traced_small_children() {
 
     // root the parent and make the child reachable through table-backed metadata
     let child = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.allocation()),
+            &shared.allocation_plan(child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             &trace_table,
         )
-        .expect("child allocation should succeed");
+        .expect("child block should succeed");
     let parent = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
             &shared.allocation_plan(parent_layout),
             Payload::Bytes(&child.bits().to_le_bytes()),
             &trace_table,
         )
-        .expect("parent allocation should succeed");
+        .expect("parent block should succeed");
 
     // publish worker-local slots before direct full collection
     flush_shared_cache(&shared, &mut allocator);
@@ -435,41 +435,41 @@ fn test_collect_shared_scans_small_spans_incrementally() {
 
     // make each child reachable through exactly one rooted parent
     let first_child = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.allocation()),
+            &shared.allocation_plan(child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let second_child = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.allocation()),
+            &shared.allocation_plan(child_layout.block()),
             Payload::Bytes(&[0xC2, 0x1D]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let first_parent = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.allocation()),
+            &shared.allocation_plan(parent_layout.block()),
             Payload::Bytes(&first_child.bits().to_le_bytes()),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let second_parent = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.allocation()),
+            &shared.allocation_plan(parent_layout.block()),
             Payload::Bytes(&second_child.bits().to_le_bytes()),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // publish worker-local slots before manual stepping
     flush_shared_cache(&shared, &mut allocator);
@@ -500,9 +500,9 @@ fn test_collect_shared_scans_small_spans_incrementally() {
     assert!(shared.is_heap_live(second_child));
 }
 
-/// Scan large shared allocations incrementally by allocator page.
+/// Scan large shared blocks incrementally by allocator page.
 #[test]
-fn test_collect_shared_scans_large_allocations_incrementally() {
+fn test_collect_shared_scans_large_blocks_incrementally() {
     // build one large parent with child references on separate pages
     let options = SharedHeapOptions::default();
     let first_offset = 0usize;
@@ -520,37 +520,37 @@ fn test_collect_shared_scans_large_allocations_incrementally() {
 
     // allocate two children and encode both references into the large parent
     let first_child = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.allocation()),
+            &shared.allocation_plan(child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let second_child = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.allocation()),
+            &shared.allocation_plan(child_layout.block()),
             Payload::Bytes(&[0xC2, 0x1D]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let mut parent_bytes = vec![0; parent_byte_len];
     parent_bytes[first_offset..first_offset + SharedHeapReference::BYTE_LEN]
         .copy_from_slice(&first_child.bits().to_le_bytes());
     parent_bytes[second_offset as usize..second_offset as usize + SharedHeapReference::BYTE_LEN]
         .copy_from_slice(&second_child.bits().to_le_bytes());
     let parent = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.allocation()),
+            &shared.allocation_plan(parent_layout.block()),
             Payload::Bytes(&parent_bytes),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // publish worker-local slots before manual stepping
     flush_shared_cache(&shared, &mut allocator);
@@ -582,7 +582,7 @@ fn test_collect_shared_scans_large_allocations_incrementally() {
 /// Reject invalid explicit shared heap roots.
 #[test]
 fn test_collect_shared_rejects_invalid_root() {
-    // build a shared heap with no allocation at offset 7
+    // build a shared heap with no block at offset 7
     let options = SharedHeapOptions::default();
     let allocator = Arc::new(
         Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
@@ -623,14 +623,14 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
     let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
     let reference = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&SharedHeapReference::NULL.bits().to_le_bytes()),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     flush_shared_cache(&shared, &mut allocator);
 
     // capture the heap image after collection
@@ -665,14 +665,14 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
     let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
     let reference = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&SharedHeapReference::NULL.bits().to_le_bytes()),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     flush_shared_cache(&shared, &mut allocator);
 
     // capture the serialized heap snapshot after collection
@@ -704,23 +704,23 @@ fn test_collect_shared_barrier_keeps_written_child() {
 
     // allocate a child and a zeroed parent before marking
     let child = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.allocation()),
+            &shared.allocation_plan(child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let parent = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.allocation()),
+            &shared.allocation_plan(parent_layout.block()),
             Payload::Zeroed,
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // publish worker-local slots before manual stepping
     flush_shared_cache(&shared, &mut allocator);
@@ -756,21 +756,21 @@ fn test_collect_shared_barrier_keeps_written_child() {
     assert!(shared.is_heap_live(child));
 }
 
-/// Keep one allocation created during mark alive through the active cycle.
+/// Keep one block created during mark alive through the active cycle.
 #[test]
 fn test_collect_shared_keeps_allocation_created_during_mark() {
-    // seed one rooted shared allocation
+    // seed one rooted shared block
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(3, TraceMap::empty())]);
     let layout = &layout_ids[0];
     let root = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     flush_shared_cache(&shared, &mut allocator);
 
@@ -788,14 +788,14 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
 
     // allocate after mark has started
     let late = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[7, 8, 9]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // drain the active cycle
     while shared
@@ -805,26 +805,26 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
         .is_none()
     {}
 
-    // keep both the root and the allocation created during mark
+    // keep both the root and the block created during mark
     assert!(shared.is_heap_live(root));
     assert!(shared.is_heap_live(late));
 }
 
-/// Keep a shared allocation created during mark after publishing one worker-local run.
+/// Keep a shared block created during mark after publishing one worker-local cursor.
 #[test]
-fn test_collect_shared_keeps_run_allocation_created_during_mark() {
-    // seed one allocation that will become unreachable
+fn test_collect_shared_keeps_cache_allocation_created_during_mark() {
+    // seed one block that will become unreachable
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(3, TraceMap::empty())]);
     let layout = &layout_ids[0];
     let seed = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // start marking without flushing the worker-local cache
     shared.request_gc();
@@ -833,16 +833,16 @@ fn test_collect_shared_keeps_run_allocation_created_during_mark() {
         "shared collection should become active"
     );
 
-    // allocate into a worker-local run during active marking
+    // allocate into a worker-local cursor during active marking
     let late = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[7, 8, 9]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // drain the active cycle with no explicit roots
     while shared
@@ -852,41 +852,41 @@ fn test_collect_shared_keeps_run_allocation_created_during_mark() {
         .is_none()
     {}
 
-    // free the unrooted seed but keep the allocation created during mark
+    // free the unrooted seed but keep the block created during mark
     assert!(!shared.is_heap_live(seed));
     assert!(shared.is_heap_live(late));
     let address = shared.heap_base_address() + late.offset();
 
-    // inspect the late allocation payload
+    // inspect the late block payload
     let bytes = read_mapped_bytes(address, 8);
 
     assert_eq!(bytes, &[7, 8, 9, 0, 0, 0, 0, 0]);
 }
 
-/// Keep one allocation created while allocation assists sweep.
+/// Keep one block created while block assists sweep.
 #[test]
 fn test_allocate_shared_assists_sweep_before_returning() {
-    // seed one root and one unreachable allocation
+    // seed one root and one unreachable block
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(3, TraceMap::empty())]);
     let layout = &layout_ids[0];
     let root = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let unreachable = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[4, 5, 6]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     flush_shared_cache(&shared, &mut allocator);
 
@@ -906,16 +906,16 @@ fn test_allocate_shared_assists_sweep_before_returning() {
     assert_eq!(shared.gc_phase(), SharedGcPhase::Sweep);
     let completed_cycles = shared.gc_state().completed_cycles;
 
-    // allocation assist should service sweep before returning
+    // block assist should service sweep before returning
     let late = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[7, 8, 9]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     // drain any remaining sweep work
     while shared.gc_phase() != SharedGcPhase::Idle {
@@ -924,7 +924,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
             .expect("shared collection step should succeed");
     }
 
-    // keep the root and the late allocation
+    // keep the root and the late block
     assert!(shared.gc_state().completed_cycles > completed_cycles);
     assert!(shared.is_heap_live(root));
     assert!(shared.is_heap_live(late));
@@ -942,23 +942,23 @@ fn test_collect_shared_requires_explicit_mark_finish() {
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(3, TraceMap::empty())]);
     let layout = &layout_ids[0];
     let reachable = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
     let unreachable = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[4, 5, 6]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     flush_shared_cache(&shared, &mut allocator);
 
@@ -973,7 +973,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
         .collect_step(&[reachable], false, 1, trace_table())
         .expect("shared collection step should succeed");
 
-    // unreachable allocation should remain live until sweep is allowed
+    // unreachable block should remain live until sweep is allowed
     assert_eq!(shared.gc_phase(), SharedGcPhase::Mark);
     assert!(shared.is_heap_live(unreachable));
 
@@ -985,7 +985,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
         .is_none()
     {}
 
-    // finish in idle with the unreachable allocation reclaimed
+    // finish in idle with the unreachable block reclaimed
     assert_eq!(shared.gc_phase(), SharedGcPhase::Idle);
     assert!(!shared.is_heap_live(unreachable));
 }
@@ -1023,14 +1023,14 @@ fn test_collect_step_honors_manual_request() {
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(3, TraceMap::empty())]);
     let layout = &layout_ids[0];
     let reachable = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     flush_shared_cache(&shared, &mut allocator);
 
@@ -1056,14 +1056,14 @@ fn test_shared_gc_budget_consumes_cycle_work() {
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(3, TraceMap::empty())]);
     let layout = &layout_ids[0];
     let _reference = shared
-        .allocate_dynamic_payload(
+        .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.allocation()),
+            &shared.allocation_plan(layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
-        .expect("shared heap allocation should succeed");
+        .expect("shared heap block should succeed");
 
     flush_shared_cache(&shared, &mut allocator);
 

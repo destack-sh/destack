@@ -9,18 +9,15 @@ use super::{TestHeap, trace_table};
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
 
-/// Return the retained heap bytes for one allocation in the given heap options.
+/// Return the retained heap bytes for one block in the given heap options.
 fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
     // allocate one managed payload under the requested options
     let layout = test_layout(bytes.len(), TraceMap::empty());
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
 
-    heap.allocate_dynamic_payload(
-        &heap.allocation_plan(layout.allocation()),
-        Payload::Bytes(bytes),
-    )
-    .expect("heap allocation should succeed");
+    heap.allocate_payload(&heap.allocation_plan(layout.block()), Payload::Bytes(bytes))
+        .expect("heap block should succeed");
 
     // report retained bytes after allocator rounding
     heap.usage().heap.retained_bytes
@@ -36,13 +33,13 @@ fn raw_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 
         RawAllocationShape::bytes(bytes.len()),
         Payload::Bytes(bytes),
     )
-    .expect("raw allocation should succeed");
+    .expect("raw block should succeed");
 
     // report retained bytes after allocator rounding
     heap.usage().raw.retained_bytes
 }
 
-/// Track retained bytes for default young-space allocation.
+/// Track retained bytes for default young-space block.
 #[test]
 fn test_track_default_young_retained_bytes() {
     // fill the default nursery with small zeroed objects
@@ -51,8 +48,8 @@ fn test_track_default_young_retained_bytes() {
     let heap = &mut test_heap.heap;
 
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate_dynamic_payload(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
-            .expect("heap allocation should succeed");
+        heap.allocate_payload(&heap.allocation_plan(layout.block()), Payload::Zeroed)
+            .expect("heap block should succeed");
     }
 
     let usage = heap.usage().heap;
@@ -66,7 +63,7 @@ fn test_track_default_young_retained_bytes() {
     assert_eq!(usage.retained_bytes, DEFAULT_YOUNG_SIZE_BYTES as u64);
 }
 
-/// Track retained bytes for local small-span allocation.
+/// Track retained bytes for local small-span block.
 #[test]
 fn test_track_small_span_retained_bytes() {
     // disable young space so all objects use mature small spans
@@ -79,7 +76,7 @@ fn test_track_small_span_retained_bytes() {
     let class_index = options
         .size_classes
         .class_index_for(SMALL_ALLOCATION_BYTES)
-        .expect("small allocation size should have a class");
+        .expect("small block size should have a class");
     let size_class = options.size_classes.classes[class_index];
     let span_size_bytes = size_class
         .span_size_bytes(options.page_size_bytes, options.heap_small_size_bytes)
@@ -92,8 +89,8 @@ fn test_track_small_span_retained_bytes() {
 
     // allocate enough objects to cover several slots and spans
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate_dynamic_payload(&heap.allocation_plan(layout.allocation()), Payload::Zeroed)
-            .expect("heap allocation should succeed");
+        heap.allocate_payload(&heap.allocation_plan(layout.block()), Payload::Zeroed)
+            .expect("heap block should succeed");
     }
 
     let usage = heap.usage().heap;
@@ -107,10 +104,10 @@ fn test_track_small_span_retained_bytes() {
     assert_eq!(usage.retained_bytes, retained_bytes as u64);
 }
 
-/// Reject one heap allocation when the retained-byte limit would be exceeded.
+/// Reject one heap block when the retained-byte limit would be exceeded.
 #[test]
 fn test_reject_heap_allocation_when_limit_exceeded() {
-    // compute the projected retained-byte charge for one allocation
+    // compute the projected retained-byte charge for one block
     let options = HeapOptions {
         heap_young_size_bytes: 0,
         max_heap_young_allocation_size_bytes: 0,
@@ -130,13 +127,10 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     })
     .expect("baseline heap should fit its current retained-byte limit");
 
-    // reject the allocation before mutating heap accounting
+    // reject the block before mutating heap accounting
     let error = heap
-        .allocate_dynamic_payload(
-            &heap.allocation_plan(layout.allocation()),
-            Payload::Bytes(&[1]),
-        )
-        .expect_err("heap allocation should be rejected");
+        .allocate_payload(&heap.allocation_plan(layout.block()), Payload::Bytes(&[1]))
+        .expect_err("heap block should be rejected");
 
     assert_eq!(
         error,
@@ -150,10 +144,10 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     assert_eq!(heap.usage().heap.retained_bytes, baseline);
 }
 
-/// Reject one raw allocation when the retained-byte limit would be exceeded.
+/// Reject one raw block when the retained-byte limit would be exceeded.
 #[test]
 fn test_reject_raw_allocation_when_limit_exceeded() {
-    // compute the projected retained-byte charge for one allocation
+    // compute the projected retained-byte charge for one block
     let expected_used_bytes = raw_retained_bytes_after_allocate(HeapOptions::local(), &[1]);
     let mut test_heap = TestHeap::new();
     let heap = &mut test_heap.heap;
@@ -167,10 +161,10 @@ fn test_reject_raw_allocation_when_limit_exceeded() {
     })
     .expect("baseline raw heap should fit its current retained-byte limit");
 
-    // reject the allocation before mutating raw accounting
+    // reject the block before mutating raw accounting
     let error = heap
         .allocate_raw(RawAllocationShape::bytes(1), Payload::Bytes(&[1]))
-        .expect_err("raw allocation should be rejected");
+        .expect_err("raw block should be rejected");
 
     assert_eq!(
         error,
@@ -184,7 +178,7 @@ fn test_reject_raw_allocation_when_limit_exceeded() {
     assert_eq!(heap.usage().raw.retained_bytes, baseline);
 }
 
-/// Preserve custom heap limits across in-place heap image restore.
+/// Preserve custom heap limits across in-storage heap image restore.
 #[test]
 fn test_restore_heap_image_preserves_limits() {
     // install non-default hard limits before capture
@@ -221,7 +215,7 @@ fn test_reject_raw_replace_when_limit_exceeded() {
             RawAllocationShape::bytes(4097),
             Payload::Bytes(&vec![0xAA; 4097]),
         )
-        .expect("raw allocation should succeed");
+        .expect("raw block should succeed");
     let baseline = heap.usage().raw.retained_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,

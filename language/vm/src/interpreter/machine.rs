@@ -346,7 +346,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_noscan_zeroed(small_site) {
+        if let Some(reference) = self.heap.reserve_small_noscan(small_site) {
             return Ok(reference);
         }
 
@@ -360,7 +360,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_scan_zeroed(small_site) {
+        if let Some(reference) = self.heap.reserve_small_scan(small_site) {
             return Ok(reference);
         }
 
@@ -374,14 +374,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_shared_edge_zeroed(small_site) {
+        if let Some(reference) = self.heap.reserve_small_shared_edge(small_site) {
             return Ok(reference);
         }
 
         self.allocate_zeroed_heap_site(trace_map, heap_site)
     }
 
-    /// Allocate one zeroed local heap payload from one compiled site.
+    /// Allocate one zeroed local heap payload from one allocation site.
     #[cold]
     #[inline(never)]
     fn allocate_zeroed_heap_site(
@@ -413,7 +413,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_noscan_uninit(small_site) {
+        if let Some(reference) = self.heap.reserve_small_noscan(small_site) {
             return Ok(reference);
         }
 
@@ -427,7 +427,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_scan_uninit(small_site) {
+        if let Some(reference) = self.heap.reserve_small_scan(small_site) {
             return Ok(reference);
         }
 
@@ -441,14 +441,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         id: SmallAllocationSiteId,
     ) -> Result<HeapReference, Error> {
         let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
-        if let Some(reference) = self.heap.reserve_small_shared_edge_uninit(small_site) {
+        if let Some(reference) = self.heap.reserve_small_shared_edge(small_site) {
             return Ok(reference);
         }
 
         self.allocate_uninit_heap_site(trace_map, heap_site)
     }
 
-    /// Allocate one uninitialized local heap payload from one compiled site.
+    /// Allocate one uninitialized local heap payload from one allocation site.
     #[cold]
     #[inline(never)]
     fn allocate_uninit_heap_site(
@@ -542,7 +542,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
         if let Some(reference) = self
             .shared
-            .reserve_small_zeroed(self.shared_cache, small_site.small)
+            .reserve_small_from_cache(self.shared_cache, small_site.small)
         {
             return Ok(reference);
         }
@@ -550,7 +550,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.allocate_zeroed_shared_heap_site(trace_map, heap_site)
     }
 
-    /// Allocate one zeroed shared heap payload from one compiled site.
+    /// Allocate one zeroed shared heap payload from one allocation site.
     #[cold]
     #[inline(never)]
     fn allocate_zeroed_shared_heap_site(
@@ -590,7 +590,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let (trace_map, heap_site, small_site) = self.heap_small_allocation_site(id);
         if let Some(reference) = self
             .shared
-            .reserve_small_uninit(self.shared_cache, small_site.small)
+            .reserve_small_from_cache(self.shared_cache, small_site.small)
         {
             return Ok(reference);
         }
@@ -598,7 +598,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         self.allocate_uninit_shared_heap_site(trace_map, heap_site)
     }
 
-    /// Allocate one uninitialized shared heap payload from one compiled site.
+    /// Allocate one uninitialized shared heap payload from one allocation site.
     #[cold]
     #[inline(never)]
     fn allocate_uninit_shared_heap_site(

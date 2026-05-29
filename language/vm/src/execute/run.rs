@@ -371,7 +371,7 @@ impl Interpreter {
                 }
             };
 
-            // record the instructions covered by this block run
+            // record the instructions covered by this block cache
             if options.limits.max_instructions.is_some() {
                 lowered_instructions_executed += block_run.1;
             }

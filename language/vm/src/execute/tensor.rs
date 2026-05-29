@@ -2410,24 +2410,18 @@ pub(crate) fn execute_tensor_slice(
     let mut strides = Vec::with_capacity(stride_values.len());
     for offset in offset_values {
         let value = machine.load_word_at(*offset);
-        match word_to_u64(value) {
-            Ok(v) => offsets.push(v),
-            Err(error) => return Err(error),
-        }
+        let value = word_to_u64(value)?;
+        offsets.push(value);
     }
     for offset in size_values {
         let value = machine.load_word_at(*offset);
-        match word_to_u64(value) {
-            Ok(v) => sizes.push(v),
-            Err(error) => return Err(error),
-        }
+        let value = word_to_u64(value)?;
+        sizes.push(value);
     }
     for offset in stride_values {
         let value = machine.load_word_at(*offset);
-        match word_to_u64(value) {
-            Ok(v) => strides.push(v),
-            Err(error) => return Err(error),
-        }
+        let value = word_to_u64(value)?;
+        strides.push(value);
     }
 
     // require full-rank slice arguments
@@ -2510,24 +2504,18 @@ pub(crate) fn execute_tensor_pad(
     let mut interior = Vec::with_capacity(interior_values.len());
     for offset in low_values {
         let value = machine.load_word_at(*offset);
-        match word_to_u64(value) {
-            Ok(v) => low.push(v),
-            Err(error) => return Err(error),
-        }
+        let value = word_to_u64(value)?;
+        low.push(value);
     }
     for offset in high_values {
         let value = machine.load_word_at(*offset);
-        match word_to_u64(value) {
-            Ok(v) => high.push(v),
-            Err(error) => return Err(error),
-        }
+        let value = word_to_u64(value)?;
+        high.push(value);
     }
     for offset in interior_values {
         let value = machine.load_word_at(*offset);
-        match word_to_u64(value) {
-            Ok(v) => interior.push(v),
-            Err(error) => return Err(error),
-        }
+        let value = word_to_u64(value)?;
+        interior.push(value);
     }
 
     // require full-rank padding arguments
@@ -3925,24 +3913,18 @@ pub(crate) fn execute_tensor_view(
     let mut strides = Vec::with_capacity(stride_values.len());
     for offset in offset_values {
         let value = machine.load_word_at(*offset);
-        match word_to_u64(value) {
-            Ok(v) => offsets.push(v),
-            Err(error) => return Err(error),
-        }
+        let value = word_to_u64(value)?;
+        offsets.push(value);
     }
     for offset in size_values {
         let value = machine.load_word_at(*offset);
-        match word_to_u64(value) {
-            Ok(v) => sizes.push(v),
-            Err(error) => return Err(error),
-        }
+        let value = word_to_u64(value)?;
+        sizes.push(value);
     }
     for offset in stride_values {
         let value = machine.load_word_at(*offset);
-        match word_to_u64(value) {
-            Ok(v) => strides.push(v),
-            Err(error) => return Err(error),
-        }
+        let value = word_to_u64(value)?;
+        strides.push(value);
     }
 
     for (expected, actual) in dest_layout.shape.iter().zip(sizes.iter()) {
