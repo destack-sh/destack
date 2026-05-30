@@ -15,6 +15,8 @@ pub enum CastOperator {
     FloatWiden,
     /// Narrow a float type to a smaller width.
     FloatNarrow,
+    /// Convert one float format to another format of the same width.
+    FloatConvert,
     /// Convert an integer to a float.
     IntToFloat,
     /// Convert a float to an integer.
