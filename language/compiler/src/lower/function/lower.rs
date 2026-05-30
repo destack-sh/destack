@@ -13,7 +13,7 @@ use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
 use crate::lower::{
     BreakContext, DispatchTableGlobal, FunctionEnvironmentLayout, GlobalBinding, InstanceKey,
-    InterfaceEntry, LocalBinding, LoopContext, MethodKey, RuntimeStatusLayout, Terminates,
+    DynamicMember, LocalBinding, LoopContext, MethodKey, RuntimeStatusLayout, Terminates,
     TypeLowerer, access_for_storage_mutability,
 };
 
@@ -73,12 +73,12 @@ pub(crate) struct FunctionLoweringContext<'a> {
     /// Resolve string literal globals by literal content.
     pub(crate) string_literal_globals: &'a HashMap<StringId, mir::LocalNodeId<mir::Global>>,
 
-    /// Resolve interface dispatch slots for call lowering.
-    pub(crate) interface_slots_by_symbol: &'a HashMap<dir::GlobalSymbolId, Vec<InterfaceEntry>>,
-    /// Resolve interface table globals for upcasts.
-    pub(crate) interface_table_globals_by_pair:
+    /// Resolve dynamic dispatch slots for call lowering.
+    pub(crate) dynamic_members_by_symbol: &'a HashMap<dir::GlobalSymbolId, Vec<DynamicMember>>,
+    /// Resolve dynamic table globals for upcasts.
+    pub(crate) dynamic_table_globals_by_pair:
         &'a HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), DispatchTableGlobal>,
-    /// Resolve class dispatch slots for method calls.
+    /// Resolve virtual dispatch slots for method calls.
     pub(crate) virtual_method_slots_by_key: &'a HashMap<(dir::GlobalSymbolId, MethodKey), u32>,
     /// Resolve vtable globals for class allocations.
     pub(crate) vtable_globals_by_symbol: &'a HashMap<dir::GlobalSymbolId, DispatchTableGlobal>,
@@ -806,7 +806,7 @@ impl<'a> FunctionLowerer<'a> {
         let closure_value =
             self.state
                 .builder
-                .callable_bind(target_function, closure_type, env_value);
+                .closure_bind(target_function, closure_type, env_value);
 
         Ok((closure_value, closure_type))
     }

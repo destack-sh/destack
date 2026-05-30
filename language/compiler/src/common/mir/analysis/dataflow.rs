@@ -237,8 +237,8 @@ where
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::Unreachable
                 | mir::Terminator::TailCall { .. }
-                | mir::Terminator::TailCallClass { .. }
-                | mir::Terminator::TailCallInterface { .. }
+                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallDynamic { .. }
                 | mir::Terminator::TailCallIndirect { .. }
         ) {
             result.block_exit.insert(block_id, exit_state.clone());

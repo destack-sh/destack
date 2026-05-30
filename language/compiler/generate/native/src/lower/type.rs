@@ -110,8 +110,8 @@ pub(crate) fn lower_type(
             type_id.into_any(),
         )),
 
-        mir::Type::Any { .. } => Err(CodegenCraneliftError::unsupported_type(
-            "any types must be lowered to aggregate operations",
+        mir::Type::Dynamic { .. } => Err(CodegenCraneliftError::unsupported_type(
+            "dynamic types must be lowered to aggregate operations",
             type_id.into_any(),
         )),
 
@@ -124,7 +124,7 @@ pub(crate) fn lower_type(
         }
 
         mir::Type::Closure { .. } => Err(CodegenCraneliftError::unsupported_type(
-            "callables must be lowered to aggregate operations",
+            "closures must be lowered to aggregate operations",
             type_id.into_any(),
         )),
 

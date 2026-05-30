@@ -444,7 +444,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                     &arguments,
                 );
             }
-            mir::Instruction::CallClass { receiver, call, .. } => {
+            mir::Instruction::CallVirtual { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
                 let function = self.resolved_instruction_target(instruction_id, instruction);
                 self.check_call_obligations(function, call.signature, arguments.clone(), anchor);
@@ -455,7 +455,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                     &arguments,
                 );
             }
-            mir::Instruction::CallInterface { receiver, call, .. } => {
+            mir::Instruction::CallDynamic { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver(*receiver, call.arguments);
                 self.check_call_obligations(None, call.signature, arguments.clone(), anchor);
                 self.define_call_result_sources(
@@ -886,12 +886,12 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 &call.arguments,
                 &self.flow,
             ),
-            mir::Terminator::TailCallClass { receiver, call, .. } => {
+            mir::Terminator::TailCallVirtual { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver_vec(*receiver, &call.arguments);
                 let function = self.resolved_terminator_target(block_id, terminator);
                 self.sources_for_call_result(function, call.signature, &arguments, &self.flow)
             }
-            mir::Terminator::TailCallInterface { receiver, call, .. } => {
+            mir::Terminator::TailCallDynamic { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver_vec(*receiver, &call.arguments);
                 self.sources_for_call_result(None, call.signature, &arguments, &self.flow)
             }
@@ -1016,14 +1016,14 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                     anchor,
                 );
             }
-            mir::Terminator::CallClass { receiver, call, .. }
-            | mir::Terminator::TailCallClass { receiver, call, .. } => {
+            mir::Terminator::CallVirtual { receiver, call, .. }
+            | mir::Terminator::TailCallVirtual { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver_vec(*receiver, &call.arguments);
                 let function = self.resolved_terminator_target(block_id, terminator);
                 self.check_call_obligations(function, call.signature, arguments, anchor);
             }
-            mir::Terminator::CallInterface { receiver, call, .. }
-            | mir::Terminator::TailCallInterface { receiver, call, .. } => {
+            mir::Terminator::CallDynamic { receiver, call, .. }
+            | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver_vec(*receiver, &call.arguments);
                 self.check_call_obligations(None, call.signature, arguments, anchor);
             }
@@ -1085,12 +1085,12 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 &call.arguments,
                 flow,
             )),
-            mir::Terminator::CallClass { receiver, call, .. } => {
+            mir::Terminator::CallVirtual { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver_vec(*receiver, &call.arguments);
                 let function = self.resolved_terminator_target(block_id, terminator);
                 Some(self.sources_for_call_result(function, call.signature, &arguments, flow))
             }
-            mir::Terminator::CallInterface { receiver, call, .. } => {
+            mir::Terminator::CallDynamic { receiver, call, .. } => {
                 let arguments = self.call_arguments_with_receiver_vec(*receiver, &call.arguments);
                 Some(self.sources_for_call_result(None, call.signature, &arguments, flow))
             }

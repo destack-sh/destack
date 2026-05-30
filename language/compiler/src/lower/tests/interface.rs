@@ -3,9 +3,9 @@ use destack_mir as mir;
 
 use crate::TestProgram;
 
-/// Lower interface table metadata for structs.
+/// Lower dynamic table metadata for structs.
 #[test]
-fn test_lower_struct_interface_table_metadata() {
+fn test_lower_struct_dynamic_table_metadata() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -58,21 +58,21 @@ entry0(this0: Circle):
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
-        // collect interface dispatch tables
-        let interface_table = test.expect_single_interface_table(tree);
+        // collect dynamic dispatch tables
+        let dynamic_table = test.expect_single_dynamic_table(tree);
 
         // assert the field offset slot
-        let offset = test.expect_interface_field_offset(interface_table, tree, strings, "color");
+        let offset = test.expect_dynamic_field_offset(dynamic_table, tree, strings, "color");
         assert_eq!(offset, 0);
 
-        // assert the interface method slot
+        // assert the dynamic method slot
         let target_name =
-            test.expect_interface_method_target_name(interface_table, tree, strings, "draw");
+            test.expect_dynamic_method_target_name(dynamic_table, tree, strings, "draw");
         assert_eq!(target_name, "Circle.draw");
     });
 }
 
-/// Lower erased interface layouts into Any values.
+/// Lower erased dynamic layouts into dynamic values.
 #[test]
 fn test_lower_interface_any_layout() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -137,22 +137,22 @@ entry0(this0: Circle):
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
-        let interface_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable");
+        let constraint_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable");
 
         let value_type =
-            test.expect_struct_field_type_by_name(tree, strings, interface_type, "value");
-        let table_type = test.expect_struct_field_type_by_name(tree, strings, interface_type, "table");
+            test.expect_struct_field_type_by_name(tree, strings, constraint_type, "value");
+        let table_type = test.expect_struct_field_type_by_name(tree, strings, constraint_type, "table");
 
         let value_type = tree.get(value_type);
         let mir::Type::Reference { kind, pointee, .. } = value_type else {
-            panic!("expected managed reference for Any value field");
+            panic!("expected managed reference for dynamic value field");
         };
         assert!(matches!(kind, mir::ReferenceKind::Managed));
         assert!(matches!(
             tree.get(
                 pointee
                     .ty()
-                    .expect("Any value pointee should be concrete")
+                    .expect("dynamic value pointee should be concrete")
             ),
             mir::Type::Void
         ));
@@ -286,9 +286,9 @@ function run(): int32 {
     test.assert_mir_function_output(module_id, "native", "run", &[], Value::int32(42));
 }
 
-/// Lower interface table slots in declaration order for mixed members.
+/// Lower dynamic table slots in declaration order for mixed members.
 #[test]
-fn test_lower_orders_interface_table_slots() {
+fn test_lower_orders_dynamic_table_slots() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -363,13 +363,13 @@ entry0(this0: Widget):
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
-        let shape_table = test.interface_dispatch_table(
+        let shape_table = test.dynamic_dispatch_table(
             tree,
             strings,
             "test/test:Widget",
             "test/test:Shape.object",
         );
-        let paint_table = test.interface_dispatch_table(
+        let paint_table = test.dynamic_dispatch_table(
             tree,
             strings,
             "test/test:Widget",
@@ -379,58 +379,58 @@ entry0(this0: Widget):
         let shape = tree
             .metadata
             .dispatch
-            .interface_shape(shape_table.interface)
-            .expect("missing Shape interface shape");
+            .dynamic_shape(shape_table.constraint)
+            .expect("missing Shape dynamic shape");
         match (&shape_table.entries[0], &shape.slots[0]) {
             (
-                mir::InterfaceTableEntry::FieldOffset { offset },
-                mir::InterfaceSlot::Field { field_name, .. },
+                mir::DynamicEntry::Field { offset },
+                mir::DynamicSlot::Field { name, .. },
             ) => {
-                assert_eq!(strings.get(*field_name), "width");
+                assert_eq!(strings.get(*name), "width");
                 assert_eq!(*offset, 0);
             }
             _ => panic!("expected field offset slot for width"),
         }
         match (&shape_table.entries[1], &shape.slots[1]) {
             (
-                mir::InterfaceTableEntry::Method { .. },
-                mir::InterfaceSlot::Method { name, .. },
+                mir::DynamicEntry::Method { .. },
+                mir::DynamicSlot::Method { name, .. },
             ) => {
                 assert_eq!(strings.get(*name), "area");
             }
-            _ => panic!("expected interface method slot for area"),
+            _ => panic!("expected dynamic method slot for area"),
         }
 
         let paint = tree
             .metadata
             .dispatch
-            .interface_shape(paint_table.interface)
-            .expect("missing Paint interface shape");
+            .dynamic_shape(paint_table.constraint)
+            .expect("missing Paint dynamic shape");
         match (&paint_table.entries[0], &paint.slots[0]) {
             (
-                mir::InterfaceTableEntry::FieldOffset { offset },
-                mir::InterfaceSlot::Field { field_name, .. },
+                mir::DynamicEntry::Field { offset },
+                mir::DynamicSlot::Field { name, .. },
             ) => {
-                assert_eq!(strings.get(*field_name), "color");
+                assert_eq!(strings.get(*name), "color");
                 assert_eq!(*offset, 4);
             }
             _ => panic!("expected field offset slot for color"),
         }
         match (&paint_table.entries[1], &paint.slots[1]) {
             (
-                mir::InterfaceTableEntry::Method { .. },
-                mir::InterfaceSlot::Method { name, .. },
+                mir::DynamicEntry::Method { .. },
+                mir::DynamicSlot::Method { name, .. },
             ) => {
                 assert_eq!(strings.get(*name), "paint");
             }
-            _ => panic!("expected interface method slot for paint"),
+            _ => panic!("expected dynamic method slot for paint"),
         }
     });
 }
 
-/// Lower interface call metadata for interface dispatch.
+/// Lower dynamic call metadata for dynamic dispatch.
 #[test]
-fn test_lower_interface_call_metadata() {
+fn test_lower_dynamic_call_metadata() {
     let test = TestProgram::memory_sequential_with_prelude();
     let module_id = test.add_module(
         "test.ds",
@@ -481,7 +481,7 @@ external function Drawable.draw(Drawable.object): int32
 function useDrawable(value0: Drawable): int32 {
 entry0(value0: Drawable):
     value1: ref<void, managed, readonly> = field.get value0, 0
-    value2: int32 = call.interface value0, Drawable.object, 2(value1): (Drawable.object) -> int32
+    value2: int32 = call.dynamic value0, Drawable.object, 2(value1): (Drawable.object) -> int32
     return value2
 }
 
@@ -494,17 +494,17 @@ entry0(this0: Circle):
     );
 
     test.with_mir_tree(module_id, "native", |tree, strings| {
-        // locate the interface call metadata
-        let info = test.interface_call_info_by_name(tree, strings, "useDrawable");
-        let interface_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable.object");
+        // locate the dynamic call metadata
+        let info = test.dynamic_call_info_by_name(tree, strings, "useDrawable");
+        let constraint_type = test.type_by_metadata_name(tree, strings, "test/test:Drawable.object");
 
         // assert the dispatch payload
         assert_eq!(info.slot, mir::DispatchSlot::new(2));
-        assert_eq!(info.interface, interface_type);
+        assert_eq!(info.constraint, constraint_type);
     });
 }
 
-/// Lower interface upcasts into Any values in MIR.
+/// Lower dynamic upcasts into dynamic values in MIR.
 #[test]
 fn test_lower_interface_upcast() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -559,7 +559,7 @@ entry0(value0: int32):
     value2: ref<Sprite, managed, readonly> = new.zeroed Sprite
     store value2, value1
     value3: ref<void, managed, readonly> = cast.bit value2 -> ref<void, managed, readonly>
-    value4: ref<[usize; 2], raw, readonly, space(static)> = global.address Sprite#as#Renderable#interface_table
+    value4: ref<[usize; 2], raw, readonly, space(static)> = global.address Sprite#as#Renderable#dynamic_table
     value5: ref<void, raw, readonly, space(static)> = cast.bit value4 -> ref<void, raw, readonly, space(static)>
     value6: Renderable = struct Renderable (value3, value5)
     return value6
@@ -574,7 +574,7 @@ entry0(this0: Sprite):
     );
 }
 
-/// Execute an interface call through an interface-typed reference.
+/// Execute a dynamic call through a dynamic value.
 #[test]
 fn test_lower_executes_interface_call() {
     let test = TestProgram::memory_sequential_with_prelude();

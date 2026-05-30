@@ -273,11 +273,11 @@ impl FunctionLowerer<'_> {
         // resolve the receiver type id when available
         let receiver_type_id = self.type_for_expression(receiver_id);
 
-        // resolve interface receivers for dispatch and argument passing
+        // resolve dynamic receivers for dispatch and argument passing
         let receivers = if let (Some(receiver_type_id), Some(receiver_value)) =
             (receiver_type_id, receiver_value)
         {
-            Some(self.interface_call_receivers(expression_id, receiver_type_id, receiver_value)?)
+            Some(self.dynamic_call_receivers(expression_id, receiver_type_id, receiver_value)?)
         } else {
             None
         };
@@ -341,7 +341,7 @@ impl FunctionLowerer<'_> {
             None
         };
         let signature = match &dispatch_target {
-            Some((DispatchTarget::Interface { signature, .. }, _)) => *signature,
+            Some((DispatchTarget::Dynamic { signature, .. }, _)) => *signature,
             _ => {
                 let function_id = function_id
                     .ok_or_else(|| LowerError::MissingFunction {
@@ -359,22 +359,22 @@ impl FunctionLowerer<'_> {
 
         if let Some((dispatch_target, receiver_value)) = dispatch_target {
             let value = match dispatch_target {
-                DispatchTarget::Interface {
-                    interface,
+                DispatchTarget::Dynamic {
+                    constraint,
                     slot,
                     signature: _,
-                } => self.state.builder.call_interface(
+                } => self.state.builder.call_dynamic(
                     receiver_value,
-                    interface,
+                    constraint,
                     slot,
                     signature,
                     arguments,
                 ),
-                DispatchTarget::Class {
+                DispatchTarget::Virtual {
                     class,
                     slot,
                     function_id,
-                } => self.state.builder.call_class(
+                } => self.state.builder.call_virtual(
                     receiver_value,
                     class,
                     slot,
@@ -471,7 +471,7 @@ impl FunctionLowerer<'_> {
             None
         };
         let signature = match &dispatch_target {
-            Some((DispatchTarget::Interface { signature, .. }, _)) => *signature,
+            Some((DispatchTarget::Dynamic { signature, .. }, _)) => *signature,
             _ => {
                 let function_id = function_id
                     .ok_or_else(|| LowerError::MissingFunction {
@@ -489,22 +489,22 @@ impl FunctionLowerer<'_> {
 
         if let Some((dispatch_target, receiver_value)) = dispatch_target {
             match dispatch_target {
-                DispatchTarget::Interface {
-                    interface,
+                DispatchTarget::Dynamic {
+                    constraint,
                     slot,
                     signature: _,
-                } => self.state.builder.call_interface_void(
+                } => self.state.builder.call_dynamic_void(
                     receiver_value,
-                    interface,
+                    constraint,
                     slot,
                     signature,
                     arguments,
                 ),
-                DispatchTarget::Class {
+                DispatchTarget::Virtual {
                     class,
                     slot,
                     function_id,
-                } => self.state.builder.call_class_void(
+                } => self.state.builder.call_virtual_void(
                     receiver_value,
                     class,
                     slot,

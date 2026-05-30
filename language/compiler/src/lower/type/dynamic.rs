@@ -1,12 +1,13 @@
+use destack_dir as dir;
+use destack_mir as mir;
 use destack_source::ModuleId;
-use {destack_dir as dir, destack_mir as mir};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, TypeLowerer};
 use crate::{LowerError, LowerResult};
 
-/// Layout metadata for erased Any values.
+/// Layout metadata for erased dynamic values.
 #[derive(Debug, Clone)]
-pub(crate) struct AnyValueLayout {
+pub(crate) struct DynamicValueLayout {
     /// Field index for the value pointer.
     pub(crate) value_field_index: u32,
     /// Field index for the table pointer.
@@ -18,16 +19,20 @@ pub(crate) struct AnyValueLayout {
 }
 
 impl TypeLowerer<'_> {
-    /// Return cached Any value layout metadata.
-    pub(crate) fn any_value_layout(&self, type_id: dir::LocalTypeId) -> Option<&AnyValueLayout> {
-        self.any_value_layout_cache.get(&type_id)
+    /// Return cached dynamic value layout metadata.
+    pub(crate) fn dynamic_value_layout(
+        &self,
+        type_id: dir::LocalTypeId,
+    ) -> Option<&DynamicValueLayout> {
+        self.dynamic_value_layout_cache.get(&type_id)
     }
 
-    /// Lower one erased Any value layout.
-    pub(crate) fn lower_any_value_type(
+    /// Lower one erased dynamic value layout.
+    pub(crate) fn lower_dynamic_value_type(
         &mut self,
         types: &dir::TypeTable<'_>,
         type_id: dir::LocalTypeId,
+        constraint_type_id: dir::LocalTypeId,
         module_id: ModuleId,
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
@@ -37,25 +42,36 @@ impl TypeLowerer<'_> {
             return Ok(mir_type);
         }
 
-        // load the dir type for validation
-        let dir::Type::Named(reference) = types.get_type(type_id) else {
+        // load the constraint type for validation
+        let dir::Type::Named(reference) = types.get_type(constraint_type_id) else {
             return Err(LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
-                ty: type_id.into_global(module_id),
-                message: "expected Any interface type".to_string(),
+                ty: constraint_type_id.into_global(module_id),
+                message: "expected dynamic constraint type".to_string(),
             }
             .into());
         };
 
-        // lower the erased interface shape
-        let interface_type_id = types
+        // require an interface-shaped constraint
+        if !self.symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface) {
+            return Err(LowerError::UnsupportedType {
+                anchor: self.diagnostic_anchor(node),
+                ty: constraint_type_id.into_global(module_id),
+                message: "Dynamic<T> constraint must be an interface".to_string(),
+            }
+            .into());
+        }
+
+        // lower the erased dynamic constraint shape
+        let constraint_type_id = types
             .get_instance_type_id(reference.symbol)
             .ok_or_else(|| LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
-                ty: type_id.into_global(module_id),
-                message: "Any interface type missing instance shape".to_string(),
+                ty: constraint_type_id.into_global(module_id),
+                message: "dynamic constraint type missing instance shape".to_string(),
             })?;
-        let interface_type = self.lower_type(types, interface_type_id, module_id, node, builder)?;
+        let constraint_type =
+            self.lower_type(types, constraint_type_id, module_id, node, builder)?;
 
         // define value and table field names and types
         let value_name = builder.intern("value");
@@ -75,14 +91,14 @@ impl TypeLowerer<'_> {
             .ok_or_else(|| LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
-                message: "Any layout requires concrete nested types".to_string(),
+                message: "dynamic layout requires concrete nested types".to_string(),
             })?;
         let (table_size, table_alignment) = self
             .size_and_align_of_type(builder.tree().get(table_type), builder.tree())
             .ok_or_else(|| LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
                 ty: type_id.into_global(module_id),
-                message: "Any layout requires concrete nested types".to_string(),
+                message: "dynamic layout requires concrete nested types".to_string(),
             })?;
 
         // assemble field inputs
@@ -105,31 +121,31 @@ impl TypeLowerer<'_> {
             },
         ];
 
-        // compute layout and create the MIR Any type
+        // compute layout and create the MIR dynamic type
         let layout = Self::compute_struct_layout(fields, LayoutPolicy::Source);
-        let mir_type = builder.type_any(interface_type);
+        let mir_type = builder.type_dynamic(constraint_type);
         self.layout_cache.insert(mir_type, layout.clone());
 
-        // resolve field indices for Any metadata
+        // resolve field indices for dynamic metadata
         let value_field_index =
             layout
                 .field_index(value_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(node),
-                    message: "missing Any value field".to_string(),
+                    message: "missing dynamic value field".to_string(),
                 })?;
         let table_field_index =
             layout
                 .field_index(table_name)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(node),
-                    message: "missing interface table field".to_string(),
+                    message: "missing dynamic table field".to_string(),
                 })?;
 
-        // cache Any value metadata
-        self.any_value_layout_cache.insert(
+        // cache dynamic value metadata
+        self.dynamic_value_layout_cache.insert(
             type_id,
-            AnyValueLayout {
+            DynamicValueLayout {
                 value_field_index,
                 table_field_index,
                 value_type,

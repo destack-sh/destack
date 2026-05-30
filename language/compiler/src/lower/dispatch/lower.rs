@@ -75,54 +75,54 @@ impl ModuleLowerer<'_> {
             }
         }
 
-        // precompute interface slots for interface dispatch
-        let mut interface_symbols = Vec::new();
+        // precompute dynamic members for dynamic constraints
+        let mut constraint_symbols = Vec::new();
         for (declaration_id, declaration) in self.dir_tree.iter_nodes_of_type::<dir::Declaration>()
         {
             let dir::Declaration::Interface(_) = declaration else {
                 continue;
             };
-            interface_symbols.push(self.require_symbol_for_node(declaration_id)?);
+            constraint_symbols.push(self.require_symbol_for_node(declaration_id)?);
         }
 
         // deduplicate and sort for determinism
-        interface_symbols.sort_by_key(|symbol| symbol.local_id.id);
-        interface_symbols.dedup();
+        constraint_symbols.sort_by_key(|symbol| symbol.local_id.id);
+        constraint_symbols.dedup();
 
-        for symbol in interface_symbols {
-            self.lower_interface_slots(symbol)?;
+        for symbol in constraint_symbols {
+            self.lower_dynamic_members(symbol)?;
         }
 
-        // precompute interface pairs for interface table lowering
-        let mut pairs = self.collect_interface_pairs();
-        pairs.sort_by_key(|(concrete, interface)| (concrete.local_id.id, interface.local_id.id));
+        // precompute dynamic table pairs
+        let mut pairs = self.collect_dynamic_pairs();
+        pairs.sort_by_key(|(concrete, constraint)| (concrete.local_id.id, constraint.local_id.id));
         pairs.dedup();
 
-        self.interface_table_pairs = pairs.clone();
+        self.dynamic_table_pairs = pairs.clone();
 
         for pair in pairs {
-            // create the static interface table backing store
-            let (concrete, interface) = pair;
-            let declaration_id = self.declaration_ids_for_symbol(interface).first().copied();
+            // create the static dynamic table backing store
+            let (concrete, constraint) = pair;
+            let declaration_id = self.declaration_ids_for_symbol(constraint).first().copied();
             let Some(declaration_id) = declaration_id else {
                 return Err(LowerError::Internal {
                     anchor: (self.module_id).into(),
                     module: self.module_id,
-                    message: "interface declaration missing for interface table global".to_string(),
+                    message: "dynamic constraint declaration missing for table global".to_string(),
                 }
                 .into());
             };
             let anchor = declaration_id
                 .into_global_any(self.module_id)
                 .into_anchored(Some(self.profile));
-            let slots = self.lower_interface_slots(interface)?;
-            let interface_table_global = self.create_interface_table_global(
+            let slots = self.lower_dynamic_members(constraint)?;
+            let dynamic_table_global = self.create_dynamic_table_global(
                 concrete,
-                interface,
-                mir::InterfaceTable::storage_len(slots.len()) as u64,
+                constraint,
+                mir::DynamicTable::storage_len(slots.len()) as u64,
                 anchor,
             )?;
-            self.insert_interface_table_global(pair, interface_table_global)?;
+            self.insert_dynamic_table_global(pair, dynamic_table_global)?;
         }
 
         // publish the guard after every declaration is complete
@@ -134,7 +134,7 @@ impl ModuleLowerer<'_> {
     /// Write dispatch tables after function bodies are lowered.
     pub(crate) fn emit_dispatch(&mut self) -> LowerResult<()> {
         self.emit_vtables()?;
-        self.emit_interface_tables()?;
+        self.emit_dynamic_tables()?;
 
         Ok(())
     }

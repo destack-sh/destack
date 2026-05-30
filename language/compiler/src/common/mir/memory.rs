@@ -122,8 +122,8 @@ pub fn collect_non_escaping_frame_allocs(
             let instruction = tree.get(instruction_id);
             match instruction {
                 mir::Instruction::Call { .. }
-                | mir::Instruction::CallClass { .. }
-                | mir::Instruction::CallInterface { .. }
+                | mir::Instruction::CallVirtual { .. }
+                | mir::Instruction::CallDynamic { .. }
                 | mir::Instruction::CallIndirect { .. } => {
                     // capture call effects for escape checks
                     let argument_effects = tree
@@ -397,7 +397,7 @@ pub fn collect_non_escaping_frame_allocs(
                     );
                 }
             }
-            mir::Terminator::CallClass {
+            mir::Terminator::CallVirtual {
                 receiver,
                 call,
                 target,
@@ -429,7 +429,7 @@ pub fn collect_non_escaping_frame_allocs(
                     );
                 }
             }
-            mir::Terminator::CallInterface {
+            mir::Terminator::CallDynamic {
                 receiver,
                 call,
                 target,
@@ -477,8 +477,8 @@ pub fn collect_non_escaping_frame_allocs(
             }
             mir::Terminator::ResumePanic => {}
             mir::Terminator::TailCall { call, .. }
-            | mir::Terminator::TailCallClass { call, .. }
-            | mir::Terminator::TailCallInterface { call, .. } => {
+            | mir::Terminator::TailCallVirtual { call, .. }
+            | mir::Terminator::TailCallDynamic { call, .. } => {
                 for arg in call.arguments.iter().copied() {
                     record_stack_escape_reference(
                         arg,
@@ -1411,8 +1411,8 @@ impl<'a> PointerDecomposer<'a> {
 
             // calls return unknown pointers
             mir::Instruction::Call { destination, .. }
-            | mir::Instruction::CallClass { destination, .. }
-            | mir::Instruction::CallInterface { destination, .. }
+            | mir::Instruction::CallVirtual { destination, .. }
+            | mir::Instruction::CallDynamic { destination, .. }
             | mir::Instruction::CallIndirect { destination, .. }
                 if destination.and_then(|value| value.value()) == Some(ptr) =>
             {

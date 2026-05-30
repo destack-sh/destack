@@ -1,5 +1,5 @@
+mod dynamic;
 mod global;
-mod interface;
 mod lower;
 mod shape;
 mod vtable;

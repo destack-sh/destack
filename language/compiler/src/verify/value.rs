@@ -49,7 +49,7 @@ pub(super) fn instruction_consumes(
             values.push(*aggregate);
             values.push(*value);
         }
-        mir::Instruction::CallableBind { environment, .. }
+        mir::Instruction::ClosureBind { environment, .. }
         | mir::Instruction::VectorSplat {
             value: environment, ..
         }
@@ -110,8 +110,8 @@ pub(super) fn instruction_consumes(
         mir::Instruction::Call { call, .. } => {
             push_arguments(&mut values, tree.get_arguments(call.arguments));
         }
-        mir::Instruction::CallClass { receiver, call, .. }
-        | mir::Instruction::CallInterface { receiver, call, .. } => {
+        mir::Instruction::CallVirtual { receiver, call, .. }
+        | mir::Instruction::CallDynamic { receiver, call, .. } => {
             values.push(*receiver);
             push_arguments(&mut values, tree.get_arguments(call.arguments));
         }
@@ -154,10 +154,10 @@ pub(super) fn terminator_consumes(terminator: &mir::Terminator) -> Vec<mir::Valu
             values.push(*callee);
             push_arguments(&mut values, &call.arguments);
         }
-        mir::Terminator::CallClass { receiver, call, .. }
-        | mir::Terminator::CallInterface { receiver, call, .. }
-        | mir::Terminator::TailCallClass { receiver, call, .. }
-        | mir::Terminator::TailCallInterface { receiver, call, .. } => {
+        mir::Terminator::CallVirtual { receiver, call, .. }
+        | mir::Terminator::CallDynamic { receiver, call, .. }
+        | mir::Terminator::TailCallVirtual { receiver, call, .. }
+        | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
             values.push(*receiver);
             push_arguments(&mut values, &call.arguments);
         }

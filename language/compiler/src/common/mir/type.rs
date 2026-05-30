@@ -36,8 +36,8 @@ pub enum TypeKey {
     TypeId,
     /// Atomic storage type.
     Atomic { value: Box<TypeKey> },
-    /// Erased Any value type.
-    Any { interface: Box<TypeKey> },
+    /// Erased dynamic value type.
+    Dynamic { constraint: Box<TypeKey> },
     /// Linear uninitialized allocation token type.
     Uninit { value: Box<TypeKey> },
     /// Reference or pointer type.
@@ -177,8 +177,8 @@ impl TypeKey {
             mir::Type::Atomic { value } => TypeKey::Atomic {
                 value: Box::new(Self::from_type_reference(*value, tree)),
             },
-            mir::Type::Any { interface } => TypeKey::Any {
-                interface: Box::new(Self::from_type_reference(*interface, tree)),
+            mir::Type::Dynamic { constraint } => TypeKey::Dynamic {
+                constraint: Box::new(Self::from_type_reference(*constraint, tree)),
             },
             mir::Type::Uninit { value } => TypeKey::Uninit {
                 value: Box::new(Self::from_type_reference(*value, tree)),

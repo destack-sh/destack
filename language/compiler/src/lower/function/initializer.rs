@@ -146,10 +146,10 @@ impl FunctionLowerer<'_> {
                 }
                 .into());
             }
-            mir::Type::Any { .. } => {
+            mir::Type::Dynamic { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(node),
-                    message: "constructor cannot initialize erased Any values".to_string(),
+                    message: "constructor cannot initialize erased dynamic values".to_string(),
                 }
                 .into());
             }

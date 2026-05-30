@@ -222,7 +222,7 @@ impl<'a> ModuleLowerer<'a> {
 
         // function environment parameter when used
         if let Some(environment) =
-            self.optional_type_id(function.environment, "callable environment type")?
+            self.optional_type_id(function.environment, "closure environment type")?
         {
             let ty = lower_type(tree, environment, pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));

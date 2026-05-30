@@ -188,10 +188,10 @@ enum SignatureType {
         /// Stored value type signature.
         value: Box<SignatureType>,
     },
-    /// Erased Any value signature.
-    Any {
-        /// Interface type signature.
-        interface: Box<SignatureType>,
+    /// Erased dynamic value signature.
+    Dynamic {
+        /// Dynamic constraint type signature.
+        constraint: Box<SignatureType>,
     },
     /// Linear uninitialized allocation token signature.
     Uninit {
@@ -358,8 +358,8 @@ impl SignatureType {
             mir::Type::Atomic { value } => SignatureType::Atomic {
                 value: Box::new(SignatureType::from_type(tree, value.ty()?)?),
             },
-            mir::Type::Any { interface } => SignatureType::Any {
-                interface: Box::new(SignatureType::from_type(tree, interface.ty()?)?),
+            mir::Type::Dynamic { constraint } => SignatureType::Dynamic {
+                constraint: Box::new(SignatureType::from_type(tree, constraint.ty()?)?),
             },
             mir::Type::Uninit { value } => SignatureType::Uninit {
                 value: Box::new(SignatureType::from_type(tree, value.ty()?)?),
@@ -1300,7 +1300,7 @@ impl SymbolCallSite {
                 signature: SignatureKey::from_function_type(tree, call.signature),
                 is_precise: false,
             }),
-            mir::Terminator::CallClass { slot, call, .. } => {
+            mir::Terminator::CallVirtual { slot, call, .. } => {
                 let resolved_target = terminator_resolved_target(block_id, terminator, tree);
                 let callee =
                     resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
@@ -1313,14 +1313,14 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: mir::CallDispatchKind::Class { slot: *slot },
+                    dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
                     is_precise: false,
                 })
             }
-            mir::Terminator::CallInterface { slot, call, .. } => {
+            mir::Terminator::CallDynamic { slot, call, .. } => {
                 let resolved_target = terminator_resolved_target(block_id, terminator, tree);
                 let callee =
                     resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
@@ -1333,7 +1333,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: mir::CallDispatchKind::Interface { slot: *slot },
+                    dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1368,7 +1368,7 @@ impl SymbolCallSite {
                 signature: SignatureKey::from_function_type(tree, call.signature),
                 is_precise: false,
             }),
-            mir::Terminator::TailCallClass { slot, call, .. } => {
+            mir::Terminator::TailCallVirtual { slot, call, .. } => {
                 let resolved_target = terminator_resolved_target(block_id, terminator, tree);
                 let callee =
                     resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
@@ -1381,14 +1381,14 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: mir::CallDispatchKind::Class { slot: *slot },
+                    dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
                     is_precise: false,
                 })
             }
-            mir::Terminator::TailCallInterface { slot, call, .. } => {
+            mir::Terminator::TailCallDynamic { slot, call, .. } => {
                 let resolved_target = terminator_resolved_target(block_id, terminator, tree);
                 let callee =
                     resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
@@ -1401,7 +1401,7 @@ impl SymbolCallSite {
 
                 Some(Self {
                     callsite,
-                    dispatch: mir::CallDispatchKind::Interface { slot: *slot },
+                    dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
                     callee,
                     callee_linkage,
                     signature,
@@ -1643,17 +1643,17 @@ impl CallSite {
                 callee: None,
                 is_precise: false,
             }),
-            mir::Terminator::CallClass { slot, .. } => Some(Self {
+            mir::Terminator::CallVirtual { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: mir::CallDispatchKind::Class { slot: *slot },
+                dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
                 callee: terminator_resolved_target(block_id, terminator, tree),
                 is_precise: false,
             }),
-            mir::Terminator::CallInterface { slot, .. } => Some(Self {
+            mir::Terminator::CallDynamic { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: mir::CallDispatchKind::Interface { slot: *slot },
+                dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
                 callee: terminator_resolved_target(block_id, terminator, tree),
                 is_precise: false,
             }),
@@ -1671,17 +1671,17 @@ impl CallSite {
                 callee: None,
                 is_precise: false,
             }),
-            mir::Terminator::TailCallClass { slot, .. } => Some(Self {
+            mir::Terminator::TailCallVirtual { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: mir::CallDispatchKind::Class { slot: *slot },
+                dispatch: mir::CallDispatchKind::Virtual { slot: *slot },
                 callee: terminator_resolved_target(block_id, terminator, tree),
                 is_precise: false,
             }),
-            mir::Terminator::TailCallInterface { slot, .. } => Some(Self {
+            mir::Terminator::TailCallDynamic { slot, .. } => Some(Self {
                 caller,
                 callsite,
-                dispatch: mir::CallDispatchKind::Interface { slot: *slot },
+                dispatch: mir::CallDispatchKind::Dynamic { slot: *slot },
                 callee: terminator_resolved_target(block_id, terminator, tree),
                 is_precise: false,
             }),
@@ -1956,7 +1956,7 @@ b0(v0: int32):
 }
 function test(v0: int32): int32 {
 b0(v0: int32):
-    v1: int32 = call.class v0, int32, 1(v0): (int32) -> int32
+    v1: int32 = call.virtual v0, int32, 1(v0): (int32) -> int32
     return v1
 }"#,
         );
@@ -1971,7 +1971,7 @@ b0(v0: int32):
             for &instruction_id in &block.instructions {
                 if matches!(
                     test.tree.get(instruction_id),
-                    mir::Instruction::CallClass { .. }
+                    mir::Instruction::CallVirtual { .. }
                 ) {
                     call_id = Some(instruction_id);
                     break;
@@ -1981,7 +1981,7 @@ b0(v0: int32):
                 break;
             }
         }
-        let call_id = call_id.expect("missing class call instruction");
+        let call_id = call_id.expect("missing virtual call instruction");
 
         test.tree
             .metadata
@@ -1996,7 +1996,7 @@ b0(v0: int32):
         assert_eq!(callgraph.outgoing(test_id)[0].callee, callee_id);
         assert_eq!(
             callgraph.outgoing(test_id)[0].dispatch,
-            mir::CallDispatchKind::Class {
+            mir::CallDispatchKind::Virtual {
                 slot: mir::DispatchSlot::new(1),
             }
         );
@@ -2006,7 +2006,7 @@ b0(v0: int32):
 
     /// Class call terminators keep the declared target and unknown edge.
     #[test]
-    fn test_call_graph_call_class_terminator_is_partial() {
+    fn test_call_graph_call_virtual_terminator_is_partial() {
         let mut test = TestProgram::new(
             r#"
 function callee(v0: int32): int32 {
@@ -2015,7 +2015,7 @@ b0(v0: int32):
 }
 function test(v0: int32): int32 {
 b0(v0: int32):
-    call.class v0, int32, 1(v0): (int32) -> int32 -> b1
+    call.virtual v0, int32, 1(v0): (int32) -> int32 -> b1
 b1(v1: int32):
     return v1
 b2(v2: ref<int32, managed, readonly>):
@@ -2042,7 +2042,7 @@ b2(v2: ref<int32, managed, readonly>):
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(
             outgoing[0].dispatch,
-            mir::CallDispatchKind::Class {
+            mir::CallDispatchKind::Virtual {
                 slot: mir::DispatchSlot::new(1),
             }
         );

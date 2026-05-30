@@ -599,8 +599,8 @@ pub fn expression_key_from_instruction(
 
         // instructions with side effects or that cannot be safely deduplicated
         mir::Instruction::Call { .. }
-        | mir::Instruction::CallClass { .. }
-        | mir::Instruction::CallInterface { .. }
+        | mir::Instruction::CallVirtual { .. }
+        | mir::Instruction::CallDynamic { .. }
         | mir::Instruction::CallIndirect { .. }
         | mir::Instruction::Intrinsic { .. }
         | mir::Instruction::Load { .. }
@@ -661,8 +661,8 @@ pub fn expression_key_from_instruction(
         | mir::Instruction::Slice { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::CallableBind { .. }
-        | mir::Instruction::CallableEnvironment { .. }
+        | mir::Instruction::ClosureBind { .. }
+        | mir::Instruction::ClosureEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::FieldAddr { .. }
         | mir::Instruction::ElementAddr { .. }

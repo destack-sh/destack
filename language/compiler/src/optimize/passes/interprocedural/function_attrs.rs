@@ -325,8 +325,8 @@ fn compute_function_summary(
                 }
             }
             mir::Terminator::CallIndirect { .. }
-            | mir::Terminator::CallClass { .. }
-            | mir::Terminator::CallInterface { .. } => {
+            | mir::Terminator::CallVirtual { .. }
+            | mir::Terminator::CallDynamic { .. } => {
                 let (effect, behavior) =
                     call_effects_for_dynamic_terminator(tree, block_id, summaries);
                 memory_builder.record_effect(&effect);
@@ -352,8 +352,8 @@ fn compute_function_summary(
                 }
             }
             mir::Terminator::TailCallIndirect { .. }
-            | mir::Terminator::TailCallClass { .. }
-            | mir::Terminator::TailCallInterface { .. } => {
+            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallDynamic { .. } => {
                 let (effect, behavior) =
                     call_effects_for_dynamic_terminator(tree, block_id, summaries);
                 memory_builder.record_effect(&effect);
@@ -537,8 +537,8 @@ fn call_effects_for_instruction(
     let is_call = matches!(
         instruction,
         mir::Instruction::Call { .. }
-            | mir::Instruction::CallClass { .. }
-            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallDynamic { .. }
             | mir::Instruction::CallIndirect { .. }
     );
     if !is_call {
@@ -1057,7 +1057,7 @@ b0(v0: ref<int32, raw>):
 }
 function caller(v0: ref<int32, raw>): void {
 b0(v0: ref<int32, raw>):
-    v1: int32 = call.class v0, int32, 1(v0): (ref<int32, raw>) -> int32
+    v1: int32 = call.virtual v0, int32, 1(v0): (ref<int32, raw>) -> int32
     return
 }"#;
 
@@ -1070,10 +1070,10 @@ b0(v0: ref<int32, raw>):
             .find(|instruction_id| {
                 matches!(
                     test.tree.get(*instruction_id),
-                    mir::Instruction::CallClass { .. }
+                    mir::Instruction::CallVirtual { .. }
                 )
             })
-            .expect("missing class call instruction");
+            .expect("missing virtual call instruction");
         let callsite = mir::CallSite::Instruction(call_id);
         test.tree.metadata.functions.call_mut(callsite).target = Some(callee_id);
 

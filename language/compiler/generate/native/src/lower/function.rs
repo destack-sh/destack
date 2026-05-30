@@ -37,9 +37,9 @@ pub(crate) struct FunctionLowerer<'a> {
     global_map: HashMap<mir::LocalNodeId<mir::Global>, cir::GlobalValue>,
     /// Pointer size in bytes for this target.
     pointer_bytes: u8,
-    /// Function environment type when callable.environment is used.
+    /// Function environment type when closure.environment is used.
     environment_type: Option<mir::LocalNodeId<mir::Type>>,
-    /// Cranelift value for the callable environment parameter.
+    /// Cranelift value for the closure environment parameter.
     environment_param: Option<cir::Value>,
 }
 
@@ -81,9 +81,9 @@ impl<'a> FunctionLowerer<'a> {
         let mut block_map: HashMap<mir::LocalNodeId<mir::Block>, cir::Block> = HashMap::new();
         let mut local_map: HashMap<mir::LocalNodeId<mir::Local>, cir::StackSlot> = HashMap::new();
 
-        // capture callable environment type before lowering
+        // capture closure environment type before lowering
         self.environment_type =
-            self.optional_type_id(self.function.environment, "callable environment type")?;
+            self.optional_type_id(self.function.environment, "closure environment type")?;
 
         // phase 0.5: pre-declare all referenced functions in the current function
         // (must be done before creating the FunctionBuilder)
@@ -140,11 +140,11 @@ impl<'a> FunctionLowerer<'a> {
                         self.declare_function_ref(function, target)?;
                     }
                 }
-                // callable declarations
+                // declare addressable functions
                 if let mir::Instruction::FunctionAddr { function, .. }
-                | mir::Instruction::CallableBind { function, .. } = inst
+                | mir::Instruction::ClosureBind { function, .. } = inst
                 {
-                    let function = self.function_id(*function, "callable callee")?;
+                    let function = self.function_id(*function, "addressable callee")?;
                     if !self.function_ref_map.contains_key(&function) {
                         self.declare_function_ref(function, target)?;
                     }
@@ -252,7 +252,7 @@ impl<'a> FunctionLowerer<'a> {
             value_map.insert(parameter, value);
         }
 
-        // append the callable environment parameter when present
+        // append the closure environment parameter when present
         if self.environment_type.is_some() {
             let environment_param = builder.append_block_param(entry_block, self.pointer_type());
             self.environment_param = Some(environment_param);
@@ -503,21 +503,21 @@ impl<'a> FunctionLowerer<'a> {
                     "function address destination",
                 )?;
             }
-            mir::Instruction::CallableBind {
+            mir::Instruction::ClosureBind {
                 destination,
                 function,
                 environment,
             } => {
-                let destination = self.value_id(*destination, "callable bind destination")?;
+                let destination = self.value_id(*destination, "closure.bind destination")?;
                 let destination_type =
                     self.value_type_or_error(destination, instruction_id.into_any())?;
                 let mir::Type::Closure { .. } = self.tree.get(destination_type) else {
                     return Err(CodegenCraneliftError::Internal {
-                        message: "callable.bind result must be a callable value".into(),
+                        message: "closure.bind result must be a closure value".into(),
                     });
                 };
 
-                let function = self.function_id(*function, "callable bind callee")?;
+                let function = self.function_id(*function, "closure.bind callee")?;
                 let function_ref = self.function_ref_map.get(&function).ok_or_else(|| {
                     CodegenCraneliftError::Internal {
                         message: format!("function {function:?} not declared"),
@@ -525,7 +525,7 @@ impl<'a> FunctionLowerer<'a> {
                 })?;
                 let code_value = builder.ins().func_addr(self.pointer_type(), *function_ref);
                 let environment_value =
-                    self.lowered_value(*environment, value_map, "callable bind environment")?;
+                    self.lowered_value(*environment, value_map, "closure.bind environment")?;
                 let environment_value =
                     if builder.func.dfg.value_type(environment_value) == self.pointer_type() {
                         environment_value
@@ -538,7 +538,7 @@ impl<'a> FunctionLowerer<'a> {
                     };
                 let function_node = function.into_any();
 
-                // allocate the callable aggregate and store semantic components
+                // allocate the closure aggregate and store semantic components
                 let layout = compute_type_layout(self.tree, destination_type, self.pointer_bytes)?;
                 let align_shift = layout.alignment.trailing_zeros() as u8;
                 let slot = builder.create_sized_stack_slot(cir::StackSlotData::new(
@@ -568,16 +568,16 @@ impl<'a> FunctionLowerer<'a> {
                 value_map.insert(destination, slot_addr);
             }
 
-            // callable.environment: load the hidden environment parameter
-            mir::Instruction::CallableEnvironment { destination } => {
+            // closure.environment: load the hidden environment parameter
+            mir::Instruction::ClosureEnvironment { destination } => {
                 let environment_param =
                     self.environment_param
                         .ok_or_else(|| CodegenCraneliftError::Internal {
-                            message: "callable.environment used without environment parameter"
+                            message: "closure.environment used without environment parameter"
                                 .to_string(),
                         })?;
                 let destination =
-                    self.value_id(*destination, "callable environment destination")?;
+                    self.value_id(*destination, "closure environment destination")?;
                 let destination_type =
                     self.value_type_or_error(destination, instruction_id.into_any())?;
                 let destination_ty = lower_type(self.tree, destination_type, self.pointer_bytes)?;
@@ -932,7 +932,7 @@ impl<'a> FunctionLowerer<'a> {
                     builder,
                     "indirect call",
                 )?;
-                let (callee_value, environment_value) = self.lower_indirect_callable(
+                let (callee_value, environment_value) = self.lower_indirect_callee(
                     callee,
                     self.type_id(call.signature, "indirect call signature")?,
                     value_map,
@@ -966,7 +966,7 @@ impl<'a> FunctionLowerer<'a> {
                     }
                 }
             }
-            mir::Instruction::CallClass { .. } | mir::Instruction::CallInterface { .. } => {
+            mir::Instruction::CallVirtual { .. } | mir::Instruction::CallDynamic { .. } => {
                 return Err(CodegenCraneliftError::unsupported_instruction(
                     "class calls are not supported in cranelift yet",
                     instruction_id.into_any(),
@@ -1363,8 +1363,8 @@ impl<'a> FunctionLowerer<'a> {
             // call terminators: explicit call CFG is not lowered yet
             mir::Terminator::Call { .. }
             | mir::Terminator::CallIndirect { .. }
-            | mir::Terminator::CallClass { .. }
-            | mir::Terminator::CallInterface { .. } => {
+            | mir::Terminator::CallVirtual { .. }
+            | mir::Terminator::CallDynamic { .. } => {
                 return Err(CodegenCraneliftError::Internal {
                     message: "call terminators are not supported in native codegen yet".into(),
                 });
@@ -1420,7 +1420,7 @@ impl<'a> FunctionLowerer<'a> {
                 let sig_ref =
                     self.build_indirect_call_signature(signature, builder, "tail call")?;
                 let (callee_value, environment_value) =
-                    self.lower_indirect_callable(callee, signature, value_map, builder)?;
+                    self.lower_indirect_callee(callee, signature, value_map, builder)?;
                 let mut argument_values: Vec<cir::Value> = call
                     .arguments
                     .iter()
@@ -1436,9 +1436,9 @@ impl<'a> FunctionLowerer<'a> {
                     .ins()
                     .return_call_indirect(sig_ref, callee_value, &argument_values);
             }
-            mir::Terminator::TailCallClass { .. } | mir::Terminator::TailCallInterface { .. } => {
+            mir::Terminator::TailCallVirtual { .. } | mir::Terminator::TailCallDynamic { .. } => {
                 return Err(CodegenCraneliftError::Internal {
-                    message: "class tail calls are not supported in cranelift yet".into(),
+                    message: "virtual tail calls are not supported in cranelift yet".into(),
                 });
             }
         }
@@ -1580,7 +1580,7 @@ impl<'a> FunctionLowerer<'a> {
         builder: &mut FunctionBuilder<'_>,
         error_context: &str,
     ) -> CodegenCraneliftResult<cir::SigRef> {
-        // callable abi
+        // closure abi
         let (signature, has_environment) = match self.tree.get(signature) {
             mir::Type::FunctionSignature { .. } => (signature, false),
             mir::Type::FunctionPointer { signature } => (
@@ -1588,7 +1588,7 @@ impl<'a> FunctionLowerer<'a> {
                 false,
             ),
             mir::Type::Closure { signature, .. } => {
-                (self.type_id(*signature, "callable signature")?, true)
+                (self.type_id(*signature, "closure signature")?, true)
             }
             _ => {
                 return Err(CodegenCraneliftError::Internal {
@@ -1633,8 +1633,8 @@ impl<'a> FunctionLowerer<'a> {
         Ok(builder.import_signature(signature))
     }
 
-    /// Lower one callable value into code and optional environment operands.
-    fn lower_indirect_callable(
+    /// Lower one closure value into code and optional environment operands.
+    fn lower_indirect_callee(
         &self,
         callee: mir::Value,
         signature: mir::LocalNodeId<mir::Type>,
@@ -1647,7 +1647,7 @@ impl<'a> FunctionLowerer<'a> {
             return Ok((callee_value, None));
         }
 
-        // callable aggregate
+        // closure aggregate
         let mir::Type::Closure {
             signature: function_type,
             environment,
@@ -1657,7 +1657,7 @@ impl<'a> FunctionLowerer<'a> {
                 message: "indirect call signature is not a function type".into(),
             });
         };
-        let environment = self.type_id(*environment, "callable environment type")?;
+        let environment = self.type_id(*environment, "closure environment type")?;
 
         let callee_value = value_map[&callee];
         let signature_node = signature.into_any();
@@ -1666,17 +1666,17 @@ impl<'a> FunctionLowerer<'a> {
         let (environment_offset, environment_field_type) =
             self.aggregate_field_offset_and_type(signature, 1, signature_node)?;
 
-        let function_type = self.type_id(*function_type, "callable code type")?;
+        let function_type = self.type_id(*function_type, "closure function type")?;
 
         if function_field_type != function_type {
             return Err(CodegenCraneliftError::Internal {
-                message: "callable code field type mismatch".into(),
+                message: "closure function field type mismatch".into(),
             });
         }
 
         if environment_field_type != environment {
             return Err(CodegenCraneliftError::Internal {
-                message: "callable environment field type mismatch".into(),
+                message: "closure environment field type mismatch".into(),
             });
         }
 

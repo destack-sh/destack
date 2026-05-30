@@ -419,7 +419,7 @@ impl TypeLowerer<'_> {
                 Some((total_size, max_align))
             }
             mir::Type::Variant { .. } => None,
-            mir::Type::Any { .. } => {
+            mir::Type::Dynamic { .. } => {
                 let bytes = pointer_bytes as u32;
                 Some((bytes * 2, bytes))
             }

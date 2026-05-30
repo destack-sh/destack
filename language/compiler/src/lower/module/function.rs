@@ -593,8 +593,8 @@ impl ModuleLowerer<'_> {
             take_platform_error_function: self.take_platform_error_function,
             globals_by_symbol: &self.globals_by_symbol,
             string_literal_globals: &self.string_literal_globals,
-            interface_slots_by_symbol: &self.interface_slots_by_symbol,
-            interface_table_globals_by_pair: &self.interface_table_globals_by_pair,
+            dynamic_members_by_symbol: &self.dynamic_members_by_symbol,
+            dynamic_table_globals_by_pair: &self.dynamic_table_globals_by_pair,
             virtual_method_slots_by_key: &self.virtual_method_slots_by_key,
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
             dispatch_call_name: self.dispatch_call_name,
@@ -641,7 +641,7 @@ impl ModuleLowerer<'_> {
             let env_value = function_lowerer
                 .state
                 .builder
-                .callable_environment(env_ref_type);
+                .closure_environment(env_ref_type);
             function_lowerer.state.bindings.environment = Some(env_value);
         }
 
@@ -1049,8 +1049,8 @@ impl ModuleLowerer<'_> {
             take_platform_error_function: self.take_platform_error_function,
             globals_by_symbol: &self.globals_by_symbol,
             string_literal_globals: &self.string_literal_globals,
-            interface_slots_by_symbol: &self.interface_slots_by_symbol,
-            interface_table_globals_by_pair: &self.interface_table_globals_by_pair,
+            dynamic_members_by_symbol: &self.dynamic_members_by_symbol,
+            dynamic_table_globals_by_pair: &self.dynamic_table_globals_by_pair,
             virtual_method_slots_by_key: &self.virtual_method_slots_by_key,
             vtable_globals_by_symbol: &self.vtable_globals_by_symbol,
             dispatch_call_name: self.dispatch_call_name,

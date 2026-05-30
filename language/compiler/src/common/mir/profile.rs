@@ -329,8 +329,8 @@ pub fn terminator_edges(
         }
         mir::Terminator::Call { target, unwind, .. }
         | mir::Terminator::CallIndirect { target, unwind, .. }
-        | mir::Terminator::CallClass { target, unwind, .. }
-        | mir::Terminator::CallInterface { target, unwind, .. } => {
+        | mir::Terminator::CallVirtual { target, unwind, .. }
+        | mir::Terminator::CallDynamic { target, unwind, .. } => {
             let mut edges = Vec::with_capacity(2);
 
             if let Some(target) = target.block.block() {
@@ -357,8 +357,8 @@ pub fn terminator_edges(
         | mir::Terminator::Trap { .. }
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
-        | mir::Terminator::TailCallClass { .. }
-        | mir::Terminator::TailCallInterface { .. }
+        | mir::Terminator::TailCallVirtual { .. }
+        | mir::Terminator::TailCallDynamic { .. }
         | mir::Terminator::TailCallIndirect { .. } => Vec::new(),
     }
 }

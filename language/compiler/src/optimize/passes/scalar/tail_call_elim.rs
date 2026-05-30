@@ -582,14 +582,14 @@ fn remap_terminator_blocks(
             target: clone_target(target),
             unwind: unwind.as_ref().map(|target| clone_target(target)),
         },
-        mir::Terminator::CallClass {
+        mir::Terminator::CallVirtual {
             receiver,
             call,
             class,
             slot,
             target,
             unwind,
-        } => mir::Terminator::CallClass {
+        } => mir::Terminator::CallVirtual {
             receiver: *receiver,
             call: call.clone(),
             class: *class,
@@ -597,17 +597,17 @@ fn remap_terminator_blocks(
             target: clone_target(target),
             unwind: unwind.as_ref().map(|target| clone_target(target)),
         },
-        mir::Terminator::CallInterface {
+        mir::Terminator::CallDynamic {
             receiver,
             call,
-            interface,
+            constraint,
             slot,
             target,
             unwind,
-        } => mir::Terminator::CallInterface {
+        } => mir::Terminator::CallDynamic {
             receiver: *receiver,
             call: call.clone(),
-            interface: *interface,
+            constraint: *constraint,
             slot: *slot,
             target: clone_target(target),
             unwind: unwind.as_ref().map(|target| clone_target(target)),
@@ -619,8 +619,8 @@ fn remap_terminator_blocks(
         | mir::Terminator::ResumePanic
         | mir::Terminator::Unreachable
         | mir::Terminator::TailCall { .. }
-        | mir::Terminator::TailCallClass { .. }
-        | mir::Terminator::TailCallInterface { .. }
+        | mir::Terminator::TailCallVirtual { .. }
+        | mir::Terminator::TailCallDynamic { .. }
         | mir::Terminator::TailCallIndirect { .. } => terminator.clone(),
         // yield has a resume block that needs remapping
         mir::Terminator::Yield { value, resume } => mir::Terminator::Yield {

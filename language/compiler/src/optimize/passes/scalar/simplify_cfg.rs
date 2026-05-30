@@ -4270,12 +4270,12 @@ b0:
                         &mut mismatches,
                     );
                 }
-                mir::Terminator::CallClass { target, .. } => {
+                mir::Terminator::CallVirtual { target, .. } => {
                     check_edge(
                         target
                             .block
                             .block()
-                            .expect("call class target should be concrete"),
+                            .expect("call virtual target should be concrete"),
                         &target
                             .arguments
                             .iter()
@@ -4284,13 +4284,50 @@ b0:
                         &mut mismatches,
                     );
                 }
-                mir::Terminator::CallInterface { target, .. } => {
+                mir::Terminator::CallDynamic { target, .. } => {
                     check_edge(
                         target
                             .block
                             .block()
-                            .expect("call interface target should be concrete"),
+                            .expect("call dynamic target should be concrete"),
                         &target
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
+                }
+                mir::Terminator::NewZeroedTry {
+                    success, failure, ..
+                }
+                | mir::Terminator::NewUninitTry {
+                    success, failure, ..
+                }
+                | mir::Terminator::NewSliceZeroedTry {
+                    success, failure, ..
+                }
+                | mir::Terminator::NewSliceUninitTry {
+                    success, failure, ..
+                } => {
+                    check_edge(
+                        success
+                            .block
+                            .block()
+                            .expect("allocation success target should be concrete"),
+                        &success
+                            .arguments
+                            .iter()
+                            .filter_map(|value| value.value())
+                            .collect::<Vec<_>>(),
+                        &mut mismatches,
+                    );
+                    check_edge(
+                        failure
+                            .block
+                            .block()
+                            .expect("allocation failure target should be concrete"),
+                        &failure
                             .arguments
                             .iter()
                             .filter_map(|value| value.value())
@@ -4305,8 +4342,8 @@ b0:
                 | mir::Terminator::ResumePanic
                 | mir::Terminator::Trap { .. }
                 | mir::Terminator::TailCall { .. }
-                | mir::Terminator::TailCallClass { .. }
-                | mir::Terminator::TailCallInterface { .. }
+                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallDynamic { .. }
                 | mir::Terminator::TailCallIndirect { .. } => {}
             }
         }
@@ -4493,8 +4530,12 @@ b0:
                 }
                 mir::Terminator::Call { .. }
                 | mir::Terminator::CallIndirect { .. }
-                | mir::Terminator::CallClass { .. }
-                | mir::Terminator::CallInterface { .. }
+                | mir::Terminator::CallVirtual { .. }
+                | mir::Terminator::CallDynamic { .. }
+                | mir::Terminator::NewZeroedTry { .. }
+                | mir::Terminator::NewUninitTry { .. }
+                | mir::Terminator::NewSliceZeroedTry { .. }
+                | mir::Terminator::NewSliceUninitTry { .. }
                 | mir::Terminator::Panic { .. }
                 | mir::Terminator::Trap { .. } => {
                     for value in terminator.uses().iter().filter_map(|value| value.value()) {
@@ -4509,8 +4550,8 @@ b0:
                 mir::Terminator::Unreachable
                 | mir::Terminator::ResumePanic
                 | mir::Terminator::TailCall { .. }
-                | mir::Terminator::TailCallClass { .. }
-                | mir::Terminator::TailCallInterface { .. }
+                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallDynamic { .. }
                 | mir::Terminator::TailCallIndirect { .. }
                 | mir::Terminator::Error => {}
             }

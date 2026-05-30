@@ -430,8 +430,8 @@ fn analyze_uses(
 
                     // calls: check if value is passed as argument (escapes)
                     mir::Instruction::Call { .. }
-                    | mir::Instruction::CallClass { .. }
-                    | mir::Instruction::CallInterface { .. }
+                    | mir::Instruction::CallVirtual { .. }
+                    | mir::Instruction::CallDynamic { .. }
                     | mir::Instruction::CallIndirect { .. } => {
                         // arguments are stored externally, access via argument_slice
                         if let Some(arg_slice) = inst.argument_slice() {

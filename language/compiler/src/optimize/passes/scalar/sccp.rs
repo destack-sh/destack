@@ -574,8 +574,8 @@ impl<'a> SccpState<'a> {
             }
             mir::Terminator::Call { target, unwind, .. }
             | mir::Terminator::CallIndirect { target, unwind, .. }
-            | mir::Terminator::CallClass { target, unwind, .. }
-            | mir::Terminator::CallInterface { target, unwind, .. } => {
+            | mir::Terminator::CallVirtual { target, unwind, .. }
+            | mir::Terminator::CallDynamic { target, unwind, .. } => {
                 let Some(target_block) = target.block.block() else {
                     return;
                 };
@@ -593,8 +593,8 @@ impl<'a> SccpState<'a> {
             | mir::Terminator::Trap { .. }
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
-            | mir::Terminator::TailCallClass { .. }
-            | mir::Terminator::TailCallInterface { .. }
+            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallDynamic { .. }
             | mir::Terminator::TailCallIndirect { .. } => {}
         }
     }

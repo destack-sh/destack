@@ -458,7 +458,7 @@ impl ModuleLowerer<'_> {
     fn type_literal_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
         match dir_type {
             dir::Type::Never => Some("never".to_string()),
-            dir::Type::Any => Some("any".to_string()),
+            dir::Type::Dynamic => Some("any".to_string()),
             dir::Type::Undefined => Some("undefined".to_string()),
             dir::Type::Unknown => Some("unknown".to_string()),
             dir::Type::Object => Some("object".to_string()),

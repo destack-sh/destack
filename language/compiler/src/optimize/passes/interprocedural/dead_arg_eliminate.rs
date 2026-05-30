@@ -189,8 +189,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                         .push(DirectCallSite::Terminator(block_id));
                 }
                 mir::Terminator::CallIndirect { call, .. }
-                | mir::Terminator::CallClass { call, .. }
-                | mir::Terminator::CallInterface { call, .. } => {
+                | mir::Terminator::CallVirtual { call, .. }
+                | mir::Terminator::CallDynamic { call, .. } => {
                     if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
                     {
                         data.indirect_signatures.insert(signature);
@@ -207,8 +207,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                         .push(DirectCallSite::Terminator(block_id));
                 }
                 mir::Terminator::TailCallIndirect { call, .. }
-                | mir::Terminator::TailCallClass { call, .. }
-                | mir::Terminator::TailCallInterface { call, .. } => {
+                | mir::Terminator::TailCallVirtual { call, .. }
+                | mir::Terminator::TailCallDynamic { call, .. } => {
                     if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
                     {
                         data.indirect_signatures.insert(signature);
