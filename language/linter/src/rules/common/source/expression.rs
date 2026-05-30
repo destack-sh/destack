@@ -2098,6 +2098,7 @@ pub fn expression_has_side_effects(
         dir::Expression::Call { .. }
         | dir::Expression::Assign { .. }
         | dir::Expression::New { .. }
+        | dir::Expression::NewMaybe { .. }
         | dir::Expression::Await { .. }
         | dir::Expression::AwaitMaybe { .. }
         | dir::Expression::AwaitMust { .. }
