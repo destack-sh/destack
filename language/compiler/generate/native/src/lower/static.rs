@@ -235,8 +235,8 @@ fn lower_scalar_constant(
 
             Ok(bytes)
         }
-        mir::Constant::Float { bits, width } => {
-            let bytes = float_bytes(*bits, u16::from(*width), ty)?;
+        mir::Constant::Float { bits, format } => {
+            let bytes = float_bytes(*bits, *format);
 
             Ok(bytes)
         }
@@ -274,21 +274,13 @@ fn integer_bytes(
 /// Return little endian float bytes.
 fn float_bytes(
     bits: u64,
-    width: u16,
-    ty: mir::LocalNodeId<mir::Type>,
-) -> CodegenCraneliftResult<Vec<u8>> {
-    let bytes = match width {
-        32 => (bits as u32).to_le_bytes().to_vec(),
-        64 => bits.to_le_bytes().to_vec(),
-        _ => {
-            return Err(CodegenCraneliftError::unsupported_type(
-                format!("unsupported float width for global initializer: {width}"),
-                ty.into_any(),
-            ));
-        }
-    };
-
-    Ok(bytes)
+    format: mir::FloatType,
+) -> Vec<u8> {
+    match format {
+        mir::FloatType::Float16 | mir::FloatType::Bfloat16 => (bits as u16).to_le_bytes().to_vec(),
+        mir::FloatType::Float32 => (bits as u32).to_le_bytes().to_vec(),
+        mir::FloatType::Float64 => bits.to_le_bytes().to_vec(),
+    }
 }
 
 /// Align a byte offset up to one alignment.

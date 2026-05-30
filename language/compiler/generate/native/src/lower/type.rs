@@ -48,6 +48,11 @@ pub(crate) fn lower_type(
         }
 
         mir::Type::Float(float_type) => match float_type {
+            mir::FloatType::Float16 => Ok(cir::types::F16),
+            mir::FloatType::Bfloat16 => Err(CodegenCraneliftError::unsupported_type(
+                "bfloat16 native lowering is not supported",
+                type_id.into_any(),
+            )),
             mir::FloatType::Float32 => Ok(cir::types::F32),
             mir::FloatType::Float64 => Ok(cir::types::F64),
         },
