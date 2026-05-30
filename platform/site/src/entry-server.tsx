@@ -9,11 +9,6 @@ function Document(props: { assets: JSX.Element; children?: JSX.Element; scripts:
             <head>
                 <meta charset="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <title>Destack</title>
-                <meta
-                    name="description"
-                    content="Destack is a universal software engine for building correct, optimal, integrated software."
-                />
                 <link rel="icon" href="/brand/favicon/favicon.svg" type="image/svg+xml" />
                 {props.assets}
             </head>

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" role="img" aria-labelledby="title description">
+  <title id="title">Placeholder diagram</title>
+  <desc id="description">Placeholder blocks show where a real technical diagram will go later.</desc>
+  <rect width="900" height="420" fill="#fffdf7"/>
+  <path d="M40 52h820v316H40z" fill="#f7f1e6" stroke="#0a0a0a" stroke-width="3"/>
+  <path d="M64 78h230v238H64z" fill="#fffdf7" stroke="#0a0a0a" stroke-width="3"/>
+  <path d="M334 78h230v238H334z" fill="#fffdf7" stroke="#0a0a0a" stroke-width="3"/>
+  <path d="M604 78h232v238H604z" fill="#fffdf7" stroke="#0a0a0a" stroke-width="3"/>
+  <g fill="#052e40" font-family="JetBrains Mono, monospace" font-size="18" font-weight="900">
+    <text x="84" y="116">placeholder</text>
+    <text x="354" y="116">middle</text>
+    <text x="624" y="116">result</text>
+  </g>
+  <g fill="#0a0a0a" font-family="JetBrains Mono, monospace" font-size="16" font-weight="800">
+    <text x="84" y="160">lorem input</text>
+    <text x="84" y="194">ipsum value</text>
+    <text x="84" y="228">dolor shape</text>
+    <text x="84" y="262">sit metadata</text>
+    <text x="354" y="160">step one</text>
+    <text x="354" y="194">step two</text>
+    <text x="354" y="228">step three</text>
+    <text x="354" y="262">step four</text>
+    <text x="624" y="160">sample output</text>
+    <text x="624" y="194">demo output</text>
+    <text x="624" y="228">fixture output</text>
+    <text x="624" y="262">final output</text>
+  </g>
+  <g stroke="#e08b48" stroke-width="5" stroke-linecap="square" fill="none">
+    <path d="M294 197h40"/>
+    <path d="M564 197h40"/>
+  </g>
+  <g fill="#e08b48">
+    <path d="M326 187l14 10-14 10z"/>
+    <path d="M596 187l14 10-14 10z"/>
+  </g>
+  <g stroke="#0a0a0a" stroke-width="2" opacity=".22">
+    <path d="M84 177h170"/>
+    <path d="M84 211h170"/>
+    <path d="M84 245h170"/>
+    <path d="M354 177h170"/>
+    <path d="M354 211h170"/>
+    <path d="M354 245h170"/>
+    <path d="M624 177h170"/>
+    <path d="M624 211h170"/>
+    <path d="M624 245h170"/>
+  </g>
+</svg>

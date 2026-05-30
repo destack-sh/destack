@@ -8,19 +8,27 @@ _default:
 build:
     bun scripts/sync-assets.mjs
     bun scripts/generate-snippets.mjs
+    bun scripts/generate-posts.mjs
     bun x vinxi build
     bun scripts/postbuild.mjs
 
 # regenerate generated files
 format:
     bun scripts/generate-snippets.mjs
+    bun scripts/generate-posts.mjs
 
 # check generated files
 format-check:
     bun scripts/generate-snippets.mjs --check
+    bun scripts/generate-posts.mjs --check
+
+# type check source
+typecheck:
+    bun x tsc -p tsconfig.json --noEmit
 
 # run static checks
 lint:
+    just typecheck
     just build
 
 # run tests
@@ -44,6 +52,7 @@ check-full:
 dev:
     bun scripts/sync-assets.mjs
     bun scripts/generate-snippets.mjs
+    bun scripts/generate-posts.mjs
     bun x vinxi dev
 
 # clean build artifacts
