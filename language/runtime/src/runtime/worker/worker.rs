@@ -10,9 +10,9 @@ use crate::host::binding::{BindingAccess, BindingRegistry};
 use crate::host::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
 use crate::runtime::engine::{Continuation, Engine, Image, MemoryContext};
-use crate::runtime::heap::{HeapHandle, HeapHandleTable, resolve_local_heap_options};
+use crate::runtime::heap::resolve_local_heap_options;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
-use crate::runtime::{RuntimeFinalizers, RuntimeFinalizersImage, RuntimeHeap, ScenarioRunner};
+use crate::runtime::{RuntimeHeap, ScenarioRunner};
 use crate::world::scenario::ScenarioRunnerSnapshot;
 use crate::world::{Entity, EntityKind, RuntimeId, WorldState};
 use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
@@ -28,19 +28,14 @@ pub struct Worker {
     /// Immutable runtime options.
     pub(crate) options: Arc<RuntimeOptions>,
 
-    /// External resource table and finalizers.
+    /// External resource table.
     pub(crate) resources: ResourceTable,
     /// Worker scenario runner.
     pub(crate) scenario: Arc<ScenarioRunner>,
-    /// Worker-level finalizer registry for module services.
-    pub(crate) finalizers: RuntimeFinalizers,
     /// Diagnostics storage for runtime errors and warning events.
     pub(crate) diagnostics: Arc<DiagnosticStore>,
     /// External binding registry and policy enforcement.
     pub(crate) bindings: BindingRegistry,
-    /// Runtime-owned handles for host-retained local heap references.
-    pub(crate) handles: HeapHandleTable,
-
     /// Shared GC worker queue handle.
     pub(crate) shared_gc_worker: heap::GcWorker,
     /// Worker-local shared allocation cache.
@@ -79,8 +74,6 @@ pub struct WorkerImage {
     pub scenario: ScenarioRunnerSnapshot,
     /// Captured resource table state.
     pub resources: ResourceTableSnapshot,
-    /// Captured finalizer lifecycle state.
-    pub finalizers: RuntimeFinalizersImage,
     /// Captured event-loop state.
     pub event_loop: EventLoopSnapshot,
     /// Captured authoritative heap snapshot.
@@ -116,7 +109,6 @@ impl PartialEq for WorkerImage {
             && self.diagnostics == other.diagnostics
             && self.scenario == other.scenario
             && self.resources == other.resources
-            && self.finalizers == other.finalizers
             && self.event_loop == other.event_loop
             && heap.is_ok()
             && heap == other_heap
@@ -175,10 +167,8 @@ impl std::fmt::Debug for Worker {
             .field("options", &self.options)
             .field("resources", &self.resources)
             .field("scenario", &self.scenario)
-            .field("finalizers", &self.finalizers)
             .field("diagnostics", &self.diagnostics)
             .field("bindings", &self.bindings)
-            .field("handles", &self.handles.len())
             .field("heap", &self.heap)
             .field("engine", &"<worker execution engine>")
             .field("event_loop", &self.event_loop)
@@ -297,10 +287,8 @@ impl Worker {
             options: Arc::new(options.clone()),
             resources,
             scenario,
-            finalizers: RuntimeFinalizers::default(),
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             bindings,
-            handles: HeapHandleTable::default(),
             shared_gc_worker,
             shared_cache,
             heap,
@@ -347,8 +335,8 @@ impl Worker {
         worker_options: &WorkerOptions,
     ) -> RuntimeResult<(RuntimeId, WorkerId)> {
         // allocate topology identities
-        let runtime_id = world.allocate_runtime_id();
-        let worker_id = world.allocate_worker_id();
+        let runtime_id = world.allocate_runtime_id()?;
+        let worker_id = world.allocate_worker_id()?;
 
         // runtime selector metadata
         let runtime_name = options
@@ -384,7 +372,7 @@ impl Worker {
         worker_options: &WorkerOptions,
     ) -> RuntimeResult<WorkerId> {
         // worker selector metadata
-        let worker_id = world.allocate_worker_id();
+        let worker_id = world.allocate_worker_id()?;
         let worker_name = worker_options
             .name
             .clone()
@@ -447,26 +435,6 @@ impl Worker {
             .add_host_waiter(kind, runnable, resume_value, priority, &mut self.engine)
     }
 
-    /// Retain one local heap reference for host-owned state.
-    pub fn retain_heap_reference(&mut self, reference: heap::HeapReference) -> HeapHandle {
-        self.handles.retain(reference)
-    }
-
-    /// Retain one existing heap handle owner.
-    pub fn retain_heap_handle(&mut self, handle: HeapHandle) -> RuntimeResult<HeapHandle> {
-        self.handles.retain_handle(handle)
-    }
-
-    /// Release one heap handle owner.
-    pub fn release_heap_handle(&mut self, handle: HeapHandle) -> RuntimeResult<()> {
-        self.handles.release(handle)
-    }
-
-    /// Return the current local heap reference retained by one handle.
-    pub fn heap_reference(&self, handle: HeapHandle) -> RuntimeResult<heap::HeapReference> {
-        self.handles.reference(handle)
-    }
-
     /// Visit roots from engine, scheduler, and registered providers.
     pub fn visit_roots(&mut self, roots: &mut impl heap::RootSink) -> RuntimeResult<()> {
         let mut visit = |slot: heap::RootSlot<'_>| {
@@ -488,7 +456,6 @@ impl Worker {
     ) -> RuntimeResult<()> {
         self.engine.visit_root_slots(&mut self.statics, visit)?;
         self.event_loop.visit_root_slots(&mut self.engine, visit)?;
-        self.handles.visit_root_slots(visit)?;
 
         Ok(())
     }
@@ -509,12 +476,10 @@ impl Worker {
         let trace_table = self.engine.trace_table()?;
         let engine = &mut self.engine;
         let event_loop = &mut self.event_loop;
-        let handles = &mut self.handles;
         let statics = &mut self.statics;
         let mut roots = |visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>| {
             engine.visit_root_slots(statics, visit)?;
             event_loop.visit_root_slots(engine, visit)?;
-            handles.visit_root_slots(visit)?;
 
             Ok::<(), Box<RuntimeError>>(())
         };
@@ -577,24 +542,11 @@ impl Worker {
         runtime_heap: &RuntimeHeap,
         runtime_static: &engine::StaticSpace,
     ) -> RuntimeResult<WorkerImage> {
-        // host-retained local handles cannot be materialized without the owning host state
-        if !self.handles.is_empty() {
-            return Err(RuntimeError::capture_barrier(
-                "runtime.heap_handles",
-                format!("{mode:?}"),
-                "host-retained local heap handles are live",
-            )
-            .boxed());
-        }
-
         // local scheduler and external state
         let event_loop = self.event_loop.capture_image(mode, &mut self.engine)?;
         let resources = self.resources.capture_image(mode, ())?;
         let diagnostics = self.diagnostics.snapshot()?;
         let scenario = self.scenario.snapshot();
-
-        // runtime-owned service state
-        let finalizers = self.finalizers.capture_image(mode, ())?;
 
         // capture the worker-local image payload
         Ok(WorkerImage {
@@ -602,7 +554,6 @@ impl Worker {
             diagnostics,
             scenario,
             resources,
-            finalizers,
             event_loop,
             heap: self
                 .heap
@@ -636,11 +587,6 @@ impl Worker {
         runtime_static: &engine::StaticSpace,
         shared_gc_worker: heap::GcWorker,
     ) -> RuntimeResult<Option<Self>> {
-        // host-retained handles need their owning host resource to fork them
-        if !self.handles.is_empty() {
-            return Ok(None);
-        }
-
         // scenario and diagnostics state
         let scenario = Arc::new(self.scenario.fork());
         let diagnostics = match self.diagnostics.try_fork()? {
@@ -648,13 +594,9 @@ impl Worker {
             None => return Ok(None),
         };
 
-        // resources, finalizers, and event loop
+        // resources and event loop
         let resources = match self.resources.try_fork() {
             Some(resources) => resources,
-            None => return Ok(None),
-        };
-        let finalizers = match self.finalizers.try_fork() {
-            Some(finalizers) => finalizers,
             None => return Ok(None),
         };
 
@@ -684,10 +626,8 @@ impl Worker {
             options: self.options.clone(),
             resources,
             scenario,
-            finalizers,
             diagnostics,
             bindings,
-            handles: HeapHandleTable::default(),
             shared_gc_worker,
             shared_cache,
             heap,
@@ -782,14 +722,8 @@ impl Worker {
             options,
             resources,
             scenario,
-            finalizers: {
-                let mut finalizers = RuntimeFinalizers::default();
-                finalizers.restore_image(&image.finalizers, ())?;
-                finalizers
-            },
             diagnostics,
             bindings,
-            handles: HeapHandleTable::default(),
             shared_gc_worker,
             shared_cache,
             heap,
