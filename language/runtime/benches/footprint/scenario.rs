@@ -11,7 +11,7 @@ use destack_runtime::runtime::WorkerOptions;
 use destack_runtime::runtime::engine::{Engine, Entry};
 use destack_runtime::world::{RuntimeId, World};
 use destack_source::FileId;
-use destack_vm::{Continuation, ContinuationImage, Isolate, IsolateOptions, Outcome};
+use destack_vm::{Continuation, ContinuationImage, Machine, MachineOptions, Outcome};
 use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
 
 /// MIR program used by footprint scenarios.
@@ -96,7 +96,7 @@ impl RuntimeScenario {
 
     /// Build one VM engine.
     pub(crate) fn engine(&self) -> Engine {
-        Engine::from(build_isolate())
+        Engine::from(build_machine())
     }
 }
 
@@ -110,9 +110,9 @@ impl VmScenario {
         Self
     }
 
-    /// Build one VM isolate.
-    pub(crate) fn isolate(self) -> Isolate {
-        build_isolate()
+    /// Build one VM machine before runtime memory initialization.
+    pub(crate) fn build_machine(self) -> Machine {
+        build_machine()
     }
 
     /// Build one worker-local heap.
@@ -125,7 +125,7 @@ impl VmScenario {
         shared_heap()
     }
 
-    /// Build one initialized VM machine.
+    /// Build one initialized VM machine with runtime memory.
     pub(crate) fn machine(self) -> VmMachine {
         VmMachine::new()
     }
@@ -133,8 +133,8 @@ impl VmScenario {
 
 /// Initialized VM machine.
 pub(crate) struct VmMachine {
-    /// The isolate under measurement.
-    isolate: Isolate,
+    /// The machine under measurement.
+    machine: Machine,
     /// Worker static byte space.
     statics: StaticSpace,
     /// Worker-local heap.
@@ -150,19 +150,19 @@ pub(crate) struct VmMachine {
 impl VmMachine {
     /// Create one initialized VM machine.
     pub(crate) fn new() -> Self {
-        let mut isolate = build_isolate();
+        let mut machine = build_machine();
         let mut statics = StaticSpace::empty();
         let heap = heap();
         let shared = shared_heap();
         let shared_gc = shared.register_collector_worker();
         let shared_cache = shared.allocation_cache();
 
-        isolate
+        machine
             .initialize(&heap, &shared, &mut statics)
-            .expect("footprint isolate should initialize");
+            .expect("footprint machine should initialize");
 
         Self {
-            isolate,
+            machine,
             statics,
             heap,
             shared,
@@ -174,11 +174,11 @@ impl VmMachine {
     /// Run one yielding VM entry and return its continuation.
     pub(crate) fn yield_once(&mut self) -> Continuation {
         let entry = self
-            .isolate
+            .machine
             .function_id_by_name("bench.yieldFrame")
             .expect("footprint entry should exist");
         let outcome = self
-            .isolate
+            .machine
             .run_function_yielding(
                 &mut self.statics,
                 &mut self.heap,
@@ -198,20 +198,20 @@ impl VmMachine {
 
     /// Capture one continuation image.
     pub(crate) fn continuation_image(&self, continuation: &Continuation) -> ContinuationImage {
-        self.isolate
+        self.machine
             .continuation_image(continuation)
             .expect("footprint continuation image should capture")
     }
 }
 
-/// Build one VM isolate from the footprint MIR.
-fn build_isolate() -> Isolate {
+/// Build one VM machine from the footprint MIR.
+fn build_machine() -> Machine {
     let (tree, strings) = Parser::parse(FileId::new(0), VM_PROGRAM, ParseOptions::default())
         .finish()
         .expect("footprint MIR should parse");
 
-    Isolate::build_with_options(EngineId::new(1), tree, strings, IsolateOptions::unbounded())
-        .expect("footprint isolate should build")
+    Machine::build_with_options(EngineId::new(1), tree, strings, MachineOptions::unbounded())
+        .expect("footprint machine should build")
 }
 
 /// Create one worker heap.
