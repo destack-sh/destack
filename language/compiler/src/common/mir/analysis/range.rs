@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
 
 use crate::common::mir::{
@@ -19,8 +20,8 @@ pub enum ValueRange {
     Float {
         /// Finite bounds for the float range.
         bounds: Option<FloatBounds>,
-        /// Bit width of the float.
-        width: u16,
+        /// Concrete float format.
+        format: mir::FloatType,
         /// Whether NaN is possible.
         can_be_nan: bool,
         /// Whether positive infinity is possible.
@@ -62,15 +63,8 @@ impl ValueRange {
     pub fn from_constant(constant: &mir::Constant) -> Option<Self> {
         // map supported constant kinds to ranges
         match constant {
-            mir::Constant::Float { bits, width } => {
-                let width = *width;
-                let value = if width == 32 {
-                    f32::from_bits(*bits as u32) as f64
-                } else if width == 64 {
-                    f64::from_bits(*bits)
-                } else {
-                    return None;
-                };
+            mir::Constant::Float { bits, format } => {
+                let value = float_from_bits(format.format(), *bits);
 
                 let can_be_nan = value.is_nan();
                 let can_be_pos_inf = value.is_infinite() && value.is_sign_positive();
@@ -86,7 +80,7 @@ impl ValueRange {
 
                 Some(ValueRange::Float {
                     bounds,
-                    width: u16::from(width),
+                    format: *format,
                     can_be_nan,
                     can_be_pos_inf,
                     can_be_neg_inf,
@@ -165,21 +159,21 @@ impl ValueRange {
             (
                 ValueRange::Float {
                     bounds: left_bounds,
-                    width: left_width,
+                    format: left_format,
                     can_be_nan: left_nan,
                     can_be_pos_inf: left_pos_inf,
                     can_be_neg_inf: left_neg_inf,
                 },
                 ValueRange::Float {
                     bounds: right_bounds,
-                    width: right_width,
+                    format: right_format,
                     can_be_nan: right_nan,
                     can_be_pos_inf: right_pos_inf,
                     can_be_neg_inf: right_neg_inf,
                 },
             ) => {
                 // refuse to merge mismatched float types
-                if left_width != right_width {
+                if left_format != right_format {
                     return None;
                 }
 
@@ -195,7 +189,7 @@ impl ValueRange {
 
                 Some(ValueRange::Float {
                     bounds,
-                    width: *left_width,
+                    format: *left_format,
                     can_be_nan: *left_nan || *right_nan,
                     can_be_pos_inf: *left_pos_inf || *right_pos_inf,
                     can_be_neg_inf: *left_neg_inf || *right_neg_inf,
@@ -482,9 +476,7 @@ impl FunctionAnalysis for RangeAnalysis {
 /// Widen a value range to its full type bounds.
 fn widen_range(range: &ValueRange) -> ValueRange {
     match range {
-        ValueRange::Float { width, .. } => {
-            float_full_range(*width).unwrap_or_else(|| range.clone())
-        }
+        ValueRange::Float { format, .. } => float_full_range(*format),
         ValueRange::Boolean { .. } => ValueRange::Boolean {
             can_be_true: true,
             can_be_false: true,
@@ -837,7 +829,7 @@ fn range_for_cast(
                 return None;
             };
 
-            float_range_from_integer(argument, float_type.width(), operator)
+            float_range_from_integer(argument, *float_type, operator)
         }
         mir::CastOperator::FloatToSignedInt
         | mir::CastOperator::FloatToUnsignedInt
@@ -848,13 +840,15 @@ fn range_for_cast(
 
             integer_range_from_float(argument, to_width, to_signed, operator)
         }
-        mir::CastOperator::FloatTruncate | mir::CastOperator::FloatExtend => {
+        mir::CastOperator::FloatTruncate
+        | mir::CastOperator::FloatExtend
+        | mir::CastOperator::FloatConvert => {
             // require a float target type
             let mir::Type::Float(float_type) = to_type else {
                 return None;
             };
 
-            float_range_cast(argument, float_type.width())
+            float_range_cast(argument, *float_type)
         }
         _ => None,
     }
@@ -1187,33 +1181,31 @@ fn integer_range_negate(range: &ValueRange) -> Option<ValueRange> {
     })
 }
 
-/// Check if a float width is supported.
-fn float_width_supported(width: u16) -> bool {
-    width == 32 || width == 64
-}
-
-/// Return the maximum finite magnitude for a float width.
-fn float_max_finite(width: u16) -> Option<f64> {
-    match width {
-        32 => Some(f32::MAX as f64),
-        64 => Some(f64::MAX),
-        _ => None,
+/// Return the maximum finite magnitude for a float format.
+fn float_max_finite(format: mir::FloatType) -> f64 {
+    match format {
+        mir::FloatType::Float16 => float_from_bits(format.format(), 0x7bff),
+        mir::FloatType::Bfloat16 => float_from_bits(format.format(), 0x7f7f),
+        mir::FloatType::Float32 => f32::MAX as f64,
+        mir::FloatType::Float64 => f64::MAX,
     }
 }
 
-/// Build finite bounds that cover all finite values of a float width.
-fn float_full_finite_bounds(width: u16) -> Option<FloatBounds> {
-    let max = float_max_finite(width)?;
+/// Build finite bounds that cover all finite values of a float format.
+fn float_full_finite_bounds(format: mir::FloatType) -> FloatBounds {
+    let max = float_max_finite(format);
 
-    Some(FloatBounds { min: -max, max })
+    FloatBounds { min: -max, max }
 }
 
 /// Extract float range fields with bounds check.
-fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u16, bool, bool, bool)> {
+fn float_range_fields(
+    range: &ValueRange,
+) -> Option<(Option<FloatBounds>, mir::FloatType, bool, bool, bool)> {
     // require a float range
     let ValueRange::Float {
         bounds,
-        width,
+        format,
         can_be_nan,
         can_be_pos_inf,
         can_be_neg_inf,
@@ -1222,13 +1214,9 @@ fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u16, b
         return None;
     };
 
-    if !float_width_supported(*width) {
-        return None;
-    }
-
     Some((
         *bounds,
-        *width,
+        *format,
         *can_be_nan,
         *can_be_pos_inf,
         *can_be_neg_inf,
@@ -1236,97 +1224,71 @@ fn float_range_fields(range: &ValueRange) -> Option<(Option<FloatBounds>, u16, b
 }
 
 /// Build a float range with full bounds.
-fn float_full_range(width: u16) -> Option<ValueRange> {
-    if !float_width_supported(width) {
-        return None;
-    }
+fn float_full_range(format: mir::FloatType) -> ValueRange {
+    let bounds = float_full_finite_bounds(format);
 
-    let bounds = float_full_finite_bounds(width)?;
-
-    Some(ValueRange::Float {
+    ValueRange::Float {
         bounds: Some(bounds),
-        width,
+        format,
         can_be_nan: true,
         can_be_pos_inf: true,
         can_be_neg_inf: true,
-    })
-}
-
-/// Cast a float value to the given width.
-fn float_cast_value(width: u16, value: f64) -> Option<f64> {
-    if width == 32 {
-        Some((value as f32) as f64)
-    } else if width == 64 {
-        Some(value)
-    } else {
-        None
     }
 }
 
-/// Cast an integer value to the given float width.
-fn float_from_integer(width: u16, value: i128) -> Option<f64> {
-    if width == 32 {
-        Some((value as f32) as f64)
-    } else if width == 64 {
-        Some(value as f64)
-    } else {
-        None
+/// Round a float value to the given format.
+fn float_round_value(format: mir::FloatType, value: f64) -> f64 {
+    if format == mir::FloatType::Float32 {
+        return (value as f32) as f64;
     }
+
+    float_from_bits(format.format(), float_to_bits(format.format(), value))
 }
 
-/// Apply a float addition with the given width.
-fn float_add_value(width: u16, left: f64, right: f64) -> Option<f64> {
-    if width == 32 {
-        Some(((left as f32) + (right as f32)) as f64)
-    } else if width == 64 {
-        Some(left + right)
-    } else {
-        None
-    }
+/// Cast an integer value to the given float format.
+fn float_from_integer(format: mir::FloatType, value: i128) -> f64 {
+    float_round_value(format, value as f64)
 }
 
-/// Apply a float subtraction with the given width.
-fn float_sub_value(width: u16, left: f64, right: f64) -> Option<f64> {
-    if width == 32 {
-        Some(((left as f32) - (right as f32)) as f64)
-    } else if width == 64 {
-        Some(left - right)
-    } else {
-        None
+/// Apply a float addition with the given format.
+fn float_add_value(format: mir::FloatType, left: f64, right: f64) -> f64 {
+    if format == mir::FloatType::Float32 {
+        return ((left as f32) + (right as f32)) as f64;
     }
+
+    float_round_value(format, left + right)
 }
 
-/// Apply a float multiplication with the given width.
-fn float_mul_value(width: u16, left: f64, right: f64) -> Option<f64> {
-    if width == 32 {
-        Some(((left as f32) * (right as f32)) as f64)
-    } else if width == 64 {
-        Some(left * right)
-    } else {
-        None
+/// Apply a float subtraction with the given format.
+fn float_sub_value(format: mir::FloatType, left: f64, right: f64) -> f64 {
+    if format == mir::FloatType::Float32 {
+        return ((left as f32) - (right as f32)) as f64;
     }
+
+    float_round_value(format, left - right)
 }
 
-/// Apply a float division with the given width.
-fn float_div_value(width: u16, left: f64, right: f64) -> Option<f64> {
-    if width == 32 {
-        Some(((left as f32) / (right as f32)) as f64)
-    } else if width == 64 {
-        Some(left / right)
-    } else {
-        None
+/// Apply a float multiplication with the given format.
+fn float_mul_value(format: mir::FloatType, left: f64, right: f64) -> f64 {
+    if format == mir::FloatType::Float32 {
+        return ((left as f32) * (right as f32)) as f64;
     }
+
+    float_round_value(format, left * right)
 }
 
-/// Apply a float negation with the given width.
-fn float_neg_value(width: u16, value: f64) -> Option<f64> {
-    if width == 32 {
-        Some((-(value as f32)) as f64)
-    } else if width == 64 {
-        Some(-value)
-    } else {
-        None
+/// Apply a float division with the given format.
+fn float_div_value(format: mir::FloatType, left: f64, right: f64) -> f64 {
+    if format == mir::FloatType::Float32 {
+        return ((left as f32) / (right as f32)) as f64;
     }
+
+    float_round_value(format, left / right)
+}
+
+/// Apply a float negation with the given format.
+fn float_neg_value(format: mir::FloatType, value: f64) -> f64 {
+    float_round_value(format, -value)
 }
 
 /// Build finite bounds from candidate float values.
@@ -1445,12 +1407,12 @@ fn float_effective_bounds(
 /// Compute a range for float addition.
 fn float_range_add(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
     // extract operand ranges
-    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+    let (left_bounds, format, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_format, right_nan, right_pos_inf, right_neg_inf) =
         float_range_fields(right)?;
 
     // ensure operand types match
-    if width != right_width {
+    if format != right_format {
         return None;
     }
 
@@ -1486,10 +1448,10 @@ fn float_range_add(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     let bounds = match (left_bounds, right_bounds) {
         (Some(left), Some(right)) => {
             let candidates = [
-                float_add_value(width, left.min, right.min)?,
-                float_add_value(width, left.min, right.max)?,
-                float_add_value(width, left.max, right.min)?,
-                float_add_value(width, left.max, right.max)?,
+                float_add_value(format, left.min, right.min),
+                float_add_value(format, left.min, right.max),
+                float_add_value(format, left.max, right.min),
+                float_add_value(format, left.max, right.max),
             ];
 
             let (bounds, add_pos_inf, add_neg_inf) = float_bounds_from_candidates(&candidates);
@@ -1502,7 +1464,7 @@ fn float_range_add(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 
     Some(ValueRange::Float {
         bounds,
-        width,
+        format,
         can_be_nan,
         can_be_pos_inf,
         can_be_neg_inf,
@@ -1512,12 +1474,12 @@ fn float_range_add(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 /// Compute a range for float subtraction.
 fn float_range_sub(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
     // extract operand ranges
-    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+    let (left_bounds, format, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_format, right_nan, right_pos_inf, right_neg_inf) =
         float_range_fields(right)?;
 
     // ensure operand types match
-    if width != right_width {
+    if format != right_format {
         return None;
     }
 
@@ -1556,10 +1518,10 @@ fn float_range_sub(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     let bounds = match (left_bounds, right_bounds) {
         (Some(left), Some(right)) => {
             let candidates = [
-                float_sub_value(width, left.min, right.min)?,
-                float_sub_value(width, left.min, right.max)?,
-                float_sub_value(width, left.max, right.min)?,
-                float_sub_value(width, left.max, right.max)?,
+                float_sub_value(format, left.min, right.min),
+                float_sub_value(format, left.min, right.max),
+                float_sub_value(format, left.max, right.min),
+                float_sub_value(format, left.max, right.max),
             ];
 
             let (bounds, sub_pos_inf, sub_neg_inf) = float_bounds_from_candidates(&candidates);
@@ -1572,7 +1534,7 @@ fn float_range_sub(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 
     Some(ValueRange::Float {
         bounds,
-        width,
+        format,
         can_be_nan,
         can_be_pos_inf,
         can_be_neg_inf,
@@ -1582,12 +1544,12 @@ fn float_range_sub(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 /// Compute a range for float multiplication.
 fn float_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
     // extract operand ranges
-    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+    let (left_bounds, format, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_format, right_nan, right_pos_inf, right_neg_inf) =
         float_range_fields(right)?;
 
     // ensure operand types match
-    if width != right_width {
+    if format != right_format {
         return None;
     }
 
@@ -1665,7 +1627,7 @@ fn float_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     if (left_is_zero && right_is_infinite_only) || (right_is_zero && left_is_infinite_only) {
         return Some(ValueRange::Float {
             bounds: None,
-            width,
+            format,
             can_be_nan: true,
             can_be_pos_inf: false,
             can_be_neg_inf: false,
@@ -1676,10 +1638,10 @@ fn float_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     let bounds = match (left_bounds, right_bounds) {
         (Some(left), Some(right)) => {
             let candidates = [
-                float_mul_value(width, left.min, right.min)?,
-                float_mul_value(width, left.min, right.max)?,
-                float_mul_value(width, left.max, right.min)?,
-                float_mul_value(width, left.max, right.max)?,
+                float_mul_value(format, left.min, right.min),
+                float_mul_value(format, left.min, right.max),
+                float_mul_value(format, left.max, right.min),
+                float_mul_value(format, left.max, right.max),
             ];
 
             let (bounds, mul_pos_inf, mul_neg_inf) = float_bounds_from_candidates(&candidates);
@@ -1692,7 +1654,7 @@ fn float_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 
     Some(ValueRange::Float {
         bounds,
-        width,
+        format,
         can_be_nan,
         can_be_pos_inf,
         can_be_neg_inf,
@@ -1702,12 +1664,12 @@ fn float_range_mul(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 /// Compute a range for float division.
 fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> {
     // extract operand ranges
-    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+    let (left_bounds, format, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_format, right_nan, right_pos_inf, right_neg_inf) =
         float_range_fields(right)?;
 
     // ensure operand types match
-    if width != right_width {
+    if format != right_format {
         return None;
     }
 
@@ -1718,7 +1680,7 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     if !left_has_non_nan || !right_has_non_nan {
         return Some(ValueRange::Float {
             bounds: None,
-            width,
+            format,
             can_be_nan: true,
             can_be_pos_inf: false,
             can_be_neg_inf: false,
@@ -1747,7 +1709,7 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
         if right_is_nan_only || (right_is_zero && !right_pos_inf && !right_neg_inf) {
             return Some(ValueRange::Float {
                 bounds: None,
-                width,
+                format,
                 can_be_nan: true,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false,
@@ -1759,7 +1721,7 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 
         return Some(ValueRange::Float {
             bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
-            width,
+            format,
             can_be_nan,
             can_be_pos_inf: false,
             can_be_neg_inf: false,
@@ -1770,7 +1732,7 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     if right_bounds.is_none() && !right_pos_inf && !right_neg_inf {
         return Some(ValueRange::Float {
             bounds: None,
-            width,
+            format,
             can_be_nan: true,
             can_be_pos_inf: false,
             can_be_neg_inf: false,
@@ -1785,7 +1747,7 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     {
         return Some(ValueRange::Float {
             bounds: None,
-            width,
+            format,
             can_be_nan: true,
             can_be_pos_inf: false,
             can_be_neg_inf: false,
@@ -1796,7 +1758,7 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
     if right_bounds.is_none() && (right_pos_inf || right_neg_inf) {
         return Some(ValueRange::Float {
             bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
-            width,
+            format,
             can_be_nan,
             can_be_pos_inf: false,
             can_be_neg_inf: false,
@@ -1831,7 +1793,7 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 
             return Some(ValueRange::Float {
                 bounds: None,
-                width,
+                format,
                 can_be_nan,
                 can_be_pos_inf,
                 can_be_neg_inf,
@@ -1843,31 +1805,31 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
         let left_has_non_zero = left_bounds.is_some() && !left_is_zero;
 
         if left_has_non_zero {
-            let bounds = float_full_finite_bounds(width)?;
+            let bounds = float_full_finite_bounds(format);
             if left_contains_zero {
                 can_be_nan = true;
             }
 
             return Some(ValueRange::Float {
                 bounds: Some(bounds),
-                width,
+                format,
                 can_be_nan,
                 can_be_pos_inf: true,
                 can_be_neg_inf: true,
             });
         }
 
-        return float_full_range(width);
+        return Some(float_full_range(format));
     }
 
     // derive finite bounds from candidates
     let mut bounds = match (left_bounds, right_bounds) {
         (Some(left), Some(right)) => {
             let candidates = [
-                float_div_value(width, left.min, right.min)?,
-                float_div_value(width, left.min, right.max)?,
-                float_div_value(width, left.max, right.min)?,
-                float_div_value(width, left.max, right.max)?,
+                float_div_value(format, left.min, right.min),
+                float_div_value(format, left.min, right.max),
+                float_div_value(format, left.max, right.min),
+                float_div_value(format, left.max, right.max),
             ];
 
             let (bounds, div_pos_inf, div_neg_inf) = float_bounds_from_candidates(&candidates);
@@ -1893,7 +1855,7 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 
     Some(ValueRange::Float {
         bounds,
-        width,
+        format,
         can_be_nan,
         can_be_pos_inf,
         can_be_neg_inf,
@@ -1903,19 +1865,19 @@ fn float_range_div(left: &ValueRange, right: &ValueRange) -> Option<ValueRange> 
 /// Compute a range for float negation.
 fn float_range_negate(range: &ValueRange) -> Option<ValueRange> {
     // extract operand range
-    let (bounds, width, can_be_nan, can_be_pos_inf, can_be_neg_inf) = float_range_fields(range)?;
+    let (bounds, format, can_be_nan, can_be_pos_inf, can_be_neg_inf) = float_range_fields(range)?;
 
     let bounds = match bounds {
         Some(bounds) => Some(FloatBounds {
-            min: float_neg_value(width, bounds.max)?,
-            max: float_neg_value(width, bounds.min)?,
+            min: float_neg_value(format, bounds.max),
+            max: float_neg_value(format, bounds.min),
         }),
         None => None,
     };
 
     Some(ValueRange::Float {
         bounds,
-        width,
+        format,
         can_be_nan,
         can_be_pos_inf: can_be_neg_inf,
         can_be_neg_inf: can_be_pos_inf,
@@ -1923,19 +1885,15 @@ fn float_range_negate(range: &ValueRange) -> Option<ValueRange> {
 }
 
 /// Compute a float range for cast operations between floats.
-fn float_range_cast(argument: &ValueRange, to_width: u16) -> Option<ValueRange> {
-    let (bounds, _width, can_be_nan, mut can_be_pos_inf, mut can_be_neg_inf) =
+fn float_range_cast(argument: &ValueRange, to_format: mir::FloatType) -> Option<ValueRange> {
+    let (bounds, _format, can_be_nan, mut can_be_pos_inf, mut can_be_neg_inf) =
         float_range_fields(argument)?;
-
-    if !float_width_supported(to_width) {
-        return None;
-    }
 
     let bounds = match bounds {
         Some(bounds) => {
             let candidates = [
-                float_cast_value(to_width, bounds.min)?,
-                float_cast_value(to_width, bounds.max)?,
+                float_round_value(to_format, bounds.min),
+                float_round_value(to_format, bounds.max),
             ];
             let (bounds, cast_pos_inf, cast_neg_inf) = float_bounds_from_candidates(&candidates);
             can_be_pos_inf |= cast_pos_inf;
@@ -1947,7 +1905,7 @@ fn float_range_cast(argument: &ValueRange, to_width: u16) -> Option<ValueRange> 
 
     Some(ValueRange::Float {
         bounds,
-        width: to_width,
+        format: to_format,
         can_be_nan,
         can_be_pos_inf,
         can_be_neg_inf,
@@ -1957,7 +1915,7 @@ fn float_range_cast(argument: &ValueRange, to_width: u16) -> Option<ValueRange> 
 /// Convert an integer range to a float range.
 fn float_range_from_integer(
     argument: &ValueRange,
-    to_width: u16,
+    to_format: mir::FloatType,
     operator: mir::CastOperator,
 ) -> Option<ValueRange> {
     let (min, max, _width, is_signed) = integer_range_fields(argument)?;
@@ -1967,13 +1925,13 @@ fn float_range_from_integer(
         _ => return None,
     };
 
-    if is_signed != expect_signed || !float_width_supported(to_width) {
+    if is_signed != expect_signed {
         return None;
     }
 
     // convert integer bounds to float endpoints
-    let min_value = float_from_integer(to_width, min)?;
-    let max_value = float_from_integer(to_width, max)?;
+    let min_value = float_from_integer(to_format, min);
+    let max_value = float_from_integer(to_format, max);
 
     // derive infinity flags from endpoints
     let mut can_be_pos_inf = min_value.is_infinite() && min_value.is_sign_positive();
@@ -1988,7 +1946,7 @@ fn float_range_from_integer(
     {
         None
     } else {
-        let max_finite = float_max_finite(to_width)?;
+        let max_finite = float_max_finite(to_format);
         let mut min_bound = min_value;
         let mut max_bound = max_value;
 
@@ -2012,7 +1970,7 @@ fn float_range_from_integer(
 
     Some(ValueRange::Float {
         bounds,
-        width: to_width,
+        format: to_format,
         can_be_nan: false,
         can_be_pos_inf,
         can_be_neg_inf,
@@ -2186,11 +2144,11 @@ fn range_for_float_comparison(
     left: &ValueRange,
     right: &ValueRange,
 ) -> Option<ValueRange> {
-    let (left_bounds, width, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
-    let (right_bounds, right_width, right_nan, right_pos_inf, right_neg_inf) =
+    let (left_bounds, format, left_nan, left_pos_inf, left_neg_inf) = float_range_fields(left)?;
+    let (right_bounds, right_format, right_nan, right_pos_inf, right_neg_inf) =
         float_range_fields(right)?;
 
-    if width != right_width {
+    if format != right_format {
         return None;
     }
 
@@ -2611,7 +2569,7 @@ b0:
             constant_range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds { min: 1.5, max: 1.5 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -2658,7 +2616,7 @@ b3(v3: float32):
             range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds { min: 3.0, max: 5.0 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -2706,7 +2664,7 @@ b3(v5: float32, v6: float32):
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -2746,7 +2704,7 @@ b0:
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: true,
                 can_be_neg_inf: false
@@ -2794,7 +2752,7 @@ b3(v5: float32, v6: float32):
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -2834,7 +2792,7 @@ b0:
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: false,
                 can_be_neg_inf: true
@@ -2966,7 +2924,7 @@ b6(v8: float32, v9: float32):
                     min: -(f32::MAX as f64),
                     max: f32::MAX as f64
                 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: true,
                 can_be_neg_inf: true
@@ -3016,7 +2974,7 @@ b3(v3: float32):
                     min: -(f32::MAX as f64),
                     max: f32::MAX as f64
                 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: true,
                 can_be_neg_inf: true
@@ -3063,7 +3021,7 @@ b3(v3: float32):
             range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -3110,7 +3068,7 @@ b3(v3: float32):
             range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -3158,7 +3116,7 @@ b3(v5: float32, v6: float32):
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -3205,7 +3163,7 @@ b3(v3: float32):
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: true,
                 can_be_neg_inf: false
@@ -3253,7 +3211,7 @@ b3(v5: float32, v6: float32):
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -3293,7 +3251,7 @@ b0:
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: true,
                 can_be_neg_inf: true
@@ -3333,7 +3291,7 @@ b0:
             range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -3373,7 +3331,7 @@ b0:
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: false,
                 can_be_neg_inf: true
@@ -3415,7 +3373,7 @@ b0:
             range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds { min: 0.0, max: 0.0 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -3576,7 +3534,7 @@ b0:
             range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds { min: 4.0, max: 4.0 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -3615,7 +3573,7 @@ b0:
             range,
             &ValueRange::Float {
                 bounds: None,
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: true,
                 can_be_neg_inf: false
@@ -3659,7 +3617,7 @@ b3(v4: float32):
             param_range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds { min: 1.0, max: 1.0 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: true,
                 can_be_pos_inf: false,
                 can_be_neg_inf: false
@@ -3881,7 +3839,7 @@ b3(v3: float32):
             param_range,
             &ValueRange::Float {
                 bounds: Some(FloatBounds { min: 2.0, max: 2.0 }),
-                width: 32,
+                format: mir::FloatType::Float32,
                 can_be_nan: false,
                 can_be_pos_inf: true,
                 can_be_neg_inf: false

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
 
 use crate::common::mir::{
@@ -1370,21 +1371,11 @@ fn scev_negate(value: Scev) -> Scev {
                 value: value.wrapping_neg(),
                 width,
             }),
-            mir::Constant::Float { bits, width } => {
-                let negated = match width {
-                    32 => {
-                        let value = f32::from_bits(bits as u32);
-                        (-(value)).to_bits() as u64
-                    }
-                    64 => {
-                        let value = f64::from_bits(bits);
-                        (-(value)).to_bits()
-                    }
-                    _ => bits,
-                };
+            mir::Constant::Float { bits, format } => {
+                let value = -float_from_bits(format.format(), bits);
                 Scev::Constant(mir::Constant::Float {
-                    bits: negated,
-                    width,
+                    bits: float_to_bits(format.format(), value),
+                    format,
                 })
             }
             mir::Constant::Boolean { value } => {

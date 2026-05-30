@@ -28,8 +28,8 @@ pub enum TypeKey {
     Isize,
     /// Pointer-sized unsigned integer type.
     Usize,
-    /// Floating-point type with width.
-    Float { width: u16 },
+    /// Floating-point type with format.
+    Float { format: mir::FloatType },
     /// Type descriptor handle.
     TypeDescriptor,
     /// Compact runtime type id.
@@ -170,7 +170,7 @@ impl TypeKey {
             mir::Type::Isize => TypeKey::Isize,
             mir::Type::Usize => TypeKey::Usize,
             mir::Type::Float(float_type) => TypeKey::Float {
-                width: float_type.width(),
+                format: *float_type,
             },
             mir::Type::TypeDescriptor => TypeKey::TypeDescriptor,
             mir::Type::TypeId => TypeKey::TypeId,
@@ -370,7 +370,7 @@ impl TypeKey {
         match self {
             TypeKey::Int { width, .. } => bytes_for_width(*width),
             TypeKey::Isize | TypeKey::Usize => bytes_for_width(pointer_width_bits),
-            TypeKey::Float { width } => bytes_for_width(*width),
+            TypeKey::Float { format } => bytes_for_width(format.width()),
             TypeKey::Uninit { value } => value.byte_size(pointer_width_bits),
             TypeKey::Newtype { inner, .. } => inner.byte_size(pointer_width_bits),
             TypeKey::Array {
@@ -705,7 +705,9 @@ mod tests {
         );
         assert_eq!(
             TypeKey::from_type(float64_id, &tree),
-            TypeKey::Float { width: 64 }
+            TypeKey::Float {
+                format: mir::FloatType::Float64
+            }
         );
         assert_eq!(
             TypeKey::from_type(type_tag_id, &tree),

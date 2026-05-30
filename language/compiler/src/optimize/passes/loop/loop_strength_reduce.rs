@@ -1514,7 +1514,7 @@ impl<'a> ScevMaterializer<'a> {
                 width, is_signed, ..
             } => self.int_type(*width as u16, *is_signed)?,
             mir::Constant::UInt { width, .. } => self.int_type(*width as u16, false)?,
-            mir::Constant::Float { width, .. } => self.tree.float_type(*width as u16),
+            mir::Constant::Float { format, .. } => self.tree.float_type(*format),
             mir::Constant::Char { .. } => self.int_type(32, false)?,
         };
 
