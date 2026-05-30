@@ -128,7 +128,7 @@ impl<'a> BlockLowerer<'a> {
         }
     }
 
-    /// Convert a MIR terminator to lowered interpreter form.
+    /// Convert a MIR terminator to lowered VM form.
     pub(super) fn lower_terminator(
         &self,
         term: &mir::Terminator,

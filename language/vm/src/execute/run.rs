@@ -4,23 +4,22 @@ use engine::StaticSpace;
 
 use super::frame::{dematerialize_value, frame_value_type};
 use super::{dispatch_block, dispatch_block_counted};
+use crate::Word;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Continuation, Frame, Interpreter, Machine, Outcome};
-use crate::options::IsolateOptions;
+use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
+use crate::options::LimitOptions;
 use crate::program::{CallTarget, Program};
-use crate::{SharedHeap, Word};
-use destack_heap::{AllocationCache, GcWorker, Heap};
+use destack_heap::{AllocationCache, GcWorker, Heap, SharedHeap};
 
-impl Interpreter {
+impl Machine {
     /// Execute a function by id.
     ///
     /// Uses the lowered op loop for maximum performance.
-    /// Functions are lowered when the interpreter is created.
-    pub(crate) fn run_function(
+    /// Functions are lowered when the machine is created.
+    pub(crate) fn execute_function_words(
         &mut self,
-        isolate_id: engine::EngineId,
         program: &Program,
-        options: &IsolateOptions,
+        limits: LimitOptions,
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
@@ -29,10 +28,9 @@ impl Interpreter {
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<engine::Value> {
-        let outcome = self.run_function_yielding(
-            isolate_id,
+        let outcome = self.execute_function_words_yielding(
             program,
-            options,
+            limits,
             statics,
             heap,
             shared,
@@ -44,18 +42,17 @@ impl Interpreter {
 
         match outcome {
             Outcome::Completed { value } => Ok(value),
-            Outcome::Yielded { .. } => Err(self.runtime_error(program, Error::unexpected_yield())),
+            Outcome::Yielded { .. } => Err(self.runtime_error(Error::unexpected_yield())),
         }
     }
 
     /// Execute a function by id with yield support.
     ///
     /// Returns a yielded value when the coroutine suspends.
-    pub(crate) fn run_function_yielding(
+    pub(crate) fn execute_function_words_yielding(
         &mut self,
-        isolate_id: engine::EngineId,
         program: &Program,
-        options: &IsolateOptions,
+        limits: LimitOptions,
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
@@ -64,7 +61,7 @@ impl Interpreter {
         function_id: mir::LocalNodeId<mir::Function>,
         arguments: &[Word],
     ) -> RuntimeResult<Outcome> {
-        self.reset_stack(options)?;
+        self.reset_stack(limits)?;
 
         // resolve the function target before entering the main loop
         match program.functions.call_target(function_id) {
@@ -72,20 +69,19 @@ impl Interpreter {
                 let function = program.tree.get(function_id);
                 let name = program.strings.get(function.name).to_string();
 
-                return Err(self.runtime_error(program, Error::import_forbidden(name)));
+                return Err(self.runtime_error(Error::import_forbidden(name)));
             }
             Some(CallTarget::Local(_)) => {}
 
             // reject missing functions loudly
             None => {
-                return Err(self.runtime_error(program, Error::undefined_function(function_id)));
+                return Err(self.runtime_error(Error::undefined_function(function_id)));
             }
         }
 
         self.run_function_body(
-            isolate_id,
             program,
-            options,
+            limits,
             statics,
             heap,
             shared,
@@ -99,11 +95,10 @@ impl Interpreter {
     /// Resume a previously yielded coroutine.
     ///
     /// The resume value is appended after explicit resume arguments.
-    pub(crate) fn resume(
+    pub(crate) fn execute_resume(
         &mut self,
-        isolate_id: engine::EngineId,
         program: &Program,
-        options: &IsolateOptions,
+        limits: LimitOptions,
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
@@ -112,21 +107,20 @@ impl Interpreter {
         continuation: Continuation,
         received_value: engine::Value,
     ) -> RuntimeResult<Outcome> {
-        if continuation.isolate_id != isolate_id {
-            return Err(self.runtime_error(program, Error::invalid_continuation()));
+        if continuation.machine_id != self.id {
+            return Err(self.runtime_error(Error::invalid_continuation()));
         }
 
         if !self.frames.is_empty() {
-            return Err(self.runtime_error(program, Error::invalid_continuation()));
+            return Err(self.runtime_error(Error::invalid_continuation()));
         }
 
         self.stack = continuation.stack;
         self.frames = continuation.frames;
 
         self.resume_continuation(
-            isolate_id,
             program,
-            options,
+            limits,
             statics,
             heap,
             shared,
@@ -141,9 +135,8 @@ impl Interpreter {
     /// Resume execution from one suspended yield point.
     fn resume_continuation(
         &mut self,
-        isolate_id: engine::EngineId,
         program: &Program,
-        options: &IsolateOptions,
+        limits: LimitOptions,
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
@@ -156,22 +149,22 @@ impl Interpreter {
         let frame_entry = program.frame_entry(frame_state);
         let received_value_slot = frame_entry
             .and_then(|frame_entry| frame_entry.received_value)
-            .ok_or_else(|| self.runtime_error(program, Error::invalid_continuation()))?;
+            .ok_or_else(|| self.runtime_error(Error::invalid_continuation()))?;
         let frame = self
             .frames
             .get(resume_frame_index)
-            .ok_or_else(|| self.runtime_error(program, Error::invalid_continuation()))?;
+            .ok_or_else(|| self.runtime_error(Error::invalid_continuation()))?;
         let layout = program
             .frame_layout_by_id(frame.frame_layout())
-            .ok_or_else(|| self.runtime_error(program, Error::invalid_continuation()))?;
+            .ok_or_else(|| self.runtime_error(Error::invalid_continuation()))?;
         let received_value_id = layout
             .value_for_slot(received_value_slot)
-            .ok_or_else(|| self.runtime_error(program, Error::invalid_continuation()))?;
+            .ok_or_else(|| self.runtime_error(Error::invalid_continuation()))?;
         let received_type = frame_value_type(program, frame, mir::Value::new(received_value_id))
-            .map_err(|_| self.runtime_error(program, Error::invalid_continuation()))?;
+            .map_err(|_| self.runtime_error(Error::invalid_continuation()))?;
         let received_value =
             dematerialize_value(program, heap, shared, received_type, &received_value)
-                .map_err(|_| self.runtime_error(program, Error::invalid_continuation()))?;
+                .map_err(|_| self.runtime_error(Error::invalid_continuation()))?;
 
         self.enter_frame_state(
             program,
@@ -185,16 +178,9 @@ impl Interpreter {
             anchor: error.anchor,
         })?;
 
-        self.run_loop(
-            isolate_id,
-            program,
-            options,
-            statics,
-            heap,
-            shared,
-            shared_cache,
-            shared_gc,
-        )
+        let mut activation = Activation::new(self, statics, heap, shared, shared_gc, shared_cache);
+
+        activation.run_loop(program, limits)
     }
 
     /// Assemble a completed execution outcome.
@@ -205,9 +191,8 @@ impl Interpreter {
     /// Run one lowered function from its entry block.
     fn run_function_body(
         &mut self,
-        isolate_id: engine::EngineId,
         program: &Program,
-        options: &IsolateOptions,
+        limits: LimitOptions,
         statics: &mut StaticSpace,
         heap: &mut Heap,
         shared: &SharedHeap,
@@ -225,7 +210,7 @@ impl Interpreter {
         let frame_layout = function.frame_layout;
         let frame_layout_ref = program
             .frame_layout_by_id(frame_layout)
-            .ok_or_else(|| self.runtime_error(program, Error::invalid_instruction()))?;
+            .ok_or_else(|| self.runtime_error(Error::invalid_instruction()))?;
         let (stack_offset, frame_base) = self.allocate_frame(frame_layout_ref)?;
 
         // create the entry frame
@@ -251,83 +236,61 @@ impl Interpreter {
             )));
         }
 
-        // bind explicit entry arguments through the same frame move path as MIR values
-        {
-            let frame_index = self.frames.len() - 1;
-            let mut machine = Machine::new(
-                program,
-                options,
-                statics,
-                heap,
-                shared,
-                shared_gc,
-                shared_cache,
-                self,
-                frame_index,
-                function,
-            )
-            .map_err(RuntimeError::new)?;
-            for (index, param) in parameter_slice.iter().enumerate() {
-                let value = arguments[index];
-                let is_word = machine.value_is_word(*param).map_err(RuntimeError::new)?;
-                if is_word {
-                    machine.store_value_word(*param, value);
-                    continue;
-                }
+        let mut activation = Activation::new(self, statics, heap, shared, shared_gc, shared_cache);
 
-                let ty = machine.value_type(*param).map_err(RuntimeError::new)?;
-                let bytes = super::frame::encode_argument_bytes(&mut machine, ty, value)
-                    .map_err(RuntimeError::new)?;
-                let destination = machine.value_bytes_mut(*param).map_err(RuntimeError::new)?;
-                if destination.len() != bytes.len() {
-                    return Err(RuntimeError::new(Error::invalid_instruction()));
-                }
-                destination.copy_from_slice(&bytes);
+        // bind explicit entry arguments through the same frame move path as MIR values
+        let frame_index = activation.machine.frames.len() - 1;
+        activation
+            .bind_frame(frame_index)
+            .map_err(RuntimeError::new)?;
+        for (index, param) in parameter_slice.iter().enumerate() {
+            let value = arguments[index];
+            let is_word = activation
+                .value_is_word(*param)
+                .map_err(RuntimeError::new)?;
+            if is_word {
+                activation.store_value_word(*param, value);
+                continue;
             }
+
+            let ty = activation.value_type(*param).map_err(RuntimeError::new)?;
+            let bytes = super::frame::encode_argument_bytes(&mut activation, ty, value)
+                .map_err(RuntimeError::new)?;
+            let destination = activation
+                .value_bytes_mut(*param)
+                .map_err(RuntimeError::new)?;
+            if destination.len() != bytes.len() {
+                return Err(RuntimeError::new(Error::invalid_instruction()));
+            }
+            destination.copy_from_slice(&bytes);
         }
 
-        self.run_loop(
-            isolate_id,
-            program,
-            options,
-            statics,
-            heap,
-            shared,
-            shared_cache,
-            shared_gc,
-        )
+        activation.run_loop(program, limits)
     }
+}
 
-    /// Run the interpreter loop from the current stack.
-    fn run_loop(
-        &mut self,
-        isolate_id: engine::EngineId,
-        program: &Program,
-        options: &IsolateOptions,
-        statics: &mut StaticSpace,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
-    ) -> RuntimeResult<Outcome> {
+impl Activation<'_> {
+    /// Run the machine loop from the current stack.
+    fn run_loop(&mut self, program: &Program, limits: LimitOptions) -> RuntimeResult<Outcome> {
         let mut lowered_instructions_executed = 0;
 
         // require at least one live frame before stepping
-        if self.frames.is_empty() {
-            return Err(self.runtime_error(program, Error::invalid_instruction()));
+        if self.machine.frames.is_empty() {
+            return Err(self.machine.runtime_error(Error::invalid_instruction()));
         }
 
         loop {
             // enforce the instruction limit before stepping again
-            if let Some(max) = options.limits.max_instructions
+            if let Some(max) = limits.max_instructions
                 && lowered_instructions_executed >= max
             {
-                return Err(self.runtime_error(program, Error::step_limit_exceeded()));
+                return Err(self.machine.runtime_error(Error::step_limit_exceeded()));
             }
 
             // load the current frame position and clear any pending pc
             let (function_id, block_index, start_pc) = {
                 let frame = self
+                    .machine
                     .frames
                     .last_mut()
                     .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -343,36 +306,21 @@ impl Interpreter {
 
             // run the current lowered block from the chosen instruction offset
             let block_run = {
-                let frame_index = self.frames.len() - 1;
-                let mut machine = Machine::new(
-                    program,
-                    options,
-                    statics,
-                    heap,
-                    shared,
-                    shared_gc,
-                    shared_cache,
-                    self,
-                    frame_index,
-                    current_func,
-                )
-                .map_err(RuntimeError::new)?;
+                let frame_index = self.machine.frames.len() - 1;
+                self.bind_frame(frame_index).map_err(RuntimeError::new)?;
 
-                if options.limits.max_instructions.is_some() {
+                if limits.max_instructions.is_some() {
                     let block_run =
-                        dispatch_block_counted(&mut machine, current_func, block_index, start_pc);
+                        dispatch_block_counted(self, current_func, block_index, start_pc);
 
                     (block_run.transfer, block_run.executed)
                 } else {
-                    (
-                        dispatch_block(&mut machine, current_func, block_index, start_pc),
-                        0,
-                    )
+                    (dispatch_block(self, current_func, block_index, start_pc), 0)
                 }
             };
 
             // record the instructions covered by this block cache
-            if options.limits.max_instructions.is_some() {
+            if limits.max_instructions.is_some() {
                 lowered_instructions_executed += block_run.1;
             }
 
@@ -381,6 +329,7 @@ impl Interpreter {
             // reload the current function after any direct call path rewrites
             let current_func = {
                 let frame = self
+                    .machine
                     .frames
                     .last()
                     .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -393,17 +342,9 @@ impl Interpreter {
             };
 
             // apply the transfer and stop once it produces an outcome
-            if let Some(outcome) = self.complete_transfer(
-                isolate_id,
-                program,
-                options,
-                heap,
-                shared,
-                shared_cache,
-                shared_gc,
-                current_func,
-                transfer,
-            )? {
+            if let Some(outcome) =
+                self.complete_transfer(program, limits, current_func, transfer)?
+            {
                 return Ok(outcome);
             }
         }

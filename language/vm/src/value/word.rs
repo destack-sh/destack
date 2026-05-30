@@ -2,8 +2,9 @@ use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
 use destack_engine::{StaticPointer, Value};
+use destack_heap::{HeapReference, SharedHeapReference};
 
-use crate::{FramePointer, FunctionPointer, HeapReference, SharedHeapReference, StackPointer};
+use crate::{FramePointer, FunctionPointer, StackPointer};
 
 /// Truncate one unsigned integer to a bit width.
 const fn truncate_unsigned_bits(value: u64, width: u8) -> u64 {

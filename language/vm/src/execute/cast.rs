@@ -4,7 +4,7 @@ use destack_mir as mir;
 use super::scalar::{convert_integer_bytes, integer_bytes_to_word};
 use crate::Word;
 use crate::diagnostic::Error;
-use crate::interpreter::Machine;
+use crate::machine::Activation;
 use crate::program::{
     FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast, PointerCast,
     WideIntegerCast, WordLayout,
@@ -12,7 +12,7 @@ use crate::program::{
 
 /// Execute one lowered word cast.
 fn execute_word_cast(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     cast: fn(Word, u32) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -21,11 +21,11 @@ fn execute_word_cast(
     let cast_field = instruction.c;
 
     // cast the word directly
-    let argument = machine.load_word_at(argument);
+    let argument = activation.load_word_at(argument);
     let result = cast(argument, cast_field)?;
 
     // store result
-    machine.store_word_at(dest, result);
+    activation.store_word_at(dest, result);
 
     Ok(())
 }
@@ -280,90 +280,94 @@ fn cast_int_to_pointer(argument: Word, field: u32) -> Result<Word, Error> {
 
 /// Execute bitcast word op.
 pub(crate) fn execute_cast_bitcast(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_bitcast)
+    execute_word_cast(activation, instruction, cast_bitcast)
 }
 
 /// Execute truncate word op.
 pub(crate) fn execute_cast_truncate(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_truncate)
+    execute_word_cast(activation, instruction, cast_truncate)
 }
 
 /// Execute zero extend word op.
 pub(crate) fn execute_cast_zero_extend(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_zero_extend)
+    execute_word_cast(activation, instruction, cast_zero_extend)
 }
 
 /// Execute sign extend word op.
 pub(crate) fn execute_cast_sign_extend(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_sign_extend)
+    execute_word_cast(activation, instruction, cast_sign_extend)
 }
 
 /// Execute float to signed integer word op.
 pub(crate) fn execute_cast_float_to_signed_int(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_float_to_signed_int)
+    execute_word_cast(activation, instruction, cast_float_to_signed_int)
 }
 
 /// Execute float to unsigned integer word op.
 pub(crate) fn execute_cast_float_to_unsigned_int(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_float_to_unsigned_int)
+    execute_word_cast(activation, instruction, cast_float_to_unsigned_int)
 }
 
 /// Execute saturating float to signed integer word op.
 pub(crate) fn execute_cast_float_to_signed_int_saturating(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_float_to_signed_int_saturating)
+    execute_word_cast(activation, instruction, cast_float_to_signed_int_saturating)
 }
 
 /// Execute saturating float to unsigned integer word op.
 pub(crate) fn execute_cast_float_to_unsigned_int_saturating(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_float_to_unsigned_int_saturating)
+    execute_word_cast(
+        activation,
+        instruction,
+        cast_float_to_unsigned_int_saturating,
+    )
 }
 
 /// Execute signed integer to float word op.
 pub(crate) fn execute_cast_signed_int_to_float(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_signed_int_to_float)
+    execute_word_cast(activation, instruction, cast_signed_int_to_float)
 }
 
 /// Execute unsigned integer to float word op.
 pub(crate) fn execute_cast_unsigned_int_to_float(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_unsigned_int_to_float)
+    execute_word_cast(activation, instruction, cast_unsigned_int_to_float)
 }
 
 /// Execute float convert word op.
 pub(crate) fn execute_cast_float_convert(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_float_convert)
+    execute_word_cast(activation, instruction, cast_float_convert)
 }
 
 /// Decode one float word as f64.
@@ -402,23 +406,23 @@ fn f64_to_float_word(value: f64, layout: WordLayout) -> Result<Word, Error> {
 
 /// Execute pointer to integer word op.
 pub(crate) fn execute_cast_pointer_to_int(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_pointer_to_int)
+    execute_word_cast(activation, instruction, cast_pointer_to_int)
 }
 
 /// Execute integer to pointer word op.
 pub(crate) fn execute_cast_int_to_pointer(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_int_to_pointer)
+    execute_word_cast(activation, instruction, cast_int_to_pointer)
 }
 
 /// Execute word to wide integer cast op.
 pub(crate) fn execute_cast_word_to_wide_int(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
@@ -428,18 +432,18 @@ pub(crate) fn execute_cast_word_to_wide_int(
     let (source_width, dest_width) = cast.widths_pair();
 
     // cast from word bits into frame bytes
-    let source = machine.load_word_at(arg).to_byte_array();
+    let source = activation.load_word_at(arg).to_byte_array();
     let result = cast_integer_bytes(&source, source_width, source_signed, dest_width);
 
     // store result bytes
-    machine.store_frame_bytes_at(dest, &result);
+    activation.store_frame_bytes_at(dest, &result);
 
     Ok(())
 }
 
 /// Execute wide integer to word cast op.
 pub(crate) fn execute_cast_wide_int_to_word(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
@@ -449,19 +453,19 @@ pub(crate) fn execute_cast_wide_int_to_word(
     let (source_width, dest_width) = cast.widths_pair();
 
     // cast from frame bytes into word bits
-    let source = machine.frame_bytes_at(arg, integer_byte_len(source_width));
+    let source = activation.frame_bytes_at(arg, integer_byte_len(source_width));
     let bytes = cast_integer_bytes(source, source_width, source_signed, dest_width);
     let result = integer_bytes_to_word(&bytes, dest_width, dest_signed)?;
 
     // store result word
-    machine.store_word_at(dest, result);
+    activation.store_word_at(dest, result);
 
     Ok(())
 }
 
 /// Execute wide integer cast op.
 pub(crate) fn execute_cast_wide_int(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
@@ -471,18 +475,18 @@ pub(crate) fn execute_cast_wide_int(
     let (source_width, dest_width) = cast.widths_pair();
 
     // cast from frame bytes into frame bytes
-    let source = machine.frame_bytes_at(arg, integer_byte_len(source_width));
+    let source = activation.frame_bytes_at(arg, integer_byte_len(source_width));
     let result = cast_integer_bytes(source, source_width, source_signed, dest_width);
 
     // store result bytes
-    machine.store_frame_bytes_at(dest, &result);
+    activation.store_frame_bytes_at(dest, &result);
 
     Ok(())
 }
 
 /// Execute word select op.
 pub(crate) fn execute_select_word(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
@@ -491,19 +495,19 @@ pub(crate) fn execute_select_word(
     let else_value = instruction.d;
 
     // select the source word
-    let condition = machine.load_word_at(condition).as_bool();
+    let condition = activation.load_word_at(condition).as_bool();
     let source = if condition { then_value } else { else_value };
-    let result = machine.load_word_at(source);
+    let result = activation.load_word_at(source);
 
     // store result
-    machine.store_word_at(dest, result);
+    activation.store_word_at(dest, result);
 
     Ok(())
 }
 
 /// Execute frame select op.
 pub(crate) fn execute_select_frame(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let FrameSelect {
@@ -512,14 +516,14 @@ pub(crate) fn execute_select_frame(
         then_offset,
         else_offset,
         byte_len,
-    } = machine.side::<FrameSelect>(instruction);
+    } = activation.side::<FrameSelect>(instruction);
 
     // select the source frame value
-    let condition = machine.load_word_at(*condition_offset).as_bool();
+    let condition = activation.load_word_at(*condition_offset).as_bool();
     let source_offset = if condition { then_offset } else { else_offset };
 
     // move the selected frame slot directly
-    machine.copy_frame_bytes(*source_offset, *destination_offset, *byte_len);
+    activation.copy_frame_bytes(*source_offset, *destination_offset, *byte_len);
 
     Ok(())
 }

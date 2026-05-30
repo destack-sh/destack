@@ -12,7 +12,7 @@ use super::scalar::{
 };
 use crate::Word;
 use crate::diagnostic::Error;
-use crate::interpreter::Machine;
+use crate::machine::Activation;
 use crate::program::{
     ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout, VectorBinary,
     VectorConvert, VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle,
@@ -24,10 +24,10 @@ macro_rules! packed_binary_executor {
     ($function:ident, $ty:ty, $count:literal, $operation:expr, $doc:literal) => {
         #[doc = $doc]
         pub(crate) fn $function(
-            machine: &mut Machine<'_, '_>,
+            activation: &mut Activation<'_>,
             instruction: &Instruction,
         ) -> Result<(), Error> {
-            execute_vector_binary_packed::<$ty, $count, _>(machine, instruction, $operation)
+            execute_vector_binary_packed::<$ty, $count, _>(activation, instruction, $operation)
         }
     };
 }
@@ -36,26 +36,26 @@ macro_rules! packed_unary_executor {
     ($function:ident, $ty:ty, $count:literal, $operation:expr, $doc:literal) => {
         #[doc = $doc]
         pub(crate) fn $function(
-            machine: &mut Machine<'_, '_>,
+            activation: &mut Activation<'_>,
             instruction: &Instruction,
         ) -> Result<(), Error> {
-            execute_vector_unary_packed::<$ty, $count, _>(machine, instruction, $operation)
+            execute_vector_unary_packed::<$ty, $count, _>(activation, instruction, $operation)
         }
     };
 }
 
 /// Read one packed frame vector.
 #[inline(always)]
-fn read_packed<T: Copy, const N: usize>(machine: &Machine<'_, '_>, offset: u32) -> [T; N] {
-    let pointer = machine.frame_pointer_at(offset).address() as *const [T; N];
+fn read_packed<T: Copy, const N: usize>(activation: &Activation<'_>, offset: u32) -> [T; N] {
+    let pointer = activation.frame_pointer_at(offset).address() as *const [T; N];
 
     unsafe { std::ptr::read(pointer) }
 }
 
 /// Write one packed frame vector.
 #[inline(always)]
-fn write_packed<T, const N: usize>(machine: &mut Machine<'_, '_>, offset: u32, value: [T; N]) {
-    let pointer = machine.frame_pointer_at(offset).address() as *mut [T; N];
+fn write_packed<T, const N: usize>(activation: &mut Activation<'_>, offset: u32, value: [T; N]) {
+    let pointer = activation.frame_pointer_at(offset).address() as *mut [T; N];
 
     unsafe {
         std::ptr::write(pointer, value);
@@ -124,7 +124,7 @@ fn store_add_u32x4(dest: *mut u32, left: *const u32, right: *const u32) {
 /// Execute one packed vector binary operation.
 #[inline(always)]
 fn execute_vector_binary_packed<T: Copy, const N: usize, F>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     operation: F,
 ) -> Result<(), Error>
@@ -132,13 +132,13 @@ where
     F: Fn(T, T) -> T,
 {
     // read both packed operands from frame bytes
-    let left = read_packed::<T, N>(machine, instruction.b);
-    let right = read_packed::<T, N>(machine, instruction.c);
+    let left = read_packed::<T, N>(activation, instruction.b);
+    let right = read_packed::<T, N>(activation, instruction.c);
 
     // execute the element kernel in register storage
     let result: [T; N] = std::array::from_fn(|i| operation(left[i], right[i]));
 
-    write_packed(machine, instruction.a, result);
+    write_packed(activation, instruction.a, result);
 
     Ok(())
 }
@@ -146,7 +146,7 @@ where
 /// Execute one packed vector unary operation.
 #[inline(always)]
 fn execute_vector_unary_packed<T: Copy, const N: usize, F>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     operation: F,
 ) -> Result<(), Error>
@@ -154,12 +154,12 @@ where
     F: Fn(T) -> T,
 {
     // read the packed operand from frame bytes
-    let value = read_packed::<T, N>(machine, instruction.b);
+    let value = read_packed::<T, N>(activation, instruction.b);
 
     // execute the element kernel in register storage
     let result: [T; N] = std::array::from_fn(|i| operation(value[i]));
 
-    write_packed(machine, instruction.a, result);
+    write_packed(activation, instruction.a, result);
 
     Ok(())
 }
@@ -167,42 +167,42 @@ where
 /// Load one vector element through a precomputed element projection.
 #[inline(always)]
 fn load_vector_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     vector_offset: u32,
     element: Projection,
     element_index: usize,
 ) -> Result<Word, Error> {
     // compute the exact element address
     let element_offset = element.byte_stride * element_index;
-    let pointer = machine
+    let pointer = activation
         .frame_pointer_at(vector_offset)
         .add_bytes(element_offset);
 
     Ok(access::load_frame_scalar_by_layout(
-        machine, pointer, element,
+        activation, pointer, element,
     ))
 }
 
 /// Store one vector result into frame bytes.
 fn store_vector_elements<F>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     dest_offset: u32,
     dest_element: Projection,
     element_count: u32,
     mut element_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut Machine<'_, '_>, usize) -> Result<Word, Error>,
+    F: FnMut(&mut Activation<'_>, usize) -> Result<Word, Error>,
 {
     // write each result element by lowered frame layout
     for element_index in 0..element_count as usize {
-        let value = element_value(machine, element_index)?;
+        let value = element_value(activation, element_index)?;
         let element_offset = dest_element.byte_stride * element_index;
-        let pointer = machine
+        let pointer = activation
             .frame_pointer_at(dest_offset)
             .add_bytes(element_offset);
 
-        access::store_frame_scalar_by_layout(machine, pointer, dest_element, value);
+        access::store_frame_scalar_by_layout(activation, pointer, dest_element, value);
     }
 
     Ok(())
@@ -210,7 +210,7 @@ where
 
 /// Execute one vector binary element loop.
 fn execute_vector_binary_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -225,17 +225,18 @@ fn execute_vector_binary_elements(
         kernel: _,
         element_layout,
         element_count,
-    } = machine.side::<VectorBinary>(instruction);
+    } = activation.side::<VectorBinary>(instruction);
 
     // execute the scalar operation on each vector element
     store_vector_elements(
-        machine,
+        activation,
         *dest_offset,
         *dest_element,
         *element_count,
-        |machine, element_index| {
-            let left = load_vector_element(machine, *left_offset, *left_element, element_index)?;
-            let right = load_vector_element(machine, *right_offset, *right_element, element_index)?;
+        |activation, element_index| {
+            let left = load_vector_element(activation, *left_offset, *left_element, element_index)?;
+            let right =
+                load_vector_element(activation, *right_offset, *right_element, element_index)?;
 
             operation(*element_layout, left, right)
         },
@@ -246,13 +247,13 @@ fn execute_vector_binary_elements(
 
 /// Execute a vector binary operation.
 pub(crate) fn execute_vector_binary(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let kernel = machine.side::<VectorBinary>(instruction).kernel;
+    let kernel = activation.side::<VectorBinary>(instruction).kernel;
     let operation = vector_binary_operation(kernel);
 
-    execute_vector_binary_elements(machine, instruction, operation)
+    execute_vector_binary_elements(activation, instruction, operation)
 }
 
 /// Return the scalar operation for one vector binary kernel.
@@ -323,7 +324,7 @@ fn vector_binary_operation(
 
 /// Execute one vector unary element loop.
 fn execute_vector_unary_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     operation: fn(ScalarLayout, Word) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -336,17 +337,21 @@ fn execute_vector_unary_elements(
         kernel: _,
         element_layout,
         element_count,
-    } = machine.side::<VectorUnary>(instruction);
+    } = activation.side::<VectorUnary>(instruction);
 
     // execute the scalar operation on each vector element
     store_vector_elements(
-        machine,
+        activation,
         *dest_offset,
         *dest_element,
         *element_count,
-        |machine, element_index| {
-            let value =
-                load_vector_element(machine, *argument_offset, *argument_element, element_index)?;
+        |activation, element_index| {
+            let value = load_vector_element(
+                activation,
+                *argument_offset,
+                *argument_element,
+                element_index,
+            )?;
 
             operation(*element_layout, value)
         },
@@ -357,13 +362,13 @@ fn execute_vector_unary_elements(
 
 /// Execute a vector unary operation.
 pub(crate) fn execute_vector_unary(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let kernel = machine.side::<VectorUnary>(instruction).kernel;
+    let kernel = activation.side::<VectorUnary>(instruction).kernel;
     let operation = vector_unary_operation(kernel);
 
-    execute_vector_unary_elements(machine, instruction, operation)
+    execute_vector_unary_elements(activation, instruction, operation)
 }
 
 /// Return the scalar operation for one vector unary kernel.
@@ -382,13 +387,13 @@ fn vector_unary_operation(
 
 /// Execute packed 32-bit element add.
 pub(crate) fn execute_packed_add_32x4(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // compute frame addresses for the SIMD kernel
-    let dest = machine.frame_pointer_at(instruction.a).address() as *mut u32;
-    let left = machine.frame_pointer_at(instruction.b).address() as *const u32;
-    let right = machine.frame_pointer_at(instruction.c).address() as *const u32;
+    let dest = activation.frame_pointer_at(instruction.a).address() as *mut u32;
+    let left = activation.frame_pointer_at(instruction.b).address() as *const u32;
+    let right = activation.frame_pointer_at(instruction.c).address() as *const u32;
 
     store_add_u32x4(dest, left, right);
 
@@ -615,33 +620,33 @@ packed_unary_executor!(
 
 /// Execute packed 32-bit splat.
 pub(crate) fn execute_packed_splat_32x4(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // broadcast one word-sized scalar into packed frame bytes
-    let value = machine.load_word_at(instruction.b).bits() as u32;
+    let value = activation.load_word_at(instruction.b).bits() as u32;
 
-    write_packed(machine, instruction.a, [value; 4]);
+    write_packed(activation, instruction.a, [value; 4]);
 
     Ok(())
 }
 
 /// Execute packed 64-bit splat.
 pub(crate) fn execute_packed_splat_64x2(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // broadcast one word-sized scalar into packed frame bytes
-    let value = machine.load_word_at(instruction.b).bits();
+    let value = activation.load_word_at(instruction.b).bits();
 
-    write_packed(machine, instruction.a, [value; 2]);
+    write_packed(activation, instruction.a, [value; 2]);
 
     Ok(())
 }
 
 /// Execute vector.splat.
 pub(crate) fn execute_vector_splat(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
@@ -650,13 +655,13 @@ pub(crate) fn execute_vector_splat(
         value_offset,
         dest_element,
         element_count,
-    } = machine.side::<VectorSplat>(instruction);
+    } = activation.side::<VectorSplat>(instruction);
 
-    let element_value = machine.load_word_at(*value_offset);
+    let element_value = activation.load_word_at(*value_offset);
 
     // store the same value into each element
     store_vector_elements(
-        machine,
+        activation,
         *dest_offset,
         *dest_element,
         *element_count,
@@ -668,7 +673,7 @@ pub(crate) fn execute_vector_splat(
 
 /// Execute vector.extract.
 pub(crate) fn execute_vector_extract(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
@@ -678,10 +683,10 @@ pub(crate) fn execute_vector_extract(
         index_offset,
         vector_element,
         element_count,
-    } = machine.side::<VectorExtract>(instruction);
+    } = activation.side::<VectorExtract>(instruction);
 
     // resolve and validate the dynamic element index
-    let index_value = word_to_usize(machine.load_word_at(*index_offset))?;
+    let index_value = word_to_usize(activation.load_word_at(*index_offset))?;
     let element_count = *element_count as usize;
     if index_value >= element_count {
         return Err(Error::index_out_of_bounds(
@@ -691,15 +696,15 @@ pub(crate) fn execute_vector_extract(
     }
 
     // load the selected element into the destination word
-    let result = load_vector_element(machine, *vector_offset, *vector_element, index_value)?;
-    machine.store_word_at(*dest_offset, result);
+    let result = load_vector_element(activation, *vector_offset, *vector_element, index_value)?;
+    activation.store_word_at(*dest_offset, result);
 
     Ok(())
 }
 
 /// Execute vector.insert.
 pub(crate) fn execute_vector_insert(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
@@ -711,10 +716,10 @@ pub(crate) fn execute_vector_insert(
         dest_element,
         vector_element,
         element_count,
-    } = machine.side::<VectorInsert>(instruction);
+    } = activation.side::<VectorInsert>(instruction);
 
     // resolve and validate the dynamic element index
-    let index_value = word_to_usize(machine.load_word_at(*index_offset))?;
+    let index_value = word_to_usize(activation.load_word_at(*index_offset))?;
     let element_count = *element_count;
     let element_count_usize = element_count as usize;
 
@@ -727,20 +732,20 @@ pub(crate) fn execute_vector_insert(
     }
 
     // read the inserted scalar once
-    let inserted_value = machine.load_word_at(*value_offset);
+    let inserted_value = activation.load_word_at(*value_offset);
 
     // write the updated vector one element at a time
     store_vector_elements(
-        machine,
+        activation,
         *dest_offset,
         *dest_element,
         element_count,
-        |machine, element_index| {
+        |activation, element_index| {
             if element_index == index_value {
                 return Ok(inserted_value);
             }
 
-            load_vector_element(machine, *vector_offset, *vector_element, element_index)
+            load_vector_element(activation, *vector_offset, *vector_element, element_index)
         },
     )?;
 
@@ -749,7 +754,7 @@ pub(crate) fn execute_vector_insert(
 
 /// Execute vector.shuffle.
 pub(crate) fn execute_vector_shuffle(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
@@ -763,8 +768,8 @@ pub(crate) fn execute_vector_shuffle(
         right_element,
         left_count,
         right_count,
-    } = machine.side::<VectorShuffle>(instruction);
-    let mask = machine.u32_range(*mask);
+    } = activation.side::<VectorShuffle>(instruction);
+    let mask = activation.u32_range(*mask);
 
     // resolve source ranges
     let left_count = *left_count as usize;
@@ -772,18 +777,18 @@ pub(crate) fn execute_vector_shuffle(
 
     // write the shuffled elements directly
     store_vector_elements(
-        machine,
+        activation,
         *dest_offset,
         *dest_element,
         mask.len() as u32,
-        |machine, element_index| {
+        |activation, element_index| {
             let index = *mask.get(element_index).ok_or(Error::index_out_of_bounds(
                 element_index as u64,
                 mask.len() as u64,
             ))? as usize;
 
             if index < left_count {
-                return load_vector_element(machine, *left_offset, *left_element, index);
+                return load_vector_element(activation, *left_offset, *left_element, index);
             }
 
             let right_index = index - left_count;
@@ -794,7 +799,7 @@ pub(crate) fn execute_vector_shuffle(
                 ));
             }
 
-            load_vector_element(machine, *right_offset, *right_element, right_index)
+            load_vector_element(activation, *right_offset, *right_element, right_index)
         },
     )?;
 
@@ -803,7 +808,7 @@ pub(crate) fn execute_vector_shuffle(
 
 /// Execute vector.select.
 pub(crate) fn execute_vector_select(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
@@ -817,20 +822,20 @@ pub(crate) fn execute_vector_select(
         then_element,
         else_element,
         element_count,
-    } = machine.side::<VectorSelect>(instruction);
+    } = activation.side::<VectorSelect>(instruction);
 
     // write the selected elements directly
     store_vector_elements(
-        machine,
+        activation,
         *dest_offset,
         *dest_element,
         *element_count,
-        |machine, element_index| {
-            let mask = load_vector_element(machine, *mask_offset, *mask_element, element_index)?;
+        |activation, element_index| {
+            let mask = load_vector_element(activation, *mask_offset, *mask_element, element_index)?;
             let then_value =
-                load_vector_element(machine, *then_offset, *then_element, element_index)?;
+                load_vector_element(activation, *then_offset, *then_element, element_index)?;
             let else_value =
-                load_vector_element(machine, *else_offset, *else_element, element_index)?;
+                load_vector_element(activation, *else_offset, *else_element, element_index)?;
             let select = mask.as_bool();
 
             Ok(if select { then_value } else { else_value })
@@ -842,7 +847,7 @@ pub(crate) fn execute_vector_select(
 
 /// Execute one vector reduction loop.
 fn execute_vector_reduce_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -854,7 +859,7 @@ fn execute_vector_reduce_elements(
         vector_element,
         element_layout,
         element_count,
-    } = machine.side::<VectorReduce>(instruction);
+    } = activation.side::<VectorReduce>(instruction);
 
     // reject empty reductions
     let element_count = *element_count as usize;
@@ -863,52 +868,53 @@ fn execute_vector_reduce_elements(
     }
 
     // fold elements from left to right
-    let mut result = load_vector_element(machine, *vector_offset, *vector_element, 0)?;
+    let mut result = load_vector_element(activation, *vector_offset, *vector_element, 0)?;
     for element_index in 1..element_count {
-        let value = load_vector_element(machine, *vector_offset, *vector_element, element_index)?;
+        let value =
+            load_vector_element(activation, *vector_offset, *vector_element, element_index)?;
         result = operation(*element_layout, result, value)?;
     }
 
-    machine.store_word_at(*dest_offset, result);
+    activation.store_word_at(*dest_offset, result);
 
     Ok(())
 }
 
 /// Execute vector.reduce.
 pub(crate) fn execute_vector_reduce(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let kernel = machine.side::<VectorReduce>(instruction).kernel;
+    let kernel = activation.side::<VectorReduce>(instruction).kernel;
 
     match kernel {
         mir::VectorReduceOperator::Add => {
-            execute_vector_reduce_elements(machine, instruction, reduce_add)
+            execute_vector_reduce_elements(activation, instruction, reduce_add)
         }
         mir::VectorReduceOperator::Multiply => {
-            execute_vector_reduce_elements(machine, instruction, reduce_multiply)
+            execute_vector_reduce_elements(activation, instruction, reduce_multiply)
         }
         mir::VectorReduceOperator::Min => {
-            execute_vector_reduce_elements(machine, instruction, reduce_min)
+            execute_vector_reduce_elements(activation, instruction, reduce_min)
         }
         mir::VectorReduceOperator::Max => {
-            execute_vector_reduce_elements(machine, instruction, reduce_max)
+            execute_vector_reduce_elements(activation, instruction, reduce_max)
         }
         mir::VectorReduceOperator::And => {
-            execute_vector_reduce_elements(machine, instruction, reduce_and)
+            execute_vector_reduce_elements(activation, instruction, reduce_and)
         }
         mir::VectorReduceOperator::Or => {
-            execute_vector_reduce_elements(machine, instruction, reduce_or)
+            execute_vector_reduce_elements(activation, instruction, reduce_or)
         }
         mir::VectorReduceOperator::Xor => {
-            execute_vector_reduce_elements(machine, instruction, reduce_xor)
+            execute_vector_reduce_elements(activation, instruction, reduce_xor)
         }
     }
 }
 
 /// Execute one vector conversion loop.
 fn execute_vector_convert_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     convert: fn(Word, ScalarLayout, ScalarLayout) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -922,17 +928,17 @@ fn execute_vector_convert_elements(
         dest_layout,
         source_layout,
         element_count,
-    } = machine.side::<VectorConvert>(instruction);
+    } = activation.side::<VectorConvert>(instruction);
 
     // convert the elements one by one
     store_vector_elements(
-        machine,
+        activation,
         *dest_offset,
         *dest_element,
         *element_count,
-        |machine, element_index| {
+        |activation, element_index| {
             let value =
-                load_vector_element(machine, *vector_offset, *source_element, element_index)?;
+                load_vector_element(activation, *vector_offset, *source_element, element_index)?;
 
             convert(value, *source_layout, *dest_layout)
         },
@@ -943,29 +949,31 @@ fn execute_vector_convert_elements(
 
 /// Execute vector.convert.
 pub(crate) fn execute_vector_convert(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let mode = machine.side::<VectorConvert>(instruction).mode;
+    let mode = activation.side::<VectorConvert>(instruction).mode;
 
     match mode {
         mir::VectorConvertMode::Exact => {
-            execute_vector_convert_elements(machine, instruction, convert_scalar_exact)
+            execute_vector_convert_elements(activation, instruction, convert_scalar_exact)
         }
         mir::VectorConvertMode::RoundTiesEven => {
-            execute_vector_convert_elements(machine, instruction, convert_scalar_round_ties_even)
+            execute_vector_convert_elements(activation, instruction, convert_scalar_round_ties_even)
         }
-        mir::VectorConvertMode::RoundTowardZero => {
-            execute_vector_convert_elements(machine, instruction, convert_scalar_round_toward_zero)
-        }
+        mir::VectorConvertMode::RoundTowardZero => execute_vector_convert_elements(
+            activation,
+            instruction,
+            convert_scalar_round_toward_zero,
+        ),
         mir::VectorConvertMode::RoundFloor => {
-            execute_vector_convert_elements(machine, instruction, convert_scalar_round_floor)
+            execute_vector_convert_elements(activation, instruction, convert_scalar_round_floor)
         }
         mir::VectorConvertMode::RoundCeil => {
-            execute_vector_convert_elements(machine, instruction, convert_scalar_round_ceil)
+            execute_vector_convert_elements(activation, instruction, convert_scalar_round_ceil)
         }
         mir::VectorConvertMode::Saturate => {
-            execute_vector_convert_elements(machine, instruction, convert_scalar_saturate)
+            execute_vector_convert_elements(activation, instruction, convert_scalar_saturate)
         }
     }
 }

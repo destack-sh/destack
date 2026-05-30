@@ -3,7 +3,7 @@ use destack_engine as engine;
 
 use super::frame::{FrameValue, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Frame, Interpreter};
+use crate::machine::{Frame, Machine};
 use crate::program::{FrameBinding, Program};
 use destack_mir as mir;
 
@@ -67,7 +67,7 @@ fn bind_frame_parameters(
     Ok(())
 }
 
-impl Interpreter {
+impl Machine {
     /// Enter one frame state in an existing frame.
     pub(crate) fn enter_frame_state(
         &mut self,

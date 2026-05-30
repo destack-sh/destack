@@ -46,7 +46,7 @@ impl<'a> BlockLowerer<'a> {
         }
     }
 
-    /// Convert a MIR instruction to lowered interpreter form.
+    /// Convert a MIR instruction to lowered VM form.
     pub(super) fn lower_instruction(
         &self,
         inst: &mir::Instruction,

@@ -1,6 +1,8 @@
+use destack_heap::HeapReference;
+
+use crate::Word;
 use crate::diagnostic::Error;
-use crate::interpreter::Machine;
-use crate::{HeapReference, Word};
+use crate::machine::Activation;
 use destack_mir as mir;
 
 use crate::program::{ClosureEnvironment, ClosureObjectLayout, WordLayout};
@@ -9,11 +11,11 @@ use super::access;
 
 /// Decode one closure object into function and environment values.
 fn decode_closure_object(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     reference: HeapReference,
 ) -> Result<(Word, Word), Error> {
-    let layout = machine.program.closure_object_layout();
-    let base_address = machine.heap_address(reference, 0);
+    let layout = activation.machine.program.closure_object_layout();
+    let base_address = activation.heap_address(reference, 0);
 
     // split the two pointer fields
     let function_address = base_address + layout.function_offset;
@@ -25,10 +27,11 @@ fn decode_closure_object(
     let function = Word::function_pointer(function);
 
     // decode the environment through lowered function metadata
-    let environment_layout = machine
+    let environment_layout = activation
+        .machine
         .program
         .functions
-        .environment_layout(machine.tree(), function_id)
+        .environment_layout(activation.machine.tree(), function_id)
         .ok_or(Error::invalid_instruction())?;
     let environment_value =
         access::load_scalar_by_layout_at_address(environment_address, environment_layout);
@@ -38,26 +41,28 @@ fn decode_closure_object(
 
 /// Encode one word closure environment into pointer-sized bits.
 fn encode_closure_word_environment(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     layout: WordLayout,
     environment_offset: u32,
 ) -> u64 {
-    let environment = machine.load_word_at(environment_offset);
+    let environment = activation.load_word_at(environment_offset);
 
     layout.encode(environment)
 }
 
 /// Encode one frame closure environment into pointer-sized bits.
 fn encode_closure_address_environment(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     layout: mir::LayoutId,
     byte_len: usize,
     environment_offset: u32,
 ) -> Result<u64, Error> {
-    let environment_reference = machine.with_frame_bytes_at(
+    let environment_reference = activation.with_frame_bytes_at(
         environment_offset,
         byte_len,
-        |machine, environment_bytes| machine.allocate_heap_layout_bytes(layout, environment_bytes),
+        |activation, environment_bytes| {
+            activation.allocate_heap_layout_bytes(layout, environment_bytes)
+        },
     )?;
 
     Ok(environment_reference.bits() as u64)
@@ -65,25 +70,25 @@ fn encode_closure_address_environment(
 
 /// Encode one closure environment into pointer-sized bits.
 fn encode_closure_environment(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     environment: ClosureEnvironment,
     environment_offset: u32,
 ) -> Result<u64, Error> {
     match environment {
         ClosureEnvironment::Word { layout } => Ok(encode_closure_word_environment(
-            machine,
+            activation,
             layout,
             environment_offset,
         )),
         ClosureEnvironment::Frame { layout, byte_len } => {
-            encode_closure_address_environment(machine, layout, byte_len, environment_offset)
+            encode_closure_address_environment(activation, layout, byte_len, environment_offset)
         }
     }
 }
 
 /// Bind one function and encoded environment into a closure value.
 fn bind_closure_object(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     closure_layout: mir::LayoutId,
     object_layout: ClosureObjectLayout,
     function: Word,
@@ -105,24 +110,24 @@ fn bind_closure_object(
         .copy_from_slice(&environment_bytes[..pointer_bytes]);
 
     // allocate the closure object
-    let reference = machine.allocate_heap_layout_bytes(closure_layout, bytes)?;
+    let reference = activation.allocate_heap_layout_bytes(closure_layout, bytes)?;
 
     Ok(Word::heap_reference(reference))
 }
 
 /// Bind one function and environment into a closure value.
 pub(crate) fn bind_closure(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     closure_layout: mir::LayoutId,
     object_layout: ClosureObjectLayout,
     function: Word,
     environment: ClosureEnvironment,
     environment_offset: u32,
 ) -> Result<Word, Error> {
-    let environment_bits = encode_closure_environment(machine, environment, environment_offset)?;
+    let environment_bits = encode_closure_environment(activation, environment, environment_offset)?;
 
     bind_closure_object(
-        machine,
+        activation,
         closure_layout,
         object_layout,
         function,
@@ -132,12 +137,12 @@ pub(crate) fn bind_closure(
 
 /// Decode one closure value into function and environment values.
 pub(crate) fn decode_closure(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     value: Word,
 ) -> Result<(Word, Word), Error> {
     let reference = value.as_heap_reference();
-    if machine.is_heap_live(reference) {
-        return decode_closure_object(machine, reference);
+    if activation.is_heap_live(reference) {
+        return decode_closure_object(activation, reference);
     }
 
     Err(Error::type_mismatch("closure object", format!("{value:?}")))

@@ -1,31 +1,29 @@
 use std::mem;
 
+use crate::Word;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Continuation, Interpreter, Outcome, Stack};
-use crate::options::IsolateOptions;
+use crate::machine::{Activation, Continuation, Outcome, Stack};
+use crate::options::LimitOptions;
 use crate::program::{Function, MoveRange, Program, Transfer};
-use crate::{SharedHeap, Word};
 use destack_engine as engine;
-use destack_heap::{AllocationCache, GcWorker, Heap};
 use destack_mir as mir;
 
 use super::frame::move_values_within_frame;
 
-impl Interpreter {
+impl Activation<'_> {
     /// Capture execution machine into a continuation.
     pub(crate) fn capture_continuation(
         &mut self,
-        isolate_id: engine::EngineId,
         resume_frame_index: usize,
         frame_state: engine::FrameStateId,
-        options: &IsolateOptions,
+        limits: LimitOptions,
     ) -> RuntimeResult<Continuation> {
         // move execution stack into the continuation
-        let stack = mem::replace(&mut self.stack, Stack::new(options.limits.stack_bytes)?);
-        let frames = mem::take(&mut self.frames);
+        let stack = mem::replace(&mut self.machine.stack, Stack::new(limits.stack_bytes)?);
+        let frames = mem::take(&mut self.machine.frames);
 
         Ok(Continuation {
-            isolate_id,
+            machine_id: self.machine.id,
             stack,
             frames,
             resume_frame_index,
@@ -42,6 +40,7 @@ impl Interpreter {
     ) -> RuntimeResult<()> {
         // move block parameters before updating the frame position
         let frame = self
+            .machine
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -50,6 +49,7 @@ impl Interpreter {
 
         // retarget the frame to the destination block
         let frame = self
+            .machine
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -62,34 +62,35 @@ impl Interpreter {
     fn complete_yield(
         &mut self,
         program: &Program,
-        options: &IsolateOptions,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
-        isolate_id: engine::EngineId,
+        limits: LimitOptions,
         value: Word,
         source_type: mir::LocalNodeId<mir::Type>,
         frame_state: engine::FrameStateId,
     ) -> RuntimeResult<Outcome> {
         // capture the logical yield position first
-        let resume_frame_index = self.frames.len() - 1;
+        let resume_frame_index = self.machine.frames.len() - 1;
 
         // capture the yielded result before moving the stack into the continuation
         let value = super::frame::frame_value_from_word(
             program,
-            self.frames.as_slice(),
+            self.machine.frames.as_slice(),
             source_type,
             value,
         )
         .and_then(|value| {
-            super::frame::materialize_value(program, heap, shared, shared_cache, shared_gc, value)
+            super::frame::materialize_value(
+                program,
+                self.heap,
+                self.shared,
+                self.shared_cache,
+                self.shared_gc,
+                value,
+            )
         })
         .map_err(RuntimeError::new)?;
 
         // capture the continuation after packaging the yielded result
-        let continuation =
-            self.capture_continuation(isolate_id, resume_frame_index, frame_state, options)?;
+        let continuation = self.capture_continuation(resume_frame_index, frame_state, limits)?;
 
         Ok(Outcome::Yielded {
             continuation,
@@ -100,13 +101,8 @@ impl Interpreter {
     /// Complete one control transfer produced by instruction execution.
     pub(crate) fn complete_transfer(
         &mut self,
-        isolate_id: engine::EngineId,
         program: &Program,
-        options: &IsolateOptions,
-        heap: &mut Heap,
-        shared: &SharedHeap,
-        shared_cache: &mut AllocationCache,
-        shared_gc: &GcWorker,
+        limits: LimitOptions,
         current_func: &Function,
         transfer: Transfer,
     ) -> RuntimeResult<Option<Outcome>> {
@@ -127,7 +123,7 @@ impl Interpreter {
             } => {
                 self.complete_call(
                     program,
-                    options,
+                    limits,
                     current_func,
                     function,
                     target,
@@ -147,7 +143,7 @@ impl Interpreter {
             } => {
                 self.complete_call_branch(
                     program,
-                    options,
+                    limits,
                     current_func,
                     function,
                     target,
@@ -177,23 +173,10 @@ impl Interpreter {
                 source_type,
                 frame_state,
             } => self
-                .complete_yield(
-                    program,
-                    options,
-                    heap,
-                    shared,
-                    shared_cache,
-                    shared_gc,
-                    isolate_id,
-                    value,
-                    source_type,
-                    frame_state,
-                )
+                .complete_yield(program, limits, value, source_type, frame_state)
                 .map(Some),
-            Transfer::Return(value) => {
-                self.complete_return(program, heap, shared, shared_cache, shared_gc, value)
-            }
-            Transfer::Error(error) => Err(self.runtime_error(program, error)),
+            Transfer::Return(value) => self.complete_return(program, value),
+            Transfer::Error(error) => Err(self.machine.runtime_error(error)),
         }
     }
 }

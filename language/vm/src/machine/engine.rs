@@ -2,18 +2,17 @@ use std::sync::Arc;
 
 use destack_engine as engine;
 
-use super::Isolate;
 use crate::diagnostic::RuntimeError;
-use crate::interpreter::{Continuation, Outcome};
-use crate::isolate::IsolateImage;
 
-impl engine::Engine for Isolate {
+use super::{Continuation, Machine, MachineImage, Outcome};
+
+impl engine::Engine for Machine {
     type Continuation = Continuation;
-    type Image = Arc<IsolateImage>;
+    type Image = Arc<MachineImage>;
     type Error = RuntimeError;
 
     fn initialize(&mut self, context: engine::MemoryContext<'_>) -> Result<(), Self::Error> {
-        Isolate::initialize(
+        Machine::initialize(
             self,
             context.heap,
             context.shared_heap,
@@ -49,7 +48,7 @@ impl engine::Engine for Isolate {
     ) -> Result<Outcome, Self::Error> {
         let context = context.memory;
 
-        Isolate::resume(
+        Machine::resume(
             self,
             context.worker_static,
             context.heap,
@@ -62,11 +61,11 @@ impl engine::Engine for Isolate {
     }
 
     fn fork(&self, _context: engine::MemoryContext<'_>) -> Result<Self, Self::Error> {
-        Isolate::fork(self)
+        Machine::fork(self)
     }
 
     fn image(&self, _context: engine::MemoryContext<'_>) -> Result<Self::Image, Self::Error> {
-        Ok(Arc::new(Isolate::image(self)?))
+        Ok(Arc::new(Machine::image(self)?))
     }
 
     fn restore(
@@ -74,7 +73,7 @@ impl engine::Engine for Isolate {
         _context: engine::MemoryContext<'_>,
         image: &Self::Image,
     ) -> Result<(), Self::Error> {
-        Isolate::restore_image(self, image)
+        Machine::restore_image(self, image)
     }
 
     fn visit_root_slots(
@@ -82,7 +81,7 @@ impl engine::Engine for Isolate {
         statics: &mut engine::StaticSpace,
         visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>,
     ) -> Result<(), Self::Error> {
-        Isolate::visit_root_slots(self, statics, &mut [], visit)
+        Machine::visit_root_slots(self, statics, &mut [], visit)
     }
 
     fn visit_continuation_root_slots(
@@ -90,6 +89,6 @@ impl engine::Engine for Isolate {
         continuation: &mut Self::Continuation,
         visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>,
     ) -> Result<(), Self::Error> {
-        Isolate::visit_continuation_root_slots(self, continuation, visit)
+        Machine::visit_continuation_root_slots(self, continuation, visit)
     }
 }

@@ -1,19 +1,17 @@
 use std::sync::{Arc, OnceLock};
 
-use destack_engine::{StaticSpace, Value};
+use destack_engine::{EngineId, StaticSpace, Value};
 use destack_heap::{
     AllocationCache, Allocator, GcStats, GcWorker, Heap, HeapLimits, HeapOptions, HeapReference,
-    SharedHeapLimits, SharedHeapOptions,
+    SharedHeap, SharedHeapLimits, SharedHeapOptions,
 };
-
-use crate::SharedHeap;
 use destack_mir::parse::{ParseOptions, Parser};
 use destack_mir::{DataLayout, TraceTable};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::program::{Layout, encode_word_bytes};
-use crate::{Continuation, Isolate, IsolateId, IsolateOptions, Outcome, Word};
+use crate::{Continuation, Machine, MachineOptions, Outcome, Word};
 
 /// The virtual heap-space width used by ordinary VM tests.
 const TEST_LOCAL_SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
@@ -24,17 +22,17 @@ pub(crate) fn trace_table() -> &'static TraceTable {
     TRACE_TABLE.get_or_init(TraceTable::new)
 }
 
-/// The isolate and authoritative heap used by one test runtime.
-pub(crate) struct TestIsolate {
-    /// The VM isolate under test.
-    pub isolate: Isolate,
-    /// The worker static space used by the isolate.
+/// The machine and authoritative heap used by one test runtime.
+pub(crate) struct TestMachine {
+    /// The VM machine under test.
+    pub machine: Machine,
+    /// The worker static space used by the machine.
     pub statics: StaticSpace,
-    /// The authoritative heap for the isolate.
+    /// The authoritative heap for the machine.
     pub heap: Heap,
-    /// The runtime-shared heap for the isolate.
+    /// The runtime-shared heap for the machine.
     pub shared_heap: SharedHeap,
-    /// The shared collector worker used by this isolate.
+    /// The shared collector worker used by this machine.
     pub shared_gc: GcWorker,
     /// The worker-local shared allocation cache.
     pub shared_cache: AllocationCache,
@@ -80,21 +78,30 @@ pub(crate) fn test_shared_heap_options() -> SharedHeapOptions {
     }
 }
 
-impl TestIsolate {
-    /// Build one test isolate from MIR text.
+/// Create machine options matching ordinary VM test heaps.
+fn test_machine_options() -> MachineOptions {
+    MachineOptions {
+        heap: test_local_heap_options(),
+        shared_heap: test_shared_heap_options(),
+        ..MachineOptions::test()
+    }
+}
+
+impl TestMachine {
+    /// Build one test machine from MIR text.
     pub(crate) fn new(mir_text: &str) -> Self {
-        Self::with_id(mir_text, IsolateId::new(1))
+        Self::with_id(mir_text, EngineId::new(1))
     }
 
-    /// Build one test isolate from MIR text with one explicit isolate id.
-    pub(crate) fn with_id(mir_text: &str, isolate_id: IsolateId) -> Self {
+    /// Build one test machine from MIR text with one explicit machine id.
+    pub(crate) fn with_id(mir_text: &str, machine_id: EngineId) -> Self {
         let (tree, strings) = Parser::parse(FileId::new(0), mir_text, ParseOptions::default())
             .finish()
             .expect("failed to parse MIR");
 
-        let mut isolate =
-            Isolate::build_with_options(isolate_id, tree, strings, IsolateOptions::test())
-                .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+        let mut machine =
+            Machine::build_with_options(machine_id, tree, strings, test_machine_options())
+                .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
 
         let mut statics = StaticSpace::empty();
         let heap = create_test_heap();
@@ -102,12 +109,12 @@ impl TestIsolate {
         let shared_gc = shared_heap.register_collector_worker();
         let shared_cache = shared_heap.allocation_cache();
 
-        isolate
+        machine
             .initialize(&heap, &shared_heap, &mut statics)
-            .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
+            .unwrap_or_else(|error| panic!("failed to initialize machine globals: {error}"));
 
         Self {
-            isolate,
+            machine,
             statics,
             heap,
             shared_heap,
@@ -123,10 +130,10 @@ impl TestIsolate {
         argument_index: usize,
     ) -> destack_mir::LocalNodeId<destack_mir::Type> {
         let function_id = self
-            .isolate
+            .machine
             .function_id_by_name(function)
             .unwrap_or_else(|_| panic!("missing function '{function}'"));
-        let function_node = self.isolate.tree().get(function_id);
+        let function_node = self.machine.tree().get(function_id);
         function_node
             .parameters
             .get(argument_index)
@@ -143,7 +150,7 @@ impl TestIsolate {
         values: Vec<Word>,
     ) -> Word {
         let layout = self
-            .isolate
+            .machine
             .layout(ty)
             .unwrap_or_else(|| panic!("missing layout for type {ty:?}"));
 
@@ -154,13 +161,13 @@ impl TestIsolate {
             return values[0];
         }
 
-        let bytes = materialize_value_bytes(&self.isolate, &self.heap, ty, layout, &values);
+        let bytes = materialize_value_bytes(&self.machine, &self.heap, ty, layout, &values);
         let layout_id = self
-            .isolate
+            .machine
             .layout_id_for_type(ty)
             .unwrap_or_else(|| panic!("missing layout id for type {ty:?}"));
         let shape = self
-            .isolate
+            .machine
             .allocation_shape(layout_id)
             .unwrap_or_else(|error| panic!("failed to resolve allocation shape: {error}"));
         let reference = self
@@ -177,9 +184,9 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> RuntimeResult<Value> {
-        let function = self.isolate.function_id_by_name(function)?;
+        let function = self.machine.function_id_by_name(function)?;
 
-        self.isolate.run_function(
+        self.machine.run_function(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
@@ -196,9 +203,9 @@ impl TestIsolate {
         function: &str,
         arguments: &[Value],
     ) -> RuntimeResult<Outcome> {
-        let function = self.isolate.function_id_by_name(function)?;
+        let function = self.machine.function_id_by_name(function)?;
 
-        self.isolate.run_function_yielding(
+        self.machine.run_function_yielding(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
@@ -209,15 +216,15 @@ impl TestIsolate {
         )
     }
 
-    /// Run one MIR function by name with interpreter frame words.
+    /// Run one MIR function by name with frame words.
     pub(crate) fn run_frame_function_by_name(
         &mut self,
         function: &str,
         arguments: &[Word],
     ) -> RuntimeResult<Value> {
-        let function = self.isolate.function_id_by_name(function)?;
+        let function = self.machine.function_id_by_name(function)?;
 
-        self.isolate.run_function_words(
+        self.machine.run_function_words(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
@@ -234,7 +241,7 @@ impl TestIsolate {
         continuation: Continuation,
         resume_value: Value,
     ) -> RuntimeResult<Outcome> {
-        self.isolate.resume(
+        self.machine.resume(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
@@ -256,7 +263,7 @@ impl TestIsolate {
         continuations: &mut [Continuation],
     ) -> GcStats {
         let mut shared_roots = Vec::new();
-        self.isolate
+        self.machine
             .visit_root_slots(&mut self.statics, continuations, &mut |slot| {
                 let root = slot.load()?;
                 destack_heap::RootSink::push(&mut shared_roots, root);
@@ -264,10 +271,10 @@ impl TestIsolate {
                 Ok(())
             })
             .expect("failed to collect shared roots");
-        let trace_table = self.isolate.trace_table();
+        let trace_table = self.machine.trace_table();
         let mut heap_roots =
             |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
-                self.isolate
+                self.machine
                     .visit_root_slots(&mut self.statics, continuations, visit)
                     .expect("failed to collect mutable root slots");
 
@@ -294,7 +301,7 @@ impl TestIsolate {
 
 /// Materialize one VM aggregate into heap payload bytes.
 fn materialize_value_bytes(
-    isolate: &Isolate,
+    machine: &Machine,
     heap: &Heap,
     ty: destack_mir::LocalNodeId<destack_mir::Type>,
     layout: &Layout,
@@ -313,7 +320,7 @@ fn materialize_value_bytes(
             let field = layout
                 .field(index as u32)
                 .unwrap_or_else(|| panic!("missing field {index} for type {ty:?}"));
-            write_materialized_value(isolate, heap, field.ty, value, &mut bytes[field.offset..]);
+            write_materialized_value(machine, heap, field.ty, value, &mut bytes[field.offset..]);
         }
 
         return bytes;
@@ -333,7 +340,7 @@ fn materialize_value_bytes(
     );
     for (index, value) in values.iter().copied().enumerate() {
         let start = element.stride * index;
-        write_materialized_value(isolate, heap, element.ty, value, &mut bytes[start..]);
+        write_materialized_value(machine, heap, element.ty, value, &mut bytes[start..]);
     }
 
     bytes
@@ -341,19 +348,19 @@ fn materialize_value_bytes(
 
 /// Write one materialized field or element value.
 fn write_materialized_value(
-    isolate: &Isolate,
+    machine: &Machine,
     heap: &Heap,
     ty: destack_mir::LocalNodeId<destack_mir::Type>,
     value: Word,
     destination: &mut [u8],
 ) {
-    let layout = isolate
+    let layout = machine
         .layout(ty)
         .unwrap_or_else(|| panic!("missing layout for nested type {ty:?}"));
 
     // scalar values encode inline
     if layout.is_word() {
-        let encoded = encode_word_bytes(isolate.tree(), ty, value)
+        let encoded = encode_word_bytes(machine.tree(), ty, value)
             .unwrap_or_else(|error| panic!("failed to encode materialized word: {error}"));
         destination[..encoded.len()].copy_from_slice(encoded.as_slice());
 
@@ -382,21 +389,21 @@ fn read_heap_payload(heap: &Heap, reference: HeapReference, byte_len: usize) -> 
     bytes
 }
 
-/// Parse MIR text and create one test isolate.
-pub(crate) fn create_isolate(mir_text: &str) -> TestIsolate {
-    TestIsolate::new(mir_text)
+/// Parse MIR text and create one test machine.
+pub(crate) fn create_machine(mir_text: &str) -> TestMachine {
+    TestMachine::new(mir_text)
 }
 
-/// Parse MIR text and create one test isolate with an explicit isolate id.
-pub(crate) fn create_isolate_with_id(mir_text: &str, isolate_id: IsolateId) -> TestIsolate {
-    TestIsolate::with_id(mir_text, isolate_id)
+/// Parse MIR text and create one test machine with an explicit machine id.
+pub(crate) fn create_machine_with_id(mir_text: &str, machine_id: EngineId) -> TestMachine {
+    TestMachine::with_id(mir_text, machine_id)
 }
 
-/// Parse MIR text and create one test isolate with explicit data layout.
-pub(crate) fn create_isolate_with_data_layout(
+/// Parse MIR text and create one test machine with explicit data layout.
+pub(crate) fn create_machine_with_data_layout(
     mir_text: &str,
     data_layout: DataLayout,
-) -> TestIsolate {
+) -> TestMachine {
     let (tree, strings) = Parser::parse(
         FileId::new(0),
         mir_text,
@@ -408,20 +415,20 @@ pub(crate) fn create_isolate_with_data_layout(
     .expect("failed to parse MIR");
     assert_eq!(tree.metadata.data_layout, data_layout);
 
-    let mut isolate =
-        Isolate::build_with_options(IsolateId::new(1), tree, strings, IsolateOptions::test())
-            .unwrap_or_else(|error| panic!("failed to initialize isolate: {error}"));
+    let mut machine =
+        Machine::build_with_options(EngineId::new(1), tree, strings, test_machine_options())
+            .unwrap_or_else(|error| panic!("failed to initialize machine: {error}"));
     let mut statics = StaticSpace::empty();
     let heap = create_test_heap();
     let shared = create_test_shared_heap();
     let shared_gc = shared.register_collector_worker();
     let shared_cache = shared.allocation_cache();
-    isolate
+    machine
         .initialize(&heap, &shared, &mut statics)
-        .unwrap_or_else(|error| panic!("failed to initialize isolate globals: {error}"));
+        .unwrap_or_else(|error| panic!("failed to initialize machine globals: {error}"));
 
-    TestIsolate {
-        isolate,
+    TestMachine {
+        machine,
         statics,
         heap,
         shared_heap: shared,
@@ -432,30 +439,30 @@ pub(crate) fn create_isolate_with_data_layout(
 
 /// Run one MIR function by name with the given arguments.
 pub(crate) fn run_mir(mir: &str, function: &str, arguments: &[Value]) -> RuntimeResult<Value> {
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
 
-    isolate.run_function_by_name(function, arguments)
+    machine.run_function_by_name(function, arguments)
 }
 
-/// Run MIR with access to one heap-owning isolate and interpreter frame words.
+/// Run MIR with access to one heap-owning machine and frame words.
 pub(crate) fn run_mir_with_frame<F>(
     mir_text: &str,
     function: &str,
     setup: F,
 ) -> RuntimeResult<Value>
 where
-    F: FnOnce(&mut TestIsolate) -> Vec<Word>,
+    F: FnOnce(&mut TestMachine) -> Vec<Word>,
 {
-    let mut isolate = create_isolate(mir_text);
-    let args = setup(&mut isolate);
+    let mut machine = create_machine(mir_text);
+    let args = setup(&mut machine);
 
-    isolate.run_frame_function_by_name(function, &args)
+    machine.run_frame_function_by_name(function, &args)
 }
 
-/// Run MIR with interpreter frame words, expecting success.
+/// Run MIR with frame words, expecting success.
 pub(crate) fn run_mir_with_frame_ok<F>(mir_text: &str, function: &str, setup: F) -> Value
 where
-    F: FnOnce(&mut TestIsolate) -> Vec<Word>,
+    F: FnOnce(&mut TestMachine) -> Vec<Word>,
 {
     run_mir_with_frame(mir_text, function, setup).expect("execution failed")
 }

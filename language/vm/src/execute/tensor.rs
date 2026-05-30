@@ -19,7 +19,7 @@ use super::scalar::{
 };
 use crate::Word;
 use crate::diagnostic::Error;
-use crate::interpreter::Machine;
+use crate::machine::Activation;
 use crate::program::{
     ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout, TensorAddress,
     TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
@@ -34,20 +34,20 @@ const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 
 /// Borrow one compiled tensor layout.
 #[inline(always)]
-fn tensor_layout<'iso>(machine: &Machine<'_, 'iso>, id: TensorLayoutId) -> &'iso TensorLayout {
-    machine.tensor_layout(id)
+fn tensor_layout<'run>(activation: &Activation<'_>, id: TensorLayoutId) -> &'run TensorLayout {
+    activation.tensor_layout(id)
 }
 
 /// Return a frame value address by byte offset.
 #[inline(always)]
-fn frame_value(machine: &Machine<'_, '_>, offset: u32) -> Word {
-    Word::frame_pointer(machine.frame_pointer_at(offset))
+fn frame_value(activation: &Activation<'_>, offset: u32) -> Word {
+    Word::frame_pointer(activation.frame_pointer_at(offset))
 }
 
 /// Return one frame offset range.
 #[inline(always)]
-fn frame_offsets<'iso>(machine: &Machine<'_, 'iso>, range: U32RangeId) -> &'iso [u32] {
-    machine.u32_range(range)
+fn frame_offsets<'run>(activation: &Activation<'_>, range: U32RangeId) -> &'run [u32] {
+    activation.u32_range(range)
 }
 
 /// Return the byte offset for one tensor view stride slot.
@@ -65,13 +65,13 @@ fn tensor_view_stride_offset(view_offset: u32, axis: usize) -> Result<u32, Error
 
 /// Load one tensor view base pointer.
 #[inline(always)]
-fn load_tensor_view_pointer(machine: &Machine<'_, '_>, view_offset: u32) -> Word {
-    machine.load_word_at(view_offset)
+fn load_tensor_view_pointer(activation: &Activation<'_>, view_offset: u32) -> Word {
+    activation.load_word_at(view_offset)
 }
 
 /// Load one tensor view runtime stride list.
 fn load_tensor_view_strides(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     view_offset: u32,
     layout: &TensorLayout,
 ) -> Result<Vec<u64>, Error> {
@@ -79,7 +79,7 @@ fn load_tensor_view_strides(
 
     for axis in 0..layout.shape.len() {
         let offset = tensor_view_stride_offset(view_offset, axis)?;
-        let stride = machine.load_word_at(offset);
+        let stride = activation.load_word_at(offset);
         strides.push(word_to_u64(stride)?);
     }
 
@@ -88,26 +88,26 @@ fn load_tensor_view_strides(
 
 /// Store one tensor view descriptor.
 fn store_tensor_view_descriptor(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     view_offset: u32,
     pointer: Word,
     strides: &[u64],
 ) -> Result<(), Error> {
-    machine.store_word_at(view_offset, pointer);
+    activation.store_word_at(view_offset, pointer);
 
     for (axis, stride) in strides.iter().copied().enumerate() {
         let offset = tensor_view_stride_offset(view_offset, axis)?;
-        machine.store_word_at(offset, Word::uint(stride, Word::BIT_LEN));
+        activation.store_word_at(offset, Word::uint(stride, Word::BIT_LEN));
     }
 
     Ok(())
 }
 
 /// Read one tensor index vector from word frame offsets.
-fn tensor_index_values(machine: &Machine<'_, '_>, offsets: &[u32]) -> Result<Vec<u64>, Error> {
+fn tensor_index_values(activation: &Activation<'_>, offsets: &[u32]) -> Result<Vec<u64>, Error> {
     let mut values = Vec::with_capacity(offsets.len());
     for offset in offsets {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         values.push(word_to_u64(value)?);
     }
 
@@ -116,11 +116,11 @@ fn tensor_index_values(machine: &Machine<'_, '_>, offsets: &[u32]) -> Result<Vec
 
 /// Clear one frame byte range and return its address.
 fn clear_tensor_result(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     offset: u32,
     layout: &TensorLayout,
 ) -> Result<Word, Error> {
-    let pointer = machine.frame_pointer_at(offset);
+    let pointer = activation.frame_pointer_at(offset);
 
     // SAFETY: pointer addresses layout.byte_len writable bytes in the current frame
     unsafe {
@@ -132,20 +132,20 @@ fn clear_tensor_result(
 
 /// Store one tensor result into frame bytes.
 fn store_tensor_elements<F>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     dest_offset: u32,
     layout: &TensorLayout,
     mut element_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut Machine<'_, '_>, usize) -> Result<Word, Error>,
+    F: FnMut(&mut Activation<'_>, usize) -> Result<Word, Error>,
 {
-    let result = clear_tensor_result(machine, dest_offset, layout)?;
+    let result = clear_tensor_result(activation, dest_offset, layout)?;
 
     // store each active tensor element
     for element_index in 0..layout.element_span_len {
-        let value = element_value(machine, element_index)?;
-        store_frame_tensor_element_at(machine, result, layout, element_index, value)?;
+        let value = element_value(activation, element_index)?;
+        store_frame_tensor_element_at(activation, result, layout, element_index, value)?;
     }
 
     Ok(())
@@ -154,52 +154,56 @@ where
 /// Load one tensor-view element through local heap memory.
 #[inline(always)]
 fn load_heap_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
 ) -> Result<Word, Error> {
     let access = element;
 
-    Ok(access::load_heap_scalar_by_layout(machine, pointer, access))
+    Ok(access::load_heap_scalar_by_layout(
+        activation, pointer, access,
+    ))
 }
 
 /// Load one tensor-view element through shared heap memory.
 #[inline(always)]
 fn load_shared_heap_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
 ) -> Result<Word, Error> {
     let access = element;
 
     Ok(access::load_shared_heap_scalar_by_layout(
-        machine, pointer, access,
+        activation, pointer, access,
     ))
 }
 
 /// Load one tensor-view element through raw memory.
 #[inline(always)]
 fn load_raw_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
 ) -> Result<Word, Error> {
     let access = element;
 
-    Ok(access::load_raw_scalar_by_layout(machine, pointer, access))
+    Ok(access::load_raw_scalar_by_layout(
+        activation, pointer, access,
+    ))
 }
 
 /// Load one tensor-view element through stack memory.
 #[inline(always)]
 fn load_stack_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
 ) -> Result<Word, Error> {
     let access = element;
 
     Ok(access::load_stack_scalar_by_layout(
-        machine,
+        activation,
         pointer.as_stack_pointer(),
         access,
     ))
@@ -208,14 +212,14 @@ fn load_stack_tensor_element(
 /// Load one tensor-view element through frame memory.
 #[inline(always)]
 fn load_frame_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
 ) -> Result<Word, Error> {
     let access = element;
 
     Ok(access::load_frame_scalar_by_layout(
-        machine,
+        activation,
         pointer.as_frame_pointer(),
         access,
     ))
@@ -224,14 +228,14 @@ fn load_frame_tensor_element(
 /// Load one tensor-view element through static memory.
 #[inline(always)]
 fn load_static_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
 ) -> Result<Word, Error> {
     let access = element;
 
     Ok(access::load_static_scalar_by_layout(
-        machine,
+        activation,
         pointer.as_static_pointer(),
         access,
     ))
@@ -240,14 +244,14 @@ fn load_static_tensor_element(
 /// Store one tensor-view element through local heap memory.
 #[inline(always)]
 fn store_heap_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
     value: Word,
 ) -> Result<(), Error> {
     let access = element;
 
-    access::store_heap_scalar_by_layout(machine, pointer, access, value);
+    access::store_heap_scalar_by_layout(activation, pointer, access, value);
 
     Ok(())
 }
@@ -255,14 +259,14 @@ fn store_heap_tensor_element(
 /// Store one tensor-view element through shared heap memory.
 #[inline(always)]
 fn store_shared_heap_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
     value: Word,
 ) -> Result<(), Error> {
     let access = element;
 
-    access::store_shared_heap_scalar_by_layout(machine, pointer, access, value);
+    access::store_shared_heap_scalar_by_layout(activation, pointer, access, value);
 
     Ok(())
 }
@@ -270,14 +274,14 @@ fn store_shared_heap_tensor_element(
 /// Store one tensor-view element through raw memory.
 #[inline(always)]
 fn store_raw_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
     value: Word,
 ) -> Result<(), Error> {
     let access = element;
 
-    access::store_raw_scalar_by_layout(machine, pointer, access, value);
+    access::store_raw_scalar_by_layout(activation, pointer, access, value);
 
     Ok(())
 }
@@ -285,14 +289,14 @@ fn store_raw_tensor_element(
 /// Store one tensor-view element through stack memory.
 #[inline(always)]
 fn store_stack_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
     value: Word,
 ) -> Result<(), Error> {
     let access = element;
 
-    access::store_stack_scalar_by_layout(machine, pointer.as_stack_pointer(), access, value);
+    access::store_stack_scalar_by_layout(activation, pointer.as_stack_pointer(), access, value);
 
     Ok(())
 }
@@ -300,14 +304,14 @@ fn store_stack_tensor_element(
 /// Store one tensor-view element through frame memory.
 #[inline(always)]
 fn store_frame_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
     value: Word,
 ) -> Result<(), Error> {
     let access = element;
 
-    access::store_frame_scalar_by_layout(machine, pointer.as_frame_pointer(), access, value);
+    access::store_frame_scalar_by_layout(activation, pointer.as_frame_pointer(), access, value);
 
     Ok(())
 }
@@ -315,14 +319,14 @@ fn store_frame_tensor_element(
 /// Store one tensor-view element through static memory.
 #[inline(always)]
 fn store_static_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
     value: Word,
 ) -> Result<(), Error> {
     let access = element;
 
-    access::store_static_scalar_by_layout(machine, pointer.as_static_pointer(), access, value);
+    access::store_static_scalar_by_layout(activation, pointer.as_static_pointer(), access, value);
 
     Ok(())
 }
@@ -330,39 +334,39 @@ fn store_static_tensor_element(
 /// Load one tensor-view element through selected memory.
 #[inline(always)]
 fn load_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
     address: TensorAddress,
 ) -> Result<Word, Error> {
     match address {
-        TensorAddress::Heap => load_heap_tensor_element(machine, pointer, element),
-        TensorAddress::SharedHeap => load_shared_heap_tensor_element(machine, pointer, element),
-        TensorAddress::Address => load_raw_tensor_element(machine, pointer, element),
-        TensorAddress::Stack => load_stack_tensor_element(machine, pointer, element),
-        TensorAddress::Frame => load_frame_tensor_element(machine, pointer, element),
-        TensorAddress::Static => load_static_tensor_element(machine, pointer, element),
+        TensorAddress::Heap => load_heap_tensor_element(activation, pointer, element),
+        TensorAddress::SharedHeap => load_shared_heap_tensor_element(activation, pointer, element),
+        TensorAddress::Address => load_raw_tensor_element(activation, pointer, element),
+        TensorAddress::Stack => load_stack_tensor_element(activation, pointer, element),
+        TensorAddress::Frame => load_frame_tensor_element(activation, pointer, element),
+        TensorAddress::Static => load_static_tensor_element(activation, pointer, element),
     }
 }
 
 /// Store one tensor-view element through selected memory.
 #[inline(always)]
 fn store_tensor_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     element: Projection,
     value: Word,
     address: TensorAddress,
 ) -> Result<(), Error> {
     match address {
-        TensorAddress::Heap => store_heap_tensor_element(machine, pointer, element, value),
+        TensorAddress::Heap => store_heap_tensor_element(activation, pointer, element, value),
         TensorAddress::SharedHeap => {
-            store_shared_heap_tensor_element(machine, pointer, element, value)
+            store_shared_heap_tensor_element(activation, pointer, element, value)
         }
-        TensorAddress::Address => store_raw_tensor_element(machine, pointer, element, value),
-        TensorAddress::Stack => store_stack_tensor_element(machine, pointer, element, value),
-        TensorAddress::Frame => store_frame_tensor_element(machine, pointer, element, value),
-        TensorAddress::Static => store_static_tensor_element(machine, pointer, element, value),
+        TensorAddress::Address => store_raw_tensor_element(activation, pointer, element, value),
+        TensorAddress::Stack => store_stack_tensor_element(activation, pointer, element, value),
+        TensorAddress::Frame => store_frame_tensor_element(activation, pointer, element, value),
+        TensorAddress::Static => store_static_tensor_element(activation, pointer, element, value),
     }
 }
 
@@ -391,7 +395,7 @@ fn element_byte_offset(element: Projection, offset: usize, length: usize) -> Res
 
 /// Store one tensor element into one frame tensor value.
 fn store_frame_tensor_element_at(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     tensor: Word,
     layout: &TensorLayout,
     element_index: usize,
@@ -405,7 +409,7 @@ fn store_frame_tensor_element_at(
     )?;
 
     access::store_frame_scalar_by_layout(
-        machine,
+        activation,
         pointer.as_frame_pointer(),
         layout.element,
         value,
@@ -416,15 +420,15 @@ fn store_frame_tensor_element_at(
 
 /// Store one tensor result from multi-dimensional output indices.
 fn store_tensor_indexed_elements<F>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     dest_offset: u32,
     layout: &TensorLayout,
     mut index_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut Machine<'_, '_>, &[u64]) -> Result<Word, Error>,
+    F: FnMut(&mut Activation<'_>, &[u64]) -> Result<Word, Error>,
 {
-    let result = clear_tensor_result(machine, dest_offset, layout)?;
+    let result = clear_tensor_result(activation, dest_offset, layout)?;
     let mut error = None;
 
     // fill active tensor indices directly into the destination place
@@ -441,7 +445,7 @@ where
                     return;
                 }
             };
-        let value = match index_value(machine, output_index) {
+        let value = match index_value(activation, output_index) {
             Ok(value) => value,
             Err(current_error) => {
                 error = Some(current_error);
@@ -450,7 +454,7 @@ where
         };
 
         if let Err(current_error) =
-            store_frame_tensor_element_at(machine, result, layout, destination_offset, value)
+            store_frame_tensor_element_at(activation, result, layout, destination_offset, value)
         {
             error = Some(current_error);
         }
@@ -500,7 +504,7 @@ pub(crate) fn tensor_linear_index(
 
 /// Load one tensor element from one frame tensor value.
 pub(crate) fn load_frame_tensor_element_at(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     tensor: Word,
     layout: &TensorLayout,
     element_index: usize,
@@ -513,7 +517,7 @@ pub(crate) fn load_frame_tensor_element_at(
     )?;
 
     Ok(access::load_frame_scalar_by_layout(
-        machine,
+        activation,
         pointer.as_frame_pointer(),
         layout.element,
     ))
@@ -521,7 +525,7 @@ pub(crate) fn load_frame_tensor_element_at(
 
 /// Execute one tensor binary element loop.
 fn execute_tensor_binary_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -535,30 +539,31 @@ fn execute_tensor_binary_elements(
         dest_layout,
         kernel: _,
         element_layout,
-    } = machine.side::<TensorBinary>(instruction);
+    } = activation.side::<TensorBinary>(instruction);
 
     // resolve tensor addresses
-    let left_value = frame_value(machine, *left_offset);
-    let right_value = frame_value(machine, *right_offset);
+    let left_value = frame_value(activation, *left_offset);
+    let right_value = frame_value(activation, *right_offset);
 
     // resolve compiled tensor descriptors
-    let left_layout = tensor_layout(machine, *left_layout);
-    let right_layout = tensor_layout(machine, *right_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let left_layout = tensor_layout(activation, *left_layout);
+    let right_layout = tensor_layout(activation, *right_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // execute the scalar operation on each tensor element
     store_tensor_indexed_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, output_index| {
+        |activation, output_index| {
             let left_index =
                 tensor_linear_index(output_index, &left_layout.shape, &left_layout.strides)?;
             let right_index =
                 tensor_linear_index(output_index, &right_layout.shape, &right_layout.strides)?;
-            let left = load_frame_tensor_element_at(machine, left_value, left_layout, left_index)?;
+            let left =
+                load_frame_tensor_element_at(activation, left_value, left_layout, left_index)?;
             let right =
-                load_frame_tensor_element_at(machine, right_value, right_layout, right_index)?;
+                load_frame_tensor_element_at(activation, right_value, right_layout, right_index)?;
 
             operation(*element_layout, left, right)
         },
@@ -569,13 +574,13 @@ fn execute_tensor_binary_elements(
 
 /// Execute a tensor binary operation.
 pub(crate) fn execute_tensor_binary(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let kernel = machine.side::<TensorBinary>(instruction).kernel;
+    let kernel = activation.side::<TensorBinary>(instruction).kernel;
     let operation = tensor_binary_operation(kernel);
 
-    execute_tensor_binary_elements(machine, instruction, operation)
+    execute_tensor_binary_elements(activation, instruction, operation)
 }
 
 /// Return the scalar operation for one tensor binary kernel.
@@ -646,7 +651,7 @@ fn tensor_binary_operation(
 
 /// Execute a contiguous tensor binary operation.
 pub(crate) fn execute_tensor_contiguous_binary(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let TensorContiguousBinary {
@@ -656,10 +661,10 @@ pub(crate) fn execute_tensor_contiguous_binary(
         dest_layout,
         element_layout,
         kernel,
-    } = machine.side::<TensorContiguousBinary>(instruction);
-    let layout = tensor_layout(machine, *dest_layout);
+    } = activation.side::<TensorContiguousBinary>(instruction);
+    let layout = tensor_layout(activation, *dest_layout);
     execute_contiguous_tensor_binary_elements(
-        machine,
+        activation,
         (*dest_offset, *left_offset, *right_offset),
         layout,
         *element_layout,
@@ -671,7 +676,7 @@ pub(crate) fn execute_tensor_contiguous_binary(
 
 /// Execute one tensor unary element loop.
 fn execute_tensor_unary_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     operation: fn(ScalarLayout, Word) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -683,28 +688,28 @@ fn execute_tensor_unary_elements(
         element_layout,
         dest_layout,
         kernel: _,
-    } = machine.side::<TensorUnary>(instruction);
+    } = activation.side::<TensorUnary>(instruction);
 
     // resolve tensor address
-    let argument_value = frame_value(machine, *argument_offset);
+    let argument_value = frame_value(activation, *argument_offset);
 
     // resolve compiled tensor descriptors
-    let argument_layout = tensor_layout(machine, *argument_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let argument_layout = tensor_layout(activation, *argument_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // execute the scalar operation on each logical tensor element
     store_tensor_indexed_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, output_index| {
+        |activation, output_index| {
             let argument_index = tensor_linear_index(
                 output_index,
                 &argument_layout.shape,
                 &argument_layout.strides,
             )?;
             let value = load_frame_tensor_element_at(
-                machine,
+                activation,
                 argument_value,
                 argument_layout,
                 argument_index,
@@ -719,13 +724,13 @@ fn execute_tensor_unary_elements(
 
 /// Execute a tensor unary operation.
 pub(crate) fn execute_tensor_unary(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let kernel = machine.side::<TensorUnary>(instruction).kernel;
+    let kernel = activation.side::<TensorUnary>(instruction).kernel;
     let operation = tensor_unary_operation(kernel);
 
-    execute_tensor_unary_elements(machine, instruction, operation)
+    execute_tensor_unary_elements(activation, instruction, operation)
 }
 
 /// Return the scalar operation for one tensor unary kernel.
@@ -775,13 +780,13 @@ fn tensor_word_layout(layout: ScalarLayout) -> Result<WordLayout, Error> {
 /// Return contiguous binary frame addresses.
 #[inline(always)]
 fn contiguous_binary_addresses(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     offsets: (u32, u32, u32),
 ) -> (*mut u8, *const u8, *const u8) {
     let (dest_offset, left_offset, right_offset) = offsets;
-    let dest = machine.frame_pointer_at(dest_offset).address() as *mut u8;
-    let left = machine.frame_pointer_at(left_offset).address() as *const u8;
-    let right = machine.frame_pointer_at(right_offset).address() as *const u8;
+    let dest = activation.frame_pointer_at(dest_offset).address() as *mut u8;
+    let left = activation.frame_pointer_at(left_offset).address() as *const u8;
+    let right = activation.frame_pointer_at(right_offset).address() as *const u8;
 
     (dest, left, right)
 }
@@ -789,12 +794,12 @@ fn contiguous_binary_addresses(
 /// Return contiguous unary frame addresses.
 #[inline(always)]
 fn contiguous_unary_addresses(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     offsets: (u32, u32),
 ) -> (*mut u8, *const u8) {
     let (dest_offset, argument_offset) = offsets;
-    let dest = machine.frame_pointer_at(dest_offset).address() as *mut u8;
-    let argument = machine.frame_pointer_at(argument_offset).address() as *const u8;
+    let dest = activation.frame_pointer_at(dest_offset).address() as *mut u8;
+    let argument = activation.frame_pointer_at(argument_offset).address() as *const u8;
 
     (dest, argument)
 }
@@ -1548,7 +1553,7 @@ fn execute_contiguous_tensor_binary_typed(
 
 /// Execute one contiguous tensor binary operation.
 fn execute_contiguous_tensor_binary_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     offsets: (u32, u32, u32),
     layout: &TensorLayout,
     element_layout: ScalarLayout,
@@ -1559,9 +1564,9 @@ fn execute_contiguous_tensor_binary_elements(
         .word_layout
         .ok_or(Error::invalid_instruction())?;
     let element_word_layout = tensor_word_layout(element_layout)?;
-    let addresses = contiguous_binary_addresses(machine, offsets);
+    let addresses = contiguous_binary_addresses(activation, offsets);
 
-    // use direct typed loops for machine-natural element layouts
+    // use direct typed loops for activation-natural element layouts
     if let Some(result) = execute_contiguous_tensor_binary_typed(
         addresses,
         layout.element_span_len,
@@ -1661,7 +1666,7 @@ fn execute_contiguous_tensor_unary_typed(
 
 /// Execute one contiguous tensor unary operation.
 fn execute_contiguous_tensor_unary_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     offsets: (u32, u32),
     layout: &TensorLayout,
     element_layout: ScalarLayout,
@@ -1672,9 +1677,9 @@ fn execute_contiguous_tensor_unary_elements(
         .word_layout
         .ok_or(Error::invalid_instruction())?;
     let element_word_layout = tensor_word_layout(element_layout)?;
-    let addresses = contiguous_unary_addresses(machine, offsets);
+    let addresses = contiguous_unary_addresses(activation, offsets);
 
-    // use direct typed loops for machine-natural element layouts
+    // use direct typed loops for activation-natural element layouts
     if let Some(result) = execute_contiguous_tensor_unary_typed(
         addresses,
         layout.element_span_len,
@@ -1710,7 +1715,7 @@ fn execute_contiguous_tensor_unary_elements(
 
 /// Execute a contiguous tensor unary operation.
 pub(crate) fn execute_tensor_contiguous_unary(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let TensorContiguousUnary {
@@ -1719,10 +1724,10 @@ pub(crate) fn execute_tensor_contiguous_unary(
         dest_layout,
         element_layout,
         kernel,
-    } = machine.side::<TensorContiguousUnary>(instruction);
-    let layout = tensor_layout(machine, *dest_layout);
+    } = activation.side::<TensorContiguousUnary>(instruction);
+    let layout = tensor_layout(activation, *dest_layout);
     execute_contiguous_tensor_unary_elements(
-        machine,
+        activation,
         (*dest_offset, *argument_offset),
         layout,
         *element_layout,
@@ -1734,7 +1739,7 @@ pub(crate) fn execute_tensor_contiguous_unary(
 
 /// Execute tensor.splat.
 pub(crate) fn execute_tensor_splat(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest_offset = instruction.a;
@@ -1742,18 +1747,20 @@ pub(crate) fn execute_tensor_splat(
     let layout = TensorLayoutId(instruction.c);
 
     // resolve compiled tensor descriptor
-    let layout = tensor_layout(machine, layout);
-    let value = machine.load_word_at(value);
+    let layout = tensor_layout(activation, layout);
+    let value = activation.load_word_at(value);
 
     // store the same value into each active index
-    store_tensor_indexed_elements(machine, dest_offset, layout, |_machine, _index| Ok(value))?;
+    store_tensor_indexed_elements(activation, dest_offset, layout, |_machine, _index| {
+        Ok(value)
+    })?;
 
     Ok(())
 }
 
 /// Execute tensor.extract.
 pub(crate) fn execute_tensor_extract(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -1762,20 +1769,20 @@ pub(crate) fn execute_tensor_extract(
         tensor_offset,
         indices,
         tensor_layout: tensor_layout_id,
-    } = machine.side::<TensorExtract>(instruction);
+    } = activation.side::<TensorExtract>(instruction);
 
     // resolve compiled tensor descriptor
-    let layout = tensor_layout(machine, *tensor_layout_id);
+    let layout = tensor_layout(activation, *tensor_layout_id);
 
     // resolve indices
-    let index_values = frame_offsets(machine, *indices);
-    let index = tensor_index_values(machine, index_values)?;
+    let index_values = frame_offsets(activation, *indices);
+    let index = tensor_index_values(activation, index_values)?;
     let element_index = tensor_linear_index(&index, &layout.shape, &layout.strides)?;
 
     // load the tensor value
-    let tensor_value = frame_value(machine, *tensor_offset);
-    let value = load_frame_tensor_element_at(machine, tensor_value, layout, element_index)?;
-    machine.store_word_at(*dest_offset, value);
+    let tensor_value = frame_value(activation, *tensor_offset);
+    let value = load_frame_tensor_element_at(activation, tensor_value, layout, element_index)?;
+    activation.store_word_at(*dest_offset, value);
 
     Ok(())
 }
@@ -1919,7 +1926,7 @@ fn offset_tensor_view_pointer(
 
 /// Fill a tensor view through one concrete pointer space.
 fn fill_tensor_view<O, S>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     base_pointer: Word,
     layout: &TensorLayout,
     strides: &[u64],
@@ -1930,7 +1937,7 @@ fn fill_tensor_view<O, S>(
 ) -> Result<(), Error>
 where
     O: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
-    S: FnMut(&mut Machine<'_, '_>, Word, Projection, Word) -> Result<(), Error>,
+    S: FnMut(&mut Activation<'_>, Word, Projection, Word) -> Result<(), Error>,
 {
     let span_len = tensor_element_span_len(&layout.shape, strides)?;
     let mut error = None;
@@ -1956,7 +1963,7 @@ where
             }
         };
 
-        if let Err(current_error) = store_element(machine, pointer, element, fill_value) {
+        if let Err(current_error) = store_element(activation, pointer, element, fill_value) {
             error = Some(current_error);
         }
     });
@@ -1970,7 +1977,7 @@ where
 
 /// Copy tensor elements through one concrete address pair.
 fn copy_tensor_view<TO, SO, L, S>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     target_pointer: Word,
     mir_pointer: Word,
     target_layout: &TensorLayout,
@@ -1987,8 +1994,8 @@ fn copy_tensor_view<TO, SO, L, S>(
 where
     TO: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
     SO: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
-    L: FnMut(&mut Machine<'_, '_>, Word, Projection) -> Result<Word, Error>,
-    S: FnMut(&mut Machine<'_, '_>, Word, Projection, Word) -> Result<(), Error>,
+    L: FnMut(&mut Activation<'_>, Word, Projection) -> Result<Word, Error>,
+    S: FnMut(&mut Activation<'_>, Word, Projection, Word) -> Result<(), Error>,
 {
     let target_span_len = tensor_element_span_len(&target_layout.shape, target_strides)?;
     let source_span_len = tensor_element_span_len(&source_layout.shape, source_strides)?;
@@ -2035,7 +2042,7 @@ where
                 return;
             }
         };
-        let value = match load_element(machine, mir_pointer, source_element) {
+        let value = match load_element(activation, mir_pointer, source_element) {
             Ok(value) => value,
             Err(current_error) => {
                 error = Some(current_error);
@@ -2043,7 +2050,8 @@ where
             }
         };
 
-        if let Err(current_error) = store_element(machine, target_pointer, target_element, value) {
+        if let Err(current_error) = store_element(activation, target_pointer, target_element, value)
+        {
             error = Some(current_error);
         }
     });
@@ -2057,24 +2065,24 @@ where
 
 /// Execute a dense pointer to tensor view cast.
 pub(crate) fn execute_tensor_view_cast(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let TensorViewCast {
         dest_offset,
         pointer_offset,
         view_layout,
-    } = machine.side::<TensorViewCast>(instruction);
+    } = activation.side::<TensorViewCast>(instruction);
 
-    let layout = tensor_layout(machine, *view_layout);
-    let pointer = machine.load_word_at(*pointer_offset);
+    let layout = tensor_layout(activation, *view_layout);
+    let pointer = activation.load_word_at(*pointer_offset);
 
-    store_tensor_view_descriptor(machine, *dest_offset, pointer, &layout.strides)
+    store_tensor_view_descriptor(activation, *dest_offset, pointer, &layout.strides)
 }
 
 /// Execute tensor.load.
 pub(crate) fn execute_tensor_load(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed tensor view descriptor
@@ -2085,30 +2093,30 @@ pub(crate) fn execute_tensor_load(
         view_layout,
         element,
         address,
-    } = machine.side::<TensorLoad>(instruction);
+    } = activation.side::<TensorLoad>(instruction);
 
     // compute the logical element offset
-    let layout = tensor_layout(machine, *view_layout);
-    let index_values = frame_offsets(machine, *indices);
-    let index = tensor_index_values(machine, index_values)?;
-    let strides = load_tensor_view_strides(machine, *view_offset, layout)?;
+    let layout = tensor_layout(activation, *view_layout);
+    let index_values = frame_offsets(activation, *indices);
+    let index = tensor_index_values(activation, index_values)?;
+    let strides = load_tensor_view_strides(activation, *view_offset, layout)?;
     let span_len = tensor_element_span_len(&layout.shape, &strides)?;
     let offset = tensor_linear_index(&index, &layout.shape, &strides)?;
 
     // load through the concrete memory accessors selected by lower
-    let view_value = load_tensor_view_pointer(machine, *view_offset);
-    let element = machine.projection(*element);
+    let view_value = load_tensor_view_pointer(activation, *view_offset);
+    let element = activation.projection(*element);
     let pointer = offset_tensor_view_pointer(view_value, element, offset, span_len, *address)?;
 
-    let value = load_tensor_element(machine, pointer, element, *address)?;
-    machine.store_word_at(*dest_offset, value);
+    let value = load_tensor_element(activation, pointer, element, *address)?;
+    activation.store_word_at(*dest_offset, value);
 
     Ok(())
 }
 
 /// Execute tensor.store.
 pub(crate) fn execute_tensor_store(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed tensor view descriptor
@@ -2119,30 +2127,30 @@ pub(crate) fn execute_tensor_store(
         view_layout,
         element,
         address,
-    } = machine.side::<TensorStore>(instruction);
+    } = activation.side::<TensorStore>(instruction);
 
     // compute the logical element offset
-    let layout = tensor_layout(machine, *view_layout);
-    let index_values = frame_offsets(machine, *indices);
-    let index = tensor_index_values(machine, index_values)?;
-    let strides = load_tensor_view_strides(machine, *view_offset, layout)?;
+    let layout = tensor_layout(activation, *view_layout);
+    let index_values = frame_offsets(activation, *indices);
+    let index = tensor_index_values(activation, index_values)?;
+    let strides = load_tensor_view_strides(activation, *view_offset, layout)?;
     let span_len = tensor_element_span_len(&layout.shape, &strides)?;
     let offset = tensor_linear_index(&index, &layout.shape, &strides)?;
 
     // store through the concrete memory accessors selected by lower
-    let view_value = load_tensor_view_pointer(machine, *view_offset);
-    let element = machine.projection(*element);
+    let view_value = load_tensor_view_pointer(activation, *view_offset);
+    let element = activation.projection(*element);
     let pointer = offset_tensor_view_pointer(view_value, element, offset, span_len, *address)?;
 
-    let value = machine.load_word_at(*value_offset);
-    store_tensor_element(machine, pointer, element, value, *address)?;
+    let value = activation.load_word_at(*value_offset);
+    store_tensor_element(activation, pointer, element, value, *address)?;
 
     Ok(())
 }
 
 /// Execute tensor.fill.
 pub(crate) fn execute_tensor_fill(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed tensor view descriptor
@@ -2152,19 +2160,19 @@ pub(crate) fn execute_tensor_fill(
         view_layout,
         element,
         address,
-    } = machine.side::<TensorFill>(instruction);
+    } = activation.side::<TensorFill>(instruction);
 
     // resolve the repeated value and base view once
-    let layout = tensor_layout(machine, *view_layout);
-    let fill_value = machine.load_word_at(*value_offset);
-    let strides = load_tensor_view_strides(machine, *view_offset, layout)?;
-    let base_pointer = load_tensor_view_pointer(machine, *view_offset);
+    let layout = tensor_layout(activation, *view_layout);
+    let fill_value = activation.load_word_at(*value_offset);
+    let strides = load_tensor_view_strides(activation, *view_offset, layout)?;
+    let base_pointer = load_tensor_view_pointer(activation, *view_offset);
 
     // write each addressable element through one concrete memory accessor
-    let element = machine.projection(*element);
+    let element = activation.projection(*element);
     match address {
         TensorAddress::Heap => fill_tensor_view(
-            machine,
+            activation,
             base_pointer,
             layout,
             &strides,
@@ -2174,7 +2182,7 @@ pub(crate) fn execute_tensor_fill(
             store_heap_tensor_element,
         )?,
         TensorAddress::SharedHeap => fill_tensor_view(
-            machine,
+            activation,
             base_pointer,
             layout,
             &strides,
@@ -2184,7 +2192,7 @@ pub(crate) fn execute_tensor_fill(
             store_shared_heap_tensor_element,
         )?,
         TensorAddress::Address => fill_tensor_view(
-            machine,
+            activation,
             base_pointer,
             layout,
             &strides,
@@ -2194,7 +2202,7 @@ pub(crate) fn execute_tensor_fill(
             store_raw_tensor_element,
         )?,
         TensorAddress::Stack => fill_tensor_view(
-            machine,
+            activation,
             base_pointer,
             layout,
             &strides,
@@ -2204,7 +2212,7 @@ pub(crate) fn execute_tensor_fill(
             store_stack_tensor_element,
         )?,
         TensorAddress::Frame => fill_tensor_view(
-            machine,
+            activation,
             base_pointer,
             layout,
             &strides,
@@ -2214,7 +2222,7 @@ pub(crate) fn execute_tensor_fill(
             store_frame_tensor_element,
         )?,
         TensorAddress::Static => fill_tensor_view(
-            machine,
+            activation,
             base_pointer,
             layout,
             &strides,
@@ -2230,7 +2238,7 @@ pub(crate) fn execute_tensor_fill(
 
 /// Execute tensor.copy.
 pub(crate) fn execute_tensor_copy(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode the precomputed tensor copy descriptor
@@ -2243,11 +2251,11 @@ pub(crate) fn execute_tensor_copy(
         source_element,
         target_address,
         source_address,
-    } = machine.side::<TensorCopy>(instruction);
+    } = activation.side::<TensorCopy>(instruction);
 
     // resolve compiled tensor descriptors
-    let target_layout = tensor_layout(machine, *target_layout);
-    let source_layout = tensor_layout(machine, *source_layout);
+    let target_layout = tensor_layout(activation, *target_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
 
     // require identical logical shapes
     if target_layout.shape != source_layout.shape {
@@ -2258,16 +2266,16 @@ pub(crate) fn execute_tensor_copy(
     }
 
     // resolve both view pointers and element descriptors once
-    let target_strides = load_tensor_view_strides(machine, *target_frame_offset, target_layout)?;
-    let source_strides = load_tensor_view_strides(machine, *source_frame_offset, source_layout)?;
-    let target_pointer = load_tensor_view_pointer(machine, *target_frame_offset);
-    let mir_pointer = load_tensor_view_pointer(machine, *source_frame_offset);
-    let source_element = machine.projection(*source_element);
-    let target_element = machine.projection(*target_element);
+    let target_strides = load_tensor_view_strides(activation, *target_frame_offset, target_layout)?;
+    let source_strides = load_tensor_view_strides(activation, *source_frame_offset, source_layout)?;
+    let target_pointer = load_tensor_view_pointer(activation, *target_frame_offset);
+    let mir_pointer = load_tensor_view_pointer(activation, *source_frame_offset);
+    let source_element = activation.projection(*source_element);
+    let target_element = activation.projection(*target_element);
 
     // copy through the selected pointer spaces
     copy_tensor_view(
-        machine,
+        activation,
         target_pointer,
         mir_pointer,
         target_layout,
@@ -2282,9 +2290,11 @@ pub(crate) fn execute_tensor_copy(
         |pointer, element, offset, length| {
             offset_tensor_view_pointer(pointer, element, offset, length, *source_address)
         },
-        |machine, pointer, element| load_tensor_element(machine, pointer, element, *source_address),
-        |machine, pointer, element, value| {
-            store_tensor_element(machine, pointer, element, value, *target_address)
+        |activation, pointer, element| {
+            load_tensor_element(activation, pointer, element, *source_address)
+        },
+        |activation, pointer, element, value| {
+            store_tensor_element(activation, pointer, element, value, *target_address)
         },
     )?;
 
@@ -2293,7 +2303,7 @@ pub(crate) fn execute_tensor_copy(
 
 /// Execute tensor.reshape.
 pub(crate) fn execute_tensor_reshape(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -2303,20 +2313,20 @@ pub(crate) fn execute_tensor_reshape(
         shape,
         source_layout,
         dest_layout,
-    } = machine.side::<TensorReshape>(instruction);
+    } = activation.side::<TensorReshape>(instruction);
 
     // resolve source tensor
-    let tensor_value = frame_value(machine, *tensor_offset);
+    let tensor_value = frame_value(activation, *tensor_offset);
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // compute expected element count from shape values when provided
-    let shape_values = frame_offsets(machine, *shape);
+    let shape_values = frame_offsets(activation, *shape);
     let mut shape_len = 1u64;
     for offset in shape_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let size = word_to_u64(value)?;
         shape_len *= size;
     }
@@ -2334,11 +2344,11 @@ pub(crate) fn execute_tensor_reshape(
 
     // copy the source elements into the reshaped result
     store_tensor_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, element_index| {
-            load_frame_tensor_element_at(machine, tensor_value, source_layout, element_index)
+        |activation, element_index| {
+            load_frame_tensor_element_at(activation, tensor_value, source_layout, element_index)
         },
     )?;
 
@@ -2347,7 +2357,7 @@ pub(crate) fn execute_tensor_reshape(
 
 /// Execute tensor.broadcast.
 pub(crate) fn execute_tensor_broadcast(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -2357,12 +2367,12 @@ pub(crate) fn execute_tensor_broadcast(
         dimensions,
         source_layout,
         dest_layout,
-    } = machine.side::<TensorBroadcast>(instruction);
-    let dimensions = machine.u32_range(*dimensions);
+    } = activation.side::<TensorBroadcast>(instruction);
+    let dimensions = activation.u32_range(*dimensions);
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // validate dimension mapping
     if dimensions.len() != source_layout.shape.len() {
@@ -2373,15 +2383,15 @@ pub(crate) fn execute_tensor_broadcast(
     }
 
     // resolve source elements
-    let tensor_value = frame_value(machine, *tensor_offset);
+    let tensor_value = frame_value(activation, *tensor_offset);
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // store result
     store_tensor_indexed_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, output_index| {
+        |activation, output_index| {
             for (i, dim) in dimensions.iter().enumerate() {
                 let output_value = output_index[*dim as usize];
                 let source_dim = source_layout.shape[i];
@@ -2391,7 +2401,7 @@ pub(crate) fn execute_tensor_broadcast(
             let source_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            load_frame_tensor_element_at(machine, tensor_value, source_layout, source_offset)
+            load_frame_tensor_element_at(activation, tensor_value, source_layout, source_offset)
         },
     )?;
 
@@ -2400,7 +2410,7 @@ pub(crate) fn execute_tensor_broadcast(
 
 /// Execute tensor.transpose.
 pub(crate) fn execute_tensor_transpose(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -2410,12 +2420,12 @@ pub(crate) fn execute_tensor_transpose(
         permutation,
         source_layout,
         dest_layout,
-    } = machine.side::<TensorTranspose>(instruction);
-    let permutation = machine.u32_range(*permutation);
+    } = activation.side::<TensorTranspose>(instruction);
+    let permutation = activation.u32_range(*permutation);
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // validate permutation
     if permutation.len() != source_layout.shape.len() {
@@ -2426,15 +2436,15 @@ pub(crate) fn execute_tensor_transpose(
     }
 
     // resolve source tensor
-    let tensor_value = frame_value(machine, *tensor_offset);
+    let tensor_value = frame_value(activation, *tensor_offset);
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // store result
     store_tensor_indexed_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, output_index| {
+        |activation, output_index| {
             for (out_dim, in_dim) in permutation.iter().enumerate() {
                 input_index[*in_dim as usize] = output_index[out_dim];
             }
@@ -2442,7 +2452,7 @@ pub(crate) fn execute_tensor_transpose(
             let source_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            load_frame_tensor_element_at(machine, tensor_value, source_layout, source_offset)
+            load_frame_tensor_element_at(activation, tensor_value, source_layout, source_offset)
         },
     )?;
 
@@ -2451,7 +2461,7 @@ pub(crate) fn execute_tensor_transpose(
 
 /// Execute tensor.slice.
 pub(crate) fn execute_tensor_slice(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -2464,14 +2474,14 @@ pub(crate) fn execute_tensor_slice(
         strides_count,
         source_layout,
         dest_layout,
-    } = machine.side::<TensorSlice>(instruction);
+    } = activation.side::<TensorSlice>(instruction);
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // resolve arguments
-    let args = frame_offsets(machine, *arguments);
+    let args = frame_offsets(activation, *arguments);
     let (offset_values, rest) = args.split_at((*offsets_count).into());
     let (size_values, stride_values) = rest.split_at((*sizes_count).into());
     if stride_values.len() != usize::from(*strides_count) {
@@ -2482,17 +2492,17 @@ pub(crate) fn execute_tensor_slice(
     let mut sizes = Vec::with_capacity(size_values.len());
     let mut strides = Vec::with_capacity(stride_values.len());
     for offset in offset_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let value = word_to_u64(value)?;
         offsets.push(value);
     }
     for offset in size_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let value = word_to_u64(value)?;
         sizes.push(value);
     }
     for offset in stride_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let value = word_to_u64(value)?;
         strides.push(value);
     }
@@ -2517,15 +2527,15 @@ pub(crate) fn execute_tensor_slice(
     }
 
     // resolve source tensor
-    let tensor_value = frame_value(machine, *tensor_offset);
+    let tensor_value = frame_value(activation, *tensor_offset);
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // store result
     store_tensor_indexed_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, output_index| {
+        |activation, output_index| {
             for i in 0..input_index.len() {
                 let offset = offsets[i];
                 let stride = strides[i];
@@ -2535,7 +2545,7 @@ pub(crate) fn execute_tensor_slice(
             let source_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            load_frame_tensor_element_at(machine, tensor_value, source_layout, source_offset)
+            load_frame_tensor_element_at(activation, tensor_value, source_layout, source_offset)
         },
     )?;
 
@@ -2544,7 +2554,7 @@ pub(crate) fn execute_tensor_slice(
 
 /// Execute tensor.pad.
 pub(crate) fn execute_tensor_pad(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -2558,14 +2568,14 @@ pub(crate) fn execute_tensor_pad(
         value_offset,
         source_layout,
         dest_layout,
-    } = machine.side::<TensorPad>(instruction);
+    } = activation.side::<TensorPad>(instruction);
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // resolve arguments
-    let args = frame_offsets(machine, *arguments);
+    let args = frame_offsets(activation, *arguments);
     let (low_values, rest) = args.split_at((*low_count).into());
     let (high_values, interior_values) = rest.split_at((*high_count).into());
     if interior_values.len() != usize::from(*interior_count) {
@@ -2576,17 +2586,17 @@ pub(crate) fn execute_tensor_pad(
     let mut high = Vec::with_capacity(high_values.len());
     let mut interior = Vec::with_capacity(interior_values.len());
     for offset in low_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let value = word_to_u64(value)?;
         low.push(value);
     }
     for offset in high_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let value = word_to_u64(value)?;
         high.push(value);
     }
     for offset in interior_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let value = word_to_u64(value)?;
         interior.push(value);
     }
@@ -2598,16 +2608,16 @@ pub(crate) fn execute_tensor_pad(
     }
 
     // resolve source tensor
-    let tensor_value = frame_value(machine, *tensor_offset);
-    let pad_value = machine.load_word_at(*value_offset);
+    let tensor_value = frame_value(activation, *tensor_offset);
+    let pad_value = activation.load_word_at(*value_offset);
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // store result
     store_tensor_indexed_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, output_index| {
+        |activation, output_index| {
             for i in 0..input_index.len() {
                 let low_pad = low[i];
                 let interior_pad = interior[i];
@@ -2632,7 +2642,7 @@ pub(crate) fn execute_tensor_pad(
             let source_offset =
                 tensor_linear_index(&input_index, &source_layout.shape, &source_layout.strides)?;
 
-            load_frame_tensor_element_at(machine, tensor_value, source_layout, source_offset)
+            load_frame_tensor_element_at(activation, tensor_value, source_layout, source_offset)
         },
     )?;
 
@@ -2641,7 +2651,7 @@ pub(crate) fn execute_tensor_pad(
 
 /// Execute tensor.concat.
 pub(crate) fn execute_tensor_concat(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -2651,14 +2661,14 @@ pub(crate) fn execute_tensor_concat(
         tensor_layouts,
         axis,
         dest_layout,
-    } = machine.side::<TensorConcat>(instruction);
-    let tensor_layouts = machine.u32_range(*tensor_layouts);
+    } = activation.side::<TensorConcat>(instruction);
+    let tensor_layouts = activation.u32_range(*tensor_layouts);
 
     // resolve compiled tensor descriptor
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // resolve input tensors
-    let tensor_offsets = frame_offsets(machine, *tensors).to_vec();
+    let tensor_offsets = frame_offsets(activation, *tensors).to_vec();
     // validate input metadata
     if tensor_offsets.len() != tensor_layouts.len() {
         return Err(Error::invalid_instruction());
@@ -2666,8 +2676,8 @@ pub(crate) fn execute_tensor_concat(
     let mut inputs = Vec::with_capacity(tensor_offsets.len());
     let mut axis_sizes = Vec::with_capacity(tensor_offsets.len());
     for (offset, layout) in tensor_offsets.iter().zip(tensor_layouts.iter()) {
-        let value = frame_value(machine, *offset);
-        let layout = tensor_layout(machine, TensorLayoutId(*layout));
+        let value = frame_value(activation, *offset);
+        let layout = tensor_layout(activation, TensorLayoutId(*layout));
         let axis_index = *axis as usize;
         if axis_index >= layout.shape.len() {
             return Err(Error::invalid_instruction());
@@ -2689,10 +2699,10 @@ pub(crate) fn execute_tensor_concat(
 
     // store result
     store_tensor_indexed_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, output_index| {
+        |activation, output_index| {
             let axis_value = output_index[axis_index];
             let mut selected = None;
             for (i, offset) in axis_offsets.iter().enumerate() {
@@ -2712,7 +2722,7 @@ pub(crate) fn execute_tensor_concat(
 
             let source_offset = tensor_linear_index(&input_index, &layout.shape, &layout.strides)?;
 
-            load_frame_tensor_element_at(machine, *tensor_value, layout, source_offset)
+            load_frame_tensor_element_at(activation, *tensor_value, layout, source_offset)
         },
     )?;
 
@@ -2721,17 +2731,17 @@ pub(crate) fn execute_tensor_concat(
 
 /// Execute tensor.reduce.
 pub(crate) fn execute_tensor_reduce(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let TensorReduce { kernel, .. } = machine.side::<TensorReduce>(instruction);
+    let TensorReduce { kernel, .. } = activation.side::<TensorReduce>(instruction);
     let operation = tensor_reduce_operation(*kernel);
-    execute_tensor_reduce_elements(machine, instruction, operation)
+    execute_tensor_reduce_elements(activation, instruction, operation)
 }
 
 /// Execute tensor reduction with one scalar kernel.
 fn execute_tensor_reduce_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -2744,17 +2754,17 @@ fn execute_tensor_reduce_elements(
         source_layout,
         dest_layout,
         kernel: _,
-    } = machine.side::<TensorReduce>(instruction);
-    let axes = machine.u32_range(*axes);
+    } = activation.side::<TensorReduce>(instruction);
+    let axes = activation.u32_range(*axes);
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
     let element_layout = source_layout.element_layout;
 
     // resolve source tensor
-    let tensor_value = frame_value(machine, *tensor_offset);
-    let init_value = machine.load_word_at(*initial_offset);
+    let tensor_value = frame_value(activation, *tensor_offset);
+    let init_value = activation.load_word_at(*initial_offset);
     let reduction = tensor_reduction(&source_layout.shape, axes)?;
     if dest_layout.shape.as_ref() != reduction.output_shape.as_slice() {
         return Err(Error::invalid_instruction());
@@ -2763,10 +2773,10 @@ fn execute_tensor_reduce_elements(
 
     // store result
     store_tensor_indexed_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, output_index| {
+        |activation, output_index| {
             let mut output_cursor = 0usize;
             for (dim, element) in source_index.iter_mut().enumerate() {
                 if reduction.axis_mask[dim] {
@@ -2806,7 +2816,7 @@ fn execute_tensor_reduce_elements(
                     }
                 };
                 let source_value = match load_frame_tensor_element_at(
-                    machine,
+                    activation,
                     tensor_value,
                     source_layout,
                     source_offset,
@@ -2901,7 +2911,7 @@ fn tensor_reduction(source_shape: &[u64], axes: &[u32]) -> Result<TensorReductio
 
 /// Execute tensor index reduction.
 pub(crate) fn execute_tensor_index_reduce(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -2913,16 +2923,16 @@ pub(crate) fn execute_tensor_index_reduce(
         dest_layout,
         kernel,
         tie_break,
-    } = machine.side::<TensorIndexReduce>(instruction);
+    } = activation.side::<TensorIndexReduce>(instruction);
     let axes = [*axis];
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
     let element_layout = source_layout.element_layout;
 
     // resolve reduced shape
-    let tensor_value = frame_value(machine, *tensor_offset);
+    let tensor_value = frame_value(activation, *tensor_offset);
     let reduction = tensor_reduction(&source_layout.shape, &axes)?;
     if reduction.element_count == 0 {
         return Err(Error::invalid_instruction());
@@ -2937,10 +2947,10 @@ pub(crate) fn execute_tensor_index_reduce(
 
     // store result
     store_tensor_indexed_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, output_index| {
+        |activation, output_index| {
             let mut output_cursor = 0usize;
             for (dim, element) in source_index.iter_mut().enumerate() {
                 if reduction.axis_mask[dim] {
@@ -2981,7 +2991,7 @@ pub(crate) fn execute_tensor_index_reduce(
                     }
                 };
                 let source_value = match load_frame_tensor_element_at(
-                    machine,
+                    activation,
                     tensor_value,
                     source_layout,
                     source_offset,
@@ -3086,7 +3096,7 @@ fn compare_tensor_words(layout: ScalarLayout, left: Word, right: Word) -> Result
 
 /// Execute tensor.dot.
 pub(crate) fn execute_tensor_dot(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -3099,17 +3109,17 @@ pub(crate) fn execute_tensor_dot(
         right_layout,
         dest_layout,
         element_layout,
-    } = machine.side::<TensorDot>(instruction);
-    let dimensions = machine.tensor_dot(*dimensions);
+    } = activation.side::<TensorDot>(instruction);
+    let dimensions = activation.tensor_dot(*dimensions);
 
     // resolve compiled tensor descriptors
-    let left_layout = tensor_layout(machine, *left_layout);
-    let right_layout = tensor_layout(machine, *right_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let left_layout = tensor_layout(activation, *left_layout);
+    let right_layout = tensor_layout(activation, *right_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // resolve source tensors
-    let left_value = frame_value(machine, *left_offset);
-    let right_value = frame_value(machine, *right_offset);
+    let left_value = frame_value(activation, *left_offset);
+    let right_value = frame_value(activation, *right_offset);
 
     // validate addressable element spans
     if left_layout.element_span_len != right_layout.element_span_len
@@ -3158,105 +3168,118 @@ pub(crate) fn execute_tensor_dot(
     let mut rhs_index = vec![0u64; rhs_rank];
 
     // store result
-    store_tensor_indexed_elements(machine, *dest_offset, dest_layout, |machine, out_index| {
-        for (i, dim) in lhs_batch.iter().enumerate() {
-            let value = out_index[i];
-            lhs_index[*dim as usize] = value;
-            rhs_index[rhs_batch[i] as usize] = value;
-        }
-        for (i, dim) in lhs_free.iter().enumerate() {
-            lhs_index[*dim as usize] = out_index[lhs_batch.len() + i];
-        }
-        for (i, dim) in rhs_free.iter().enumerate() {
-            let offset = lhs_batch.len() + lhs_free.len() + i;
-            rhs_index[*dim as usize] = out_index[offset];
-        }
-
-        let mut accum = None;
-        let mut contract_error = None;
-
-        // iterate the contracting dimensions for this destination element
-        for_each_index(&contract_shape, |contract_index| {
-            if contract_error.is_some() {
-                return;
+    store_tensor_indexed_elements(
+        activation,
+        *dest_offset,
+        dest_layout,
+        |activation, out_index| {
+            for (i, dim) in lhs_batch.iter().enumerate() {
+                let value = out_index[i];
+                lhs_index[*dim as usize] = value;
+                rhs_index[rhs_batch[i] as usize] = value;
+            }
+            for (i, dim) in lhs_free.iter().enumerate() {
+                lhs_index[*dim as usize] = out_index[lhs_batch.len() + i];
+            }
+            for (i, dim) in rhs_free.iter().enumerate() {
+                let offset = lhs_batch.len() + lhs_free.len() + i;
+                rhs_index[*dim as usize] = out_index[offset];
             }
 
-            for (i, dim) in lhs_contract.iter().enumerate() {
-                lhs_index[*dim as usize] = contract_index[i];
-            }
-            for (i, dim) in rhs_contract.iter().enumerate() {
-                rhs_index[*dim as usize] = contract_index[i];
-            }
+            let mut accum = None;
+            let mut contract_error = None;
 
-            let lhs_offset =
-                match tensor_linear_index(&lhs_index, &left_layout.shape, &left_layout.strides) {
+            // iterate the contracting dimensions for this destination element
+            for_each_index(&contract_shape, |contract_index| {
+                if contract_error.is_some() {
+                    return;
+                }
+
+                for (i, dim) in lhs_contract.iter().enumerate() {
+                    lhs_index[*dim as usize] = contract_index[i];
+                }
+                for (i, dim) in rhs_contract.iter().enumerate() {
+                    rhs_index[*dim as usize] = contract_index[i];
+                }
+
+                let lhs_offset =
+                    match tensor_linear_index(&lhs_index, &left_layout.shape, &left_layout.strides)
+                    {
+                        Ok(offset) => offset,
+                        Err(error) => {
+                            contract_error = Some(error);
+                            return;
+                        }
+                    };
+                let rhs_offset = match tensor_linear_index(
+                    &rhs_index,
+                    &right_layout.shape,
+                    &right_layout.strides,
+                ) {
                     Ok(offset) => offset,
                     Err(error) => {
                         contract_error = Some(error);
                         return;
                     }
                 };
-            let rhs_offset =
-                match tensor_linear_index(&rhs_index, &right_layout.shape, &right_layout.strides) {
-                    Ok(offset) => offset,
-                    Err(error) => {
-                        contract_error = Some(error);
-                        return;
-                    }
-                };
-            let left_element =
-                match load_frame_tensor_element_at(machine, left_value, left_layout, lhs_offset) {
+                let left_element = match load_frame_tensor_element_at(
+                    activation,
+                    left_value,
+                    left_layout,
+                    lhs_offset,
+                ) {
                     Ok(value) => value,
                     Err(error) => {
                         contract_error = Some(error);
                         return;
                     }
                 };
-            let right_element = match load_frame_tensor_element_at(
-                machine,
-                right_value,
-                right_layout,
-                rhs_offset,
-            ) {
-                Ok(value) => value,
-                Err(error) => {
-                    contract_error = Some(error);
-                    return;
-                }
-            };
-            let product = match reduce_multiply(*element_layout, left_element, right_element) {
-                Ok(value) => value,
-                Err(error) => {
-                    contract_error = Some(error);
-                    return;
-                }
-            };
-
-            accum = match accum {
-                None => Some(product),
-                Some(current) => match reduce_add(*element_layout, current, product) {
-                    Ok(value) => Some(value),
+                let right_element = match load_frame_tensor_element_at(
+                    activation,
+                    right_value,
+                    right_layout,
+                    rhs_offset,
+                ) {
+                    Ok(value) => value,
                     Err(error) => {
                         contract_error = Some(error);
                         return;
                     }
-                },
-            };
-        });
+                };
+                let product = match reduce_multiply(*element_layout, left_element, right_element) {
+                    Ok(value) => value,
+                    Err(error) => {
+                        contract_error = Some(error);
+                        return;
+                    }
+                };
 
-        if let Some(error) = contract_error {
-            return Err(error);
-        }
+                accum = match accum {
+                    None => Some(product),
+                    Some(current) => match reduce_add(*element_layout, current, product) {
+                        Ok(value) => Some(value),
+                        Err(error) => {
+                            contract_error = Some(error);
+                            return;
+                        }
+                    },
+                };
+            });
 
-        accum.ok_or(Error::invalid_instruction())
-    })?;
+            if let Some(error) = contract_error {
+                return Err(error);
+            }
+
+            accum.ok_or(Error::invalid_instruction())
+        },
+    )?;
 
     Ok(())
 }
 
 /// Execute tensor.convolution.
 pub(crate) fn execute_tensor_convolution(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -3272,18 +3295,18 @@ pub(crate) fn execute_tensor_convolution(
         kernel_layout,
         dest_layout,
         element_layout,
-    } = machine.side::<TensorConvolution>(instruction);
-    let dimensions = machine.tensor_convolution(*dimensions);
-    let window = machine.tensor_window(*window);
+    } = activation.side::<TensorConvolution>(instruction);
+    let dimensions = activation.tensor_convolution(*dimensions);
+    let window = activation.tensor_window(*window);
 
     // resolve compiled tensor descriptors
-    let input_layout = tensor_layout(machine, *input_layout);
-    let kernel_layout = tensor_layout(machine, *kernel_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let input_layout = tensor_layout(activation, *input_layout);
+    let kernel_layout = tensor_layout(activation, *kernel_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // resolve source tensors
-    let input_value = frame_value(machine, *input_offset);
-    let kernel_value = frame_value(machine, *kernel_offset);
+    let input_value = frame_value(activation, *input_offset);
+    let kernel_value = frame_value(activation, *kernel_offset);
 
     // derive dimension mappings
     let spatial_rank = dimensions.input_spatial.len();
@@ -3359,156 +3382,162 @@ pub(crate) fn execute_tensor_convolution(
     let mut kernel_index = vec![0u64; kernel_layout.shape.len()];
 
     // store result
-    store_tensor_indexed_elements(machine, *dest_offset, dest_layout, |machine, out_index| {
-        let out_batch = out_index[output_batch_dim];
-        let out_feature = out_index[output_feature_dim];
+    store_tensor_indexed_elements(
+        activation,
+        *dest_offset,
+        dest_layout,
+        |activation, out_index| {
+            let out_batch = out_index[output_batch_dim];
+            let out_feature = out_index[output_feature_dim];
 
-        let batch_group = out_batch / out_batches_per_group;
-        let feature_group = out_feature / out_features_per_group;
+            let batch_group = out_batch / out_batches_per_group;
+            let feature_group = out_feature / out_features_per_group;
 
-        let input_batch = batch_group * in_batches_per_group + (out_batch % out_batches_per_group);
-        let input_feature_base = feature_group * in_features_per_group;
-        let kernel_out_feature = out_feature % out_features_per_group;
+            let input_batch =
+                batch_group * in_batches_per_group + (out_batch % out_batches_per_group);
+            let input_feature_base = feature_group * in_features_per_group;
+            let kernel_out_feature = out_feature % out_features_per_group;
 
-        input_index[input_batch_dim] = input_batch;
-        kernel_index[kernel_output_feature_dim] = kernel_out_feature;
+            input_index[input_batch_dim] = input_batch;
+            kernel_index[kernel_output_feature_dim] = kernel_out_feature;
 
-        let mut accum = None;
-        let mut convolution_error = None;
+            let mut accum = None;
+            let mut convolution_error = None;
 
-        for in_feature in 0..in_features_per_group {
-            input_index[input_feature_dim] = input_feature_base + in_feature;
-            kernel_index[kernel_input_feature_dim] = in_feature;
+            for in_feature in 0..in_features_per_group {
+                input_index[input_feature_dim] = input_feature_base + in_feature;
+                kernel_index[kernel_input_feature_dim] = in_feature;
 
-            for_each_index(&kernel_spatial_shape, |kernel_spatial_index| {
-                if convolution_error.is_some() {
-                    return;
-                }
-
-                let mut is_valid = true;
-                for (i, &dim) in dimensions.input_spatial.iter().enumerate() {
-                    let out_spatial_dim = output_spatial[i] as usize;
-                    let kernel_dim = kernel_spatial[i] as usize;
-                    let stride = window.strides[i];
-                    let padding_low = window.padding_low[i];
-                    let lhs_dilation = window.lhs_dilation[i];
-                    let rhs_dilation = window.rhs_dilation[i];
-                    let kernel_size = kernel_layout.shape[kernel_dim];
-                    let mut kernel_pos = kernel_spatial_index[i];
-                    if window.window_reversal[i] {
-                        kernel_pos = kernel_size - 1 - kernel_pos;
+                for_each_index(&kernel_spatial_shape, |kernel_spatial_index| {
+                    if convolution_error.is_some() {
+                        return;
                     }
 
-                    let out_pos = out_index[out_spatial_dim];
-                    let position = out_pos * stride;
-                    let kernel = kernel_pos * rhs_dilation;
-                    let mut input_pos = position + kernel;
-                    if input_pos < padding_low {
-                        is_valid = false;
-                        break;
-                    }
-                    input_pos -= padding_low;
-                    if lhs_dilation > 1 {
-                        if !input_pos.is_multiple_of(lhs_dilation) {
+                    let mut is_valid = true;
+                    for (i, &dim) in dimensions.input_spatial.iter().enumerate() {
+                        let out_spatial_dim = output_spatial[i] as usize;
+                        let kernel_dim = kernel_spatial[i] as usize;
+                        let stride = window.strides[i];
+                        let padding_low = window.padding_low[i];
+                        let lhs_dilation = window.lhs_dilation[i];
+                        let rhs_dilation = window.rhs_dilation[i];
+                        let kernel_size = kernel_layout.shape[kernel_dim];
+                        let mut kernel_pos = kernel_spatial_index[i];
+                        if window.window_reversal[i] {
+                            kernel_pos = kernel_size - 1 - kernel_pos;
+                        }
+
+                        let out_pos = out_index[out_spatial_dim];
+                        let position = out_pos * stride;
+                        let kernel = kernel_pos * rhs_dilation;
+                        let mut input_pos = position + kernel;
+                        if input_pos < padding_low {
                             is_valid = false;
                             break;
                         }
-                        input_pos /= lhs_dilation;
-                    }
-                    if input_pos >= input_layout.shape[dim as usize] {
-                        is_valid = false;
-                        break;
+                        input_pos -= padding_low;
+                        if lhs_dilation > 1 {
+                            if !input_pos.is_multiple_of(lhs_dilation) {
+                                is_valid = false;
+                                break;
+                            }
+                            input_pos /= lhs_dilation;
+                        }
+                        if input_pos >= input_layout.shape[dim as usize] {
+                            is_valid = false;
+                            break;
+                        }
+
+                        input_index[dim as usize] = input_pos;
+                        kernel_index[kernel_dim] = kernel_pos;
                     }
 
-                    input_index[dim as usize] = input_pos;
-                    kernel_index[kernel_dim] = kernel_pos;
-                }
+                    if !is_valid {
+                        return;
+                    }
 
-                if !is_valid {
-                    return;
-                }
-
-                let input_offset = match tensor_linear_index(
-                    &input_index,
-                    &input_layout.shape,
-                    &input_layout.strides,
-                ) {
-                    Ok(offset) => offset,
-                    Err(error) => {
-                        convolution_error = Some(error);
-                        return;
-                    }
-                };
-                let kernel_offset = match tensor_linear_index(
-                    &kernel_index,
-                    &kernel_layout.shape,
-                    &kernel_layout.strides,
-                ) {
-                    Ok(offset) => offset,
-                    Err(error) => {
-                        convolution_error = Some(error);
-                        return;
-                    }
-                };
-                let input_element = match load_frame_tensor_element_at(
-                    machine,
-                    input_value,
-                    input_layout,
-                    input_offset,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        convolution_error = Some(error);
-                        return;
-                    }
-                };
-                let kernel_element = match load_frame_tensor_element_at(
-                    machine,
-                    kernel_value,
-                    kernel_layout,
-                    kernel_offset,
-                ) {
-                    Ok(value) => value,
-                    Err(error) => {
-                        convolution_error = Some(error);
-                        return;
-                    }
-                };
-                let product = match reduce_multiply(*element_layout, input_element, kernel_element)
-                {
-                    Ok(value) => value,
-                    Err(error) => {
-                        convolution_error = Some(error);
-                        return;
-                    }
-                };
-
-                accum = match accum {
-                    None => Some(product),
-                    Some(current) => match reduce_add(*element_layout, current, product) {
-                        Ok(value) => Some(value),
+                    let input_offset = match tensor_linear_index(
+                        &input_index,
+                        &input_layout.shape,
+                        &input_layout.strides,
+                    ) {
+                        Ok(offset) => offset,
                         Err(error) => {
                             convolution_error = Some(error);
                             return;
                         }
-                    },
-                };
-            });
-        }
+                    };
+                    let kernel_offset = match tensor_linear_index(
+                        &kernel_index,
+                        &kernel_layout.shape,
+                        &kernel_layout.strides,
+                    ) {
+                        Ok(offset) => offset,
+                        Err(error) => {
+                            convolution_error = Some(error);
+                            return;
+                        }
+                    };
+                    let input_element = match load_frame_tensor_element_at(
+                        activation,
+                        input_value,
+                        input_layout,
+                        input_offset,
+                    ) {
+                        Ok(value) => value,
+                        Err(error) => {
+                            convolution_error = Some(error);
+                            return;
+                        }
+                    };
+                    let kernel_element = match load_frame_tensor_element_at(
+                        activation,
+                        kernel_value,
+                        kernel_layout,
+                        kernel_offset,
+                    ) {
+                        Ok(value) => value,
+                        Err(error) => {
+                            convolution_error = Some(error);
+                            return;
+                        }
+                    };
+                    let product =
+                        match reduce_multiply(*element_layout, input_element, kernel_element) {
+                            Ok(value) => value,
+                            Err(error) => {
+                                convolution_error = Some(error);
+                                return;
+                            }
+                        };
 
-        if let Some(error) = convolution_error {
-            return Err(error);
-        }
+                    accum = match accum {
+                        None => Some(product),
+                        Some(current) => match reduce_add(*element_layout, current, product) {
+                            Ok(value) => Some(value),
+                            Err(error) => {
+                                convolution_error = Some(error);
+                                return;
+                            }
+                        },
+                    };
+                });
+            }
 
-        accum.ok_or(Error::invalid_instruction())
-    })?;
+            if let Some(error) = convolution_error {
+                return Err(error);
+            }
+
+            accum.ok_or(Error::invalid_instruction())
+        },
+    )?;
 
     Ok(())
 }
 
 /// Execute tensor.gather.
 pub(crate) fn execute_tensor_gather(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode side records
@@ -3521,115 +3550,120 @@ pub(crate) fn execute_tensor_gather(
         source_layout,
         indices_layout,
         dest_layout,
-    } = machine.side::<TensorGather>(instruction);
-    let dimensions = machine.tensor_gather(*dimensions);
-    let slice_sizes = machine.u32_range(*slice_sizes);
+    } = activation.side::<TensorGather>(instruction);
+    let dimensions = activation.tensor_gather(*dimensions);
+    let slice_sizes = activation.u32_range(*slice_sizes);
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let indices_layout = tensor_layout(machine, *indices_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let indices_layout = tensor_layout(activation, *indices_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
     // resolve tensors
-    let source_value = frame_value(machine, *source_offset);
-    let indices_value = frame_value(machine, *indices_offset);
+    let source_value = frame_value(activation, *source_offset);
+    let indices_value = frame_value(activation, *indices_offset);
     let offset_dims: HashSet<u32> = dimensions.offset_dims.iter().copied().collect();
     let collapsed_dims: HashSet<u32> = dimensions.collapsed_slice_dims.iter().copied().collect();
 
     // store result
-    store_tensor_indexed_elements(machine, *dest_offset, dest_layout, |machine, out_index| {
-        let mut index_coords = Vec::new();
-        for (dim, value) in out_index.iter().enumerate() {
-            if !offset_dims.contains(&(dim as u32)) {
-                index_coords.push(*value);
-            }
-        }
-
-        let mut index_vec = vec![0u64; dimensions.start_index_map.len()];
-        let mut indices_index = vec![0u64; indices_layout.shape.len()];
-        let mut coord_iter = index_coords.iter();
-        for (dim, element) in indices_index.iter_mut().enumerate() {
-            if dim as u32 == dimensions.index_vector_dim {
-                continue;
+    store_tensor_indexed_elements(
+        activation,
+        *dest_offset,
+        dest_layout,
+        |activation, out_index| {
+            let mut index_coords = Vec::new();
+            for (dim, value) in out_index.iter().enumerate() {
+                if !offset_dims.contains(&(dim as u32)) {
+                    index_coords.push(*value);
+                }
             }
 
-            let Some(coord) = coord_iter.next() else {
-                return Err(Error::invalid_instruction());
-            };
-            *element = *coord;
-        }
+            let mut index_vec = vec![0u64; dimensions.start_index_map.len()];
+            let mut indices_index = vec![0u64; indices_layout.shape.len()];
+            let mut coord_iter = index_coords.iter();
+            for (dim, element) in indices_index.iter_mut().enumerate() {
+                if dim as u32 == dimensions.index_vector_dim {
+                    continue;
+                }
 
-        let index_offset = tensor_linear_index(
-            &indices_index,
-            &indices_layout.shape,
-            &indices_layout.strides,
-        )?;
-        let index_base = index_offset;
-        for (i, &_map_dim) in dimensions.start_index_map.iter().enumerate() {
-            let element_index = index_base + i;
-            let value = load_frame_tensor_element_at(
-                machine,
-                indices_value,
-                indices_layout,
-                element_index,
-            )?;
-            index_vec[i] = word_to_u64(value)?;
-            indices_index[dimensions.index_vector_dim as usize] = index_vec[i];
-        }
-
-        let mut source_index = vec![0u64; source_layout.shape.len()];
-        for (i, &map_dim) in dimensions.start_index_map.iter().enumerate() {
-            source_index[map_dim as usize] = index_vec[i];
-        }
-
-        let mut offset_iter = out_index.iter();
-        for (dim, element) in source_index.iter_mut().enumerate() {
-            if collapsed_dims.contains(&(dim as u32)) {
-                continue;
-            }
-
-            let offset = if offset_dims.contains(&(dim as u32)) {
-                let Some(offset) = offset_iter.next() else {
+                let Some(coord) = coord_iter.next() else {
                     return Err(Error::invalid_instruction());
                 };
-                *offset
-            } else {
-                0
-            };
-            let Some(size) = slice_sizes.get(dim) else {
-                return Err(Error::invalid_instruction());
-            };
-            let size = *size as u64;
-            if size == 0 {
-                return Err(Error::invalid_instruction());
+                *element = *coord;
             }
 
-            let start = *element;
-            *element = start + offset.min(size - 1);
-        }
+            let index_offset = tensor_linear_index(
+                &indices_index,
+                &indices_layout.shape,
+                &indices_layout.strides,
+            )?;
+            let index_base = index_offset;
+            for (i, &_map_dim) in dimensions.start_index_map.iter().enumerate() {
+                let element_index = index_base + i;
+                let value = load_frame_tensor_element_at(
+                    activation,
+                    indices_value,
+                    indices_layout,
+                    element_index,
+                )?;
+                index_vec[i] = word_to_u64(value)?;
+                indices_index[dimensions.index_vector_dim as usize] = index_vec[i];
+            }
 
-        let source_offset =
-            tensor_linear_index(&source_index, &source_layout.shape, &source_layout.strides)?;
+            let mut source_index = vec![0u64; source_layout.shape.len()];
+            for (i, &map_dim) in dimensions.start_index_map.iter().enumerate() {
+                source_index[map_dim as usize] = index_vec[i];
+            }
 
-        load_frame_tensor_element_at(machine, source_value, source_layout, source_offset)
-    })?;
+            let mut offset_iter = out_index.iter();
+            for (dim, element) in source_index.iter_mut().enumerate() {
+                if collapsed_dims.contains(&(dim as u32)) {
+                    continue;
+                }
+
+                let offset = if offset_dims.contains(&(dim as u32)) {
+                    let Some(offset) = offset_iter.next() else {
+                        return Err(Error::invalid_instruction());
+                    };
+                    *offset
+                } else {
+                    0
+                };
+                let Some(size) = slice_sizes.get(dim) else {
+                    return Err(Error::invalid_instruction());
+                };
+                let size = *size as u64;
+                if size == 0 {
+                    return Err(Error::invalid_instruction());
+                }
+
+                let start = *element;
+                *element = start + offset.min(size - 1);
+            }
+
+            let source_offset =
+                tensor_linear_index(&source_index, &source_layout.shape, &source_layout.strides)?;
+
+            load_frame_tensor_element_at(activation, source_value, source_layout, source_offset)
+        },
+    )?;
 
     Ok(())
 }
 
 /// Execute tensor.scatter.
 pub(crate) fn execute_tensor_scatter(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let TensorScatter { mode, .. } = machine.side::<TensorScatter>(instruction);
+    let TensorScatter { mode, .. } = activation.side::<TensorScatter>(instruction);
     let combine = tensor_scatter_operation(*mode);
 
-    execute_tensor_scatter_elements(machine, instruction, combine)
+    execute_tensor_scatter_elements(activation, instruction, combine)
 }
 
 /// Execute tensor scatter with one scalar kernel.
 fn execute_tensor_scatter_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     combine: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -3646,29 +3680,29 @@ fn execute_tensor_scatter_elements(
         dest_layout,
         element_layout,
         mode: _,
-    } = machine.side::<TensorScatter>(instruction);
-    let dimensions = machine.tensor_scatter(*dimensions);
+    } = activation.side::<TensorScatter>(instruction);
+    let dimensions = activation.tensor_scatter(*dimensions);
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let indices_layout = tensor_layout(machine, *indices_layout);
-    let updates_layout = tensor_layout(machine, *updates_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let indices_layout = tensor_layout(activation, *indices_layout);
+    let updates_layout = tensor_layout(activation, *updates_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
     // resolve tensors
-    let source_value = frame_value(machine, *source_offset);
-    let indices_value = frame_value(machine, *indices_offset);
-    let updates_value = frame_value(machine, *updates_offset);
+    let source_value = frame_value(activation, *source_offset);
+    let indices_value = frame_value(activation, *indices_offset);
+    let updates_value = frame_value(activation, *updates_offset);
 
     store_tensor_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, element_index| {
-            load_frame_tensor_element_at(machine, source_value, source_layout, element_index)
+        |activation, element_index| {
+            load_frame_tensor_element_at(activation, source_value, source_layout, element_index)
         },
     )?;
-    let result = frame_value(machine, *dest_offset);
+    let result = frame_value(activation, *dest_offset);
     let update_window_dims: HashSet<u32> = dimensions.update_window_dims.iter().copied().collect();
     let inserted_window_dims: HashSet<u32> =
         dimensions.inserted_window_dims.iter().copied().collect();
@@ -3714,9 +3748,12 @@ fn execute_tensor_scatter_elements(
         let mut scatter_indices = Vec::with_capacity(dimensions.scatter_dims_to_operand_dims.len());
         for i in 0..dimensions.scatter_dims_to_operand_dims.len() {
             let element_index = index_offset + i;
-            let Ok(value) =
-                load_frame_tensor_element_at(machine, indices_value, indices_layout, element_index)
-            else {
+            let Ok(value) = load_frame_tensor_element_at(
+                activation,
+                indices_value,
+                indices_layout,
+                element_index,
+            ) else {
                 scatter_error = Some(Error::invalid_instruction());
                 return;
             };
@@ -3760,13 +3797,14 @@ fn execute_tensor_scatter_elements(
             return;
         };
         let Ok(update_value) =
-            load_frame_tensor_element_at(machine, updates_value, updates_layout, update_offset)
+            load_frame_tensor_element_at(activation, updates_value, updates_layout, update_offset)
         else {
             scatter_error = Some(Error::invalid_instruction());
             return;
         };
         let current_value =
-            match load_frame_tensor_element_at(machine, result, dest_layout, destination_offset) {
+            match load_frame_tensor_element_at(activation, result, dest_layout, destination_offset)
+            {
                 Ok(value) => value,
                 Err(error) => {
                     scatter_error = Some(error);
@@ -3782,7 +3820,7 @@ fn execute_tensor_scatter_elements(
         };
 
         if let Err(error) = store_frame_tensor_element_at(
-            machine,
+            activation,
             result,
             dest_layout,
             destination_offset,
@@ -3822,18 +3860,18 @@ fn scatter_replace(_layout: ScalarLayout, _current: Word, update: Word) -> Resul
 
 /// Execute tensor.convert.
 pub(crate) fn execute_tensor_convert(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let TensorConvert { mode, .. } = machine.side::<TensorConvert>(instruction);
+    let TensorConvert { mode, .. } = activation.side::<TensorConvert>(instruction);
     let convert = tensor_convert_operation(*mode);
 
-    execute_tensor_convert_elements(machine, instruction, convert)
+    execute_tensor_convert_elements(activation, instruction, convert)
 }
 
 /// Execute tensor conversion with one scalar kernel.
 fn execute_tensor_convert_elements(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     convert: fn(Word, ScalarLayout, ScalarLayout) -> Result<Word, Error>,
 ) -> Result<(), Error> {
@@ -3846,13 +3884,13 @@ fn execute_tensor_convert_elements(
         source_scalar,
         dest_scalar,
         mode: _,
-    } = machine.side::<TensorConvert>(instruction);
+    } = activation.side::<TensorConvert>(instruction);
 
     // resolve compiled tensor descriptors
-    let source_layout = tensor_layout(machine, *source_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
-    let tensor_value = frame_value(machine, *tensor_offset);
+    let tensor_value = frame_value(activation, *tensor_offset);
     if source_layout.element_span_len != dest_layout.element_span_len {
         return Err(Error::type_mismatch(
             "matching tensor element spans",
@@ -3865,12 +3903,16 @@ fn execute_tensor_convert_elements(
 
     // store result
     store_tensor_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, element_index| {
-            let source =
-                load_frame_tensor_element_at(machine, tensor_value, source_layout, element_index)?;
+        |activation, element_index| {
+            let source = load_frame_tensor_element_at(
+                activation,
+                tensor_value,
+                source_layout,
+                element_index,
+            )?;
 
             convert(source, *source_scalar, *dest_scalar)
         },
@@ -3895,7 +3937,7 @@ fn tensor_convert_operation(
 
 /// Execute tensor.select.
 pub(crate) fn execute_tensor_select(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let TensorSelect {
@@ -3907,28 +3949,28 @@ pub(crate) fn execute_tensor_select(
         then_layout,
         else_layout,
         dest_layout,
-    } = machine.side::<TensorSelect>(instruction);
+    } = activation.side::<TensorSelect>(instruction);
 
     // resolve compiled tensor descriptors
-    let mask_layout = tensor_layout(machine, *mask_layout);
-    let then_layout = tensor_layout(machine, *then_layout);
-    let else_layout = tensor_layout(machine, *else_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let mask_layout = tensor_layout(activation, *mask_layout);
+    let then_layout = tensor_layout(activation, *then_layout);
+    let else_layout = tensor_layout(activation, *else_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
-    let mask_value = frame_value(machine, *mask_offset);
-    let then_value = frame_value(machine, *then_offset);
-    let else_value = frame_value(machine, *else_offset);
+    let mask_value = frame_value(activation, *mask_offset);
+    let then_value = frame_value(activation, *then_offset);
+    let else_value = frame_value(activation, *else_offset);
     store_tensor_elements(
-        machine,
+        activation,
         *dest_offset,
         dest_layout,
-        |machine, element_index| {
+        |activation, element_index| {
             let mask_value =
-                load_frame_tensor_element_at(machine, mask_value, mask_layout, element_index)?;
+                load_frame_tensor_element_at(activation, mask_value, mask_layout, element_index)?;
             let then_element =
-                load_frame_tensor_element_at(machine, then_value, then_layout, element_index)?;
+                load_frame_tensor_element_at(activation, then_value, then_layout, element_index)?;
             let else_element =
-                load_frame_tensor_element_at(machine, else_value, else_layout, element_index)?;
+                load_frame_tensor_element_at(activation, else_value, else_layout, element_index)?;
 
             let select = mask_value.as_bool();
             Ok(if select { then_element } else { else_element })
@@ -3939,7 +3981,7 @@ pub(crate) fn execute_tensor_select(
 
 /// Execute tensor.cast.
 pub(crate) fn execute_tensor_cast(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest_offset = instruction.a;
@@ -3947,14 +3989,14 @@ pub(crate) fn execute_tensor_cast(
     let byte_len = instruction.c as u64 | ((instruction.d as u64) << 32);
 
     // forward the tensor bytes
-    machine.copy_frame_bytes(tensor_offset, dest_offset, byte_len as usize);
+    activation.copy_frame_bytes(tensor_offset, dest_offset, byte_len as usize);
 
     Ok(())
 }
 
 /// Execute tensor.view.
 pub(crate) fn execute_tensor_view(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let TensorView {
@@ -3968,12 +4010,12 @@ pub(crate) fn execute_tensor_view(
         dest_layout,
         element,
         address,
-    } = machine.side::<TensorView>(instruction);
+    } = activation.side::<TensorView>(instruction);
 
-    let source_layout = tensor_layout(machine, *source_layout);
-    let dest_layout = tensor_layout(machine, *dest_layout);
+    let source_layout = tensor_layout(activation, *source_layout);
+    let dest_layout = tensor_layout(activation, *dest_layout);
 
-    let args = frame_offsets(machine, *arguments);
+    let args = frame_offsets(activation, *arguments);
     let (offset_values, rest) = args.split_at((*offsets_count).into());
     let (size_values, stride_values) = rest.split_at((*sizes_count).into());
     if stride_values.len() != usize::from(*strides_count) {
@@ -3984,17 +4026,17 @@ pub(crate) fn execute_tensor_view(
     let mut sizes = Vec::with_capacity(size_values.len());
     let mut strides = Vec::with_capacity(stride_values.len());
     for offset in offset_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let value = word_to_u64(value)?;
         offsets.push(value);
     }
     for offset in size_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let value = word_to_u64(value)?;
         sizes.push(value);
     }
     for offset in stride_values {
-        let value = machine.load_word_at(*offset);
+        let value = activation.load_word_at(*offset);
         let value = word_to_u64(value)?;
         strides.push(value);
     }
@@ -4026,7 +4068,7 @@ pub(crate) fn execute_tensor_view(
         ));
     }
 
-    let source_strides = load_tensor_view_strides(machine, *view_offset, source_layout)?;
+    let source_strides = load_tensor_view_strides(activation, *view_offset, source_layout)?;
     let mut dest_strides = Vec::with_capacity(strides.len());
     for (source_stride, stride) in source_strides.iter().copied().zip(strides.iter().copied()) {
         let dest_stride = source_stride
@@ -4066,13 +4108,13 @@ pub(crate) fn execute_tensor_view(
 
     let offset = tensor_linear_index(&offsets, &source_layout.shape, &source_strides)?;
 
-    let view_value = load_tensor_view_pointer(machine, *view_offset);
-    let element = machine.projection(*element);
+    let view_value = load_tensor_view_pointer(activation, *view_offset);
+    let element = activation.projection(*element);
     let source_span_len = tensor_element_span_len(&source_layout.shape, &source_strides)?;
     let pointer =
         offset_tensor_view_pointer(view_value, element, offset, source_span_len, *address)?;
 
-    store_tensor_view_descriptor(machine, *dest_offset, pointer, &dest_strides)?;
+    store_tensor_view_descriptor(activation, *dest_offset, pointer, &dest_strides)?;
 
     Ok(())
 }

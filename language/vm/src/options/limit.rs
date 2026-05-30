@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{DEFAULT_MAX_INSTRUCTIONS, DEFAULT_MAX_STACK_DEPTH, DEFAULT_STACK_BYTES};
 
-/// Resource limits for a VM isolate.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Resource limits for a VM machine.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LimitOptions {
     /// The maximum call stack depth before a stack overflow error.
     pub max_stack_depth: usize,

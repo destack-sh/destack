@@ -1,6 +1,6 @@
 use crate::Word;
 use crate::diagnostic::Error;
-use crate::interpreter::Machine;
+use crate::machine::Activation;
 use crate::program::{
     BoundsCheck, Check, CheckId, Edge, EdgeId, Instruction, MoveRange, NarrowCheck, Op,
     OverflowCheck, ShiftRangeCheck, SwitchCasesId, SwitchTableId, Transfer, VariantCheck,
@@ -13,8 +13,8 @@ const SWITCH_WIDTH_MASK: u32 = SWITCH_SIGN_BIT - 1;
 
 /// Return one pooled control edge.
 #[inline(always)]
-fn control_edge(machine: &Machine<'_, '_>, id: u32) -> Edge {
-    machine.edge(EdgeId(id))
+fn control_edge(activation: &Activation<'_>, id: u32) -> Edge {
+    activation.edge(EdgeId(id))
 }
 
 /// Return one branch jump based on the evaluated condition.
@@ -30,14 +30,14 @@ fn branch_transfer(is_truthy: bool, then_edge: Edge, else_edge: Edge) -> Transfe
 
 /// Load one fused comparison branch.
 #[inline(always)]
-fn compare_branch_words<'a>(
-    machine: &Machine<'_, 'a>,
-    instruction: &'a Instruction,
+fn compare_branch_words(
+    activation: &Activation<'_>,
+    instruction: &Instruction,
 ) -> (Word, Word, Edge, Edge) {
-    let left = machine.load_word_at(instruction.a);
-    let right = machine.load_word_at(instruction.b);
-    let then_edge = control_edge(machine, instruction.c);
-    let else_edge = control_edge(machine, instruction.d);
+    let left = activation.load_word_at(instruction.a);
+    let right = activation.load_word_at(instruction.b);
+    let then_edge = control_edge(activation, instruction.c);
+    let else_edge = control_edge(activation, instruction.d);
 
     (left, right, then_edge, else_edge)
 }
@@ -54,10 +54,10 @@ macro_rules! fixed_compare_branch_executor {
             #[$doc]
             #[inline(always)]
             pub(crate) fn $name(
-                machine: &mut Machine<'_, '_>,
+                activation: &mut Activation<'_>,
                 instruction: &Instruction,
             ) -> Transfer {
-                let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+                let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
                 let left = left.bits() as $ty;
                 let right = right.bits() as $ty;
                 let is_truthy = left $operation right;
@@ -80,21 +80,21 @@ fn default_switch_transfer(edge: Edge) -> Transfer {
 /// Load one wide switch value as an integer case value.
 #[inline(always)]
 fn load_wide_switch_value<const IS_SIGNED: bool>(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     offset: u32,
     width: u32,
 ) -> Result<Option<i128>, Error> {
     let width = width as u16;
     let byte_len = width.div_ceil(8) as usize;
-    let bytes = machine.frame_bytes_at(offset, byte_len);
+    let bytes = activation.frame_bytes_at(offset, byte_len);
 
     integer_bytes_to_case_value::<IS_SIGNED>(bytes, width)
 }
 
 /// Load one word switch value as an integer case value.
 #[inline(always)]
-fn load_word_switch_value<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, offset: u32) -> i128 {
-    let value = machine.load_word_at(offset);
+fn load_word_switch_value<const IS_SIGNED: bool>(activation: &Activation<'_>, offset: u32) -> i128 {
+    let value = activation.load_word_at(offset);
 
     if IS_SIGNED {
         return value.as_i64() as i128;
@@ -155,26 +155,26 @@ fn switch_layout(field: u32) -> (u32, bool) {
 
 /// Load one word as a signed integer.
 #[inline(always)]
-fn load_signed_word(machine: &Machine<'_, '_>, offset: u32) -> i64 {
-    machine.load_word_at(offset).as_i64()
+fn load_signed_word(activation: &Activation<'_>, offset: u32) -> i64 {
+    activation.load_word_at(offset).as_i64()
 }
 
 /// Load one word as an unsigned integer.
 #[inline(always)]
-fn load_unsigned_word(machine: &Machine<'_, '_>, offset: u32) -> u64 {
-    machine.load_word_at(offset).as_u64()
+fn load_unsigned_word(activation: &Activation<'_>, offset: u32) -> u64 {
+    activation.load_word_at(offset).as_u64()
 }
 
 /// Load one unsigned word as a non-negative length.
 #[inline(always)]
-fn load_unsigned_length_word(machine: &Machine<'_, '_>, offset: u32) -> u64 {
-    load_unsigned_word(machine, offset)
+fn load_unsigned_length_word(activation: &Activation<'_>, offset: u32) -> u64 {
+    load_unsigned_word(activation, offset)
 }
 
 /// Load one signed word as a non-negative length.
 #[inline(always)]
-fn load_signed_length_word(machine: &Machine<'_, '_>, offset: u32) -> Result<u64, Error> {
-    let value = load_signed_word(machine, offset);
+fn load_signed_length_word(activation: &Activation<'_>, offset: u32) -> Result<u64, Error> {
+    let value = load_signed_word(activation, offset);
     if value < 0 {
         return Err(Error::type_mismatch(
             "non negative integer",
@@ -188,22 +188,22 @@ fn load_signed_length_word(machine: &Machine<'_, '_>, offset: u32) -> Result<u64
 /// Evaluate one bounds check.
 #[inline(always)]
 fn bounds_check<const INDEX_SIGNED: bool, const LENGTH_SIGNED: bool>(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     check: BoundsCheck,
 ) -> Result<bool, Error> {
     let length = if LENGTH_SIGNED {
-        load_signed_length_word(machine, check.length)?
+        load_signed_length_word(activation, check.length)?
     } else {
-        load_unsigned_length_word(machine, check.length)
+        load_unsigned_length_word(activation, check.length)
     };
 
     if INDEX_SIGNED {
-        let index = load_signed_word(machine, check.index);
+        let index = load_signed_word(activation, check.index);
 
         return Ok(index >= 0 && (index as u64) < length);
     }
 
-    let index = load_unsigned_word(machine, check.index);
+    let index = load_unsigned_word(activation, check.index);
 
     Ok(index < length)
 }
@@ -211,29 +211,29 @@ fn bounds_check<const INDEX_SIGNED: bool, const LENGTH_SIGNED: bool>(
 /// Evaluate one shift range check.
 #[inline(always)]
 fn shift_range_check<const IS_SIGNED: bool>(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     check: ShiftRangeCheck,
 ) -> bool {
     let bit_width = u64::from(check.bit_width);
 
     if IS_SIGNED {
-        let value = load_signed_word(machine, check.value);
+        let value = load_signed_word(activation, check.value);
 
         return value >= 0 && (value as u64) < bit_width;
     }
 
-    let value = load_unsigned_word(machine, check.value);
+    let value = load_unsigned_word(activation, check.value);
 
     value < bit_width
 }
 
 /// Evaluate one narrow check.
 #[inline(always)]
-fn narrow_check<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, check: NarrowCheck) -> bool {
+fn narrow_check<const IS_SIGNED: bool>(activation: &Activation<'_>, check: NarrowCheck) -> bool {
     let target_width = u32::from(check.to_width);
 
     if IS_SIGNED {
-        let value = load_signed_word(machine, check.value);
+        let value = load_signed_word(activation, check.value);
         let shift = target_width - 1;
         let min_value = -(1_i128 << shift);
         let max_value = (1_i128 << shift) - 1;
@@ -242,7 +242,7 @@ fn narrow_check<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, check: NarrowC
         return value >= min_value && value <= max_value;
     }
 
-    let value = load_unsigned_word(machine, check.value);
+    let value = load_unsigned_word(activation, check.value);
     let max_value = if target_width >= 64 {
         u128::from(u64::MAX)
     } else {
@@ -254,8 +254,8 @@ fn narrow_check<const IS_SIGNED: bool>(machine: &Machine<'_, '_>, check: NarrowC
 
 /// Evaluate one variant tag check.
 #[inline(always)]
-fn variant_check(machine: &Machine<'_, '_>, check: VariantCheck) -> bool {
-    let actual = load_unsigned_word(machine, check.value);
+fn variant_check(activation: &Activation<'_>, check: VariantCheck) -> bool {
+    let actual = load_unsigned_word(activation, check.value);
 
     actual == check.expected
 }
@@ -281,24 +281,24 @@ fn unsigned_max(width: u8) -> u128 {
 }
 
 /// Load signed overflow inputs.
-fn signed_overflow_inputs(machine: &Machine<'_, '_>, check: OverflowCheck) -> (i128, i128) {
-    let left = load_signed_word(machine, check.left) as i128;
-    let right = load_signed_word(machine, check.right) as i128;
+fn signed_overflow_inputs(activation: &Activation<'_>, check: OverflowCheck) -> (i128, i128) {
+    let left = load_signed_word(activation, check.left) as i128;
+    let right = load_signed_word(activation, check.right) as i128;
 
     (left, right)
 }
 
 /// Load unsigned overflow inputs.
-fn unsigned_overflow_inputs(machine: &Machine<'_, '_>, check: OverflowCheck) -> (u128, u128) {
-    let left = u128::from(load_unsigned_word(machine, check.left));
-    let right = u128::from(load_unsigned_word(machine, check.right));
+fn unsigned_overflow_inputs(activation: &Activation<'_>, check: OverflowCheck) -> (u128, u128) {
+    let left = u128::from(load_unsigned_word(activation, check.left));
+    let right = u128::from(load_unsigned_word(activation, check.right));
 
     (left, right)
 }
 
 /// Evaluate signed add overflow.
-fn overflow_add_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
-    let (left, right) = signed_overflow_inputs(machine, check);
+fn overflow_add_int(activation: &Activation<'_>, check: OverflowCheck) -> bool {
+    let (left, right) = signed_overflow_inputs(activation, check);
     let (min_value, max_value) = signed_bounds(check.width);
     let result = left + right;
 
@@ -306,16 +306,16 @@ fn overflow_add_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
 }
 
 /// Evaluate unsigned add overflow.
-fn overflow_add_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
-    let (left, right) = unsigned_overflow_inputs(machine, check);
+fn overflow_add_uint(activation: &Activation<'_>, check: OverflowCheck) -> bool {
+    let (left, right) = unsigned_overflow_inputs(activation, check);
     let max_value = unsigned_max(check.width);
 
     left + right > max_value
 }
 
 /// Evaluate signed subtract overflow.
-fn overflow_sub_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
-    let (left, right) = signed_overflow_inputs(machine, check);
+fn overflow_sub_int(activation: &Activation<'_>, check: OverflowCheck) -> bool {
+    let (left, right) = signed_overflow_inputs(activation, check);
     let (min_value, max_value) = signed_bounds(check.width);
     let result = left - right;
 
@@ -323,15 +323,15 @@ fn overflow_sub_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
 }
 
 /// Evaluate unsigned subtract overflow.
-fn overflow_sub_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
-    let (left, right) = unsigned_overflow_inputs(machine, check);
+fn overflow_sub_uint(activation: &Activation<'_>, check: OverflowCheck) -> bool {
+    let (left, right) = unsigned_overflow_inputs(activation, check);
 
     left < right
 }
 
 /// Evaluate signed multiply overflow.
-fn overflow_mul_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
-    let (left, right) = signed_overflow_inputs(machine, check);
+fn overflow_mul_int(activation: &Activation<'_>, check: OverflowCheck) -> bool {
+    let (left, right) = signed_overflow_inputs(activation, check);
     let (min_value, max_value) = signed_bounds(check.width);
     let result = left * right;
 
@@ -339,16 +339,16 @@ fn overflow_mul_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
 }
 
 /// Evaluate unsigned multiply overflow.
-fn overflow_mul_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> bool {
-    let (left, right) = unsigned_overflow_inputs(machine, check);
+fn overflow_mul_uint(activation: &Activation<'_>, check: OverflowCheck) -> bool {
+    let (left, right) = unsigned_overflow_inputs(activation, check);
     let max_value = unsigned_max(check.width);
 
     left != 0 && right > max_value / left
 }
 
 /// Evaluate signed divide or remainder overflow.
-fn overflow_div_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> Result<bool, Error> {
-    let (left, right) = signed_overflow_inputs(machine, check);
+fn overflow_div_int(activation: &Activation<'_>, check: OverflowCheck) -> Result<bool, Error> {
+    let (left, right) = signed_overflow_inputs(activation, check);
     let (min_value, _) = signed_bounds(check.width);
     if right == 0 {
         return Err(Error::division_by_zero());
@@ -358,8 +358,8 @@ fn overflow_div_int(machine: &Machine<'_, '_>, check: OverflowCheck) -> Result<b
 }
 
 /// Evaluate unsigned divide or remainder overflow.
-fn overflow_div_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> Result<bool, Error> {
-    let (_, right) = unsigned_overflow_inputs(machine, check);
+fn overflow_div_uint(activation: &Activation<'_>, check: OverflowCheck) -> Result<bool, Error> {
+    let (_, right) = unsigned_overflow_inputs(activation, check);
     if right == 0 {
         return Err(Error::division_by_zero());
     }
@@ -368,51 +368,51 @@ fn overflow_div_uint(machine: &Machine<'_, '_>, check: OverflowCheck) -> Result<
 }
 
 /// Evaluate one runtime check guard.
-fn evaluate_check(machine: &Machine<'_, '_>, constraint: &Check) -> Result<bool, Error> {
+fn evaluate_check(activation: &Activation<'_>, constraint: &Check) -> Result<bool, Error> {
     match constraint {
-        Check::BoundsIntInt(check) => bounds_check::<true, true>(machine, *check),
-        Check::BoundsIntUint(check) => bounds_check::<true, false>(machine, *check),
-        Check::BoundsUintInt(check) => bounds_check::<false, true>(machine, *check),
-        Check::BoundsUintUint(check) => bounds_check::<false, false>(machine, *check),
+        Check::BoundsIntInt(check) => bounds_check::<true, true>(activation, *check),
+        Check::BoundsIntUint(check) => bounds_check::<true, false>(activation, *check),
+        Check::BoundsUintInt(check) => bounds_check::<false, true>(activation, *check),
+        Check::BoundsUintUint(check) => bounds_check::<false, false>(activation, *check),
         Check::Null { value } => {
-            let value = machine.load_word_at(*value);
+            let value = activation.load_word_at(*value);
 
             Ok(value.bits() != 0)
         }
         Check::DivZeroInt { divisor } => {
-            let value = load_signed_word(machine, *divisor);
+            let value = load_signed_word(activation, *divisor);
 
             Ok(value != 0)
         }
         Check::DivZeroUint { divisor } => {
-            let value = load_unsigned_word(machine, *divisor);
+            let value = load_unsigned_word(activation, *divisor);
 
             Ok(value != 0)
         }
-        Check::ShiftRangeInt(check) => Ok(shift_range_check::<true>(machine, *check)),
-        Check::ShiftRangeUint(check) => Ok(shift_range_check::<false>(machine, *check)),
-        Check::NarrowInt(check) => Ok(narrow_check::<true>(machine, *check)),
-        Check::NarrowUint(check) => Ok(narrow_check::<false>(machine, *check)),
-        Check::OverflowAddInt(check) => Ok(overflow_add_int(machine, *check)),
-        Check::OverflowAddUint(check) => Ok(overflow_add_uint(machine, *check)),
-        Check::OverflowSubInt(check) => Ok(overflow_sub_int(machine, *check)),
-        Check::OverflowSubUint(check) => Ok(overflow_sub_uint(machine, *check)),
-        Check::OverflowMulInt(check) => Ok(overflow_mul_int(machine, *check)),
-        Check::OverflowMulUint(check) => Ok(overflow_mul_uint(machine, *check)),
-        Check::OverflowDivInt(check) => overflow_div_int(machine, *check),
-        Check::OverflowDivUint(check) => overflow_div_uint(machine, *check),
+        Check::ShiftRangeInt(check) => Ok(shift_range_check::<true>(activation, *check)),
+        Check::ShiftRangeUint(check) => Ok(shift_range_check::<false>(activation, *check)),
+        Check::NarrowInt(check) => Ok(narrow_check::<true>(activation, *check)),
+        Check::NarrowUint(check) => Ok(narrow_check::<false>(activation, *check)),
+        Check::OverflowAddInt(check) => Ok(overflow_add_int(activation, *check)),
+        Check::OverflowAddUint(check) => Ok(overflow_add_uint(activation, *check)),
+        Check::OverflowSubInt(check) => Ok(overflow_sub_int(activation, *check)),
+        Check::OverflowSubUint(check) => Ok(overflow_sub_uint(activation, *check)),
+        Check::OverflowMulInt(check) => Ok(overflow_mul_int(activation, *check)),
+        Check::OverflowMulUint(check) => Ok(overflow_mul_uint(activation, *check)),
+        Check::OverflowDivInt(check) => overflow_div_int(activation, *check),
+        Check::OverflowDivUint(check) => overflow_div_uint(activation, *check),
         Check::Type { value, expected } => {
-            let value = machine.load_word_at(*value);
+            let value = activation.load_word_at(*value);
 
             Ok(value.as_u64() == u64::from(*expected))
         }
-        Check::Variant(check) => Ok(variant_check(machine, *check)),
+        Check::Variant(check) => Ok(variant_check(activation, *check)),
     }
 }
 
 /// Execute assume (optimizer hint).
 pub(crate) fn execute_assume(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let _ = instruction;
@@ -422,33 +422,33 @@ pub(crate) fn execute_assume(
 
 /// Return an address from a lowered frame offset.
 #[inline(always)]
-fn frame_address(machine: &Machine<'_, '_>, offset: u32) -> Word {
-    Word::frame_pointer(machine.frame_pointer_at(offset))
+fn frame_address(activation: &Activation<'_>, offset: u32) -> Word {
+    Word::frame_pointer(activation.frame_pointer_at(offset))
 }
 
 /// Execute word return.
 pub(crate) fn execute_return_word(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let return_value = machine.load_word_at(instruction.a);
+    let return_value = activation.load_word_at(instruction.a);
 
     Transfer::Return(return_value)
 }
 
 /// Execute address return.
 pub(crate) fn execute_return_address(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let return_value = frame_address(machine, instruction.a);
+    let return_value = frame_address(activation, instruction.a);
 
     Transfer::Return(return_value)
 }
 
 /// Execute void return.
 pub(crate) fn execute_return_void(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let _ = instruction;
@@ -458,10 +458,10 @@ pub(crate) fn execute_return_void(
 
 /// Execute word yield.
 pub(crate) fn execute_yield_word(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let yield_value = machine.load_word_at(instruction.a);
+    let yield_value = activation.load_word_at(instruction.a);
     let source_type = mir::LocalNodeId::new(instruction.b);
     let frame_state = engine::FrameStateId(instruction.c);
 
@@ -474,10 +474,10 @@ pub(crate) fn execute_yield_word(
 
 /// Execute address yield.
 pub(crate) fn execute_yield_address(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let yield_value = frame_address(machine, instruction.a);
+    let yield_value = frame_address(activation, instruction.a);
     let source_type = mir::LocalNodeId::new(instruction.b);
     let frame_state = engine::FrameStateId(instruction.c);
 
@@ -490,7 +490,7 @@ pub(crate) fn execute_yield_address(
 
 /// Execute unconditional jump (exits tail-call chain).
 #[inline(always)]
-pub(crate) fn execute_jump(_machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
+pub(crate) fn execute_jump(_machine: &mut Activation<'_>, instruction: &Instruction) -> Transfer {
     let moves = MoveRange {
         start: instruction.b,
         len: instruction.c,
@@ -506,15 +506,15 @@ pub(crate) fn execute_jump(_machine: &mut Machine<'_, '_>, instruction: &Instruc
 /// Execute boolean branch (exits tail-call chain).
 #[inline(always)]
 pub(crate) fn execute_branch_bool(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let condition = instruction.a;
-    let then_edge = control_edge(machine, instruction.b);
-    let else_edge = control_edge(machine, instruction.c);
+    let then_edge = control_edge(activation, instruction.b);
+    let else_edge = control_edge(activation, instruction.c);
 
     // evaluate branch condition
-    let condition = machine.load_word_at(condition);
+    let condition = activation.load_word_at(condition);
     let is_truthy = condition.bits() != 0;
 
     branch_transfer(is_truthy, then_edge, else_edge)
@@ -564,13 +564,16 @@ fixed_compare_branch_executor! {
 }
 
 /// Execute runtime check (exits tail-call chain).
-pub(crate) fn execute_check(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
-    let constraint = machine.check(CheckId(instruction.a));
-    let then_edge = control_edge(machine, instruction.b);
-    let else_edge = control_edge(machine, instruction.c);
+pub(crate) fn execute_check(
+    activation: &mut Activation<'_>,
+    instruction: &Instruction,
+) -> Transfer {
+    let constraint = activation.check(CheckId(instruction.a));
+    let then_edge = control_edge(activation, instruction.b);
+    let else_edge = control_edge(activation, instruction.c);
 
     // evaluate the runtime guard
-    let is_truthy = match evaluate_check(machine, constraint) {
+    let is_truthy = match evaluate_check(activation, constraint) {
         Ok(is_truthy) => is_truthy,
         Err(error) => return Transfer::Error(error),
     };
@@ -581,10 +584,10 @@ pub(crate) fn execute_check(machine: &mut Machine<'_, '_>, instruction: &Instruc
 /// Execute integer equality branch.
 #[inline(always)]
 pub(crate) fn execute_branch_eq_word(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.bits() == right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -593,10 +596,10 @@ pub(crate) fn execute_branch_eq_word(
 /// Execute integer inequality branch.
 #[inline(always)]
 pub(crate) fn execute_branch_ne_word(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.bits() != right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -605,10 +608,10 @@ pub(crate) fn execute_branch_ne_word(
 /// Execute signed integer less-than branch.
 #[inline(always)]
 pub(crate) fn execute_branch_lt_word_int(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = (left.bits() as i64) < (right.bits() as i64);
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -617,10 +620,10 @@ pub(crate) fn execute_branch_lt_word_int(
 /// Execute signed integer less-or-equal branch.
 #[inline(always)]
 pub(crate) fn execute_branch_le_word_int(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = (left.bits() as i64) <= (right.bits() as i64);
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -629,10 +632,10 @@ pub(crate) fn execute_branch_le_word_int(
 /// Execute signed integer greater-than branch.
 #[inline(always)]
 pub(crate) fn execute_branch_gt_word_int(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = (left.bits() as i64) > (right.bits() as i64);
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -641,10 +644,10 @@ pub(crate) fn execute_branch_gt_word_int(
 /// Execute signed integer greater-or-equal branch.
 #[inline(always)]
 pub(crate) fn execute_branch_ge_word_int(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = (left.bits() as i64) >= (right.bits() as i64);
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -653,10 +656,10 @@ pub(crate) fn execute_branch_ge_word_int(
 /// Execute unsigned integer less-than branch.
 #[inline(always)]
 pub(crate) fn execute_branch_lt_word_uint(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.bits() < right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -665,10 +668,10 @@ pub(crate) fn execute_branch_lt_word_uint(
 /// Execute unsigned integer less-or-equal branch.
 #[inline(always)]
 pub(crate) fn execute_branch_le_word_uint(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.bits() <= right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -677,10 +680,10 @@ pub(crate) fn execute_branch_le_word_uint(
 /// Execute unsigned integer greater-than branch.
 #[inline(always)]
 pub(crate) fn execute_branch_gt_word_uint(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.bits() > right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -689,10 +692,10 @@ pub(crate) fn execute_branch_gt_word_uint(
 /// Execute unsigned integer greater-or-equal branch.
 #[inline(always)]
 pub(crate) fn execute_branch_ge_word_uint(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.bits() >= right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -701,10 +704,10 @@ pub(crate) fn execute_branch_ge_word_uint(
 /// Execute float32 equality branch.
 #[inline(always)]
 pub(crate) fn execute_branch_eq_f32(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f32() == right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -713,10 +716,10 @@ pub(crate) fn execute_branch_eq_f32(
 /// Execute float32 inequality branch.
 #[inline(always)]
 pub(crate) fn execute_branch_ne_f32(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f32() != right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -725,10 +728,10 @@ pub(crate) fn execute_branch_ne_f32(
 /// Execute float32 less-than branch.
 #[inline(always)]
 pub(crate) fn execute_branch_lt_f32(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f32() < right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -737,10 +740,10 @@ pub(crate) fn execute_branch_lt_f32(
 /// Execute float32 less-or-equal branch.
 #[inline(always)]
 pub(crate) fn execute_branch_le_f32(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f32() <= right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -749,10 +752,10 @@ pub(crate) fn execute_branch_le_f32(
 /// Execute float32 greater-than branch.
 #[inline(always)]
 pub(crate) fn execute_branch_gt_f32(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f32() > right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -761,10 +764,10 @@ pub(crate) fn execute_branch_gt_f32(
 /// Execute float32 greater-or-equal branch.
 #[inline(always)]
 pub(crate) fn execute_branch_ge_f32(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f32() >= right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -773,10 +776,10 @@ pub(crate) fn execute_branch_ge_f32(
 /// Execute float64 equality branch.
 #[inline(always)]
 pub(crate) fn execute_branch_eq_f64(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f64() == right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -785,10 +788,10 @@ pub(crate) fn execute_branch_eq_f64(
 /// Execute float64 inequality branch.
 #[inline(always)]
 pub(crate) fn execute_branch_ne_f64(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f64() != right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -797,10 +800,10 @@ pub(crate) fn execute_branch_ne_f64(
 /// Execute float64 less-than branch.
 #[inline(always)]
 pub(crate) fn execute_branch_lt_f64(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f64() < right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -809,10 +812,10 @@ pub(crate) fn execute_branch_lt_f64(
 /// Execute float64 less-or-equal branch.
 #[inline(always)]
 pub(crate) fn execute_branch_le_f64(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f64() <= right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -821,10 +824,10 @@ pub(crate) fn execute_branch_le_f64(
 /// Execute float64 greater-than branch.
 #[inline(always)]
 pub(crate) fn execute_branch_gt_f64(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f64() > right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -833,56 +836,59 @@ pub(crate) fn execute_branch_gt_f64(
 /// Execute float64 greater-or-equal branch.
 #[inline(always)]
 pub(crate) fn execute_branch_ge_f64(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(machine, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
     let is_truthy = left.as_f64() >= right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
 }
 
 /// Execute an integer switch.
-pub(crate) fn execute_switch(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
+pub(crate) fn execute_switch(
+    activation: &mut Activation<'_>,
+    instruction: &Instruction,
+) -> Transfer {
     let (width, is_signed) = switch_layout(instruction.d);
 
     if width <= u64::BITS && is_signed {
-        return execute_switch_word::<true>(machine, instruction);
+        return execute_switch_word::<true>(activation, instruction);
     }
 
     if width <= u64::BITS {
-        return execute_switch_word::<false>(machine, instruction);
+        return execute_switch_word::<false>(activation, instruction);
     }
 
     if is_signed {
-        return execute_switch_wide::<true>(machine, instruction);
+        return execute_switch_wide::<true>(activation, instruction);
     }
 
-    execute_switch_wide::<false>(machine, instruction)
+    execute_switch_wide::<false>(activation, instruction)
 }
 
 /// Execute an integer switch via dense jump table.
 pub(crate) fn execute_switch_table(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let (_, is_signed) = switch_layout(instruction.d);
 
     if is_signed {
-        return execute_switch_table_word::<true>(machine, instruction);
+        return execute_switch_table_word::<true>(activation, instruction);
     }
 
-    execute_switch_table_word::<false>(machine, instruction)
+    execute_switch_table_word::<false>(activation, instruction)
 }
 
 /// Execute a word switch.
 fn execute_switch_word<const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let cases = machine.switch_cases(SwitchCasesId(instruction.b));
-    let default_edge = control_edge(machine, instruction.c);
-    let int_val = load_word_switch_value::<IS_SIGNED>(machine, instruction.a);
+    let cases = activation.switch_cases(SwitchCasesId(instruction.b));
+    let default_edge = control_edge(activation, instruction.c);
+    let int_val = load_word_switch_value::<IS_SIGNED>(activation, instruction.a);
 
     // find matching case
     for case in cases {
@@ -899,15 +905,15 @@ fn execute_switch_word<const IS_SIGNED: bool>(
 
 /// Execute a wide integer switch.
 fn execute_switch_wide<const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let cases = machine.switch_cases(SwitchCasesId(instruction.b));
-    let default_edge = control_edge(machine, instruction.c);
+    let cases = activation.switch_cases(SwitchCasesId(instruction.b));
+    let default_edge = control_edge(activation, instruction.c);
 
     // load switch value
     let (width, _) = switch_layout(instruction.d);
-    let int_val = match load_wide_switch_value::<IS_SIGNED>(machine, instruction.a, width) {
+    let int_val = match load_wide_switch_value::<IS_SIGNED>(activation, instruction.a, width) {
         Ok(Some(int_val)) => int_val,
         Ok(None) => return default_switch_transfer(default_edge),
         Err(error) => return Transfer::Error(error),
@@ -930,12 +936,12 @@ fn execute_switch_wide<const IS_SIGNED: bool>(
 
 /// Execute a word switch via dense jump table.
 fn execute_switch_table_word<const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let table = machine.switch_table(SwitchTableId(instruction.b));
-    let default_edge = control_edge(machine, instruction.c);
-    let int_val = load_word_switch_value::<IS_SIGNED>(machine, instruction.a);
+    let table = activation.switch_table(SwitchTableId(instruction.b));
+    let default_edge = control_edge(activation, instruction.c);
+    let int_val = load_word_switch_value::<IS_SIGNED>(activation, instruction.a);
 
     // resolve jump table entry
     if int_val < table.min {
@@ -953,15 +959,15 @@ fn execute_switch_table_word<const IS_SIGNED: bool>(
 }
 
 /// Execute abort.
-pub(crate) fn execute_abort(
-    _machine: &mut Machine<'_, '_>,
-    _instruction: &Instruction,
-) -> Transfer {
+pub(crate) fn execute_abort(_machine: &mut Activation<'_>, _instruction: &Instruction) -> Transfer {
     Transfer::Error(Error::abort())
 }
 
 /// Execute panic.
-pub(crate) fn execute_panic(machine: &mut Machine<'_, '_>, instruction: &Instruction) -> Transfer {
+pub(crate) fn execute_panic(
+    activation: &mut Activation<'_>,
+    instruction: &Instruction,
+) -> Transfer {
     if instruction.op == Op::Panic {
         return Transfer::Error(Error::panic("panic"));
     }
@@ -970,7 +976,7 @@ pub(crate) fn execute_panic(machine: &mut Machine<'_, '_>, instruction: &Instruc
         return Transfer::Error(Error::panic("panic resumed"));
     }
 
-    let payload = machine.load_word_at(instruction.a);
+    let payload = activation.load_word_at(instruction.a);
     let message = format!("panic payload: {payload:?}");
 
     Transfer::Error(Error::panic(message))
@@ -978,7 +984,7 @@ pub(crate) fn execute_panic(machine: &mut Machine<'_, '_>, instruction: &Instruc
 
 /// Execute unreachable (errors).
 pub(crate) fn execute_unreachable(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     _instruction: &Instruction,
 ) -> Transfer {
     // return unreachable error

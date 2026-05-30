@@ -5,7 +5,7 @@ use super::frame::{
 };
 use super::{access, closure};
 use crate::diagnostic::Error;
-use crate::interpreter::{Frame, Machine};
+use crate::machine::{Activation, Frame};
 use crate::program::{
     ArgumentRange, Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect,
     CallIndirectBranch, CallTarget, CallVirtual, CallVirtualBranch, ClosureBind, Function,
@@ -17,20 +17,20 @@ use destack_mir as mir;
 
 /// Load one lowered call table field from a receiver.
 fn load_receiver_field<const IS_SHARED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     receiver: Word,
     field: Projection,
 ) -> Result<Word, Error> {
     if IS_SHARED {
         return Ok(access::load_shared_heap_scalar::<8, false>(
-            machine,
+            activation,
             receiver,
             field.byte_offset,
         ));
     }
 
     Ok(access::load_heap_scalar::<8, false>(
-        machine,
+        activation,
         receiver,
         field.byte_offset,
     ))
@@ -38,12 +38,12 @@ fn load_receiver_field<const IS_SHARED: bool>(
 
 /// Load one function target from an immutable dispatch table.
 fn load_dispatch_slot(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     table_pointer: engine::StaticPointer,
     slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // dispatch table slots are target pointers
-    let pointer_bytes = machine.program.tree.pointer_bytes() as usize;
+    let pointer_bytes = activation.machine.program.tree.pointer_bytes() as usize;
     let byte_offset = slot as usize * pointer_bytes;
     let entry_pointer = table_pointer.add_bytes(byte_offset);
 
@@ -71,35 +71,35 @@ fn load_function_pointer(address: usize, pointer_bytes: usize) -> Result<Word, E
 
 /// Resolve the callee for one virtual call.
 fn resolve_virtual_callee<const IS_SHARED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     receiver: Word,
     table_field: Projection,
     slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // load the vtable pointer from the receiver
-    let vtable_value = load_receiver_field::<IS_SHARED>(machine, receiver, table_field)?;
+    let vtable_value = load_receiver_field::<IS_SHARED>(activation, receiver, table_field)?;
     let vtable_pointer = vtable_value.as_static_pointer();
 
-    load_dispatch_slot(machine, vtable_pointer, slot)
+    load_dispatch_slot(activation, vtable_pointer, slot)
 }
 
 /// Resolve the callee for one dynamic call.
 fn resolve_dynamic_callee<const IS_SHARED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     receiver: Word,
     table_field: Projection,
     slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // load the dynamic table pointer from the erased receiver
-    let dynamic_table_value = load_receiver_field::<IS_SHARED>(machine, receiver, table_field)?;
+    let dynamic_table_value = load_receiver_field::<IS_SHARED>(activation, receiver, table_field)?;
     let dynamic_table_pointer = dynamic_table_value.as_static_pointer();
 
-    load_dispatch_slot(machine, dynamic_table_pointer, slot)
+    load_dispatch_slot(activation, dynamic_table_pointer, slot)
 }
 
 /// Resolve the callee for one indirect call.
 fn resolve_indirect_callee<const HAS_ENVIRONMENT: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     callee: Word,
 ) -> Result<(mir::LocalNodeId<mir::Function>, Option<Word>), Error> {
     // function pointers are already the callee payload
@@ -110,7 +110,7 @@ fn resolve_indirect_callee<const HAS_ENVIRONMENT: bool>(
     }
 
     // closure values carry a function pointer and environment pointer
-    let (function, environment_value) = closure::decode_closure(machine, callee)?;
+    let (function, environment_value) = closure::decode_closure(activation, callee)?;
     let function = mir::LocalNodeId::new(function.as_function_pointer().function_index());
 
     Ok((function, Some(environment_value)))
@@ -119,10 +119,11 @@ fn resolve_indirect_callee<const HAS_ENVIRONMENT: bool>(
 /// Require one lowered call target for a function id.
 #[inline]
 fn require_call_target(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     function: mir::LocalNodeId<mir::Function>,
 ) -> Result<CallTarget, Error> {
-    machine
+    activation
+        .machine
         .program
         .functions
         .call_target(function)
@@ -131,7 +132,7 @@ fn require_call_target(
 
 /// Load a function pointer.
 pub(crate) fn execute_address_function(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // build function pointer value
@@ -140,14 +141,14 @@ pub(crate) fn execute_address_function(
     let value = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
 
     // store result
-    machine.store_word_at(dest, value);
+    activation.store_word_at(dest, value);
 
     Ok(())
 }
 
 /// Build a closure value from one function and word environment.
 pub(crate) fn execute_bind_closure_word(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest_offset = instruction.a;
@@ -157,13 +158,13 @@ pub(crate) fn execute_bind_closure_word(
         closure_layout,
         object_layout,
         environment,
-    } = *machine.side_record::<ClosureBind>(instruction.d);
+    } = *activation.side_record::<ClosureBind>(instruction.d);
 
     // bind the function pointer and environment into a closure object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
     let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
     let value = closure::bind_closure(
-        machine,
+        activation,
         closure_layout,
         object_layout,
         function,
@@ -172,14 +173,14 @@ pub(crate) fn execute_bind_closure_word(
     )?;
 
     // store result
-    machine.store_word_at(dest_offset, value);
+    activation.store_word_at(dest_offset, value);
 
     Ok(())
 }
 
 /// Build a closure value from one function and frame address environment.
 pub(crate) fn execute_bind_closure_address(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest_offset = instruction.a;
@@ -189,13 +190,13 @@ pub(crate) fn execute_bind_closure_address(
         closure_layout,
         object_layout,
         environment,
-    } = *machine.side_record::<ClosureBind>(instruction.d);
+    } = *activation.side_record::<ClosureBind>(instruction.d);
 
     // bind the function pointer and environment into a closure object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
     let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
     let value = closure::bind_closure(
-        machine,
+        activation,
         closure_layout,
         object_layout,
         function,
@@ -204,38 +205,43 @@ pub(crate) fn execute_bind_closure_address(
     )?;
 
     // store result
-    machine.store_word_at(dest_offset, value);
+    activation.store_word_at(dest_offset, value);
 
     Ok(())
 }
 
 /// Load the closure environment pointer for the current frame.
 pub(crate) fn execute_load_closure_environment(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
 
     // load current frame environment
-    let environment = machine
+    let environment = activation
         .active_frame()
-        .load_environment(machine.frame_layout())?;
+        .load_environment(activation.active_frame_layout())?;
     let Some(environment) = environment else {
         return Err(Error::invalid_instruction());
     };
 
     // store result
-    machine.store_word_at(dest, environment);
+    activation.store_word_at(dest, environment);
 
     Ok(())
 }
 
 /// Return one local function for a call target.
 #[inline]
-fn local_function<'iso>(machine: &Machine<'_, 'iso>, target: CallTarget) -> Option<&'iso Function> {
+fn local_function(activation: &Activation<'_>, target: CallTarget) -> Option<Function> {
     // only local callees can enter directly
     match target {
-        CallTarget::Local(index) => machine.program.functions.function_by_index(index),
+        CallTarget::Local(index) => activation
+            .machine
+            .program
+            .functions
+            .function_by_index(index)
+            .cloned(),
         CallTarget::Import => None,
     }
 }
@@ -243,7 +249,7 @@ fn local_function<'iso>(machine: &Machine<'_, 'iso>, target: CallTarget) -> Opti
 /// Enter one local callee without creating a call transfer.
 #[inline]
 fn enter_local_call(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     target: CallTarget,
     env: Option<Word>,
     moves: Option<MoveRange>,
@@ -253,42 +259,52 @@ fn enter_local_call(
     let moves = moves?;
 
     // require one local callee before entering
-    let callee = local_function(machine, target)?;
+    let callee = local_function(activation, target)?;
 
-    // reject stack overflow before mutating any live machine
-    if machine.interpreter.frames.len() >= machine.options().limits.max_stack_depth {
+    // reject stack overflow before mutating any live activation
+    if activation.machine.frames.len() >= activation.machine.options.limits.max_stack_depth {
         return Some(Transfer::Error(Error::stack_overflow()));
     }
 
     // store the caller pc before allocating the callee
     {
-        let caller = machine.active_frame_mut();
+        let caller = activation.active_frame_mut();
         caller.pc = resume_pc;
     }
 
-    let layout = match machine.program.frame_layout_by_id(callee.frame_layout) {
+    let layout = match activation
+        .machine
+        .program
+        .frame_layout_by_id(callee.frame_layout)
+        .cloned()
+    {
         Some(layout) => layout,
         None => return Some(Transfer::Error(Error::invalid_instruction())),
     };
-    let (stack_offset, frame_base) = match machine.interpreter.allocate_frame(layout) {
+    let (stack_offset, frame_base) = match activation.machine.allocate_frame(&layout) {
         Ok(frame) => frame,
         Err(error) => return Some(Transfer::Error(error.error)),
     };
-    let mut new_frame = Frame::new(callee, callee.entry, layout, stack_offset, frame_base);
-    if let Err(error) = new_frame.store_environment(layout, env) {
+    let mut new_frame = Frame::new(&callee, callee.entry, &layout, stack_offset, frame_base);
+    if let Err(error) = new_frame.store_environment(&layout, env) {
         return Some(Transfer::Error(error));
     }
 
     // bind parameters from the current caller frame
-    let caller_index = machine.frame_index;
+    let caller_index = activation.active_frame_index;
     let current_function = {
-        let frame = machine.active_frame();
-        match machine.program.functions.function_by_id(frame.function()) {
+        let frame = activation.active_frame();
+        match activation
+            .machine
+            .program
+            .functions
+            .function_by_id(frame.function())
+        {
             Some(function) => function,
             None => return Some(Transfer::Error(Error::invalid_instruction())),
         }
     };
-    let caller = match machine.frame(caller_index) {
+    let caller = match activation.frame(caller_index) {
         Ok(caller) => caller,
         Err(error) => return Some(Transfer::Error(error)),
     };
@@ -303,9 +319,9 @@ fn enter_local_call(
     }
 
     // push the callee frame and continue at its entry block
-    machine.interpreter.frames.push(new_frame);
-    let new_index = machine.interpreter.frames.len() - 1;
-    if let Err(error) = machine.enter_frame(new_index) {
+    activation.machine.frames.push(new_frame);
+    let new_index = activation.machine.frames.len() - 1;
+    if let Err(error) = activation.enter_frame(new_index) {
         return Some(Transfer::Error(error));
     }
 
@@ -314,7 +330,7 @@ fn enter_local_call(
 
 /// Enter one call or return a call transfer.
 fn enter_call(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
     arguments: ArgumentRange,
@@ -324,7 +340,8 @@ fn enter_call(
     allow_direct: bool,
 ) -> Transfer {
     // enter local callees without bouncing through transfer handling
-    if allow_direct && let Some(transfer) = enter_local_call(machine, target, env, moves, resume_pc)
+    if allow_direct
+        && let Some(transfer) = enter_local_call(activation, target, env, moves, resume_pc)
     {
         return transfer;
     }
@@ -360,7 +377,7 @@ fn call_branch_transfer(
 
 /// Execute direct function call.
 pub(crate) fn execute_call(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
@@ -370,17 +387,17 @@ pub(crate) fn execute_call(
         target,
         arguments,
         moves,
-    } = machine.side::<Call>(instruction);
+    } = activation.side::<Call>(instruction);
 
     // load target function id
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
     let moves = Some(*moves);
 
     // skip direct call when instruction limits are active
-    let allow_direct = machine.options().limits.max_instructions.is_none();
+    let allow_direct = activation.machine.options.limits.max_instructions.is_none();
 
     enter_call(
-        machine,
+        activation,
         function_id,
         *target,
         *arguments,
@@ -393,7 +410,7 @@ pub(crate) fn execute_call(
 
 /// Execute direct call terminator.
 pub(crate) fn execute_call_branch(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let CallBranch {
@@ -401,7 +418,7 @@ pub(crate) fn execute_call_branch(
         target,
         arguments,
         target_state,
-    } = machine.side::<CallBranch>(instruction);
+    } = activation.side::<CallBranch>(instruction);
 
     let function_id = mir::LocalNodeId::<mir::Function>::new(*function);
 
@@ -410,7 +427,7 @@ pub(crate) fn execute_call_branch(
 
 /// Execute a class function call with a statically known receiver heap.
 fn execute_call_virtual<const IS_SHARED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
@@ -420,26 +437,26 @@ fn execute_call_virtual<const IS_SHARED: bool>(
         table_field,
         slot,
         arguments,
-    } = machine.side::<CallVirtual>(instruction);
+    } = activation.side::<CallVirtual>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = machine.load_word_at(*receiver_offset);
-    let table_field = machine.projection(*table_field);
+    let receiver_value = activation.load_word_at(*receiver_offset);
+    let table_field = activation.projection(*table_field);
     let function_id =
-        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match require_call_target(machine, function_id) {
+    let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
 
     // skip direct call when instruction limits are active
-    let allow_direct = machine.options().limits.max_instructions.is_none();
+    let allow_direct = activation.machine.options.limits.max_instructions.is_none();
 
     enter_call(
-        machine,
+        activation,
         function_id,
         target,
         *arguments,
@@ -452,25 +469,25 @@ fn execute_call_virtual<const IS_SHARED: bool>(
 
 /// Execute class function call through a local heap receiver.
 pub(crate) fn execute_call_virtual_heap(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_virtual::<false>(machine, instruction, pc)
+    execute_call_virtual::<false>(activation, instruction, pc)
 }
 
 /// Execute class function call through a shared heap receiver.
 pub(crate) fn execute_call_virtual_shared_heap(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_virtual::<true>(machine, instruction, pc)
+    execute_call_virtual::<true>(activation, instruction, pc)
 }
 
 /// Execute a virtual call terminator with a statically known receiver heap.
 fn execute_call_virtual_branch<const IS_SHARED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let CallVirtualBranch {
@@ -479,16 +496,16 @@ fn execute_call_virtual_branch<const IS_SHARED: bool>(
         slot,
         arguments,
         target_state,
-    } = machine.side::<CallVirtualBranch>(instruction);
+    } = activation.side::<CallVirtualBranch>(instruction);
 
-    let receiver_value = machine.load_word_at(*receiver_offset);
-    let table_field = machine.projection(*table_field);
+    let receiver_value = activation.load_word_at(*receiver_offset);
+    let table_field = activation.projection(*table_field);
     let function_id =
-        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match require_call_target(machine, function_id) {
+    let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
@@ -498,23 +515,23 @@ fn execute_call_virtual_branch<const IS_SHARED: bool>(
 
 /// Execute virtual call terminator through a local heap receiver.
 pub(crate) fn execute_call_virtual_heap_branch(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_virtual_branch::<false>(machine, instruction)
+    execute_call_virtual_branch::<false>(activation, instruction)
 }
 
 /// Execute virtual call terminator through a shared heap receiver.
 pub(crate) fn execute_call_virtual_shared_heap_branch(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_virtual_branch::<true>(machine, instruction)
+    execute_call_virtual_branch::<true>(activation, instruction)
 }
 
 /// Execute a dynamic function call with a statically known receiver heap.
 fn execute_call_dynamic<const IS_SHARED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
@@ -524,26 +541,26 @@ fn execute_call_dynamic<const IS_SHARED: bool>(
         table_field,
         slot,
         arguments,
-    } = machine.side::<CallDynamic>(instruction);
+    } = activation.side::<CallDynamic>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = machine.load_word_at(*receiver_offset);
-    let table_field = machine.projection(*table_field);
+    let receiver_value = activation.load_word_at(*receiver_offset);
+    let table_field = activation.projection(*table_field);
     let function_id =
-        match resolve_dynamic_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match require_call_target(machine, function_id) {
+    let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
 
     // skip direct call when instruction limits are active
-    let allow_direct = machine.options().limits.max_instructions.is_none();
+    let allow_direct = activation.machine.options.limits.max_instructions.is_none();
 
     enter_call(
-        machine,
+        activation,
         function_id,
         target,
         *arguments,
@@ -556,25 +573,25 @@ fn execute_call_dynamic<const IS_SHARED: bool>(
 
 /// Execute dynamic function call through a local heap receiver.
 pub(crate) fn execute_call_dynamic_heap(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_dynamic::<false>(machine, instruction, pc)
+    execute_call_dynamic::<false>(activation, instruction, pc)
 }
 
 /// Execute dynamic function call through a shared heap receiver.
 pub(crate) fn execute_call_dynamic_shared_heap(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_dynamic::<true>(machine, instruction, pc)
+    execute_call_dynamic::<true>(activation, instruction, pc)
 }
 
 /// Execute a dynamic call terminator with a statically known receiver heap.
 fn execute_call_dynamic_branch<const IS_SHARED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let CallDynamicBranch {
@@ -583,16 +600,16 @@ fn execute_call_dynamic_branch<const IS_SHARED: bool>(
         slot,
         arguments,
         target_state,
-    } = machine.side::<CallDynamicBranch>(instruction);
+    } = activation.side::<CallDynamicBranch>(instruction);
 
-    let receiver_value = machine.load_word_at(*receiver_offset);
-    let table_field = machine.projection(*table_field);
+    let receiver_value = activation.load_word_at(*receiver_offset);
+    let table_field = activation.projection(*table_field);
     let function_id =
-        match resolve_dynamic_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match require_call_target(machine, function_id) {
+    let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
@@ -602,23 +619,23 @@ fn execute_call_dynamic_branch<const IS_SHARED: bool>(
 
 /// Execute dynamic call terminator through a local heap receiver.
 pub(crate) fn execute_call_dynamic_heap_branch(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_dynamic_branch::<false>(machine, instruction)
+    execute_call_dynamic_branch::<false>(activation, instruction)
 }
 
 /// Execute dynamic call terminator through a shared heap receiver.
 pub(crate) fn execute_call_dynamic_shared_heap_branch(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_dynamic_branch::<true>(machine, instruction)
+    execute_call_dynamic_branch::<true>(activation, instruction)
 }
 
 /// Execute an indirect call with a statically known callee shape.
 fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
@@ -627,30 +644,29 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
         callee_offset,
         signature,
         arguments,
-    } = machine.side::<CallIndirect>(instruction);
+    } = activation.side::<CallIndirect>(instruction);
 
     // load callee value
-    let callee_value = machine.load_word_at(*callee_offset);
+    let callee_value = activation.load_word_at(*callee_offset);
 
     // resolve closure function and environment
-    let (function_id, env) = match resolve_indirect_callee::<HAS_ENVIRONMENT>(machine, callee_value)
-    {
-        Ok(callee) => callee,
-        Err(error) => return Transfer::Error(error),
-    };
+    let (function_id, env) =
+        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_value) {
+            Ok(callee) => callee,
+            Err(error) => return Transfer::Error(error),
+        };
     let function = function_id.id;
 
-    if let Err(error) =
-        machine
-            .program
-            .functions
-            .validate_signature(machine.tree(), function_id, *signature)
-    {
+    if let Err(error) = activation.machine.program.functions.validate_signature(
+        activation.machine.tree(),
+        function_id,
+        *signature,
+    ) {
         return Transfer::Error(error);
     }
 
     // load the lowered call target
-    let target = match require_call_target(machine, function_id) {
+    let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
@@ -668,25 +684,25 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
 
 /// Execute indirect function call.
 pub(crate) fn execute_call_indirect(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_indirect_call::<false>(machine, instruction, pc)
+    execute_indirect_call::<false>(activation, instruction, pc)
 }
 
 /// Execute closure value call.
 pub(crate) fn execute_call_closure(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_indirect_call::<true>(machine, instruction, pc)
+    execute_indirect_call::<true>(activation, instruction, pc)
 }
 
 /// Execute an indirect call terminator with a statically known callee shape.
 fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let CallIndirectBranch {
@@ -694,23 +710,22 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
         signature,
         arguments,
         target_state,
-    } = machine.side::<CallIndirectBranch>(instruction);
+    } = activation.side::<CallIndirectBranch>(instruction);
 
-    let callee_value = machine.load_word_at(*callee_offset);
-    let (function_id, env) = match resolve_indirect_callee::<HAS_ENVIRONMENT>(machine, callee_value)
-    {
-        Ok(callee) => callee,
-        Err(error) => return Transfer::Error(error),
-    };
-    if let Err(error) =
-        machine
-            .program
-            .functions
-            .validate_signature(machine.tree(), function_id, *signature)
-    {
+    let callee_value = activation.load_word_at(*callee_offset);
+    let (function_id, env) =
+        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_value) {
+            Ok(callee) => callee,
+            Err(error) => return Transfer::Error(error),
+        };
+    if let Err(error) = activation.machine.program.functions.validate_signature(
+        activation.machine.tree(),
+        function_id,
+        *signature,
+    ) {
         return Transfer::Error(error);
     }
-    let target = match require_call_target(machine, function_id) {
+    let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
@@ -720,42 +735,44 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
 
 /// Execute indirect call terminator.
 pub(crate) fn execute_call_indirect_branch(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_indirect_call_branch::<false>(machine, instruction)
+    execute_indirect_call_branch::<false>(activation, instruction)
 }
 
 /// Execute closure call terminator.
 pub(crate) fn execute_call_closure_branch(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_indirect_call_branch::<true>(machine, instruction)
+    execute_indirect_call_branch::<true>(activation, instruction)
 }
 
 /// Enter a tail call by reusing the current frame.
-fn enter_tail_call<'ctx, 'iso>(
-    machine: &mut Machine<'ctx, 'iso>,
-    callee: &'iso Function,
+fn enter_tail_call(
+    activation: &mut Activation<'_>,
+    callee: &Function,
     argument_values: &[FrameValue],
     env: Option<Word>,
 ) -> Result<(), Error> {
     // load callee frame layout
-    let layout = machine
+    let layout = activation
+        .machine
         .program
         .frame_layout_by_id(callee.frame_layout)
+        .cloned()
         .ok_or(Error::invalid_instruction())?;
 
     // replace the current frame bytes in place
-    let stack_offset = machine.active_frame_mut().stack_offset;
-    machine.interpreter.truncate_stack(stack_offset);
-    let (stack_offset, frame_base) = machine
-        .interpreter
-        .allocate_frame(layout)
+    let stack_offset = activation.active_frame_mut().stack_offset;
+    activation.machine.truncate_stack(stack_offset);
+    let (stack_offset, frame_base) = activation
+        .machine
+        .allocate_frame(&layout)
         .map_err(|error| error.error)?;
     {
-        let frame = machine.active_frame_mut();
+        let frame = activation.active_frame_mut();
         frame.retarget(
             callee,
             callee.entry,
@@ -763,17 +780,18 @@ fn enter_tail_call<'ctx, 'iso>(
             layout.byte_len as usize,
             frame_base,
         );
-        frame.store_environment(layout, env)?;
+        frame.store_environment(&layout, env)?;
     }
 
-    // load dispatch metadata for the retargeted frame
-    machine.load_active_frame()?;
+    // bind dispatch metadata for the retargeted frame
+    let frame_index = activation.active_frame_index;
+    activation.bind_frame(frame_index)?;
 
     // bind function parameters
-    let program = machine.program;
+    let program = activation.machine.program.clone();
     store_parameters(
-        program,
-        machine.active_frame_mut(),
+        &program,
+        activation.active_frame_mut(),
         callee.argument_pool.as_slice(),
         callee.parameters,
         argument_values,
@@ -784,7 +802,7 @@ fn enter_tail_call<'ctx, 'iso>(
 
 /// Execute tail call to function.
 pub(crate) fn execute_tail_call(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
@@ -792,7 +810,7 @@ pub(crate) fn execute_tail_call(
         function,
         target,
         moves,
-    } = machine.side::<TailCall>(instruction);
+    } = activation.side::<TailCall>(instruction);
 
     // require the local callee
     let local_index = match *target {
@@ -810,7 +828,13 @@ pub(crate) fn execute_tail_call(
             moves: Some(*moves),
         };
     };
-    let Some(callee) = machine.program.functions.function_by_index(local_index) else {
+    let Some(callee) = activation
+        .machine
+        .program
+        .functions
+        .function_by_index(local_index)
+        .cloned()
+    else {
         return Transfer::TailCall {
             function: *function,
             target: *target,
@@ -822,21 +846,22 @@ pub(crate) fn execute_tail_call(
 
     // collect argument values
     let argument_values = {
-        let current_func = match machine
+        let current_func = match activation
+            .machine
             .program
             .functions
-            .function_by_id(machine.active_frame().function())
+            .function_by_id(activation.active_frame().function())
         {
             Some(function) => function,
             None => return Transfer::Error(Error::invalid_instruction()),
         };
-        let caller = match machine.frame(machine.frame_index) {
+        let caller = match activation.frame(activation.active_frame_index) {
             Ok(frame) => frame,
             Err(error) => return Transfer::Error(error),
         };
 
         match load_moved_arguments(
-            machine.program,
+            &activation.machine.program,
             caller,
             current_func.move_pool.as_slice(),
             *moves,
@@ -847,7 +872,7 @@ pub(crate) fn execute_tail_call(
     };
 
     // enter tail call
-    if let Err(error) = enter_tail_call(machine, callee, &argument_values, None) {
+    if let Err(error) = enter_tail_call(activation, &callee, &argument_values, None) {
         return Transfer::Error(error);
     }
 
@@ -856,7 +881,7 @@ pub(crate) fn execute_tail_call(
 
 /// Execute self tail call by reusing the current frame.
 pub(crate) fn execute_tail_call_self(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let entry = instruction.a;
@@ -866,21 +891,27 @@ pub(crate) fn execute_tail_call_self(
     };
 
     // load current function entry block
-    let function_id = machine.active_frame().function();
-    let Some(function) = machine.program.functions.function_by_id(function_id) else {
+    let function_id = activation.active_frame().function();
+    let Some(function) = activation
+        .machine
+        .program
+        .functions
+        .function_by_id(function_id)
+        .cloned()
+    else {
         return Transfer::Error(Error::undefined_function(function_id));
     };
 
     // collect argument values before clearing the frame
     let args = {
-        let caller = match machine.frame(machine.frame_index) {
+        let caller = match activation.frame(activation.active_frame_index) {
             Ok(frame) => frame,
             Err(error) => return Transfer::Error(error),
         };
 
         match load_arguments(
-            machine.program,
-            machine.interpreter.frames.as_slice(),
+            &activation.machine.program,
+            activation.machine.frames.as_slice(),
             caller,
             function.argument_pool.as_slice(),
             arguments,
@@ -889,36 +920,42 @@ pub(crate) fn execute_tail_call_self(
             Err(error) => return Transfer::Error(error),
         }
     };
-    let Some(frame_layout) = machine.program.frame_layout_by_id(function.frame_layout) else {
+    let Some(frame_layout) = activation
+        .machine
+        .program
+        .frame_layout_by_id(function.frame_layout)
+        .cloned()
+    else {
         return Transfer::Error(Error::invalid_instruction());
     };
 
     // discard stack allocations from the previous self call
     {
         let (stack_offset, frame_base) = {
-            let frame = machine.active_frame_mut();
+            let frame = activation.active_frame_mut();
             (frame.stack_offset, frame.base_address())
         };
         let frame_byte_len = frame_layout.byte_len as usize;
 
-        machine
-            .interpreter
+        activation
+            .machine
             .truncate_stack(stack_offset + frame_byte_len);
-        let frame = machine.active_frame_mut();
-        frame.retarget(function, entry, stack_offset, frame_byte_len, frame_base);
-        frame.clear_values(frame_layout);
+        let frame = activation.active_frame_mut();
+        frame.retarget(&function, entry, stack_offset, frame_byte_len, frame_base);
+        frame.clear_values(&frame_layout);
     }
 
-    // load dispatch metadata after replacing frame bytes
-    if let Err(error) = machine.load_active_frame() {
+    // bind dispatch metadata after replacing frame bytes
+    let frame_index = activation.active_frame_index;
+    if let Err(error) = activation.bind_frame(frame_index) {
         return Transfer::Error(error);
     }
 
     // bind function parameters
-    let program = machine.program;
+    let program = activation.machine.program.clone();
     if let Err(error) = store_parameters(
-        program,
-        machine.active_frame_mut(),
+        &program,
+        activation.active_frame_mut(),
         function.argument_pool.as_slice(),
         function.parameters,
         &args,
@@ -931,23 +968,23 @@ pub(crate) fn execute_tail_call_self(
 
 /// Execute indirect tail call.
 pub(crate) fn execute_tail_call_indirect(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_indirect_tail_call::<false>(machine, instruction)
+    execute_indirect_tail_call::<false>(activation, instruction)
 }
 
 /// Execute closure value tail call.
 pub(crate) fn execute_tail_call_closure(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_indirect_tail_call::<true>(machine, instruction)
+    execute_indirect_tail_call::<true>(activation, instruction)
 }
 
 /// Execute a virtual tail call with a statically known receiver heap.
 fn execute_tail_call_virtual<const IS_SHARED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
@@ -956,17 +993,17 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
         table_field,
         slot,
         arguments,
-    } = machine.side::<TailCallVirtual>(instruction);
+    } = activation.side::<TailCallVirtual>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = machine.load_word_at(*receiver_offset);
-    let table_field = machine.projection(*table_field);
+    let receiver_value = activation.load_word_at(*receiver_offset);
+    let table_field = activation.projection(*table_field);
     let function_id =
-        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match require_call_target(machine, function_id) {
+    let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
@@ -982,23 +1019,23 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
 
 /// Execute virtual tail call through a local heap receiver.
 pub(crate) fn execute_tail_call_virtual_heap(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_virtual::<false>(machine, instruction)
+    execute_tail_call_virtual::<false>(activation, instruction)
 }
 
 /// Execute virtual tail call through a shared heap receiver.
 pub(crate) fn execute_tail_call_virtual_shared_heap(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_virtual::<true>(machine, instruction)
+    execute_tail_call_virtual::<true>(activation, instruction)
 }
 
 /// Execute a dynamic tail call with a statically known receiver heap.
 fn execute_tail_call_dynamic<const IS_SHARED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
@@ -1007,17 +1044,17 @@ fn execute_tail_call_dynamic<const IS_SHARED: bool>(
         table_field,
         slot,
         arguments,
-    } = machine.side::<TailCallDynamic>(instruction);
+    } = activation.side::<TailCallDynamic>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = machine.load_word_at(*receiver_offset);
-    let table_field = machine.projection(*table_field);
+    let receiver_value = activation.load_word_at(*receiver_offset);
+    let table_field = activation.projection(*table_field);
     let function_id =
-        match resolve_dynamic_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
-    let target = match require_call_target(machine, function_id) {
+    let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
@@ -1033,23 +1070,23 @@ fn execute_tail_call_dynamic<const IS_SHARED: bool>(
 
 /// Execute dynamic tail call through a local heap receiver.
 pub(crate) fn execute_tail_call_dynamic_heap(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_dynamic::<false>(machine, instruction)
+    execute_tail_call_dynamic::<false>(activation, instruction)
 }
 
 /// Execute dynamic tail call through a shared heap receiver.
 pub(crate) fn execute_tail_call_dynamic_shared_heap(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_dynamic::<true>(machine, instruction)
+    execute_tail_call_dynamic::<true>(activation, instruction)
 }
 
 /// Execute an indirect tail call with a statically known callee shape.
 fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
@@ -1057,30 +1094,29 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
         callee_offset,
         signature,
         arguments,
-    } = machine.side::<TailCallIndirect>(instruction);
+    } = activation.side::<TailCallIndirect>(instruction);
 
     // load callee value
-    let callee_value = machine.load_word_at(*callee_offset);
+    let callee_value = activation.load_word_at(*callee_offset);
 
     // resolve closure function and environment
-    let (function_id, env) = match resolve_indirect_callee::<HAS_ENVIRONMENT>(machine, callee_value)
-    {
-        Ok(callee) => callee,
-        Err(error) => return Transfer::Error(error),
-    };
+    let (function_id, env) =
+        match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_value) {
+            Ok(callee) => callee,
+            Err(error) => return Transfer::Error(error),
+        };
     let function = function_id.id;
 
-    if let Err(error) =
-        machine
-            .program
-            .functions
-            .validate_signature(machine.tree(), function_id, *signature)
-    {
+    if let Err(error) = activation.machine.program.functions.validate_signature(
+        activation.machine.tree(),
+        function_id,
+        *signature,
+    ) {
         return Transfer::Error(error);
     }
 
     // load the lowered call target
-    let target = match require_call_target(machine, function_id) {
+    let target = match require_call_target(activation, function_id) {
         Ok(target) => target,
         Err(error) => return Transfer::Error(error),
     };
@@ -1099,7 +1135,13 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
             moves: None,
         };
     };
-    let Some(callee) = machine.program.functions.function_by_index(local_index) else {
+    let Some(callee) = activation
+        .machine
+        .program
+        .functions
+        .function_by_index(local_index)
+        .cloned()
+    else {
         return Transfer::TailCall {
             function,
             target,
@@ -1110,17 +1152,22 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     };
 
     // collect argument values
-    let caller = match machine.frame(machine.frame_index) {
+    let caller = match activation.frame(activation.active_frame_index) {
         Ok(frame) => frame,
         Err(error) => return Transfer::Error(error),
     };
-    let caller_function = match machine.program.functions.function_by_id(caller.function()) {
+    let caller_function = match activation
+        .machine
+        .program
+        .functions
+        .function_by_id(caller.function())
+    {
         Some(function) => function,
         None => return Transfer::Error(Error::invalid_instruction()),
     };
     let argument_values = match load_arguments(
-        machine.program,
-        machine.interpreter.frames.as_slice(),
+        &activation.machine.program,
+        activation.machine.frames.as_slice(),
         caller,
         caller_function.argument_pool.as_slice(),
         *arguments,
@@ -1130,7 +1177,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     };
 
     // enter tail call
-    if let Err(error) = enter_tail_call(machine, callee, &argument_values, env) {
+    if let Err(error) = enter_tail_call(activation, &callee, &argument_values, env) {
         return Transfer::Error(error);
     }
 

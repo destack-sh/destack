@@ -6,7 +6,7 @@ use destack_mir as mir;
 
 use crate::Word;
 use crate::diagnostic::Error;
-use crate::interpreter::Machine;
+use crate::machine::Activation;
 use crate::program::{
     AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
     AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Instruction,
@@ -21,32 +21,32 @@ macro_rules! atomic_ref {
 
 /// Execute one atomic load.
 pub(crate) fn execute_atomic_load(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode precomputed addressing and ordering
     let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = machine.load_word_at(instruction.b);
-    let address = atomic_address(machine, pointer, shape.address)?;
+    let pointer = activation.load_word_at(instruction.b);
+    let address = atomic_address(activation, pointer, shape.address)?;
 
     // load and publish the scalar result
     let raw = atomic_load(address, shape)?;
     let value = atomic_word(raw, shape);
-    machine.store_word_at(instruction.a, value);
+    activation.store_word_at(instruction.a, value);
 
     Ok(())
 }
 
 /// Execute one atomic store.
 pub(crate) fn execute_atomic_store(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode precomputed addressing and ordering
     let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = machine.load_word_at(instruction.a);
-    let value = machine.load_word_at(instruction.b);
-    let address = atomic_address(machine, pointer, shape.address)?;
+    let pointer = activation.load_word_at(instruction.a);
+    let value = activation.load_word_at(instruction.b);
+    let address = atomic_address(activation, pointer, shape.address)?;
 
     // store the scalar payload
     atomic_store(address, value.bits(), shape)?;
@@ -56,34 +56,34 @@ pub(crate) fn execute_atomic_store(
 
 /// Execute one atomic exchange.
 pub(crate) fn execute_atomic_exchange(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode precomputed addressing and ordering
     let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = machine.load_word_at(instruction.b);
-    let value = machine.load_word_at(instruction.c);
-    let address = atomic_address(machine, pointer, shape.address)?;
+    let pointer = activation.load_word_at(instruction.b);
+    let value = activation.load_word_at(instruction.c);
+    let address = atomic_address(activation, pointer, shape.address)?;
 
     // exchange and publish the old scalar value
     let raw = atomic_exchange(address, value.bits(), shape)?;
     let value = atomic_word(raw, shape);
-    machine.store_word_at(instruction.a, value);
+    activation.store_word_at(instruction.a, value);
 
     Ok(())
 }
 
 /// Execute one atomic compare exchange.
 pub(crate) fn execute_atomic_compare_exchange(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode aggregate result metadata
-    let compare_exchange = *machine.side::<AtomicCompareExchange>(instruction);
-    let pointer = machine.load_word_at(compare_exchange.pointer_offset);
-    let expected = machine.load_word_at(compare_exchange.expected_offset);
-    let new_value = machine.load_word_at(compare_exchange.new_value_offset);
-    let address = atomic_address(machine, pointer, compare_exchange.shape.address)?;
+    let compare_exchange = *activation.side::<AtomicCompareExchange>(instruction);
+    let pointer = activation.load_word_at(compare_exchange.pointer_offset);
+    let expected = activation.load_word_at(compare_exchange.expected_offset);
+    let new_value = activation.load_word_at(compare_exchange.new_value_offset);
+    let address = atomic_address(activation, pointer, compare_exchange.shape.address)?;
 
     // execute compare exchange and build the pair result
     let old = atomic_compare_exchange(
@@ -97,31 +97,31 @@ pub(crate) fn execute_atomic_compare_exchange(
     let success = old == truncate(expected.bits(), compare_exchange.shape.width);
     let old = atomic_word(old, compare_exchange.shape);
 
-    store_compare_exchange_result(machine, compare_exchange.destination, old, success)
+    store_compare_exchange_result(activation, compare_exchange.destination, old, success)
 }
 
 /// Execute one atomic read-modify-write.
 pub(crate) fn execute_atomic_read_modify_write(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // decode precomputed addressing, ordering, and update operation
     let shape = AtomicReadModifyWriteShape::decode(instruction.d)?;
-    let pointer = machine.load_word_at(instruction.b);
-    let value = machine.load_word_at(instruction.c);
-    let address = atomic_address(machine, pointer, shape.shape.address)?;
+    let pointer = activation.load_word_at(instruction.b);
+    let value = activation.load_word_at(instruction.c);
+    let address = atomic_address(activation, pointer, shape.shape.address)?;
 
     // update and publish the old scalar value
     let raw = atomic_read_modify_write(address, value, shape)?;
     let value = atomic_word(raw, shape.shape);
-    machine.store_word_at(instruction.a, value);
+    activation.store_word_at(instruction.a, value);
 
     Ok(())
 }
 
 /// Execute one atomic fence.
 pub(crate) fn execute_atomic_fence(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     // fences only carry ordering
@@ -134,7 +134,7 @@ pub(crate) fn execute_atomic_fence(
 
 /// Resolve an atomic pointer to a native address.
 fn atomic_address(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     pointer: Word,
     address: AtomicAddress,
 ) -> Result<usize, Error> {
@@ -145,9 +145,9 @@ fn atomic_address(
 
     // references carry heap offsets, raw pointers carry raw offsets
     let address = match address {
-        AtomicAddress::Heap => machine.heap_address(pointer.as_heap_reference(), 0),
+        AtomicAddress::Heap => activation.heap_address(pointer.as_heap_reference(), 0),
         AtomicAddress::SharedHeap => {
-            machine.shared_heap_address(pointer.as_shared_heap_reference(), 0)
+            activation.shared_heap_address(pointer.as_shared_heap_reference(), 0)
         }
         AtomicAddress::Address => pointer.as_address(),
         AtomicAddress::Stack => pointer.as_stack_pointer().address(),
@@ -160,17 +160,21 @@ fn atomic_address(
 
 /// Store the compare exchange pair result.
 fn store_compare_exchange_result(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     destination: mir::Value,
     value: Word,
     success: bool,
 ) -> Result<(), Error> {
     // write old value and success flag into the destination tuple
-    super::frame::store_frame_fields(machine, destination, |_machine, index, _ty| match index {
-        0 => Ok(value),
-        1 => Ok(Word::bool(success)),
-        _ => Err(Error::invalid_instruction()),
-    })?;
+    super::frame::store_frame_fields(
+        activation,
+        destination,
+        |_machine, index, _ty| match index {
+            0 => Ok(value),
+            1 => Ok(Word::bool(success)),
+            _ => Err(Error::invalid_instruction()),
+        },
+    )?;
 
     Ok(())
 }

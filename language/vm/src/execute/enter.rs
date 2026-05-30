@@ -7,8 +7,8 @@ use super::frame::{
     store_parameters,
 };
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::interpreter::{Frame, Interpreter, Outcome};
-use crate::options::IsolateOptions;
+use crate::machine::{Activation, Frame, Outcome};
+use crate::options::LimitOptions;
 use crate::program::{ArgumentRange, CallTarget, Function, MoveRange, Program};
 
 /// Local lowered function target.
@@ -17,7 +17,7 @@ struct LocalFunction<'a> {
     function: &'a Function,
 }
 
-impl Interpreter {
+impl Activation<'_> {
     /// Require one local function from one call target.
     fn require_local_function<'a>(
         program: &'a Program,
@@ -50,14 +50,14 @@ impl Interpreter {
         let function = program.tree.get(function_id);
         let name = program.strings.get(function.name).to_string();
 
-        self.runtime_error(program, Error::import_forbidden(name))
+        self.machine.runtime_error(Error::import_forbidden(name))
     }
 
     /// Push one local call frame on the stack.
     fn push_call_frame(
         &mut self,
         program: &Program,
-        options: &IsolateOptions,
+        limits: LimitOptions,
         current_func: &Function,
         callee: LocalFunction<'_>,
         arguments: ArgumentRange,
@@ -67,8 +67,8 @@ impl Interpreter {
         return_state: Option<engine::FrameStateId>,
     ) -> RuntimeResult<()> {
         // reject stack overflow before allocating anything
-        if self.frames.len() >= options.limits.max_stack_depth {
-            return Err(self.runtime_error(program, Error::stack_overflow()));
+        if self.machine.frames.len() >= limits.max_stack_depth {
+            return Err(self.machine.runtime_error(Error::stack_overflow()));
         }
 
         // load callee entry metadata
@@ -77,10 +77,11 @@ impl Interpreter {
         let frame_layout = program
             .frame_layout_by_id(frame_layout)
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
-        let (stack_offset, frame_base) = self.allocate_frame(frame_layout)?;
+        let (stack_offset, frame_base) = self.machine.allocate_frame(frame_layout)?;
 
         // record the caller edge before mutating the stacks
         let caller_frame = self
+            .machine
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -96,10 +97,11 @@ impl Interpreter {
         );
         new_frame
             .store_environment(frame_layout, env)
-            .map_err(|error| self.runtime_error(program, error))?;
+            .map_err(|error| self.machine.runtime_error(error))?;
 
         // bind arguments from the caller into the new frame
         let caller = self
+            .machine
             .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -125,7 +127,7 @@ impl Interpreter {
         }
 
         // push the new frame
-        self.frames.push(new_frame);
+        self.machine.frames.push(new_frame);
         Ok(())
     }
 
@@ -146,15 +148,17 @@ impl Interpreter {
 
         // replace the top frame bytes
         let stack_offset = self
+            .machine
             .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?
             .stack_offset;
-        self.truncate_stack(stack_offset);
-        let (stack_offset, frame_base) = self.allocate_frame(frame_layout)?;
+        self.machine.truncate_stack(stack_offset);
+        let (stack_offset, frame_base) = self.machine.allocate_frame(frame_layout)?;
 
         // retarget the frame to the callee
         let frame = self
+            .machine
             .frames
             .last_mut()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -187,7 +191,7 @@ impl Interpreter {
     pub(crate) fn complete_call(
         &mut self,
         program: &Program,
-        options: &IsolateOptions,
+        limits: LimitOptions,
         current_func: &Function,
         function: u32,
         target: CallTarget,
@@ -208,7 +212,7 @@ impl Interpreter {
         let callee = Self::require_local_function(program, function_id, target)?;
         self.push_call_frame(
             program,
-            options,
+            limits,
             current_func,
             callee,
             arguments,
@@ -223,7 +227,7 @@ impl Interpreter {
     pub(crate) fn complete_call_branch(
         &mut self,
         program: &Program,
-        options: &IsolateOptions,
+        limits: LimitOptions,
         current_func: &Function,
         function: u32,
         target: CallTarget,
@@ -242,6 +246,7 @@ impl Interpreter {
         // otherwise push the local callee and record the pending continuation
         let callee = Self::require_local_function(program, function_id, target)?;
         let caller = self
+            .machine
             .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -256,7 +261,7 @@ impl Interpreter {
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
         self.push_call_frame(
             program,
-            options,
+            limits,
             current_func,
             callee,
             arguments,
@@ -280,6 +285,7 @@ impl Interpreter {
     ) -> RuntimeResult<Option<Outcome>> {
         // collect tail call arguments before reusing or popping the frame
         let caller = self
+            .machine
             .frames
             .last()
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
@@ -288,7 +294,7 @@ impl Interpreter {
         } else {
             load_arguments(
                 program,
-                self.frames.as_slice(),
+                self.machine.frames.as_slice(),
                 caller,
                 current_func.argument_pool.as_slice(),
                 arguments,

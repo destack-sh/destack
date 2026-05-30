@@ -1,9 +1,9 @@
 use crate::diagnostic::{Error, Trap};
 use crate::tests::{
     assert_execution_completed, assert_execution_yielded, assert_runtime_error_matches,
-    create_isolate, create_isolate_with_id,
+    create_machine, create_machine_with_id,
 };
-use crate::{IsolateId, Value};
+use destack_engine::{EngineId, Value};
 
 /// Yield returns a value and resumes with the provided argument.
 #[test]
@@ -17,12 +17,12 @@ b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yieldOnce", &[Value::int32(7)]),
+        machine.run_function_by_name_yielding("yieldOnce", &[Value::int32(7)]),
     );
     assert_eq!(value, Value::int32(5));
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(11)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(11)));
     assert_eq!(output, Value::int32(18));
 }
 
@@ -37,12 +37,12 @@ b0(v0: int32):
 b1(v2: int32, v3: int32):
     return v2
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yieldIgnore", &[Value::int32(9)]),
+        machine.run_function_by_name_yielding("yieldIgnore", &[Value::int32(9)]),
     );
     assert_eq!(value, Value::int32(1));
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(100)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(100)));
     assert_eq!(output, Value::int32(9));
 }
 
@@ -61,15 +61,15 @@ b2(v5: int32, v6: int32):
     v7: int32 = int.add v5, v6
     return v7
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yieldTwice", &[Value::int32(4)]),
+        machine.run_function_by_name_yielding("yieldTwice", &[Value::int32(4)]),
     );
     assert_eq!(value, Value::int32(2));
     let (continuation, value) =
-        assert_execution_yielded(isolate.resume(continuation, Value::int32(3)));
+        assert_execution_yielded(machine.resume(continuation, Value::int32(3)));
     assert_eq!(value, Value::int32(7));
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(10)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(10)));
     assert_eq!(output, Value::int32(17));
 }
 
@@ -84,12 +84,12 @@ b0(v0: int32):
 b1(v2: int32):
     return v2
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yieldNoArgs", &[Value::int32(3)]),
+        machine.run_function_by_name_yielding("yieldNoArgs", &[Value::int32(3)]),
     );
     assert_eq!(value, Value::int32(4));
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(9)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(9)));
     assert_eq!(output, Value::int32(9));
 }
 
@@ -108,12 +108,12 @@ b1(v2: int32):
     v4: int32 = int.add v3, v2
     return v4
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yieldWithLocal", &[Value::int32(1)]),
+        machine.run_function_by_name_yielding("yieldWithLocal", &[Value::int32(1)]),
     );
     assert_eq!(value, Value::int32(4));
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(6)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(6)));
     assert_eq!(output, Value::int32(10));
 }
 
@@ -131,12 +131,12 @@ b1(v3: int32, v4: int32, v5: int32):
     v7: int32 = int.add v6, v5
     return v7
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yieldPrefix", &[Value::int32(5)]),
+        machine.run_function_by_name_yielding("yieldPrefix", &[Value::int32(5)]),
     );
     assert_eq!(value, Value::int32(10));
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(7)));
     assert_eq!(output, Value::int32(32));
 }
 
@@ -159,12 +159,12 @@ b2(v8: int32, v9: int32, v10: int32):
 b3(v12: int32):
     return v12
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yieldTrailing", &[Value::int32(2)]),
+        machine.run_function_by_name_yielding("yieldTrailing", &[Value::int32(2)]),
     );
     assert_eq!(value, Value::int32(3));
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(0)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(0)));
     assert_eq!(output, Value::int32(0));
 }
 
@@ -186,12 +186,12 @@ b0(v0: int32):
     v2: int32 = int.add v1, v0
     return v2
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("outer", &[Value::int32(5)]),
+        machine.run_function_by_name_yielding("outer", &[Value::int32(5)]),
     );
     assert_eq!(value, Value::int32(5));
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(7)));
     assert_eq!(output, Value::int32(13));
 }
 
@@ -216,12 +216,12 @@ b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("caller", &[Value::int32(7)]),
+        machine.run_function_by_name_yielding("caller", &[Value::int32(7)]),
     );
     assert_eq!(value, Value::int32(5));
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(3)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(3)));
     assert_eq!(output, Value::int32(20));
 }
 
@@ -237,12 +237,12 @@ b0:
 b1(v2: int32):
     return v2
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldStackLocal", &[]));
+        assert_execution_yielded(machine.run_function_by_name_yielding("yieldStackLocal", &[]));
     assert_eq!(value, Value::int32(1));
 
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(7)));
     assert_eq!(output, Value::int32(7));
 }
 
@@ -258,9 +258,9 @@ b0:
 b1(v2: int32):
     return v2
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (_continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yieldRetiredStackLocal", &[]),
+        machine.run_function_by_name_yielding("yieldRetiredStackLocal", &[]),
     );
     assert_eq!(value, Value::int32(1));
 }
@@ -281,13 +281,13 @@ b0(v0: int32):
     v2: int32 = call yieldInner(v0): (int32) -> int32
     return v2
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("outerWithStackLocal", &[Value::int32(5)]),
+        machine.run_function_by_name_yielding("outerWithStackLocal", &[Value::int32(5)]),
     );
     assert_eq!(value, Value::int32(5));
 
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(9)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(9)));
     assert_eq!(output, Value::int32(9));
 }
 
@@ -307,12 +307,12 @@ b1(v3: int32):
     v4: int32 = load v1
     return v4
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldFramePointer", &[]));
+        assert_execution_yielded(machine.run_function_by_name_yielding("yieldFramePointer", &[]));
     assert_eq!(value, Value::int32(2));
 
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(11)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(11)));
     assert_eq!(output, Value::int32(1));
 }
 
@@ -328,8 +328,8 @@ b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
 }"#;
-    let mut isolate = create_isolate(mir);
-    let result = isolate.run_function_by_name("yieldOnce", &[Value::int32(7)]);
+    let mut machine = create_machine(mir);
+    let result = machine.run_function_by_name("yieldOnce", &[Value::int32(7)]);
     assert_runtime_error_matches!(
         result,
         Error::Trap {
@@ -338,7 +338,7 @@ b1(v2: int32, v3: int32):
     );
 }
 
-/// Resume with a continuation from another isolate reports an error.
+/// Resume with a continuation from another machine reports an error.
 #[test]
 fn test_resume_invalid_continuation() {
     let mir = r#"
@@ -350,12 +350,12 @@ b1(v2: int32, v3: int32):
     v4: int32 = int.add v2, v3
     return v4
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, _value) = assert_execution_yielded(
-        isolate.run_function_by_name_yielding("yieldOnce", &[Value::int32(7)]),
+        machine.run_function_by_name_yielding("yieldOnce", &[Value::int32(7)]),
     );
-    let mut other_isolate = create_isolate_with_id(mir, IsolateId::new(2));
-    let result = other_isolate.resume(continuation, Value::int32(0));
+    let mut other_machine = create_machine_with_id(mir, EngineId::new(2));
+    let result = other_machine.resume(continuation, Value::int32(0));
     assert_runtime_error_matches!(
         result,
         Error::Trap {
@@ -375,14 +375,14 @@ b0:
 b1(v1: int32):
     return v1
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, value) =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldOnce", &[]));
+        assert_execution_yielded(machine.run_function_by_name_yielding("yieldOnce", &[]));
     assert_eq!(value, Value::int32(1));
     let forked = continuation.fork().expect("continuation should fork");
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(5)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(5)));
     assert_eq!(output, Value::int32(5));
-    let output = assert_execution_completed(isolate.resume(forked, Value::int32(9)));
+    let output = assert_execution_completed(machine.resume(forked, Value::int32(9)));
     assert_eq!(output, Value::int32(9));
 }
 
@@ -406,14 +406,14 @@ b1(v3: Pair, v4: int32):
     v6: int32 = load v5
     return v6
 }"#;
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (mut continuation, _value) =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldAlloc", &[]));
-    let stats = isolate.collect_garbage_with_continuations(std::slice::from_mut(&mut continuation));
+        assert_execution_yielded(machine.run_function_by_name_yielding("yieldAlloc", &[]));
+    let stats = machine.collect_garbage_with_continuations(std::slice::from_mut(&mut continuation));
     assert_eq!(stats.live_allocations, 1);
-    let output = assert_execution_completed(isolate.resume(continuation, Value::int32(7)));
+    let output = assert_execution_completed(machine.resume(continuation, Value::int32(7)));
     assert_eq!(output, Value::int32(1));
-    let stats = isolate.collect_garbage();
+    let stats = machine.collect_garbage();
     assert_eq!(stats.live_allocations, 0);
 }
 
@@ -438,25 +438,25 @@ b1(v3: Pair, v4: int32):
     return v6
 }"#;
 
-    let mut isolate = create_isolate(mir);
+    let mut machine = create_machine(mir);
     let (continuation, _value) =
-        assert_execution_yielded(isolate.run_function_by_name_yielding("yieldAlloc", &[]));
+        assert_execution_yielded(machine.run_function_by_name_yielding("yieldAlloc", &[]));
 
-    let mut image = isolate
-        .isolate
+    let mut image = machine
+        .machine
         .continuation_image(&continuation)
         .expect("continuation image should capture");
-    let trace_table = isolate.isolate.trace_table();
+    let trace_table = machine.machine.trace_table();
     let mut heap_roots =
         |visit: &mut dyn FnMut(destack_heap::RootSlot<'_>) -> destack_heap::HeapResult<()>| {
-            isolate
-                .isolate
+            machine
+                .machine
                 .visit_image_root_slots(&mut image, visit)
                 .expect("continuation image roots should collect");
 
             Ok::<(), destack_heap::HeapError>(())
         };
-    let stats = isolate
+    let stats = machine
         .heap
         .collect_full(&mut heap_roots, trace_table.as_ref())
         .expect("heap should collect");
