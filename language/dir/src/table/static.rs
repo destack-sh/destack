@@ -107,13 +107,8 @@ impl<'a> StaticTable<'a> {
 
     /// Find one exact static value by shape.
     pub fn find_static(&self, expected: &StaticTerm) -> Option<LocalStaticId> {
-        for static_id in self.iter_static_ids() {
-            if self.get_static(static_id) == expected {
-                return Some(static_id);
-            }
-        }
-
-        None
+        self.iter_static_ids()
+            .find(|&static_id| self.get_static(static_id) == expected)
     }
 
     /// Intern one static value into a mutable tail segment.
@@ -204,13 +199,8 @@ impl StaticSegment {
 
     /// Find one exact static value by shape.
     pub fn find_static(&self, expected: &StaticTerm) -> Option<LocalStaticId> {
-        for static_id in self.iter_static_ids() {
-            if self.get_static(static_id) == expected {
-                return Some(static_id);
-            }
-        }
-
-        None
+        self.iter_static_ids()
+            .find(|&static_id| self.get_static(static_id) == expected)
     }
 
     /// Get a static value by its id.

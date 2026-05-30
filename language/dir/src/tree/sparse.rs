@@ -73,11 +73,11 @@ where
     /// Remove one value by node id.
     #[inline]
     pub(crate) fn remove(&mut self, node_id: u32) {
-        if let Some(last) = self.entries.last() {
-            if last.node_id == node_id {
-                self.entries.pop();
-                return;
-            }
+        if let Some(last) = self.entries.last()
+            && last.node_id == node_id
+        {
+            self.entries.pop();
+            return;
         }
 
         if let Ok(index) = self

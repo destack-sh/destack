@@ -343,10 +343,10 @@ impl Parser {
             (false, width)
         } else if let Some(width) = suffix.strip_prefix('i') {
             (true, width)
-        } else if let Some(width) = suffix.strip_prefix('u') {
-            (false, width)
         } else {
-            return None;
+            let width = suffix.strip_prefix('u')?;
+
+            (false, width)
         };
         let width: u16 = width_text.parse().ok()?;
 

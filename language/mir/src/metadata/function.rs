@@ -44,7 +44,7 @@ impl FunctionMetadataTable {
 }
 
 /// Metadata for one function body or declaration.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionMetadata {
     /// Memory touched by this function.
     pub memory: MemoryEffect,
@@ -54,18 +54,8 @@ pub struct FunctionMetadata {
     pub allocation_size: Option<AllocationSize>,
 }
 
-impl Default for FunctionMetadata {
-    fn default() -> Self {
-        Self {
-            memory: MemoryEffect::unknown(),
-            behavior: FunctionBehavior::unknown(),
-            allocation_size: None,
-        }
-    }
-}
-
 /// Metadata for one callsite.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallMetadata {
     /// Memory touched by this call.
     pub memory: MemoryEffect,
@@ -77,18 +67,6 @@ pub struct CallMetadata {
     pub target: Option<LocalNodeId<Function>>,
     /// Argument memory behavior when known.
     pub arguments: Vec<CallArgumentEffect>,
-}
-
-impl Default for CallMetadata {
-    fn default() -> Self {
-        Self {
-            memory: MemoryEffect::unknown(),
-            behavior: FunctionBehavior::unknown(),
-            allocation_size: None,
-            target: None,
-            arguments: Vec::new(),
-        }
-    }
 }
 
 /// Stable identifier for one callsite inside a function body.
