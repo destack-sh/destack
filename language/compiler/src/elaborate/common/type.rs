@@ -211,7 +211,7 @@ fn is_runtime_checkable_target(types: &TypeTable<'_>, type_id: LocalTypeId) -> b
                 is_runtime_checkable_target(types, types.unwrap_form_payload_type_id(element))
             })
         }
-        Type::Named(_) => true,
+        Type::Reference(_) => true,
         _ => false,
     }
 }
@@ -220,7 +220,7 @@ fn is_runtime_checkable_target(types: &TypeTable<'_>, type_id: LocalTypeId) -> b
 fn guard_entry_for_value(types: &TypeTable<'_>, type_id: LocalTypeId) -> Option<GuardEntry> {
     match types.get_type(type_id) {
         Type::Union(_) => Some(GuardEntry::UnionTag),
-        Type::Named(_) => Some(GuardEntry::TypeDescriptor),
+        Type::Reference(_) => Some(GuardEntry::TypeDescriptor),
         Type::Unknown => Some(GuardEntry::TypeDescriptor),
         Type::Form(value) => {
             guard_entry_for_value(types, types.unwrap_form_payload_type_id(value.value))

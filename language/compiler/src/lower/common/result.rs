@@ -91,7 +91,7 @@ fn resolve_union_type_id_inner(
 
     match types.get_type(type_id) {
         dir::Type::Union(_) => Some(type_id),
-        dir::Type::Named(reference) => {
+        dir::Type::Reference(reference) => {
             if let Some(target) = types.get_alias_target_type_id(reference.symbol) {
                 return resolve_union_type_id_inner(types, target, visited);
             }
@@ -118,7 +118,7 @@ fn is_void_type_inner(
 
     match types.get_type(type_id) {
         dir::Type::Void => true,
-        dir::Type::Named(reference) => {
+        dir::Type::Reference(reference) => {
             if let Some(target) = types.get_alias_target_type_id(reference.symbol) {
                 return is_void_type_inner(types, target, visited);
             }
@@ -204,7 +204,7 @@ fn resolve_object_fields_inner(
 
     match types.get_type(type_id) {
         dir::Type::Shape(object) => Some(object.fields.clone()),
-        dir::Type::Named(reference) => {
+        dir::Type::Reference(reference) => {
             if let Some(target) = types.get_alias_target_type_id(reference.symbol) {
                 return resolve_object_fields_inner(types, target, visited);
             }

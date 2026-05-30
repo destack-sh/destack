@@ -316,6 +316,16 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Return the source anchor for one DIR node.
     pub(crate) fn anchor_node(&self, node_id: dir::GlobalNodeIdAny) -> SnapshotAnchor {
+        // anchor non-source nodes at the end
+        if node_id.module_id != self.tree.module_id {
+            return SnapshotAnchor::End;
+        }
+
+        // anchor generated nodes at the end
+        if node_id.local_id.id as usize >= self.tree.node_count() {
+            return SnapshotAnchor::End;
+        }
+
         if let Some(span) = self.tree.get_span_by_id(node_id.local_id.id) {
             SnapshotAnchor::After(span)
         } else {
@@ -412,6 +422,21 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         self.binding_names().symbol_path(symbol_id.local_id)
+    }
+
+    /// Render the declaration source for one local symbol.
+    pub(crate) fn symbol_source(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+        if symbol_id.module_id != self.tree.module_id {
+            return None;
+        }
+
+        let symbol = self.symbol(symbol_id.local_id);
+        let declaration = symbol.declaration?;
+        if declaration.module_id != self.tree.module_id {
+            return None;
+        }
+
+        self.node_source(declaration)
     }
 
     /// Render one type id using semantic type text when possible.
@@ -590,6 +615,11 @@ impl<'a> DirSnapshotBuilder<'a> {
             }
             dir::StaticTerm::Place { place } => Self::place_label(place),
             dir::StaticTerm::Lifetime { lifetime } => self.lifetime_label(lifetime),
+            dir::StaticTerm::Union { elements } => elements
+                .iter()
+                .map(|element| self.static_label(*element))
+                .collect::<Vec<_>>()
+                .join(" | "),
             dir::StaticTerm::ScalarLiteral { value } => self.scalar_literal_label(value),
             dir::StaticTerm::TypeLiteral { value } => Self::variant_label(value),
             dir::StaticTerm::Declaration {
@@ -820,6 +850,14 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render source text for one node when it is compact enough for a row.
     pub(crate) fn node_source(&self, node_id: dir::GlobalNodeIdAny) -> Option<String> {
+        // skip non-source nodes
+        if node_id.module_id != self.tree.module_id {
+            return None;
+        }
+        if node_id.local_id.id as usize >= self.tree.node_count() {
+            return None;
+        }
+
         let span = self.tree.get_span_by_id(node_id.local_id.id)?;
         let source = &self.source[span.start as usize..span.end as usize];
         let source = source.trim();
@@ -925,11 +963,6 @@ impl<'a> DirSnapshotBuilder<'a> {
         match lifetime {
             dir::Lifetime::Static => "static".to_string(),
             dir::Lifetime::Symbol(symbol) => self.symbol_path_label(*symbol),
-            dir::Lifetime::Join(elements) => elements
-                .iter()
-                .map(|element| self.static_label(*element))
-                .collect::<Vec<_>>()
-                .join(" | "),
         }
     }
 

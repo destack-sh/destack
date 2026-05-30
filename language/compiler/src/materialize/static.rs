@@ -92,11 +92,6 @@ impl Compiler {
             dir::Type::Literal(value) => dir::TypeExpression::ScalarLiteral {
                 value: value.clone(),
             },
-            dir::Type::Operation(dir::TypeOperation::BuiltinTypeFunction(function)) => {
-                dir::TypeExpression::Literal {
-                    value: dir::TypeLiteral::BuiltinTypeFunction(*function),
-                }
-            }
             _ => {
                 return Err(MaterializeError::UnsupportedConstruct {
                     anchor: anchor_id
@@ -290,7 +285,8 @@ impl Compiler {
             | dir::StaticTerm::Access { .. }
             | dir::StaticTerm::Space { .. }
             | dir::StaticTerm::Place { .. }
-            | dir::StaticTerm::Lifetime { .. } => Err(MaterializeError::UnsupportedConstruct {
+            | dir::StaticTerm::Lifetime { .. }
+            | dir::StaticTerm::Union { .. } => Err(MaterializeError::UnsupportedConstruct {
                 anchor: anchor_id
                     .into_global(module_id)
                     .into_anchored(Some(profile_id)),

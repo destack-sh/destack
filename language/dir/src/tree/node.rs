@@ -504,15 +504,6 @@ pub enum Asynchrony {
     Async,
 }
 
-/// The reference type of a binding.
-#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ReferenceType {
-    /// A value reference (like `^T`).
-    Value,
-    /// A reference to a mutable binding (like `&T`).
-    Reference,
-}
-
 /// A Mutability is a const, mutable, or exclusive access qualifier.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Mutability {

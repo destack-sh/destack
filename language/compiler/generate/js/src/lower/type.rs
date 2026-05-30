@@ -198,7 +198,6 @@ impl ModuleLowerer<'_> {
             dir::TypeLiteral::UniqueSymbol => {
                 js::TypeLiteral::Primitive(js::PrimitiveType::UniqueSymbol)
             }
-            dir::TypeLiteral::BuiltinTypeFunction(_) => return None,
         };
         Some(literal)
     }
@@ -275,27 +274,27 @@ impl ModuleLowerer<'_> {
         Ok(subject)
     }
 
-    /// Lower one builtin type function reference into a JS path type.
-    fn lower_builtin_type_function(
+    /// Lower one string mapping reference into a JS path type.
+    fn lower_string_mapping(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        function: dir::BuiltinTypeFunction,
+        mapping: dir::StringMapping,
+        target: dir::LocalTypeId,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
-        let function_name = match function {
-            dir::BuiltinTypeFunction::Uppercase => "Uppercase",
-            dir::BuiltinTypeFunction::Lowercase => "Lowercase",
-            dir::BuiltinTypeFunction::Capitalize => "Capitalize",
-            dir::BuiltinTypeFunction::Uncapitalize => "Uncapitalize",
-            dir::BuiltinTypeFunction::NoInfer => "NoInfer",
-            dir::BuiltinTypeFunction::BuiltinIteratorReturn => "BuiltinIteratorReturn",
+        let mapping_name = match mapping {
+            dir::StringMapping::Uppercase => "Uppercase",
+            dir::StringMapping::Lowercase => "Lowercase",
+            dir::StringMapping::Capitalize => "Capitalize",
+            dir::StringMapping::Uncapitalize => "Uncapitalize",
         };
-        let segment = self.strings.intern(function_name);
+        let segment = self.strings.intern(mapping_name);
         let path = js::Path {
             segments: smallvec::smallvec![segment],
         };
+        let target = self.lower_type(target)?;
         let ty = js::TypeExpression::Path {
             path,
-            generic_arguments: vec![],
+            generic_arguments: vec![target],
         };
 
         Ok(self
@@ -414,13 +413,22 @@ impl ModuleLowerer<'_> {
                 dir::Lifetime::Symbol(symbol) => {
                     self.lower_reference_type_from_symbol(source_id, *symbol, None)
                 }
-                dir::Lifetime::Join(_) => Err(CodegenJsError::UnsupportedConstruct {
-                    node: source_id.into_global(self.module.id),
-                    message: Some(
-                        "joined static lifetimes do not lower to JS type arguments".to_string(),
-                    ),
-                }),
             },
+            dir::StaticTerm::Union { elements } => {
+                let elements = elements
+                    .iter()
+                    .map(|element| {
+                        let element = self.statics.get_static(*element).clone();
+
+                        self.lower_semantic_static_type_expression(source_id, &element)
+                    })
+                    .collect::<Result<Vec<_>, CodegenJsError>>()?;
+                let ty = js::TypeExpression::Union { elements };
+
+                Ok(self
+                    .tree
+                    .insert_from_source_any(ty, self.module.id, source_id))
+            }
             dir::StaticTerm::Declaration {
                 declaration,
                 generic_arguments,
@@ -862,8 +870,8 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
             dir::Type::Operation(operation) => match operation {
-                dir::TypeOperation::BuiltinTypeFunction(function) => {
-                    self.lower_builtin_type_function(source_id, *function)?
+                dir::TypeOperation::StringMapping { mapping, target } => {
+                    self.lower_string_mapping(source_id, *mapping, *target)?
                 }
                 dir::TypeOperation::Conditional(conditional) => {
                     let left = self.lower_type(conditional.left)?;
@@ -952,7 +960,7 @@ impl ModuleLowerer<'_> {
                 self.module.id,
                 source_id,
             ),
-            dir::Type::Named(reference) => {
+            dir::Type::Reference(reference) => {
                 let type_id = self
                     .try_lower_reference_type_from_source(source_id)?
                     .map_or_else(
@@ -985,41 +993,33 @@ impl ModuleLowerer<'_> {
                     .insert_from_source_any(ty, self.module.id, source_id)
             }
 
-            dir::Type::Form(form) => self.lower_type(form.value)?,
+            dir::Type::Form(form) => {
+                let value = self.lower_type(form.value)?;
+                match form.form {
+                    dir::Form::Readonly => {
+                        let ty = js::TypeExpression::Readonly { target_type: value };
+
+                        self.tree
+                            .insert_from_source_any(ty, self.module.id, source_id)
+                    }
+                    _ => value,
+                }
+            }
             dir::Type::Slice(slice) => {
                 let element = self.lower_type(slice.element)?;
-                let mut array_id = self.tree.insert_from_source_any(
+                self.tree.insert_from_source_any(
                     js::TypeExpression::Array { element },
                     self.module.id,
                     source_id,
-                );
-                if slice.is_readonly {
-                    let readonly = js::TypeExpression::Readonly {
-                        target_type: array_id,
-                    };
-                    array_id =
-                        self.tree
-                            .insert_from_source_any(readonly, self.module.id, source_id);
-                }
-                array_id
+                )
             }
             dir::Type::FixedArray(array) => {
                 let element = self.lower_type(array.element)?;
-                let mut array_id = self.tree.insert_from_source_any(
+                self.tree.insert_from_source_any(
                     js::TypeExpression::Array { element },
                     self.module.id,
                     source_id,
-                );
-                if array.is_readonly {
-                    let readonly = js::TypeExpression::Readonly {
-                        target_type: array_id,
-                    };
-                    array_id =
-                        self.tree
-                            .insert_from_source_any(readonly, self.module.id, source_id);
-                }
-
-                array_id
+                )
             }
             dir::Type::Range(_) => {
                 return Err(CodegenJsError::UnsupportedConstruct {
@@ -1092,20 +1092,11 @@ impl ModuleLowerer<'_> {
                     .iter()
                     .map(|element| self.lower_tuple_element(source_id, element))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
-                let mut tuple_id = self.tree.insert_from_source_any(
+                self.tree.insert_from_source_any(
                     js::TypeExpression::Tuple { elements },
                     self.module.id,
                     source_id,
-                );
-                if tuple.is_readonly {
-                    let readonly = js::TypeExpression::Readonly {
-                        target_type: tuple_id,
-                    };
-                    tuple_id =
-                        self.tree
-                            .insert_from_source_any(readonly, self.module.id, source_id);
-                }
-                tuple_id
+                )
             }
             dir::Type::Union(union) => {
                 let elements = union

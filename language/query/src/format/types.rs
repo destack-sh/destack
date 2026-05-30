@@ -58,8 +58,23 @@ pub fn format_type(
         dir::Type::Operation(operation) => format_type_operation(operation, types, ctx),
         dir::Type::Parameter(parameter) => format_parameter_type(parameter, ctx),
         dir::Type::This => "this".to_string(),
-        dir::Type::Named(reference) => {
+        dir::Type::Reference(reference) => {
             format_type_reference(reference.symbol, &reference.arguments, types, ctx)
+        }
+        dir::Type::Member(member) => {
+            let owner = format_local_type(member.owner, types, ctx);
+            let key = format_static_key(&member.key, strings);
+            if member.arguments.is_empty() {
+                format!("{owner}.{key}")
+            } else {
+                let arguments = member
+                    .arguments
+                    .iter()
+                    .map(|argument| format_static_argument(argument, types, ctx))
+                    .collect::<Vec<_>>();
+
+                format!("{owner}.{key}<{}>", arguments.join(", "))
+            }
         }
         dir::Type::Form(form) => format_form_type(form, types, ctx),
         dir::Type::Dynamic(dynamic) => {
@@ -81,20 +96,27 @@ pub fn format_type(
         dir::Type::FixedArray(array) => {
             let element = format_local_type(array.element, types, ctx);
             let count = format_static_id(array.count, ctx);
-            let readonly_prefix = if array.is_readonly { "readonly " } else { "" };
 
-            format!("{readonly_prefix}[{element}; {count}]")
+            format!("[{element}; {count}]")
+        }
+        dir::Type::Array(array) => {
+            let element = format_local_type(array.element, types, ctx);
+            let needs_parens = matches!(types.get_type(array.element), dir::Type::Union(_));
+            if needs_parens {
+                format!("({element})[]")
+            } else {
+                format!("{element}[]")
+            }
         }
         dir::Type::Range(range) => format_range_type(range, strings),
         dir::Type::Slice(slice) => {
-            let readonly_prefix = if slice.is_readonly { "readonly " } else { "" };
             let element = slice.element;
             let element = format_local_type(element, types, ctx);
             let needs_parens = matches!(types.get_type(slice.element), dir::Type::Union(_));
             if needs_parens {
-                format!("{readonly_prefix}({element})[]")
+                format!("({element})[]")
             } else {
-                format!("{readonly_prefix}{element}[]")
+                format!("{element}[]")
             }
         }
         dir::Type::Tuple(tuple) => {
@@ -103,8 +125,7 @@ pub fn format_type(
                 .iter()
                 .map(|element| format_type_tuple_element(element, types, ctx))
                 .collect();
-            let readonly_prefix = if tuple.is_readonly { "readonly " } else { "" };
-            format!("{readonly_prefix}({})", elements.join(", "))
+            format!("({})", elements.join(", "))
         }
         dir::Type::Shape(object) => {
             let mut items: Vec<String> = Vec::new();
@@ -222,7 +243,12 @@ pub fn format_type_operation(
     let strings = ctx.dir().strings();
 
     match operation {
-        dir::TypeOperation::BuiltinTypeFunction(function) => format_builtin_type_function(function),
+        dir::TypeOperation::StringMapping { mapping, target } => {
+            let target = format_local_type(*target, types, ctx);
+            let mapping = format_string_mapping(mapping);
+
+            format!("{mapping}<{target}>")
+        }
         dir::TypeOperation::Conditional(conditional) => {
             let left = format_local_type(conditional.left, types, ctx);
             let right = format_local_type(conditional.right, types, ctx);
@@ -645,6 +671,11 @@ pub fn format_static_term(
         dir::StaticTerm::Space { space } => format!("{space:?}").to_lowercase(),
         dir::StaticTerm::Place { place } => format_place(place),
         dir::StaticTerm::Lifetime { lifetime } => format_lifetime(lifetime, ctx),
+        dir::StaticTerm::Union { elements } => elements
+            .iter()
+            .map(|element| format_static_id(*element, ctx))
+            .collect::<Vec<_>>()
+            .join(" | "),
         dir::StaticTerm::TypeLiteral { value } => format_source_type_literal(value, strings),
         dir::StaticTerm::Declaration { .. } => "<declaration>".to_string(),
         dir::StaticTerm::Type { ty } => {
@@ -695,15 +726,6 @@ fn format_lifetime(lifetime: &dir::Lifetime, ctx: &ModuleQueryContext<'_>) -> St
     match lifetime {
         dir::Lifetime::Static => "static".to_string(),
         dir::Lifetime::Symbol(symbol) => format_symbol_name(*symbol, ctx),
-        dir::Lifetime::Join(elements) => {
-            let elements = elements
-                .iter()
-                .map(|element| format_static_id(*element, ctx))
-                .collect::<Vec<_>>()
-                .join(" | ");
-
-            elements
-        }
     }
 }
 
@@ -747,14 +769,12 @@ fn format_static_property(
     }
 }
 
-fn format_builtin_type_function(function: &dir::BuiltinTypeFunction) -> String {
+fn format_string_mapping(function: &dir::StringMapping) -> String {
     match function {
-        dir::BuiltinTypeFunction::Uppercase => "Uppercase".to_string(),
-        dir::BuiltinTypeFunction::Lowercase => "Lowercase".to_string(),
-        dir::BuiltinTypeFunction::Capitalize => "Capitalize".to_string(),
-        dir::BuiltinTypeFunction::Uncapitalize => "Uncapitalize".to_string(),
-        dir::BuiltinTypeFunction::NoInfer => "NoInfer".to_string(),
-        dir::BuiltinTypeFunction::BuiltinIteratorReturn => "BuiltinIteratorReturn".to_string(),
+        dir::StringMapping::Uppercase => "Uppercase".to_string(),
+        dir::StringMapping::Lowercase => "Lowercase".to_string(),
+        dir::StringMapping::Capitalize => "Capitalize".to_string(),
+        dir::StringMapping::Uncapitalize => "Uncapitalize".to_string(),
     }
 }
 
@@ -795,7 +815,6 @@ fn format_source_type_literal(lit: &dir::TypeLiteral, _strings: &StringPool) -> 
         dir::TypeLiteral::Float(float) => float.as_str().to_string(),
         dir::TypeLiteral::Symbol => "symbol".to_string(),
         dir::TypeLiteral::UniqueSymbol => "unique symbol".to_string(),
-        dir::TypeLiteral::BuiltinTypeFunction(function) => format_builtin_type_function(function),
     }
 }
 

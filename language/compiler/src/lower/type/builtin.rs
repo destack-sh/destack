@@ -377,7 +377,7 @@ impl<'a, 'b> BuiltinTypeLayouts<'a, 'b> {
         type_id: dir::LocalTypeId,
     ) -> dir::LocalTypeId {
         // stop when the type is not a reference
-        let dir::Type::Named(reference) = types.get_type(type_id) else {
+        let dir::Type::Reference(reference) = types.get_type(type_id) else {
             return type_id;
         };
 

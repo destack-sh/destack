@@ -43,7 +43,7 @@ impl TypeLowerer<'_> {
         }
 
         // load the constraint type for validation
-        let dir::Type::Named(reference) = types.get_type(constraint_type_id) else {
+        let dir::Type::Reference(reference) = types.get_type(constraint_type_id) else {
             return Err(LowerError::UnsupportedType {
                 anchor: self.diagnostic_anchor(node),
                 ty: constraint_type_id.into_global(module_id),

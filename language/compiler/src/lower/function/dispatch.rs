@@ -107,7 +107,7 @@ impl FunctionLowerer<'_> {
     ) -> Option<dir::GlobalSymbolId> {
         let dir_type = self.context.types.get_type(constraint_type_id);
         match dir_type {
-            dir::Type::Named(reference)
+            dir::Type::Reference(reference)
                 if self
                     .context
                     .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface) =>

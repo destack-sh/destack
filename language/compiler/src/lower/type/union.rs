@@ -585,7 +585,7 @@ impl TypeLowerer<'_> {
         // unwrap alias references before inspecting shape
         let dir_type = types.get_type(type_id);
         match dir_type {
-            dir::Type::Named(reference) => {
+            dir::Type::Reference(reference) => {
                 if self.symbol_kind_matches(reference.symbol, dir::SymbolKind::TypeAlias)
                     && let Some(target) = types.get_alias_target_type_id(reference.symbol)
                 {
@@ -677,7 +677,7 @@ impl TypeLowerer<'_> {
         // unwrap alias references
         let dir_type = types.get_type(type_id);
         match dir_type {
-            dir::Type::Named(reference) => {
+            dir::Type::Reference(reference) => {
                 if self.symbol_kind_matches(reference.symbol, dir::SymbolKind::TypeAlias)
                     && let Some(target) = types.get_alias_target_type_id(reference.symbol)
                 {

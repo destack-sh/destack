@@ -58,6 +58,8 @@ pub enum StaticTerm {
         /// The struct properties.
         properties: Vec<StaticProperty>,
     },
+    /// Union of static values.
+    Union { elements: Vec<LocalStaticId> },
 }
 
 /// Normalized memory access value.
@@ -100,8 +102,6 @@ pub enum Lifetime {
     Static,
     /// Symbolic lifetime parameter or associated constant.
     Symbol(GlobalSymbolId),
-    /// Joined lifetime value.
-    Join(Vec<LocalStaticId>),
 }
 
 /// Static argument in a checked static context.

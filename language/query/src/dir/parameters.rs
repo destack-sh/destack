@@ -250,7 +250,7 @@ fn collect_expected_type_symbols_inner(
     let ty = types.get_type(type_id);
 
     // direct nominal references
-    if let destack_dir::Type::Named(reference) = ty {
+    if let destack_dir::Type::Reference(reference) = ty {
         let symbol = reference.symbol;
         let canonical_symbol = ctx.canonical_symbol(symbol);
         if seen_symbols.insert(canonical_symbol) {

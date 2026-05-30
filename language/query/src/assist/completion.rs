@@ -595,7 +595,7 @@ impl<'ctx, 'repo> CompletionBuilder<'ctx, 'repo> {
 
         let ty = types.get_type(type_id);
 
-        if let dir::Type::Named(reference) = ty {
+        if let dir::Type::Reference(reference) = ty {
             let symbol = reference.symbol;
             let Some(canonical_symbol) = self.canonical_symbol(symbol) else {
                 return;
