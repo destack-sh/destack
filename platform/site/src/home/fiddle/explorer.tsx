@@ -44,8 +44,12 @@ export function Explorer(props: ExplorerProps) {
     });
 
     return (
-        <aside class="min-h-0 min-w-0 overflow-auto bg-neutral-50/40 px-1.5 py-2">
-            <nav class="grid text-sm font-extrabold leading-5 lowercase">
+        <aside class="min-h-0 min-w-0 overflow-auto bg-destack-panel">
+            <nav
+                class="grid text-sm leading-5 font-extrabold lowercase"
+                onKeyDown={navigateTree}
+                role="tree"
+            >
                 {exampleAreas.map((area, areaIndex) => (
                     <TreeArea
                         area={area}
@@ -106,8 +110,9 @@ function TreeArea(props: TreeAreaProps) {
     };
 
     return (
-        <div class="grid">
+        <div class="grid" role="treeitem">
             <TreeFolder
+                depth={0}
                 isActive={props.isActive}
                 isExpanded={props.isExpanded}
                 label={areaLabels[props.areaIndex]}
@@ -115,8 +120,9 @@ function TreeArea(props: TreeAreaProps) {
             />
 
             {props.isExpanded && (
-                <div class="grid pl-3">
+                <div class="grid" role="group">
                     <TreeFile
+                        depth={1}
                         isActive={props.isActive}
                         label="README.md"
                         onClick={selectAreaReadme}
@@ -131,8 +137,9 @@ function TreeArea(props: TreeAreaProps) {
                             props.categoryIndex === categoryIndex && props.topicIndex == undefined;
 
                         return (
-                            <div class="grid">
+                            <div class="grid" role="treeitem">
                                 <TreeFolder
+                                    depth={1}
                                     isActive={isCategoryReadme}
                                     isExpanded={isCategoryExpanded}
                                     label={`${category.label.toLowerCase()}/`}
@@ -142,15 +149,20 @@ function TreeArea(props: TreeAreaProps) {
                                 />
 
                                 {isCategoryExpanded && (
-                                    <div class="grid pl-3">
+                                    <div class="grid" role="group">
                                         <TreeFile
+                                            depth={2}
                                             isActive={isCategoryReadme}
                                             label="README.md"
                                             onClick={() => selectCategory(categoryIndex)}
                                         />
                                         {category.topics.map((topic, topicIndex) => (
                                             <TreeFile
-                                                isActive={props.topicIndex === topicIndex}
+                                                depth={2}
+                                                isActive={
+                                                    props.categoryIndex === categoryIndex &&
+                                                    props.topicIndex === topicIndex
+                                                }
                                                 label={`${topic.label}.ds`}
                                                 onClick={() =>
                                                     selectTopic(categoryIndex, topicIndex)
@@ -189,6 +201,7 @@ function toggleIndex<T>(values: readonly T[], value: T) {
 }
 
 type TreeFolderProps = {
+    depth: number;
     isActive: boolean;
     isExpanded: boolean;
     label: string;
@@ -198,34 +211,33 @@ type TreeFolderProps = {
 function TreeFolder(props: TreeFolderProps) {
     return (
         <button
-            class="group grid min-h-6 min-w-0 grid-cols-[0.875rem_2px_minmax(0,1fr)] items-center gap-1 text-left"
+            aria-expanded={props.isExpanded}
+            aria-selected={props.isActive}
+            class="group grid h-5 min-w-0 grid-cols-[3rem_minmax(0,1fr)] items-center text-left outline-none focus-visible:bg-destack-panel focus-visible:ring-2 focus-visible:ring-destack-accent"
             classList={{
                 "bg-destack-panel text-neutral-950": props.isActive,
                 "text-neutral-600 hover:bg-destack-panel hover:text-neutral-950": !props.isActive,
             }}
+            data-tree-node
             onClick={props.onClick}
+            style={`--tree-indent: ${props.depth * 0.875}rem`}
             type="button"
         >
             <span
                 aria-hidden="true"
-                class="text-center text-xs text-neutral-400 group-hover:text-neutral-700"
+                class="pl-0.5 text-center text-xs text-neutral-400 group-hover:text-neutral-700"
             >
                 {props.isExpanded ? "▾" : "▸"}
             </span>
-            <span
-                aria-hidden="true"
-                class="h-3.5 w-0.5"
-                classList={{
-                    "bg-destack-accent": props.isActive,
-                    "bg-transparent": !props.isActive,
-                }}
-            />
-            <span class="min-w-0 truncate">{props.label}</span>
+            <span class="min-w-0 truncate pr-5 pl-[calc(1.25rem+var(--tree-indent))]">
+                {props.label}
+            </span>
         </button>
     );
 }
 
 type TreeFileProps = {
+    depth: number;
     isActive: boolean;
     label: string;
     onClick: () => void;
@@ -234,31 +246,59 @@ type TreeFileProps = {
 function TreeFile(props: TreeFileProps) {
     return (
         <button
-            class="group grid min-h-6 min-w-0 grid-cols-[0.875rem_2px_minmax(0,1fr)] items-center gap-1 text-left"
+            aria-selected={props.isActive}
+            class="group grid h-5 min-w-0 grid-cols-[3rem_minmax(0,1fr)] items-center text-left outline-none focus-visible:bg-destack-panel focus-visible:ring-2 focus-visible:ring-destack-accent"
             classList={{
                 "bg-destack-panel text-neutral-950": props.isActive,
                 "text-neutral-500 hover:bg-destack-panel hover:text-neutral-950": !props.isActive,
             }}
+            data-tree-node
             onClick={props.onClick}
+            style={`--tree-indent: ${props.depth * 0.875}rem`}
             type="button"
         >
-            <span
-                aria-hidden="true"
-                class="mx-auto size-1.5 rounded-full"
-                classList={{
-                    "bg-destack-accent": props.isActive,
-                    "bg-neutral-300 group-hover:bg-neutral-500": !props.isActive,
-                }}
-            />
-            <span
-                aria-hidden="true"
-                class="h-3.5 w-0.5"
-                classList={{
-                    "bg-destack-accent": props.isActive,
-                    "bg-transparent": !props.isActive,
-                }}
-            />
-            <span class="min-w-0 truncate">{props.label}</span>
+            <span class="flex justify-center pl-0.5">
+                <span
+                    aria-hidden="true"
+                    class="size-1.5 rounded-full"
+                    classList={{
+                        "bg-destack-accent": props.isActive,
+                        "bg-neutral-300 group-hover:bg-neutral-500": !props.isActive,
+                    }}
+                />
+            </span>
+            <span class="min-w-0 truncate pr-5 pl-[calc(1.25rem+var(--tree-indent))]">
+                {props.label}
+            </span>
         </button>
     );
+}
+
+function navigateTree(event: KeyboardEvent) {
+    const tree = event.currentTarget as HTMLElement;
+    const nodes = [...tree.querySelectorAll<HTMLButtonElement>("[data-tree-node]")];
+    const index = nodes.findIndex((node) => node === document.activeElement);
+    if (index < 0) {
+        return;
+    }
+
+    if (event.key === "ArrowDown") {
+        event.preventDefault();
+        nodes[Math.min(index + 1, nodes.length - 1)]?.focus();
+    } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        nodes[Math.max(index - 1, 0)]?.focus();
+    } else if (event.key === "ArrowRight") {
+        const node = nodes[index];
+        if (node?.getAttribute("aria-expanded") === "false") {
+            event.preventDefault();
+            node.click();
+        }
+    } else if (event.key === "ArrowLeft") {
+        const node = nodes[index];
+        if (node?.getAttribute("aria-expanded") === "true") {
+            event.preventDefault();
+            node.click();
+        }
+    }
 }

@@ -4,18 +4,18 @@ import { Install } from "./install";
 
 export function Hero() {
     return (
-        <div class="flex flex-col gap-y-1 md:gap-y-3">
-            <h1 class="w-full max-w-4xl px-2 text-3xl leading-none font-extrabold md:px-4 md:text-3xl">
+        <div class="flex flex-col gap-y-3 md:gap-y-5">
+            <h1 class="page-title w-full px-2 md:px-4">
                 engineer impeccable software with confidence
             </h1>
 
-            <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 px-2 md:px-4 lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center">
-                <section class="flex flex-col gap-y-1 md:gap-y-3">
+            <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6 px-2 md:px-4 lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center">
+                <section class="flex flex-col gap-y-2 md:gap-y-3">
                     <p class="max-w-3xl text-sm leading-6 font-bold text-neutral-700">
                         <Underline>destack</Underline> is a fully integrated stack for building
                         correct, optimal, integrated software on one{" "}
                         <Underline>unified, native TypeScript++ toolchain</Underline>, VM,
-                        compiler, linter, debugger, and runtime
+                        compiler, debugger, and runtime
                     </p>
                 </section>
 

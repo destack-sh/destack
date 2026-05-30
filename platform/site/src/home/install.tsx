@@ -1,6 +1,6 @@
 import { createSignal, onCleanup } from "solid-js";
 
-import { Panel } from "./panel";
+import { Panel } from "../component/panel";
 
 const copiedFeedbackMs = 2000;
 const installCommand = "curl -fsSL https://destack.sh/install | sh";
@@ -20,9 +20,9 @@ export function Install() {
     onCleanup(() => clearTimeout(timer));
 
     return (
-        <section class="flex min-w-0 items-center lg:justify-end">
+        <section id="install" class="flex min-w-0 items-center lg:justify-end">
             <Panel class="w-full max-w-120" depth="shallow" title="install">
-                <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-3 px-3 pt-3 pb-2.5">
+                <div class="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-baseline gap-4 px-4 pt-4.5 pb-3">
                     <span class="text-base leading-5 font-black text-destack-accent">$</span>
 
                     <code class="min-w-0 overflow-x-auto text-sm leading-5 font-extrabold whitespace-nowrap">

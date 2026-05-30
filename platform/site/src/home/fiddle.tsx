@@ -14,7 +14,7 @@ import { StatusBar } from "./fiddle/panel/status";
 import type { Cursor, Status, ViewerFile } from "./fiddle/panel/types";
 import { ViewerPanel } from "./fiddle/panel/viewer";
 import { readmeForArea, readmeForCategory } from "./fiddle/readme";
-import { Panel } from "./panel";
+import { Panel } from "../component/panel";
 
 const minimumTreeWidth = 220;
 const maximumTreeWidth = 360;
