@@ -1,6 +1,9 @@
-use crate::interpreter::Machine;
+use destack_engine::StaticPointer;
+use destack_heap::{HeapReference, SharedHeapReference};
+
+use crate::machine::Activation;
 use crate::program::Projection;
-use crate::{FramePointer, HeapReference, SharedHeapReference, StackPointer, StaticPointer, Word};
+use crate::{FramePointer, StackPointer, Word};
 
 /// Return one element byte offset.
 #[inline(always)]
@@ -11,7 +14,7 @@ fn element_byte_offset(index: u64, stride: usize) -> usize {
 /// Compute a fixed-offset address from a heap reference.
 #[inline(always)]
 pub(crate) fn offset_heap(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     reference: HeapReference,
     byte_offset: usize,
 ) -> Word {
@@ -23,7 +26,7 @@ pub(crate) fn offset_heap(
 /// Compute a fixed-offset address from a shared heap reference.
 #[inline(always)]
 pub(crate) fn offset_shared_heap(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     reference: SharedHeapReference,
     byte_offset: usize,
 ) -> Word {
@@ -35,7 +38,7 @@ pub(crate) fn offset_shared_heap(
 /// Compute a fixed-offset address from a raw pointer.
 #[inline(always)]
 pub(crate) fn offset_raw(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     address: usize,
     byte_offset: usize,
 ) -> Word {
@@ -71,7 +74,7 @@ pub(crate) fn offset_static(pointer: StaticPointer, byte_offset: usize) -> Word 
 /// Compute an element address from a heap reference.
 #[inline(always)]
 pub(crate) fn element_heap(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     reference: HeapReference,
     element: Projection,
     index: u64,
@@ -85,7 +88,7 @@ pub(crate) fn element_heap(
 /// Compute an element address from a shared heap reference.
 #[inline(always)]
 pub(crate) fn element_shared_heap(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     reference: SharedHeapReference,
     element: Projection,
     index: u64,
@@ -99,7 +102,7 @@ pub(crate) fn element_shared_heap(
 /// Compute an element address from a raw pointer.
 #[inline(always)]
 pub(crate) fn element_raw(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     address: usize,
     element: Projection,
     index: u64,
@@ -113,7 +116,7 @@ pub(crate) fn element_raw(
 /// Compute an element address from a stack pointer.
 #[inline(always)]
 pub(crate) fn element_stack(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StackPointer,
     element: Projection,
     index: u64,
@@ -127,7 +130,7 @@ pub(crate) fn element_stack(
 /// Compute an element address from a frame pointer.
 #[inline(always)]
 pub(crate) fn element_frame(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: FramePointer,
     element: Projection,
     index: u64,
@@ -141,7 +144,7 @@ pub(crate) fn element_frame(
 /// Compute an element address from a static pointer.
 #[inline(always)]
 pub(crate) fn element_static(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StaticPointer,
     element: Projection,
     index: u64,

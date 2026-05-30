@@ -1,9 +1,10 @@
+use crate::Word;
 use crate::tests::{
-    create_isolate, create_isolate_with_data_layout, run_mir_expect, run_mir_ok,
+    create_machine, create_machine_with_data_layout, run_mir_expect, run_mir_ok,
     run_mir_with_frame_ok,
 };
-use crate::{SharedHeap, Value, Word};
-use destack_heap::{HeapReference, SharedHeapReference};
+use destack_engine::Value;
+use destack_heap::{HeapReference, SharedHeap, SharedHeapReference};
 use destack_mir::{DataLayout, TraceMap};
 
 /// Decode one native-width heap reference from materialized bytes.
@@ -82,16 +83,16 @@ b0:
     v0: ref<int32, managed, readonly, space(shared)> = new.zeroed int32
     return v0
 }"#;
-    let mut isolate = create_isolate(mir);
-    let output = isolate
+    let mut machine = create_machine(mir);
+    let output = machine
         .run_function_by_name("alloc", &[])
         .expect("execution failed");
     let Value::SharedHeapReference(reference) = output else {
         panic!("expected shared heap reference, got {output:?}");
     };
 
-    assert!(isolate.shared_cache.contains_heap_reference(reference));
-    assert!(!isolate.shared_heap.is_heap_live(reference));
+    assert!(machine.shared_cache.contains_heap_reference(reference));
+    assert!(!machine.shared_heap.is_heap_live(reference));
 }
 
 /// Freeing unique heap allocations releases local heap storage immediately.
@@ -105,13 +106,13 @@ b0:
     v1: int32 = 7int32
     return v1
 }"#;
-    let mut isolate = create_isolate(mir);
-    let output = isolate
+    let mut machine = create_machine(mir);
+    let output = machine
         .run_function_by_name("freeUnique", &[])
         .expect("execution failed");
 
     assert_eq!(output, Value::int32(7));
-    assert_eq!(isolate.heap.heap_allocation_count(), 0);
+    assert_eq!(machine.heap.heap_allocation_count(), 0);
 }
 
 /// Freeing unique shared heap allocations releases shared heap storage immediately.
@@ -125,13 +126,13 @@ b0:
     v1: int32 = 7int32
     return v1
 }"#;
-    let mut isolate = create_isolate(mir);
-    let output = isolate
+    let mut machine = create_machine(mir);
+    let output = machine
         .run_function_by_name("freeUnique", &[])
         .expect("execution failed");
 
     assert_eq!(output, Value::int32(7));
-    assert_eq!(isolate.shared_heap.heap_allocation_count(), 0);
+    assert_eq!(machine.shared_heap.heap_allocation_count(), 0);
 }
 
 /// Load and store instructions read and write heap allocations.
@@ -200,14 +201,14 @@ b0:
     v1: slice<int32, managed> = new.slice.zeroed int32, v0
     return v1
 }"#;
-    let mut isolate = create_isolate(mir);
-    let output = isolate
+    let mut machine = create_machine(mir);
+    let output = machine
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
     let Value::HeapReference(slice) = output else {
         panic!("expected heap slice value, got {output:?}");
     };
-    let bytes = read_heap_bytes(&isolate.heap, slice, 2 * HeapReference::BYTE_LEN);
+    let bytes = read_heap_bytes(&machine.heap, slice, 2 * HeapReference::BYTE_LEN);
     let data = Word::heap_reference(decode_heap_reference(&bytes, 0));
     let len = decode_usize(&bytes, HeapReference::BYTE_LEN);
 
@@ -225,15 +226,15 @@ b0:
     v1: slice<int32, managed, readonly, space(shared)> = new.slice.zeroed int32, v0
     return v1
 }"#;
-    let mut isolate = create_isolate(mir);
-    let output = isolate
+    let mut machine = create_machine(mir);
+    let output = machine
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
     let Value::SharedHeapReference(slice) = output else {
         panic!("expected shared heap slice value, got {output:?}");
     };
     let bytes = read_shared_heap_bytes(
-        &isolate.shared_heap,
+        &machine.shared_heap,
         slice,
         2 * SharedHeapReference::BYTE_LEN,
     );
@@ -578,8 +579,8 @@ b0:
     return v0
 }"#;
 
-    let mut isolate = create_isolate(mir);
-    let output = isolate
+    let mut machine = create_machine(mir);
+    let output = machine
         .run_function_by_name("allocBox", &[])
         .expect("execution failed");
     let Value::HeapReference(reference) = output else {
@@ -587,9 +588,9 @@ b0:
     };
 
     assert_eq!(
-        isolate
+        machine
             .heap
-            .scan(reference, isolate.isolate.trace_table().as_ref()),
+            .scan(reference, machine.machine.trace_table().as_ref()),
         Ok(TraceMap::empty())
     );
 }
@@ -610,14 +611,14 @@ b0(v0: int32):
     return v2
 }"#;
 
-    let mut isolate = create_isolate(mir);
-    let output = isolate
+    let mut machine = create_machine(mir);
+    let output = machine
         .run_function_by_name("makeBox", &[Value::int32(9)])
         .expect("execution failed");
     let Value::HeapReference(reference) = output else {
         panic!("expected heap reference value");
     };
-    let bytes = read_heap_bytes(&isolate.heap, reference, 4);
+    let bytes = read_heap_bytes(&machine.heap, reference, 4);
 
     assert_eq!(u32::from_le_bytes(bytes[0..4].try_into().unwrap()), 9);
 }
@@ -638,8 +639,8 @@ b0:
 }"#;
     let data_layout = DataLayout { pointer_bytes: 8 };
 
-    let mut isolate = create_isolate_with_data_layout(mir, data_layout);
-    let output = isolate
+    let mut machine = create_machine_with_data_layout(mir, data_layout);
+    let output = machine
         .run_function_by_name("allocPacked", &[])
         .expect("execution failed");
     let Value::HeapReference(reference) = output else {
@@ -647,9 +648,9 @@ b0:
     };
 
     assert_eq!(
-        isolate
+        machine
             .heap
-            .scan(reference, isolate.isolate.trace_table().as_ref()),
+            .scan(reference, machine.machine.trace_table().as_ref()),
         Ok(TraceMap::Fixed {
             local_offsets: vec![8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
@@ -669,20 +670,20 @@ b0:
 }"#;
     let data_layout = DataLayout { pointer_bytes: 8 };
 
-    let mut isolate = create_isolate_with_data_layout(mir, data_layout);
-    let output = isolate
+    let mut machine = create_machine_with_data_layout(mir, data_layout);
+    let output = machine
         .run_function_by_name("allocArray", &[])
         .expect("execution failed");
     let Value::HeapReference(slice) = output else {
         panic!("expected heap slice value, got {output:?}");
     };
-    let bytes = read_heap_bytes(&isolate.heap, slice, 2 * HeapReference::BYTE_LEN);
+    let bytes = read_heap_bytes(&machine.heap, slice, 2 * HeapReference::BYTE_LEN);
     let reference = decode_heap_reference(&bytes, 0);
 
     assert_eq!(
-        isolate
+        machine
             .heap
-            .scan(reference, isolate.isolate.trace_table().as_ref()),
+            .scan(reference, machine.machine.trace_table().as_ref()),
         Ok(TraceMap::Fixed {
             local_offsets: vec![0, 8].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
@@ -711,8 +712,8 @@ b0:
     v6: int32 = load v5
     return v6
 }"#;
-    let mut isolate = create_isolate(mir);
-    let output = isolate
+    let mut machine = create_machine(mir);
+    let output = machine
         .run_function_by_name("comparePaths", &[])
         .expect("execution failed");
 
@@ -772,7 +773,7 @@ b0:
     return v5
 }"#;
     let data_layout = DataLayout { pointer_bytes: 4 };
-    let error = match std::panic::catch_unwind(|| create_isolate_with_data_layout(mir, data_layout))
+    let error = match std::panic::catch_unwind(|| create_machine_with_data_layout(mir, data_layout))
     {
         Ok(_) => panic!("narrow heap reference storage should be rejected loudly"),
         Err(error) => error,
@@ -787,7 +788,7 @@ b0:
 
     assert_eq!(
         message,
-        "failed to initialize isolate: EM040: incompatible pointer width: program 4 bytes, host 8"
+        "failed to initialize machine: EM040: incompatible pointer width: program 4 bytes, host 8"
     );
 }
 

@@ -1,9 +1,12 @@
 use std::ptr;
 
+use destack_engine::StaticPointer;
+use destack_heap::{HeapReference, SharedHeapReference};
+
 use crate::diagnostic::Error;
-use crate::interpreter::Machine;
+use crate::machine::Activation;
 use crate::program::{Projection, SlotProjection, WordLayout};
-use crate::{FramePointer, HeapReference, SharedHeapReference, StackPointer, StaticPointer, Word};
+use crate::{FramePointer, StackPointer, Word};
 
 const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 
@@ -32,21 +35,21 @@ fn slot_layout(access: SlotProjection) -> WordLayout {
 /// Return one local heap native address.
 #[inline(always)]
 fn local_heap_address(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     reference: HeapReference,
     byte_offset: usize,
 ) -> usize {
-    machine.heap_address(reference, byte_offset)
+    activation.heap_address(reference, byte_offset)
 }
 
 /// Return one shared heap native address.
 #[inline(always)]
 fn shared_heap_address(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     reference: SharedHeapReference,
     byte_offset: usize,
 ) -> usize {
-    machine.shared_heap_address(reference, byte_offset)
+    activation.shared_heap_address(reference, byte_offset)
 }
 
 /// Return one raw native address.
@@ -185,7 +188,7 @@ pub(super) fn store_scalar_by_layout_at_address(address: usize, layout: WordLayo
 
 /// Load one scalar from raw memory.
 pub(crate) fn load_raw_scalar_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
 ) -> Word {
@@ -198,7 +201,7 @@ pub(crate) fn load_raw_scalar_by_layout(
 
 /// Store one scalar into raw memory.
 pub(crate) fn store_raw_scalar_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
     value: Word,
@@ -211,7 +214,7 @@ pub(crate) fn store_raw_scalar_by_layout(
 
 /// Store bytes into a raw pointer.
 pub(crate) fn store_raw_bytes(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
     bytes: &[u8],
@@ -225,7 +228,7 @@ pub(crate) fn store_raw_bytes(
 /// Load bytes from a raw pointer.
 #[inline(always)]
 pub(crate) fn load_raw_bytes(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
     destination: *mut u8,
@@ -240,14 +243,14 @@ pub(crate) fn load_raw_bytes(
 /// Load bytes from a local heap reference.
 #[inline(always)]
 pub(crate) fn load_heap_bytes(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
     let reference = pointer.as_heap_reference();
-    let address = local_heap_address(machine, reference, access.byte_offset);
+    let address = local_heap_address(activation, reference, access.byte_offset);
     load_native_bytes(address, destination, destination_len);
 
     Ok(())
@@ -256,14 +259,14 @@ pub(crate) fn load_heap_bytes(
 /// Load bytes from a shared heap reference.
 #[inline(always)]
 pub(crate) fn load_shared_heap_bytes(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
     let reference = pointer.as_shared_heap_reference();
-    let address = shared_heap_address(machine, reference, access.byte_offset);
+    let address = shared_heap_address(activation, reference, access.byte_offset);
     load_native_bytes(address, destination, destination_len);
 
     Ok(())
@@ -272,7 +275,7 @@ pub(crate) fn load_shared_heap_bytes(
 /// Load bytes from a stack pointer.
 #[inline(always)]
 pub(crate) fn load_stack_bytes(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
     destination: *mut u8,
@@ -287,7 +290,7 @@ pub(crate) fn load_stack_bytes(
 /// Load bytes from a frame pointer.
 #[inline(always)]
 pub(crate) fn load_frame_bytes(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: FramePointer,
     access: Projection,
     destination: *mut u8,
@@ -302,7 +305,7 @@ pub(crate) fn load_frame_bytes(
 /// Load bytes from a static pointer.
 #[inline(always)]
 pub(crate) fn load_static_bytes(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StaticPointer,
     access: Projection,
     destination: *mut u8,
@@ -317,12 +320,12 @@ pub(crate) fn load_static_bytes(
 /// Load one scalar from a local heap reference.
 #[inline(always)]
 pub(crate) fn load_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     byte_offset: usize,
 ) -> Word {
     let reference = pointer.as_heap_reference();
-    let address = local_heap_address(machine, reference, byte_offset);
+    let address = local_heap_address(activation, reference, byte_offset);
 
     load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address)
 }
@@ -330,12 +333,12 @@ pub(crate) fn load_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
 /// Load one scalar from a shared heap reference.
 #[inline(always)]
 pub(crate) fn load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     byte_offset: usize,
 ) -> Word {
     let reference = pointer.as_shared_heap_reference();
-    let address = shared_heap_address(machine, reference, byte_offset);
+    let address = shared_heap_address(activation, reference, byte_offset);
 
     load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address)
 }
@@ -343,7 +346,7 @@ pub(crate) fn load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bo
 /// Load one scalar from a raw pointer.
 #[inline(always)]
 pub(crate) fn load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: Word,
     byte_offset: usize,
 ) -> Word {
@@ -355,7 +358,7 @@ pub(crate) fn load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
 /// Load one scalar from a stack pointer.
 #[inline(always)]
 pub(crate) fn load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StackPointer,
     byte_offset: usize,
 ) -> Word {
@@ -367,7 +370,7 @@ pub(crate) fn load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
 /// Load one scalar from a static pointer.
 #[inline(always)]
 pub(crate) fn load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StaticPointer,
     byte_offset: usize,
 ) -> Word {
@@ -379,13 +382,13 @@ pub(crate) fn load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
 /// Store one scalar through a local heap reference.
 #[inline(always)]
 pub(crate) fn store_heap_scalar<const BYTE_LEN: usize>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     byte_offset: usize,
     value: Word,
 ) {
     let reference = pointer.as_heap_reference();
-    let address = local_heap_address(machine, reference, byte_offset);
+    let address = local_heap_address(activation, reference, byte_offset);
 
     store_scalar_at_address::<BYTE_LEN>(address, value);
 }
@@ -393,13 +396,13 @@ pub(crate) fn store_heap_scalar<const BYTE_LEN: usize>(
 /// Store one scalar through a shared heap reference.
 #[inline(always)]
 pub(crate) fn store_shared_heap_scalar<const BYTE_LEN: usize>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     byte_offset: usize,
     value: Word,
 ) {
     let reference = pointer.as_shared_heap_reference();
-    let address = shared_heap_address(machine, reference, byte_offset);
+    let address = shared_heap_address(activation, reference, byte_offset);
 
     store_scalar_at_address::<BYTE_LEN>(address, value);
 }
@@ -407,7 +410,7 @@ pub(crate) fn store_shared_heap_scalar<const BYTE_LEN: usize>(
 /// Store one scalar through a raw pointer.
 #[inline(always)]
 pub(crate) fn store_raw_scalar<const BYTE_LEN: usize>(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: Word,
     byte_offset: usize,
     value: Word,
@@ -420,7 +423,7 @@ pub(crate) fn store_raw_scalar<const BYTE_LEN: usize>(
 /// Store one scalar through a stack pointer.
 #[inline(always)]
 pub(crate) fn store_stack_scalar<const BYTE_LEN: usize>(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StackPointer,
     byte_offset: usize,
     value: Word,
@@ -433,7 +436,7 @@ pub(crate) fn store_stack_scalar<const BYTE_LEN: usize>(
 /// Store one scalar through a static pointer.
 #[inline(always)]
 pub(crate) fn store_static_scalar<const BYTE_LEN: usize>(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StaticPointer,
     byte_offset: usize,
     value: Word,
@@ -446,14 +449,14 @@ pub(crate) fn store_static_scalar<const BYTE_LEN: usize>(
 /// Load one scalar from a heap reference.
 #[inline(always)]
 pub(crate) fn load_heap_scalar_by_layout(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
 ) -> Word {
     let reference = pointer.as_heap_reference();
 
     debug_assert_word_access(access);
-    let address = local_heap_address(machine, reference, access.byte_offset);
+    let address = local_heap_address(activation, reference, access.byte_offset);
 
     load_scalar_by_layout_at_address(address, scalar_layout(access))
 }
@@ -461,14 +464,14 @@ pub(crate) fn load_heap_scalar_by_layout(
 /// Load one scalar from a shared heap reference.
 #[inline(always)]
 pub(crate) fn load_shared_heap_scalar_by_layout(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
 ) -> Word {
     let reference = pointer.as_shared_heap_reference();
 
     debug_assert_word_access(access);
-    let address = shared_heap_address(machine, reference, access.byte_offset);
+    let address = shared_heap_address(activation, reference, access.byte_offset);
 
     load_scalar_by_layout_at_address(address, scalar_layout(access))
 }
@@ -476,7 +479,7 @@ pub(crate) fn load_shared_heap_scalar_by_layout(
 /// Load one scalar from a stack pointer.
 #[inline(always)]
 pub(crate) fn load_stack_scalar_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
 ) -> Word {
@@ -490,7 +493,7 @@ pub(crate) fn load_stack_scalar_by_layout(
 /// Load one scalar from a frame pointer.
 #[inline(always)]
 pub(crate) fn load_frame_scalar_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: FramePointer,
     access: Projection,
 ) -> Word {
@@ -504,7 +507,7 @@ pub(crate) fn load_frame_scalar_by_layout(
 /// Load one physical slot from a frame pointer.
 #[inline(always)]
 pub(crate) fn load_frame_slot_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: FramePointer,
     access: SlotProjection,
 ) -> Word {
@@ -518,7 +521,7 @@ pub(crate) fn load_frame_slot_by_layout(
 /// Load one scalar from a static pointer.
 #[inline(always)]
 pub(crate) fn load_static_scalar_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StaticPointer,
     access: Projection,
 ) -> Word {
@@ -532,7 +535,7 @@ pub(crate) fn load_static_scalar_by_layout(
 /// Store one scalar through a heap reference.
 #[inline(always)]
 pub(crate) fn store_heap_scalar_by_layout(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
     value: Word,
@@ -541,7 +544,7 @@ pub(crate) fn store_heap_scalar_by_layout(
     let reference = pointer.as_heap_reference();
 
     let start = access.byte_offset;
-    let address = local_heap_address(machine, reference, start);
+    let address = local_heap_address(activation, reference, start);
 
     store_scalar_by_layout_at_address(address, scalar_layout(access), value);
 }
@@ -549,7 +552,7 @@ pub(crate) fn store_heap_scalar_by_layout(
 /// Store bytes into a local heap reference.
 #[inline(always)]
 pub(crate) fn store_heap_bytes(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
     bytes: &[u8],
@@ -557,7 +560,7 @@ pub(crate) fn store_heap_bytes(
     let reference = pointer.as_heap_reference();
 
     let start = access.byte_offset;
-    let address = local_heap_address(machine, reference, start);
+    let address = local_heap_address(activation, reference, start);
     store_native_bytes(address, bytes);
 
     Ok(())
@@ -566,7 +569,7 @@ pub(crate) fn store_heap_bytes(
 /// Store one scalar through a shared heap reference.
 #[inline(always)]
 pub(crate) fn store_shared_heap_scalar_by_layout(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
     value: Word,
@@ -575,7 +578,7 @@ pub(crate) fn store_shared_heap_scalar_by_layout(
     let reference = pointer.as_shared_heap_reference();
 
     let start = access.byte_offset;
-    let address = shared_heap_address(machine, reference, start);
+    let address = shared_heap_address(activation, reference, start);
 
     store_scalar_by_layout_at_address(address, scalar_layout(access), value);
 }
@@ -583,7 +586,7 @@ pub(crate) fn store_shared_heap_scalar_by_layout(
 /// Store bytes into a shared heap reference.
 #[inline(always)]
 pub(crate) fn store_shared_heap_bytes(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     pointer: Word,
     access: Projection,
     bytes: &[u8],
@@ -591,7 +594,7 @@ pub(crate) fn store_shared_heap_bytes(
     let reference = pointer.as_shared_heap_reference();
 
     let start = access.byte_offset;
-    let address = shared_heap_address(machine, reference, start);
+    let address = shared_heap_address(activation, reference, start);
     store_native_bytes(address, bytes);
 
     Ok(())
@@ -600,7 +603,7 @@ pub(crate) fn store_shared_heap_bytes(
 /// Store one scalar through a stack pointer.
 #[inline(always)]
 pub(crate) fn store_stack_scalar_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
     value: Word,
@@ -614,7 +617,7 @@ pub(crate) fn store_stack_scalar_by_layout(
 /// Store bytes into a stack pointer.
 #[inline(always)]
 pub(crate) fn store_stack_bytes(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
     bytes: &[u8],
@@ -629,7 +632,7 @@ pub(crate) fn store_stack_bytes(
 /// Store one scalar through a frame pointer.
 #[inline(always)]
 pub(crate) fn store_frame_scalar_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: FramePointer,
     access: Projection,
     value: Word,
@@ -643,7 +646,7 @@ pub(crate) fn store_frame_scalar_by_layout(
 /// Store one physical slot through a frame pointer.
 #[inline(always)]
 pub(crate) fn store_frame_slot_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: FramePointer,
     access: SlotProjection,
     value: Word,
@@ -658,7 +661,7 @@ pub(crate) fn store_frame_slot_by_layout(
 /// Store one scalar through a static pointer.
 #[inline(always)]
 pub(crate) fn store_static_scalar_by_layout(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StaticPointer,
     access: Projection,
     value: Word,
@@ -672,7 +675,7 @@ pub(crate) fn store_static_scalar_by_layout(
 /// Store bytes into a static pointer.
 #[inline(always)]
 pub(crate) fn store_static_bytes(
-    _machine: &mut Machine<'_, '_>,
+    _machine: &mut Activation<'_>,
     pointer: StaticPointer,
     access: Projection,
     bytes: &[u8],

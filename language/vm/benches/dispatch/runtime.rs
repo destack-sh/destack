@@ -7,13 +7,13 @@ use destack_heap::{
 };
 use destack_mir as mir;
 use destack_source::FileId;
-use destack_vm::{Isolate, IsolateOptions};
+use destack_vm::{Machine, MachineOptions};
 use mir::parse::{ParseOptions, Parser};
 
 /// Runtime state needed to call one benchmark entry.
 pub(crate) struct Runtime {
-    /// The isolate under measurement.
-    isolate: Isolate,
+    /// The machine under measurement.
+    machine: Machine,
     /// The worker static byte space.
     statics: StaticSpace,
     /// The worker heap.
@@ -36,14 +36,14 @@ impl Runtime {
             .finish()
             .expect("benchmark MIR should parse");
 
-        // build the VM isolate
-        let mut isolate = Isolate::build_with_options(
+        // build the VM machine
+        let mut machine = Machine::build_with_options(
             EngineId::new(1),
             tree,
             strings,
-            IsolateOptions::unbounded(),
+            MachineOptions::unbounded(),
         )
-        .expect("benchmark isolate should build");
+        .expect("benchmark machine should build");
 
         // build runtime memory
         let mut statics = StaticSpace::empty();
@@ -53,17 +53,17 @@ impl Runtime {
         let shared_cache = shared.allocation_cache();
 
         // initialize program statics
-        isolate
+        machine
             .initialize(&heap, &shared, &mut statics)
-            .expect("benchmark isolate should initialize");
+            .expect("benchmark machine should initialize");
 
         // resolve the entry once
-        let entry = isolate
+        let entry = machine
             .function_id_by_name(entry)
             .expect("benchmark entry should exist");
 
         Self {
-            isolate,
+            machine,
             statics,
             heap,
             shared,
@@ -86,7 +86,7 @@ impl Runtime {
         entry: mir::LocalNodeId<mir::Function>,
         arguments: &[Value],
     ) -> Value {
-        self.isolate
+        self.machine
             .run_function(
                 &mut self.statics,
                 &mut self.heap,
@@ -101,14 +101,14 @@ impl Runtime {
 
     /// Return one benchmark entry by function name.
     pub(crate) fn entry(&self, name: &str) -> mir::LocalNodeId<mir::Function> {
-        self.isolate
+        self.machine
             .function_id_by_name(name)
             .expect("benchmark entry should exist")
     }
 
-    /// Fork the benchmark heap with the isolate trace table.
+    /// Fork the benchmark heap with the machine trace table.
     pub(crate) fn fork_heap(&mut self) -> Heap {
-        let trace_table = self.isolate.trace_table();
+        let trace_table = self.machine.trace_table();
 
         self.heap
             .fork(trace_table.as_ref())

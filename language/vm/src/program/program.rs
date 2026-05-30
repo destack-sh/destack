@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_engine as engine;
+use destack_engine::StaticPointer;
 use destack_heap as heap;
 use destack_mir as mir;
 use destack_mir::{LayoutId, LayoutShape, LayoutTable, TraceMap};
@@ -14,15 +15,15 @@ use super::{
     ProgramPoint, ResumeState, ResumeTable, SideTable, SideTableBuilder, word_layout_from_type,
 };
 use crate::lower::{ValueType, analyze_value_types, lower_function};
-use crate::{Error, FunctionPointer, Result, StaticPointer, Word};
+use crate::{Error, FunctionPointer, Result, Word};
 
-/// Lowered MIR program and execution metadata shared across isolates.
+/// Lowered MIR program and execution metadata shared across machines.
 pub struct Program {
     /// The MIR tree executed by this program.
     pub(crate) tree: mir::Tree,
     /// The immutable string pool for this program.
     pub(crate) strings: StringPool,
-    /// Lowered function bodies for the current interpreter backend.
+    /// Lowered function bodies for the current VM backend.
     pub(crate) functions: FunctionTable,
     /// Side table referenced by compact side records.
     pub(crate) side_table: SideTable,

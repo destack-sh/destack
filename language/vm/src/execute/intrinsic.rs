@@ -10,7 +10,7 @@ use crate::program::{
     ArgumentRange, Instruction, Intrinsic, IntrinsicDest, PointerClass, ValueLayout,
 };
 
-use crate::interpreter::Machine;
+use crate::machine::Activation;
 
 /// Intrinsic arguments decoded from one pooled argument range.
 struct IntrinsicArguments {
@@ -23,18 +23,18 @@ struct IntrinsicArguments {
 /// Collect intrinsic arguments for one call.
 #[inline]
 fn load_intrinsic_arguments(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     arguments: ArgumentRange,
     layouts: &[ValueLayout],
 ) -> IntrinsicArguments {
-    let argument_slice = machine.argument_slice(arguments);
+    let argument_slice = activation.argument_slice(arguments);
     debug_assert_eq!(argument_slice.len(), layouts.len());
 
     let mut stored_layouts = SmallVec::with_capacity(argument_slice.len());
     let mut words = SmallVec::with_capacity(argument_slice.len());
 
     for (argument, layout) in argument_slice.iter().zip(layouts) {
-        let word = machine.load_value(*argument);
+        let word = activation.load_value(*argument);
 
         stored_layouts.push(*layout);
         words.push(word);
@@ -48,7 +48,7 @@ fn load_intrinsic_arguments(
 
 /// Finish one intrinsic result.
 fn finish_intrinsic_result(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     dest: IntrinsicDest,
     result: RuntimeResult<Word>,
 ) -> Result<(), Error> {
@@ -56,7 +56,7 @@ fn finish_intrinsic_result(
         Ok(result) => {
             match dest {
                 IntrinsicDest::None => {}
-                IntrinsicDest::Word(offset) => machine.store_word_at(offset, result),
+                IntrinsicDest::Word(offset) => activation.store_word_at(offset, result),
                 IntrinsicDest::Frame(value) => {
                     if result != Word::VOID {
                         return Err(Error::type_mismatch(
@@ -74,13 +74,16 @@ fn finish_intrinsic_result(
 }
 
 /// Return the frame destination for one frame intrinsic.
-fn require_frame_dest(machine: &Machine<'_, '_>, dest: IntrinsicDest) -> RuntimeResult<mir::Value> {
+fn require_frame_dest(
+    activation: &Activation<'_>,
+    dest: IntrinsicDest,
+) -> RuntimeResult<mir::Value> {
     match dest {
         IntrinsicDest::Frame(value) => Ok(value),
-        IntrinsicDest::None => {
-            Err(machine.runtime_error(Error::invalid_program("intrinsic destination")))
-        }
-        IntrinsicDest::Word(offset) => Err(machine.runtime_error(Error::type_mismatch(
+        IntrinsicDest::None => Err(activation
+            .machine
+            .runtime_error(Error::invalid_program("intrinsic destination"))),
+        IntrinsicDest::Word(offset) => Err(activation.machine.runtime_error(Error::type_mismatch(
             "frame intrinsic destination",
             format!("word offset: {offset}"),
         ))),
@@ -89,12 +92,12 @@ fn require_frame_dest(machine: &Machine<'_, '_>, dest: IntrinsicDest) -> Runtime
 
 /// Return the destination for an intrinsic that must not produce a frame value.
 fn require_word_dest(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     dest: IntrinsicDest,
 ) -> RuntimeResult<IntrinsicDest> {
     match dest {
         IntrinsicDest::None | IntrinsicDest::Word(_) => Ok(dest),
-        IntrinsicDest::Frame(value) => Err(machine.runtime_error(Error::type_mismatch(
+        IntrinsicDest::Frame(value) => Err(activation.machine.runtime_error(Error::type_mismatch(
             "word intrinsic destination",
             format!("frame-backed value: {value:?}"),
         ))),
@@ -103,43 +106,43 @@ fn require_word_dest(
 
 /// Finish one word intrinsic result.
 fn finish_word_intrinsic_result(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     dest: IntrinsicDest,
     result: RuntimeResult<Word>,
 ) -> Result<(), Error> {
-    let dest = match require_word_dest(machine, dest) {
+    let dest = match require_word_dest(activation, dest) {
         Ok(dest) => dest,
         Err(error) => return Err(error.error),
     };
 
-    finish_intrinsic_result(machine, dest, result)
+    finish_intrinsic_result(activation, dest, result)
 }
 
 /// Finish one frame intrinsic result.
 fn finish_frame_intrinsic_result(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     dest: IntrinsicDest,
     result: RuntimeResult<Word>,
 ) -> Result<(), Error> {
-    finish_intrinsic_result(machine, dest, result)
+    finish_intrinsic_result(activation, dest, result)
 }
 
 macro_rules! word_intrinsic {
     ($(#[$doc:meta])* $function:ident, $method:ident) => {
         $(#[$doc])*
         pub(crate) fn $function(
-            machine: &mut Machine<'_, '_>,
+            activation: &mut Activation<'_>,
             instruction: &Instruction,
         ) -> Result<(), Error> {
-            let intrinsic = *machine.side::<Intrinsic>(instruction);
+            let intrinsic = *activation.side::<Intrinsic>(instruction);
             let arguments = load_intrinsic_arguments(
-                machine,
+                activation,
                 intrinsic.arguments,
                 intrinsic.layouts(),
             );
-            let result = machine.$method(arguments.layouts.as_slice(), arguments.words.as_slice());
+            let result = activation.$method(arguments.layouts.as_slice(), arguments.words.as_slice());
 
-            finish_word_intrinsic_result(machine, intrinsic.dest, result)
+            finish_word_intrinsic_result(activation, intrinsic.dest, result)
         }
     };
 }
@@ -148,26 +151,26 @@ macro_rules! destination_intrinsic {
     ($(#[$doc:meta])* $function:ident, $method:ident) => {
         $(#[$doc])*
         pub(crate) fn $function(
-            machine: &mut Machine<'_, '_>,
+            activation: &mut Activation<'_>,
             instruction: &Instruction,
         ) -> Result<(), Error> {
-            let intrinsic = *machine.side::<Intrinsic>(instruction);
-            let destination = match require_frame_dest(machine, intrinsic.dest) {
+            let intrinsic = *activation.side::<Intrinsic>(instruction);
+            let destination = match require_frame_dest(activation, intrinsic.dest) {
                 Ok(destination) => destination,
                 Err(error) => return Err(error.error),
             };
             let arguments = load_intrinsic_arguments(
-                machine,
+                activation,
                 intrinsic.arguments,
                 intrinsic.layouts(),
             );
-            let result = machine.$method(
+            let result = activation.$method(
                 destination,
                 arguments.layouts.as_slice(),
                 arguments.words.as_slice(),
             );
 
-            finish_frame_intrinsic_result(machine, intrinsic.dest, result)
+            finish_frame_intrinsic_result(activation, intrinsic.dest, result)
         }
     };
 }
@@ -460,82 +463,84 @@ word_intrinsic!(
 
 /// Execute one intrinsic kernel.
 pub(crate) fn execute_intrinsic(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let kernel = machine.side::<Intrinsic>(instruction).kernel;
+    let kernel = activation.side::<Intrinsic>(instruction).kernel;
 
     match kernel {
         mir::Intrinsic::LeadingZeroCount => {
-            execute_intrinsic_leading_zero_count(machine, instruction)
+            execute_intrinsic_leading_zero_count(activation, instruction)
         }
         mir::Intrinsic::TrailingZeroCount => {
-            execute_intrinsic_trailing_zero_count(machine, instruction)
+            execute_intrinsic_trailing_zero_count(activation, instruction)
         }
-        mir::Intrinsic::PopulationCount => execute_intrinsic_population_count(machine, instruction),
-        mir::Intrinsic::ByteSwap => execute_intrinsic_byte_swap(machine, instruction),
-        mir::Intrinsic::BitReverse => execute_intrinsic_bit_reverse(machine, instruction),
-        mir::Intrinsic::RotateLeft => execute_intrinsic_rotate_left(machine, instruction),
-        mir::Intrinsic::RotateRight => execute_intrinsic_rotate_right(machine, instruction),
-        mir::Intrinsic::AddOverflow => execute_intrinsic_add_overflow(machine, instruction),
-        mir::Intrinsic::SubOverflow => execute_intrinsic_sub_overflow(machine, instruction),
-        mir::Intrinsic::MulOverflow => execute_intrinsic_mul_overflow(machine, instruction),
-        mir::Intrinsic::AddUnchecked => execute_intrinsic_add_unchecked(machine, instruction),
-        mir::Intrinsic::SubUnchecked => execute_intrinsic_sub_unchecked(machine, instruction),
-        mir::Intrinsic::MulUnchecked => execute_intrinsic_mul_unchecked(machine, instruction),
-        mir::Intrinsic::DivUnchecked => execute_intrinsic_div_unchecked(machine, instruction),
-        mir::Intrinsic::RemUnchecked => execute_intrinsic_rem_unchecked(machine, instruction),
-        mir::Intrinsic::ShlUnchecked => execute_intrinsic_shl_unchecked(machine, instruction),
-        mir::Intrinsic::ShrUnchecked => execute_intrinsic_shr_unchecked(machine, instruction),
-        mir::Intrinsic::SatAdd => execute_intrinsic_sat_add(machine, instruction),
-        mir::Intrinsic::SatSub => execute_intrinsic_sat_sub(machine, instruction),
-        mir::Intrinsic::Memcpy => execute_intrinsic_memcpy(machine, instruction),
-        mir::Intrinsic::Memmove => execute_intrinsic_memmove(machine, instruction),
-        mir::Intrinsic::Memset => execute_intrinsic_memset(machine, instruction),
-        mir::Intrinsic::Memcmp => execute_intrinsic_memcmp(machine, instruction),
-        mir::Intrinsic::PrefetchRead => execute_intrinsic_prefetch_read(machine, instruction),
-        mir::Intrinsic::PrefetchWrite => execute_intrinsic_prefetch_write(machine, instruction),
-        mir::Intrinsic::Transmute => execute_intrinsic_transmute(machine, instruction),
-        mir::Intrinsic::SpaceCast => execute_intrinsic_space_cast(machine, instruction),
+        mir::Intrinsic::PopulationCount => {
+            execute_intrinsic_population_count(activation, instruction)
+        }
+        mir::Intrinsic::ByteSwap => execute_intrinsic_byte_swap(activation, instruction),
+        mir::Intrinsic::BitReverse => execute_intrinsic_bit_reverse(activation, instruction),
+        mir::Intrinsic::RotateLeft => execute_intrinsic_rotate_left(activation, instruction),
+        mir::Intrinsic::RotateRight => execute_intrinsic_rotate_right(activation, instruction),
+        mir::Intrinsic::AddOverflow => execute_intrinsic_add_overflow(activation, instruction),
+        mir::Intrinsic::SubOverflow => execute_intrinsic_sub_overflow(activation, instruction),
+        mir::Intrinsic::MulOverflow => execute_intrinsic_mul_overflow(activation, instruction),
+        mir::Intrinsic::AddUnchecked => execute_intrinsic_add_unchecked(activation, instruction),
+        mir::Intrinsic::SubUnchecked => execute_intrinsic_sub_unchecked(activation, instruction),
+        mir::Intrinsic::MulUnchecked => execute_intrinsic_mul_unchecked(activation, instruction),
+        mir::Intrinsic::DivUnchecked => execute_intrinsic_div_unchecked(activation, instruction),
+        mir::Intrinsic::RemUnchecked => execute_intrinsic_rem_unchecked(activation, instruction),
+        mir::Intrinsic::ShlUnchecked => execute_intrinsic_shl_unchecked(activation, instruction),
+        mir::Intrinsic::ShrUnchecked => execute_intrinsic_shr_unchecked(activation, instruction),
+        mir::Intrinsic::SatAdd => execute_intrinsic_sat_add(activation, instruction),
+        mir::Intrinsic::SatSub => execute_intrinsic_sat_sub(activation, instruction),
+        mir::Intrinsic::Memcpy => execute_intrinsic_memcpy(activation, instruction),
+        mir::Intrinsic::Memmove => execute_intrinsic_memmove(activation, instruction),
+        mir::Intrinsic::Memset => execute_intrinsic_memset(activation, instruction),
+        mir::Intrinsic::Memcmp => execute_intrinsic_memcmp(activation, instruction),
+        mir::Intrinsic::PrefetchRead => execute_intrinsic_prefetch_read(activation, instruction),
+        mir::Intrinsic::PrefetchWrite => execute_intrinsic_prefetch_write(activation, instruction),
+        mir::Intrinsic::Transmute => execute_intrinsic_transmute(activation, instruction),
+        mir::Intrinsic::SpaceCast => execute_intrinsic_space_cast(activation, instruction),
         mir::Intrinsic::PointerOffsetFrom => {
-            execute_intrinsic_pointer_offset_from(machine, instruction)
+            execute_intrinsic_pointer_offset_from(activation, instruction)
         }
-        mir::Intrinsic::RawEq => execute_intrinsic_raw_eq(machine, instruction),
-        mir::Intrinsic::Sqrt => execute_intrinsic_sqrt(machine, instruction),
-        mir::Intrinsic::Abs => execute_intrinsic_abs(machine, instruction),
-        mir::Intrinsic::Fma => execute_intrinsic_fma(machine, instruction),
-        mir::Intrinsic::CopySign => execute_intrinsic_copy_sign(machine, instruction),
-        mir::Intrinsic::Min => execute_intrinsic_min(machine, instruction),
-        mir::Intrinsic::Max => execute_intrinsic_max(machine, instruction),
-        mir::Intrinsic::Sin => execute_intrinsic_sin(machine, instruction),
-        mir::Intrinsic::Cos => execute_intrinsic_cos(machine, instruction),
-        mir::Intrinsic::Tan => execute_intrinsic_tan(machine, instruction),
-        mir::Intrinsic::Asin => execute_intrinsic_asin(machine, instruction),
-        mir::Intrinsic::Acos => execute_intrinsic_acos(machine, instruction),
-        mir::Intrinsic::Atan => execute_intrinsic_atan(machine, instruction),
-        mir::Intrinsic::Atan2 => execute_intrinsic_atan2(machine, instruction),
-        mir::Intrinsic::Exp => execute_intrinsic_exp(machine, instruction),
-        mir::Intrinsic::Exp2 => execute_intrinsic_exp2(machine, instruction),
-        mir::Intrinsic::Log => execute_intrinsic_log(machine, instruction),
-        mir::Intrinsic::Log2 => execute_intrinsic_log2(machine, instruction),
-        mir::Intrinsic::Log10 => execute_intrinsic_log10(machine, instruction),
-        mir::Intrinsic::Pow => execute_intrinsic_pow(machine, instruction),
-        mir::Intrinsic::Floor => execute_intrinsic_floor(machine, instruction),
-        mir::Intrinsic::Ceil => execute_intrinsic_ceil(machine, instruction),
-        mir::Intrinsic::Trunc => execute_intrinsic_trunc(machine, instruction),
-        mir::Intrinsic::Round => execute_intrinsic_round(machine, instruction),
-        mir::Intrinsic::Breakpoint => execute_intrinsic_breakpoint(machine, instruction),
-        mir::Intrinsic::ReturnAddress => execute_intrinsic_return_address(machine, instruction),
-        mir::Intrinsic::FrameAddress => execute_intrinsic_frame_address(machine, instruction),
-        mir::Intrinsic::Expect => execute_intrinsic_expect(machine, instruction),
-        mir::Intrinsic::BlackBox => execute_intrinsic_black_box(machine, instruction),
+        mir::Intrinsic::RawEq => execute_intrinsic_raw_eq(activation, instruction),
+        mir::Intrinsic::Sqrt => execute_intrinsic_sqrt(activation, instruction),
+        mir::Intrinsic::Abs => execute_intrinsic_abs(activation, instruction),
+        mir::Intrinsic::Fma => execute_intrinsic_fma(activation, instruction),
+        mir::Intrinsic::CopySign => execute_intrinsic_copy_sign(activation, instruction),
+        mir::Intrinsic::Min => execute_intrinsic_min(activation, instruction),
+        mir::Intrinsic::Max => execute_intrinsic_max(activation, instruction),
+        mir::Intrinsic::Sin => execute_intrinsic_sin(activation, instruction),
+        mir::Intrinsic::Cos => execute_intrinsic_cos(activation, instruction),
+        mir::Intrinsic::Tan => execute_intrinsic_tan(activation, instruction),
+        mir::Intrinsic::Asin => execute_intrinsic_asin(activation, instruction),
+        mir::Intrinsic::Acos => execute_intrinsic_acos(activation, instruction),
+        mir::Intrinsic::Atan => execute_intrinsic_atan(activation, instruction),
+        mir::Intrinsic::Atan2 => execute_intrinsic_atan2(activation, instruction),
+        mir::Intrinsic::Exp => execute_intrinsic_exp(activation, instruction),
+        mir::Intrinsic::Exp2 => execute_intrinsic_exp2(activation, instruction),
+        mir::Intrinsic::Log => execute_intrinsic_log(activation, instruction),
+        mir::Intrinsic::Log2 => execute_intrinsic_log2(activation, instruction),
+        mir::Intrinsic::Log10 => execute_intrinsic_log10(activation, instruction),
+        mir::Intrinsic::Pow => execute_intrinsic_pow(activation, instruction),
+        mir::Intrinsic::Floor => execute_intrinsic_floor(activation, instruction),
+        mir::Intrinsic::Ceil => execute_intrinsic_ceil(activation, instruction),
+        mir::Intrinsic::Trunc => execute_intrinsic_trunc(activation, instruction),
+        mir::Intrinsic::Round => execute_intrinsic_round(activation, instruction),
+        mir::Intrinsic::Breakpoint => execute_intrinsic_breakpoint(activation, instruction),
+        mir::Intrinsic::ReturnAddress => execute_intrinsic_return_address(activation, instruction),
+        mir::Intrinsic::FrameAddress => execute_intrinsic_frame_address(activation, instruction),
+        mir::Intrinsic::Expect => execute_intrinsic_expect(activation, instruction),
+        mir::Intrinsic::BlackBox => execute_intrinsic_black_box(activation, instruction),
         mir::Intrinsic::TypeOf | mir::Intrinsic::SizeOf | mir::Intrinsic::AlignOf => {
             Err(Error::invalid_instruction())
         }
     }
 }
 
-impl<'ctx, 'iso> Machine<'ctx, 'iso> {
+impl Activation<'_> {
     /// Store one 2-field result in field order.
     fn store_pair(
         &mut self,
@@ -560,9 +565,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         index: usize,
     ) -> RuntimeResult<&'a Word> {
         args.get(index).ok_or_else(|| {
-            self.runtime_error(Error::invalid_intrinsic_arguments(
-                intrinsic.to_str().to_string(),
-            ))
+            self.machine
+                .runtime_error(Error::invalid_intrinsic_arguments(
+                    intrinsic.to_str().to_string(),
+                ))
         })
     }
 
@@ -574,9 +580,10 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         index: usize,
     ) -> RuntimeResult<ValueLayout> {
         layouts.get(index).copied().ok_or_else(|| {
-            self.runtime_error(Error::invalid_intrinsic_arguments(
-                intrinsic.to_str().to_string(),
-            ))
+            self.machine
+                .runtime_error(Error::invalid_intrinsic_arguments(
+                    intrinsic.to_str().to_string(),
+                ))
         })
     }
 
@@ -595,7 +602,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ValueLayout::Int { width, signed } if width <= Word::BIT_LEN as u16 => {
                 Ok((value, width as u8, signed))
             }
-            _ => Err(self.runtime_error(Error::type_mismatch(
+            _ => Err(self.machine.runtime_error(Error::type_mismatch(
                 "word-sized integer",
                 format!("{layout:?}"),
             ))),
@@ -614,7 +621,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             self.integer_argument(intrinsic, arguments, args, 1)?;
 
         if width != right_width || signed != right_signed {
-            return Err(self.runtime_error(Error::type_mismatch(
+            return Err(self.machine.runtime_error(Error::type_mismatch(
                 "matching integer types",
                 format!("{:?}, {:?}", arguments.first(), arguments.get(1)),
             )));
@@ -638,7 +645,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             ValueLayout::Float { format } if format.width() <= Word::BIT_LEN as u16 => {
                 Ok((value, format.width() as u8))
             }
-            _ => Err(self.runtime_error(Error::type_mismatch(
+            _ => Err(self.machine.runtime_error(Error::type_mismatch(
                 "word-sized float",
                 format!("{layout:?}"),
             ))),
@@ -656,7 +663,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let (right, right_width) = self.float_argument(intrinsic, arguments, args, 1)?;
 
         if width != right_width {
-            return Err(self.runtime_error(Error::type_mismatch(
+            return Err(self.machine.runtime_error(Error::type_mismatch(
                 "matching float types",
                 format!("{:?}, {:?}", arguments.first(), arguments.get(1)),
             )));
@@ -681,7 +688,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
                 pointer_class: PointerClass::Address,
                 ..
             } => Ok(value.as_address()),
-            _ => Err(self.runtime_error(Error::invalid_pointer_type(format!("{layout:?}")))),
+            _ => Err(self
+                .machine
+                .runtime_error(Error::invalid_pointer_type(format!("{layout:?}")))),
         }
     }
 
@@ -695,18 +704,20 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let value = self.intrinsic_value(intrinsic, args, index)?.as_uint();
 
         usize::try_from(value).map_err(|_| {
-            self.runtime_error(Error::invalid_intrinsic_arguments(
-                intrinsic.to_str().to_string(),
-            ))
+            self.machine
+                .runtime_error(Error::invalid_intrinsic_arguments(
+                    intrinsic.to_str().to_string(),
+                ))
         })
     }
 
     /// Return the first passthrough argument.
     fn first_argument(&self, intrinsic: mir::Intrinsic, args: &[Word]) -> RuntimeResult<Word> {
         args.first().copied().ok_or_else(|| {
-            self.runtime_error(Error::invalid_intrinsic_arguments(
-                intrinsic.to_str().to_string(),
-            ))
+            self.machine
+                .runtime_error(Error::invalid_intrinsic_arguments(
+                    intrinsic.to_str().to_string(),
+                ))
         })
     }
 
@@ -1104,14 +1115,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
         if signed {
             if right.as_int() == 0 {
-                return Err(self.runtime_error(Error::division_by_zero()));
+                return Err(self.machine.runtime_error(Error::division_by_zero()));
             }
 
             return Ok(Word::int(left.as_int().wrapping_div(right.as_int()), width));
         }
 
         if right.as_uint() == 0 {
-            return Err(self.runtime_error(Error::division_by_zero()));
+            return Err(self.machine.runtime_error(Error::division_by_zero()));
         }
 
         Ok(Word::uint(
@@ -1127,14 +1138,14 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
         if signed {
             if right.as_int() == 0 {
-                return Err(self.runtime_error(Error::division_by_zero()));
+                return Err(self.machine.runtime_error(Error::division_by_zero()));
             }
 
             return Ok(Word::int(left.as_int().wrapping_rem(right.as_int()), width));
         }
 
         if right.as_uint() == 0 {
-            return Err(self.runtime_error(Error::division_by_zero()));
+            return Err(self.machine.runtime_error(Error::division_by_zero()));
         }
 
         Ok(Word::uint(
@@ -1433,7 +1444,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let (right, right_width) = self.float_argument(mir::Intrinsic::Fma, arguments, args, 2)?;
 
         if width != middle_width || width != right_width {
-            return Err(self.runtime_error(Error::type_mismatch(
+            return Err(self.machine.runtime_error(Error::type_mismatch(
                 "matching float types",
                 format!("{arguments:?}"),
             )));
@@ -1456,7 +1467,9 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
     /// Bitwise equality comparison.
     fn raw_eq(&self, _arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
         if args.len() < 2 {
-            return Err(self.runtime_error(Error::invalid_intrinsic_arguments("raw_eq")));
+            return Err(self
+                .machine
+                .runtime_error(Error::invalid_intrinsic_arguments("raw_eq")));
         }
 
         Ok(Word::bool(args[0].bits() == args[1].bits()))
@@ -1533,17 +1546,17 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         Ok(Word::int(result as i64, 32))
     }
 
-    /// Ignore read prefetch in the interpreter.
+    /// Ignore read prefetch in the activation.
     fn prefetch_read(&self, _arguments: &[ValueLayout], _args: &[Word]) -> RuntimeResult<Word> {
         Ok(Word::VOID)
     }
 
-    /// Ignore write prefetch in the interpreter.
+    /// Ignore write prefetch in the activation.
     fn prefetch_write(&self, _arguments: &[ValueLayout], _args: &[Word]) -> RuntimeResult<Word> {
         Ok(Word::VOID)
     }
 
-    /// Ignore breakpoint in the interpreter.
+    /// Ignore breakpoint in the activation.
     fn breakpoint(&self, _arguments: &[ValueLayout], _args: &[Word]) -> RuntimeResult<Word> {
         Ok(Word::VOID)
     }
@@ -1637,15 +1650,15 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Return the synthetic return address.
     fn return_address(&self) -> RuntimeResult<Word> {
-        if self.interpreter.frames.len() < 2 {
+        if self.machine.frames.len() < 2 {
             return Ok(Word::uint(0, 64));
         }
 
-        let caller_frame = &self.interpreter.frames[self.interpreter.frames.len() - 2];
+        let caller_frame = &self.machine.frames[self.machine.frames.len() - 2];
         let func_id = caller_frame.function().id as u64;
         let block_id = caller_frame
-            .block_id(self.program)
-            .map_err(|error| self.runtime_error(error))?
+            .block_id(&self.machine.program)
+            .map_err(|error| self.machine.runtime_error(error))?
             .id as u64;
 
         let synthetic_addr = (func_id << 32) | block_id;
@@ -1654,7 +1667,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
 
     /// Return the synthetic frame address.
     fn frame_address(&self) -> RuntimeResult<Word> {
-        let frame_idx = self.interpreter.frames.len() as u64;
+        let frame_idx = self.machine.frames.len() as u64;
         let synthetic_addr = 0x7FFF_0000_0000_0000u64 | frame_idx;
         Ok(Word::uint(synthetic_addr, 64))
     }

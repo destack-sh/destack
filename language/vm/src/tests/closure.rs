@@ -1,11 +1,11 @@
 use std::slice;
 
-use crate::Value;
-use crate::tests::{create_isolate, run_mir_expect};
+use crate::tests::{create_machine, run_mir_expect};
+use destack_engine::Value;
 
-/// Function environment state is preserved across repeated calls in one isolate.
+/// Function environment state is preserved across repeated calls in one machine.
 #[test]
-fn test_environment_multiple_calls_same_isolate() {
+fn test_environment_multiple_calls_same_machine() {
     let mir = r#"
 type Env {
     count: ref<int32, managed>;
@@ -49,14 +49,14 @@ b0(v0: ref<Env, managed>):
     return v2
 }"#;
 
-    let mut isolate = create_isolate(mir);
-    let env = isolate
+    let mut machine = create_machine(mir);
+    let env = machine
         .run_function_by_name("makeEnv", &[])
         .expect("execution failed");
-    let first = isolate
+    let first = machine
         .run_function_by_name("callOnce", slice::from_ref(&env))
         .expect("execution failed");
-    let second = isolate
+    let second = machine
         .run_function_by_name("callOnce", &[env])
         .expect("execution failed");
 
@@ -217,9 +217,9 @@ b0:
     run_mir_expect(mir, "caller", &[], Value::int32(30));
 }
 
-/// call.indirect can swap closure environments within a single isolate.
+/// call.indirect can swap closure environments within a single machine.
 #[test]
-fn test_environment_switches_in_isolate() {
+fn test_environment_switches_in_machine() {
     let mir = r#"
 type Env { value: int32 }
 
@@ -247,21 +247,21 @@ b0(v0: ref<Env, managed>):
     return v2
 }"#;
 
-    let mut isolate = create_isolate(mir);
-    let env_a = isolate
+    let mut machine = create_machine(mir);
+    let env_a = machine
         .run_function_by_name("makeEnv", &[Value::int32(7)])
         .expect("execution failed");
-    let env_b = isolate
+    let env_b = machine
         .run_function_by_name("makeEnv", &[Value::int32(13)])
         .expect("execution failed");
 
-    let first = isolate
+    let first = machine
         .run_function_by_name("callOnce", slice::from_ref(&env_a))
         .expect("execution failed");
-    let second = isolate
+    let second = machine
         .run_function_by_name("callOnce", &[env_b])
         .expect("execution failed");
-    let third = isolate
+    let third = machine
         .run_function_by_name("callOnce", &[env_a])
         .expect("execution failed");
 

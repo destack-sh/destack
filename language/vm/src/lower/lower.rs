@@ -196,7 +196,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
     }
 }
 
-/// Lower a MIR function into the interpreter function form.
+/// Lower a MIR function into the VM function form.
 pub(crate) fn lower_function(
     tree: &mir::Tree,
     func_id: mir::LocalNodeId<mir::Function>,

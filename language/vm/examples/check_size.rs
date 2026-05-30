@@ -1,11 +1,9 @@
-use destack_vm::{
-    Continuation, Frame, HeapReference, Interpreter, Isolate, Program, StackPointer, Word,
-};
+use destack_heap::HeapReference;
+use destack_vm::{Continuation, Frame, Machine, Program, StackPointer, Word};
 
 fn main() {
     println!("Program: {} bytes", std::mem::size_of::<Program>());
-    println!("Isolate: {} bytes", std::mem::size_of::<Isolate>());
-    println!("Interpreter: {} bytes", std::mem::size_of::<Interpreter>());
+    println!("Machine: {} bytes", std::mem::size_of::<Machine>());
     println!(
         "Continuation: {} bytes",
         std::mem::size_of::<Continuation>()

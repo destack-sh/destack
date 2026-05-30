@@ -1,6 +1,6 @@
-use crate::Value;
 use crate::diagnostic::Error;
 use crate::tests::{run_mir_expect, run_mir_expect_error};
+use destack_engine::Value;
 
 /// Truncate i64 to i32 correctly masks the value.
 #[test]

@@ -7,26 +7,17 @@
 
 pub mod diagnostic;
 pub(crate) mod execute;
-pub mod interpreter;
-pub mod isolate;
 pub mod lower;
+pub mod machine;
 pub mod options;
 pub mod program;
 mod value;
 
 pub use diagnostic::*;
-pub use interpreter::*;
-pub use isolate::*;
+pub use machine::*;
 pub use options::*;
 pub use program::*;
 pub use value::*;
-
-pub use destack_engine::{EngineId as IsolateId, StaticPointer, StaticSpace, Value};
-pub use destack_heap::{
-    AllocationCache, Allocator, GcStats, GcWorker, Heap, HeapError, HeapImage, HeapLimits,
-    HeapOptions, HeapReference, HeapResult, RootSink, RootSlot, SharedHeap, SharedHeapImage,
-    SharedHeapLimits, SharedHeapReference, SharedHeapUsage,
-};
 
 #[cfg(test)]
 mod tests;

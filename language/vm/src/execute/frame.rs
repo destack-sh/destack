@@ -1,17 +1,18 @@
 use std::ptr;
 
 use destack_engine as engine;
+use destack_heap::SharedHeap;
 use destack_mir as mir;
 use smallvec::SmallVec;
 
 use crate::diagnostic::{Error, ReferenceKind};
-use crate::interpreter::{Frame, Machine};
+use crate::machine::{Activation, Frame};
 use crate::program::{
     ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, PointerClass, Program,
     Projection, ProjectionId, ValueLayout, encode_word_bytes, pointer_class_from_reference,
     repr_type, value_layout_from_type,
 };
-use crate::{FramePointer, SharedHeap, Word};
+use crate::{FramePointer, Word};
 use destack_heap::{AllocationCache, GcWorker, Heap};
 
 use super::access;
@@ -19,11 +20,11 @@ use super::access;
 /// Return the byte offset for one frame element projection.
 #[inline(always)]
 pub(super) fn frame_element_offset(
-    machine: &Machine<'_, '_>,
+    activation: &Activation<'_>,
     access: Projection,
     index: u32,
 ) -> usize {
-    let index = machine.load_word_at(index).as_u64();
+    let index = activation.load_word_at(index).as_u64();
 
     access.byte_offset + access.byte_stride * index as usize
 }
@@ -31,17 +32,17 @@ pub(super) fn frame_element_offset(
 /// Execute fixed-offset frame value address calculation.
 #[inline(always)]
 pub(crate) fn execute_address_frame_value_offset(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let base = instruction.b;
     let byte_offset = instruction.d as usize;
 
-    let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
+    let pointer = activation.frame_pointer_at(base).add_bytes(byte_offset);
     let value = Word::frame_pointer(pointer);
 
-    machine.store_word_at(dest, value);
+    activation.store_word_at(dest, value);
 
     Ok(())
 }
@@ -49,7 +50,7 @@ pub(crate) fn execute_address_frame_value_offset(
 /// Execute frame value element address calculation.
 #[inline(always)]
 pub(crate) fn execute_address_frame_value_element(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
@@ -57,12 +58,12 @@ pub(crate) fn execute_address_frame_value_element(
     let index = instruction.c;
     let access = ProjectionId(instruction.d);
 
-    let access = machine.projection(access);
-    let offset = frame_element_offset(machine, access, index);
-    let pointer = machine.frame_pointer_at(base).add_bytes(offset);
+    let access = activation.projection(access);
+    let offset = frame_element_offset(activation, access, index);
+    let pointer = activation.frame_pointer_at(base).add_bytes(offset);
     let value = Word::frame_pointer(pointer);
 
-    machine.store_word_at(dest, value);
+    activation.store_word_at(dest, value);
 
     Ok(())
 }
@@ -70,16 +71,16 @@ pub(crate) fn execute_address_frame_value_element(
 /// Execute fixed frame scalar load.
 #[inline(always)]
 pub(crate) fn execute_load_frame_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let base = machine.load_word_at(instruction.b);
+    let base = activation.load_word_at(instruction.b);
     let byte_offset = instruction.c as usize;
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
 
     let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
-    machine.store_word_at(dest, value);
+    activation.store_word_at(dest, value);
 
     Ok(())
 }
@@ -87,16 +88,16 @@ pub(crate) fn execute_load_frame_scalar<const BYTE_LEN: usize, const IS_SIGNED: 
 /// Execute fixed frame value scalar load.
 #[inline(always)]
 pub(crate) fn execute_load_frame_value_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let base = instruction.b;
     let byte_offset = instruction.c as usize;
-    let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
+    let pointer = activation.frame_pointer_at(base).add_bytes(byte_offset);
 
     let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
-    machine.store_word_at(dest, value);
+    activation.store_word_at(dest, value);
 
     Ok(())
 }
@@ -104,15 +105,15 @@ pub(crate) fn execute_load_frame_value_scalar<const BYTE_LEN: usize, const IS_SI
 /// Execute fixed frame scalar store.
 #[inline(always)]
 pub(crate) fn execute_store_frame_scalar<const BYTE_LEN: usize>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let base = machine.load_word_at(instruction.a);
+    let base = activation.load_word_at(instruction.a);
     let value = instruction.b;
     let byte_offset = instruction.c as usize;
 
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
-    let value = machine.load_word_at(value);
+    let value = activation.load_word_at(value);
 
     access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
@@ -122,15 +123,15 @@ pub(crate) fn execute_store_frame_scalar<const BYTE_LEN: usize>(
 /// Execute fixed frame value scalar store.
 #[inline(always)]
 pub(crate) fn execute_store_frame_value_scalar<const BYTE_LEN: usize>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let base = instruction.a;
     let value = instruction.b;
     let byte_offset = instruction.c as usize;
 
-    let pointer = machine.frame_pointer_at(base).add_bytes(byte_offset);
-    let value = machine.load_word_at(value);
+    let pointer = activation.frame_pointer_at(base).add_bytes(byte_offset);
+    let value = activation.load_word_at(value);
 
     access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
@@ -177,40 +178,40 @@ impl FrameValue {
 
 /// Encode one function entry argument into frame bytes.
 pub(crate) fn encode_argument_bytes(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
 ) -> Result<Vec<u8>, Error> {
-    let layout = machine.layout(ty)?.clone();
+    let layout = activation.require_layout(ty)?.clone();
     if layout.is_word() {
-        return Ok(encode_word_bytes(machine.tree(), ty, value)?
+        return Ok(encode_word_bytes(activation.machine.tree(), ty, value)?
             .as_slice()
             .to_vec());
     }
 
     let mut bytes = vec![0u8; layout.byte_len];
-    store_argument_bytes(machine, ty, value, &mut bytes)?;
+    store_argument_bytes(activation, ty, value, &mut bytes)?;
 
     Ok(bytes)
 }
 
 /// Store one field value into destination frame bytes.
 pub(crate) fn store_frame_fields<F>(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     destination: mir::Value,
     mut field_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut Machine<'_, '_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Word, Error>,
+    F: FnMut(&mut Activation<'_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Word, Error>,
 {
-    let ty = machine.value_type(destination)?;
-    let layout = machine.layout(ty)?.clone();
+    let ty = activation.value_type(destination)?;
+    let layout = activation.require_layout(ty)?.clone();
     let field_count = layout
         .field_count()
         .ok_or(Error::type_mismatch("field frame value", format!("{ty:?}")))?;
 
     // validate the destination once before incremental writes
-    if machine.value_bytes(destination)?.len() != layout.byte_len {
+    if activation.value_bytes(destination)?.len() != layout.byte_len {
         return Err(Error::invalid_instruction());
     }
 
@@ -220,14 +221,14 @@ where
         let field = layout
             .field(index)
             .ok_or(Error::invalid_field_access(index, field_count))?;
-        let value = field_value(machine, index, field.ty)?;
+        let value = field_value(activation, index, field.ty)?;
         let value_end = field.offset + field.byte_len;
-        let value_bytes = encode_word_bytes(machine.tree(), field.ty, value)?;
+        let value_bytes = encode_word_bytes(activation.machine.tree(), field.ty, value)?;
         if value_bytes.len() != field.byte_len {
             return Err(Error::invalid_instruction());
         }
 
-        let destination_bytes = machine.value_bytes_mut(destination)?;
+        let destination_bytes = activation.value_bytes_mut(destination)?;
         let value_window = destination_bytes
             .get_mut(field.offset..value_end)
             .ok_or(Error::invalid_field_access(index, layout.byte_len))?;
@@ -240,13 +241,13 @@ where
 
 /// Store one function entry argument into one byte range.
 fn store_argument_bytes(
-    machine: &mut Machine<'_, '_>,
+    activation: &mut Activation<'_>,
     ty: mir::LocalNodeId<mir::Type>,
     value: Word,
     destination: &mut [u8],
 ) -> Result<(), Error> {
-    if machine.layout(ty)?.is_word() {
-        let bytes = encode_word_bytes(machine.tree(), ty, value)?;
+    if activation.require_layout(ty)?.is_word() {
+        let bytes = encode_word_bytes(activation.machine.tree(), ty, value)?;
         if bytes.len() != destination.len() {
             return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
@@ -256,8 +257,8 @@ fn store_argument_bytes(
     }
 
     let reference = value.as_heap_reference();
-    if machine.is_heap_live(reference) {
-        let address = machine.heap_address(reference, 0);
+    if activation.is_heap_live(reference) {
+        let address = activation.heap_address(reference, 0);
 
         copy_address_to_slice(address, destination);
 
@@ -265,8 +266,8 @@ fn store_argument_bytes(
     }
 
     let reference = value.as_shared_heap_reference();
-    if machine.is_shared_heap_live(reference) {
-        let address = machine.shared_heap_address(reference, 0);
+    if activation.is_shared_heap_live(reference) {
+        let address = activation.shared_heap_address(reference, 0);
 
         copy_address_to_slice(address, destination);
 

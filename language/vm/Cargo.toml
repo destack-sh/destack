@@ -1,6 +1,6 @@
 [package]
 name = "destack_vm"
-description = "Destack VM - MIR interpreter and JIT execution engine"
+description = "Destack VM - MIR machine and JIT execution engine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

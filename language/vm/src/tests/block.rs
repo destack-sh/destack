@@ -1,9 +1,10 @@
 use crate::diagnostic::{Error, ProgramError};
 use crate::tests::{
-    assert_runtime_error, assert_runtime_error_matches, create_isolate, run_mir, run_mir_expect,
+    assert_runtime_error, assert_runtime_error_matches, create_machine, run_mir, run_mir_expect,
     run_mir_ok,
 };
-use crate::{FunctionPointer, Value, Word};
+use crate::{FunctionPointer, Word};
+use destack_engine::Value;
 
 /// Branch instruction takes the true path when condition is true.
 #[test]
@@ -257,12 +258,12 @@ b0(v0: (int32) -> int32, v1: int32):
     return v2
 }"#;
 
-    let mut isolate = create_isolate(mir_text);
-    let double_id = isolate
-        .isolate
+    let mut machine = create_machine(mir_text);
+    let double_id = machine
+        .machine
         .function_id_by_name("double")
         .expect("double should exist");
-    let result = isolate
+    let result = machine
         .run_frame_function_by_name(
             "caller",
             &[
@@ -291,12 +292,12 @@ b0(v0: (int32) -> int32, v1: int32):
     return v2
 }"#;
 
-    let mut isolate = create_isolate(mir_text);
-    let wrong_id = isolate
-        .isolate
+    let mut machine = create_machine(mir_text);
+    let wrong_id = machine
+        .machine
         .function_id_by_name("wrong")
         .expect("wrong should exist");
-    let result = isolate.run_frame_function_by_name(
+    let result = machine.run_frame_function_by_name(
         "caller",
         &[
             Word::function_pointer(FunctionPointer::from_bits(wrong_id.id as usize)),
@@ -384,12 +385,12 @@ b0(v0: int32, v1: (int32, int32) -> int32):
     tailCall.indirect v1(v0, v2): (int32, int32) -> int32
 }"#;
 
-    let mut isolate = create_isolate(mir_text);
-    let countdown_id = isolate
-        .isolate
+    let mut machine = create_machine(mir_text);
+    let countdown_id = machine
+        .machine
         .function_id_by_name("countdown")
         .expect("countdown should exist");
-    let result = isolate
+    let result = machine
         .run_frame_function_by_name(
             "entry",
             &[

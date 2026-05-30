@@ -3,15 +3,15 @@ use serde::{Deserialize, Serialize};
 
 use super::{Frame, Stack, StackImage, visit_frame_slot_root_slots, visit_materialized_slots};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
-use crate::options::IsolateOptions;
+use crate::options::MachineOptions;
 use crate::program::Program;
 use destack_heap::{HeapResult, RootSlot};
 
-/// Suspended interpreter state captured at a yield terminator.
+/// Suspended machine state captured at a yield terminator.
 #[derive(Debug)]
 pub struct Continuation {
     /// The engine id used to validate the continuation.
-    pub(crate) isolate_id: engine::EngineId,
+    pub(crate) machine_id: engine::EngineId,
     /// Page-backed stack bytes captured with this continuation.
     pub(crate) stack: Stack,
     /// The frame stack for the suspended execution.
@@ -61,7 +61,7 @@ impl Continuation {
         }
 
         Ok(Self {
-            isolate_id: self.isolate_id,
+            machine_id: self.machine_id,
             stack,
             frames,
             resume_frame_index: self.resume_frame_index,
@@ -86,7 +86,7 @@ impl Continuation {
             .collect::<RuntimeResult<Vec<_>>>()?;
 
         Ok(ContinuationImage {
-            engine_id: self.isolate_id,
+            engine_id: self.machine_id,
             stack,
             frames,
         })
@@ -131,7 +131,7 @@ impl Continuation {
     pub(crate) fn from_image(
         image: &ContinuationImage,
         program: &Program,
-        options: &IsolateOptions,
+        options: &MachineOptions,
     ) -> RuntimeResult<Self> {
         if image.frames.is_empty() {
             return Err(RuntimeError::new(Error::invalid_continuation()));
@@ -169,7 +169,7 @@ impl Continuation {
             .frame_state;
 
         Ok(Self {
-            isolate_id: image.engine_id,
+            machine_id: image.engine_id,
             stack,
             frames,
             resume_frame_index,

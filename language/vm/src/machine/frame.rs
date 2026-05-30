@@ -8,7 +8,7 @@ use crate::Word;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::program::{Function, Program, ProgramPoint};
 
-/// Call frame in the interpreter.
+/// Call frame in the VM machine.
 ///
 /// The byte address is owned by the page-backed VM stack.
 #[derive(Debug)]
@@ -23,11 +23,11 @@ pub struct Frame {
     pub(crate) pc: usize,
     /// The caller frame state after one callee returns.
     pub(crate) return_state: Option<engine::FrameStateId>,
-    /// The byte offset in the interpreter stack arena.
+    /// The byte offset in the machine stack arena.
     pub(crate) stack_offset: usize,
     /// The frame byte width.
     pub(crate) byte_len: usize,
-    /// Native address of the frame bytes in the interpreter stack arena.
+    /// Native address of the frame bytes in the machine stack arena.
     base: usize,
 }
 

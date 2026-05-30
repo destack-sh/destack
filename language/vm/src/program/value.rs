@@ -1,8 +1,8 @@
-use crate::{
-    Error, FramePointer, FunctionPointer, HeapReference, ReferenceMeta, SharedHeapReference,
-    StackPointer, StaticPointer, Word,
-};
+use destack_engine::StaticPointer;
+use destack_heap::{HeapReference, SharedHeapReference};
 use destack_mir as mir;
+
+use crate::{Error, FramePointer, FunctionPointer, ReferenceMeta, StackPointer, Word};
 
 use super::repr_type;
 

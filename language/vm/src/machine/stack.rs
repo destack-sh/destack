@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::Word;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 
-/// Page-backed byte stack for one interpreter.
+/// Page-backed byte stack for one machine.
 #[derive(Debug)]
 pub(crate) struct Stack {
     /// The stack address space.

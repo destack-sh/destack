@@ -1,10 +1,10 @@
+use crate::Word;
 use crate::diagnostic::Error;
 use crate::tests::{
     assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok, run_mir_with_frame,
     run_mir_with_frame_ok,
 };
-use crate::{Value, Word};
-use destack_engine::UnsignedInt;
+use destack_engine::{UnsignedInt, Value};
 use destack_mir as mir;
 
 #[test]
@@ -603,23 +603,23 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
     v3: boolean = true
     return v3
 }"#;
-    run_mir_with_frame(mir, "test", |isolate| {
-        let reference_type = isolate.parameter_type("test", 0);
-        let pointee_type = match isolate.isolate.tree().get(reference_type) {
+    run_mir_with_frame(mir, "test", |machine| {
+        let reference_type = machine.parameter_type("test", 0);
+        let pointee_type = match machine.machine.tree().get(reference_type) {
             mir::Type::Reference { pointee, .. } => pointee
                 .ty()
                 .expect("test parameter pointee should be concrete"),
             _ => panic!("test parameter should be one heap reference"),
         };
-        let layout_id = isolate
-            .isolate
+        let layout_id = machine
+            .machine
             .layout_id_for_type(pointee_type)
             .expect("managed pointee should have one layout");
-        let shape = isolate
-            .isolate
+        let shape = machine
+            .machine
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let handle = isolate
+        let handle = machine
             .heap
             .allocate_dynamic_zeroed(shape)
             .expect("heap allocation should succeed");
@@ -642,33 +642,33 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
     v3: boolean = true
     return v3
 }"#;
-    run_mir_with_frame(mir, "test", |isolate| {
-        let reference_type = isolate.parameter_type("test", 0);
-        let pointee_type = match isolate.isolate.tree().get(reference_type) {
+    run_mir_with_frame(mir, "test", |machine| {
+        let reference_type = machine.parameter_type("test", 0);
+        let pointee_type = match machine.machine.tree().get(reference_type) {
             mir::Type::Reference { pointee, .. } => pointee
                 .ty()
                 .expect("test parameter pointee should be concrete"),
             _ => panic!("test parameter should be one shared heap reference"),
         };
-        let layout_id = isolate
-            .isolate
+        let layout_id = machine
+            .machine
             .layout_id_for_type(pointee_type)
             .expect("managed pointee should have one layout");
-        let shape = isolate
-            .isolate
+        let shape = machine
+            .machine
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let mut allocator = isolate.shared_heap.allocation_cache();
-        let handle = isolate
+        let mut allocator = machine.shared_heap.allocation_cache();
+        let handle = machine
             .shared_heap
             .allocate_dynamic_zeroed(
-                &isolate.shared_gc,
+                &machine.shared_gc,
                 &mut allocator,
                 shape,
-                isolate.isolate.trace_table().as_ref(),
+                machine.machine.trace_table().as_ref(),
             )
             .expect("shared heap allocation should succeed");
-        isolate.shared_heap.flush_allocation_cache(&mut allocator);
+        machine.shared_heap.flush_allocation_cache(&mut allocator);
 
         vec![
             Word::shared_heap_reference(handle),
@@ -687,23 +687,23 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
     barrier.write v0, v1, v2
     return
 }"#;
-    let result = run_mir_with_frame(mir, "test", |isolate| {
-        let reference_type = isolate.parameter_type("test", 0);
-        let pointee_type = match isolate.isolate.tree().get(reference_type) {
+    let result = run_mir_with_frame(mir, "test", |machine| {
+        let reference_type = machine.parameter_type("test", 0);
+        let pointee_type = match machine.machine.tree().get(reference_type) {
             mir::Type::Reference { pointee, .. } => pointee
                 .ty()
                 .expect("test parameter pointee should be concrete"),
             _ => panic!("test parameter should be one heap reference"),
         };
-        let layout_id = isolate
-            .isolate
+        let layout_id = machine
+            .machine
             .layout_id_for_type(pointee_type)
             .expect("managed pointee should have one layout");
-        let shape = isolate
-            .isolate
+        let shape = machine
+            .machine
             .allocation_shape(layout_id)
             .expect("managed pointee layout should resolve");
-        let handle = isolate
+        let handle = machine
             .heap
             .allocate_dynamic_zeroed(shape)
             .expect("heap allocation should succeed");
