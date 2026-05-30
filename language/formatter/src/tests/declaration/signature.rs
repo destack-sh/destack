@@ -15,6 +15,18 @@ fn test_format_parameter() {
 }
 
 #[test]
+fn test_format_float_parameter_types() {
+    assert_format_program_roundtrip_with_file_type(
+        r#"function convert(a: float16, b: bfloat16, c: float32, d: float64): void {}
+"#,
+        r#"function convert(a: float16, b: bfloat16, c: float32, d: float64): void {}
+"#,
+        FileType::Destack,
+        DestackFormatOptions::default(),
+    );
+}
+
+#[test]
 fn test_format_parameter_with_default() {
     assert_format!(
         "x: int32 = 1",
