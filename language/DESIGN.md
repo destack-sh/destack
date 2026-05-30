@@ -118,11 +118,13 @@ Destack extends TypeScript's type system with precise primitives, nominal types 
 Destack is based on TypeScript, and TypeScript inherits its main primitive types from JavaScript: `string`, `boolean`, `number`, `bigint`, and `symbol`, plus the `null` and `undefined` sentinels.
 It should be noted that `string` and `bigint` are not really special in Destack, they are just aliases to the standard library `String` and `BigInt` classes, respectively.
 We forbid imprecise top types like `object` and `any`, and provide additional precise primitive types:
-- precise numeric types beyond `number`, with variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as single and double precision floats (`float32`, `float64`)
+- precise numeric types beyond `number`, with variable-width signed and unsigned integers (`int8`, `uint32`, `int17`) as well as modern concrete float formats (`float16`, `bfloat16`, `float32`, `float64`)
 - pointer-sized integers, i.e. integers as wide as the target pointer size, spelled `isize` and `usize`
 - `int` and `uint` as aliases to `int64` and `uint64`
 - `number` as an alias for `float`, and `float` as an alias to `float64`
 - `char` as a single Unicode scalar value, distinct from `string`
+
+`float16` is the IEEE-754 binary16 format, while `bfloat16` is a distinct 16-bit format intended for ML and tensor-heavy workloads.
 
 Following the spirit of TypeScript's widening rules, numeric literals start as exact values and can flow into any numeric type that can represent them.
 When no specific numeric context fits, the literals widen as usual to plain `number` (i.e. `float64`).

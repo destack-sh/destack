@@ -16,18 +16,22 @@ pub enum NativeValueTag {
     Int = 2,
     /// The unsigned integer value tag.
     UInt = 3,
+    /// The 16-bit IEEE-754 float value tag.
+    Float16 = 4,
+    /// The 16-bit BF16 float value tag.
+    Bfloat16 = 5,
     /// The 32-bit float value tag.
-    Float32 = 4,
+    Float32 = 6,
     /// The 64-bit float value tag.
-    Float64 = 5,
+    Float64 = 7,
     /// The character value tag.
-    Char = 6,
+    Char = 8,
     /// The local heap reference value tag.
-    HeapReference = 7,
+    HeapReference = 9,
     /// The shared heap reference value tag.
-    SharedHeapReference = 8,
+    SharedHeapReference = 10,
     /// The native address value tag.
-    Address = 9,
+    Address = 11,
 }
 
 /// Native ABI value passed through entrypoint calls.
@@ -71,6 +75,10 @@ impl NativeValue {
                 Self::from_wide(NativeValueTag::Int, *width, bits)
             }
             Value::UInt { value, width } => Self::from_wide(NativeValueTag::UInt, *width, *value),
+            Value::Float16 { bits } => Self::new(NativeValueTag::Float16, 16, u64::from(*bits), 0),
+            Value::Bfloat16 { bits } => {
+                Self::new(NativeValueTag::Bfloat16, 16, u64::from(*bits), 0)
+            }
             Value::Float32 { bits } => Self::new(NativeValueTag::Float32, 32, u64::from(*bits), 0),
             Value::Float64 { bits } => Self::new(NativeValueTag::Float64, 64, *bits, 0),
             Value::Char(value) => Self::new(NativeValueTag::Char, 32, *value as u64, 0),
@@ -116,6 +124,12 @@ impl NativeValue {
 
                 Ok(Value::uint(self.wide(), width))
             }
+            NativeValueTag::Float16 => Ok(Value::Float16 {
+                bits: self.low as u16,
+            }),
+            NativeValueTag::Bfloat16 => Ok(Value::Bfloat16 {
+                bits: self.low as u16,
+            }),
             NativeValueTag::Float32 => Ok(Value::Float32 {
                 bits: self.low as u32,
             }),
@@ -257,12 +271,14 @@ impl TryFrom<u32> for NativeValueTag {
             1 => Ok(Self::Bool),
             2 => Ok(Self::Int),
             3 => Ok(Self::UInt),
-            4 => Ok(Self::Float32),
-            5 => Ok(Self::Float64),
-            6 => Ok(Self::Char),
-            7 => Ok(Self::HeapReference),
-            8 => Ok(Self::SharedHeapReference),
-            9 => Ok(Self::Address),
+            4 => Ok(Self::Float16),
+            5 => Ok(Self::Bfloat16),
+            6 => Ok(Self::Float32),
+            7 => Ok(Self::Float64),
+            8 => Ok(Self::Char),
+            9 => Ok(Self::HeapReference),
+            10 => Ok(Self::SharedHeapReference),
+            11 => Ok(Self::Address),
             tag => Err(NativeValueError::InvalidTag { tag }),
         }
     }
