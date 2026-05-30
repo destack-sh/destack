@@ -12,13 +12,11 @@ export function TopBar() {
     return (
         <header class="border-b border-neutral-950 bg-destack-ink text-destack-panel">
             <div class="mx-auto flex h-12 max-w-328 items-center justify-between px-4 md:px-10">
-                {/* brand */}
                 <A class="flex items-center gap-2 text-sm font-extrabold" href="/">
                     <Icon class="size-7" />
                     <span>destack</span>
                 </A>
 
-                {/* community links, hidden on phones, slash-separated otherwise */}
                 <nav class="hidden items-center gap-2 text-sm font-extrabold lowercase sm:flex">
                     {communityLinks.map(([label, href], index) => (
                         <>

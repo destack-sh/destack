@@ -1,264 +1,305 @@
-import type { JSX } from "solid-js";
-import { createMemo, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal } from "solid-js";
 
 import {
     exampleAreas,
     highlightedOutputFor,
+    outputFor,
     targetsFor,
-    type ExampleArea,
-    type ExampleCategory,
     type OutputTarget,
 } from "../examples";
 import { snippets } from "../generated/snippets";
+import { ResizeHandle, dragHorizontally } from "./fiddle/component/resize";
+import { Explorer } from "./fiddle/explorer";
+import { StatusBar } from "./fiddle/panel/status";
+import type { Cursor, Status, ViewerFile } from "./fiddle/panel/types";
+import { ViewerPanel } from "./fiddle/panel/viewer";
+import { readmeForArea, readmeForCategory } from "./fiddle/readme";
 import { Panel } from "./panel";
 
-// file-extension-style label per output target
+const minimumTreeWidth = 220;
+const maximumTreeWidth = 360;
+const minimumSourceShare = 36;
+const maximumSourceShare = 66;
+
 const targetLabels: Record<OutputTarget, string> = {
     assembly: ".asm",
     javascript: ".js",
-    output: ".output",
+    output: "terminal",
 };
 
-// top-level area labels are static, derive them once
-const areaLabels = exampleAreas.map((area) => `${area.label.toLowerCase()}/`);
-
 export function Fiddle() {
-    // selection state: area > category > topic, plus output target
     const [areaIndex, setAreaIndex] = createSignal(0);
-    const [categoryIndex, setCategoryIndex] = createSignal(0);
-    const [topicIndex, setTopicIndex] = createSignal(0);
+    const [categoryIndex, setCategoryIndex] = createSignal<number | undefined>(0);
+    const [topicIndex, setTopicIndex] = createSignal<number | undefined>(0);
+    const [treeWidth, setTreeWidth] = createSignal(248);
+    const [sourceShare, setSourceShare] = createSignal(52);
     const [target, setTarget] = createSignal<OutputTarget>("assembly");
+    const [cursor, setCursor] = createSignal<Cursor>({ column: 1, line: 1 });
 
-    // current area, category, and topic resolved from the indices
     const area = createMemo(() => exampleAreas[areaIndex()]);
-    const category = createMemo(() => area().categories[categoryIndex()]);
-    const topic = createMemo(() => category().topics[topicIndex()]);
-
-    // resolve the chosen target against what the topic supports, falling back to the first
-    const targets = createMemo(() => targetsFor(topic()));
-    const selectedTarget = createMemo(() => {
-        const available = targets();
-        return available.includes(target()) ? target() : available[0];
+    const category = createMemo(() => {
+        const index = categoryIndex();
+        return index == undefined ? undefined : area().categories[index];
+    });
+    const topic = createMemo(() => {
+        const categoryValue = category();
+        const index = topicIndex();
+        return categoryValue == undefined || index == undefined
+            ? undefined
+            : categoryValue.topics[index];
     });
 
-    // pre-highlighted compiled output for the current topic + target
-    const renderedOutput = createMemo(() => highlightedOutputFor(topic().key, selectedTarget()));
+    const targets = createMemo(() => {
+        const topicValue = topic();
+        return topicValue == undefined ? [] : targetsFor(topicValue);
+    });
+    const selectedTarget = createMemo(() => {
+        const available = targets();
+        return available.includes(target()) ? target() : available[0] ?? "assembly";
+    });
 
-    // picking a new area or category resets the nested indices
+    const files = createMemo<readonly ViewerFile[]>(() => {
+        const topicValue = topic();
+        if (topicValue != undefined) {
+            const outputTarget = selectedTarget();
+
+            const source = {
+                kind: "source",
+                name: `${topicValue.label}.ds`,
+                path: `${area().label.toLowerCase()}/${topicValue.key}.ds`,
+                html: snippets[topicValue.key].html,
+                source: snippets[topicValue.key].source,
+            } satisfies ViewerFile;
+            const terminal = {
+                kind: "terminal",
+                name: "terminal",
+                path: `${area().label.toLowerCase()}/${topicValue.key}.output`,
+                html: highlightedOutputFor(topicValue.key, "output"),
+                source: outputFor(topicValue.key, "output"),
+            } satisfies ViewerFile;
+
+            if (outputTarget === "output") {
+                return [source, terminal];
+            }
+
+            return [
+                source,
+                {
+                    kind: "output",
+                    name: `${topicValue.label}${targetLabels[outputTarget]}`,
+                    path: `${area().label.toLowerCase()}/${topicValue.key}${targetLabels[outputTarget]}`,
+                    html: highlightedOutputFor(topicValue.key, outputTarget),
+                    source: outputFor(topicValue.key, outputTarget),
+                },
+                terminal,
+            ];
+        }
+
+        const categoryValue = category();
+        if (categoryValue != undefined) {
+            return [
+                {
+                    kind: "markdown",
+                    name: "README.md",
+                    path: `${area().label.toLowerCase()}/${categoryValue.label.toLowerCase()}/README.md`,
+                    ...readmeForCategory(area(), categoryValue),
+                },
+            ];
+        }
+
+        return [
+            {
+                kind: "markdown",
+                name: "README.md",
+                path: `${area().label.toLowerCase()}/README.md`,
+                ...readmeForArea(area()),
+            },
+        ];
+    });
+
+    const status = createMemo<Status>(() => {
+        const [file] = files();
+        const source = file?.source ?? "";
+        const lines = source === "" ? 0 : source.split("\n").length;
+
+        return {
+            cursor: cursor(),
+            file: file?.name ?? "README.md",
+            files: files().length,
+            lines,
+            mode: file?.kind ?? "markdown",
+        };
+    });
+    createEffect(() => {
+        const [file] = files();
+        if (file?.kind !== "source") {
+            setCursor({ column: 1, line: 1 });
+        }
+    });
+
     const selectArea = (index: number) => {
         setAreaIndex(index);
-        setCategoryIndex(0);
-        setTopicIndex(0);
+        setCategoryIndex(undefined);
+        setTopicIndex(undefined);
     };
     const selectCategory = (index: number) => {
         setCategoryIndex(index);
-        setTopicIndex(0);
+        setTopicIndex(undefined);
+    };
+    const selectMarkdownLink = (href: string, basePath: string) => {
+        const path = markdownPath(href, basePath);
+        if (path == undefined) {
+            return false;
+        }
+
+        const target = selectionFor(path);
+        if (target == undefined) {
+            return false;
+        }
+
+        setAreaIndex(target.areaIndex);
+        setCategoryIndex(target.categoryIndex);
+        setTopicIndex(target.topicIndex);
+
+        return true;
+    };
+    const resizeTree = (event: PointerEvent) => {
+        const start = treeWidth();
+        const origin = event.clientX;
+
+        dragHorizontally(event, (clientX) => {
+            const width = start + clientX - origin;
+            setTreeWidth(clamp(width, minimumTreeWidth, maximumTreeWidth));
+        });
+    };
+    const resizeSource = (event: PointerEvent) => {
+        const container = (event.currentTarget as HTMLElement).parentElement;
+        if (container == undefined) {
+            return;
+        }
+
+        const bounds = container.getBoundingClientRect();
+        dragHorizontally(event, (clientX) => {
+            const share = ((clientX - bounds.left) / bounds.width) * 100;
+            setSourceShare(clamp(share, minimumSourceShare, maximumSourceShare));
+        });
     };
 
     return (
         <Panel class="h-full min-h-0" depth="deep" title="explore">
-            <div class="grid h-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)]">
-                {/* path + target picker */}
-                <FiddleHeader
-                    area={area()}
-                    areaIndex={areaIndex()}
-                    category={category()}
-                    categoryIndex={categoryIndex()}
-                    onAreaChange={selectArea}
-                    onCategoryChange={selectCategory}
-                    onTargetChange={setTarget}
-                    onTopicChange={setTopicIndex}
-                    target={selectedTarget()}
-                    targets={targets()}
-                    topicIndex={topicIndex()}
-                />
+            <div
+                class="grid h-full min-h-0 min-w-0 grid-rows-[minmax(0,1fr)_1.75rem] overflow-hidden bg-destack-panel"
+                style={`--tree-width: ${treeWidth()}px`}
+            >
+                <div class="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] overflow-hidden lg:grid-cols-[var(--tree-width)_2px_minmax(0,1fr)]">
+                    <Explorer
+                        areaIndex={areaIndex()}
+                        categoryIndex={categoryIndex()}
+                        onAreaChange={selectArea}
+                        onCategoryChange={selectCategory}
+                        onTopicChange={setTopicIndex}
+                        topicIndex={topicIndex()}
+                    />
 
-                {/* body */}
-                <div class="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] gap-4 overflow-hidden bg-destack-panel px-4 pt-4 pb-6 lg:grid-cols-[minmax(0,1fr)_2px_minmax(0,1fr)]">
-                    {/* source */}
-                    <CodePanel>
-                        <code innerHTML={snippets[topic().key]} />
-                    </CodePanel>
-                    {/* output */}
-                    <CodeDivider />
-                    <CodePanel>
-                        <code innerHTML={renderedOutput()} />
-                    </CodePanel>
+                    <ResizeHandle label="resize file tree" onPointerDown={resizeTree} />
+
+                    <div class="min-h-0 min-w-0 overflow-hidden border-t-2 border-neutral-950 bg-destack-panel lg:border-t-0">
+                        <ViewerPanel
+                            files={files()}
+                            onCursorChange={setCursor}
+                            onMarkdownLink={selectMarkdownLink}
+                            onResize={resizeSource}
+                            onTargetChange={setTarget}
+                            sourceShare={sourceShare()}
+                            target={selectedTarget()}
+                            targetLabels={targetLabels}
+                            targets={targets()}
+                        />
+                    </div>
                 </div>
+
+                <StatusBar status={status()} />
             </div>
         </Panel>
     );
 }
 
-type FiddleHeaderProps = {
-    area: ExampleArea;
-    areaIndex: number;
-    category: ExampleCategory;
-    categoryIndex: number;
-    onAreaChange: (index: number) => void;
-    onCategoryChange: (index: number) => void;
-    onTargetChange: (target: OutputTarget) => void;
-    onTopicChange: (index: number) => void;
-    target: OutputTarget;
-    targets: readonly OutputTarget[];
-    topicIndex: number;
-};
-
-function FiddleHeader(props: FiddleHeaderProps) {
-    // category and topic labels depend on the current selection
-    const categoryLabels = () =>
-        props.area.categories.map((category) => `${category.label.toLowerCase()}/`);
-    const topicLabels = () => props.category.topics.map((topic) => `${topic.label}.ds`);
-
-    return (
-        <div class="relative z-10 m-3 mb-0">
-            <header class="grid gap-2 border-2 border-neutral-950 bg-size-[5px_5px] bg-[radial-gradient(circle,#d6d0c4_0_1px,transparent_1.25px)] px-4 py-4 text-sm font-extrabold lowercase">
-                {/* top row: area path + target picker */}
-                <div class="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                    <PathRow
-                        activeIndex={props.areaIndex}
-                        labels={areaLabels}
-                        level={0}
-                        onSelect={props.onAreaChange}
-                    />
-                    <OutputPicker
-                        onChange={props.onTargetChange}
-                        target={props.target}
-                        targets={props.targets}
-                    />
-                </div>
-
-                {/* category row */}
-                <PathRow
-                    activeIndex={props.categoryIndex}
-                    labels={categoryLabels()}
-                    level={1}
-                    onSelect={props.onCategoryChange}
-                />
-
-                {/* topic row */}
-                <PathRow
-                    activeIndex={props.topicIndex}
-                    labels={topicLabels()}
-                    level={2}
-                    onSelect={props.onTopicChange}
-                />
-            </header>
-        </div>
-    );
+function clamp(value: number, minimum: number, maximum: number) {
+    return Math.max(minimum, Math.min(maximum, value));
 }
 
-type PathRowProps = {
-    activeIndex: number;
-    labels: readonly string[];
-    level: 0 | 1 | 2;
-    onSelect: (index: number) => void;
-};
+function markdownPath(href: string, basePath: string) {
+    const hrefPath = href.split(/[?#]/, 1)[0]?.trim();
+    if (hrefPath == undefined || hrefPath === "" || isExternal(hrefPath)) {
+        return undefined;
+    }
 
-function PathRow(props: PathRowProps) {
-    return (
-        <div
-            class="relative min-w-0"
-            classList={{
-                "pl-0": props.level === 0,
-                "pl-8": props.level === 1,
-                "pl-16": props.level === 2,
-            }}
-        >
-            {/* nesting arrow on every row below the top */}
-            {props.level > 0 && (
-                <span
-                    aria-hidden="true"
-                    class="absolute top-1/2 -translate-y-1/2 text-base font-black leading-none text-neutral-400"
-                    classList={{
-                        "left-3": props.level === 1,
-                        "left-11": props.level === 2,
-                    }}
-                >
-                    {"↳"}
-                </span>
-            )}
+    const path = hrefPath.startsWith("/") ? hrefPath.slice(1) : hrefPath;
+    const first = path.split("/", 1)[0];
+    const base = exampleAreas.some((area) => area.label.toLowerCase() === first)
+        ? []
+        : basePath.split("/").slice(0, -1);
 
-            {/* fade out the right edge to hint at horizontal overflow */}
-            <div class="pointer-events-none absolute inset-y-0 right-0 z-10 w-5 bg-linear-to-l from-destack-page to-transparent" />
-
-            {/* scrollable row of selectable tags */}
-            <div class="flex min-w-0 snap-x gap-2 overflow-x-auto overscroll-x-contain pr-6 scrollbar-none">
-                {props.labels.map((label, index) => (
-                    <Tag
-                        isActive={props.activeIndex === index}
-                        label={label}
-                        onClick={() => props.onSelect(index)}
-                    />
-                ))}
-            </div>
-        </div>
-    );
+    return normalizePath([...base, ...path.split("/")]);
 }
 
-type OutputPickerProps = {
-    onChange: (target: OutputTarget) => void;
-    target: OutputTarget;
-    targets: readonly OutputTarget[];
-};
+function normalizePath(parts: readonly string[]) {
+    const path: string[] = [];
+    for (const part of parts) {
+        if (part === "" || part === ".") {
+            continue;
+        }
 
-function OutputPicker(props: OutputPickerProps) {
-    return (
-        <div class="flex gap-2 md:justify-end">
-            {props.targets.map((target) => (
-                <Tag
-                    isActive={props.target === target}
-                    label={targetLabels[target]}
-                    onClick={() => props.onChange(target)}
-                />
-            ))}
-        </div>
-    );
+        if (part === "..") {
+            path.pop();
+            continue;
+        }
+
+        path.push(part);
+    }
+
+    return path.join("/");
 }
 
-type TagProps = {
-    isActive: boolean;
-    label: string;
-    onClick: () => void;
-};
-
-// selectable bordered tag with a status dot, shared by path rows and target picker
-function Tag(props: TagProps) {
-    return (
-        <button
-            class="group flex shrink-0 snap-start items-center gap-1.5 border bg-destack-panel px-3 py-1.5 text-left"
-            classList={{
-                "border-neutral-950 text-neutral-950": props.isActive,
-                "border-neutral-950/30 text-neutral-500 shadow-none hover:border-neutral-950/70 hover:text-neutral-950":
-                    !props.isActive,
-            }}
-            onClick={props.onClick}
-            type="button"
-        >
-            <span
-                class="size-2 shrink-0 rounded-full"
-                classList={{
-                    "bg-destack-accent": props.isActive,
-                    "bg-neutral-300 group-hover:bg-neutral-500": !props.isActive,
-                }}
-            />
-            <span class="block whitespace-nowrap">{props.label}</span>
-        </button>
+function selectionFor(path: string) {
+    const [areaName, categoryName, fileName] = path.split("/");
+    const areaIndex = exampleAreas.findIndex(
+        (area) => area.label.toLowerCase() === areaName?.toLowerCase(),
     );
+    if (areaIndex < 0) {
+        return undefined;
+    }
+
+    if (categoryName == undefined || categoryName === "README.md") {
+        return { areaIndex, categoryIndex: undefined, topicIndex: undefined };
+    }
+
+    const areaValue = exampleAreas[areaIndex];
+    const categoryIndex = areaValue.categories.findIndex(
+        (category) => category.label.toLowerCase() === categoryName.toLowerCase(),
+    );
+    if (categoryIndex < 0) {
+        return undefined;
+    }
+
+    if (fileName == undefined || fileName === "README.md") {
+        return { areaIndex, categoryIndex, topicIndex: undefined };
+    }
+
+    const categoryValue = areaValue.categories[categoryIndex];
+    const topicIndex = categoryValue.topics.findIndex((topic) => {
+        const sourceName = `${topic.label}.ds`;
+        const keyName = `${topic.key.split("/").at(-1)}.ds`;
+
+        return fileName === sourceName || fileName === keyName;
+    });
+    if (topicIndex < 0) {
+        return undefined;
+    }
+
+    return { areaIndex, categoryIndex, topicIndex };
 }
 
-type CodePanelProps = {
-    children: JSX.Element;
-};
-
-function CodePanel(props: CodePanelProps) {
-    return (
-        <section class="grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-destack-panel">
-            <pre class="code-block">{props.children}</pre>
-        </section>
-    );
-}
-
-function CodeDivider() {
-    return <div aria-hidden="true" class="hidden min-h-0 bg-neutral-950 lg:block" />;
+function isExternal(path: string) {
+    return /^[a-z][a-z0-9+.-]*:/i.test(path) || path.startsWith("//");
 }

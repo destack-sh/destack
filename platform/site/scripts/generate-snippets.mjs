@@ -133,7 +133,7 @@ const entries = snippetOrder.map((name) => {
     const ranges = highlightRanges(file, source);
     const html = render(source, ranges);
 
-    return [name, html];
+    return [name, { html, source }];
 });
 
 const generatedSnippetSource = `export const snippets = ${JSON.stringify(Object.fromEntries(entries), null, 4)} as const;\n`;

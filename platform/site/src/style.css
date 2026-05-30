@@ -10,6 +10,11 @@
         Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
+html,
+body {
+    overscroll-behavior: none;
+}
+
 a,
 button {
     cursor: pointer;
@@ -17,12 +22,147 @@ button {
 
 .code-block {
     min-height: 0;
+    height: 100%;
     overflow: auto;
-    padding: 1.5rem 1.25rem;
+    padding: 0;
     color: #0a0a0a;
     font-size: 0.875rem;
     font-weight: 700;
     line-height: 1.25rem;
+    user-select: text;
+}
+
+.terminal-block {
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    padding: 0;
+    background: var(--color-destack-panel);
+    color: #0a0a0a;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1.25rem;
+}
+
+.numbered-code-block code {
+    display: block;
+    min-width: max-content;
+}
+
+.numbered-code-line {
+    display: grid;
+    grid-template-columns: 3rem minmax(max-content, 1fr);
+    min-height: 1.25rem;
+}
+
+.numbered-code-gutter {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    border-right: 1px solid rgb(10 10 10 / 0.18);
+    background: var(--color-destack-panel);
+    padding: 0 0.75rem 0 0.5rem;
+    color: #737373;
+    text-align: right;
+    user-select: none;
+}
+
+.numbered-code-text {
+    padding: 0 1.25rem;
+    white-space: pre;
+    user-select: text;
+}
+
+.editor-block {
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+.markdown-block {
+    min-height: 0;
+    height: 100%;
+    overflow: auto;
+    padding: 1rem 1.25rem;
+    color: #0a0a0a;
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1.5rem;
+}
+
+.markdown-block h1,
+.markdown-block h2,
+.markdown-block h3 {
+    margin: 0 0 1rem;
+    color: #0a0a0a;
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.markdown-block h1 {
+    font-size: 1.5rem;
+}
+
+.markdown-block h2 {
+    margin-top: 1.5rem;
+    font-size: 1.125rem;
+}
+
+.markdown-block h3 {
+    margin-top: 1.25rem;
+    font-size: 1rem;
+}
+
+.markdown-block p {
+    margin: 0 0 1rem;
+    max-width: 56rem;
+}
+
+.markdown-block code {
+    border: 1px solid rgb(10 10 10 / 0.18);
+    background: rgb(255 255 255 / 0.7);
+    padding: 0 0.25rem;
+    color: #c2410c;
+}
+
+.markdown-block a {
+    color: #0a0a0a;
+    text-decoration-line: underline;
+    text-decoration-color: #d4d4d4;
+    text-decoration-thickness: 0.2rem;
+    text-underline-offset: 0.2rem;
+}
+
+.markdown-block a code {
+    color: inherit;
+}
+
+.markdown-block a:hover {
+    color: #c2410c;
+    text-decoration-color: var(--color-destack-accent);
+}
+
+.markdown-block table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.markdown-block th,
+.markdown-block td {
+    border: 1px solid rgb(10 10 10 / 0.22);
+    padding: 0.5rem 0.625rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.markdown-block th {
+    background: #f5f5f5;
+    color: #404040;
+}
+
+.markdown-block tr:nth-child(2n) td {
+    background: rgb(245 245 245 / 0.5);
 }
 
 .code-block .hljs-built_in,
@@ -63,6 +203,14 @@ button {
 
 .code-block .hljs-params {
     color: #404040;
+}
+
+.terminal-block span[data-k="terminal-command"] {
+    color: #c2410c;
+}
+
+.terminal-block span[data-k="terminal-ok"] {
+    color: #15803d;
 }
 
 .code-block span[data-k="diagnostic-shadow"],
