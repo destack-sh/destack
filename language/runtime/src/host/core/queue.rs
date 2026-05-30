@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use parking_lot::{Condvar, Mutex, MutexGuard};
 
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostEvent;
 
 /// Shared host event queue for host event delivery.
@@ -41,15 +41,22 @@ impl HostQueue {
     }
 
     /// Enqueue host events and wake blocked pollers.
-    pub(crate) fn enqueue(&self, events: Vec<HostEvent>) {
+    pub(crate) fn enqueue(&self, events: Vec<HostEvent>) -> RuntimeResult<()> {
         if events.is_empty() {
-            return;
+            return Ok(());
         }
 
         let mut payload = self.state.queue.lock();
         payload.events.extend(events);
-        payload.wake_sequence = payload.wake_sequence.wrapping_add(1);
+        payload.wake_sequence = payload.wake_sequence.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "host queue wake sequence exhausted".to_string(),
+            }
+            .boxed()
+        })?;
         self.state.wake.notify_all();
+
+        Ok(())
     }
 
     /// Poll queued host events with one optional timeout in nanoseconds.

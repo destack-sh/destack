@@ -94,7 +94,7 @@ impl World {
         let retain_image = self.state.trace.mode() != ExecutionMode::Record
             || checkpoint_name.is_some()
             || !matches!(mode, CaptureMode::Suspend);
-        let image_id = self.lineage.write().allocate_image_id();
+        let image_id = self.lineage.write().allocate_image_id()?;
         let mut image = image;
 
         if retain_image {
@@ -110,7 +110,7 @@ impl World {
             lineage.commit_revision(
                 self.state.branch_id,
                 image_id,
-                trace_image.next_sequence(),
+                trace_image.next_sequence()?,
                 Instant::from_nanos(self.wall()),
                 Instant::from_nanos(self.mono()),
                 checkpoint_name,
@@ -440,7 +440,6 @@ impl World {
             next_worker_id: 0,
             next_scenario_id: 0,
             topology: Default::default(),
-            resources: Default::default(),
             clock,
             random,
             trace: Trace::new(trace_mode, trace_header),
@@ -500,7 +499,6 @@ impl World {
                 next_worker_id: self.state.next_worker_id,
                 next_scenario_id: self.state.next_scenario_id,
                 topology: self.state.topology.clone(),
-                resources: self.state.resources.clone(),
                 clock,
                 random,
                 trace,

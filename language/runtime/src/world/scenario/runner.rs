@@ -114,7 +114,18 @@ impl ScenarioRunner {
         descriptor: BindingDescriptor,
     ) -> RuntimeResult<ScenarioCallId> {
         // allocate one call id for before and after correlation
-        let call_id = ScenarioCallId(self.next_call_id.fetch_add(1, Ordering::Relaxed));
+        let call_id = self
+            .next_call_id
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+                value.checked_add(1)
+            })
+            .map(ScenarioCallId)
+            .map_err(|_| {
+                RuntimeError::Internal {
+                    message: "scenario call identifier space exhausted".to_string(),
+                }
+                .boxed()
+            })?;
 
         self.on_runtime_event(
             world,

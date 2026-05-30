@@ -30,8 +30,15 @@ impl TraceSequence {
     }
 
     /// Return the next sequence number.
-    pub const fn next(self) -> Self {
-        Self(self.0 + 1)
+    pub fn next(self) -> RuntimeResult<Self> {
+        let value = self.0.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "trace sequence space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+
+        Ok(Self(value))
     }
 }
 
@@ -251,7 +258,7 @@ impl TraceLog {
         file.validate()?;
 
         let mut current = self.state.lock();
-        let next_sequence = file.next_sequence();
+        let next_sequence = file.next_sequence()?;
         let (header, chunks, trailer) = file.into_parts();
         let checkpoints = trailer.checkpoints;
         let head = (!chunks.is_empty()).then(|| Arc::new(TracePrefix::new(None, chunks)));
@@ -283,7 +290,13 @@ impl TraceLog {
 
         let mut state = self.state.lock();
         let sequence = state.next_sequence;
-        state.next_sequence = state.next_sequence.next();
+        let next_sequence = sequence.get().checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "trace sequence space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+        state.next_sequence = TraceSequence::new(next_sequence);
 
         // rotate the active chunk before appending when it is full
         let is_rotation_required = !state.tail.active.is_empty()
@@ -309,7 +322,12 @@ impl TraceLog {
         let encoded_end = payload_start + encoded_len;
 
         chunk.bytes.truncate(encoded_end);
-        chunk.header.event_count += 1;
+        chunk.header.event_count = chunk.header.event_count.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "trace chunk event count space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
 
         Ok(sequence)
     }

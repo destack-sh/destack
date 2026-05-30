@@ -27,8 +27,23 @@ pub struct Observations {
 
 impl Observations {
     /// Record one observation at one exact execution coordinate.
-    pub fn record_at(&self, moment: Moment, observation: Observation) -> ObservationSequence {
-        let sequence = ObservationSequence::new(self.next_sequence.fetch_add(1, Ordering::SeqCst));
+    pub fn record_at(
+        &self,
+        moment: Moment,
+        observation: Observation,
+    ) -> RuntimeResult<ObservationSequence> {
+        let sequence = self
+            .next_sequence
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+                value.checked_add(1)
+            })
+            .map(ObservationSequence::new)
+            .map_err(|_| {
+                RuntimeError::Internal {
+                    message: "observation sequence space exhausted".to_string(),
+                }
+                .boxed()
+            })?;
         let mut tail = self.tail.write();
         tail.push(ObservationEntry {
             sequence,
@@ -36,7 +51,7 @@ impl Observations {
             observation,
         });
 
-        sequence
+        Ok(sequence)
     }
 
     /// Return every filtered observation entry after the optional sequence.
@@ -96,10 +111,19 @@ impl Observations {
     }
 
     /// Open one live observation subscription.
-    pub fn open(&self, options: ObservationOptions) -> ObservationSubscriptionId {
-        let subscription_id = ObservationSubscriptionId::new(
-            self.next_subscription_id.fetch_add(1, Ordering::SeqCst),
-        );
+    pub fn open(&self, options: ObservationOptions) -> RuntimeResult<ObservationSubscriptionId> {
+        let subscription_id = self
+            .next_subscription_id
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |value| {
+                value.checked_add(1)
+            })
+            .map(ObservationSubscriptionId::new)
+            .map_err(|_| {
+                RuntimeError::Internal {
+                    message: "observation subscription identifier space exhausted".to_string(),
+                }
+                .boxed()
+            })?;
         let next_sequence = ObservationSequence::new(self.next_sequence.load(Ordering::SeqCst));
         let mut subscriptions = self.subscriptions.write();
         subscriptions.insert(
@@ -110,7 +134,7 @@ impl Observations {
             },
         );
 
-        subscription_id
+        Ok(subscription_id)
     }
 
     /// Close one live observation subscription.
@@ -160,7 +184,7 @@ impl Observations {
 
         // advance the subscription cursor after a successful batch
         if let Some(entry) = batch.last() {
-            subscription.next_sequence = entry.sequence.next();
+            subscription.next_sequence = entry.sequence.next()?;
         }
 
         Ok(batch)

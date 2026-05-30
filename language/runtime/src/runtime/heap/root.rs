@@ -6,6 +6,7 @@ use parking_lot::Mutex;
 
 use destack_heap::SharedHeapReference;
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::WorkerId;
 
 /// One shared heap mark-root publication epoch.
@@ -14,8 +15,15 @@ pub(crate) struct SharedRootEpoch(u64);
 
 impl SharedRootEpoch {
     /// Return the next shared root publication epoch.
-    fn next(self) -> Self {
-        Self(self.0 + 1)
+    fn next(self) -> RuntimeResult<Self> {
+        let value = self.0.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "shared root epoch space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+
+        Ok(Self(value))
     }
 }
 
@@ -57,12 +65,12 @@ impl SharedRootSet {
         &self,
         workers: impl IntoIterator<Item = WorkerId>,
         edge_scan_work_bytes: usize,
-    ) -> SharedRootEpoch {
+    ) -> RuntimeResult<SharedRootEpoch> {
         let workers = workers.into_iter().collect::<BTreeSet<_>>();
         let mut state = self.state.lock();
 
         // epoch
-        state.epoch = state.epoch.next();
+        state.epoch = state.epoch.next()?;
         state.is_active = true;
 
         // root ownership
@@ -80,7 +88,7 @@ impl SharedRootSet {
         self.edge_scan_work_bytes
             .store(edge_scan_work_bytes, Ordering::Release);
 
-        state.epoch
+        Ok(state.epoch)
     }
 
     /// Finish root publication for one shared mark cycle.

@@ -89,11 +89,19 @@ impl EventLoop {
     }
 
     /// Build one task for one wake.
-    pub fn task_for_wake(&mut self, wake: Wake, engine: &mut Engine) -> Option<Task> {
+    pub fn task_for_wake(
+        &mut self,
+        wake: Wake,
+        engine: &mut Engine,
+    ) -> RuntimeResult<Option<Task>> {
         let key = wake.key();
         let is_inactive_timer = matches!(key, WakeKey::Timer(resource_id) if !self.timers.has_active_timer(resource_id));
-        let waiter = self.waiters.get(&key)?;
-        let runnable = engine.restore_continuation_image(&waiter.runnable).ok()?;
+        let Some(waiter) = self.waiters.get(&key) else {
+            return Ok(None);
+        };
+        let Ok(runnable) = engine.restore_continuation_image(&waiter.runnable) else {
+            return Ok(None);
+        };
         let resume_value = waiter.resume_value.clone();
         let priority = waiter.priority;
 
@@ -101,14 +109,14 @@ impl EventLoop {
             self.waiters.remove(&key);
         }
 
-        let task_id = self.next_task_id();
+        let task_id = self.next_task_id()?;
 
-        Some(Task {
+        Ok(Some(Task {
             id: task_id,
             runnable,
             resume_value,
             priority,
-        })
+        }))
     }
 
     /// Capture one immutable waiter payload for repeatable dispatch.

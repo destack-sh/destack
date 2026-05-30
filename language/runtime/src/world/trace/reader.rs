@@ -134,7 +134,7 @@ impl TraceCursor {
 
                 cursor.read_index += 1;
                 cursor.read_offset = end;
-                cursor.next_sequence = sequence.next();
+                cursor.next_sequence = sequence.next()?;
 
                 return Ok(Some(event));
             }

@@ -185,8 +185,12 @@ impl DiagnosticStore {
 
         // take the error and recycle the slot
         let error = state.errors[slot].take()?;
-        state.error_generations[slot] = generation.wrapping_add(1);
-        state.free_error_slots.push(id.slot());
+
+        // recycle only while generation ids remain unique
+        if let Some(next_generation) = generation.checked_add(1) {
+            state.error_generations[slot] = next_generation;
+            state.free_error_slots.push(id.slot());
+        }
 
         Some(error)
     }

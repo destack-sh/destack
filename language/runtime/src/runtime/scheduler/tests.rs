@@ -427,7 +427,8 @@ fn test_runtime_tick_advances_to_simulation_deadline() {
     runtime
         .world_mut()
         .simulation_mut()
-        .schedule_event(deadline);
+        .schedule_event(deadline)
+        .expect("schedule simulation event");
 
     // the first tick should advance world time to the simulated deadline
     let outcome = runtime.tick();

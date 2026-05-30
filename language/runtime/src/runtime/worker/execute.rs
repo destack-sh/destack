@@ -86,7 +86,7 @@ impl Worker {
                 continuation,
                 value,
             } => {
-                let task_id = self.event_loop.next_task_id();
+                let task_id = self.event_loop.next_task_id()?;
                 self.enqueue_task(world, task_id, continuation, value)?;
 
                 let output = self.run_event_loop(
@@ -393,7 +393,7 @@ impl Worker {
             if matches!(&wake, Wake::Timer(_)) {
                 self.scenario.on_timer_fire(world)?;
             }
-            if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine) {
+            if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine)? {
                 self.enqueue_prepared_task(world, task)?;
             }
         }
@@ -502,7 +502,15 @@ impl Worker {
     ) -> RuntimeResult<()> {
         // enforce true microtask nesting depth
         let parent_scope = current_runnable_scope();
-        let next_depth = parent_scope.microtask_depth().saturating_add(1);
+        let next_depth = parent_scope
+            .microtask_depth()
+            .checked_add(1)
+            .ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: "microtask depth space exhausted".to_string(),
+                }
+                .boxed()
+            })?;
         if next_depth > max_microtask_depth {
             return Err(RuntimeError::Internal {
                 message: "microtask depth exceeded max_microtask_depth".to_string(),
@@ -557,7 +565,12 @@ impl Worker {
                 microtask,
                 DEFAULT_MAX_MICROTASK_DEPTH,
             )?;
-            num_drained_microtasks = num_drained_microtasks.saturating_add(1);
+            num_drained_microtasks = num_drained_microtasks.checked_add(1).ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: "microtask drain counter space exhausted".to_string(),
+                }
+                .boxed()
+            })?;
         }
 
         Ok(num_drained_microtasks)

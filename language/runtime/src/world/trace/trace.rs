@@ -97,7 +97,7 @@ impl TraceImage {
     }
 
     /// Return the next sequence number after this trace image.
-    pub(crate) fn next_sequence(&self) -> TraceSequence {
+    pub(crate) fn next_sequence(&self) -> RuntimeResult<TraceSequence> {
         self.file.next_sequence()
     }
 }

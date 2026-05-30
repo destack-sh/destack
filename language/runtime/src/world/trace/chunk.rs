@@ -61,7 +61,8 @@ impl TraceChunk {
 
     /// Return the last sequence number stored in this chunk.
     pub(super) fn sequence_end(&self) -> TraceSequence {
-        let event_offset = self.header.event_count.saturating_sub(1) as u64;
+        debug_assert!(!self.is_empty());
+        let event_offset = (self.header.event_count - 1) as u64;
 
         TraceSequence::new(self.header.sequence_start.get() + event_offset)
     }

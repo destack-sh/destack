@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use super::EventLoop;
-use crate::diagnostic::RuntimeResult;
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::host::time::TimerClock;
 use crate::runtime::time::Nanos;
@@ -62,8 +62,13 @@ pub(super) struct TimerQueue {
 
 impl TimerQueue {
     /// Schedule a timer in the queue.
-    pub(super) fn schedule(&mut self, timer: ScheduledTimer) {
-        let generation = self.next_generation.wrapping_add(1);
+    pub(super) fn schedule(&mut self, timer: ScheduledTimer) -> RuntimeResult<()> {
+        let generation = self.next_generation.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "timer generation space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
         self.next_generation = generation;
         self.active_generations
             .insert(timer.resource_id, generation);
@@ -72,6 +77,8 @@ impl TimerQueue {
             TimerClock::Wall => self.wall.schedule(timer, generation),
             TimerClock::Monotonic => self.monotonic.schedule(timer, generation),
         }
+
+        Ok(())
     }
 
     /// Cancel a timer by resource id.
@@ -80,7 +87,11 @@ impl TimerQueue {
     }
 
     /// Pop the next ready timer for the current wall and monotonic instants.
-    pub(super) fn pop_ready(&mut self, wall_now: Nanos, mono_now: Nanos) -> Option<ScheduledTimer> {
+    pub(super) fn pop_ready(
+        &mut self,
+        wall_now: Nanos,
+        mono_now: Nanos,
+    ) -> RuntimeResult<Option<ScheduledTimer>> {
         let wall = self.wall.peek_ready(&self.active_generations, wall_now);
         let monotonic = self
             .monotonic
@@ -96,7 +107,7 @@ impl TimerQueue {
             }
             (Some(_), None) => (TimerClock::Wall, wall_now),
             (None, Some(_)) => (TimerClock::Monotonic, mono_now),
-            (None, None) => return None,
+            (None, None) => return Ok(None),
         };
 
         self.pop_ready_from_queue(clock, now)
@@ -151,42 +162,57 @@ impl TimerQueue {
     }
 
     /// Restore active timers from one immutable timer image.
-    pub(super) fn restore_image(&mut self, timers: &[ScheduledTimer]) {
+    pub(super) fn restore_image(&mut self, timers: &[ScheduledTimer]) -> RuntimeResult<()> {
         self.wall.clear();
         self.monotonic.clear();
         self.active_generations.clear();
         self.next_generation = 0;
 
         for timer in timers {
-            self.schedule(*timer);
+            self.schedule(*timer)?;
         }
+
+        Ok(())
     }
 
     /// Pop one ready entry from the selected clock domain.
     #[inline(never)]
-    fn pop_ready_from_queue(&mut self, clock: TimerClock, now: Nanos) -> Option<ScheduledTimer> {
+    fn pop_ready_from_queue(
+        &mut self,
+        clock: TimerClock,
+        now: Nanos,
+    ) -> RuntimeResult<Option<ScheduledTimer>> {
         let entry = match clock {
             TimerClock::Wall => self.wall.pop_active(&self.active_generations),
             TimerClock::Monotonic => self.monotonic.pop_active(&self.active_generations),
-        }?;
+        };
+        let Some(entry) = entry else {
+            return Ok(None);
+        };
 
         let timer = entry.scheduled_timer();
         let Some(interval) = entry.interval else {
             self.active_generations.remove(&entry.resource_id);
-            return Some(timer);
+            return Ok(Some(timer));
         };
 
         if interval.get() == 0 {
             self.active_generations.remove(&entry.resource_id);
-            return Some(timer);
+            return Ok(Some(timer));
         }
 
-        self.reschedule_repeating_entry(entry, now, interval);
-        Some(timer)
+        self.reschedule_repeating_entry(entry, now, interval)?;
+
+        Ok(Some(timer))
     }
 
     /// Reschedule one repeating timer after a dispatch.
-    fn reschedule_repeating_entry(&mut self, entry: TimerEntry, now: Nanos, interval: Nanos) {
+    fn reschedule_repeating_entry(
+        &mut self,
+        entry: TimerEntry,
+        now: Nanos,
+        interval: Nanos,
+    ) -> RuntimeResult<()> {
         let mut next_fire = entry.deadline.at.saturating_add(interval);
         if next_fire <= now {
             let elapsed = now.saturating_sub(next_fire);
@@ -204,7 +230,7 @@ impl TimerQueue {
             interval: entry.interval,
         };
 
-        self.schedule(timer);
+        self.schedule(timer)
     }
 }
 
@@ -396,8 +422,7 @@ impl EventLoop {
             interval,
         };
 
-        self.timers.schedule(timer);
-        Ok(())
+        self.timers.schedule(timer)
     }
 
     /// Cancel a timer by resource id.
@@ -412,7 +437,7 @@ impl EventLoop {
         wall_now: Nanos,
         mono_now: Nanos,
     ) -> RuntimeResult<Option<ScheduledTimer>> {
-        Ok(self.timers.pop_ready(wall_now, mono_now))
+        self.timers.pop_ready(wall_now, mono_now)
     }
 }
 
@@ -430,25 +455,31 @@ mod tests {
     #[test]
     fn test_repeating_timer_reschedules() {
         let mut queue = TimerQueue::default();
-        queue.schedule(ScheduledTimer {
-            resource_id: ResourceId::new(TEST_WORKER_ID, 1),
-            deadline: TimerDeadline {
-                clock: TimerClock::Monotonic,
-                at: Nanos::new(10),
-            },
-            interval: Some(Nanos::new(10)),
-        });
+        queue
+            .schedule(ScheduledTimer {
+                resource_id: ResourceId::new(TEST_WORKER_ID, 1),
+                deadline: TimerDeadline {
+                    clock: TimerClock::Monotonic,
+                    at: Nanos::new(10),
+                },
+                interval: Some(Nanos::new(10)),
+            })
+            .expect("schedule timer");
 
         let first = queue
             .pop_ready(Nanos::new(0), Nanos::new(10))
+            .expect("pop ready timer")
             .expect("timer should fire");
         assert_eq!(first.sort_key(), (TEST_WORKER_ID.0, 1));
 
-        let second = queue.pop_ready(Nanos::new(0), Nanos::new(19));
+        let second = queue
+            .pop_ready(Nanos::new(0), Nanos::new(19))
+            .expect("pop ready timer");
         assert!(second.is_none());
 
         let third = queue
             .pop_ready(Nanos::new(0), Nanos::new(20))
+            .expect("pop ready timer")
             .expect("timer should fire again");
         assert_eq!(third.sort_key(), (TEST_WORKER_ID.0, 1));
     }
@@ -457,21 +488,26 @@ mod tests {
     #[test]
     fn test_repeating_timer_coalesces_missed_intervals() {
         let mut queue = TimerQueue::default();
-        queue.schedule(ScheduledTimer {
-            resource_id: ResourceId::new(TEST_WORKER_ID, 2),
-            deadline: TimerDeadline {
-                clock: TimerClock::Monotonic,
-                at: Nanos::new(10),
-            },
-            interval: Some(Nanos::new(10)),
-        });
+        queue
+            .schedule(ScheduledTimer {
+                resource_id: ResourceId::new(TEST_WORKER_ID, 2),
+                deadline: TimerDeadline {
+                    clock: TimerClock::Monotonic,
+                    at: Nanos::new(10),
+                },
+                interval: Some(Nanos::new(10)),
+            })
+            .expect("schedule timer");
 
         let ready = queue
             .pop_ready(Nanos::new(0), Nanos::new(100))
+            .expect("pop ready timer")
             .expect("timer should fire");
         assert_eq!(ready.sort_key(), (TEST_WORKER_ID.0, 2));
 
-        let after_first = queue.pop_ready(Nanos::new(0), Nanos::new(100));
+        let after_first = queue
+            .pop_ready(Nanos::new(0), Nanos::new(100))
+            .expect("pop ready timer");
         assert!(after_first.is_none());
 
         let (_, next_deadline) = queue.next_deadlines();
@@ -483,30 +519,36 @@ mod tests {
     #[test]
     fn test_pop_ready_uses_clock_specific_deadlines() {
         let mut queue = TimerQueue::default();
-        queue.schedule(ScheduledTimer {
-            resource_id: ResourceId::new(TEST_WORKER_ID, 10),
-            deadline: TimerDeadline {
-                clock: TimerClock::Wall,
-                at: Nanos::new(100),
-            },
-            interval: None,
-        });
-        queue.schedule(ScheduledTimer {
-            resource_id: ResourceId::new(TEST_WORKER_ID, 11),
-            deadline: TimerDeadline {
-                clock: TimerClock::Monotonic,
-                at: Nanos::new(50),
-            },
-            interval: None,
-        });
+        queue
+            .schedule(ScheduledTimer {
+                resource_id: ResourceId::new(TEST_WORKER_ID, 10),
+                deadline: TimerDeadline {
+                    clock: TimerClock::Wall,
+                    at: Nanos::new(100),
+                },
+                interval: None,
+            })
+            .expect("schedule wall timer");
+        queue
+            .schedule(ScheduledTimer {
+                resource_id: ResourceId::new(TEST_WORKER_ID, 11),
+                deadline: TimerDeadline {
+                    clock: TimerClock::Monotonic,
+                    at: Nanos::new(50),
+                },
+                interval: None,
+            })
+            .expect("schedule monotonic timer");
 
         let first = queue
             .pop_ready(Nanos::new(0), Nanos::new(60))
+            .expect("pop ready timer")
             .expect("monotonic timer should fire");
         assert_eq!(first.sort_key(), (TEST_WORKER_ID.0, 11));
 
         let second = queue
             .pop_ready(Nanos::new(120), Nanos::new(60))
+            .expect("pop ready timer")
             .expect("wall timer should fire");
         assert_eq!(second.sort_key(), (TEST_WORKER_ID.0, 10));
     }

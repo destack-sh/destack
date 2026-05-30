@@ -19,7 +19,7 @@ impl WorldState {
             Self::policy_subject(&self.topology, runtime_id, worker_id, mode, conditions)?;
         let mut faults = Vec::new();
         for scenario in &mut self.scenarios {
-            faults.extend(scenario.decide_faults(event, subject, &self.random));
+            faults.extend(scenario.decide_faults(event, subject, &self.random)?);
         }
 
         Ok(faults)
