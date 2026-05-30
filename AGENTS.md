@@ -267,10 +267,11 @@ just test
 
 ## Working Style
 
+- When communicating anything about design, you should _always_ try to behave in accordance with this and proactively work these principles, and suggest the right tools, media forms, representation, and questions to nail down proactively the final design before we get started.
+- Always try to include some or all of the below noun / state / verb / code sample diagrams to ground the discussion in reality and ensure alignment.
 - In general, there are two good ways of shaping out what some software should look like: big boxes with lines, and tracer bullets.
 - We like to use both, and we like to use both in tandem, they are very complementary. The whole point of writing software is to model and solve some real world problem (in a way that is machine-emphatic and actually executable efficiently.)
 - Usually, we should try to figure out the main nouns and verbs (data structures, fields, and methods) first, and the main call flows between them. Who owns what state, who reads / writes what where and in what order. 
-- The agent should always try to behave in accordance with this and proactively work this way, and suggest the right tools, media forms, representation, and questions to nail down the final design before we get started.
 - Data structures are incredibly important and I usually want to see them first since they clarify so much about the design. Whenever possible, this should be actual code in whichever languages we're using showing the real changes to / additions of data structures (and which values and value ranges we expect them to have).
 - Code and actual logic is always useful to show and illustrate ideas, even in pseudocode form, but ideally in a real form that we actually expect to execute on some level. Think like an API designer here, since really, everything is an API in some sense.
 - When possible, we should first think through what the example use cases would write in code to do the thing that we're trying to implement, where they're coming from, what the limits and expectatinos and environment is, and so on:
