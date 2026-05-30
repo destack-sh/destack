@@ -148,6 +148,8 @@ impl Parser {
                     is_signed: false,
                 }))
             }
+            "float16" => Ok(TypeLiteral::Float(FloatType::Float16)),
+            "bfloat16" => Ok(TypeLiteral::Float(FloatType::Bfloat16)),
             "float32" => Ok(TypeLiteral::Float(FloatType::Float32)),
             "float64" => Ok(TypeLiteral::Float(FloatType::Float64)),
             _ => Err(ParserError::unexpected(next.span)),

@@ -455,7 +455,9 @@ fn test_parse_template_literal_rejects_legacy_octal_escape() {
 
 #[test]
 fn test_parse_type_literal() {
-    let mut test = TestParser::new("int32 uint8 float boolean char symbol unique symbol");
+    let mut test = TestParser::new(
+        "int32 uint8 u8 float float16 bfloat16 float32 float64 boolean char symbol unique symbol",
+    );
     let mut parser = test.prepare();
     parser.flags.set_in_type(true);
 
@@ -475,7 +477,30 @@ fn test_parse_type_literal() {
     ));
     assert!(matches!(
         parser.eat_type_literal(None).unwrap(),
+        TypeLiteral::Integer(IntegerType::Fixed {
+            width: 8,
+            is_signed: false
+        })
+    ));
+    assert!(matches!(
+        parser.eat_type_literal(None).unwrap(),
         TypeLiteral::Float(FloatType::Float)
+    ));
+    assert!(matches!(
+        parser.eat_type_literal(None).unwrap(),
+        TypeLiteral::Float(FloatType::Float16)
+    ));
+    assert!(matches!(
+        parser.eat_type_literal(None).unwrap(),
+        TypeLiteral::Float(FloatType::Bfloat16)
+    ));
+    assert!(matches!(
+        parser.eat_type_literal(None).unwrap(),
+        TypeLiteral::Float(FloatType::Float32)
+    ));
+    assert!(matches!(
+        parser.eat_type_literal(None).unwrap(),
+        TypeLiteral::Float(FloatType::Float64)
     ));
     assert!(matches!(
         parser.eat_type_literal(None).unwrap(),
