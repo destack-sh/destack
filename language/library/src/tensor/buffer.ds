@@ -1,5 +1,6 @@
 import { Buffer, Device } from "destack:compute";
 import { todo } from "destack:error";
+import { Concrete } from "destack:memory";
 import { sizeOf } from "destack:reflect";
 
 import { TensorExecutionOptions } from "./options.ds";
@@ -17,7 +18,7 @@ export class TensorBuffer<T> {
     readonly length: usize;
 }
 
-extension<T> of TensorBuffer<T> {
+extension<T> of TensorBuffer<T> where T: Concrete {
     /// Allocate an uninitialized buffer.
     static allocate(length: usize, device: Device): TensorBuffer<T> {
         todo("TensorBuffer.allocate")
