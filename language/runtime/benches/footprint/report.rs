@@ -16,7 +16,7 @@ use destack_runtime::runtime::{Runtime, Worker};
 use destack_runtime::simulation::Simulation;
 use destack_runtime::world::trace::{Observations, Trace, TraceLog};
 use destack_runtime::world::{Policy, Resource, Scenario, World};
-use destack_vm::{Continuation, ContinuationImage, Isolate, StackImage};
+use destack_vm::{Continuation, ContinuationImage, Machine, StackImage};
 use destack_workspace::{Environment, RuntimeOptions};
 
 use crate::ALLOCATOR;
@@ -64,7 +64,7 @@ fn print_type_sizes() {
         ("workspace", "Environment", size_of::<Environment>()),
         ("workspace", "RuntimeOptions", size_of::<RuntimeOptions>()),
         ("engine", "StaticSpace", size_of::<StaticSpace>()),
-        ("vm", "Isolate", size_of::<Isolate>()),
+        ("vm", "Machine", size_of::<Machine>()),
         ("vm", "Continuation", size_of::<Continuation>()),
         ("vm", "ContinuationImage", size_of::<ContinuationImage>()),
         ("vm", "StackImage", size_of::<StackImage>()),
@@ -134,7 +134,7 @@ fn print_allocations(runtime: &RuntimeScenario, vm: VmScenario) {
         ("runtime.spawn.empty.vm", runtime_spawn),
         ("worker.spawn.empty.vm", worker_spawn),
         ("launch.empty", ALLOCATOR.measure(|| runtime.launch())),
-        ("vm.isolate.build", ALLOCATOR.measure(|| vm.isolate())),
+        ("vm.machine.build", ALLOCATOR.measure(|| vm.build_machine())),
         ("vm.machine.new", machine_new),
         ("vm.continuation.yield", continuation_yield),
         ("vm.continuation.image", continuation_image),
@@ -159,25 +159,25 @@ fn print_allocations(runtime: &RuntimeScenario, vm: VmScenario) {
 
 /// Print one step-by-step initialized VM machine allocation ledger.
 fn print_vm_machine_breakdown(vm: VmScenario) {
-    let (mut isolate, isolate_build) = ALLOCATOR.capture(|| vm.isolate());
+    let (mut machine, machine_build) = ALLOCATOR.capture(|| vm.build_machine());
     let (mut statics, statics_empty) = ALLOCATOR.capture(StaticSpace::empty);
     let (heap, local_heap) = ALLOCATOR.capture(|| vm.local_heap());
     let (shared, shared_heap) = ALLOCATOR.capture(|| vm.shared_heap());
     let (_shared_gc, shared_gc) = ALLOCATOR.capture(|| shared.register_collector_worker());
     let (_shared_cache, shared_cache) = ALLOCATOR.capture(|| shared.allocation_cache());
     let initialize = ALLOCATOR.measure(|| {
-        isolate
+        machine
             .initialize(&heap, &shared, &mut statics)
-            .expect("footprint isolate should initialize")
+            .expect("footprint machine should initialize")
     });
     let rows = [
-        ("vm.isolate.build", isolate_build),
+        ("vm.machine.build", machine_build),
         ("vm.static.empty", statics_empty),
         ("vm.local_heap.new", local_heap),
         ("vm.shared_heap.new", shared_heap),
         ("vm.shared_gc_worker.new", shared_gc),
         ("vm.shared_cache.new", shared_cache),
-        ("vm.isolate.initialize", initialize),
+        ("vm.machine.initialize", initialize),
     ];
 
     eprintln!();

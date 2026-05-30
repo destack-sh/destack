@@ -56,8 +56,8 @@ fn bench_footprint(criterion: &mut Criterion) {
         })
     });
 
-    group.bench_function("vm.isolate.build", |bencher| {
-        bencher.iter(|| black_box(vm.isolate()))
+    group.bench_function("vm.machine.build", |bencher| {
+        bencher.iter(|| black_box(vm.build_machine()))
     });
 
     group.bench_function("vm.machine.new", |bencher| {
