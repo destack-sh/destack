@@ -55,9 +55,7 @@ impl FunctionLowerer<'_> {
                 }
                 .into());
             }
-            mir::Type::Float(float_type) => {
-                self.state.builder.fconst(0.0, float_type.width() as u8)
-            }
+            mir::Type::Float(float_type) => self.state.builder.fconst(0.0, float_type),
             mir::Type::Isize | mir::Type::Usize | mir::Type::TypeDescriptor | mir::Type::TypeId => {
                 let pointer_bits = self.context.type_lowerer.pointer_width_bits();
                 let signed = matches!(mir_type, mir::Type::Isize);

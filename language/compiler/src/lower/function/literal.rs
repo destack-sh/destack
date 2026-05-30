@@ -28,13 +28,9 @@ impl FunctionLowerer<'_> {
             }
             dir::ScalarLiteral::Integer(value) => {
                 match self.scalar_type_for_expression(expression_id) {
-                    Some(ScalarType::Float { width }) => {
-                        let value = self.state.builder.fconst(*value as f64, width as u8);
-                        let ty = if width == 32 {
-                            self.context.type_lowerer.ty_f32
-                        } else {
-                            self.context.type_lowerer.ty_f64
-                        };
+                    Some(ScalarType::Float { format }) => {
+                        let value = self.state.builder.fconst(*value as f64, format);
+                        let ty = self.context.type_lowerer.type_for_float_format(format);
                         Ok((value, ty))
                     }
                     Some(ScalarType::SignedInt { width }) => {
@@ -57,16 +53,12 @@ impl FunctionLowerer<'_> {
                 }
             }
             dir::ScalarLiteral::Float(value) => {
-                let width = match self.scalar_type_for_expression(expression_id) {
-                    Some(ScalarType::Float { width }) => width,
-                    _ => 64,
+                let format = match self.scalar_type_for_expression(expression_id) {
+                    Some(ScalarType::Float { format }) => format,
+                    _ => mir::FloatType::Float64,
                 };
-                let value = self.state.builder.fconst(*value, width as u8);
-                let ty = if width == 32 {
-                    self.context.type_lowerer.ty_f32
-                } else {
-                    self.context.type_lowerer.ty_f64
-                };
+                let value = self.state.builder.fconst(*value, format);
+                let ty = self.context.type_lowerer.type_for_float_format(format);
                 Ok((value, ty))
             }
             dir::ScalarLiteral::String(value) => {

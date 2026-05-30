@@ -120,8 +120,8 @@ impl Compiler {
 enum NumericKind {
     /// Integer with width and signedness.
     Int { width: u16, is_signed: bool },
-    /// Float with width.
-    Float { width: u16 },
+    /// Float with a concrete format.
+    Float { format: dir::FloatType },
 }
 
 /// Return the numeric kind for a type when possible.
@@ -140,16 +140,18 @@ fn numeric_kind_for_type(ty: &Type) -> Option<NumericKind> {
             })
         }
         TypeLiteral::Primitive(PrimitiveType::Float(float_type)) => {
-            let width = float_type.width()?;
-            Some(NumericKind::Float { width })
+            float_type.width()?;
+            Some(NumericKind::Float {
+                format: *float_type,
+            })
         }
         TypeLiteral::ScalarLiteral(ScalarLiteral::Integer(_)) => Some(NumericKind::Int {
             width: 64,
             is_signed: true,
         }),
-        TypeLiteral::ScalarLiteral(ScalarLiteral::Float(_)) => {
-            Some(NumericKind::Float { width: 64 })
-        }
+        TypeLiteral::ScalarLiteral(ScalarLiteral::Float(_)) => Some(NumericKind::Float {
+            format: dir::FloatType::Float64,
+        }),
         _ => None,
     }
 }
@@ -185,16 +187,27 @@ pub(super) fn numeric_cast_operator(source: &Type, target: &Type) -> Option<Cast
 
             Some(CastOperator::Identity)
         }
-        (NumericKind::Float { width: left_width }, NumericKind::Float { width: right_width }) => {
-            if right_width > left_width {
+        (
+            NumericKind::Float {
+                format: left_format,
+            },
+            NumericKind::Float {
+                format: right_format,
+            },
+        ) => {
+            if right_format == left_format {
+                return Some(CastOperator::Identity);
+            }
+
+            if right_format.width() > left_format.width() {
                 return Some(CastOperator::FloatWiden);
             }
 
-            if right_width < left_width {
+            if right_format.width() < left_format.width() {
                 return Some(CastOperator::FloatNarrow);
             }
 
-            Some(CastOperator::Identity)
+            Some(CastOperator::FloatConvert)
         }
         (NumericKind::Int { .. }, NumericKind::Float { .. }) => Some(CastOperator::IntToFloat),
         (NumericKind::Float { .. }, NumericKind::Int { .. }) => Some(CastOperator::FloatToInt),
@@ -263,9 +276,14 @@ pub(super) fn is_integer_type(ty: &Type) -> bool {
 /// Choose whether the left numeric kind should be preferred.
 fn prefer_left_numeric_kind(left: NumericKind, right: NumericKind) -> bool {
     match (left, right) {
-        (NumericKind::Float { width: left_width }, NumericKind::Float { width: right_width }) => {
-            left_width >= right_width
-        }
+        (
+            NumericKind::Float {
+                format: left_format,
+            },
+            NumericKind::Float {
+                format: right_format,
+            },
+        ) => left_format.width() >= right_format.width(),
         (
             NumericKind::Int {
                 width: left_width,
