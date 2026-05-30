@@ -240,6 +240,11 @@ const id = UserId(1);
 const raw = id as number;
 ```
 
+The important rule is that `newtype` brands the backing type you wrote.
+It does not reinterpret that backing type into some nearby declaration form.
+So `newtype UserId = number` is scalar-shaped, `newtype Shape = Circle | Rectangle` is variant-shaped, and `newtype Point = { x: number; y: number }` is still object-shaped.
+Use `struct` when you want inline fields.
+
 ### Newtype Interfaces
 
 Newtype aliases add nominality to any type, and Destack also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations.
@@ -752,8 +757,8 @@ declare function readBlock<T: RegisterBlock<comptime Width = 16>>(block: T): [ui
 
 ### Constraints
 
-Sometimes defining the constraints and relations for type parameters can become unwieldy or outright impossible with only type annotations for each individual term.
-Destack supports explicit `where` clauses to define additional cosntraints for complex types and signatures:
+Sometimes, defining the constraints and relations for type parameters can become unwieldy or outright impossible with only type annotations on each individual term.
+Destack supports explicit (type-space) `where` clauses to define additional cosntraints for complex types and signatures, very much like Rust:
 
 ```ds
 function merge<T: int, U>(): T where (
@@ -761,38 +766,24 @@ function merge<T: int, U>(): T where (
 ) { }
 ```
 
-### Reflection
+### Shapes
 
-TypeScript types are - by design - erased at runtime, which means we can't easily perform runtime type checks or any meaningful reflection.
-Destack supports type reflection both at runtime and at compile time with `Type<T>` as a normalized view.
-Dynamic type expression can be turned into its reflected type with (implicit or explicit) casting to its `Type` representation:
+Because Destack inherits TypeScript's type forms of `class`, `type` and `interface`, and then _adds_ `struct` value types and nominality via `newtype`, we now have an explosion of _six_ different ways of spelling that something looks like a `Point { x : number; y: number }`.
+Bleh.
+This is somewhat unfortunate, but we couldn't figure out a good way to compress these shapes without losing either key additions like nominality and value types or compatibility guarantees like `type` and `class`.
+So, here goes:
 
-```ds
-struct User {
-    name: string;
-    age: uint;
-}
+| Form | Role | Representation |
+| --- | --- | --- |
+| `type Point = { x: number; y: number }` | Reusable structural type constraint. | Transparent |
+| `interface Point { x: number; y: number }` | Structural constraint with extension syntax. | Transparent |
+| `newtype interface Point { x: number; y: number }` | Nominal interface (trait). | Transparent |
+| `newtype Point = { x: number; y: number }` | Nominal wrapper over an (object) shape. | Managed object |
+| `struct Point { x: number; y: number }` | Nominal value product. | Owned value |
+| `class Point { x: number; y: number }` | Nominal identity object. | Managed object |
 
-let u: User = User { name: "Alice", age: 30 };
-
-const UserType: Type<User> = User;
-const UserType = Type.of<User>();
-```
-
-This also works for generic APIs that operate on types as static values:
-
-```ds
-function parse<comptime T: Type>(raw: string): T {
-}
-
-const user = parse<User>("...");
-```
-
-```ds
-const userSize = comptime sizeOf<User>();
-const requestLayout = comptime layoutOf<Request<Body>>();
-type InlineBytes<T> = [uint8; sizeOf<T>()];
-```
+Hopefully, these mostly behave as expected, even if the assortment is bigger than what one would usually get. 
+They do all actually fill slightly different niches, and, fortunately, they compose quite well, and let us think in terms of types and expectations, and then specify nominality and additional layout and virtual requirements as needed, which is also neat.
 
 ### Concreteness
 
@@ -803,20 +794,7 @@ That said, there is a core distinction in types that Destack reifies differently
  - **Transparent constraints**: type constraints without any specific representation (e.g., `type`, `interface`, `newtype interface`, these are `!Concrete`)
 
 Having existential types and monomorphisation is of course not special in itself, but Destack applies it much more aggressively than is typically done.
-Essentially, Destack's `interface T` behaves like Rust explicit `impl T` (or Swift's `some T`) by default, and the `dyn T` variant is the explicit less-used alternative. 
-
-| Form | Example | Meaning |
-| --- | --- | --- |
-| Primitive or nominal value type | `int32`, `Point`, `UserId` | Concrete type with a stable representation. |
-| Class type | `User` | Concrete managed identity representation. |
-| Nominal declaration | `struct Point { x: int32 }`, `enum Mode { Read }` | Concrete nominal type. |
-| Newtype alias | `newtype Shape = Rectangle \| Circle` | Concrete nominal type with representation selected from its backing type expression. |
-| Structural interface | `interface Writer { write(bytes: [uint8]): uint }` | Transparent structural constraint. |
-| Nominal interface | `newtype interface Add { add(other: this): this }` | Transparent nominal constraint. |
-| Structural type literal | `{ x: int32; y: int32 }` | Transparent structural constraint in type position. |
-| Transparent alias | `type Writer = { write(bytes: [uint8]): uint }` | Transparent constraint alias. |
-| Union or intersection alias | `type Shape = Rectangle \| Circle` | Transparent constraint until a value boundary chooses representation. |
-| Erased wrapper | `Dynamic<Writer>` | Concrete runtime wrapper satisfying a transparent constraint. |
+Essentially, Destack's `interface T` behaves like Rust explicit `impl T` (or Swift's `some T`) by default, and the `dyn T` variant is the explicit less-used alternative.
 
 Destack supports complex type algebra and associations, and Destack wants to be a high performance systems language, and TypeScript-idiomatic code heavily often heavily uses structural-ish types, so we found that _automatically monomorphizing_ all transparent constraints (like `type Point = { x: number, y: number }`) was the only serious tradeoff.
 This design decision means the following interface-like declarations behave equivalently:
@@ -952,6 +930,38 @@ Destack also supports querying parameters of the effective representation during
 | `strideOf<T>()` | The spacing between adjacent array elements of `T` as `usize`. |
 | `layoutOf<T>()` | The reflected `size`, `align`, `stride`, and shape for `T` as a `Layout` value. |
 
+### Reflection
+
+TypeScript types are - by design - erased at runtime, which means we can't easily perform runtime type checks or any meaningful reflection.
+Destack supports type reflection both at runtime and at compile time with `Type<T>` as a normalized view.
+Dynamic type expression can be turned into its reflected type with (implicit or explicit) casting to its `Type` representation:
+
+```ds
+struct User {
+    name: string;
+    age: uint;
+}
+
+let u: User = User { name: "Alice", age: 30 };
+
+const UserType: Type<User> = User;
+const UserType = Type.of<User>();
+```
+
+This also works for generic APIs that operate on types as static values:
+
+```ds
+function parse<comptime T: Type>(raw: string): T {
+}
+
+const user = parse<User>("...");
+```
+
+```ds
+const userSize = comptime sizeOf<User>();
+const requestLayout = comptime layoutOf<Request<Body>>();
+type InlineBytes<T: Concrete> = [uint8; sizeOf<T>()];
+```
 
 ## Expressions
 
