@@ -20,7 +20,7 @@ const value = 'a';
 }
 
 #[test]
-fn test_let_character_widens_literal_type() {
+fn test_let_character_widens_binding_type() {
     let session = TestSession::single(
         r#"
 let value = 'a';
@@ -33,13 +33,13 @@ let value = 'a';
         r#"
 let value = 'a';
 /// @type.symbol symbol=value type=char
-/// @type.node source='a' type=char
+/// @type.node source='a' type='a'
 "#,
     );
 }
 
 #[test]
-fn test_annotation_context_widens_character_literal() {
+fn test_annotation_context_widens_binding_type() {
     let session = TestSession::single(
         r#"
 const value: char = 'a';
@@ -52,7 +52,7 @@ const value: char = 'a';
         r#"
 const value: char = 'a';
 /// @type.symbol symbol=value type=char
-/// @type.node source='a' type=char
+/// @type.node source='a' type='a'
 "#,
     );
 }
@@ -119,7 +119,7 @@ const value: char | string = 'a';
         r#"
 const value: char | string = 'a';
 /// @type.symbol symbol=value type=char | string
-/// @type.node source='a' type=char | string
+/// @type.node source='a' type='a'
 "#,
     );
 }

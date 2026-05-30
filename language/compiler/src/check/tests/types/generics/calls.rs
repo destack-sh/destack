@@ -51,6 +51,95 @@ const text = identity("x");
 }
 
 #[test]
+fn test_array_literal_argument_widens_generic_container() {
+    let session = TestSession::single(
+        r#"
+function identity<T>(value: T): T {
+    return value;
+}
+
+const values = identity([1, 2]);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+function identity<T>(value: T): T {
+/// @generic.slot symbol=identity.T index=0 kind=type
+/// @type.symbol symbol=identity type=<T>(T) => T
+/// @type.symbol symbol=value type=T
+
+    return value;
+    /// @resolution.name source=value target=value
+    /// @type.node source=value type=T
+
+}
+
+const values = identity([1, 2]);
+/// @type.symbol symbol=values type=Array<int32>
+/// @resolution.name source=identity target=identity
+/// @resolution.call source="identity([1, 2])" parameters=(Array<int32>) return=Array<int32> kind=symbol target=identity instance="identity<Array<int32>>"
+/// @generic.application source="identity([1, 2])" id="identity<Array<int32>>"
+/// @type.node source="identity([1, 2])" type=Array<int32>
+/// @type.node source=identity type=<T>(T) => T
+/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @generic.instance id="identity<Array<int32>>" symbol=identity arguments=[Array<int32>]
+"#,
+    );
+}
+
+#[test]
+fn test_array_parameter_infers_widened_element_type() {
+    let session = TestSession::single(
+        r#"
+function first<T>(values: T[]): T {
+    return values[0];
+}
+
+const value = first([1, 2]);
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+function first<T>(values: T[]): T {
+/// @generic.slot symbol=first.T index=0 kind=type
+/// @type.symbol symbol=first type=<T>(Array<T>) => T
+/// @type.symbol symbol=values type=Array<T>
+/// @resolution.name source=T target=T
+/// @resolution.name source=T target=T
+
+    return values[0];
+    /// @type.node source=values type=Array<T>
+    /// @type.node source=values[0] type=T
+    /// @resolution.name source=values target=values
+    /// @resolution.member source=values[0] receiver=Array<T> kind=builtin builtin=subscript.index
+    /// @type.node source=0 type=0
+
+}
+
+const value = first([1, 2]);
+/// @type.symbol symbol=value type=int32
+/// @generic.application source="first([1, 2])" id=first<int32>
+/// @type.node source="first([1, 2])" type=int32
+/// @type.node source=first type=<T>(Array<T>) => T
+/// @resolution.name source=first target=first
+/// @resolution.call source="first([1, 2])" parameters=(Array<int32>) return=int32 kind=symbol target=first instance=first<int32>
+/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @generic.instance id=first<int32> symbol=first arguments=[int32]
+"#,
+    );
+}
+
+#[test]
 fn test_literal_arguments_create_distinct_generic_instances() {
     let session = TestSession::single(
         r#"

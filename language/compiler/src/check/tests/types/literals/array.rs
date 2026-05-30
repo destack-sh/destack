@@ -15,9 +15,9 @@ const first = values[0];
         r#"
 let values = [1, 2];
 /// @type.symbol symbol=values type=Array<int32>
-/// @type.node source=[1, 2] type=Array<int32>
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
+/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 
 const first = values[0];
 /// @type.symbol symbol=first type=int32
@@ -46,8 +46,8 @@ const first = values[0];
 const values: (1 | 2)[] = [1, 2];
 /// @type.symbol symbol=values type=Array<1 | 2>
 /// @type.node source=[1, 2] type=Array<1 | 2>
-/// @type.node source=1 type=1 | 2
-/// @type.node source=2 type=1 | 2
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 
 const first = values[0];
 /// @type.symbol symbol=first type=1 | 2

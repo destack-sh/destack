@@ -20,7 +20,7 @@ const value = 42;
 }
 
 #[test]
-fn test_let_number_widens_literal_type() {
+fn test_let_number_widens_binding_type() {
     let session = TestSession::single(
         r#"
 let value = 42;
@@ -33,13 +33,13 @@ let value = 42;
         r#"
 let value = 42;
 /// @type.symbol symbol=value type=int32
-/// @type.node source=42 type=int32
+/// @type.node source=42 type=42
 "#,
     );
 }
 
 #[test]
-fn test_annotation_context_widens_number_literal() {
+fn test_annotation_context_widens_binding_type() {
     let session = TestSession::single(
         r#"
 const value: int32 = 42;
@@ -52,7 +52,7 @@ const value: int32 = 42;
         r#"
 const value: int32 = 42;
 /// @type.symbol symbol=value type=int32
-/// @type.node source=42 type=int32
+/// @type.node source=42 type=42
 "#,
     );
 }
@@ -77,7 +77,7 @@ const value = 3.14;
 }
 
 #[test]
-fn test_let_float_widens_to_float_type() {
+fn test_let_float_widens_binding_type() {
     let session = TestSession::single(
         r#"
 let value = 3.14;
@@ -90,7 +90,7 @@ let value = 3.14;
         r#"
 let value = 3.14;
 /// @type.symbol symbol=value type=float64
-/// @type.node source=3.14 type=float64
+/// @type.node source=3.14 type=3.14
 "#,
     );
 }

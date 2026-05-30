@@ -20,7 +20,7 @@ const value = true;
 }
 
 #[test]
-fn test_let_boolean_widens_literal_type() {
+fn test_let_boolean_widens_binding_type() {
     let session = TestSession::single(
         r#"
 let value = true;
@@ -33,13 +33,13 @@ let value = true;
         r#"
 let value = true;
 /// @type.symbol symbol=value type=boolean
-/// @type.node source=true type=boolean
+/// @type.node source=true type=true
 "#,
     );
 }
 
 #[test]
-fn test_annotation_context_widens_boolean_literal() {
+fn test_annotation_context_widens_binding_type() {
     let session = TestSession::single(
         r#"
 const value: boolean = false;
@@ -52,7 +52,7 @@ const value: boolean = false;
         r#"
 const value: boolean = false;
 /// @type.symbol symbol=value type=boolean
-/// @type.node source=false type=boolean
+/// @type.node source=false type=false
 "#,
     );
 }
