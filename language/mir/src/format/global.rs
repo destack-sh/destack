@@ -1,3 +1,4 @@
+use destack_core::float_from_bits;
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -143,13 +144,9 @@ fn format_constant<'a>(constant: &Constant, f: &mut MirFormatter<'a, '_>) -> For
         Constant::UInt { value, width } => {
             write!(f, [text(&format!("{value}uint{width}"))])
         }
-        Constant::Float { bits, width } => {
-            let value = if *width == 32 {
-                f32::from_bits(*bits as u32) as f64
-            } else {
-                f64::from_bits(*bits)
-            };
-            write!(f, [text(&format!("{value}float{width}"))])
+        Constant::Float { bits, format } => {
+            let value = float_from_bits(format.format(), *bits);
+            write!(f, [text(&format!("{value}{}", format.label()))])
         }
         Constant::Char { value } => {
             write!(f, [text(&format!("{value:?}"))])

@@ -280,6 +280,8 @@ fn is_primitive_type_name(text: &str) -> bool {
             | "uint64"
             | "uint128"
             | "uint256"
+            | "float16"
+            | "bfloat16"
             | "float32"
             | "float64"
             | "isize"

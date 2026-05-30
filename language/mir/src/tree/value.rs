@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalNodeId, Type};
+use crate::{FloatType, LocalNodeId, Type};
 
 /// SSA value (virtual register).
 #[repr(transparent)]
@@ -65,8 +65,8 @@ pub enum Constant {
     Float {
         /// The value stored as raw bits.
         bits: u64,
-        /// The bit width, 32 or 64.
-        width: u8,
+        /// The concrete float format.
+        format: FloatType,
     },
     /// Character constant.
     Char {
@@ -153,7 +153,7 @@ impl Constant {
     pub fn float32(value: f32) -> Self {
         Self::Float {
             bits: value.to_bits() as u64,
-            width: 32,
+            format: FloatType::Float32,
         }
     }
 
@@ -161,7 +161,7 @@ impl Constant {
     pub fn float64(value: f64) -> Self {
         Self::Float {
             bits: value.to_bits(),
-            width: 64,
+            format: FloatType::Float64,
         }
     }
 

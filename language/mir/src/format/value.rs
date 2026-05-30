@@ -143,12 +143,9 @@ impl<'a> Format<MirFormatContext<'a>> for Constant {
             Constant::UInt { value, width } => {
                 write!(f, [text(&format!("{value}uint{width}"))])
             }
-            Constant::Float { bits, width } => {
-                let value_str = if *width == 32 {
-                    format!("{}float32", f32::from_bits(*bits as u32))
-                } else {
-                    format!("{}float64", f64::from_bits(*bits))
-                };
+            Constant::Float { bits, format } => {
+                let value = destack_core::float_from_bits(format.format(), *bits);
+                let value_str = format!("{value}{}", format.label());
                 write!(f, [text(&value_str)])
             }
             Constant::Char { value } => {

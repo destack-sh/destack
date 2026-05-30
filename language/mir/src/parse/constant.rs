@@ -1,7 +1,7 @@
 use crate::source::TokenType;
 use destack_source::Span;
 
-use crate::{Constant, Intrinsic, LocalNodeId, SpaceSet, Type};
+use crate::{Constant, FloatType, Intrinsic, LocalNodeId, SpaceSet, Type};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -122,9 +122,6 @@ impl Parser {
                 let Type::Float(float_type) = expected else {
                     unreachable!("float type was checked by the match guard")
                 };
-                let width = u8::try_from(float_type.width())
-                    .map_err(|_| ParseError::invalid("float width", token_start))?;
-
                 // typed literal
                 if has_suffix {
                     let constant = self.parse_float_constant(&token_text).ok_or_else(|| {
@@ -132,28 +129,19 @@ impl Parser {
                     })?;
                     match constant {
                         Constant::Float {
-                            width: const_width, ..
-                        } if const_width == width => Ok(constant),
+                            format: const_format,
+                            ..
+                        } if const_format == float_type => Ok(constant),
                         _ => Err(ParseError::invalid("float constant type", token_start)),
                     }
-                }
-                // f32 payload
-                else if width == 32 {
-                    let value: f32 = token_text
-                        .parse()
-                        .map_err(|_| ParseError::invalid("float constant", token_start))?;
-                    Ok(Constant::Float {
-                        bits: value.to_bits() as u64,
-                        width,
-                    })
                 } else {
-                    // f64 payload
+                    // infer payload from expected type
                     let value: f64 = token_text
                         .parse()
                         .map_err(|_| ParseError::invalid("float constant", token_start))?;
                     Ok(Constant::Float {
-                        bits: value.to_bits(),
-                        width,
+                        bits: destack_core::float_to_bits(float_type.format(), value),
+                        format: float_type,
                     })
                 }
             }
@@ -312,6 +300,8 @@ impl Parser {
             },
             "isize" => Type::Isize,
             "usize" => Type::Usize,
+            "float16" => Type::FLOAT16,
+            "bfloat16" => Type::BFLOAT16,
             "float32" => Type::FLOAT32,
             "float64" => Type::FLOAT64,
             "typeDescriptor" => Type::TypeDescriptor,
@@ -375,26 +365,21 @@ impl Parser {
 
     /// Parse a float constant with type suffix.
     pub(super) fn parse_float_constant(&self, text: &str) -> Option<Constant> {
-        let suffix_start = text.rfind("float").or_else(|| text.rfind('f'))?;
+        let suffix_start = text.rfind("bfloat").or_else(|| text.rfind("float"))?;
         let (digits, suffix) = text.split_at(suffix_start);
-        let width_text = suffix
-            .strip_prefix("float")
-            .or_else(|| suffix.strip_prefix('f'))?;
-        let width: u8 = width_text.parse().ok()?;
+        let format = match suffix {
+            "float16" => FloatType::Float16,
+            "bfloat16" => FloatType::Bfloat16,
+            "float32" => FloatType::Float32,
+            "float64" => FloatType::Float64,
+            _ => return None,
+        };
+        let value: f64 = digits.parse().ok()?;
 
-        if width == 32 {
-            let value: f32 = digits.parse().ok()?;
-            Some(Constant::Float {
-                bits: value.to_bits() as u64,
-                width,
-            })
-        } else {
-            let value: f64 = digits.parse().ok()?;
-            Some(Constant::Float {
-                bits: value.to_bits(),
-                width,
-            })
-        }
+        Some(Constant::Float {
+            bits: destack_core::float_to_bits(format.format(), value),
+            format,
+        })
     }
 
     /// Parse a string literal, handling escape sequences.

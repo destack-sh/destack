@@ -1233,6 +1233,8 @@ pub enum CastOperator {
     FloatTruncate,
     /// Extend float to larger width.
     FloatExtend,
+    /// Convert float to another format at the same width.
+    FloatConvert,
     /// Pointer to integer.
     PointerToInt,
     /// Integer to pointer.
@@ -1255,6 +1257,7 @@ impl CastOperator {
             CastOperator::UnsignedIntToFloat => "cast.intToFloat.u",
             CastOperator::FloatTruncate => "cast.floatTruncate",
             CastOperator::FloatExtend => "cast.floatExtend",
+            CastOperator::FloatConvert => "cast.floatConvert",
             CastOperator::PointerToInt => "cast.pointerToInt",
             CastOperator::IntToPointer => "cast.intToPointer",
         }
@@ -1284,6 +1287,7 @@ impl FromStr for CastOperator {
             "cast.intToFloat.u" => Ok(CastOperator::UnsignedIntToFloat),
             "cast.floatTruncate" => Ok(CastOperator::FloatTruncate),
             "cast.floatExtend" => Ok(CastOperator::FloatExtend),
+            "cast.floatConvert" => Ok(CastOperator::FloatConvert),
             "cast.pointerToInt" => Ok(CastOperator::PointerToInt),
             "cast.intToPointer" => Ok(CastOperator::IntToPointer),
             _ => Err(()),

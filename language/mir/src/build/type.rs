@@ -57,24 +57,28 @@ impl ModuleBuilder {
     }
 
     /// Create a float type.
-    pub fn type_float(&mut self, width: u16) -> LocalNodeId<Type> {
-        let float_type = match width {
-            32 => FloatType::Float32,
-            64 => FloatType::Float64,
-            _ => panic!("unsupported float width: {width}"),
-        };
-
+    pub fn type_float(&mut self, float_type: FloatType) -> LocalNodeId<Type> {
         self.tree.insert_type(Type::Float(float_type))
+    }
+
+    /// Create a 16-bit IEEE-754 float type.
+    pub fn type_f16(&mut self) -> LocalNodeId<Type> {
+        self.type_float(FloatType::Float16)
+    }
+
+    /// Create a 16-bit BF16 float type.
+    pub fn type_bf16(&mut self) -> LocalNodeId<Type> {
+        self.type_float(FloatType::Bfloat16)
     }
 
     /// Create a 32-bit float type.
     pub fn type_f32(&mut self) -> LocalNodeId<Type> {
-        self.type_float(32)
+        self.type_float(FloatType::Float32)
     }
 
     /// Create a 64-bit float type.
     pub fn type_f64(&mut self) -> LocalNodeId<Type> {
-        self.type_float(64)
+        self.type_float(FloatType::Float64)
     }
 
     /// Create a type descriptor handle type.
