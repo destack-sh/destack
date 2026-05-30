@@ -405,7 +405,13 @@ impl<'a> FunctionLowerer<'a> {
                     self.type_id(*to_type, "cast destination type")?,
                     self.pointer_bytes,
                 )?;
-                let result = self.lower_cast(*operator, argument_value, target_type, builder)?;
+                let result = self.lower_cast(
+                    instruction_id.into_any(),
+                    *operator,
+                    argument_value,
+                    target_type,
+                    builder,
+                )?;
                 self.insert_lowered_value(value_map, *destination, result, "cast destination")?;
             }
 
@@ -1783,17 +1789,20 @@ impl<'a> FunctionLowerer<'a> {
                 Ok(builder.ins().iconst(ty, value as i64))
             }
 
-            mir::Constant::Float { bits, width } => match width {
-                32 => Ok(builder
+            mir::Constant::Float { bits, format } => match format {
+                mir::FloatType::Float16 => Ok(builder
                     .ins()
-                    .f32const(cir::immediates::Ieee32::with_bits(*bits as u32))),
-                64 => Ok(builder
-                    .ins()
-                    .f64const(cir::immediates::Ieee64::with_bits(*bits))),
-                _ => Err(CodegenCraneliftError::unsupported_type(
-                    format!("float width {width} not supported",),
+                    .f16const(cir::immediates::Ieee16::with_bits(*bits as u16))),
+                mir::FloatType::Bfloat16 => Err(CodegenCraneliftError::unsupported_type(
+                    "bfloat16 constant lowering is not supported",
                     node_id,
                 )),
+                mir::FloatType::Float32 => Ok(builder
+                    .ins()
+                    .f32const(cir::immediates::Ieee32::with_bits(*bits as u32))),
+                mir::FloatType::Float64 => Ok(builder
+                    .ins()
+                    .f64const(cir::immediates::Ieee64::with_bits(*bits))),
             },
 
             // char constant: unicode codepoint as i32
@@ -2107,6 +2116,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Lower a cast operation to Cranelift IR.
     fn lower_cast(
         &self,
+        instruction_id: mir::LocalNodeIdAny,
         operator: mir::CastOperator,
         argument: cir::Value,
         to_type: cir::Type,
@@ -2131,6 +2141,12 @@ impl<'a> FunctionLowerer<'a> {
             mir::CastOperator::UnsignedIntToFloat => ins.fcvt_from_uint(to_type, argument),
             mir::CastOperator::FloatTruncate => ins.fdemote(to_type, argument),
             mir::CastOperator::FloatExtend => ins.fpromote(to_type, argument),
+            mir::CastOperator::FloatConvert => {
+                return Err(CodegenCraneliftError::unsupported_instruction(
+                    "native float format conversion is not supported",
+                    instruction_id,
+                ));
+            }
             // pointer is already an integer in Cranelift
             mir::CastOperator::PointerToInt | mir::CastOperator::IntToPointer => argument,
         };
