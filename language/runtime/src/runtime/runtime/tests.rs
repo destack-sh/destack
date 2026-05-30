@@ -96,29 +96,29 @@ impl Default for TestEngine {
 }
 
 impl TestEngine {
-    /// Build one VM isolate for this test engine.
-    fn isolate(self) -> vm::Isolate {
+    /// Build one VM machine for this test engine.
+    fn machine(self) -> vm::Machine {
         vm_engine_from_mir(self.mir)
     }
 }
 
 impl From<TestEngine> for Engine {
     fn from(engine: TestEngine) -> Self {
-        Self::from(engine.isolate())
+        Self::from(engine.machine())
     }
 }
 
-/// Build one VM isolate from MIR text.
-pub(crate) fn vm_engine_from_mir(mir: &str) -> vm::Isolate {
+/// Build one VM machine from MIR text.
+pub(crate) fn vm_engine_from_mir(mir: &str) -> vm::Machine {
     let (tree, strings) = Parser::parse(FileId::new(0), mir, ParseOptions::default())
         .finish()
         .expect("runtime test MIR should parse");
 
-    vm::Isolate::build_with_options(
-        vm::IsolateId::new(1),
+    vm::Machine::build_with_options(
+        engine::EngineId::new(1),
         tree,
         strings,
-        vm::IsolateOptions::test(),
+        vm::MachineOptions::test(),
     )
     .expect("runtime test VM engine should build")
 }

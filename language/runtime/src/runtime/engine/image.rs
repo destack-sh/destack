@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Image {
     /// Immutable VM execution image.
-    Vm(Arc<vm::IsolateImage>),
+    Vm(Arc<vm::MachineImage>),
     /// Immutable native execution image.
     Native(native::Image),
 }

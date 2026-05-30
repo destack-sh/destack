@@ -2,7 +2,7 @@ use crate::{Compiler, MaterializeError, MaterializeResult};
 
 use destack_source::ModuleId;
 use destack_workspace::ProfileId;
-use {destack_dir as dir, destack_engine as engine, destack_vm as vm};
+use {destack_dir as dir, destack_engine as engine, destack_heap as heap, destack_vm as vm};
 
 #[allow(dead_code)]
 #[allow(clippy::too_many_arguments)]
@@ -27,8 +27,8 @@ impl Compiler {
     /// Convert an engine boundary value into a static term.
     pub(crate) fn value_to_static_term(
         &self,
-        _isolate: &vm::Isolate,
-        _heap: &vm::Heap,
+        _machine: &vm::Machine,
+        _heap: &heap::Heap,
         value: &engine::Value,
     ) -> Option<dir::StaticTerm> {
         let scalar = match value {
