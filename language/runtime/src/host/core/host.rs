@@ -53,7 +53,7 @@ pub(crate) trait Host: std::fmt::Debug + Send + Sync {
 pub(crate) fn advance_host_events(host: &dyn Host, queue: &HostQueue) -> RuntimeResult<()> {
     host.advance_events()?;
     let events = host.collect_events()?;
-    queue.enqueue(events);
+    queue.enqueue(events)?;
 
     Ok(())
 }

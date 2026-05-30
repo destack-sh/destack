@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::time::{Instant, Nanos};
 use destack_core::{Capture, CaptureMode};
 use destack_workspace::{ClockOptions, ExecutionMode};
@@ -60,7 +61,7 @@ impl Clock {
     }
 
     /// Advance the runtime clock to one wall-clock deadline.
-    pub fn advance_runtime_to(&self, deadline: Instant) -> Instant {
+    pub fn advance_runtime_to(&self, deadline: Instant) -> RuntimeResult<Instant> {
         self.runtime_clock.advance_to(deadline)
     }
 
@@ -173,20 +174,35 @@ impl RuntimeClock {
     }
 
     /// Advance the runtime clock by a delta.
-    pub(crate) fn advance(&self, delta: Nanos) -> Instant {
+    pub(crate) fn advance(&self, delta: Nanos) -> RuntimeResult<Instant> {
         let delta_nanos = delta.get();
-        let wall = self.wall_nanos.fetch_add(delta_nanos, Ordering::Relaxed) + delta_nanos;
-        let _ = self.mono_nanos.fetch_add(delta_nanos, Ordering::Relaxed) + delta_nanos;
+        let wall = self.wall_nanos.load(Ordering::Relaxed);
+        let mono = self.mono_nanos.load(Ordering::Relaxed);
+        let wall = wall.checked_add(delta_nanos).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "runtime wall clock range exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+        let mono = mono.checked_add(delta_nanos).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "runtime monotonic clock range exhausted".to_string(),
+            }
+            .boxed()
+        })?;
 
-        Instant::new(wall)
+        self.wall_nanos.store(wall, Ordering::Relaxed);
+        self.mono_nanos.store(mono, Ordering::Relaxed);
+
+        Ok(Instant::new(wall))
     }
 
     /// Advance the runtime clock to the provided deadline.
-    pub(crate) fn advance_to(&self, deadline: Instant) -> Instant {
+    pub(crate) fn advance_to(&self, deadline: Instant) -> RuntimeResult<Instant> {
         // keep the current value if we are already past the deadline
         let now = Instant::from_nanos(self.wall());
         if deadline <= now {
-            return now;
+            return Ok(now);
         }
 
         // advance by the remaining delta

@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 
 use super::timer::TimerQueue;
 use super::{Microtask, MicrotaskId, Task, TaskId, Waiter, Wake, WakeKey};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostEvent;
 use crate::host::poller::PollerEvent;
 
@@ -67,17 +68,29 @@ impl EventLoop {
     }
 
     /// Allocate the next task identifier.
-    pub fn next_task_id(&mut self) -> TaskId {
+    pub fn next_task_id(&mut self) -> RuntimeResult<TaskId> {
         let id = TaskId::new(self.next_task_id);
-        self.next_task_id = self.next_task_id.wrapping_add(1);
-        id
+        self.next_task_id = self.next_task_id.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "event loop task identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+
+        Ok(id)
     }
 
     /// Allocate the next microtask identifier.
-    pub fn next_microtask_id(&mut self) -> MicrotaskId {
+    pub fn next_microtask_id(&mut self) -> RuntimeResult<MicrotaskId> {
         let id = MicrotaskId::new(self.next_microtask_id);
-        self.next_microtask_id = self.next_microtask_id.wrapping_add(1);
-        id
+        self.next_microtask_id = self.next_microtask_id.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "event loop microtask identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+
+        Ok(id)
     }
 
     /// Pop the next microtask if available.

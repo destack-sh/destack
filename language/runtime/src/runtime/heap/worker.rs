@@ -19,13 +19,15 @@ impl Runtime {
     }
 
     /// Start shared root publication across all workers.
-    fn start_shared_root_publication(&mut self) {
+    fn start_shared_root_publication(&mut self) -> RuntimeResult<()> {
         let worker_ids = self.worker_ids();
         let work_bytes = self.heap.shared.take_edge_scan_work_bytes();
 
         self.flush_shared_caches();
-        self.heap.roots().begin_mark(worker_ids, work_bytes);
+        self.heap.roots().begin_mark(worker_ids, work_bytes)?;
         self.start_shared_edge_scan();
+
+        Ok(())
     }
 
     /// Finish shared root publication across all workers.
@@ -80,7 +82,7 @@ impl Runtime {
         }
 
         if did_start {
-            self.start_shared_root_publication();
+            self.start_shared_root_publication()?;
         }
 
         self.refresh_shared_gc_work();
@@ -151,7 +153,7 @@ impl Runtime {
         }
 
         if did_start {
-            self.start_shared_root_publication();
+            self.start_shared_root_publication()?;
         }
 
         self.refresh_shared_gc_work();

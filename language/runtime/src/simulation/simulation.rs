@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::time::Instant;
 
 /// Simulation state for one deterministic world.
@@ -17,13 +18,18 @@ pub struct Simulation {
 
 impl Simulation {
     /// Schedule one simulation event at one explicit world instant.
-    pub fn schedule_event(&mut self, at: Instant) -> u64 {
+    pub fn schedule_event(&mut self, at: Instant) -> RuntimeResult<u64> {
         let sequence = self.next_sequence;
-        self.next_sequence = self.next_sequence.saturating_add(1);
+        self.next_sequence = self.next_sequence.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "simulation event sequence space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
 
         self.scheduled_events.push(SimulationEvent { at, sequence });
 
-        sequence
+        Ok(sequence)
     }
 
     /// Return the earliest scheduled simulation deadline.

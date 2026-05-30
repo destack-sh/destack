@@ -251,31 +251,55 @@ impl Lineage {
     }
 
     /// Allocate one new branch identifier.
-    pub(crate) fn allocate_branch_id(&mut self) -> BranchId {
+    pub(crate) fn allocate_branch_id(&mut self) -> RuntimeResult<BranchId> {
         let branch_id = BranchId::new(self.next_branch_id);
-        self.next_branch_id += 1;
-        branch_id
+        self.next_branch_id = self.next_branch_id.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "branch identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+
+        Ok(branch_id)
     }
 
     /// Allocate one new revision.
-    pub(crate) fn allocate_revision(&mut self) -> RevisionId {
+    pub(crate) fn allocate_revision(&mut self) -> RuntimeResult<RevisionId> {
         let revision = RevisionId::new(self.next_revision_id);
-        self.next_revision_id += 1;
-        revision
+        self.next_revision_id = self.next_revision_id.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "revision identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+
+        Ok(revision)
     }
 
     /// Allocate one new checkpoint identifier.
-    pub(crate) fn allocate_checkpoint_id(&mut self) -> CheckpointId {
+    pub(crate) fn allocate_checkpoint_id(&mut self) -> RuntimeResult<CheckpointId> {
         let checkpoint_id = CheckpointId::new(self.next_checkpoint_id);
-        self.next_checkpoint_id += 1;
-        checkpoint_id
+        self.next_checkpoint_id = self.next_checkpoint_id.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "checkpoint identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+
+        Ok(checkpoint_id)
     }
 
     /// Allocate one new image identifier.
-    pub(crate) fn allocate_image_id(&mut self) -> ImageId {
+    pub(crate) fn allocate_image_id(&mut self) -> RuntimeResult<ImageId> {
         let image_id = ImageId::new(self.next_image_id);
-        self.next_image_id += 1;
-        image_id
+        self.next_image_id = self.next_image_id.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "image identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+
+        Ok(image_id)
     }
 
     /// Set the current head revision for one branch.
@@ -308,7 +332,7 @@ impl Lineage {
             .ok_or_else(|| RuntimeError::revision_not_found(parent_revision_id.get()).boxed())?;
 
         let branch = Branch {
-            id: self.allocate_branch_id(),
+            id: self.allocate_branch_id()?,
             head_revision_id: parent_revision_id,
             origin: BranchOrigin::Fork { parent_revision_id },
             name,
@@ -335,7 +359,7 @@ impl Lineage {
             .cloned()
             .ok_or_else(|| RuntimeError::branch_not_found(branch_id.get()).boxed())?;
 
-        let revision_id = self.allocate_revision();
+        let revision_id = self.allocate_revision()?;
         let revision = Revision {
             branch_id,
             parent_revision_id: Some(parent_branch.head_revision_id),
@@ -351,12 +375,16 @@ impl Lineage {
             ..parent_branch
         };
 
-        let checkpoint = checkpoint_name.map(|name| Checkpoint {
-            id: self.allocate_checkpoint_id(),
-            revision_id,
-            name,
-            labels: BTreeMap::new(),
-        });
+        let checkpoint = checkpoint_name
+            .map(|name| {
+                Ok::<Checkpoint, Box<RuntimeError>>(Checkpoint {
+                    id: self.allocate_checkpoint_id()?,
+                    revision_id,
+                    name,
+                    labels: BTreeMap::new(),
+                })
+            })
+            .transpose()?;
 
         self.revisions.insert(revision_id, revision.clone());
         self.branches.insert(branch_id, branch);

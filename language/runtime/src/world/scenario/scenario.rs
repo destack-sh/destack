@@ -201,13 +201,13 @@ impl Scenario {
         event: &RuntimeEvent,
         subject: Subject<'_>,
         random: &Random,
-    ) -> Vec<TriggeredFault> {
+    ) -> RuntimeResult<Vec<TriggeredFault>> {
         if !self.enabled {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         let event_worker_id = event.worker_id();
-        let total_calls_seen = self.record_call_event(event_worker_id, event);
+        let total_calls_seen = self.record_call_event(event_worker_id, event)?;
         let mut faults = Vec::new();
 
         for rule_index in 0..self.rules.len() {
@@ -221,7 +221,7 @@ impl Scenario {
 
             let rule_id = rule.id.clone();
             let fault = rule.fault.clone();
-            let fire_count = self.accept_rule_event(rule_index, event, total_calls_seen, random);
+            let fire_count = self.accept_rule_event(rule_index, event, total_calls_seen, random)?;
             if fire_count == 0 {
                 continue;
             }
@@ -235,7 +235,7 @@ impl Scenario {
             });
         }
 
-        faults
+        Ok(faults)
     }
 
     /// Accept one matching event against one enabled rule state.
@@ -245,7 +245,7 @@ impl Scenario {
         event: &RuntimeEvent,
         total_calls_seen: u64,
         random: &Random,
-    ) -> u64 {
+    ) -> RuntimeResult<u64> {
         let rule = &self.rules[rule_index];
         let rule_state = self
             .rule_states
@@ -258,17 +258,26 @@ impl Scenario {
     }
 
     /// Record one call-counting event and return the total call count.
-    fn record_call_event(&mut self, worker_id: WorkerId, event: &RuntimeEvent) -> u64 {
+    fn record_call_event(
+        &mut self,
+        worker_id: WorkerId,
+        event: &RuntimeEvent,
+    ) -> RuntimeResult<u64> {
         let calls_seen = self
             .total_calls_seen_by_worker
             .entry(worker_id)
             .or_insert(0);
 
         if event.counts_as_call_event() {
-            *calls_seen = calls_seen.saturating_add(1);
+            *calls_seen = calls_seen.checked_add(1).ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: "scenario call counter space exhausted".to_string(),
+                }
+                .boxed()
+            })?;
         }
 
-        *calls_seen
+        Ok(*calls_seen)
     }
 }
 

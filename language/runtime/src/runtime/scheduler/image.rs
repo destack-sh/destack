@@ -166,7 +166,7 @@ impl EventLoop {
         self.tasks.clear();
         self.microtasks.clear();
         self.wakes.clear();
-        self.timers.restore_image(&[]);
+        self.timers.restore_image(&[])?;
         self.waiters.clear();
 
         // scalar state
@@ -199,7 +199,7 @@ impl EventLoop {
         self.tasks.extend(tasks);
         self.microtasks.extend(microtasks);
         self.wakes.extend(snapshot.wakes.iter().cloned());
-        self.timers.restore_image(&snapshot.timers);
+        self.timers.restore_image(&snapshot.timers)?;
 
         // suspended continuations
         self.waiters.extend(waiters);

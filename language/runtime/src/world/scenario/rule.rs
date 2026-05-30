@@ -135,39 +135,61 @@ impl FaultRuleState {
         total_calls_seen: u64,
         now_ns: u64,
         random: &Random,
-    ) -> u64 {
+    ) -> RuntimeResult<u64> {
         if !self.activate_if_ready(trigger, total_calls_seen, now_ns, random) {
-            return 0;
+            return Ok(0);
         }
 
-        self.active_hits_seen = self.active_hits_seen.saturating_add(1);
+        self.active_hits_seen = self.active_hits_seen.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "scenario active hit counter space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
         if self.expire_if_elapsed(trigger, now_ns) {
-            return 0;
+            return Ok(0);
         }
 
         if !self.matches_cadence(trigger) {
-            return 0;
+            return Ok(0);
         }
         if !self.matches_cooldown(trigger, now_ns) {
-            return 0;
+            return Ok(0);
         }
         if !Self::matches_probability(trigger.probability_ppm, random) {
-            return 0;
+            return Ok(0);
         }
 
         let burst = trigger.burst.unwrap_or(1) as u64;
         let remaining = trigger
             .max_occurrences
-            .map(|max| max.saturating_sub(self.fires))
+            .map(|max| {
+                if self.fires >= max {
+                    0
+                } else {
+                    max - self.fires
+                }
+            })
             .unwrap_or(burst);
         let fires = burst.min(remaining);
 
-        self.fires = self.fires.saturating_add(fires);
+        self.fires = self.fires.checked_add(fires).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "scenario fire counter space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
         if let Some(cooldown_ns) = trigger.cooldown_ns {
-            self.cooldown_until_ns = Some(now_ns.saturating_add(cooldown_ns));
+            let cooldown_until_ns = now_ns.checked_add(cooldown_ns).ok_or_else(|| {
+                RuntimeError::Internal {
+                    message: "scenario cooldown timestamp space exhausted".to_string(),
+                }
+                .boxed()
+            })?;
+            self.cooldown_until_ns = Some(cooldown_until_ns);
         }
 
-        fires
+        Ok(fires)
     }
 
     /// Activate this state when the trigger gate accepts this event.
@@ -204,7 +226,7 @@ impl FaultRuleState {
         let is_expired = match trigger.lifetime {
             Some(Lifetime::ForDurationNs { duration_ns }) => self
                 .activated_at_ns
-                .is_some_and(|start| now_ns.saturating_sub(start) >= duration_ns),
+                .is_some_and(|start| now_ns >= start && now_ns - start >= duration_ns),
             Some(Lifetime::ForCallCount { call_count }) => self.active_hits_seen > call_count,
             Some(Lifetime::UntilDisabled) | None => false,
         };

@@ -39,12 +39,16 @@ impl TraceFile {
     }
 
     /// Return the next sequence after the last stored event.
-    pub(super) fn next_sequence(&self) -> TraceSequence {
-        self.chunks
+    pub(super) fn next_sequence(&self) -> RuntimeResult<TraceSequence> {
+        let sequence = self
+            .chunks
             .last()
             .filter(|chunk| !chunk.is_empty())
             .map(|chunk| chunk.sequence_end().next())
-            .unwrap_or(TraceSequence::new(0))
+            .transpose()?
+            .unwrap_or(TraceSequence::new(0));
+
+        Ok(sequence)
     }
 
     /// Validate this file against its stored trailer.
