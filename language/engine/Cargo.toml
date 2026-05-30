@@ -12,6 +12,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+destack_core = { workspace = true }
 destack_heap = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 

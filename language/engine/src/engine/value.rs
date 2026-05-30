@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt;
 
+use destack_core::{FloatFormat, float_to_bits};
 use destack_heap::{HeapReference, SharedHeapReference};
 use serde::{Deserialize, Serialize};
 
@@ -15,6 +16,10 @@ pub enum ValueType {
     Int,
     /// The unsigned integer type.
     UInt,
+    /// The 16-bit IEEE-754 floating point type.
+    Float16,
+    /// The 16-bit BF16 floating point type.
+    Bfloat16,
     /// The 32-bit floating point type.
     Float32,
     /// The 64-bit floating point type.
@@ -96,6 +101,16 @@ pub enum Value {
         /// The integer width in bits.
         width: u16,
     },
+    /// One 16-bit IEEE-754 float encoded as raw bits.
+    Float16 {
+        /// The IEEE-754 payload bits.
+        bits: u16,
+    },
+    /// One 16-bit BF16 float encoded as raw bits.
+    Bfloat16 {
+        /// The BF16 payload bits.
+        bits: u16,
+    },
     /// One 32-bit float encoded as raw bits.
     Float32 {
         /// The IEEE-754 payload bits.
@@ -175,6 +190,26 @@ impl Value {
         Self::uint(value as u128, 64)
     }
 
+    /// Create one 16-bit IEEE-754 floating point value from bits.
+    pub const fn float16_bits(bits: u16) -> Self {
+        Self::Float16 { bits }
+    }
+
+    /// Create one 16-bit IEEE-754 floating point value.
+    pub fn float16(value: f64) -> Self {
+        Self::float16_bits(float_to_bits(FloatFormat::Float16, value) as u16)
+    }
+
+    /// Create one 16-bit BF16 floating point value from bits.
+    pub const fn bfloat16_bits(bits: u16) -> Self {
+        Self::Bfloat16 { bits }
+    }
+
+    /// Create one 16-bit BF16 floating point value.
+    pub fn bfloat16(value: f64) -> Self {
+        Self::bfloat16_bits(float_to_bits(FloatFormat::Bfloat16, value) as u16)
+    }
+
     /// Create one 32-bit floating point value.
     pub const fn float32(value: f32) -> Self {
         Self::Float32 {
@@ -216,6 +251,8 @@ impl Value {
             Self::Bool(_) => ValueType::Bool,
             Self::Int { .. } => ValueType::Int,
             Self::UInt { .. } => ValueType::UInt,
+            Self::Float16 { .. } => ValueType::Float16,
+            Self::Bfloat16 { .. } => ValueType::Bfloat16,
             Self::Float32 { .. } => ValueType::Float32,
             Self::Float64 { .. } => ValueType::Float64,
             Self::Char(_) => ValueType::Char,

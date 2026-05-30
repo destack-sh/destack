@@ -1121,6 +1121,7 @@ dependencies = [
 name = "destack_engine"
 version = "0.55.4"
 dependencies = [
+ "destack_core",
  "destack_heap",
  "serde",
 ]
