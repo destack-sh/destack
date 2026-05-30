@@ -2,12 +2,48 @@
 
 ## precision
 
+### float16 accepts literals
+
+`float16` accepts representable float literals.
+
+```ds
+let value: float16 = 1.5;
+value satisfies float16;
+```
+
+### bfloat16 accepts literals
+
+`bfloat16` accepts representable float literals.
+
+```ds
+let value: bfloat16 = 1.5;
+value satisfies bfloat16;
+```
+
 ### float32 accepts literals
 
 `float32` accepts float literals.
 
 ```ds
 let value: float32 = 1.5;
+```
+
+### float16 widens to float32
+
+`float16` widens to `float32`.
+
+```ds
+let small: float16 = 1.5;
+let wide: float32 = small;
+```
+
+### bfloat16 widens to float32
+
+`bfloat16` widens to `float32`.
+
+```ds
+let small: bfloat16 = 1.5;
+let wide: float32 = small;
 ```
 
 ### float32 widens to float64
@@ -26,6 +62,17 @@ let wide: float64 = small;
 ```ds
 let wide: float64 = 1.5;
 let narrow: float32 = wide;
+```
+
+- contains: not assignable
+
+### same width float formats do not implicitly convert
+
+`float16` and `bfloat16` have distinct concrete formats.
+
+```ds
+let half: float16 = 1.5;
+let brain: bfloat16 = half;
 ```
 
 - contains: not assignable
