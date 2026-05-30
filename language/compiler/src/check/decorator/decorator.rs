@@ -78,7 +78,7 @@ impl CheckState<'_> {
                 | dir::LanguageItem::NoDynamicDispatch
                 | dir::LanguageItem::NoReflection
                 | dir::LanguageItem::NoUnwind
-                | dir::LanguageItem::ExclusiveMutableBorrows,
+                | dir::LanguageItem::NoAliasingMutableBorrows,
             ) => Decorator::Restriction(call),
             Some(
                 dir::LanguageItem::Inline

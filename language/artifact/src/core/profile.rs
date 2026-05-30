@@ -27,8 +27,10 @@ pub struct ProfileFlags {
     pub no_reflection: bool,
     /// Forbid unwinding.
     pub no_unwind: bool,
-    /// Require mutable borrows to be exclusive.
-    pub exclusive_mutable_borrows: bool,
+    /// Forbid aliasing mutable borrows.
+    pub no_aliasing_mutable_borrows: bool,
+    /// Forbid implicit method receivers.
+    pub no_implicit_receivers: bool,
     /// Emit checked type sidecars.
     pub emit_checked_types: bool,
 }
