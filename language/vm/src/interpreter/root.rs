@@ -49,7 +49,7 @@ fn visit_frame_slots(
         visit(slot)?;
     }
 
-    // callable environment
+    // closure environment
     if let Some(slot) = layout.environment() {
         visit(slot)?;
     }

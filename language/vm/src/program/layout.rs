@@ -89,16 +89,16 @@ pub(crate) struct ElementLayout {
     pub byte_len: usize,
 }
 
-/// The heap object layout for one callable value.
+/// The heap object layout for one closure value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct CallableObjectLayout {
+pub(crate) struct ClosureObjectLayout {
     /// The function pointer offset.
     pub function_offset: usize,
     /// The environment pointer offset.
     pub environment_offset: usize,
-    /// The callable object byte length.
+    /// The closure object byte length.
     pub byte_len: usize,
-    /// The callable object byte alignment.
+    /// The closure object byte alignment.
     pub alignment: usize,
 }
 
@@ -207,25 +207,25 @@ impl TypeTable {
     }
 }
 
-impl CallableObjectLayout {
-    /// Return the heap layout table entry for callable objects.
+impl ClosureObjectLayout {
+    /// Return the heap layout table entry for closure objects.
     pub(crate) fn table_layout(self, environment_layout: WordLayout) -> mir::Layout {
         mir::Layout {
             shape: mir::LayoutShape::Closure,
             size: self.byte_len as u32,
             alignment: self.alignment as u32,
-            trace_map: callable_trace_map(self.environment_offset, environment_layout),
+            trace_map: closure_trace_map(self.environment_offset, environment_layout),
         }
     }
 }
 
-/// Return the callable object layout for one target pointer width.
-pub(crate) fn callable_object_layout(pointer_bytes: usize) -> CallableObjectLayout {
+/// Return the closure object layout for one target pointer width.
+pub(crate) fn closure_object_layout(pointer_bytes: usize) -> ClosureObjectLayout {
     let function_offset = 0usize;
     let environment_offset = align_offset(pointer_bytes, pointer_bytes);
     let byte_len = environment_offset + pointer_bytes;
 
-    CallableObjectLayout {
+    ClosureObjectLayout {
         function_offset,
         environment_offset,
         byte_len,
@@ -233,8 +233,8 @@ pub(crate) fn callable_object_layout(pointer_bytes: usize) -> CallableObjectLayo
     }
 }
 
-/// Return the heap trace map for one callable object.
-fn callable_trace_map(environment_offset: usize, environment_layout: WordLayout) -> TraceMap {
+/// Return the heap trace map for one closure object.
+fn closure_trace_map(environment_offset: usize, environment_layout: WordLayout) -> TraceMap {
     let environment_offset = environment_offset as u32;
 
     match environment_layout {
@@ -368,10 +368,10 @@ fn build_layout(
 
             layout
         }
-        mir::Type::Any { .. } => {
+        mir::Type::Dynamic { .. } => {
             let layout = tree
                 .type_layout(ty)
-                .ok_or_else(|| Error::invalid_program("any layout"))?;
+                .ok_or_else(|| Error::invalid_program("dynamic layout"))?;
             build_mir_layout(tree, layout_id_by_type, layouts, layout_id, layout)?
         }
         mir::Type::Newtype { .. } => unreachable!("repr_type must peel newtypes"),
@@ -600,9 +600,9 @@ fn build_record_layout(
         build_layout(tree, layout_id_by_type, layouts, field_type)?;
     }
 
-    // callable fields need the VM field representation
+    // closure fields need the VM field representation
     for field_type in field_types.clone() {
-        if contains_callable(tree, field_type)? {
+        if contains_closure(tree, field_type)? {
             return build_runtime_fields_layout(
                 tree,
                 layout_id_by_type,
@@ -646,8 +646,8 @@ fn build_array_layout(
 ) -> Result<Layout> {
     let element_layout = build_layout(tree, layout_id_by_type, layouts, element_type)?;
 
-    // callable elements store heap handles in VM frames
-    if contains_callable(tree, element_type)? {
+    // closure elements store heap handles in VM frames
+    if contains_closure(tree, element_type)? {
         return Ok(repeated_layout(
             layout_id,
             element_type,
@@ -726,8 +726,8 @@ fn build_vector_layout(
     let element_layout = build_layout(tree, layout_id_by_type, layouts, element_type)?;
     let stride = element_layout.stride();
 
-    // callable elements store heap handles in VM frames
-    if contains_callable(tree, element_type)? {
+    // closure elements store heap handles in VM frames
+    if contains_closure(tree, element_type)? {
         return Ok(repeated_layout(
             layout_id,
             element_type,
@@ -783,8 +783,8 @@ fn build_tensor_layout(
     let element_count = compute_tensor_element_count(shape, tensor_layout)?;
     let stride = element_layout.stride();
 
-    // callable elements store heap handles in VM frames
-    if contains_callable(tree, element_type)? {
+    // closure elements store heap handles in VM frames
+    if contains_closure(tree, element_type)? {
         return Ok(repeated_layout(
             layout_id,
             element_type,
@@ -881,8 +881,8 @@ fn stride_byte_len(element_count: usize, stride: usize) -> Result<usize> {
     })
 }
 
-/// Report whether the repr type contains one callable value.
-fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<bool> {
+/// Report whether the repr type contains one closure value.
+fn contains_closure(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<bool> {
     let ty = concrete_repr_type(tree, ty)?;
 
     match tree.get(ty) {
@@ -893,7 +893,7 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
                 let field_type = (field_type)
                     .ty()
                     .ok_or_else(|| Error::invalid_program("struct field type"))?;
-                if contains_callable(tree, field_type)? {
+                if contains_closure(tree, field_type)? {
                     return Ok(true);
                 }
             }
@@ -905,7 +905,7 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
                 let element_type = (*element_type)
                     .ty()
                     .ok_or_else(|| Error::invalid_program("tuple element type"))?;
-                if contains_callable(tree, element_type)? {
+                if contains_closure(tree, element_type)? {
                     return Ok(true);
                 }
             }
@@ -914,7 +914,7 @@ fn contains_callable(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Resul
         }
         mir::Type::Array { element, .. }
         | mir::Type::Vector { element, .. }
-        | mir::Type::Tensor { element, .. } => contains_callable(
+        | mir::Type::Tensor { element, .. } => contains_closure(
             tree,
             (*element)
                 .ty()
@@ -979,7 +979,7 @@ fn raw_array_stride(layout: &mir::Layout) -> Result<usize> {
     Ok(*element_stride as usize)
 }
 
-/// Build one VM field layout for one record with callable children.
+/// Build one VM field layout for one record with closure children.
 fn build_runtime_fields_layout(
     tree: &mir::Tree,
     layout_id_by_type: &HashMap<mir::LocalNodeId<mir::Type>, LayoutId>,
@@ -1597,9 +1597,9 @@ type Shape = variant<Tag, Storage> { 0uint8 = Ref; 1uint8 = Plain; }"#;
         );
     }
 
-    /// Callable values stay boxed in heap payloads.
+    /// Closure values stay boxed in heap payloads.
     #[test]
-    fn test_build_layout_boxes_callable() {
+    fn test_build_layout_boxes_closure() {
         let mir_text = r#"
 type Callable = () => int32"#;
         let (tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
@@ -1607,7 +1607,7 @@ type Callable = () => int32"#;
         let layouts = build_test_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
 
-        // callable fields store one heap reference to one callable object
+        // closure fields store one heap reference to one closure object
         assert!(layout.is_scalar());
         assert_eq!(layout.byte_len, tree.pointer_bytes() as usize);
         assert_eq!(
@@ -1619,9 +1619,9 @@ type Callable = () => int32"#;
         );
     }
 
-    /// Records with callable values still trace the callable child field.
+    /// Records with closure values still trace the closure child field.
     #[test]
-    fn test_build_layout_traces_callable_fields() {
+    fn test_build_layout_traces_closure_fields() {
         let mir_text = r#"
 type Callable = () => int32;
 type Holder {
@@ -1633,7 +1633,7 @@ type Holder {
         let layouts = build_test_layouts(&tree);
         let layout = layouts.get(&ty).expect("missing layout");
 
-        // the callable field should stay traced after the VM field rewrite
+        // the closure field should stay traced after the VM field rewrite
         assert_eq!(
             layout.trace_map,
             TraceMap::Fixed {

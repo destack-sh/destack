@@ -8,9 +8,9 @@ use destack_heap as heap;
 use destack_mir as mir;
 use destack_mir::{LayoutId, LayoutShape, LayoutTable, TraceMap};
 
-use super::layout::{Layout, TypeTable, build_layouts, callable_object_layout};
+use super::layout::{Layout, TypeTable, build_layouts, closure_object_layout};
 use super::{
-    CallTarget, CallableObjectLayout, FrameBinding, FrameEntry, Function, FunctionTable,
+    CallTarget, ClosureObjectLayout, FrameBinding, FrameEntry, Function, FunctionTable,
     ProgramPoint, ResumeState, ResumeTable, SideTable, SideTableBuilder, word_layout_from_type,
 };
 use crate::lower::{ValueType, analyze_value_types, lower_function};
@@ -108,10 +108,10 @@ impl Program {
         TypeTable::type_for_value_layout(layout)
     }
 
-    /// Return the callable heap object layout for this program.
+    /// Return the closure heap object layout for this program.
     #[inline]
-    pub(crate) fn callable_object_layout(&self) -> CallableObjectLayout {
-        callable_object_layout(self.tree.pointer_bytes() as usize)
+    pub(crate) fn closure_object_layout(&self) -> ClosureObjectLayout {
+        closure_object_layout(self.tree.pointer_bytes() as usize)
     }
 
     /// Convert one MIR global id into one worker static id.
@@ -828,7 +828,7 @@ impl ProgramBuilder {
                                 "closure environment type is not a word: {type_id:?}"
                             ))
                         })?;
-                    callable_object_layout(self.tree.pointer_bytes() as usize)
+                    closure_object_layout(self.tree.pointer_bytes() as usize)
                         .table_layout(environment_layout)
                 }
                 _ => mir::Layout {
@@ -853,7 +853,7 @@ impl ProgramBuilder {
         Ok(table)
     }
 
-    /// Build the lowered function order and callable target map.
+    /// Build the lowered function order and call target map.
     fn build_function_targets(
         &self,
     ) -> (
@@ -863,7 +863,7 @@ impl ProgramBuilder {
         let mut function_ids = Vec::new();
         let mut target_by_id = HashMap::new();
 
-        // collect imported and lowerable callables
+        // collect imported and lowerable functions
         for (function_id, function) in self.tree.iter_nodes::<mir::Function>() {
             // binding functions stay as import targets
             if function.is_import() {
@@ -1001,8 +1001,8 @@ impl ProgramBuilder {
 
         match instruction {
             mir::Instruction::Call { destination, .. }
-            | mir::Instruction::CallClass { destination, .. }
-            | mir::Instruction::CallInterface { destination, .. }
+            | mir::Instruction::CallVirtual { destination, .. }
+            | mir::Instruction::CallDynamic { destination, .. }
             | mir::Instruction::CallIndirect { destination, .. } => (*destination)
                 .map(|value| {
                     value
@@ -1185,8 +1185,8 @@ impl ProgramBuilder {
                 match terminator {
                     mir::Terminator::Call { target, .. }
                     | mir::Terminator::CallIndirect { target, .. }
-                    | mir::Terminator::CallClass { target, .. }
-                    | mir::Terminator::CallInterface { target, .. } => Some((
+                    | mir::Terminator::CallVirtual { target, .. }
+                    | mir::Terminator::CallDynamic { target, .. } => Some((
                         (target.block)
                             .block()
                             .ok_or_else(|| Error::invalid_program("call target"))?,

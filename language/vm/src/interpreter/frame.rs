@@ -221,7 +221,7 @@ impl Frame {
         Ok(self.slot_address(slot))
     }
 
-    /// Return the callable environment for this frame.
+    /// Return the closure environment for this frame.
     pub(crate) fn load_environment(
         &self,
         layout: &engine::FrameLayout,
@@ -233,7 +233,7 @@ impl Frame {
         Ok(Some(self.read_word(slot)))
     }
 
-    /// Store the callable environment for this frame.
+    /// Store the closure environment for this frame.
     pub(crate) fn store_environment(
         &mut self,
         layout: &engine::FrameLayout,

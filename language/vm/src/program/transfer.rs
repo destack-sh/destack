@@ -26,7 +26,7 @@ pub(crate) enum Transfer {
         target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
-        /// Optional callable environment to pass.
+        /// Optional closure environment to pass.
         env: Option<Word>,
         /// Move plan for callee parameters.
         moves: Option<MoveRange>,
@@ -41,7 +41,7 @@ pub(crate) enum Transfer {
         target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
-        /// Optional callable environment to pass.
+        /// Optional closure environment to pass.
         env: Option<Word>,
         /// The continuation frame state.
         target_state: engine::FrameStateId,
@@ -54,7 +54,7 @@ pub(crate) enum Transfer {
         target: CallTarget,
         /// Arguments to pass.
         arguments: ArgumentRange,
-        /// Optional callable environment to pass.
+        /// Optional closure environment to pass.
         env: Option<Word>,
         /// Move plan for callee parameters.
         moves: Option<MoveRange>,

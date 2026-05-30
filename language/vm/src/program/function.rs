@@ -42,12 +42,12 @@ impl Function {
 pub(crate) struct FunctionTable {
     /// Lowered functions by dense index.
     functions: Vec<Function>,
-    /// Callable target by function id.
+    /// Call target by function id.
     target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
 }
 
 impl FunctionTable {
-    /// Build a lowered function table from lowered functions and callable targets.
+    /// Build a lowered function table from lowered functions and call targets.
     pub(super) fn new(
         functions: Vec<Function>,
         target_by_id: HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
@@ -58,7 +58,7 @@ impl FunctionTable {
         }
     }
 
-    /// Return the callable target for the given function id.
+    /// Return the call target for the given function id.
     pub(crate) fn call_target(
         &self,
         func_id: mir::LocalNodeId<mir::Function>,
@@ -89,7 +89,7 @@ impl FunctionTable {
         self.functions.get(index as usize)
     }
 
-    /// Return the callable environment word layout for one function id.
+    /// Return the closure environment word layout for one function id.
     pub(crate) fn environment_layout(
         &self,
         tree: &mir::Tree,
@@ -124,7 +124,7 @@ impl FunctionTable {
     }
 }
 
-/// Return one callable environment word layout.
+/// Return one closure environment word layout.
 fn environment_layout(
     tree: &mir::Tree,
     function_id: mir::LocalNodeId<mir::Function>,
@@ -168,9 +168,9 @@ fn function_signature_matches(
 /// Program call target for one function id.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CallTarget {
-    /// The function id names one imported callable.
+    /// The function id names one imported function.
     Import,
-    /// The function id names one lowered callable.
+    /// The function id names one lowered function.
     Local(u32),
 }
 

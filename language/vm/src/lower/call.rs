@@ -2,17 +2,17 @@ use destack_engine as engine;
 use destack_mir as mir;
 
 use crate::program::{
-    Call, CallBranch, CallClass, CallClassBranch, CallIndirect, CallIndirectBranch, CallInterface,
-    CallInterfaceBranch, CallableBind, CallableEnvironment, Instruction, Op, PointerClass,
-    TailCall, TailCallClass, TailCallIndirect, TailCallInterface, callable_object_layout,
-    repr_type, word_layout_from_type,
+    Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect, CallIndirectBranch,
+    CallVirtual, CallVirtualBranch, ClosureBind, ClosureEnvironment, Instruction, Op, PointerClass,
+    TailCall, TailCallDynamic, TailCallIndirect, TailCallVirtual, closure_object_layout, repr_type,
+    word_layout_from_type,
 };
 use crate::{Error, Result};
 
 use super::frame::{value_offset, word_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
-use super::projection::{interface_table_projection, vtable_projection};
+use super::projection::{dynamic_table_projection, virtual_table_projection};
 use super::value::{
     heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
 };
@@ -31,36 +31,36 @@ impl<'a> BlockLowerer<'a> {
             mir::Terminator::CallIndirect { callee, call, .. } => {
                 self.lower_indirect_call_branch(*callee, call, pool)?
             }
-            mir::Terminator::CallClass {
+            mir::Terminator::CallVirtual {
                 receiver,
                 slot,
                 call,
                 ..
-            } => self.lower_class_call_branch(*receiver, *slot, call, pool)?,
-            mir::Terminator::CallInterface {
+            } => self.lower_virtual_call_branch(*receiver, *slot, call, pool)?,
+            mir::Terminator::CallDynamic {
                 receiver,
                 slot,
                 call,
                 ..
-            } => self.lower_interface_call_branch(*receiver, *slot, call, pool)?,
+            } => self.lower_dynamic_call_branch(*receiver, *slot, call, pool)?,
             mir::Terminator::TailCall { function, call, .. } => {
                 self.lower_tail_call(*function, call, pool)?
             }
             mir::Terminator::TailCallIndirect { callee, call, .. } => {
                 self.lower_indirect_tail_call(*callee, call, pool)?
             }
-            mir::Terminator::TailCallClass {
+            mir::Terminator::TailCallVirtual {
                 receiver,
                 slot,
                 call,
                 ..
-            } => self.lower_class_tail_call(*receiver, *slot, call, pool)?,
-            mir::Terminator::TailCallInterface {
+            } => self.lower_virtual_tail_call(*receiver, *slot, call, pool)?,
+            mir::Terminator::TailCallDynamic {
                 receiver,
                 slot,
                 call,
                 ..
-            } => self.lower_interface_tail_call(*receiver, *slot, call, pool)?,
+            } => self.lower_dynamic_tail_call(*receiver, *slot, call, pool)?,
             _ => return Err(Error::invalid_instruction()),
         })
     }
@@ -105,8 +105,8 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one class call.
-    pub(super) fn lower_class_call(
+    /// Lower one virtual call.
+    pub(super) fn lower_virtual_call(
         &self,
         _destination: Option<mir::ValueReference>,
         receiver: mir::ValueReference,
@@ -117,26 +117,26 @@ impl<'a> BlockLowerer<'a> {
         // resolve arguments and receiver
         let arguments = pool.argument_reference_range(
             self.tree.get_arguments(call.arguments),
-            "class call argument",
+            "virtual call argument",
         )?;
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::invalid_program("class call receiver"))?;
+            .ok_or_else(|| Error::invalid_program("virtual call receiver"))?;
 
         // compile the receiver table access
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = vtable_projection(
+        let table_field = virtual_table_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
-        .ok_or_else(|| Error::invalid_program("class call table field"))?;
+        .ok_or_else(|| Error::invalid_program("virtual call table field"))?;
         let table_field = pool.projection(table_field);
 
         // emit the receiver-space-specific opcode
         Ok(pool.instruction_with_side(
-            class_call_op(pointer_class)?,
-            CallClass {
+            virtual_call_op(pointer_class)?,
+            CallVirtual {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -145,8 +145,8 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one interface call.
-    pub(super) fn lower_interface_call(
+    /// Lower one dynamic call.
+    pub(super) fn lower_dynamic_call(
         &self,
         _destination: Option<mir::ValueReference>,
         receiver: mir::ValueReference,
@@ -157,26 +157,26 @@ impl<'a> BlockLowerer<'a> {
         // resolve arguments and receiver
         let arguments = pool.argument_reference_range(
             self.tree.get_arguments(call.arguments),
-            "interface call argument",
+            "dynamic call argument",
         )?;
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::invalid_program("interface call receiver"))?;
+            .ok_or_else(|| Error::invalid_program("dynamic call receiver"))?;
 
         // compile the receiver table access
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = interface_table_projection(
+        let table_field = dynamic_table_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
-        .ok_or_else(|| Error::invalid_program("interface call table field"))?;
+        .ok_or_else(|| Error::invalid_program("dynamic call table field"))?;
         let table_field = pool.projection(table_field);
 
         // emit the receiver-space-specific opcode
         Ok(pool.instruction_with_side(
-            interface_call_op(pointer_class)?,
-            CallInterface {
+            dynamic_call_op(pointer_class)?,
+            CallDynamic {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -199,13 +199,13 @@ impl<'a> BlockLowerer<'a> {
             "indirect call argument",
         )?;
 
-        // resolve callable shape
+        // resolve closure shape
         let callee = callee
             .value()
             .ok_or_else(|| Error::invalid_program("indirect call callee"))?;
         let callee = self.indirect_callee(callee)?;
 
-        // emit the function-pointer or callable opcode
+        // emit the function pointer or closure opcode
         Ok(pool.instruction_with_side(
             indirect_call_op(&callee),
             CallIndirect {
@@ -216,24 +216,24 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one callable binding.
-    pub(super) fn lower_callable_bind(
+    /// Lower one closure bind.
+    pub(super) fn lower_closure_bind(
         &self,
         pool: &mut Pool<'_, '_>,
         destination: mir::ValueReference,
         function: mir::FunctionReference,
         environment: mir::ValueReference,
     ) -> Result<Instruction> {
-        // resolve callable operands
+        // resolve closure operands
         let destination = destination
             .value()
-            .ok_or_else(|| Error::invalid_program("callable bind destination"))?;
+            .ok_or_else(|| Error::invalid_program("closure.bind destination"))?;
         let function = function
             .function()
-            .ok_or_else(|| Error::invalid_program("callable bind callee"))?;
+            .ok_or_else(|| Error::invalid_program("closure.bind callee"))?;
         let environment = environment
             .value()
-            .ok_or_else(|| Error::invalid_program("callable bind environment"))?;
+            .ok_or_else(|| Error::invalid_program("closure.bind environment"))?;
 
         // select the environment representation
         let destination_type = self.value_type_for_value(destination)?;
@@ -244,24 +244,24 @@ impl<'a> BlockLowerer<'a> {
             let layout = word_layout_from_type(self.tree, environment_type)
                 .ok_or(Error::invalid_instruction())?;
 
-            (Op::BindCallableWord, CallableEnvironment::Word { layout })
+            (Op::BindClosureWord, ClosureEnvironment::Word { layout })
         } else {
             (
-                Op::BindCallableAddress,
-                CallableEnvironment::Frame {
+                Op::BindClosureAddress,
+                ClosureEnvironment::Frame {
                     layout: self.layout_id_for_type(environment_type)?,
                     byte_len: environment_layout.byte_len,
                 },
             )
         };
 
-        // pool the cold callable layout metadata
-        let callable = CallableBind {
-            callable_layout: self.layout_id_for_type(destination_type)?,
-            object_layout: callable_object_layout(self.tree.pointer_bytes() as usize),
+        // pool the cold closure layout metadata
+        let closure = ClosureBind {
+            closure_layout: self.layout_id_for_type(destination_type)?,
+            object_layout: closure_object_layout(self.tree.pointer_bytes() as usize),
             environment: environment_repr,
         };
-        let callable = pool.side_record(callable);
+        let closure = pool.side_record(closure);
 
         // put the hot operands in the instruction payload
         Ok(Instruction::new(
@@ -269,21 +269,21 @@ impl<'a> BlockLowerer<'a> {
             word_offset(self, destination)?,
             function.id,
             value_offset(self, environment)?,
-            callable,
+            closure,
         ))
     }
 
-    /// Lower one callable environment read.
-    pub(super) fn lower_callable_environment(
+    /// Lower one closure environment read.
+    pub(super) fn lower_closure_environment(
         &self,
         destination: mir::ValueReference,
     ) -> Result<Instruction> {
         let destination = destination
             .value()
-            .ok_or_else(|| Error::invalid_program("callable environment destination"))?;
+            .ok_or_else(|| Error::invalid_program("closure environment destination"))?;
 
         Ok(Instruction::new(
-            Op::LoadCallableEnvironment,
+            Op::LoadClosureEnvironment,
             word_offset(self, destination)?,
             0,
             0,
@@ -384,8 +384,8 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one class call terminator.
-    fn lower_class_call_branch(
+    /// Lower one virtual call terminator.
+    fn lower_virtual_call_branch(
         &self,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
@@ -394,22 +394,22 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::invalid_program("call class receiver"))?;
+            .ok_or_else(|| Error::invalid_program("call virtual receiver"))?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "call class argument")?;
+            pool.argument_reference_range(call.arguments.as_slice(), "call virtual argument")?;
         let target_state = self.call_target_state()?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = vtable_projection(
+        let table_field = virtual_table_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
-        .ok_or_else(|| Error::invalid_program("call class table field"))?;
+        .ok_or_else(|| Error::invalid_program("call virtual table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            class_call_branch_op(pointer_class)?,
-            CallClassBranch {
+            virtual_call_branch_op(pointer_class)?,
+            CallVirtualBranch {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -419,8 +419,8 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one interface call terminator.
-    fn lower_interface_call_branch(
+    /// Lower one dynamic call terminator.
+    fn lower_dynamic_call_branch(
         &self,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
@@ -429,22 +429,22 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::invalid_program("call interface receiver"))?;
+            .ok_or_else(|| Error::invalid_program("call dynamic receiver"))?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "call interface argument")?;
+            pool.argument_reference_range(call.arguments.as_slice(), "call dynamic argument")?;
         let target_state = self.call_target_state()?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = interface_table_projection(
+        let table_field = dynamic_table_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value(self.tree, self.value_type(), receiver),
         )
-        .ok_or_else(|| Error::invalid_program("call interface table field"))?;
+        .ok_or_else(|| Error::invalid_program("call dynamic table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            interface_call_branch_op(pointer_class)?,
-            CallInterfaceBranch {
+            dynamic_call_branch_op(pointer_class)?,
+            CallDynamicBranch {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -524,8 +524,8 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one class tail call.
-    fn lower_class_tail_call(
+    /// Lower one virtual tail call.
+    fn lower_virtual_tail_call(
         &self,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
@@ -534,21 +534,21 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::invalid_program("tail class receiver"))?;
+            .ok_or_else(|| Error::invalid_program("tail virtual receiver"))?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "tail class argument")?;
+            pool.argument_reference_range(call.arguments.as_slice(), "tail virtual argument")?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = vtable_projection(
+        let table_field = virtual_table_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
         )
-        .ok_or_else(|| Error::invalid_program("tail class table field"))?;
+        .ok_or_else(|| Error::invalid_program("tail virtual table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            class_tail_call_op(pointer_class)?,
-            TailCallClass {
+            virtual_tail_call_op(pointer_class)?,
+            TailCallVirtual {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -557,8 +557,8 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Lower one interface tail call.
-    fn lower_interface_tail_call(
+    /// Lower one dynamic tail call.
+    fn lower_dynamic_tail_call(
         &self,
         receiver: mir::ValueReference,
         method: mir::DispatchSlot,
@@ -567,21 +567,21 @@ impl<'a> BlockLowerer<'a> {
     ) -> Result<Instruction> {
         let receiver = receiver
             .value()
-            .ok_or_else(|| Error::invalid_program("tail interface receiver"))?;
+            .ok_or_else(|| Error::invalid_program("tail dynamic receiver"))?;
         let arguments =
-            pool.argument_reference_range(call.arguments.as_slice(), "tail interface argument")?;
+            pool.argument_reference_range(call.arguments.as_slice(), "tail dynamic argument")?;
         let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
-        let table_field = interface_table_projection(
+        let table_field = dynamic_table_projection(
             self.tree,
             self.layouts(),
             heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
         )
-        .ok_or_else(|| Error::invalid_program("tail interface table field"))?;
+        .ok_or_else(|| Error::invalid_program("tail dynamic table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            interface_tail_call_op(pointer_class)?,
-            TailCallInterface {
+            dynamic_tail_call_op(pointer_class)?,
+            TailCallDynamic {
                 receiver_offset: word_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
@@ -593,64 +593,64 @@ impl<'a> BlockLowerer<'a> {
 
 /// Static callee shape for one indirect call.
 struct IndirectCallee {
-    /// Word offset of the callable value in the current frame.
+    /// Word offset of the closure value in the current frame.
     offset: u32,
     /// Expected function signature.
     signature: mir::LocalNodeId<mir::Type>,
-    /// Whether the callable carries an environment pointer.
+    /// Whether the closure carries an environment pointer.
     has_environment: bool,
 }
 
-/// Return the class call op for one receiver pointer class.
-fn class_call_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the virtual call op for one receiver pointer class.
+fn virtual_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::CallClassHeap),
-        PointerClass::SharedHeap => Ok(Op::CallClassSharedHeap),
+        PointerClass::Heap => Ok(Op::CallVirtualHeap),
+        PointerClass::SharedHeap => Ok(Op::CallVirtualSharedHeap),
         _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
-/// Return the class call terminator op for one receiver pointer class.
-fn class_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the virtual call terminator op for one receiver pointer class.
+fn virtual_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::CallClassHeapBranch),
-        PointerClass::SharedHeap => Ok(Op::CallClassSharedHeapBranch),
+        PointerClass::Heap => Ok(Op::CallVirtualHeapBranch),
+        PointerClass::SharedHeap => Ok(Op::CallVirtualSharedHeapBranch),
         _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
-/// Return the class tail call op for one receiver pointer class.
-fn class_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the virtual tail call op for one receiver pointer class.
+fn virtual_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::TailCallClassHeap),
-        PointerClass::SharedHeap => Ok(Op::TailCallClassSharedHeap),
+        PointerClass::Heap => Ok(Op::TailCallVirtualHeap),
+        PointerClass::SharedHeap => Ok(Op::TailCallVirtualSharedHeap),
         _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
-/// Return the interface call op for one receiver pointer class.
-fn interface_call_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the dynamic call op for one receiver pointer class.
+fn dynamic_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::CallInterfaceHeap),
-        PointerClass::SharedHeap => Ok(Op::CallInterfaceSharedHeap),
+        PointerClass::Heap => Ok(Op::CallDynamicHeap),
+        PointerClass::SharedHeap => Ok(Op::CallDynamicSharedHeap),
         _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
-/// Return the interface call terminator op for one receiver pointer class.
-fn interface_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the dynamic call terminator op for one receiver pointer class.
+fn dynamic_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::CallInterfaceHeapBranch),
-        PointerClass::SharedHeap => Ok(Op::CallInterfaceSharedHeapBranch),
+        PointerClass::Heap => Ok(Op::CallDynamicHeapBranch),
+        PointerClass::SharedHeap => Ok(Op::CallDynamicSharedHeapBranch),
         _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
 
-/// Return the interface tail call op for one receiver pointer class.
-fn interface_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
+/// Return the dynamic tail call op for one receiver pointer class.
+fn dynamic_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
     match pointer_class {
-        PointerClass::Heap => Ok(Op::TailCallInterfaceHeap),
-        PointerClass::SharedHeap => Ok(Op::TailCallInterfaceSharedHeap),
+        PointerClass::Heap => Ok(Op::TailCallDynamicHeap),
+        PointerClass::SharedHeap => Ok(Op::TailCallDynamicSharedHeap),
         _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
     }
 }
@@ -658,7 +658,7 @@ fn interface_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
 /// Select one indirect call opcode from callee shape.
 fn indirect_call_op(callee: &IndirectCallee) -> Op {
     if callee.has_environment {
-        return Op::CallCallable;
+        return Op::CallClosure;
     }
 
     Op::CallIndirect
@@ -667,7 +667,7 @@ fn indirect_call_op(callee: &IndirectCallee) -> Op {
 /// Select one indirect call terminator opcode from callee shape.
 fn indirect_call_branch_op(callee: &IndirectCallee) -> Op {
     if callee.has_environment {
-        return Op::CallCallableBranch;
+        return Op::CallClosureBranch;
     }
 
     Op::CallIndirectBranch
@@ -676,7 +676,7 @@ fn indirect_call_branch_op(callee: &IndirectCallee) -> Op {
 /// Select one indirect tail call opcode from callee shape.
 fn indirect_tail_call_op(callee: &IndirectCallee) -> Op {
     if callee.has_environment {
-        return Op::TailCallCallable;
+        return Op::TailCallClosure;
     }
 
     Op::TailCallIndirect

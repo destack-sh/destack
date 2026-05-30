@@ -393,8 +393,8 @@ fn propagate_block_parameter_layouts(
             }
             mir::Terminator::Call { target, unwind, .. }
             | mir::Terminator::CallIndirect { target, unwind, .. }
-            | mir::Terminator::CallClass { target, unwind, .. }
-            | mir::Terminator::CallInterface { target, unwind, .. } => {
+            | mir::Terminator::CallVirtual { target, unwind, .. }
+            | mir::Terminator::CallDynamic { target, unwind, .. } => {
                 is_changed |= propagate_target_edge(tree, value_layout_map, target);
                 if let Some(unwind) = unwind {
                     is_changed |= propagate_target_edge(tree, value_layout_map, unwind);
@@ -408,8 +408,8 @@ fn propagate_block_parameter_layouts(
             | mir::Terminator::Unreachable
             | mir::Terminator::TailCall { .. }
             | mir::Terminator::TailCallIndirect { .. }
-            | mir::Terminator::TailCallClass { .. }
-            | mir::Terminator::TailCallInterface { .. } => {}
+            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallDynamic { .. } => {}
         }
     }
 
@@ -615,10 +615,10 @@ fn infer_instruction_layout(
             let function = tree.get(function.function()?);
             Some(value_layout_from_type(tree, function.return_type.ty()?))
         }
-        mir::Instruction::CallClass {
+        mir::Instruction::CallVirtual {
             destination, call, ..
         }
-        | mir::Instruction::CallInterface {
+        | mir::Instruction::CallDynamic {
             destination, call, ..
         }
         | mir::Instruction::CallIndirect {
@@ -658,12 +658,12 @@ fn infer_instruction_layout(
                 result: function.return_type.ty()?,
             })
         }
-        mir::Instruction::CallableBind { destination, .. } => {
+        mir::Instruction::ClosureBind { destination, .. } => {
             let destination = destination.value()?;
             let ty = value_type_for_value(destination, value_types)?;
             Some(value_layout_from_type(tree, ty))
         }
-        mir::Instruction::CallableEnvironment { destination } => {
+        mir::Instruction::ClosureEnvironment { destination } => {
             value_layout_map.get(destination.value()?)
         }
         mir::Instruction::Load { result_type, .. } => {

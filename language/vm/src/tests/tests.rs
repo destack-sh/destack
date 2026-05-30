@@ -592,7 +592,7 @@ b0(v0: ref<Box, managed, readonly>):
 
 /// Stored function values preserve their function pointer through managed structs.
 #[test]
-fn test_stored_callable_roundtrips() {
+fn test_stored_closure_roundtrips() {
     let mir_text = r#"
 type Fn = () -> int32;
 type Holder {
@@ -622,8 +622,8 @@ b0:
     assert_eq!(output, Value::int32(7));
 }
 
-/// The interface dispatch forwards the concrete object receiver to the selected method.
-#[ignore = "text MIR fixtures cannot declare interface table metadata"]
+/// The dynamic dispatch forwards the concrete object receiver to the selected method.
+#[ignore = "text MIR fixtures cannot declare dynamic table metadata"]
 #[test]
 fn test_interface_call_forwards_concrete_receiver() {
     let mir_text = r#"
@@ -646,7 +646,7 @@ external function Greeter.greet(Greeter#object): int32
 function callInterface(v0: Greeter): int32 {
 b0(v0: Greeter):
     v1: ref<void, managed, readonly> = field.get v0, 0
-    v2: int32 = call.interface v0, Greeter#object, 1(v1): (Greeter#object) -> int32
+    v2: int32 = call.dynamic v0, Greeter#object, 1(v1): (Greeter#object) -> int32
     return v2
 }
 

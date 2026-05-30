@@ -94,21 +94,21 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_call(*destination, *function, call, pool)?,
 
-            mir::Instruction::CallClass {
+            mir::Instruction::CallVirtual {
                 destination,
                 receiver,
                 slot: method,
                 call,
                 ..
-            } => self.lower_class_call(*destination, *receiver, *method, call, pool)?,
+            } => self.lower_virtual_call(*destination, *receiver, *method, call, pool)?,
 
-            mir::Instruction::CallInterface {
+            mir::Instruction::CallDynamic {
                 destination,
                 receiver,
                 slot: method,
                 call,
                 ..
-            } => self.lower_interface_call(*destination, *receiver, *method, call, pool)?,
+            } => self.lower_dynamic_call(*destination, *receiver, *method, call, pool)?,
 
             mir::Instruction::CallIndirect {
                 destination,
@@ -137,13 +137,13 @@ impl<'a> BlockLowerer<'a> {
                 destination,
                 function,
             } => self.lower_function_addr(*destination, *function)?,
-            mir::Instruction::CallableBind {
+            mir::Instruction::ClosureBind {
                 destination,
                 function,
                 environment,
-            } => self.lower_callable_bind(pool, *destination, *function, *environment)?,
-            mir::Instruction::CallableEnvironment { destination } => {
-                self.lower_callable_environment(*destination)?
+            } => self.lower_closure_bind(pool, *destination, *function, *environment)?,
+            mir::Instruction::ClosureEnvironment { destination } => {
+                self.lower_closure_environment(*destination)?
             }
             mir::Instruction::Load {
                 destination,
