@@ -246,18 +246,20 @@ impl FunctionLowerer<'_> {
             }
             (
                 ScalarType::Float {
-                    width: source_width,
+                    format: source_format,
                 },
                 ScalarType::Float {
-                    width: target_width,
+                    format: target_format,
                 },
             ) => {
-                if target_width > source_width {
+                if source_format == target_format {
+                    Ok(dir::CastOperator::Identity)
+                } else if target_format.width() > source_format.width() {
                     Ok(dir::CastOperator::FloatWiden)
-                } else if target_width < source_width {
+                } else if target_format.width() < source_format.width() {
                     Ok(dir::CastOperator::FloatNarrow)
                 } else {
-                    Ok(dir::CastOperator::Identity)
+                    Ok(dir::CastOperator::FloatConvert)
                 }
             }
             (
@@ -404,6 +406,7 @@ impl FunctionLowerer<'_> {
             dir::CastOperator::IntSignChange => mir::CastOperator::Bitcast,
             dir::CastOperator::FloatWiden => mir::CastOperator::FloatExtend,
             dir::CastOperator::FloatNarrow => mir::CastOperator::FloatTruncate,
+            dir::CastOperator::FloatConvert => mir::CastOperator::FloatConvert,
             dir::CastOperator::IntToFloat => match source_scalar_type {
                 Some(ScalarType::SignedInt { .. }) => mir::CastOperator::SignedIntToFloat,
                 Some(ScalarType::UnsignedInt { .. }) => mir::CastOperator::UnsignedIntToFloat,

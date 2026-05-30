@@ -438,7 +438,7 @@ impl FunctionLowerer<'_> {
                 width: self.context.type_lowerer.pointer_width_bits(),
             }),
             mir::Type::Float(float_type) => Some(ScalarType::Float {
-                width: float_type.width(),
+                format: *float_type,
             }),
             _ => None,
         }
@@ -492,13 +492,15 @@ impl FunctionLowerer<'_> {
             (ScalarType::Float { .. }, ScalarType::UnsignedInt { .. }) => {
                 mir::CastOperator::FloatToUnsignedInt
             }
-            (ScalarType::Float { width: from }, ScalarType::Float { width: to }) => {
-                if to > from {
+            (ScalarType::Float { format: from }, ScalarType::Float { format: to }) => {
+                if to == from {
+                    return Ok(value);
+                } else if to.width() > from.width() {
                     mir::CastOperator::FloatExtend
-                } else if to < from {
+                } else if to.width() < from.width() {
                     mir::CastOperator::FloatTruncate
                 } else {
-                    return Ok(value);
+                    mir::CastOperator::FloatConvert
                 }
             }
             _ => {

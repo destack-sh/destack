@@ -58,6 +58,10 @@ pub(crate) struct TypeLowerer<'a> {
     pub(crate) ty_u32: mir::LocalNodeId<mir::Type>,
     /// Cached MIR usize type.
     pub(crate) ty_usize: mir::LocalNodeId<mir::Type>,
+    /// Cached MIR f16 type.
+    pub(crate) ty_f16: mir::LocalNodeId<mir::Type>,
+    /// Cached MIR bf16 type.
+    pub(crate) ty_bf16: mir::LocalNodeId<mir::Type>,
     /// Cached MIR f32 type.
     pub(crate) ty_f32: mir::LocalNodeId<mir::Type>,
     /// Cached MIR f64 type.
@@ -114,6 +118,8 @@ impl<'a> TypeLowerer<'a> {
             ty_isize: builder.type_isize(),
             ty_u32: builder.type_u32(),
             ty_usize: builder.type_usize(),
+            ty_f16: builder.type_f16(),
+            ty_bf16: builder.type_bf16(),
             ty_f32: builder.type_f32(),
             ty_f64: builder.type_f64(),
             ty_string: None,

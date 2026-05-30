@@ -1,3 +1,4 @@
+use destack_core::float_to_bits;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{CompilerError, CompilerResult, LowerError};
@@ -192,12 +193,8 @@ impl ModuleLowerer<'_> {
                 }
             }
             (dir::ScalarLiteral::Float(f), mir::Type::Float(float_type)) => mir::Constant::Float {
-                bits: if float_type.width() == 32 {
-                    (*f as f32).to_bits() as u64
-                } else {
-                    f.to_bits()
-                },
-                width: float_type.width() as u8,
+                bits: float_to_bits(float_type.format(), *f),
+                format: *float_type,
             },
             _ => return None,
         };

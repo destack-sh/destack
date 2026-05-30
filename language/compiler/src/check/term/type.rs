@@ -3029,22 +3029,17 @@ impl CheckState<'_> {
 
     /// Return whether an integer literal fits one float primitive exactly.
     fn integer_literal_fits_float(value: i64, float: dir::FloatType) -> bool {
-        match float {
-            dir::FloatType::Float | dir::FloatType::Float64 => (value as f64) as i64 == value,
-            dir::FloatType::Float32 => (value as f32) as i64 == value,
-        }
+        let value = value as f64;
+        float
+            .roundtrip_f64(value)
+            .is_some_and(|rounded| rounded == value)
     }
 
     /// Return whether a float literal fits one float primitive exactly.
     fn float_literal_fits_float(value: f64, float: dir::FloatType) -> bool {
-        if !value.is_finite() {
-            return false;
-        }
-
-        match float {
-            dir::FloatType::Float | dir::FloatType::Float64 => true,
-            dir::FloatType::Float32 => f64::from(value as f32) == value,
-        }
+        float
+            .roundtrip_f64(value)
+            .is_some_and(|rounded| rounded == value)
     }
 
     /// Decide whether all source union elements assign to a target.

@@ -919,13 +919,9 @@ impl FunctionLowerer<'_> {
                         };
                         Ok((value, ty))
                     }
-                    Some(ScalarType::Float { width }) => {
-                        let value = self.state.builder.fconst(*value, width as u8);
-                        let ty = if width == 32 {
-                            self.context.type_lowerer.ty_f32
-                        } else {
-                            self.context.type_lowerer.ty_f64
-                        };
+                    Some(ScalarType::Float { format }) => {
+                        let value = self.state.builder.fconst(*value, format);
+                        let ty = self.context.type_lowerer.type_for_float_format(format);
                         Ok((value, ty))
                     }
                     _ => Err(LowerError::UnsupportedConstruct {

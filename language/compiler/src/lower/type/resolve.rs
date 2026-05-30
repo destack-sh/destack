@@ -85,6 +85,8 @@ impl FunctionLowerer<'_> {
                 {
                     Some(self.context.type_lowerer.ty_usize)
                 }
+                ScalarType::FLOAT16 => Some(self.context.type_lowerer.ty_f16),
+                ScalarType::BFLOAT16 => Some(self.context.type_lowerer.ty_bf16),
                 ScalarType::FLOAT32 => Some(self.context.type_lowerer.ty_f32),
                 ScalarType::FLOAT64 => Some(self.context.type_lowerer.ty_f64),
                 _ => None,

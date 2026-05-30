@@ -781,6 +781,7 @@ fn integer_layout(integer: dir::IntegerType, pointer_bytes: u32) -> Layout {
 fn float_layout(float: dir::FloatType) -> Layout {
     match float {
         dir::FloatType::Float => scalar_layout(8, 8),
+        dir::FloatType::Float16 | dir::FloatType::Bfloat16 => scalar_layout(2, 2),
         dir::FloatType::Float32 => scalar_layout(4, 4),
         dir::FloatType::Float64 => scalar_layout(8, 8),
     }
