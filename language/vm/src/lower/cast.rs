@@ -1,8 +1,9 @@
 use destack_mir as mir;
 
 use crate::program::{
-    FrameSelect, Instruction, IntegerCast, Op, PointerCast, TensorViewCast, ValueLayout,
-    WideIntegerCast, value_layout_from_type, word_layout_from_type,
+    FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast, Op,
+    PointerCast, TensorViewCast, ValueLayout, WideIntegerCast, value_layout_from_type,
+    word_layout_from_type,
 };
 use crate::{Error, Result};
 
@@ -55,10 +56,10 @@ impl<'a> BlockLowerer<'a> {
         // use the direct word path when both sides fit in one word
         if destination_is_word && argument_is_word {
             return Ok(Instruction::new(
-                word_cast_op(self.tree, operator, to_type)?,
+                word_cast_op(operator)?,
                 word_offset(self, destination)?,
                 word_offset(self, argument)?,
-                word_cast_field(self.tree, operator, to_type)?,
+                word_cast_field(self.tree, operator, argument_type, to_type)?,
                 0,
             ));
         }
@@ -154,11 +155,7 @@ impl<'a> BlockLowerer<'a> {
 }
 
 /// Pack one word integer cast target.
-fn word_cast_op(
-    tree: &mir::Tree,
-    operator: mir::CastOperator,
-    to_type: mir::LocalNodeId<mir::Type>,
-) -> Result<Op> {
+fn word_cast_op(operator: mir::CastOperator) -> Result<Op> {
     match operator {
         mir::CastOperator::Bitcast => Ok(Op::CastBitcast),
         mir::CastOperator::Truncate => Ok(Op::CastTruncate),
@@ -168,18 +165,11 @@ fn word_cast_op(
         mir::CastOperator::FloatToUnsignedInt => Ok(Op::CastFloatToUnsignedInt),
         mir::CastOperator::FloatToSignedIntSaturating => Ok(Op::CastFloatToSignedIntSaturating),
         mir::CastOperator::FloatToUnsignedIntSaturating => Ok(Op::CastFloatToUnsignedIntSaturating),
-        mir::CastOperator::SignedIntToFloat => match value_layout_from_type(tree, to_type) {
-            ValueLayout::Float { width: 32 } => Ok(Op::CastSignedIntToF32),
-            ValueLayout::Float { width: 64 } => Ok(Op::CastSignedIntToF64),
-            _ => Err(Error::invalid_cast()),
-        },
-        mir::CastOperator::UnsignedIntToFloat => match value_layout_from_type(tree, to_type) {
-            ValueLayout::Float { width: 32 } => Ok(Op::CastUnsignedIntToF32),
-            ValueLayout::Float { width: 64 } => Ok(Op::CastUnsignedIntToF64),
-            _ => Err(Error::invalid_cast()),
-        },
-        mir::CastOperator::FloatTruncate => Ok(Op::CastFloatTruncate),
-        mir::CastOperator::FloatExtend => Ok(Op::CastFloatExtend),
+        mir::CastOperator::SignedIntToFloat => Ok(Op::CastSignedIntToFloat),
+        mir::CastOperator::UnsignedIntToFloat => Ok(Op::CastUnsignedIntToFloat),
+        mir::CastOperator::FloatTruncate
+        | mir::CastOperator::FloatExtend
+        | mir::CastOperator::FloatConvert => Ok(Op::CastFloatConvert),
         mir::CastOperator::PointerToInt => Ok(Op::CastPointerToInt),
         mir::CastOperator::IntToPointer => Ok(Op::CastIntToPointer),
     }
@@ -189,25 +179,41 @@ fn word_cast_op(
 fn word_cast_field(
     tree: &mir::Tree,
     operator: mir::CastOperator,
+    from_type: mir::LocalNodeId<mir::Type>,
     to_type: mir::LocalNodeId<mir::Type>,
 ) -> Result<u32> {
     match operator {
-        mir::CastOperator::Bitcast
-        | mir::CastOperator::FloatTruncate
-        | mir::CastOperator::FloatExtend => Ok(0),
+        mir::CastOperator::Bitcast => Ok(0),
         mir::CastOperator::Truncate
         | mir::CastOperator::ZeroExtend
         | mir::CastOperator::SignExtend
-        | mir::CastOperator::FloatToSignedInt
-        | mir::CastOperator::FloatToUnsignedInt
-        | mir::CastOperator::FloatToSignedIntSaturating
-        | mir::CastOperator::FloatToUnsignedIntSaturating
         | mir::CastOperator::PointerToInt => {
             let (width, signed) = integer_layout(tree, to_type)?;
 
             Ok(IntegerCast::new(width, signed)?.field())
         }
-        mir::CastOperator::SignedIntToFloat | mir::CastOperator::UnsignedIntToFloat => Ok(0),
+        mir::CastOperator::FloatToSignedInt
+        | mir::CastOperator::FloatToUnsignedInt
+        | mir::CastOperator::FloatToSignedIntSaturating
+        | mir::CastOperator::FloatToUnsignedIntSaturating => {
+            let source = word_layout_from_type(tree, from_type).ok_or(Error::invalid_cast())?;
+            let (width, _) = integer_layout(tree, to_type)?;
+
+            Ok(FloatToIntCast::new(source, width)?.field())
+        }
+        mir::CastOperator::SignedIntToFloat | mir::CastOperator::UnsignedIntToFloat => {
+            let destination = word_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
+
+            Ok(IntToFloatCast::new(destination)?.field())
+        }
+        mir::CastOperator::FloatTruncate
+        | mir::CastOperator::FloatExtend
+        | mir::CastOperator::FloatConvert => {
+            let source = word_layout_from_type(tree, from_type).ok_or(Error::invalid_cast())?;
+            let destination = word_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
+
+            Ok(FloatCast::new(source, destination)?.field())
+        }
         mir::CastOperator::IntToPointer => {
             let layout = word_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
 

@@ -16,10 +16,10 @@ pub(crate) enum ScalarLayout {
         /// Whether the integer is signed.
         is_signed: bool,
     },
-    /// Floating-point values with a bit width.
+    /// Floating-point values with a concrete format.
     Float {
-        /// The bit width.
-        width: u16,
+        /// The concrete float format.
+        format: mir::FloatType,
     },
     /// Boolean values.
     Bool,
@@ -57,8 +57,8 @@ pub(crate) enum ValueLayout {
     Bool,
     /// Signed or unsigned integer with width.
     Int { width: u16, signed: bool },
-    /// Floating point value with width.
-    Float { width: u16 },
+    /// Floating point value with format.
+    Float { format: mir::FloatType },
     /// Unicode character value.
     Char,
     /// Pointer-like value with pointee type.
@@ -101,6 +101,10 @@ pub(crate) enum WordLayout {
     Int { width: u8 },
     /// Unsigned integer value.
     Uint { width: u8 },
+    /// Float16 value.
+    Float16,
+    /// BF16 value.
+    Bfloat16,
     /// Float32 value.
     Float32,
     /// Float64 value.
@@ -129,6 +133,7 @@ impl WordLayout {
             Self::Void => 0,
             Self::Bool => 1,
             Self::Int { width } | Self::Uint { width } => (width as usize).div_ceil(8),
+            Self::Float16 | Self::Bfloat16 => 2,
             Self::Float32 => 4,
             Self::Float64 => 8,
             Self::HeapReference
@@ -149,6 +154,7 @@ impl WordLayout {
             Self::Bool => Word::bool(raw != 0),
             Self::Int { width } => Word::int(raw as i64, width),
             Self::Uint { width } => Word::uint(raw, width),
+            Self::Float16 | Self::Bfloat16 => Word::from_bits(raw),
             Self::Float32 => Word::float32(f32::from_bits(raw as u32)),
             Self::Float64 => Word::float64(f64::from_bits(raw)),
             Self::HeapReference => Word::heap_reference(HeapReference::from_bits(raw as usize)),
@@ -173,6 +179,7 @@ impl WordLayout {
             Self::Bool => u64::from(value.as_bool()),
             Self::Int { .. } => value.bits(),
             Self::Uint { .. } => value.as_uint(),
+            Self::Float16 | Self::Bfloat16 => value.bits(),
             Self::Float32 => value.as_float32().to_bits() as u64,
             Self::Float64 => value.as_float64().to_bits(),
             Self::HeapReference => value.as_heap_reference().bits() as u64,
@@ -265,7 +272,7 @@ pub(crate) fn value_layout_from_type(
             signed: false,
         },
         mir::Type::Float(float_type) => ValueLayout::Float {
-            width: float_type.width(),
+            format: *float_type,
         },
         mir::Type::TypeDescriptor | mir::Type::TypeId => ValueLayout::Int {
             width: usize::BITS as u16,
@@ -366,6 +373,8 @@ pub(crate) fn word_layout_from_type(
                 width: usize::BITS as u8,
             })
         }
+        mir::Type::Float(mir::FloatType::Float16) => Some(WordLayout::Float16),
+        mir::Type::Float(mir::FloatType::Bfloat16) => Some(WordLayout::Bfloat16),
         mir::Type::Float(mir::FloatType::Float32) => Some(WordLayout::Float32),
         mir::Type::Float(mir::FloatType::Float64) => Some(WordLayout::Float64),
         mir::Type::Reference { kind, space, .. } => {
@@ -404,7 +413,7 @@ pub(crate) fn scalar_layout_from_type(
             })
         }
         mir::Type::Float(float_type) => Some(ScalarLayout::Float {
-            width: float_type.width(),
+            format: *float_type,
         }),
         mir::Type::Boolean => Some(ScalarLayout::Bool),
         _ => None,
@@ -416,10 +425,6 @@ pub(crate) fn pointer_class_from_reference(
     space: mir::Space,
     kind: mir::ReferenceKind,
 ) -> PointerClass {
-    if kind == mir::ReferenceKind::Raw {
-        return PointerClass::Address;
-    }
-
     match space {
         mir::Space::Local => match kind {
             mir::ReferenceKind::Managed | mir::ReferenceKind::Unique => PointerClass::Heap,

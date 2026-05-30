@@ -8,10 +8,16 @@ const WIDE_DEST_SIGN_BIT: u32 = 1 << 9;
 const WORD_LAYOUT_LOCAL_REFERENCE: u32 = 1;
 const WORD_LAYOUT_SHARED_REFERENCE: u32 = 2;
 const WORD_LAYOUT_ADDRESS: u32 = 3;
+const WORD_LAYOUT_FLOAT16: u32 = 4;
 const WORD_LAYOUT_STACK_POINTER: u32 = 5;
 const WORD_LAYOUT_FRAME_POINTER: u32 = 6;
 const WORD_LAYOUT_STATIC_POINTER: u32 = 7;
 const WORD_LAYOUT_FUNCTION_POINTER: u32 = 8;
+const WORD_LAYOUT_BFLOAT16: u32 = 9;
+const WORD_LAYOUT_FLOAT32: u32 = 10;
+const WORD_LAYOUT_FLOAT64: u32 = 11;
+const FLOAT_CAST_DEST_SHIFT: u32 = 8;
+const FLOAT_TO_INT_WIDTH_SHIFT: u32 = 8;
 
 /// Encoded integer target for one word cast instruction field.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -50,6 +56,117 @@ impl IntegerCast {
         let is_signed = self.field & INTEGER_SIGN_BIT != 0;
 
         (width, is_signed)
+    }
+}
+
+/// Encoded source and destination formats for one float cast.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FloatCast {
+    /// The packed instruction field.
+    field: u32,
+}
+
+impl FloatCast {
+    /// Encode one float cast.
+    pub(crate) fn new(source: WordLayout, destination: WordLayout) -> Result<Self> {
+        let source = float_layout_field(source)?;
+        let destination = float_layout_field(destination)?;
+
+        Ok(Self {
+            field: source | (destination << FLOAT_CAST_DEST_SHIFT),
+        })
+    }
+
+    /// Decode one instruction field.
+    #[inline(always)]
+    pub(crate) fn from_field(field: u32) -> Self {
+        Self { field }
+    }
+
+    /// Return the packed instruction field.
+    #[inline(always)]
+    pub(crate) fn field(self) -> u32 {
+        self.field
+    }
+
+    /// Decode the source and destination float layouts.
+    pub(crate) fn decode(self) -> Result<(WordLayout, WordLayout)> {
+        let source = float_layout_from_field(self.field & 0xff)?;
+        let destination = float_layout_from_field((self.field >> FLOAT_CAST_DEST_SHIFT) & 0xff)?;
+
+        Ok((source, destination))
+    }
+}
+
+/// Encoded destination format for one integer to float cast.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct IntToFloatCast {
+    /// The packed instruction field.
+    field: u32,
+}
+
+impl IntToFloatCast {
+    /// Encode one integer to float cast.
+    pub(crate) fn new(destination: WordLayout) -> Result<Self> {
+        let field = float_layout_field(destination)?;
+
+        Ok(Self { field })
+    }
+
+    /// Decode one instruction field.
+    #[inline(always)]
+    pub(crate) fn from_field(field: u32) -> Self {
+        Self { field }
+    }
+
+    /// Return the packed instruction field.
+    #[inline(always)]
+    pub(crate) fn field(self) -> u32 {
+        self.field
+    }
+
+    /// Decode the destination float layout.
+    pub(crate) fn decode(self) -> Result<WordLayout> {
+        float_layout_from_field(self.field)
+    }
+}
+
+/// Encoded source float format and destination integer shape.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FloatToIntCast {
+    /// The packed instruction field.
+    field: u32,
+}
+
+impl FloatToIntCast {
+    /// Encode one float to integer cast.
+    pub(crate) fn new(source: WordLayout, width: u16) -> Result<Self> {
+        let source = float_layout_field(source)?;
+        let width = u8::try_from(width).map_err(|_| Error::invalid_cast())?;
+
+        Ok(Self {
+            field: source | (u32::from(width) << FLOAT_TO_INT_WIDTH_SHIFT),
+        })
+    }
+
+    /// Decode one instruction field.
+    #[inline(always)]
+    pub(crate) fn from_field(field: u32) -> Self {
+        Self { field }
+    }
+
+    /// Return the packed instruction field.
+    #[inline(always)]
+    pub(crate) fn field(self) -> u32 {
+        self.field
+    }
+
+    /// Decode the source float layout and destination integer width.
+    pub(crate) fn decode(self) -> Result<(WordLayout, u8)> {
+        let source = float_layout_from_field(self.field & 0xff)?;
+        let width = ((self.field >> FLOAT_TO_INT_WIDTH_SHIFT) & 0xff) as u8;
+
+        Ok((source, width))
     }
 }
 
@@ -101,6 +218,28 @@ impl PointerCast {
             WORD_LAYOUT_FUNCTION_POINTER => Ok(WordLayout::FunctionPointer),
             _ => Err(Error::invalid_cast()),
         }
+    }
+}
+
+/// Return the encoded field for one float word layout.
+fn float_layout_field(layout: WordLayout) -> Result<u32> {
+    match layout {
+        WordLayout::Float16 => Ok(WORD_LAYOUT_FLOAT16),
+        WordLayout::Bfloat16 => Ok(WORD_LAYOUT_BFLOAT16),
+        WordLayout::Float32 => Ok(WORD_LAYOUT_FLOAT32),
+        WordLayout::Float64 => Ok(WORD_LAYOUT_FLOAT64),
+        _ => Err(Error::invalid_cast()),
+    }
+}
+
+/// Return the float word layout for one encoded field.
+fn float_layout_from_field(field: u32) -> Result<WordLayout> {
+    match field {
+        WORD_LAYOUT_FLOAT16 => Ok(WordLayout::Float16),
+        WORD_LAYOUT_BFLOAT16 => Ok(WordLayout::Bfloat16),
+        WORD_LAYOUT_FLOAT32 => Ok(WordLayout::Float32),
+        WORD_LAYOUT_FLOAT64 => Ok(WordLayout::Float64),
+        _ => Err(Error::invalid_cast()),
     }
 }
 

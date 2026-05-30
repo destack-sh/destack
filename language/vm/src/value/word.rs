@@ -322,8 +322,11 @@ impl From<&mir::Constant> for Word {
                 is_signed: false,
             } => Word::uint(*value as u64, *width as u8),
             mir::Constant::UInt { value, width } => Word::uint(*value as u64, *width as u8),
-            mir::Constant::Float { bits, width: 32 } => Word::float32(f32::from_bits(*bits as u32)),
-            mir::Constant::Float { bits, width: _ } => Word::float64(f64::from_bits(*bits)),
+            mir::Constant::Float { bits, format } => match format {
+                mir::FloatType::Float16 | mir::FloatType::Bfloat16 => Word::from_bits(*bits),
+                mir::FloatType::Float32 => Word::float32(f32::from_bits(*bits as u32)),
+                mir::FloatType::Float64 => Word::float64(f64::from_bits(*bits)),
+            },
             mir::Constant::Char { value } => Word::char(*value),
         }
     }
@@ -336,6 +339,8 @@ impl From<&Value> for Word {
             Value::Bool(value) => Word::bool(*value),
             Value::Int { value, width } => Word::int(*value as i64, *width as u8),
             Value::UInt { value, width } => Word::uint(*value as u64, *width as u8),
+            Value::Float16 { bits } => Word::from_bits(u64::from(*bits)),
+            Value::Bfloat16 { bits } => Word::from_bits(u64::from(*bits)),
             Value::Float32 { bits } => Word::float32(f32::from_bits(*bits)),
             Value::Float64 { bits } => Word::float64(f64::from_bits(*bits)),
             Value::Char(value) => Word::char(*value),

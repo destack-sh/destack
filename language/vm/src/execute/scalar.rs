@@ -1,9 +1,12 @@
 use std::cmp::Ordering;
 use std::mem;
 
+use destack_core::{float_from_bits, float_to_bits};
+use destack_mir as mir;
+
 use crate::Word;
 use crate::diagnostic::Error;
-use crate::program::ScalarLayout;
+use crate::program::{BinaryFloatKernel, ScalarLayout, UnaryFloatKernel};
 
 /// Return one integer scalar layout.
 #[inline(always)]
@@ -35,8 +38,8 @@ fn signed_int_layout(ty: ScalarLayout) -> Result<u16, Error> {
 /// Return one float scalar layout with the expected width.
 #[inline(always)]
 fn expect_float_width(ty: ScalarLayout, expected_width: u16) -> Result<(), Error> {
-    if let ScalarLayout::Float { width } = ty
-        && width == expected_width
+    if let ScalarLayout::Float { format } = ty
+        && format.width() == expected_width
     {
         return Ok(());
     }
@@ -295,6 +298,96 @@ pub(crate) fn div_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word,
     Ok(Word::float64(left.as_f64() / right.as_f64()))
 }
 
+/// Execute one generic binary float operation.
+#[inline(always)]
+pub(crate) fn binary_float(
+    ty: ScalarLayout,
+    kernel: BinaryFloatKernel,
+    left: Word,
+    right: Word,
+) -> Result<Word, Error> {
+    let ScalarLayout::Float { format } = ty else {
+        return Err(Error::type_mismatch("float scalar", format!("{ty:?}")));
+    };
+    let left = f64_from_float_word(left, format);
+    let right = f64_from_float_word(right, format);
+
+    let result = match kernel {
+        BinaryFloatKernel::Add => return Ok(float_word_from_f64(left + right, format)),
+        BinaryFloatKernel::Subtract => return Ok(float_word_from_f64(left - right, format)),
+        BinaryFloatKernel::Multiply => return Ok(float_word_from_f64(left * right, format)),
+        BinaryFloatKernel::Divide => return Ok(float_word_from_f64(left / right, format)),
+        BinaryFloatKernel::Equal => left == right,
+        BinaryFloatKernel::NotEqual => left != right,
+        BinaryFloatKernel::LessThan => left < right,
+        BinaryFloatKernel::LessEqual => left <= right,
+        BinaryFloatKernel::GreaterThan => left > right,
+        BinaryFloatKernel::GreaterEqual => left >= right,
+    };
+
+    Ok(Word::bool(result))
+}
+
+/// Add two generic float values.
+#[inline(always)]
+pub(crate) fn add_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::Add, left, right)
+}
+
+/// Subtract two generic float values.
+#[inline(always)]
+pub(crate) fn sub_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::Subtract, left, right)
+}
+
+/// Multiply two generic float values.
+#[inline(always)]
+pub(crate) fn mul_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::Multiply, left, right)
+}
+
+/// Divide two generic float values.
+#[inline(always)]
+pub(crate) fn div_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::Divide, left, right)
+}
+
+/// Compare generic float values for equality.
+#[inline(always)]
+pub(crate) fn eq_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::Equal, left, right)
+}
+
+/// Compare generic float values for inequality.
+#[inline(always)]
+pub(crate) fn ne_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::NotEqual, left, right)
+}
+
+/// Compare generic float values with less than.
+#[inline(always)]
+pub(crate) fn lt_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::LessThan, left, right)
+}
+
+/// Compare generic float values with less than or equal.
+#[inline(always)]
+pub(crate) fn le_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::LessEqual, left, right)
+}
+
+/// Compare generic float values with greater than.
+#[inline(always)]
+pub(crate) fn gt_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::GreaterThan, left, right)
+}
+
+/// Compare generic float values with greater than or equal.
+#[inline(always)]
+pub(crate) fn ge_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+    binary_float(ty, BinaryFloatKernel::GreaterEqual, left, right)
+}
+
 /// Compare two integer values for equality.
 #[inline(always)]
 pub(crate) fn eq_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
@@ -501,6 +594,31 @@ pub(crate) fn neg_f64(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
     expect_float_width(ty, 64)?;
 
     Ok(Word::float64(-value.as_f64()))
+}
+
+/// Execute one generic unary float operation.
+#[inline(always)]
+pub(crate) fn unary_float(
+    ty: ScalarLayout,
+    kernel: UnaryFloatKernel,
+    value: Word,
+) -> Result<Word, Error> {
+    let ScalarLayout::Float { format } = ty else {
+        return Err(Error::type_mismatch("float scalar", format!("{ty:?}")));
+    };
+    let value = f64_from_float_word(value, format);
+
+    let result = match kernel {
+        UnaryFloatKernel::Negate => -value,
+    };
+
+    Ok(float_word_from_f64(result, format))
+}
+
+/// Negate one generic float value.
+#[inline(always)]
+pub(crate) fn neg_float(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+    unary_float(ty, UnaryFloatKernel::Negate, value)
 }
 
 /// Invert one boolean value.
@@ -1504,19 +1622,22 @@ where
                 is_signed: dest_signed,
             },
         ) => convert_int_to_int::<C>(value, width, is_signed, dest_width, dest_signed),
-        (ScalarLayout::Int { width, is_signed }, ScalarLayout::Float { width: dest_width }) => {
-            convert_int_to_float::<C>(value, width, is_signed, dest_width)
+        (ScalarLayout::Int { width, is_signed }, ScalarLayout::Float { format }) => {
+            convert_int_to_float::<C>(value, width, is_signed, format)
         }
         (
-            ScalarLayout::Float { width },
+            ScalarLayout::Float { format },
             ScalarLayout::Int {
                 width: dest_width,
                 is_signed,
             },
-        ) => convert_float_to_int::<C>(value, width, dest_width, is_signed),
-        (ScalarLayout::Float { width }, ScalarLayout::Float { width: dest_width }) => {
-            convert_float_to_float::<C>(value, width, dest_width)
-        }
+        ) => convert_float_to_int::<C>(value, format, dest_width, is_signed),
+        (
+            ScalarLayout::Float { format },
+            ScalarLayout::Float {
+                format: dest_format,
+            },
+        ) => convert_float_to_float::<C>(value, format, dest_format),
         _ => Err(Error::type_mismatch(
             "numeric conversion",
             format!("{value:?}"),
@@ -1594,7 +1715,7 @@ fn convert_int_to_float<C>(
     value: Word,
     source_width: u16,
     source_signed: bool,
-    dest_width: u16,
+    destination: mir::FloatType,
 ) -> Result<Word, Error>
 where
     C: ScalarConversion,
@@ -1621,11 +1742,10 @@ where
 
     // enforce exactness if requested
     if C::CHECK_INT_TO_FLOAT {
-        let round_trip = if dest_width == 32 {
-            (float_value as f32) as f64
-        } else {
-            float_value
-        };
+        let round_trip = float_from_bits(
+            destination.format(),
+            float_to_bits(destination.format(), float_value),
+        );
         if round_trip != float_value {
             return Err(Error::type_mismatch(
                 "exact integer to float conversion",
@@ -1635,17 +1755,13 @@ where
     }
 
     // emit destination float
-    if dest_width == 32 {
-        Ok(Word::float32(float_value as f32))
-    } else {
-        Ok(Word::float64(float_value))
-    }
+    Ok(float_word_from_f64(float_value, destination))
 }
 
 /// Convert a float value to an integer.
 fn convert_float_to_int<C>(
     value: Word,
-    source_width: u16,
+    source: mir::FloatType,
     dest_width: u16,
     dest_signed: bool,
 ) -> Result<Word, Error>
@@ -1656,16 +1772,7 @@ where
     let dest_width_u8 = width_u8(dest_width)?;
 
     // resolve float value
-    let float_value = match source_width {
-        32 => value.as_float32() as f64,
-        64 => value.as_float64(),
-        _ => {
-            return Err(Error::type_mismatch(
-                "float width 32 or 64",
-                source_width.to_string(),
-            ));
-        }
-    };
+    let float_value = f64_from_float_word(value, source);
 
     // require finite values for exact conversions
     if !float_value.is_finite() && !C::accepts_non_finite() {
@@ -1705,28 +1812,26 @@ where
 }
 
 /// Convert a float value to another float type.
-fn convert_float_to_float<C>(value: Word, source_width: u16, dest_width: u16) -> Result<Word, Error>
+fn convert_float_to_float<C>(
+    value: Word,
+    source: mir::FloatType,
+    destination: mir::FloatType,
+) -> Result<Word, Error>
 where
     C: ScalarConversion,
 {
     // resolve float value
-    let float_value = match source_width {
-        32 => value.as_float32() as f64,
-        64 => value.as_float64(),
-        _ => {
-            return Err(Error::type_mismatch(
-                "float width 32 or 64",
-                source_width.to_string(),
-            ));
-        }
-    };
+    let float_value = f64_from_float_word(value, source);
 
     // apply rounding mode for narrowing conversions
     let rounded = C::round_float_to_float(float_value);
 
     // enforce exactness if requested
-    if C::CHECK_FLOAT_NARROWING && dest_width == 32 {
-        let round_trip = (rounded as f32) as f64;
+    if C::CHECK_FLOAT_NARROWING && destination.width() < source.width() {
+        let round_trip = float_from_bits(
+            destination.format(),
+            float_to_bits(destination.format(), rounded),
+        );
         if round_trip != rounded {
             return Err(Error::type_mismatch(
                 "exact float conversion",
@@ -1736,11 +1841,19 @@ where
     }
 
     // emit destination float
-    if dest_width == 32 {
-        Ok(Word::float32(rounded as f32))
-    } else {
-        Ok(Word::float64(rounded))
-    }
+    Ok(float_word_from_f64(rounded, destination))
+}
+
+/// Decode one float word as f64.
+#[inline(always)]
+fn f64_from_float_word(value: Word, format: mir::FloatType) -> f64 {
+    float_from_bits(format.format(), value.bits())
+}
+
+/// Encode one f64 value as one float word.
+#[inline(always)]
+fn float_word_from_f64(value: f64, format: mir::FloatType) -> Word {
+    Word::from_bits(float_to_bits(format.format(), value))
 }
 
 /// Resolved integer values for conversions.
@@ -1853,8 +1966,13 @@ pub(crate) fn reduce_add(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Err
 
             Ok(Word::uint(a.as_u64().wrapping_add(b.as_u64()), width))
         }
-        ScalarLayout::Float { width: 32 } => Ok(Word::float32(a.as_f32() + b.as_f32())),
-        ScalarLayout::Float { width: 64 } => Ok(Word::float64(a.as_f64() + b.as_f64())),
+        ScalarLayout::Float {
+            format: mir::FloatType::Float32,
+        } => Ok(Word::float32(a.as_f32() + b.as_f32())),
+        ScalarLayout::Float {
+            format: mir::FloatType::Float64,
+        } => Ok(Word::float64(a.as_f64() + b.as_f64())),
+        ScalarLayout::Float { .. } => add_float(ty, a, b),
         _ => Err(reduce_type_error("add", a, b)),
     }
 }
@@ -1872,8 +1990,13 @@ pub(crate) fn reduce_multiply(ty: ScalarLayout, a: Word, b: Word) -> Result<Word
 
             Ok(Word::uint(a.as_u64().wrapping_mul(b.as_u64()), width))
         }
-        ScalarLayout::Float { width: 32 } => Ok(Word::float32(a.as_f32() * b.as_f32())),
-        ScalarLayout::Float { width: 64 } => Ok(Word::float64(a.as_f64() * b.as_f64())),
+        ScalarLayout::Float {
+            format: mir::FloatType::Float32,
+        } => Ok(Word::float32(a.as_f32() * b.as_f32())),
+        ScalarLayout::Float {
+            format: mir::FloatType::Float64,
+        } => Ok(Word::float64(a.as_f64() * b.as_f64())),
+        ScalarLayout::Float { .. } => mul_float(ty, a, b),
         _ => Err(reduce_type_error("multiply", a, b)),
     }
 }
@@ -1891,8 +2014,18 @@ pub(crate) fn reduce_min(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Err
 
             Ok(Word::uint(a.as_u64().min(b.as_u64()), width))
         }
-        ScalarLayout::Float { width: 32 } => Ok(Word::float32(a.as_f32().min(b.as_f32()))),
-        ScalarLayout::Float { width: 64 } => Ok(Word::float64(a.as_f64().min(b.as_f64()))),
+        ScalarLayout::Float {
+            format: mir::FloatType::Float32,
+        } => Ok(Word::float32(a.as_f32().min(b.as_f32()))),
+        ScalarLayout::Float {
+            format: mir::FloatType::Float64,
+        } => Ok(Word::float64(a.as_f64().min(b.as_f64()))),
+        ScalarLayout::Float { format } => {
+            let a = f64_from_float_word(a, format);
+            let b = f64_from_float_word(b, format);
+
+            Ok(float_word_from_f64(a.min(b), format))
+        }
         _ => Err(reduce_type_error("min", a, b)),
     }
 }
@@ -1910,8 +2043,18 @@ pub(crate) fn reduce_max(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Err
 
             Ok(Word::uint(a.as_u64().max(b.as_u64()), width))
         }
-        ScalarLayout::Float { width: 32 } => Ok(Word::float32(a.as_f32().max(b.as_f32()))),
-        ScalarLayout::Float { width: 64 } => Ok(Word::float64(a.as_f64().max(b.as_f64()))),
+        ScalarLayout::Float {
+            format: mir::FloatType::Float32,
+        } => Ok(Word::float32(a.as_f32().max(b.as_f32()))),
+        ScalarLayout::Float {
+            format: mir::FloatType::Float64,
+        } => Ok(Word::float64(a.as_f64().max(b.as_f64()))),
+        ScalarLayout::Float { format } => {
+            let a = f64_from_float_word(a, format);
+            let b = f64_from_float_word(b, format);
+
+            Ok(float_word_from_f64(a.max(b), format))
+        }
         _ => Err(reduce_type_error("max", a, b)),
     }
 }

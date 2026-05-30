@@ -7,6 +7,7 @@ use core::arch::aarch64::{vaddq_u32, vld1q_u32, vst1q_u32};
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::{__m128i, _mm_add_epi32, _mm_loadu_si128, _mm_storeu_si128};
 
+use destack_core::float_from_bits;
 use destack_mir as mir;
 
 use super::access;
@@ -630,6 +631,16 @@ fn tensor_binary_operation(
         ElementBinaryKernel::GtF64 => super::scalar::gt_f64,
         ElementBinaryKernel::GeF32 => super::scalar::ge_f32,
         ElementBinaryKernel::GeF64 => super::scalar::ge_f64,
+        ElementBinaryKernel::AddFloat => super::scalar::add_float,
+        ElementBinaryKernel::SubFloat => super::scalar::sub_float,
+        ElementBinaryKernel::MulFloat => super::scalar::mul_float,
+        ElementBinaryKernel::DivFloat => super::scalar::div_float,
+        ElementBinaryKernel::EqFloat => super::scalar::eq_float,
+        ElementBinaryKernel::NeFloat => super::scalar::ne_float,
+        ElementBinaryKernel::LtFloat => super::scalar::lt_float,
+        ElementBinaryKernel::LeFloat => super::scalar::le_float,
+        ElementBinaryKernel::GtFloat => super::scalar::gt_float,
+        ElementBinaryKernel::GeFloat => super::scalar::ge_float,
     }
 }
 
@@ -727,6 +738,7 @@ fn tensor_unary_operation(
         ElementUnaryKernel::NotInt => super::scalar::not_int,
         ElementUnaryKernel::NegF32 => super::scalar::neg_f32,
         ElementUnaryKernel::NegF64 => super::scalar::neg_f64,
+        ElementUnaryKernel::NegFloat => super::scalar::neg_float,
     }
 }
 
@@ -741,8 +753,18 @@ fn tensor_word_layout(layout: ScalarLayout) -> Result<WordLayout, Error> {
             width,
             is_signed: false,
         } if width <= u64::BITS as u16 => WordLayout::Uint { width: width as u8 },
-        ScalarLayout::Float { width: 32 } => WordLayout::Float32,
-        ScalarLayout::Float { width: 64 } => WordLayout::Float64,
+        ScalarLayout::Float {
+            format: mir::FloatType::Float16,
+        } => WordLayout::Float16,
+        ScalarLayout::Float {
+            format: mir::FloatType::Bfloat16,
+        } => WordLayout::Bfloat16,
+        ScalarLayout::Float {
+            format: mir::FloatType::Float32,
+        } => WordLayout::Float32,
+        ScalarLayout::Float {
+            format: mir::FloatType::Float64,
+        } => WordLayout::Float64,
         ScalarLayout::Bool => WordLayout::Bool,
         _ => return Err(Error::invalid_instruction()),
     };
@@ -1358,64 +1380,164 @@ fn execute_contiguous_tensor_binary_typed(
         (ElementBinaryKernel::GeUint, ScalarLayout::Int { width: 64, .. }) => {
             execute_contiguous_compare!(dest, left, right, element_count, u64, |a, b| a >= b)
         }
-        (ElementBinaryKernel::AddF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::AddF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_binary!(dest, left, right, element_count, f32, |a, b| Ok(a + b))
         }
-        (ElementBinaryKernel::SubF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::SubF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_binary!(dest, left, right, element_count, f32, |a, b| Ok(a - b))
         }
-        (ElementBinaryKernel::MulF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::MulF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_binary!(dest, left, right, element_count, f32, |a, b| Ok(a * b))
         }
-        (ElementBinaryKernel::DivF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::DivF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_binary!(dest, left, right, element_count, f32, |a, b| Ok(a / b))
         }
-        (ElementBinaryKernel::EqF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::EqF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a == b)
         }
-        (ElementBinaryKernel::NeF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::NeF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a != b)
         }
-        (ElementBinaryKernel::LtF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::LtF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a < b)
         }
-        (ElementBinaryKernel::LeF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::LeF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a <= b)
         }
-        (ElementBinaryKernel::GtF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::GtF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a > b)
         }
-        (ElementBinaryKernel::GeF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementBinaryKernel::GeF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f32, |a, b| a >= b)
         }
-        (ElementBinaryKernel::AddF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::AddF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_binary!(dest, left, right, element_count, f64, |a, b| Ok(a + b))
         }
-        (ElementBinaryKernel::SubF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::SubF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_binary!(dest, left, right, element_count, f64, |a, b| Ok(a - b))
         }
-        (ElementBinaryKernel::MulF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::MulF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_binary!(dest, left, right, element_count, f64, |a, b| Ok(a * b))
         }
-        (ElementBinaryKernel::DivF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::DivF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_binary!(dest, left, right, element_count, f64, |a, b| Ok(a / b))
         }
-        (ElementBinaryKernel::EqF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::EqF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a == b)
         }
-        (ElementBinaryKernel::NeF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::NeF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a != b)
         }
-        (ElementBinaryKernel::LtF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::LtF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a < b)
         }
-        (ElementBinaryKernel::LeF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::LeF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a <= b)
         }
-        (ElementBinaryKernel::GtF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::GtF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a > b)
         }
-        (ElementBinaryKernel::GeF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementBinaryKernel::GeF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_compare!(dest, left, right, element_count, f64, |a, b| a >= b)
         }
         _ => return None,
@@ -1515,10 +1637,20 @@ fn execute_contiguous_tensor_unary_typed(
         (ElementUnaryKernel::NotInt, ScalarLayout::Int { width: 64, .. }) => {
             execute_contiguous_unary!(dest, argument, element_count, u64, |a| !a)
         }
-        (ElementUnaryKernel::NegF32, ScalarLayout::Float { width: 32 }) => {
+        (
+            ElementUnaryKernel::NegF32,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => {
             execute_contiguous_unary!(dest, argument, element_count, f32, |a| -a)
         }
-        (ElementUnaryKernel::NegF64, ScalarLayout::Float { width: 64 }) => {
+        (
+            ElementUnaryKernel::NegF64,
+            ScalarLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => {
             execute_contiguous_unary!(dest, argument, element_count, f64, |a| -a)
         }
         _ => return None,
@@ -2939,14 +3071,13 @@ fn compare_tensor_words(layout: ScalarLayout, left: Word, right: Word) -> Result
             is_signed: true, ..
         } => left.as_i64().cmp(&right.as_i64()),
         ScalarLayout::Int { .. } => left.as_u64().cmp(&right.as_u64()),
-        ScalarLayout::Float { width: 32 } => left
-            .as_f32()
-            .partial_cmp(&right.as_f32())
-            .ok_or(Error::invalid_instruction())?,
-        ScalarLayout::Float { width: 64 } => left
-            .as_f64()
-            .partial_cmp(&right.as_f64())
-            .ok_or(Error::invalid_instruction())?,
+        ScalarLayout::Float { format } => {
+            let left = float_from_bits(format.format(), left.bits());
+            let right = float_from_bits(format.format(), right.bits());
+
+            left.partial_cmp(&right)
+                .ok_or(Error::invalid_instruction())?
+        }
         _ => return Err(Error::invalid_instruction()),
     };
 

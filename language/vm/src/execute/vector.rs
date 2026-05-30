@@ -308,6 +308,16 @@ fn vector_binary_operation(
         ElementBinaryKernel::GtF64 => super::scalar::gt_f64,
         ElementBinaryKernel::GeF32 => super::scalar::ge_f32,
         ElementBinaryKernel::GeF64 => super::scalar::ge_f64,
+        ElementBinaryKernel::AddFloat => super::scalar::add_float,
+        ElementBinaryKernel::SubFloat => super::scalar::sub_float,
+        ElementBinaryKernel::MulFloat => super::scalar::mul_float,
+        ElementBinaryKernel::DivFloat => super::scalar::div_float,
+        ElementBinaryKernel::EqFloat => super::scalar::eq_float,
+        ElementBinaryKernel::NeFloat => super::scalar::ne_float,
+        ElementBinaryKernel::LtFloat => super::scalar::lt_float,
+        ElementBinaryKernel::LeFloat => super::scalar::le_float,
+        ElementBinaryKernel::GtFloat => super::scalar::gt_float,
+        ElementBinaryKernel::GeFloat => super::scalar::ge_float,
     }
 }
 
@@ -366,6 +376,7 @@ fn vector_unary_operation(
         ElementUnaryKernel::NotInt => super::scalar::not_int,
         ElementUnaryKernel::NegF32 => super::scalar::neg_f32,
         ElementUnaryKernel::NegF64 => super::scalar::neg_f64,
+        ElementUnaryKernel::NegFloat => super::scalar::neg_float,
     }
 }
 

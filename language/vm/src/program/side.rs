@@ -501,6 +501,26 @@ pub(crate) enum ElementBinaryKernel {
     GeF32,
     /// Float64 greater-or-equal.
     GeF64,
+    /// Add over generic float elements.
+    AddFloat,
+    /// Subtract over generic float elements.
+    SubFloat,
+    /// Multiply over generic float elements.
+    MulFloat,
+    /// Divide over generic float elements.
+    DivFloat,
+    /// Generic float equality.
+    EqFloat,
+    /// Generic float inequality.
+    NeFloat,
+    /// Generic float less-than.
+    LtFloat,
+    /// Generic float less-or-equal.
+    LeFloat,
+    /// Generic float greater-than.
+    GtFloat,
+    /// Generic float greater-or-equal.
+    GeFloat,
 }
 
 /// Contiguous elementwise tensor binary operation.
@@ -550,6 +570,8 @@ pub(crate) enum ElementUnaryKernel {
     NegF32,
     /// Negate float64 elements.
     NegF64,
+    /// Negate generic float elements.
+    NegFloat,
 }
 
 /// Contiguous elementwise tensor unary operation.

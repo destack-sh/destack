@@ -50,6 +50,7 @@ fn scalar_load(layout: WordLayout) -> Result<ScalarLoad, Error> {
         WordLayout::Uint { width } if width <= 16 => ScalarLoad::U16,
         WordLayout::Uint { width } if width <= 32 => ScalarLoad::U32,
         WordLayout::Uint { width } if width <= 64 => ScalarLoad::Width64,
+        WordLayout::Float16 | WordLayout::Bfloat16 => ScalarLoad::U16,
         WordLayout::Float32 => ScalarLoad::U32,
         WordLayout::Float64
         | WordLayout::HeapReference
@@ -80,6 +81,7 @@ fn scalar_store(layout: WordLayout) -> Result<ScalarStore, Error> {
         WordLayout::Int { width } | WordLayout::Uint { width } if width <= 64 => {
             ScalarStore::Width64
         }
+        WordLayout::Float16 | WordLayout::Bfloat16 => ScalarStore::Width16,
         WordLayout::Float32 => ScalarStore::Width32,
         WordLayout::Float64
         | WordLayout::HeapReference
@@ -107,8 +109,12 @@ pub(super) fn select_binary_op(
             select_integer_op(operator, signed, width)?
         }
         Some(ValueLayout::Int { signed, .. }) => select_wide_integer_op(operator, signed)?,
-        Some(ValueLayout::Float { width: 32 }) => select_float_op(operator, false)?,
-        Some(ValueLayout::Float { width: 64 }) => select_float_op(operator, true)?,
+        Some(ValueLayout::Float {
+            format: mir::FloatType::Float32,
+        }) => select_float_op(operator, false)?,
+        Some(ValueLayout::Float {
+            format: mir::FloatType::Float64,
+        }) => select_float_op(operator, true)?,
         Some(ValueLayout::Bool) => match operator {
             And => Op::AndBool,
             Or => Op::OrBool,
@@ -340,12 +346,12 @@ pub(super) fn select_unary_op(
             select_integer_unary_op(operator, signed, width)
         }
         Some(ValueLayout::Int { signed, .. }) => select_wide_integer_unary_op(operator, signed),
-        Some(ValueLayout::Float { width: 32 }) if operator == mir::UnaryOperator::FloatNegate => {
-            Some(Op::NegF32)
-        }
-        Some(ValueLayout::Float { width: 64 }) if operator == mir::UnaryOperator::FloatNegate => {
-            Some(Op::NegF64)
-        }
+        Some(ValueLayout::Float {
+            format: mir::FloatType::Float32,
+        }) if operator == mir::UnaryOperator::FloatNegate => Some(Op::NegF32),
+        Some(ValueLayout::Float {
+            format: mir::FloatType::Float64,
+        }) if operator == mir::UnaryOperator::FloatNegate => Some(Op::NegF64),
         Some(ValueLayout::Bool) if operator == mir::UnaryOperator::Not => Some(Op::NotBool),
         _ => None,
     }
@@ -637,7 +643,13 @@ pub(super) fn select_compare_branch_op(
         Some(ValueLayout::Int { width: 64, signed }) => {
             select_compare_branch_64_op(operator, signed)?
         }
-        Some(ValueLayout::Float { width }) => select_float_branch_op(operator, width == 64)?,
+        Some(ValueLayout::Float {
+            format: mir::FloatType::Float32,
+        }) => select_float_branch_op(operator, false)?,
+        Some(ValueLayout::Float {
+            format: mir::FloatType::Float64,
+        }) => select_float_branch_op(operator, true)?,
+        Some(ValueLayout::Float { .. }) => return None,
         _ => select_compare_branch_word_op(operator)?,
     };
 

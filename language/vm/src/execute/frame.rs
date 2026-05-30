@@ -558,6 +558,8 @@ pub(crate) fn dematerialize_value(
         engine::Value::Bool(value) => Word::bool(*value),
         engine::Value::Int { value, width } => Word::int(*value as i64, *width as u8),
         engine::Value::UInt { value, width } => Word::uint(*value as u64, *width as u8),
+        engine::Value::Float16 { bits } => Word::from_bits(u64::from(*bits)),
+        engine::Value::Bfloat16 { bits } => Word::from_bits(u64::from(*bits)),
         engine::Value::Float32 { bits } => Word::float32(f32::from_bits(*bits)),
         engine::Value::Float64 { bits } => Word::float64(f64::from_bits(*bits)),
         engine::Value::Char(value) => Word::char(*value),
@@ -681,10 +683,20 @@ pub(crate) fn materialize_word(
             value: value.as_uint() as u128,
             width,
         }),
-        ValueLayout::Float { width: 32 } => Ok(engine::Value::Float32 {
+        ValueLayout::Float {
+            format: mir::FloatType::Float16,
+        } => Ok(engine::Value::float16_bits(value.bits() as u16)),
+        ValueLayout::Float {
+            format: mir::FloatType::Bfloat16,
+        } => Ok(engine::Value::bfloat16_bits(value.bits() as u16)),
+        ValueLayout::Float {
+            format: mir::FloatType::Float32,
+        } => Ok(engine::Value::Float32 {
             bits: value.as_float32().to_bits(),
         }),
-        ValueLayout::Float { .. } => Ok(engine::Value::Float64 {
+        ValueLayout::Float {
+            format: mir::FloatType::Float64,
+        } => Ok(engine::Value::Float64 {
             bits: value.as_float64().to_bits(),
         }),
         ValueLayout::Char => {

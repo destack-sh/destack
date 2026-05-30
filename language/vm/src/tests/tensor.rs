@@ -5,6 +5,11 @@ use crate::tests::{
 };
 use crate::{Value, Word};
 
+/// Return one float16 test word.
+fn float16_word(value: f64) -> Word {
+    Word::from(&Value::float16(value))
+}
+
 /// Create a tensor value from the provided elements.
 fn tensor_from_values(
     isolate: &mut TestIsolate,
@@ -27,6 +32,19 @@ fn tensor_from_f64_values(
 ) -> Word {
     let ty = isolate.parameter_type(function, index);
     let elements = values.iter().copied().map(Word::float64).collect();
+
+    isolate.materialize_value_for_type(ty, elements)
+}
+
+/// Create a tensor value from the provided float16 elements.
+fn tensor_from_f16_values(
+    isolate: &mut TestIsolate,
+    function: &str,
+    index: usize,
+    values: &[f64],
+) -> Word {
+    let ty = isolate.parameter_type(function, index);
+    let elements = values.iter().copied().map(float16_word).collect();
 
     isolate.materialize_value_for_type(ty, elements)
 }
@@ -79,6 +97,31 @@ b0(v0: tensor<int32, (2, 2)>, v1: tensor<int32, (2, 2)>):
             ]
         },
         Value::int32(33),
+    );
+}
+
+/// Tensor float16 arithmetic walks contiguous tensor values elementwise.
+#[test]
+fn test_tensor_float16_binary() {
+    let mir = r#"
+function tensorFloat16(v0: tensor<float16, (2, 2)>, v1: tensor<float16, (2, 2)>): float16 {
+b0(v0: tensor<float16, (2, 2)>, v1: tensor<float16, (2, 2)>):
+    v2: tensor<float16, (2, 2)> = float.add v0, v1
+    v3: int64 = 1int64
+    v4: int64 = 0int64
+    v5: float16 = tensor.extract v2, [v3, v4]
+    return v5
+}"#;
+    run_tensor_expect(
+        mir,
+        "tensorFloat16",
+        |interp| {
+            vec![
+                tensor_from_f16_values(interp, "tensorFloat16", 0, &[1.0, 2.0, 3.0, 4.0]),
+                tensor_from_f16_values(interp, "tensorFloat16", 1, &[10.0, 20.0, 30.0, 40.0]),
+            ]
+        },
+        Value::float16(33.0),
     );
 }
 

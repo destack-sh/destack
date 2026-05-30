@@ -2,9 +2,9 @@ use destack_mir as mir;
 use destack_mir::Type;
 
 use crate::program::{
-    ElementBinaryKernel, ElementUnaryKernel, Instruction, Op, TensorBinary, TensorContiguousBinary,
-    TensorContiguousUnary, TensorLayout, TensorUnary, ValueLayout, VectorBinary, VectorUnary,
-    value_layout_from_type,
+    BinaryFloat, BinaryFloatKernel, ElementBinaryKernel, ElementUnaryKernel, Instruction, Op,
+    TensorBinary, TensorContiguousBinary, TensorContiguousUnary, TensorLayout, TensorUnary,
+    UnaryFloat, UnaryFloatKernel, ValueLayout, VectorBinary, VectorUnary, value_layout_from_type,
 };
 use crate::{Error, Result};
 
@@ -200,6 +200,23 @@ impl<'a> BlockLowerer<'a> {
             ));
         }
 
+        // encode 16 bit float formats without a side table
+        if let Some(ValueLayout::Float { format }) = layout
+            && !matches!(format, mir::FloatType::Float32 | mir::FloatType::Float64)
+        {
+            let kernel =
+                BinaryFloatKernel::from_mir(operator).ok_or(Error::invalid_instruction())?;
+            let operation = BinaryFloat::new(format, kernel);
+
+            return Ok(Instruction::new(
+                Op::BinaryFloat,
+                word_offset(self, destination)?,
+                word_offset(self, left)?,
+                word_offset(self, right)?,
+                operation.field(),
+            ));
+        }
+
         // select the remaining scalar family
         let op = match select_binary_op(layout, operator) {
             Some(op) => op,
@@ -371,7 +388,10 @@ impl<'a> BlockLowerer<'a> {
         argument_type: mir::LocalNodeId<mir::Type>,
     ) -> Result<Instruction> {
         // specialize machine-word integers by signedness and width
-        let layout = self.value_layout_map().get(argument);
+        let layout = self
+            .value_layout_map()
+            .get(argument)
+            .or_else(|| Some(value_layout_from_type(self.tree, argument_type)));
         if let Some(ValueLayout::Int { width, signed }) = layout
             && let Some(op) = select_integer_unary_op(operator, signed, width)
         {
@@ -381,6 +401,22 @@ impl<'a> BlockLowerer<'a> {
                 word_offset(self, argument)?,
                 0,
                 integer_layout_field(width, signed),
+            ));
+        }
+
+        // encode 16 bit float formats without a side table
+        if let Some(ValueLayout::Float { format }) = layout
+            && !matches!(format, mir::FloatType::Float32 | mir::FloatType::Float64)
+        {
+            let kernel = UnaryFloatKernel::from_mir(operator).ok_or(Error::invalid_instruction())?;
+            let operation = UnaryFloat::new(format, kernel);
+
+            return Ok(Instruction::new(
+                Op::UnaryFloat,
+                word_offset(self, destination)?,
+                word_offset(self, argument)?,
+                0,
+                operation.field(),
             ));
         }
 
@@ -568,7 +604,9 @@ pub(super) fn element_binary_kernel(
             (UnsignedGreaterEqual, _) => Kernel::GeUint,
             _ => return None,
         },
-        ValueLayout::Float { width: 32 } => match operator {
+        ValueLayout::Float {
+            format: mir::FloatType::Float32,
+        } => match operator {
             FloatAdd => Kernel::AddF32,
             FloatSubtract => Kernel::SubF32,
             FloatMultiply => Kernel::MulF32,
@@ -581,7 +619,9 @@ pub(super) fn element_binary_kernel(
             FloatGreaterEqual => Kernel::GeF32,
             _ => return None,
         },
-        ValueLayout::Float { width: 64 } => match operator {
+        ValueLayout::Float {
+            format: mir::FloatType::Float64,
+        } => match operator {
             FloatAdd => Kernel::AddF64,
             FloatSubtract => Kernel::SubF64,
             FloatMultiply => Kernel::MulF64,
@@ -592,6 +632,19 @@ pub(super) fn element_binary_kernel(
             FloatLessEqual => Kernel::LeF64,
             FloatGreaterThan => Kernel::GtF64,
             FloatGreaterEqual => Kernel::GeF64,
+            _ => return None,
+        },
+        ValueLayout::Float { .. } => match operator {
+            FloatAdd => Kernel::AddFloat,
+            FloatSubtract => Kernel::SubFloat,
+            FloatMultiply => Kernel::MulFloat,
+            FloatDivide => Kernel::DivFloat,
+            FloatEqual => Kernel::EqFloat,
+            FloatNotEqual => Kernel::NeFloat,
+            FloatLessThan => Kernel::LtFloat,
+            FloatLessEqual => Kernel::LeFloat,
+            FloatGreaterThan => Kernel::GtFloat,
+            FloatGreaterEqual => Kernel::GeFloat,
             _ => return None,
         },
         _ => return None,
@@ -699,8 +752,18 @@ fn packed_tensor_shape(layout: ValueLayout, element_count: usize) -> Option<Pack
             },
             2,
         ) => PackedVector::U64x2,
-        (ValueLayout::Float { width: 32 }, 4) => PackedVector::F32x4,
-        (ValueLayout::Float { width: 64 }, 2) => PackedVector::F64x2,
+        (
+            ValueLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+            4,
+        ) => PackedVector::F32x4,
+        (
+            ValueLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+            2,
+        ) => PackedVector::F64x2,
         _ => return None,
     })
 }
@@ -715,8 +778,19 @@ fn element_unary_kernel(
     Some(match (operator, layout) {
         (mir::UnaryOperator::Negate, ValueLayout::Int { signed: true, .. }) => Kernel::NegInt,
         (mir::UnaryOperator::Not, ValueLayout::Int { .. }) => Kernel::NotInt,
-        (mir::UnaryOperator::FloatNegate, ValueLayout::Float { width: 32 }) => Kernel::NegF32,
-        (mir::UnaryOperator::FloatNegate, ValueLayout::Float { width: 64 }) => Kernel::NegF64,
+        (
+            mir::UnaryOperator::FloatNegate,
+            ValueLayout::Float {
+                format: mir::FloatType::Float32,
+            },
+        ) => Kernel::NegF32,
+        (
+            mir::UnaryOperator::FloatNegate,
+            ValueLayout::Float {
+                format: mir::FloatType::Float64,
+            },
+        ) => Kernel::NegF64,
+        (mir::UnaryOperator::FloatNegate, ValueLayout::Float { .. }) => Kernel::NegFloat,
         (mir::UnaryOperator::Not, ValueLayout::Bool) => Kernel::NotBool,
         _ => return None,
     })

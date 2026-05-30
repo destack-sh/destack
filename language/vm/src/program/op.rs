@@ -540,6 +540,8 @@ pub(crate) enum Op {
     DivF32,
     /// Divide float64 values.
     DivF64,
+    /// Execute one generic binary float operation.
+    BinaryFloat,
     /// Compare 32-bit integer values for equality.
     Eq32,
     /// Compare 64-bit integer values for equality.
@@ -664,6 +666,8 @@ pub(crate) enum Op {
     NegF32,
     /// Negate a float64 value.
     NegF64,
+    /// Execute one generic unary float operation.
+    UnaryFloat,
     /// Invert a boolean value.
     NotBool,
     /// Execute one vector unary kernel.
@@ -700,18 +704,12 @@ pub(crate) enum Op {
     CastFloatToSignedIntSaturating,
     /// Saturating convert one float word to an unsigned integer word.
     CastFloatToUnsignedIntSaturating,
-    /// Convert one signed integer word to a float32 word.
-    CastSignedIntToF32,
-    /// Convert one signed integer word to a float64 word.
-    CastSignedIntToF64,
-    /// Convert one unsigned integer word to a float32 word.
-    CastUnsignedIntToF32,
-    /// Convert one unsigned integer word to a float64 word.
-    CastUnsignedIntToF64,
-    /// Truncate one float word.
-    CastFloatTruncate,
-    /// Extend one float word.
-    CastFloatExtend,
+    /// Convert one signed integer word to a float word.
+    CastSignedIntToFloat,
+    /// Convert one unsigned integer word to a float word.
+    CastUnsignedIntToFloat,
+    /// Convert one float word to another float format.
+    CastFloatConvert,
     /// Convert one pointer word to an integer word.
     CastPointerToInt,
     /// Convert one integer word to a pointer word.
