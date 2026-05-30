@@ -68,22 +68,16 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Insert a floating point constant.
-    pub fn fconst(&mut self, value: f64, width: u8) -> Value {
+    pub fn fconst(&mut self, value: f64, float_type: FloatType) -> Value {
         let destination = self.allocate_value();
-        let bits = if width == 32 {
-            f32::to_bits(value as f32) as u64
-        } else {
-            value.to_bits()
-        };
+        let bits = destack_core::float_to_bits(float_type.format(), value);
         self.insert_instruction(Instruction::Const {
             destination: destination.into(),
-            value: Constant::Float { bits, width },
+            value: Constant::Float {
+                bits,
+                format: float_type,
+            },
         });
-        let float_type = match width {
-            32 => FloatType::Float32,
-            64 => FloatType::Float64,
-            _ => panic!("unsupported float width: {width}"),
-        };
         let ty_id = self.tree.insert_type(Type::Float(float_type));
         self.define_value(destination, ty_id);
         destination

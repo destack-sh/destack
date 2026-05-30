@@ -18,6 +18,21 @@ entry0(value0: isize, value1: usize, value2: typeDescriptor, value3: typeId):
     );
 }
 
+/// Formats concrete float types canonically.
+#[test]
+fn test_format_concrete_float_types() {
+    assert_format(
+        r#"
+function floats(value0: float16, value1: bfloat16, value2: float32, value3: float64): void {
+entry0(value0: float16, value1: bfloat16, value2: float32, value3: float64):
+    value4: float16 = 1.5float16
+    value5: bfloat16 = 1.5bfloat16
+    return
+}
+"#,
+    );
+}
+
 /// Formats managed and unique reference kinds canonically.
 #[test]
 fn test_format_managed_and_unique_references() {

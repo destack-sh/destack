@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::StringId;
 
-use crate::{Global, LocalNodeId, Type};
+use crate::{FloatType, Global, LocalNodeId, Type};
 
 /// Canonical type metadata for one MIR module.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -72,7 +72,7 @@ impl TypeMetadata {
                 signed: *signed,
             }),
             Type::Float(float_type) => Some(PrimitiveType::Float {
-                width: float_type.width(),
+                format: *float_type,
             }),
             _ => None,
         }
@@ -126,10 +126,10 @@ impl TypeMetadata {
             .copied()
     }
 
-    /// Return the indexed float type id for a width.
-    pub fn float_type(&self, width: u16) -> Option<LocalNodeId<Type>> {
+    /// Return the indexed float type id for a format.
+    pub fn float_type(&self, format: FloatType) -> Option<LocalNodeId<Type>> {
         self.primitive_types
-            .get(&PrimitiveType::Float { width })
+            .get(&PrimitiveType::Float { format })
             .copied()
     }
 
@@ -197,6 +197,6 @@ pub(crate) enum PrimitiveType {
     Usize,
     /// Integer type with width and signedness.
     Int { width: u16, signed: bool },
-    /// Float type with width.
-    Float { width: u16 },
+    /// Float type with format.
+    Float { format: FloatType },
 }

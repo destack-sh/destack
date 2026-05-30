@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 use crate::source::{Token, TokenType};
 use crate::{
     Access, ArgumentSlice, Attribute, Block, CommentSpan, DynamicShape, DynamicTable, Field,
-    FieldSpan, Function, FunctionHeaderSpans, Global, Instruction, Layout, LayoutId, Lifetime,
-    Local, LocalNodeId, Metadata, Node, NodeType, Nullability, PlaceProjection, PlaceTable,
-    ReferenceKind, Space, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeLineage,
-    TypeMetadata, TypeReference, TypedValueSpan, ValueReference, Vtable,
+    FieldSpan, FloatType, Function, FunctionHeaderSpans, Global, Instruction, Layout, LayoutId,
+    Lifetime, Local, LocalNodeId, Metadata, Node, NodeType, Nullability, PlaceProjection,
+    PlaceTable, ReferenceKind, Space, Terminator, Type, TypeAlias, TypeDeclarationSpans,
+    TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference, Vtable,
 };
 
 #[inline]
@@ -787,21 +787,21 @@ impl Tree {
         panic!("missing int type id for width {width} signed {signed}");
     }
 
-    /// Return a float type id for width.
-    pub fn float_type(&self, width: u16) -> LocalNodeId<Type> {
+    /// Return a float type id for format.
+    pub fn float_type(&self, format: FloatType) -> LocalNodeId<Type> {
         // use the primitive type cache when available
-        if let Some(type_id) = self.metadata.types.float_type(width) {
+        if let Some(type_id) = self.metadata.types.float_type(format) {
             return type_id;
         }
 
         // fall back to a structural lookup
         if let Some(type_id) = self.find_type_by_predicate(
-            |ty| matches!(ty, Type::Float(float_type) if float_type.width() == width),
+            |ty| matches!(ty, Type::Float(float_type) if *float_type == format),
         ) {
             return type_id;
         }
 
-        panic!("missing float type id for width {width}");
+        panic!("missing float type id for {}", format.label());
     }
 
     /// Return the canonical storage type for the hidden environment field in one closure.
