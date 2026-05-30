@@ -7,23 +7,48 @@ use crate::{LowerError, LowerResult};
 
 use crate::lower::{ModuleLowerer, static_key_to_field_name};
 
-/// A slot in an interface dispatch layout.
+/// A member in a dynamic dispatch layout.
 #[derive(Debug, Clone)]
-pub(crate) enum InterfaceEntry {
-    /// A field offset slot for interface property access.
+pub(crate) enum DynamicMember {
+    /// Field offset member.
     Field {
-        /// The interface field name.
+        /// The field name.
         name: StringId,
-        /// The canonical interface dispatch field id.
+        /// The canonical field id.
         field: mir::LocalNodeId<mir::Field>,
         /// The member node for diagnostics.
         member_id: dir::LocalNodeId<dir::TypeMember>,
     },
-    /// A method slot for interface method dispatch.
-    Method {
-        /// The interface method name.
+    /// Getter member.
+    Getter {
+        /// The getter name.
         name: StringId,
-        /// The signature type id for the interface method.
+        /// The signature type id.
+        signature: dir::LocalTypeId,
+        /// The member node for diagnostics.
+        member_id: dir::LocalNodeId<dir::TypeMember>,
+    },
+    /// Setter member.
+    Setter {
+        /// The setter name.
+        name: StringId,
+        /// The signature type id.
+        signature: dir::LocalTypeId,
+        /// The member node for diagnostics.
+        member_id: dir::LocalNodeId<dir::TypeMember>,
+    },
+    /// Method member.
+    Method {
+        /// The method name.
+        name: StringId,
+        /// The signature type id.
+        signature: dir::LocalTypeId,
+        /// The member node for diagnostics.
+        member_id: dir::LocalNodeId<dir::TypeMember>,
+    },
+    /// Call signature member.
+    Call {
+        /// The signature type id.
         signature: dir::LocalTypeId,
         /// The member node for diagnostics.
         member_id: dir::LocalNodeId<dir::TypeMember>,
@@ -31,18 +56,18 @@ pub(crate) enum InterfaceEntry {
 }
 
 impl ModuleLowerer<'_> {
-    /// Lower and cache interface dispatch slots for an interface symbol.
-    pub(crate) fn lower_interface_slots(
+    /// Lower and cache dynamic members for a dynamic constraint.
+    pub(crate) fn lower_dynamic_members(
         &mut self,
-        interface: dir::GlobalSymbolId,
-    ) -> LowerResult<Vec<InterfaceEntry>> {
-        if let Some(slots) = self.interface_slots_by_symbol.get(&interface) {
+        constraint: dir::GlobalSymbolId,
+    ) -> LowerResult<Vec<DynamicMember>> {
+        if let Some(slots) = self.dynamic_members_by_symbol.get(&constraint) {
             return Ok(slots.clone());
         }
 
-        if self.interface_slots_in_progress.contains(&interface) {
+        if self.dynamic_members_in_progress.contains(&constraint) {
             let anchor = self
-                .declaration_ids_for_symbol(interface)
+                .declaration_ids_for_symbol(constraint)
                 .first()
                 .copied()
                 .map(|id| id.into_global_any(self.module_id))
@@ -50,37 +75,37 @@ impl ModuleLowerer<'_> {
                 .ok_or_else(|| LowerError::Internal {
                     anchor: (self.module_id).into(),
                     module: self.module_id,
-                    message: "interface slot lowering cycle missing declaration".to_string(),
+                    message: "dynamic member lowering cycle missing declaration".to_string(),
                 })?;
             return Err(LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
-                message: "cycle detected while lowering interface slots".to_string(),
+                message: "cycle detected while lowering dynamic members".to_string(),
             }
             .into());
         }
 
-        self.interface_slots_in_progress.insert(interface);
-        let slots = self.collect_interface_slots(interface)?;
-        self.insert_interface_slots(interface, slots.clone())?;
-        self.interface_slots_in_progress.shift_remove(&interface);
+        self.dynamic_members_in_progress.insert(constraint);
+        let slots = self.collect_dynamic_members(constraint)?;
+        self.insert_dynamic_members(constraint, slots.clone())?;
+        self.dynamic_members_in_progress.shift_remove(&constraint);
 
         Ok(slots)
     }
 
-    /// Collect interface member slots in declaration order.
-    fn collect_interface_slots(
+    /// Collect dynamic members in declaration order.
+    fn collect_dynamic_members(
         &mut self,
-        interface: dir::GlobalSymbolId,
-    ) -> LowerResult<Vec<InterfaceEntry>> {
+        constraint: dir::GlobalSymbolId,
+    ) -> LowerResult<Vec<DynamicMember>> {
         // seed the collection state
         let mut slots = Vec::new();
         let mut seen_fields = HashMap::new();
         let mut seen_methods = HashMap::new();
         let mut visited = HashSet::new();
 
-        // collect members across the interface lineage
-        self.collect_interface_slots_inner(
-            interface,
+        // collect members across the dynamic constraint lineage
+        self.collect_dynamic_members_inner(
+            constraint,
             &mut slots,
             &mut seen_fields,
             &mut seen_methods,
@@ -90,44 +115,44 @@ impl ModuleLowerer<'_> {
         Ok(slots)
     }
 
-    /// Collect interface slots with inheritance ordering.
-    fn collect_interface_slots_inner(
+    /// Collect dynamic members with inheritance ordering.
+    fn collect_dynamic_members_inner(
         &mut self,
-        interface: dir::GlobalSymbolId,
-        slots: &mut Vec<InterfaceEntry>,
+        constraint: dir::GlobalSymbolId,
+        slots: &mut Vec<DynamicMember>,
         seen_fields: &mut HashMap<StringId, dir::LocalTypeId>,
         seen_methods: &mut HashMap<StringId, Vec<dir::LocalTypeId>>,
         visited: &mut HashSet<dir::GlobalSymbolId>,
     ) -> LowerResult<()> {
-        // avoid cycles in interface inheritance
-        if !visited.insert(interface) {
+        // avoid cycles in dynamic constraint inheritance
+        if !visited.insert(constraint) {
             return Ok(());
         }
 
-        // collect local interface members
-        let declaration_ids = self.declaration_ids_for_symbol(interface);
+        // collect local dynamic members
+        let declaration_ids = self.declaration_ids_for_symbol(constraint);
         for declaration_id in declaration_ids {
-            // load interface members from the declaration
+            // load dynamic members from the declaration
             let declaration = self.dir_tree.get(declaration_id);
             let members = match declaration {
                 dir::Declaration::Interface(declaration) => &declaration.members,
                 _ => continue,
             };
 
-            // scan interface members
+            // scan dynamic members
             for member_id in members {
-                self.collect_interface_member_slots(*member_id, slots, seen_fields, seen_methods)?;
+                self.collect_dynamic_member(*member_id, slots, seen_fields, seen_methods)?;
             }
         }
 
         Ok(())
     }
 
-    /// Collect slots for a single interface member.
-    fn collect_interface_member_slots(
+    /// Collect dynamic metadata for a single dynamic member.
+    fn collect_dynamic_member(
         &mut self,
         member_id: dir::LocalNodeId<dir::TypeMember>,
-        slots: &mut Vec<InterfaceEntry>,
+        slots: &mut Vec<DynamicMember>,
         seen_fields: &mut HashMap<StringId, dir::LocalTypeId>,
         seen_methods: &mut HashMap<StringId, Vec<dir::LocalTypeId>>,
     ) -> LowerResult<()> {
@@ -140,7 +165,7 @@ impl ModuleLowerer<'_> {
                 key, declared_type, ..
             } => {
                 // resolve the field name
-                let field_name = self.interface_field_name(member_id, *key)?;
+                let field_name = self.dynamic_field_name(member_id, *key)?;
 
                 // resolve the field type
                 let Some(declared_type) = declared_type else {
@@ -163,7 +188,7 @@ impl ModuleLowerer<'_> {
                                     .into_global_any(self.module_id)
                                     .into_anchored(Some(self.profile)),
                             ),
-                            message: "interface field type mismatch".to_string(),
+                            message: "dynamic field type mismatch".to_string(),
                         }
                         .into());
                     }
@@ -172,16 +197,16 @@ impl ModuleLowerer<'_> {
 
                 seen_fields.insert(field_name, field_type);
                 let dispatch_field =
-                    self.interface_dispatch_field(member_id, field_name, field_type)?;
-                slots.push(InterfaceEntry::Field {
+                    self.dynamic_dispatch_field(member_id, field_name, field_type)?;
+                slots.push(DynamicMember::Field {
                     name: field_name,
                     field: dispatch_field,
                     member_id,
                 });
             }
             dir::TypeMember::Method { key, signature, .. } => {
-                // resolve the method name
-                let method_name = self.member_dispatch_name_or_error(
+                // resolve the member name
+                let member_name = self.member_dispatch_name_or_error(
                     Some(key),
                     signature.role,
                     member_id.into_any(),
@@ -191,8 +216,8 @@ impl ModuleLowerer<'_> {
                 let signature_type_id =
                     self.signature_type_id_for_node(member_id.into_global_any(self.module_id))?;
 
-                // detect duplicate method slots
-                if let Some(signature_ids) = seen_methods.get_mut(&method_name) {
+                // detect duplicate callable members
+                if let Some(signature_ids) = seen_methods.get_mut(&member_name) {
                     if signature_ids.iter().any(|existing| {
                         self.method_signatures_equivalent(*existing, signature_type_id)
                     }) {
@@ -200,16 +225,62 @@ impl ModuleLowerer<'_> {
                     }
                     signature_ids.push(signature_type_id);
                 } else {
-                    seen_methods.insert(method_name, vec![signature_type_id]);
+                    seen_methods.insert(member_name, vec![signature_type_id]);
                 }
 
-                slots.push(InterfaceEntry::Method {
-                    name: method_name,
+                // lower accessors and methods as explicit dynamic members
+                match signature.role {
+                    Some(dir::FunctionRole::Getter) => slots.push(DynamicMember::Getter {
+                        name: member_name,
+                        signature: signature_type_id,
+                        member_id,
+                    }),
+                    Some(dir::FunctionRole::Setter) => slots.push(DynamicMember::Setter {
+                        name: member_name,
+                        signature: signature_type_id,
+                        member_id,
+                    }),
+                    Some(dir::FunctionRole::Call) => slots.push(DynamicMember::Call {
+                        signature: signature_type_id,
+                        member_id,
+                    }),
+                    Some(dir::FunctionRole::Constructor | dir::FunctionRole::New) => {
+                        return Err(LowerError::UnsupportedConstruct {
+                            anchor: self.diagnostic_anchor(
+                                member_id
+                                    .into_global_any(self.module_id)
+                                    .into_anchored(Some(self.profile)),
+                            ),
+                            message: "construct signatures are not dynamic compatible".to_string(),
+                        }
+                        .into());
+                    }
+                    None => slots.push(DynamicMember::Method {
+                        name: member_name,
+                        signature: signature_type_id,
+                        member_id,
+                    }),
+                }
+            }
+            dir::TypeMember::CallSignature { .. } => {
+                let signature_type_id =
+                    self.signature_type_id_for_node(member_id.into_global_any(self.module_id))?;
+                slots.push(DynamicMember::Call {
                     signature: signature_type_id,
                     member_id,
                 });
             }
-            dir::TypeMember::CallSignature { .. } | dir::TypeMember::ConstructSignature { .. } => {}
+            dir::TypeMember::ConstructSignature { .. } => {
+                return Err(LowerError::UnsupportedConstruct {
+                    anchor: self.diagnostic_anchor(
+                        member_id
+                            .into_global_any(self.module_id)
+                            .into_anchored(Some(self.profile)),
+                    ),
+                    message: "construct signatures are not dynamic compatible".to_string(),
+                }
+                .into());
+            }
             dir::TypeMember::IndexSignature { .. } => {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(
@@ -227,8 +298,8 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Resolve a static interface field name for dispatch metadata.
-    fn interface_field_name(
+    /// Resolve a static dynamic field name for dispatch metadata.
+    fn dynamic_field_name(
         &mut self,
         member_id: dir::LocalNodeId<dir::TypeMember>,
         key: dir::Key,
@@ -240,7 +311,7 @@ impl ModuleLowerer<'_> {
                         .into_global_any(self.module_id)
                         .into_anchored(Some(self.profile)),
                 ),
-                message: "unsupported non-public field key in interface layout".to_string(),
+                message: "unsupported non-public field key in dynamic layout".to_string(),
             }
             .into());
         };
@@ -248,8 +319,8 @@ impl ModuleLowerer<'_> {
         Ok(static_key_to_field_name(&key, &mut self.builder))
     }
 
-    /// Return the canonical interface dispatch field node for a member.
-    fn interface_dispatch_field(
+    /// Return the canonical dynamic dispatch field node for a member.
+    fn dynamic_dispatch_field(
         &mut self,
         member_id: dir::LocalNodeId<dir::TypeMember>,
         field_name: StringId,
@@ -257,7 +328,7 @@ impl ModuleLowerer<'_> {
     ) -> LowerResult<mir::LocalNodeId<mir::Field>> {
         // reuse an existing field id when available
         let member_key = member_id.id;
-        if let Some(field_id) = self.interface_dispatch_fields_by_member.get(&member_key) {
+        if let Some(field_id) = self.dynamic_fields_by_member.get(&member_key) {
             return Ok(*field_id);
         }
 
@@ -272,7 +343,7 @@ impl ModuleLowerer<'_> {
             name: Some(field_name),
             ty: field_type.into(),
         });
-        self.interface_dispatch_fields_by_member
+        self.dynamic_fields_by_member
             .insert(member_key, field_id);
 
         Ok(field_id)

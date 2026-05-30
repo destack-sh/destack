@@ -16,7 +16,7 @@ use crate::{Compiler, CompilerError, CompilerResult, LowerError, LowerResult};
 
 use crate::lower::{
     BuiltinTypeLayouts, DispatchTableGlobal, FunctionEnvironmentLayout, GlobalBinding, InstanceKey,
-    InterfaceEntry, MethodKey, RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig, RuntimeStatusLayout,
+    DynamicMember, MethodKey, RUNTIME_CHECK_MESSAGES, RuntimeCheckConfig, RuntimeStatusLayout,
     TypeCacheEntry, TypeLowerer,
 };
 
@@ -83,12 +83,12 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Synthetic name for vtable header fields.
     pub(crate) vtable_field_name: dir::StringId,
 
-    /// Track interface slot data for dispatch lowering.
-    pub(crate) interface_slots_by_symbol: HashMap<dir::GlobalSymbolId, Vec<InterfaceEntry>>,
-    /// Track canonical interface dispatch field nodes by interface member.
-    pub(crate) interface_dispatch_fields_by_member: HashMap<u32, mir::LocalNodeId<mir::Field>>,
-    /// Track interface slot lowering in progress.
-    pub(crate) interface_slots_in_progress: IndexSet<dir::GlobalSymbolId>,
+    /// Track dynamic member data for dispatch lowering.
+    pub(crate) dynamic_members_by_symbol: HashMap<dir::GlobalSymbolId, Vec<DynamicMember>>,
+    /// Track canonical dynamic dispatch field nodes by dynamic member.
+    pub(crate) dynamic_fields_by_member: HashMap<u32, mir::LocalNodeId<mir::Field>>,
+    /// Track dynamic member lowering in progress.
+    pub(crate) dynamic_members_in_progress: IndexSet<dir::GlobalSymbolId>,
 
     /// Track nominal layout lowering by symbol.
     pub(crate) nominal_layouts_by_symbol: HashMap<dir::GlobalSymbolId, mir::LocalNodeId<mir::Type>>,
@@ -102,10 +102,10 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Track vtable lowering in progress.
     pub(crate) vtable_in_progress: IndexSet<dir::GlobalSymbolId>,
 
-    /// The interface tables that have been lowered.
-    pub(crate) lowered_interface_tables: HashSet<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
-    /// Track interface table lowering in progress.
-    pub(crate) interface_table_in_progress: IndexSet<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
+    /// The dynamic tables that have been lowered.
+    pub(crate) lowered_dynamic_tables: HashSet<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
+    /// Track dynamic table lowering in progress.
+    pub(crate) dynamic_table_in_progress: IndexSet<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
 
     /// Track whether dispatch declarations are initialized.
     pub(crate) dispatch_declared: bool,
@@ -117,10 +117,10 @@ pub(crate) struct ModuleLowerer<'a> {
     /// Predeclared vtable globals keyed by class symbol.
     pub(crate) vtable_globals_by_symbol: HashMap<dir::GlobalSymbolId, DispatchTableGlobal>,
 
-    /// Ordered interface table pairs for deterministic lowering.
-    pub(crate) interface_table_pairs: Vec<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
-    /// Predeclared interface table globals keyed by concrete and interface symbols.
-    pub(crate) interface_table_globals_by_pair:
+    /// Ordered dynamic table pairs for deterministic lowering.
+    pub(crate) dynamic_table_pairs: Vec<(dir::GlobalSymbolId, dir::GlobalSymbolId)>,
+    /// Predeclared dynamic table globals keyed by concrete and constraint symbols.
+    pub(crate) dynamic_table_globals_by_pair:
         HashMap<(dir::GlobalSymbolId, dir::GlobalSymbolId), DispatchTableGlobal>,
 
     /// Set of symbols marked as bindings.
@@ -224,22 +224,22 @@ impl<'a> ModuleLowerer<'a> {
             dispatch_call_name,
             dispatch_construct_name,
             vtable_field_name,
-            interface_slots_by_symbol: HashMap::new(),
-            interface_dispatch_fields_by_member: HashMap::new(),
-            interface_slots_in_progress: IndexSet::new(),
+            dynamic_members_by_symbol: HashMap::new(),
+            dynamic_fields_by_member: HashMap::new(),
+            dynamic_members_in_progress: IndexSet::new(),
             nominal_layouts_by_symbol: HashMap::new(),
             nominal_layouts_in_progress: IndexSet::new(),
             vtable_layout_symbols: None,
             lowered_vtables: HashSet::new(),
             vtable_in_progress: IndexSet::new(),
-            lowered_interface_tables: HashSet::new(),
-            interface_table_in_progress: IndexSet::new(),
+            lowered_dynamic_tables: HashSet::new(),
+            dynamic_table_in_progress: IndexSet::new(),
             dispatch_declared: false,
             virtual_method_slots_by_key: HashMap::new(),
             vtable_class_symbols: Vec::new(),
             vtable_globals_by_symbol: HashMap::new(),
-            interface_table_pairs: Vec::new(),
-            interface_table_globals_by_pair: HashMap::new(),
+            dynamic_table_pairs: Vec::new(),
+            dynamic_table_globals_by_pair: HashMap::new(),
             binding_symbols: HashSet::new(),
             binding_abi_lowering,
             runtime_status_layout: None,
@@ -679,19 +679,19 @@ impl<'a> ModuleLowerer<'a> {
         )
     }
 
-    /// Insert interface slots for a symbol.
-    pub(crate) fn insert_interface_slots(
+    /// Insert dynamic members for a symbol.
+    pub(crate) fn insert_dynamic_members(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        slots: Vec<InterfaceEntry>,
+        members: Vec<DynamicMember>,
     ) -> LowerResult<()> {
-        // record interface slots once
+        // record dynamic members once
         Self::insert_unique_entry(
             self.module_id,
-            &mut self.interface_slots_by_symbol,
+            &mut self.dynamic_members_by_symbol,
             symbol,
-            slots,
-            "interface slots",
+            members,
+            "dynamic members",
         )
     }
 
@@ -751,33 +751,33 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Insert an interface table global for an interface pair.
-    pub(crate) fn insert_interface_table_global(
+    /// Insert a dynamic table global for a concrete and constraint pair.
+    pub(crate) fn insert_dynamic_table_global(
         &mut self,
         pair: (dir::GlobalSymbolId, dir::GlobalSymbolId),
-        interface_table: DispatchTableGlobal,
+        dynamic_table: DispatchTableGlobal,
     ) -> LowerResult<()> {
-        // record the interface table global once
+        // record the dynamic table global once
         Self::insert_unique_entry(
             self.module_id,
-            &mut self.interface_table_globals_by_pair,
+            &mut self.dynamic_table_globals_by_pair,
             pair,
-            interface_table,
-            "interface table global",
+            dynamic_table,
+            "dynamic table global",
         )
     }
 
-    /// Record a lowered interface table for an interface pair.
-    pub(crate) fn record_interface_table(
+    /// Record a lowered dynamic table for a concrete and constraint pair.
+    pub(crate) fn record_dynamic_table(
         &mut self,
         pair: (dir::GlobalSymbolId, dir::GlobalSymbolId),
     ) -> LowerResult<()> {
-        // record the lowered interface table once
-        if !self.lowered_interface_tables.insert(pair) {
+        // record the lowered dynamic table once
+        if !self.lowered_dynamic_tables.insert(pair) {
             return Err(LowerError::Internal {
                 anchor: (self.module_id).into(),
                 module: self.module_id,
-                message: "duplicate interface table for interface pair".to_string(),
+                message: "duplicate dynamic table".to_string(),
             }
             .into());
         }

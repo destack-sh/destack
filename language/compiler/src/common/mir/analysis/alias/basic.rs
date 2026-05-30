@@ -372,8 +372,8 @@ impl BasicAA {
             mir::Instruction::BarrierWrite { .. } => ModRefInfo::MOD,
 
             mir::Instruction::Call { .. }
-            | mir::Instruction::CallClass { .. }
-            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallDynamic { .. }
             | mir::Instruction::CallIndirect { .. } => {
                 self.get_call_mod_ref(instruction_id, inst, loc, tree)
             }

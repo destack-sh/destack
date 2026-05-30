@@ -310,7 +310,7 @@ readonly global Dog#vtable: [ref<void, raw, readonly, space(static), nullable>; 
 
 function useDog(value0: ref<Dog, managed, readonly>): int32 {
 entry0(value0: ref<Dog, managed, readonly>):
-    value1: int32 = call.class value0, Dog, 2(value0): (ref<Dog, managed, readonly>) -> int32
+    value1: int32 = call.virtual value0, Dog, 2(value0): (ref<Dog, managed, readonly>) -> int32
     return value1
 }
 
@@ -352,7 +352,7 @@ entry0(this0: ref<Dog, managed, readonly>):
     });
 }
 
-/// Lower class dispatch slot ordering across inheritance with multiple methods.
+/// Lower virtual dispatch slot ordering across inheritance with multiple methods.
 #[test]
 fn test_lower_orders_class_vtable_slots() {
     let test = TestProgram::memory_sequential_with_prelude();
@@ -431,7 +431,7 @@ entry0(this0: ref<Vehicle, managed, readonly>):
     });
 }
 
-/// Lower class call metadata for class dispatch.
+/// Lower virtual call metadata for virtual dispatch.
 #[test]
 fn test_lower_class_call_metadata() {
     // set up the test program
@@ -486,7 +486,7 @@ readonly global FileLogger#vtable: [ref<void, raw, readonly, space(static), null
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):
-    value1: int32 = call.class value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
+    value1: int32 = call.virtual value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
     return value1
 }
 
@@ -515,7 +515,7 @@ entry0(this0: ref<FileLogger, managed, readonly>):
     });
 }
 
-/// Lower class dispatch calls in MIR.
+/// Lower virtual dispatch calls in MIR.
 #[test]
 fn test_lower_class_call() {
     // set up the test program
@@ -556,7 +556,7 @@ readonly global FileLogger#vtable: [ref<void, raw, readonly, space(static), null
 
 function callLogger(value0: ref<Logger, managed, readonly>): int32 {
 entry0(value0: ref<Logger, managed, readonly>):
-    value1: int32 = call.class value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
+    value1: int32 = call.virtual value0, Logger, 2(value0): (ref<Logger, managed, readonly>) -> int32
     return value1
 }
 
@@ -575,7 +575,7 @@ entry0(this0: ref<Logger, managed, readonly>):
     );
 }
 
-/// Execute a class call through a base-typed reference.
+/// Execute a virtual call through a base-typed reference.
 #[test]
 fn test_lower_executes_class_call() {
     // set up the test program

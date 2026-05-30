@@ -330,8 +330,8 @@ fn collect_written_globals(
 
                 // detect calls that may write memory
                 if let mir::Instruction::Call { call, .. }
-                | mir::Instruction::CallClass { call, .. }
-                | mir::Instruction::CallInterface { call, .. } = instruction
+                | mir::Instruction::CallVirtual { call, .. }
+                | mir::Instruction::CallDynamic { call, .. } = instruction
                     && call_writes_memory(tree, instruction_id, instruction)
                     && any_argument_global(&call.arguments, &definitions, addr_info, tree)
                 {
@@ -527,10 +527,10 @@ fn terminator_write_arguments(
             function_memory_writes_from_tree(tree, function).then(|| call.arguments.clone())
         }
         mir::Terminator::CallIndirect { call, .. } => Some(call.arguments.clone()),
-        mir::Terminator::CallClass { receiver, call, .. }
-        | mir::Terminator::CallInterface { receiver, call, .. }
-        | mir::Terminator::TailCallClass { receiver, call, .. }
-        | mir::Terminator::TailCallInterface { receiver, call, .. } => {
+        mir::Terminator::CallVirtual { receiver, call, .. }
+        | mir::Terminator::CallDynamic { receiver, call, .. }
+        | mir::Terminator::TailCallVirtual { receiver, call, .. }
+        | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
             let target = tree
                 .metadata
                 .functions

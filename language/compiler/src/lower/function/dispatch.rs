@@ -2,21 +2,21 @@ use {destack_dir as dir, destack_mir as mir};
 
 use crate::{CompilerError, CompilerResult, LowerError};
 
-use crate::lower::{FunctionLowerer, InterfaceEntry, MethodKey};
+use crate::lower::{FunctionLowerer, DynamicMember, MethodKey};
 
 /// Dispatch target details for lowering.
 pub(crate) enum DispatchTarget {
-    /// The interface dispatch target details.
-    Interface {
-        /// The interface type declaring the dispatch slot.
-        interface: mir::LocalNodeId<mir::Type>,
+    /// The dynamic dispatch target details.
+    Dynamic {
+        /// The dynamic constraint type declaring the dispatch slot.
+        constraint: mir::LocalNodeId<mir::Type>,
         /// The dispatch slot for the method.
         slot: mir::DispatchSlot,
-        /// The interface method signature.
+        /// The dynamic member signature.
         signature: mir::LocalNodeId<mir::Type>,
     },
-    /// Class dispatch target details.
-    Class {
+    /// Virtual dispatch target details.
+    Virtual {
         /// The class type declaring the dispatch slot.
         class: mir::LocalNodeId<mir::Type>,
         /// The dispatch slot for the method.
@@ -35,30 +35,30 @@ impl FunctionLowerer<'_> {
         target_symbol: dir::GlobalSymbolId,
         function_id: Option<mir::LocalNodeId<mir::Function>>,
     ) -> CompilerResult<Option<DispatchTarget>> {
-        // resolve interface and class symbols for the receiver
-        let interface_symbol = self.interface_symbol_for_type(receiver_type_id);
+        // resolve dynamic constraint and class symbols for the receiver
+        let constraint_symbol = self.dynamic_constraint_symbol_for_type(receiver_type_id);
         let class_symbol = self.class_symbol_for_type(receiver_type_id);
-        if interface_symbol.is_none() && class_symbol.is_none() {
+        if constraint_symbol.is_none() && class_symbol.is_none() {
             return Ok(None);
         }
 
         // resolve the dispatch key for this symbol
         let method_key = self.method_key_for_symbol(expression_id, target_symbol)?;
 
-        // prefer interface dispatch when available
-        if let Some(interface_symbol) = interface_symbol {
-            let slot = self.interface_method_slot(expression_id, interface_symbol, method_key)?;
+        // prefer dynamic dispatch when available
+        if let Some(constraint_symbol) = constraint_symbol {
+            let slot = self.dynamic_method_slot(expression_id, constraint_symbol, method_key)?;
             let signature =
-                self.interface_method_signature(expression_id, interface_symbol, method_key)?;
-            let interface = self.interface_type(expression_id, interface_symbol)?;
-            return Ok(Some(DispatchTarget::Interface {
-                interface,
+                self.dynamic_method_signature(expression_id, constraint_symbol, method_key)?;
+            let constraint = self.dynamic_constraint_type(expression_id, constraint_symbol)?;
+            return Ok(Some(DispatchTarget::Dynamic {
+                constraint,
                 slot,
                 signature,
             }));
         }
 
-        // resolve class dispatch when a slot is present
+        // resolve virtual dispatch when a slot is present
         if let Some(class_symbol) = class_symbol
             && let Some(slot) = self.virtual_method_slot(class_symbol, method_key)
         {
@@ -74,7 +74,7 @@ impl FunctionLowerer<'_> {
                 .into());
             };
             let class = self.class_type_for_call(expression_id, receiver_type_id)?;
-            return Ok(Some(DispatchTarget::Class {
+            return Ok(Some(DispatchTarget::Virtual {
                 class,
                 slot: mir::DispatchSlot::new(slot),
                 function_id,
@@ -84,13 +84,28 @@ impl FunctionLowerer<'_> {
         Ok(None)
     }
 
-    /// Resolve the interface symbol for a receiver type.
-    pub(super) fn interface_symbol_for_type(
+    /// Resolve the dynamic constraint symbol for a receiver type.
+    pub(super) fn dynamic_constraint_symbol_for_type(
         &self,
         receiver_type_id: dir::LocalTypeId,
     ) -> Option<dir::GlobalSymbolId> {
         // resolve the receiver type
         let dir_type = self.context.types.get_type(receiver_type_id);
+        match dir_type {
+            dir::Type::Dynamic(dynamic) => {
+                self.interface_constraint_symbol_for_type(dynamic.constraint)
+            }
+            dir::Type::Form(value) => self.dynamic_constraint_symbol_for_type(value.value),
+            _ => None,
+        }
+    }
+
+    /// Resolve the dynamic constraint symbol carried by one dynamic constraint type.
+    pub(super) fn interface_constraint_symbol_for_type(
+        &self,
+        constraint_type_id: dir::LocalTypeId,
+    ) -> Option<dir::GlobalSymbolId> {
+        let dir_type = self.context.types.get_type(constraint_type_id);
         match dir_type {
             dir::Type::Named(reference)
                 if self
@@ -99,27 +114,27 @@ impl FunctionLowerer<'_> {
             {
                 Some(reference.symbol)
             }
-            dir::Type::Form(value) => self.interface_symbol_for_type(value.value),
+            dir::Type::Form(value) => self.interface_constraint_symbol_for_type(value.value),
             dir::Type::Intersection(intersection) => intersection
                 .elements
                 .iter()
-                .find_map(|element| self.interface_symbol_for_type(*element)),
+                .find_map(|element| self.interface_constraint_symbol_for_type(*element)),
             _ => None,
         }
     }
 
-    /// Resolve the interface dispatch slot for a method key.
-    fn interface_method_slot(
+    /// Resolve the dynamic dispatch slot for a method key.
+    fn dynamic_method_slot(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        interface_symbol: dir::GlobalSymbolId,
+        constraint_symbol: dir::GlobalSymbolId,
         method_key: MethodKey,
     ) -> CompilerResult<mir::DispatchSlot> {
-        // load interface slots for dispatch
+        // load dynamic members for dispatch
         let slots = self
             .context
-            .interface_slots_by_symbol
-            .get(&interface_symbol)
+            .dynamic_members_by_symbol
+            .get(&constraint_symbol)
             .map(|slots| slots.as_slice())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
@@ -127,19 +142,31 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "interface dispatch layout missing".to_string(),
+                message: "dynamic dispatch layout missing".to_string(),
             })
             .map_err(CompilerError::from)?;
 
-        // locate the matching method slot
+        // locate the matching dynamic slot
         let slot_index = slots.iter().position(|slot| {
-            let InterfaceEntry::Method {
-                name, signature, ..
-            } = slot
-            else {
-                return false;
+            let (name, signature, role) = match slot {
+                DynamicMember::Getter {
+                    name, signature, ..
+                } => (*name, *signature, Some(dir::FunctionRole::Getter)),
+                DynamicMember::Setter {
+                    name, signature, ..
+                } => (*name, *signature, Some(dir::FunctionRole::Setter)),
+                DynamicMember::Method {
+                    name, signature, ..
+                } => (*name, *signature, None),
+                DynamicMember::Call { signature, .. } => {
+                    (self.context.dispatch_call_name, *signature, Some(dir::FunctionRole::Call))
+                }
+                DynamicMember::Field { .. } => return false,
             };
-            *name == method_key.name() && *signature == method_key.signature()
+
+            name == method_key.name()
+                && role == method_key.role()
+                && signature == method_key.signature()
         });
 
         // require a matching slot
@@ -150,25 +177,25 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "interface method slot missing".to_string(),
+                message: "dynamic method slot missing".to_string(),
             }
             .into());
         };
 
-        Ok(mir::InterfaceTable::slot_for_index(slot_index))
+        Ok(mir::DynamicTable::slot_for_index(slot_index))
     }
 
-    /// Resolve the interface method signature for a method key.
-    fn interface_method_signature(
+    /// Resolve the dynamic member signature for a method key.
+    fn dynamic_method_signature(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        interface_symbol: dir::GlobalSymbolId,
+        constraint_symbol: dir::GlobalSymbolId,
         method_key: MethodKey,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let slots = self
             .context
-            .interface_slots_by_symbol
-            .get(&interface_symbol)
+            .dynamic_members_by_symbol
+            .get(&constraint_symbol)
             .map(|slots| slots.as_slice())
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
@@ -176,19 +203,31 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "interface dispatch layout missing".to_string(),
+                message: "dynamic dispatch layout missing".to_string(),
             })
             .map_err(CompilerError::from)?;
 
         for slot in slots {
-            let InterfaceEntry::Method {
-                name, signature, ..
-            } = slot
-            else {
-                continue;
+            let (name, signature, role) = match slot {
+                DynamicMember::Getter {
+                    name, signature, ..
+                } => (*name, *signature, Some(dir::FunctionRole::Getter)),
+                DynamicMember::Setter {
+                    name, signature, ..
+                } => (*name, *signature, Some(dir::FunctionRole::Setter)),
+                DynamicMember::Method {
+                    name, signature, ..
+                } => (*name, *signature, None),
+                DynamicMember::Call { signature, .. } => {
+                    (self.context.dispatch_call_name, *signature, Some(dir::FunctionRole::Call))
+                }
+                DynamicMember::Field { .. } => continue,
             };
 
-            if *name != method_key.name() || *signature != method_key.signature() {
+            if name != method_key.name()
+                || role != method_key.role()
+                || signature != method_key.signature()
+            {
                 continue;
             }
 
@@ -196,7 +235,7 @@ impl FunctionLowerer<'_> {
                 .context
                 .type_lowerer
                 .function_signature_types
-                .get(signature)
+                .get(&signature)
                 .copied()
                 .ok_or_else(|| self.missing_type_error(expression_id))
                 .map_err(CompilerError::from)?;
@@ -210,33 +249,33 @@ impl FunctionLowerer<'_> {
                     .into_global_any(self.context.module_id)
                     .into_anchored(Some(self.context.profile)),
             ),
-            message: "interface method signature missing".to_string(),
+            message: "dynamic method signature missing".to_string(),
         }
         .into())
     }
 
-    /// Resolve the interface MIR type for dispatch.
-    fn interface_type(
+    /// Resolve the dynamic constraint MIR type for dispatch.
+    fn dynamic_constraint_type(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-        interface_symbol: dir::GlobalSymbolId,
+        constraint_symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // resolve the interface instance type
-        let interface_type_id =
-            self.instance_type_id_for_symbol_or_error(expression_id.into_any(), interface_symbol)?;
+        // resolve the constraint instance type
+        let constraint_type_id =
+            self.instance_type_id_for_symbol_or_error(expression_id.into_any(), constraint_symbol)?;
 
         // resolve the MIR type
-        let interface = self
+        let constraint = self
             .context
             .type_lowerer
-            .cached_type(interface_type_id)
+            .cached_type(constraint_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
             .map_err(CompilerError::from)?;
 
-        Ok(interface)
+        Ok(constraint)
     }
 
-    /// Resolve a class dispatch key for a symbol.
+    /// Resolve a virtual dispatch key for a symbol.
     fn method_key_for_symbol(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -250,7 +289,7 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "interface dispatch across modules is not supported".to_string(),
+                message: "dynamic dispatch across modules is not supported".to_string(),
             }
             .into());
         }
@@ -367,7 +406,7 @@ impl FunctionLowerer<'_> {
         ))
     }
 
-    /// Resolve the class dispatch slot for a class method symbol.
+    /// Resolve the virtual dispatch slot for a class method symbol.
     fn virtual_method_slot(
         &self,
         class_symbol: dir::GlobalSymbolId,
@@ -394,7 +433,7 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "class dispatch requires a class receiver".to_string(),
+                message: "virtual dispatch requires a class receiver".to_string(),
             })
             .map_err(CompilerError::from)?;
 

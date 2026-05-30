@@ -145,8 +145,8 @@ impl AliasAnalysis {
         if matches!(
             inst,
             mir::Instruction::Call { .. }
-                | mir::Instruction::CallClass { .. }
-                | mir::Instruction::CallInterface { .. }
+                | mir::Instruction::CallVirtual { .. }
+                | mir::Instruction::CallDynamic { .. }
                 | mir::Instruction::CallIndirect { .. }
         ) {
             let globals_result = self.globals.get_call_mod_ref(inst, loc, &self.tree);

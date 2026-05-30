@@ -70,7 +70,7 @@ pub(crate) fn compute_type_layout(
         mir::Type::Struct { .. }
             | mir::Type::Tuple { .. }
             | mir::Type::Variant { .. }
-            | mir::Type::Any { .. }
+            | mir::Type::Dynamic { .. }
             | mir::Type::Array { .. }
             | mir::Type::Closure { .. }
     ) {
@@ -208,8 +208,8 @@ pub(crate) fn compute_type_layout(
             Ok(TypeLayout::new(layout.size, layout.alignment))
         }
 
-        // erased Any values: read canonical layout metadata
-        mir::Type::Any { .. } => {
+        // erased dynamic values: read canonical layout metadata
+        mir::Type::Dynamic { .. } => {
             let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(
                     "missing layout metadata",
@@ -228,7 +228,7 @@ pub(crate) fn compute_type_layout(
             compute_type_layout(tree, value, pointer_bytes)
         }
 
-        // callables: read canonical layout metadata
+        // closures: read canonical layout metadata
         mir::Type::Closure { .. } => {
             let Some(layout) = tree.metadata.layout.type_layout(type_id) else {
                 return Err(CodegenCraneliftError::unsupported_type(

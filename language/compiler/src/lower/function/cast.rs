@@ -76,26 +76,25 @@ impl FunctionLowerer<'_> {
             .context
             .types
             .unwrap_form_payload_type_id(source_type_id);
-        if let dir::Type::Named(reference) = target_type
-            && self
-                .context
-                .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface)
+        if let dir::Type::Dynamic(dynamic) = target_type
+            && let Some(constraint_symbol) =
+                self.interface_constraint_symbol_for_type(dynamic.constraint)
         {
             if matches!(
                 self.context.types.get_type(source_type_id),
                 dir::Type::Named(source_reference)
-                    if source_reference.symbol == reference.symbol
+                    if source_reference.symbol == constraint_symbol
             ) {
                 return Ok((value, source_mir_type));
             }
 
-            return self.lower_any_upcast(
+            return self.lower_dynamic_upcast(
                 expression_id,
                 value_id,
                 value,
                 source_mir_type,
                 source_type_id,
-                reference.symbol,
+                constraint_symbol,
                 target_type_id,
                 target_mir_type,
             );
@@ -540,19 +539,18 @@ impl FunctionLowerer<'_> {
         let target_type_id = self.type_for_expression_or_error(expression_id)?;
         let target_dir_type = self.context.types.get_type(target_type_id);
 
-        // handle interface upcasts
-        if let dir::Type::Named(reference) = target_dir_type
-            && self
-                .context
-                .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface)
+        // handle dynamic upcasts
+        if let dir::Type::Dynamic(dynamic) = target_dir_type
+            && let Some(constraint_symbol) =
+                self.interface_constraint_symbol_for_type(dynamic.constraint)
         {
-            return self.lower_any_upcast(
+            return self.lower_dynamic_upcast(
                 expression_id,
                 value_id,
                 value,
                 source_mir_type,
                 source_type_id,
-                reference.symbol,
+                constraint_symbol,
                 target_type_id,
                 target_mir_type,
             );
@@ -598,17 +596,14 @@ impl FunctionLowerer<'_> {
         let source_type_id = self.type_for_expression_or_error(value_id)?;
         let source_dir_type = self.context.types.get_type(source_type_id);
 
-        // handle Any downcasts by extracting value pointers
-        if let dir::Type::Named(reference) = source_dir_type
-            && self
-                .context
-                .symbol_kind_matches(reference.symbol, dir::SymbolKind::Interface)
+        // handle dynamic downcasts by extracting value pointers
+        if let dir::Type::Dynamic(_) = source_dir_type
         {
-            // resolve Any value layout
+            // resolve dynamic value layout
             let layout = self
                 .context
                 .type_lowerer
-                .any_value_layout(source_type_id)
+                .dynamic_value_layout(source_type_id)
                 .ok_or_else(|| self.missing_type_error(expression_id))
                 .map_err(CompilerError::from)?;
 
@@ -984,7 +979,7 @@ impl FunctionLowerer<'_> {
         Ok((value, target_mir_type))
     }
 
-    /// Build an Any value from a concrete value.
+    /// Build a dynamic value from a concrete value.
     ///
     /// ```ds
     /// interface Drawable {}
@@ -1003,24 +998,24 @@ impl FunctionLowerer<'_> {
     /// ```
     /// ->
     /// ```mir
-    /// v1: Dynamic<Drawable> = struct Dynamic<Drawable> (v0, <table>)
+    /// v1: Dynamic<Drawable> = struct Dynamic<Drawable>(v0, <table>)
     /// ```
-    pub(crate) fn lower_any_upcast(
+    pub(crate) fn lower_dynamic_upcast(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         value_id: dir::LocalNodeId<dir::Expression>,
         value: mir::Value,
         source_mir_type: mir::LocalNodeId<mir::Type>,
         source_type_id: dir::LocalTypeId,
-        interface_symbol: dir::GlobalSymbolId,
+        constraint_symbol: dir::GlobalSymbolId,
         target_type_id: dir::LocalTypeId,
         target_mir_type: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // resolve Any value layout
+        // resolve dynamic value layout
         let layout = self
             .context
             .type_lowerer
-            .any_value_layout(target_type_id)
+            .dynamic_value_layout(target_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
             .map_err(CompilerError::from)?;
 
@@ -1030,7 +1025,7 @@ impl FunctionLowerer<'_> {
             .concrete_symbol_for_type(source_type_id)
             .or_else(|| self.concrete_symbol_for_expression(value_id));
 
-        // reject interface to interface casts without RTTI
+        // reject dynamic to dynamic casts without RTTI
         let Some(concrete_symbol) = concrete_symbol else {
             if matches!(
                 source_dir_type,
@@ -1045,7 +1040,7 @@ impl FunctionLowerer<'_> {
                             .into_global_any(self.context.module_id)
                             .into_anchored(Some(self.context.profile)),
                     ),
-                    message: "TODO #Broken: interface to interface upcast requires RTTI"
+                    message: "TODO #Broken: dynamic to dynamic upcast requires RTTI"
                         .to_string(),
                 }
                 .into());
@@ -1057,16 +1052,16 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "interface upcast requires a concrete symbol".to_string(),
+                message: "dynamic upcast requires a concrete symbol".to_string(),
             }
             .into());
         };
 
-        // resolve the dispatch table global for the concrete and interface pair
+        // resolve the dispatch table global for the concrete and constraint pair
         let table = self
             .context
-            .interface_table_globals_by_pair
-            .get(&(concrete_symbol, interface_symbol))
+            .dynamic_table_globals_by_pair
+            .get(&(concrete_symbol, constraint_symbol))
             .copied()
             .ok_or_else(|| LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(
@@ -1074,7 +1069,7 @@ impl FunctionLowerer<'_> {
                         .into_global_any(self.context.module_id)
                         .into_anchored(Some(self.context.profile)),
                 ),
-                message: "missing interface table for concrete type".to_string(),
+                message: "missing dynamic table for concrete type".to_string(),
             })
             .map_err(CompilerError::from)?;
 
@@ -1095,15 +1090,15 @@ impl FunctionLowerer<'_> {
                 .cast(mir::CastOperator::Bitcast, table_value, layout.table_type)
         };
 
-        // assemble the Any value
+        // assemble the dynamic value
         let mut fields = vec![value_ptr, table_value];
         if layout.value_field_index > layout.table_field_index {
             fields.swap(0, 1);
         }
-        let any_value = self.state.builder.struct_(target_mir_type, fields);
+        let dynamic_value = self.state.builder.struct_(target_mir_type, fields);
 
-        // return the Any value and type
-        Ok((any_value, target_mir_type))
+        // return the dynamic value and type
+        Ok((dynamic_value, target_mir_type))
     }
 
     /// Select an integer cast operator for scalar types.

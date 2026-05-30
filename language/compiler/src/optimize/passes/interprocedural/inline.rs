@@ -1303,8 +1303,8 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
         | mir::Instruction::LocalSet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::CallableBind { .. }
-        | mir::Instruction::CallableEnvironment { .. }
+        | mir::Instruction::ClosureBind { .. }
+        | mir::Instruction::ClosureEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Slice { .. }
         | mir::Instruction::Assume { .. } => INLINE_COST_SIMPLE,
@@ -1363,7 +1363,7 @@ fn instruction_cost(instruction: &mir::Instruction, tree: &mir::Tree) -> u64 {
             INLINE_COST_SIMPLE + tree.get_arguments(*elements).len() as u64
         }
         mir::Instruction::Call { .. } => INLINE_COST_CALL,
-        mir::Instruction::CallClass { .. } | mir::Instruction::CallInterface { .. } => {
+        mir::Instruction::CallVirtual { .. } | mir::Instruction::CallDynamic { .. } => {
             INLINE_COST_CALL_INDIRECT
         }
         mir::Instruction::CallIndirect { .. } => INLINE_COST_CALL_INDIRECT,
@@ -1408,11 +1408,11 @@ fn terminator_cost(terminator: &mir::Terminator) -> u64 {
         | mir::Terminator::Yield { .. } => INLINE_COST_SIMPLE + 1,
         mir::Terminator::Call { .. } => INLINE_COST_CALL + 1,
         mir::Terminator::CallIndirect { .. }
-        | mir::Terminator::CallClass { .. }
-        | mir::Terminator::CallInterface { .. } => INLINE_COST_CALL_INDIRECT + 1,
+        | mir::Terminator::CallVirtual { .. }
+        | mir::Terminator::CallDynamic { .. } => INLINE_COST_CALL_INDIRECT + 1,
         mir::Terminator::Unreachable => 0,
         mir::Terminator::TailCall { .. } => INLINE_COST_CALL,
-        mir::Terminator::TailCallClass { .. } | mir::Terminator::TailCallInterface { .. } => {
+        mir::Terminator::TailCallVirtual { .. } | mir::Terminator::TailCallDynamic { .. } => {
             INLINE_COST_CALL_INDIRECT
         }
         mir::Terminator::TailCallIndirect { .. } => INLINE_COST_CALL_INDIRECT,

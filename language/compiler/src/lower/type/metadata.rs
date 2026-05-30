@@ -266,7 +266,7 @@ impl ModuleLowerer<'_> {
         }
         // prefer dynamic layouts when present
         else if let Some(type_id) = type_id
-            && let Some(any_layout) = self.type_lowerer.any_value_layout(type_id)
+            && let Some(any_layout) = self.type_lowerer.dynamic_value_layout(type_id)
         {
             // validate the canonical dynamic fields
             if layout.field(any_layout.value_field_index).is_none() {
@@ -280,7 +280,7 @@ impl ModuleLowerer<'_> {
             if layout.field(any_layout.table_field_index).is_none() {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(anchor),
-                    message: "missing interface table field".to_string(),
+                    message: "missing dynamic table field".to_string(),
                 }
                 .into());
             }

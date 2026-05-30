@@ -798,8 +798,8 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::Select { .. }
             | mir::Instruction::GlobalAddr { .. }
             | mir::Instruction::FunctionAddr { .. }
-            | mir::Instruction::CallableBind { .. }
-            | mir::Instruction::CallableEnvironment { .. }
+            | mir::Instruction::ClosureBind { .. }
+            | mir::Instruction::ClosureEnvironment { .. }
             | mir::Instruction::LocalAddr { .. }
             | mir::Instruction::FieldGet { .. }
             | mir::Instruction::FieldAddr { .. }
@@ -1085,8 +1085,8 @@ impl<'a> MemoryAccessCollector<'a> {
                 Self::single_effect(effect)
             }
             mir::Instruction::Call { .. }
-            | mir::Instruction::CallClass { .. }
-            | mir::Instruction::CallInterface { .. } => {
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallDynamic { .. } => {
                 self.call_effects(instruction_id, instruction)
             }
             mir::Instruction::CallIndirect { .. } => self.call_effects(instruction_id, instruction),

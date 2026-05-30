@@ -3,8 +3,8 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::lower::ModuleLowerer;
 use crate::{LowerError, LowerResult};
 
-const INTERFACE_TABLE_GLOBAL_SEPARATOR: &str = "#as#";
-const INTERFACE_TABLE_GLOBAL_SUFFIX: &str = "#interface_table";
+const DYNAMIC_TABLE_GLOBAL_SEPARATOR: &str = "#as#";
+const DYNAMIC_TABLE_GLOBAL_SUFFIX: &str = "#dynamic_table";
 const VTABLE_GLOBAL_SUFFIX: &str = "#vtable";
 
 /// MIR global that stores one dispatch table.
@@ -17,7 +17,7 @@ pub(crate) struct DispatchTableGlobal {
 }
 
 impl ModuleLowerer<'_> {
-    /// Create static storage for one class dispatch table.
+    /// Create static storage for one virtual dispatch table.
     pub(crate) fn create_vtable_global(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -64,11 +64,11 @@ impl ModuleLowerer<'_> {
         })
     }
 
-    /// Create static storage for one interface dispatch table.
-    pub(crate) fn create_interface_table_global(
+    /// Create static storage for one dynamic dispatch table.
+    pub(crate) fn create_dynamic_table_global(
         &mut self,
         concrete: dir::GlobalSymbolId,
-        interface: dir::GlobalSymbolId,
+        constraint: dir::GlobalSymbolId,
         slot_count: u64,
         anchor: dir::AnchoredGlobalNodeId,
     ) -> LowerResult<DispatchTableGlobal> {
@@ -76,17 +76,17 @@ impl ModuleLowerer<'_> {
         let concrete_name = self.qualified_symbol_name(concrete).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
-                message: "missing qualified name for interface table concrete type".to_string(),
+                message: "missing qualified name for dynamic table concrete type".to_string(),
             }
         })?;
-        let interface_name = self.qualified_symbol_name(interface).ok_or_else(|| {
+        let constraint_name = self.qualified_symbol_name(constraint).ok_or_else(|| {
             LowerError::UnsupportedConstruct {
                 anchor: self.diagnostic_anchor(anchor),
-                message: "missing qualified name for interface table interface type".to_string(),
+                message: "missing qualified name for dynamic table constraint type".to_string(),
             }
         })?;
         let name = format!(
-            "{concrete_name}{INTERFACE_TABLE_GLOBAL_SEPARATOR}{interface_name}{INTERFACE_TABLE_GLOBAL_SUFFIX}"
+            "{concrete_name}{DYNAMIC_TABLE_GLOBAL_SEPARATOR}{constraint_name}{DYNAMIC_TABLE_GLOBAL_SUFFIX}"
         );
 
         // pointer sized table slots

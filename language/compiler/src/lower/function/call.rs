@@ -4,11 +4,11 @@ use crate::{CompilerError, CompilerResult, LowerError};
 
 use crate::lower::{DispatchTarget, FunctionLowerer, is_void_type, resolve_result_union};
 
-/// Interface receiver values for lowering calls.
-pub(super) struct InterfaceCallReceivers {
+/// Dynamic receiver values for lowering calls.
+pub(super) struct DynamicCallReceivers {
     /// Receiver used for argument passing.
     pub(super) argument_receiver: mir::Value,
-    /// Receiver used for interface dispatch.
+    /// Receiver used for dynamic dispatch.
     pub(super) dispatch_receiver: mir::Value,
 }
 
@@ -237,10 +237,10 @@ impl FunctionLowerer<'_> {
             (function_id, receiver_value, receiver_type_id)
         };
 
-        // resolve interface receivers for dispatch and argument passing
+        // resolve dynamic receivers for dispatch and argument passing
         let receivers =
             if let (Some(receiver_type_id), Some(receiver)) = (receiver_type_id, receiver_value) {
-                Some(self.interface_call_receivers(expression_id, receiver_type_id, receiver)?)
+                Some(self.dynamic_call_receivers(expression_id, receiver_type_id, receiver)?)
             } else {
                 None
             };
@@ -266,7 +266,7 @@ impl FunctionLowerer<'_> {
         };
         let parameter_type_ids = self.parameter_type_ids_for_symbol(target_symbol);
         let signature = match &dispatch_target {
-            Some((DispatchTarget::Interface { signature, .. }, _, _)) => *signature,
+            Some((DispatchTarget::Dynamic { signature, .. }, _, _)) => *signature,
             _ => {
                 let function_id = function_id.ok_or_else(|| LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(
@@ -352,37 +352,37 @@ impl FunctionLowerer<'_> {
         let value =
             if let Some((dispatch_target, _receiver_type_id, receiver_value)) = dispatch_target {
                 match dispatch_target {
-                    DispatchTarget::Interface {
-                        interface,
+                    DispatchTarget::Dynamic {
+                        constraint,
                         slot,
                         signature: _,
                     } => {
                         if returns_void {
-                            self.state.builder.call_interface_void(
+                            self.state.builder.call_dynamic_void(
                                 receiver_value,
-                                interface,
+                                constraint,
                                 slot,
                                 signature,
                                 argument_values,
                             );
                             None
                         } else {
-                            self.state.builder.call_interface(
+                            self.state.builder.call_dynamic(
                                 receiver_value,
-                                interface,
+                                constraint,
                                 slot,
                                 signature,
                                 argument_values,
                             )
                         }
                     }
-                    DispatchTarget::Class {
+                    DispatchTarget::Virtual {
                         class,
                         slot,
                         function_id,
                     } => {
                         if returns_void {
-                            self.state.builder.call_class_void(
+                            self.state.builder.call_virtual_void(
                                 receiver_value,
                                 class,
                                 slot,
@@ -392,7 +392,7 @@ impl FunctionLowerer<'_> {
                             );
                             None
                         } else {
-                            self.state.builder.call_class(
+                            self.state.builder.call_virtual(
                                 receiver_value,
                                 class,
                                 slot,
@@ -1043,26 +1043,29 @@ impl FunctionLowerer<'_> {
         Ok(signature)
     }
 
-    /// Resolve receiver values for interface call lowering.
-    pub(super) fn interface_call_receivers(
+    /// Resolve receiver values for dynamic call lowering.
+    pub(super) fn dynamic_call_receivers(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         receiver_type_id: dir::LocalTypeId,
         receiver_value: mir::Value,
-    ) -> CompilerResult<InterfaceCallReceivers> {
-        // skip non-interface receivers
-        if self.interface_symbol_for_type(receiver_type_id).is_none() {
-            return Ok(InterfaceCallReceivers {
+    ) -> CompilerResult<DynamicCallReceivers> {
+        // skip non-dynamic receivers
+        if self
+            .dynamic_constraint_symbol_for_type(receiver_type_id)
+            .is_none()
+        {
+            return Ok(DynamicCallReceivers {
                 argument_receiver: receiver_value,
                 dispatch_receiver: receiver_value,
             });
         }
 
-        // resolve Any value layout
+        // resolve dynamic value layout
         let layout = self
             .context
             .type_lowerer
-            .any_value_layout(receiver_type_id)
+            .dynamic_value_layout(receiver_type_id)
             .ok_or_else(|| self.missing_type_error(expression_id))
             .map_err(CompilerError::from)?;
 
@@ -1072,7 +1075,7 @@ impl FunctionLowerer<'_> {
             .builder
             .field_get(receiver_value, layout.value_field_index);
 
-        Ok(InterfaceCallReceivers {
+        Ok(DynamicCallReceivers {
             argument_receiver: value,
             dispatch_receiver: receiver_value,
         })

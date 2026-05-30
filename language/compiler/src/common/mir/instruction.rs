@@ -109,8 +109,8 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         // immutable global references
         mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::CallableBind { .. }
-        | mir::Instruction::CallableEnvironment { .. } => true,
+        | mir::Instruction::ClosureBind { .. }
+        | mir::Instruction::ClosureEnvironment { .. } => true,
 
         // borrow producing address computations are not speculatable
         mir::Instruction::FieldAddr { .. }
@@ -146,8 +146,8 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
 
         // calls may have side effects
         mir::Instruction::Call { .. }
-        | mir::Instruction::CallClass { .. }
-        | mir::Instruction::CallInterface { .. }
+        | mir::Instruction::CallVirtual { .. }
+        | mir::Instruction::CallDynamic { .. }
         | mir::Instruction::CallIndirect { .. } => false,
 
         // allocations have side effects
@@ -284,8 +284,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::ElementAddr { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::CallableBind { .. }
-        | mir::Instruction::CallableEnvironment { .. }
+        | mir::Instruction::ClosureBind { .. }
+        | mir::Instruction::ClosureEnvironment { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Assume { .. } => false,
 
@@ -316,8 +316,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
 
         // calls may have side effects
         mir::Instruction::Call { .. }
-        | mir::Instruction::CallClass { .. }
-        | mir::Instruction::CallInterface { .. }
+        | mir::Instruction::CallVirtual { .. }
+        | mir::Instruction::CallDynamic { .. }
         | mir::Instruction::CallIndirect { .. } => true,
 
         // allocations have side effects (memory allocation)
@@ -372,8 +372,8 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::TensorFill { .. }
             | mir::Instruction::TensorCopy { .. }
             | mir::Instruction::Call { .. }
-            | mir::Instruction::CallClass { .. }
-            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallDynamic { .. }
             | mir::Instruction::CallIndirect { .. }
             | mir::Instruction::Intrinsic { .. }
             | mir::Instruction::AtomicLoad { .. }
@@ -438,8 +438,8 @@ pub fn instruction_allows_read_only_motion(
     let is_call = matches!(
         instruction,
         mir::Instruction::Call { .. }
-            | mir::Instruction::CallClass { .. }
-            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallDynamic { .. }
             | mir::Instruction::CallIndirect { .. }
     );
     if !is_call {
@@ -1080,30 +1080,30 @@ pub fn instruction_substitute_uses(
         mir::Instruction::Assume { condition } => mir::Instruction::Assume {
             condition: substitute(condition),
         },
-        mir::Instruction::CallClass {
+        mir::Instruction::CallVirtual {
             destination,
             receiver,
             call,
             class,
             slot,
-        } => mir::Instruction::CallClass {
+        } => mir::Instruction::CallVirtual {
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
             class: *class,
             slot: *slot,
         },
-        mir::Instruction::CallInterface {
+        mir::Instruction::CallDynamic {
             destination,
             receiver,
             call,
-            interface,
+            constraint,
             slot,
-        } => mir::Instruction::CallInterface {
+        } => mir::Instruction::CallDynamic {
             destination: *destination,
             receiver: substitute(receiver),
             call: call.clone(),
-            interface: *interface,
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -1151,13 +1151,13 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::LocalGet { .. }
         | mir::Instruction::GlobalAddr { .. }
         | mir::Instruction::FunctionAddr { .. }
-        | mir::Instruction::CallableBind { .. }
+        | mir::Instruction::ClosureBind { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Struct { .. }
         | mir::Instruction::Tuple { .. }
         | mir::Instruction::Array { .. }
         | mir::Instruction::Call { .. }
-        | mir::Instruction::CallableEnvironment { .. }
+        | mir::Instruction::ClosureEnvironment { .. }
         | mir::Instruction::NewZeroed { .. }
         | mir::Instruction::NewUninit { .. }
         | mir::Instruction::FrameAllocZeroed { .. }
@@ -1568,30 +1568,30 @@ pub fn instruction_substitute_uses_in_tree(
             function: *function,
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
         },
-        mir::Instruction::CallClass {
+        mir::Instruction::CallVirtual {
             destination,
             receiver,
             call,
             class,
             slot,
-        } => mir::Instruction::CallClass {
+        } => mir::Instruction::CallVirtual {
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
             class: *class,
             slot: *slot,
         },
-        mir::Instruction::CallInterface {
+        mir::Instruction::CallDynamic {
             destination,
             receiver,
             call,
-            interface,
+            constraint,
             slot,
-        } => mir::Instruction::CallInterface {
+        } => mir::Instruction::CallDynamic {
             destination: *destination,
             receiver: substitute(*receiver),
             call: clone_call_with_arguments(call, substitute_arguments(call.arguments)),
-            interface: *interface,
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -2287,17 +2287,17 @@ pub fn instruction_map(
             destination: remap(*destination),
             function: *function,
         },
-        mir::Instruction::CallableBind {
+        mir::Instruction::ClosureBind {
             destination,
             function,
             environment,
-        } => mir::Instruction::CallableBind {
+        } => mir::Instruction::ClosureBind {
             destination: remap(*destination),
             function: *function,
             environment: remap(*environment),
         },
-        mir::Instruction::CallableEnvironment { destination } => {
-            mir::Instruction::CallableEnvironment {
+        mir::Instruction::ClosureEnvironment { destination } => {
+            mir::Instruction::ClosureEnvironment {
                 destination: remap(*destination),
             }
         }
@@ -2663,30 +2663,30 @@ pub fn instruction_map(
             function: *function,
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
-        mir::Instruction::CallClass {
+        mir::Instruction::CallVirtual {
             destination,
             receiver,
             call,
             class,
             slot,
-        } => mir::Instruction::CallClass {
+        } => mir::Instruction::CallVirtual {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             class: *class,
             slot: *slot,
         },
-        mir::Instruction::CallInterface {
+        mir::Instruction::CallDynamic {
             destination,
             receiver,
             call,
-            interface,
+            constraint,
             slot,
-        } => mir::Instruction::CallInterface {
+        } => mir::Instruction::CallDynamic {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            interface: *interface,
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -2974,17 +2974,17 @@ pub fn instruction_map_with_locals(
             destination: remap(*destination),
             function: *function,
         },
-        mir::Instruction::CallableBind {
+        mir::Instruction::ClosureBind {
             destination,
             function,
             environment,
-        } => mir::Instruction::CallableBind {
+        } => mir::Instruction::ClosureBind {
             destination: remap(*destination),
             function: *function,
             environment: remap(*environment),
         },
-        mir::Instruction::CallableEnvironment { destination } => {
-            mir::Instruction::CallableEnvironment {
+        mir::Instruction::ClosureEnvironment { destination } => {
+            mir::Instruction::ClosureEnvironment {
                 destination: remap(*destination),
             }
         }
@@ -3510,30 +3510,30 @@ pub fn instruction_map_with_locals(
             function: *function,
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
         },
-        mir::Instruction::CallClass {
+        mir::Instruction::CallVirtual {
             destination,
             receiver,
             call,
             class,
             slot,
-        } => mir::Instruction::CallClass {
+        } => mir::Instruction::CallVirtual {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
             class: *class,
             slot: *slot,
         },
-        mir::Instruction::CallInterface {
+        mir::Instruction::CallDynamic {
             destination,
             receiver,
             call,
-            interface,
+            constraint,
             slot,
-        } => mir::Instruction::CallInterface {
+        } => mir::Instruction::CallDynamic {
             destination: destination.map(remap),
             receiver: remap(*receiver),
             call: clone_call_with_arguments(call, remap_arguments(call.arguments)),
-            interface: *interface,
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Instruction::CallIndirect {
@@ -3807,7 +3807,7 @@ pub fn terminator_remap(
                 remap_args(&mut unwind.arguments);
             }
         }
-        mir::Terminator::CallClass {
+        mir::Terminator::CallVirtual {
             receiver,
             call,
             target,
@@ -3823,7 +3823,7 @@ pub fn terminator_remap(
                 remap_args(&mut unwind.arguments);
             }
         }
-        mir::Terminator::CallInterface {
+        mir::Terminator::CallDynamic {
             receiver,
             call,
             target,
@@ -3852,8 +3852,8 @@ pub fn terminator_remap(
         } => {
             remap_args(&mut call.arguments);
         }
-        mir::Terminator::TailCallClass { receiver, call, .. }
-        | mir::Terminator::TailCallInterface { receiver, call, .. } => {
+        mir::Terminator::TailCallVirtual { receiver, call, .. }
+        | mir::Terminator::TailCallDynamic { receiver, call, .. } => {
             remap_value(receiver);
             remap_args(&mut call.arguments);
         }

@@ -978,14 +978,14 @@ fn update_terminator_arguments(
             },
             unwind: unwind.as_ref().map(|target| extend_target(target)),
         },
-        mir::Terminator::CallClass {
+        mir::Terminator::CallVirtual {
             receiver,
             call,
             class,
             slot,
             target,
             unwind,
-        } => mir::Terminator::CallClass {
+        } => mir::Terminator::CallVirtual {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -1009,14 +1009,14 @@ fn update_terminator_arguments(
             },
             unwind: unwind.as_ref().map(|target| extend_target(target)),
         },
-        mir::Terminator::CallInterface {
+        mir::Terminator::CallDynamic {
             receiver,
             call,
-            interface,
+            constraint,
             slot,
             target,
             unwind,
-        } => mir::Terminator::CallInterface {
+        } => mir::Terminator::CallDynamic {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -1026,7 +1026,7 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            interface: *interface,
+            constraint: *constraint,
             slot: *slot,
             target: mir::BlockTarget {
                 block: target.block,
@@ -1063,12 +1063,12 @@ fn update_terminator_arguments(
                 ..call.clone()
             },
         },
-        mir::Terminator::TailCallClass {
+        mir::Terminator::TailCallVirtual {
             receiver,
             call,
             class,
             slot,
-        } => mir::Terminator::TailCallClass {
+        } => mir::Terminator::TailCallVirtual {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -1081,12 +1081,12 @@ fn update_terminator_arguments(
             class: *class,
             slot: *slot,
         },
-        mir::Terminator::TailCallInterface {
+        mir::Terminator::TailCallDynamic {
             receiver,
             call,
-            interface,
+            constraint,
             slot,
-        } => mir::Terminator::TailCallInterface {
+        } => mir::Terminator::TailCallDynamic {
             receiver: remap_value_reference(*receiver, substitutions),
             call: mir::Call {
                 arguments: call
@@ -1096,7 +1096,7 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            interface: *interface,
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {

@@ -200,14 +200,14 @@ b2:
     assert_eq!(clif, expected);
 }
 
-/// callable.environment adds a hidden environment parameter to the signature.
+/// closure.environment adds a hidden environment parameter to the signature.
 #[test]
-fn test_callable_environment_signature_param() {
+fn test_closure_environment_signature_param() {
     let mir = r#"
 @environment(ref<int32, raw, space(frame)>)
 function read_env(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = callable.environment
+    v0: ref<int32, raw, space(frame)> = closure.environment
     v1: int32 = load v0
     return v1
 }"#;
@@ -223,14 +223,14 @@ b0(v0: int64):
     assert_eq!(clif, expected);
 }
 
-/// call.indirect loads code and environment from a callable value.
+/// call.indirect loads code and environment from a closure value.
 #[test]
 fn test_call_indirect_with_env_param() {
     let mir = r#"
 @environment(ref<int32, raw, space(frame)>)
 function read_env(): int32 {
 b0:
-    v0: ref<int32, raw, space(frame)> = callable.environment
+    v0: ref<int32, raw, space(frame)> = closure.environment
     v1: int32 = load v0
     return v1
 }
@@ -240,7 +240,7 @@ b0:
     v0: ref<int32, raw, space(frame)> = frame.alloc.zeroed int32
     v1: int32 = 7int32
     store v0, v1
-    v2: () => int32 = callable.bind read_env, v0
+    v2: () => int32 = closure.bind read_env, v0
     v3: int32 = call.indirect v2()
     return v3
 }"#;

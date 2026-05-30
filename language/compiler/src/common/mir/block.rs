@@ -85,8 +85,8 @@ pub fn terminator_arguments_for_successor(
         }
         mir::Terminator::Call { target, .. }
         | mir::Terminator::CallIndirect { target, .. }
-        | mir::Terminator::CallClass { target, .. }
-        | mir::Terminator::CallInterface { target, .. }
+        | mir::Terminator::CallVirtual { target, .. }
+        | mir::Terminator::CallDynamic { target, .. }
             if target.block.block() == Some(successor) =>
         {
             &target.arguments
@@ -1624,14 +1624,14 @@ pub fn terminator_substitute_uses(
             },
             unwind: unwind.as_ref().map(&target_with_values),
         },
-        mir::Terminator::CallClass {
+        mir::Terminator::CallVirtual {
             receiver,
             call,
             class,
             slot,
             target,
             unwind,
-        } => mir::Terminator::CallClass {
+        } => mir::Terminator::CallVirtual {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
@@ -1645,20 +1645,20 @@ pub fn terminator_substitute_uses(
             },
             unwind: unwind.as_ref().map(&target_with_values),
         },
-        mir::Terminator::CallInterface {
+        mir::Terminator::CallDynamic {
             receiver,
             call,
-            interface,
+            constraint,
             slot,
             target,
             unwind,
-        } => mir::Terminator::CallInterface {
+        } => mir::Terminator::CallDynamic {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            interface: *interface,
+            constraint: *constraint,
             slot: *slot,
             target: mir::BlockTarget {
                 block: target.block,
@@ -1682,12 +1682,12 @@ pub fn terminator_substitute_uses(
                 ..call.clone()
             },
         },
-        mir::Terminator::TailCallClass {
+        mir::Terminator::TailCallVirtual {
             receiver,
             call,
             class,
             slot,
-        } => mir::Terminator::TailCallClass {
+        } => mir::Terminator::TailCallVirtual {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
@@ -1696,18 +1696,18 @@ pub fn terminator_substitute_uses(
             class: *class,
             slot: *slot,
         },
-        mir::Terminator::TailCallInterface {
+        mir::Terminator::TailCallDynamic {
             receiver,
             call,
-            interface,
+            constraint,
             slot,
-        } => mir::Terminator::TailCallInterface {
+        } => mir::Terminator::TailCallDynamic {
             receiver: substitute(*receiver),
             call: mir::Call {
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            interface: *interface,
+            constraint: *constraint,
             slot: *slot,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {

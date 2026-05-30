@@ -279,8 +279,8 @@ fn instruction_is_call(instruction: &mir::Instruction) -> bool {
     matches!(
         instruction,
         mir::Instruction::Call { .. }
-            | mir::Instruction::CallClass { .. }
-            | mir::Instruction::CallInterface { .. }
+            | mir::Instruction::CallVirtual { .. }
+            | mir::Instruction::CallDynamic { .. }
             | mir::Instruction::CallIndirect { .. }
     )
 }

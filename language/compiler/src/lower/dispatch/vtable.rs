@@ -37,6 +37,11 @@ impl MethodKey {
         self.name
     }
 
+    /// Return the function role for this key.
+    pub(crate) fn role(&self) -> Option<dir::FunctionRole> {
+        self.role
+    }
+
     /// Return the signature type id for this key.
     pub(crate) fn signature(&self) -> dir::LocalTypeId {
         self.signature
@@ -69,7 +74,7 @@ impl VtableMethod {
 }
 
 impl ModuleLowerer<'_> {
-    /// Write class dispatch tables.
+    /// Write virtual dispatch tables.
     pub(crate) fn emit_vtables(&mut self) -> LowerResult<()> {
         // classes with object dispatch headers
         for symbol in self.vtable_class_symbols.clone() {
@@ -79,7 +84,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Write one class dispatch table.
+    /// Write one virtual dispatch table.
     fn vtable_for_symbol(&mut self, symbol: dir::GlobalSymbolId) -> LowerResult<()> {
         if self.lowered_vtables.contains(&symbol) {
             return Ok(());
@@ -258,7 +263,7 @@ impl ModuleLowerer<'_> {
         Ok(methods)
     }
 
-    /// Return true when a method should participate in class dispatch.
+    /// Return true when a method should participate in virtual dispatch.
     pub(crate) fn method_is_virtual(
         &self,
         member: &dir::Member,

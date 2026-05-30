@@ -7,7 +7,7 @@ use destack_workspace::{ProfileId, ProviderContext};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
 use crate::lower::static_key_to_field_name;
-use crate::{AnyValueLayout, Compiler, LowerError, LowerResult, UnionLayout};
+use crate::{DynamicValueLayout, Compiler, LowerError, LowerResult, UnionLayout};
 
 // synthetic field names for function value layouts
 const FUNCTION_PTR_FIELD: &str = "@function_ptr";
@@ -66,8 +66,8 @@ pub(crate) struct TypeLowerer<'a> {
     pub(crate) ty_string: Option<mir::LocalNodeId<mir::Type>>,
     /// Cached union layout metadata by DIR type id.
     pub(crate) union_cache: HashMap<dir::LocalTypeId, UnionLayout>,
-    /// Cached Any value layouts by DIR type id.
-    pub(crate) any_value_layout_cache: HashMap<dir::LocalTypeId, AnyValueLayout>,
+    /// Cached dynamic value layouts by DIR type id.
+    pub(crate) dynamic_value_layout_cache: HashMap<dir::LocalTypeId, DynamicValueLayout>,
     /// Cached function pointer signature types by DIR function type id.
     pub(crate) function_signature_types: HashMap<dir::LocalTypeId, mir::LocalNodeId<mir::Type>>,
     /// Cached remote nominal layouts by source symbol.
@@ -118,7 +118,7 @@ impl<'a> TypeLowerer<'a> {
             ty_f64: builder.type_f64(),
             ty_string: None,
             union_cache: HashMap::new(),
-            any_value_layout_cache: HashMap::new(),
+            dynamic_value_layout_cache: HashMap::new(),
             function_signature_types: HashMap::new(),
             remote_nominal_layouts_by_symbol: HashMap::new(),
             remote_nominal_layouts_in_progress: HashSet::new(),
@@ -439,6 +439,14 @@ impl<'a> TypeLowerer<'a> {
             dir::Type::Closure(closure) => {
                 self.lower_closure_type(types, closure, module_id, node, builder)?
             }
+            dir::Type::Dynamic(dynamic) => self.lower_dynamic_value_type(
+                types,
+                type_id,
+                dynamic.constraint,
+                module_id,
+                node,
+                builder,
+            )?,
             dir::Type::Union(union) => {
                 self.lower_union_type(types, type_id, &union.elements, module_id, node, builder)?
             }
@@ -534,7 +542,13 @@ impl<'a> TypeLowerer<'a> {
         }
 
         if self.symbol_kind_matches(symbol, dir::SymbolKind::Interface) {
-            return self.lower_any_value_type(types, type_id, module_id, node, builder);
+            return Err(LowerError::UnsupportedType {
+                anchor: self.diagnostic_anchor(node),
+                ty: type_id.into_global(module_id),
+                message: "dynamic constraints must be instantiated or erased with Dynamic<T>"
+                    .to_string(),
+            }
+            .into());
         }
         if self.symbol_kind_matches(symbol, dir::SymbolKind::Enum) {
             if let Some(instance_type_id) = types.get_instance_type_id(symbol)
@@ -1292,7 +1306,7 @@ impl<'a> TypeLowerer<'a> {
             self.lower_function_signature_type(types, type_id, module_id, node, builder)?;
 
         let function_pointer_type = builder.type_function_pointer(signature);
-        let env_pointer_type = builder.tree_mut().ensure_callable_environment_type();
+        let env_pointer_type = builder.tree_mut().ensure_closure_environment_type();
         let function_pointer = builder.tree().get(function_pointer_type);
         let env_type = builder.tree().get(env_pointer_type);
         let (function_pointer_size, function_pointer_align) = self

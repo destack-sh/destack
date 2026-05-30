@@ -5,11 +5,11 @@ use {destack_dir as dir, destack_mir as mir};
 use crate::TestProgram;
 use crate::lower::module::string_literal_global_name_for_content;
 
-/// Interface call information extracted from MIR.
+/// Dynamic call information extracted from MIR.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct InterfaceCall {
-    /// The interface type.
-    pub(crate) interface: mir::LocalNodeId<mir::Type>,
+pub(crate) struct DynamicCall {
+    /// The dynamic constraint type.
+    pub(crate) constraint: mir::LocalNodeId<mir::Type>,
     /// The dispatch slot.
     pub(crate) slot: mir::DispatchSlot,
 }
@@ -39,51 +39,51 @@ type String {
 }"#
     }
 
-    /// Collect class dispatch tables from a MIR tree.
+    /// Collect virtual dispatch tables from a MIR tree.
     pub(crate) fn class_dispatch_tables<'a>(&self, tree: &'a mir::Tree) -> Vec<&'a mir::Vtable> {
         // collect class vtables
         tree.metadata.dispatch.vtables.iter().collect()
     }
 
-    /// Collect interface dispatch tables from a MIR tree.
-    pub(crate) fn interface_dispatch_tables<'a>(
+    /// Collect dynamic dispatch tables from a MIR tree.
+    pub(crate) fn dynamic_dispatch_tables<'a>(
         &self,
         tree: &'a mir::Tree,
-    ) -> Vec<&'a mir::InterfaceTable> {
-        // collect interface tables
-        tree.metadata.dispatch.interface_tables.iter().collect()
+    ) -> Vec<&'a mir::DynamicTable> {
+        // collect dynamic tables
+        tree.metadata.dispatch.dynamic_tables.iter().collect()
     }
 
-    /// Resolve an interface table for a concrete and interface pair.
-    pub(crate) fn interface_dispatch_table<'a>(
+    /// Resolve a dynamic table for a concrete and constraint pair.
+    pub(crate) fn dynamic_dispatch_table<'a>(
         &self,
         tree: &'a mir::Tree,
         strings: &StringPool,
         concrete_name: &str,
-        interface_name: &str,
-    ) -> &'a mir::InterfaceTable {
+        constraint_name: &str,
+    ) -> &'a mir::DynamicTable {
         let concrete_type = self.type_by_metadata_name(tree, strings, concrete_name);
-        let interface_type = self.type_by_metadata_name(tree, strings, interface_name);
+        let constraint_type = self.type_by_metadata_name(tree, strings, constraint_name);
 
         tree.metadata
             .dispatch
-            .interface_tables
+            .dynamic_tables
             .iter()
-            .find(|table| table.concrete == concrete_type && table.interface == interface_type)
+            .find(|table| table.concrete == concrete_type && table.constraint == constraint_type)
             .unwrap_or_else(|| {
                 panic!(
-                    "missing interface table for '{concrete_name}' -> '{interface_name}'"
+                    "missing dynamic table for '{concrete_name}' -> '{constraint_name}'"
                 )
             })
     }
 
-    /// Assert that a tree has exactly one interface table.
-    pub(crate) fn expect_single_interface_table<'a>(
+    /// Assert that a tree has exactly one dynamic table.
+    pub(crate) fn expect_single_dynamic_table<'a>(
         &self,
         tree: &'a mir::Tree,
-    ) -> &'a mir::InterfaceTable {
-        // collect interface tables
-        let tables = self.interface_dispatch_tables(tree);
+    ) -> &'a mir::DynamicTable {
+        // collect dynamic tables
+        let tables = self.dynamic_dispatch_tables(tree);
         assert_eq!(tables.len(), 1);
         tables[0]
     }
@@ -129,24 +129,24 @@ type String {
             .collect()
     }
 
-    /// Resolve an interface field offset for a given field name.
-    pub(crate) fn interface_field_offset(
+    /// Resolve a dynamic field offset for a given field name.
+    pub(crate) fn dynamic_field_offset(
         &self,
-        table: &mir::InterfaceTable,
+        table: &mir::DynamicTable,
         tree: &mir::Tree,
         strings: &StringPool,
-        field_name: &str,
+        name: &str,
     ) -> Option<u32> {
-        let shape = tree.metadata.dispatch.interface_shape(table.interface)?;
+        let shape = tree.metadata.dispatch.dynamic_shape(table.constraint)?;
 
-        // scan field slots by interface shape
+        // scan field slots by dynamic shape
         for (index, slot) in table.entries.iter().enumerate() {
-            if let mir::InterfaceTableEntry::FieldOffset { offset } = slot
-                && let Some(mir::InterfaceSlot::Field {
-                    field_name: slot_name,
+            if let mir::DynamicEntry::Field { offset } = slot
+                && let Some(mir::DynamicSlot::Field {
+                    name: slot_name,
                     ..
                 }) = shape.slots.get(index)
-                && strings.get(*slot_name) == field_name
+                && strings.get(*slot_name) == name
             {
                 return Some(*offset);
             }
@@ -155,32 +155,32 @@ type String {
         None
     }
 
-    /// Resolve an interface field offset or panic.
-    pub(crate) fn expect_interface_field_offset(
+    /// Resolve a dynamic field offset or panic.
+    pub(crate) fn expect_dynamic_field_offset(
         &self,
-        table: &mir::InterfaceTable,
+        table: &mir::DynamicTable,
         tree: &mir::Tree,
         strings: &StringPool,
-        field_name: &str,
+        name: &str,
     ) -> u32 {
-        self.interface_field_offset(table, tree, strings, field_name)
-            .unwrap_or_else(|| panic!("missing interface field offset '{field_name}'"))
+        self.dynamic_field_offset(table, tree, strings, name)
+            .unwrap_or_else(|| panic!("missing dynamic field offset '{name}'"))
     }
 
-    /// Resolve the target method name for an interface method slot.
-    pub(crate) fn interface_method_target_name(
+    /// Resolve the target method name for a dynamic method slot.
+    pub(crate) fn dynamic_method_target_name(
         &self,
-        table: &mir::InterfaceTable,
+        table: &mir::DynamicTable,
         tree: &mir::Tree,
         strings: &StringPool,
         method_name: &str,
     ) -> Option<String> {
-        let shape = tree.metadata.dispatch.interface_shape(table.interface)?;
+        let shape = tree.metadata.dispatch.dynamic_shape(table.constraint)?;
 
-        // scan method slots by interface shape
+        // scan method slots by dynamic shape
         for (index, slot) in table.entries.iter().enumerate() {
-            if let mir::InterfaceTableEntry::Method { function } = slot
-                && let Some(mir::InterfaceSlot::Method { name, .. }) = shape.slots.get(index)
+            if let mir::DynamicEntry::Method { function } = slot
+                && let Some(mir::DynamicSlot::Method { name, .. }) = shape.slots.get(index)
                 && strings.get(*name) == method_name
             {
                 let target_name = strings.get(tree.get(*function).name);
@@ -191,16 +191,16 @@ type String {
         None
     }
 
-    /// Resolve an interface method target name or panic.
-    pub(crate) fn expect_interface_method_target_name(
+    /// Resolve a dynamic method target name or panic.
+    pub(crate) fn expect_dynamic_method_target_name(
         &self,
-        table: &mir::InterfaceTable,
+        table: &mir::DynamicTable,
         tree: &mir::Tree,
         strings: &StringPool,
         method_name: &str,
     ) -> String {
-        self.interface_method_target_name(table, tree, strings, method_name)
-            .unwrap_or_else(|| panic!("missing interface method target '{method_name}'"))
+        self.dynamic_method_target_name(table, tree, strings, method_name)
+            .unwrap_or_else(|| panic!("missing dynamic method target '{method_name}'"))
     }
 
     /// Find a type with a matching type metadata name.
@@ -314,7 +314,7 @@ type String {
         tree: &mir::Tree,
         strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
-        field_name: &str,
+        name: &str,
     ) -> Option<mir::LocalNodeId<mir::Type>> {
         // load the struct type
         let mir::Type::Struct { fields, .. } = tree.get(struct_type) else {
@@ -328,7 +328,7 @@ type String {
                 continue;
             };
 
-            if strings.get(name_id) == field_name {
+            if strings.get(name_id) == name {
                 return field.ty.ty();
             }
         }
@@ -342,10 +342,10 @@ type String {
         tree: &mir::Tree,
         strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
-        field_name: &str,
+        name: &str,
     ) -> mir::LocalNodeId<mir::Type> {
-        self.struct_field_type_by_name(tree, strings, struct_type, field_name)
-            .unwrap_or_else(|| panic!("missing struct field '{field_name}'"))
+        self.struct_field_type_by_name(tree, strings, struct_type, name)
+            .unwrap_or_else(|| panic!("missing struct field '{name}'"))
     }
 
     /// Resolve the byte offset for a struct field name.
@@ -354,7 +354,7 @@ type String {
         tree: &mir::Tree,
         strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
-        field_name: &str,
+        name: &str,
     ) -> Option<u32> {
         // load the struct type
         let mir::Type::Struct { fields, .. } = tree.get(struct_type) else {
@@ -366,7 +366,7 @@ type String {
             let field = tree.get(*field_id);
             field
                 .name
-                .and_then(|name| (strings.get(name) == field_name).then_some(name))
+                .and_then(|name| (strings.get(name) == name).then_some(name))
         })?;
 
         // resolve the layout metadata for offsets
@@ -386,10 +386,10 @@ type String {
         tree: &mir::Tree,
         strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
-        field_name: &str,
+        name: &str,
     ) -> u32 {
-        self.struct_field_offset_by_name(tree, strings, struct_type, field_name)
-            .unwrap_or_else(|| panic!("missing struct field offset '{field_name}'"))
+        self.struct_field_offset_by_name(tree, strings, struct_type, name)
+            .unwrap_or_else(|| panic!("missing struct field offset '{name}'"))
     }
 
     /// Resolve one struct field by field name.
@@ -398,7 +398,7 @@ type String {
         tree: &mir::Tree,
         strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
-        field_name: &str,
+        name: &str,
     ) -> Option<mir::LocalNodeId<mir::Field>> {
         let mir::Type::Struct { fields, .. } = tree.get(struct_type) else {
             return None;
@@ -408,7 +408,7 @@ type String {
             let field = tree.get(*field_id);
             field
                 .name
-                .and_then(|name| (strings.get(name) == field_name).then_some(*field_id))
+                .and_then(|name| (strings.get(name) == name).then_some(*field_id))
         })
     }
 
@@ -418,14 +418,14 @@ type String {
         tree: &mir::Tree,
         strings: &StringPool,
         struct_type: mir::LocalNodeId<mir::Type>,
-        field_name: &str,
+        name: &str,
     ) -> mir::LocalNodeId<mir::Field> {
-        self.struct_field_by_name(tree, strings, struct_type, field_name)
-            .unwrap_or_else(|| panic!("missing struct field '{field_name}'"))
+        self.struct_field_by_name(tree, strings, struct_type, name)
+            .unwrap_or_else(|| panic!("missing struct field '{name}'"))
     }
 
     /// Resolve a field name for a field id or panic.
-    pub(crate) fn field_name(
+    pub(crate) fn name(
         &self,
         tree: &mir::Tree,
         strings: &StringPool,
@@ -492,27 +492,27 @@ type String {
             .and_then(|param| param.ty.ty())
     }
 
-    /// Find the first interface dispatch call in a function body.
-    pub(crate) fn find_interface_call_info(
+    /// Find the first dynamic dispatch call in a function body.
+    pub(crate) fn find_dynamic_call_info(
         &self,
         tree: &mir::Tree,
         function_id: mir::LocalNodeId<mir::Function>,
-    ) -> Option<InterfaceCall> {
-        // scan call instructions for interface dispatch
+    ) -> Option<DynamicCall> {
+        // scan call instructions for dynamic dispatch
         let function = tree.get(function_id);
         for block_id in &function.blocks {
             let block = tree.get(*block_id);
             for instruction_id in &block.instructions {
-                if let mir::Instruction::CallInterface {
-                    interface,
+                if let mir::Instruction::CallDynamic {
+                    constraint,
                     slot,
                     ..
                 } = tree.get(*instruction_id)
                 {
-                    return Some(InterfaceCall {
-                        interface: interface
+                    return Some(DynamicCall {
+                        constraint: constraint
                             .ty()
-                            .expect("interface call should name a concrete interface type"),
+                            .expect("dynamic call should name a concrete constraint type"),
                         slot: *slot,
                     });
                 }
@@ -522,18 +522,18 @@ type String {
         None
     }
 
-    /// Find the first class dispatch call in a function body.
+    /// Find the first virtual dispatch call in a function body.
     pub(crate) fn find_class_call_info(
         &self,
         tree: &mir::Tree,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> Option<ClassCall> {
-        // scan call instructions for class dispatch
+        // scan call instructions for virtual dispatch
         let function = tree.get(function_id);
         for block_id in &function.blocks {
             let block = tree.get(*block_id);
             for instruction_id in &block.instructions {
-                if let mir::Instruction::CallClass {
+                if let mir::Instruction::CallVirtual {
                     class,
                     slot,
                     ..
@@ -542,7 +542,7 @@ type String {
                     return Some(ClassCall {
                         class: class
                             .ty()
-                            .expect("class call should name a concrete class type"),
+                            .expect("virtual call should name a concrete class type"),
                         slot: *slot,
                     });
                 }
@@ -552,44 +552,44 @@ type String {
         None
     }
 
-    /// Find interface dispatch calls for a function name.
-    pub(crate) fn find_interface_call_info_by_name(
+    /// Find dynamic dispatch calls for a function name.
+    pub(crate) fn find_dynamic_call_info_by_name(
         &self,
         tree: &mir::Tree,
         strings: &StringPool,
         function_name: &str,
-    ) -> Option<InterfaceCall> {
+    ) -> Option<DynamicCall> {
         // resolve the function id by name
         let function_id = self.find_function_by_name(tree, strings, function_name)?;
 
-        // scan the function for interface dispatch
-        self.find_interface_call_info(tree, function_id)
+        // scan the function for dynamic dispatch
+        self.find_dynamic_call_info(tree, function_id)
     }
 
-    /// Find interface dispatch calls for a function name or panic.
-    pub(crate) fn interface_call_info_by_name(
+    /// Find dynamic dispatch calls for a function name or panic.
+    pub(crate) fn dynamic_call_info_by_name(
         &self,
         tree: &mir::Tree,
         strings: &StringPool,
         function_name: &str,
-    ) -> InterfaceCall {
-        self.find_interface_call_info_by_name(tree, strings, function_name)
-            .unwrap_or_else(|| panic!("missing interface call info '{function_name}'"))
+    ) -> DynamicCall {
+        self.find_dynamic_call_info_by_name(tree, strings, function_name)
+            .unwrap_or_else(|| panic!("missing dynamic call info '{function_name}'"))
     }
 
-    /// Find class dispatch calls for a function name.
+    /// Find virtual dispatch calls for a function name.
     pub(crate) fn find_class_call_info_by_name(
         &self,
         tree: &mir::Tree,
         strings: &StringPool,
         function_name: &str,
     ) -> Option<ClassCall> {
-        // scan the function for class dispatch
+        // scan the function for virtual dispatch
         let function_id = self.find_function_by_name(tree, strings, function_name)?;
         self.find_class_call_info(tree, function_id)
     }
 
-    /// Find class dispatch calls for a function name or panic.
+    /// Find virtual dispatch calls for a function name or panic.
     pub(crate) fn class_call_info_by_name(
         &self,
         tree: &mir::Tree,
@@ -597,6 +597,6 @@ type String {
         function_name: &str,
     ) -> ClassCall {
         self.find_class_call_info_by_name(tree, strings, function_name)
-            .unwrap_or_else(|| panic!("missing class call info '{function_name}'"))
+            .unwrap_or_else(|| panic!("missing virtual call info '{function_name}'"))
     }
 }
