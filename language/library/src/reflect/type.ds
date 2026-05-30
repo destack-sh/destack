@@ -1,3 +1,5 @@
+import { Concrete } from "destack:memory";
+
 import { type Type as DirType } from "./dir/type.ds";
 
 /// Stable type identifier.
@@ -72,19 +74,19 @@ export declare function equalTypes<A, B>(left: Type<A>, right: Type<B>): boolean
 /// Return the target-specific size of `T`.
 @languageItem("reflect.sizeOf")
 @intrinsic("reflect.sizeOf")
-export declare function sizeOf<T>(): usize;
+export declare function sizeOf<T: Concrete>(): usize;
 
 /// Return the target-specific alignment of `T`.
 @languageItem("reflect.alignOf")
 @intrinsic("reflect.alignOf")
-export declare function alignOf<T>(): usize;
+export declare function alignOf<T: Concrete>(): usize;
 
 /// Return the target-specific stride of `T`.
 @languageItem("reflect.strideOf")
 @intrinsic("reflect.strideOf")
-export declare function strideOf<T>(): usize;
+export declare function strideOf<T: Concrete>(): usize;
 
 /// Return the target-specific layout of `T`.
 @languageItem("reflect.layoutOf")
 @intrinsic("reflect.layoutOf")
-export declare function layoutOf<T>(): Layout;
+export declare function layoutOf<T: Concrete>(): Layout;

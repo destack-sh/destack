@@ -1,4 +1,5 @@
 import { todo } from "destack:error";
+import { Concrete } from "destack:memory";
 import { sizeOf } from "destack:reflect";
 
 /// Count leading zeros in an integer.
