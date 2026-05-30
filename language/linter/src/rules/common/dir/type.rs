@@ -104,7 +104,7 @@ fn type_is_reducible_operation(ty: &dir::Type) -> bool {
     matches!(
         ty,
         dir::Type::Operation(
-            dir::TypeOperation::BuiltinTypeFunction(_)
+            dir::TypeOperation::StringMapping { .. }
                 | dir::TypeOperation::Conditional(_)
                 | dir::TypeOperation::Mapped(_)
                 | dir::TypeOperation::Index(_)
@@ -290,7 +290,7 @@ fn evaluate_boolean_type_query_inner(
     let ty = types.get_type(normalized_type_id);
     let result = if let Some(next_type_id) = value_like_type_id(ty) {
         evaluate_boolean_type_query_inner(types, statics, next_type_id, query, state)
-    } else if let dir::Type::Named(reference) = ty {
+    } else if let dir::Type::Reference(reference) = ty {
         evaluate_reference_boolean_type_query(
             types,
             statics,
@@ -632,14 +632,16 @@ fn evaluate_terminal_boolean_type_query(
                 dir::ScalarLiteral::Character(_) | dir::ScalarLiteral::RegexString { .. } => true,
             },
             dir::Type::Operation(_) => true,
-            dir::Type::Slice(_)
+            dir::Type::Array(_)
+            | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
             | dir::Type::Shape(_)
             | dir::Type::Closure(_)
             | dir::Type::Function(_) => false,
             dir::Type::Parameter(_)
-            | dir::Type::Named(_)
+            | dir::Type::Reference(_)
+            | dir::Type::Member(_)
             | dir::Type::This
             | dir::Type::Union(_)
             | dir::Type::Intersection(_)
@@ -694,12 +696,7 @@ fn type_is_string_like(ty: &dir::Type) -> bool {
         ty,
         dir::Type::Primitive(dir::PrimitiveType::String)
             | dir::Type::Literal(dir::ScalarLiteral::String(_))
-            | dir::Type::Operation(dir::TypeOperation::BuiltinTypeFunction(
-                dir::BuiltinTypeFunction::Uppercase
-                    | dir::BuiltinTypeFunction::Lowercase
-                    | dir::BuiltinTypeFunction::Capitalize
-                    | dir::BuiltinTypeFunction::Uncapitalize
-            ))
+            | dir::Type::Operation(dir::TypeOperation::StringMapping { .. })
     )
 }
 
@@ -775,7 +772,7 @@ pub fn tuple_type_arity(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -
             dir::Type::Form(value) => {
                 current_type_id = value.value;
             }
-            dir::Type::Named(reference) => {
+            dir::Type::Reference(reference) => {
                 current_type_id = reference_symbol_type_id(types, reference.symbol)?;
             }
             _ => return None,
@@ -824,7 +821,7 @@ fn is_string_array_type_inner(
             .elements
             .iter()
             .all(|element| is_string_type(types, element.ty, string_symbol)),
-        dir::Type::Named(reference) => {
+        dir::Type::Reference(reference) => {
             if array_symbol.is_none_or(|array_symbol| reference.symbol != array_symbol) {
                 false
             } else {
@@ -1062,7 +1059,7 @@ fn has_non_void_this_parameter_type_inner(
         dir::Type::Form(value) => {
             has_non_void_this_parameter_type_inner(types, value.value, visited_type_ids)
         }
-        dir::Type::Named(reference) => reference_symbol_type_id(types, reference.symbol)
+        dir::Type::Reference(reference) => reference_symbol_type_id(types, reference.symbol)
             .is_some_and(|target_type_id| {
                 has_non_void_this_parameter_type_inner(types, target_type_id, visited_type_ids)
             }),
@@ -1351,7 +1348,7 @@ fn type_truthiness_inner(
     let ty = types.get_type(normalized_type_id);
     let truthiness = if let Some(next_type_id) = value_like_type_id(ty) {
         type_truthiness_inner(types, strings, next_type_id, state)
-    } else if let dir::Type::Named(reference) = ty {
+    } else if let dir::Type::Reference(reference) = ty {
         if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
             type_truthiness_inner(types, strings, next_type_id, state)
         } else {
@@ -1416,7 +1413,8 @@ fn type_truthiness_inner(
                 }
             },
             dir::Type::Operation(_) => TypeTruthiness::Unknown,
-            dir::Type::Slice(_)
+            dir::Type::Array(_)
+            | dir::Type::Slice(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
             | dir::Type::Shape(_)
@@ -1428,7 +1426,8 @@ fn type_truthiness_inner(
             | dir::Type::Dynamic(_)
             | dir::Type::Range(_)
             | dir::Type::Error => TypeTruthiness::Unknown,
-            dir::Type::Named(_)
+            dir::Type::Reference(_)
+            | dir::Type::Member(_)
             | dir::Type::Form(_)
             | dir::Type::Union(_)
             | dir::Type::Intersection(_) => TypeTruthiness::Unknown,
@@ -1458,7 +1457,7 @@ fn type_nullishness_inner(
     let ty = types.get_type(normalized_type_id);
     let nullishness = if let Some(next_type_id) = value_like_type_id(ty) {
         type_nullishness_inner(types, next_type_id, state)
-    } else if let dir::Type::Named(reference) = ty {
+    } else if let dir::Type::Reference(reference) = ty {
         if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
             type_nullishness_inner(types, next_type_id, state)
         } else {
@@ -1479,6 +1478,7 @@ fn type_nullishness_inner(
             | dir::Type::Range(_)
             | dir::Type::Literal(_) => TypeNullishness::Never,
             dir::Type::Slice(_)
+            | dir::Type::Array(_)
             | dir::Type::FixedArray(_)
             | dir::Type::Tuple(_)
             | dir::Type::Shape(_)
@@ -1490,7 +1490,8 @@ fn type_nullishness_inner(
             | dir::Type::Dynamic(_)
             | dir::Type::Operation(_)
             | dir::Type::Error => TypeNullishness::Maybe,
-            dir::Type::Named(_)
+            dir::Type::Reference(_)
+            | dir::Type::Member(_)
             | dir::Type::Form(_)
             | dir::Type::Union(_)
             | dir::Type::Intersection(_) => TypeNullishness::Maybe,
@@ -1616,7 +1617,7 @@ fn type_may_be_nominal_symbol_inner(
     // inspect the type node
     let ty = types.get_type(type_id);
     let result = match ty {
-        dir::Type::Named(reference) => {
+        dir::Type::Reference(reference) => {
             if reference.symbol == symbol
                 || symbol_matches_relation_target(types, reference.symbol, symbol)
             {
@@ -1684,7 +1685,7 @@ fn function_parameter_type_at_inner(
         dir::Type::Form(value) => {
             function_parameter_type_at_inner(types, value.value, index, state)
         }
-        dir::Type::Named(reference) => {
+        dir::Type::Reference(reference) => {
             if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
                 function_parameter_type_at_inner(types, next_type_id, index, state)
             } else {
@@ -1740,7 +1741,7 @@ fn function_parameter_types_at_inner(
         dir::Type::Form(value) => {
             function_parameter_types_at_inner(types, value.value, index, state, results);
         }
-        dir::Type::Named(reference) => {
+        dir::Type::Reference(reference) => {
             for_each_reference_symbol_type_id(types, reference.symbol, |next_type_id| {
                 function_parameter_types_at_inner(types, next_type_id, index, state, results);
             });
@@ -1772,7 +1773,7 @@ fn function_return_type_inner(
             .copied()
             .and_then(|first_signature| function_return_type_inner(types, first_signature, state)),
         dir::Type::Form(value) => function_return_type_inner(types, value.value, state),
-        dir::Type::Named(reference) => {
+        dir::Type::Reference(reference) => {
             if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
                 function_return_type_inner(types, next_type_id, state)
             } else {

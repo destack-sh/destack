@@ -8,36 +8,30 @@ use crate::{
 
 use super::{FloatType, PrimitiveType};
 
-/// Compiler-provided type function.
+/// Compiler-provided string mapping.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BuiltinTypeFunction {
-    /// Uppercase string intrinsic.
+pub enum StringMapping {
+    /// Uppercase string mapping.
     Uppercase,
-    /// Lowercase string intrinsic.
+    /// Lowercase string mapping.
     Lowercase,
-    /// Capitalize string intrinsic.
+    /// Capitalize string mapping.
     Capitalize,
-    /// Uncapitalize string intrinsic.
+    /// Uncapitalize string mapping.
     Uncapitalize,
-    /// NoInfer intrinsic.
-    NoInfer,
-    /// Builtin iterator return intrinsic.
-    BuiltinIteratorReturn,
 }
 
-impl TryFrom<&str> for BuiltinTypeFunction {
-    /// The error type for intrinsic parsing.
+impl TryFrom<&str> for StringMapping {
+    /// The error type for string mapping parsing.
     type Error = ();
 
-    /// Parse a builtin type function from its standard name.
+    /// Parse a string mapping from its standard name.
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value {
             "Uppercase" => Ok(Self::Uppercase),
             "Lowercase" => Ok(Self::Lowercase),
             "Capitalize" => Ok(Self::Capitalize),
             "Uncapitalize" => Ok(Self::Uncapitalize),
-            "NoInfer" => Ok(Self::NoInfer),
-            "BuiltinIteratorReturn" => Ok(Self::BuiltinIteratorReturn),
             _ => Err(()),
         }
     }
@@ -99,12 +93,23 @@ impl GenericParameterRef {
     }
 }
 
-/// Reference to one named type declaration.
+/// Reference to one type declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct NamedType {
+pub struct ReferenceType {
     /// The referenced declaration symbol.
     pub symbol: GlobalSymbolId,
     /// The static arguments applied to the reference.
+    pub arguments: Vec<StaticArgument>,
+}
+
+/// Member type selected from an owner type.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MemberType {
+    /// The owner type.
+    pub owner: LocalTypeId,
+    /// The selected member key.
+    pub key: StaticKey,
+    /// The static arguments applied to the member.
     pub arguments: Vec<StaticArgument>,
 }
 
@@ -176,8 +181,6 @@ pub struct TypeIndexSignature {
 /// A conditional type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionalType {
-    /// The symbol distributed over the conditional when present.
-    pub distributive_symbol: Option<GlobalSymbolId>,
     /// The left operand.
     pub left: LocalTypeId,
     /// The right operand.
@@ -244,6 +247,13 @@ pub struct UnaryType {
     pub target: LocalTypeId,
 }
 
+/// Homogeneous array type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArrayType {
+    /// The element type.
+    pub element: LocalTypeId,
+}
+
 /// A fixed-length array type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FixedArrayType {
@@ -251,8 +261,6 @@ pub struct FixedArrayType {
     pub element: LocalTypeId,
     /// The static array length.
     pub count: LocalStaticId,
-    /// Whether the array is readonly.
-    pub is_readonly: bool,
 }
 
 /// Compact scalar interval type.
@@ -271,8 +279,6 @@ pub struct RangeType {
 pub struct SliceType {
     /// The element type.
     pub element: LocalTypeId,
-    /// Whether the slice is readonly.
-    pub is_readonly: bool,
 }
 
 /// A tuple type.
@@ -282,8 +288,6 @@ pub struct TupleType {
     pub form: TupleForm,
     /// The tuple elements.
     pub elements: Vec<TypeElement>,
-    /// Whether the tuple is readonly.
-    pub is_readonly: bool,
 }
 
 /// The source form of a tuple type.
@@ -359,11 +363,16 @@ pub struct IntersectionType {
     pub elements: Vec<LocalTypeId>,
 }
 
-/// Type-level operation reduced by check.
+/// Type-level operation preserved by check.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeOperation {
-    /// Compiler-known builtin type function.
-    BuiltinTypeFunction(BuiltinTypeFunction),
+    /// Compiler-known string mapping type.
+    StringMapping {
+        /// The string mapping operation.
+        mapping: StringMapping,
+        /// The mapped string type.
+        target: LocalTypeId,
+    },
     /// Conditional type expression.
     Conditional(ConditionalType),
     /// Mapped type expression.
@@ -404,10 +413,12 @@ pub enum Type {
 
     /// Generic parameter reference.
     Parameter(GenericParameterRef),
-    /// Named type declaration reference.
-    Named(NamedType),
+    /// Type declaration reference.
+    Reference(ReferenceType),
     /// This type in a type predicate or method signature.
     This,
+    /// Member type selected from an owner type.
+    Member(MemberType),
 
     /// Canonical memory or access form.
     Form(FormType),
@@ -416,9 +427,11 @@ pub enum Type {
 
     /// Type predicate expression.
     Predicate(PredicateType),
-    /// Type-level operation reduced by check.
+    /// Type-level operation preserved by check.
     Operation(TypeOperation),
 
+    /// Homogeneous array type.
+    Array(ArrayType),
     /// Fixed-length array type.
     FixedArray(FixedArrayType),
     /// Compact scalar interval type.
@@ -460,9 +473,6 @@ impl From<TypeLiteral> for Type {
             TypeLiteral::Float(float) => Self::Primitive(PrimitiveType::Float(float)),
             TypeLiteral::Symbol => Self::Primitive(PrimitiveType::Symbol),
             TypeLiteral::UniqueSymbol => Self::Primitive(PrimitiveType::UniqueSymbol),
-            TypeLiteral::BuiltinTypeFunction(function) => {
-                Self::Operation(TypeOperation::BuiltinTypeFunction(function))
-            }
         }
     }
 }
@@ -510,7 +520,7 @@ impl Type {
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
             Self::Parameter(parameter) => parameter.symbol(),
-            Self::Named(named) => Some(named.symbol),
+            Self::Reference(reference) => Some(reference.symbol),
             _ => None,
         }
     }

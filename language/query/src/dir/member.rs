@@ -82,7 +82,7 @@ fn resolve_type_members_inner(
 
     match ty {
         // reference to a declared type: look up symbol's owned scope
-        Type::Named(reference) => resolve_reference_members(ctx, workspace, reference.symbol),
+        Type::Reference(reference) => resolve_reference_members(ctx, workspace, reference.symbol),
 
         // object type: return fields directly
         Type::Shape(object) => {
@@ -166,7 +166,7 @@ fn resolve_type_members_inner(
                 let element = types.get_type(*element_id);
                 if let Type::Form(value) = element {
                     let inner = types.get_type(value.value);
-                    if let Type::Named(reference) = inner {
+                    if let Type::Reference(reference) = inner {
                         // load the symbol and check if it's an enum
                         if let Some(ctx) = ctx.module_context(reference.symbol.module_id) {
                             let symbols_table = ctx.dir().symbols();

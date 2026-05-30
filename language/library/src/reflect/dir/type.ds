@@ -132,7 +132,6 @@ export type TypeLiteral =
     | VoidTypeLiteral
     | NullTypeLiteral
     | PrimitiveTypeLiteral
-    | BuiltinTypeFunctionLiteral
     | ScalarLiteralTypeLiteral;
 
 /// `never`.
@@ -191,36 +190,12 @@ export interface PrimitiveTypeLiteral {
     primitive: PrimitiveType;
 }
 
-/// Builtin type function literal.
-export interface BuiltinTypeFunctionLiteral {
-    /// The type literal kind.
-    kind: "builtinTypeFunction";
-    /// The builtin type function.
-    function: BuiltinTypeFunction;
-}
-
 /// Scalar literal type literal.
 export interface ScalarLiteralTypeLiteral {
     /// The type literal kind.
     kind: "scalarLiteral";
     /// The scalar literal.
     literal: ScalarLiteral;
-}
-
-/// Compiler-provided type function.
-export enum BuiltinTypeFunction {
-    /// Uppercase string intrinsic.
-    Uppercase,
-    /// Lowercase string intrinsic.
-    Lowercase,
-    /// Capitalize string intrinsic.
-    Capitalize,
-    /// Uncapitalize string intrinsic.
-    Uncapitalize,
-    /// NoInfer intrinsic.
-    NoInfer,
-    /// Builtin iterator return intrinsic.
-    BuiltinIteratorReturn,
 }
 
 /// A mapped-type modifier in evaluated type space.

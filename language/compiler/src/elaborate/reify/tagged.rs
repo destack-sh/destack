@@ -215,7 +215,7 @@ impl Compiler {
             Type::Tuple(_) => ConstructorKind::Tuple,
             Type::Shape(_) => ConstructorKind::Object,
             Type::Form(value) => self.constructor_kind_for_type_id(view, value.value, visited),
-            Type::Named(reference) => {
+            Type::Reference(reference) => {
                 if let Some(instance_id) = view.types.get_instance_type_id(reference.symbol) {
                     self.constructor_kind_for_type_id(view, instance_id, visited)
                 } else {

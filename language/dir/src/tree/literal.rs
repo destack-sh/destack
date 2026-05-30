@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    Argument, BuiltinTypeFunction, FloatType, IntegerType, LocalNodeId, PrimitiveType, StringId,
-};
+use crate::{Argument, FloatType, IntegerType, LocalNodeId, PrimitiveType, StringId};
 
 /// A ScalarLiteral is literal scalar value.
 ///
@@ -115,8 +113,6 @@ pub enum TypeLiteral {
     Symbol,
     /// Unique symbol type.
     UniqueSymbol,
-    /// Builtin type function.
-    BuiltinTypeFunction(BuiltinTypeFunction),
 }
 
 impl From<PrimitiveType> for TypeLiteral {

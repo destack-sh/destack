@@ -8,8 +8,8 @@ use crate::{DestackFormatContext, DestackFormatter};
 
 use destack_core::StringId;
 use destack_dir::{
-    Argument, BuiltinTypeFunction, Expression, FloatType, IntegerType, LocalNodeId, Path,
-    ScalarLiteral, TemplateLiteral, TokenLiteral, TypeLiteral,
+    Argument, Expression, FloatType, IntegerType, LocalNodeId, Path, ScalarLiteral,
+    TemplateLiteral, TokenLiteral, TypeLiteral,
 };
 use destack_fir::format::{
     Buffer, Format, FormatNodes, FormatResult, RemoveSoftLinesBuffer, text, token,
@@ -469,26 +469,9 @@ impl<'ast> Format<DestackFormatContext<'ast>> for TypeLiteral {
             TypeLiteral::Float(float_type) => write!(f, [float_type]),
             TypeLiteral::Symbol => write!(f, [token("symbol")]),
             TypeLiteral::UniqueSymbol => write!(f, [token("unique symbol")]),
-            TypeLiteral::BuiltinTypeFunction(function) => write!(f, [function]),
         }?;
 
         Ok(())
-    }
-}
-
-impl<'ast> Format<DestackFormatContext<'ast>> for BuiltinTypeFunction {
-    /// Write the builtin type function source name.
-    fn format(&self, f: &mut Formatter<'_, DestackFormatContext<'ast>>) -> FormatResult<()> {
-        let name = match self {
-            BuiltinTypeFunction::Uppercase => "Uppercase",
-            BuiltinTypeFunction::Lowercase => "Lowercase",
-            BuiltinTypeFunction::Capitalize => "Capitalize",
-            BuiltinTypeFunction::Uncapitalize => "Uncapitalize",
-            BuiltinTypeFunction::NoInfer => "NoInfer",
-            BuiltinTypeFunction::BuiltinIteratorReturn => "BuiltinIteratorReturn",
-        };
-
-        write!(f, [token(name)])
     }
 }
 

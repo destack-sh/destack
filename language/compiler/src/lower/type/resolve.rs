@@ -198,7 +198,7 @@ impl FunctionLowerer<'_> {
         )?;
         match self.context.types.get_type(type_id) {
             dir::Type::Form(value) => Some(value.value),
-            dir::Type::Named(reference) => self
+            dir::Type::Reference(reference) => self
                 .context
                 .types
                 .get_instance_type_id(reference.symbol)
@@ -215,7 +215,7 @@ impl FunctionLowerer<'_> {
         // match the dir type to find a class symbol
         match self.context.types.get_type(type_id) {
             // accept direct class references
-            dir::Type::Named(reference)
+            dir::Type::Reference(reference)
                 if self
                     .context
                     .symbol_kind_matches(reference.symbol, dir::SymbolKind::Class) =>
@@ -264,7 +264,7 @@ impl FunctionLowerer<'_> {
 
         // match nominal references against their instance types
         let left_instance = match self.context.types.get_type(left_type_id) {
-            dir::Type::Named(reference) => {
+            dir::Type::Reference(reference) => {
                 self.context.types.get_instance_type_id(reference.symbol)
             }
             _ => None,
@@ -277,7 +277,7 @@ impl FunctionLowerer<'_> {
 
         // match instance types against nominal references
         let right_instance = match self.context.types.get_type(right_type_id) {
-            dir::Type::Named(reference) => {
+            dir::Type::Reference(reference) => {
                 self.context.types.get_instance_type_id(reference.symbol)
             }
             _ => None,
@@ -297,7 +297,7 @@ impl FunctionLowerer<'_> {
         type_id: dir::LocalTypeId,
     ) -> Option<dir::EnumBackingType> {
         // accept direct enum references
-        if let dir::Type::Named(reference) = self.context.types.get_type(type_id)
+        if let dir::Type::Reference(reference) = self.context.types.get_type(type_id)
             && self
                 .context
                 .symbol_kind_matches(reference.symbol, dir::SymbolKind::Enum)

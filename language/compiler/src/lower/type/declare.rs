@@ -48,7 +48,7 @@ impl ModuleLowerer<'_> {
 
         // walk nested type references
         match self.types.get_type(type_id) {
-            dir::Type::Named(reference) => {
+            dir::Type::Reference(reference) => {
                 if matches!(
                     self.symbol_kind(reference.symbol),
                     Some(dir::SymbolKind::Struct | dir::SymbolKind::Class)
@@ -133,7 +133,9 @@ impl ModuleLowerer<'_> {
         visited: &mut HashSet<dir::LocalTypeId>,
     ) -> LowerResult<()> {
         match operation {
-            dir::TypeOperation::BuiltinTypeFunction(_) => {}
+            dir::TypeOperation::StringMapping { mapping: _, target } => {
+                self.declare_nominal_layouts_for_type(*target, visited)?;
+            }
             dir::TypeOperation::Conditional(conditional) => {
                 self.declare_nominal_layouts_for_type(conditional.left, visited)?;
                 self.declare_nominal_layouts_for_type(conditional.right, visited)?;

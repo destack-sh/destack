@@ -94,7 +94,7 @@ impl ModuleLowerer<'_> {
         }
 
         // use nominal naming when the type resolves to a symbol
-        if let dir::Type::Named(reference) = dir_type
+        if let dir::Type::Reference(reference) = dir_type
             && matches!(
                 self.symbol_kind(reference.symbol),
                 Some(
@@ -465,9 +465,6 @@ impl ModuleLowerer<'_> {
             dir::Type::Void => Some("void".to_string()),
             dir::Type::Null => Some("null".to_string()),
             dir::Type::Primitive(primitive) => Some(self.primitive_metadata_name(*primitive)),
-            dir::Type::Operation(dir::TypeOperation::BuiltinTypeFunction(function)) => {
-                Some(self.builtin_type_function_metadata_name(*function))
-            }
             dir::Type::Literal(literal) => Some(self.scalar_literal_metadata_name(literal)),
             _ => None,
         }
@@ -476,7 +473,7 @@ impl ModuleLowerer<'_> {
     /// Resolve a metadata name for named reference types.
     fn reference_metadata_name(&self, dir_type: &dir::Type) -> Option<String> {
         // only handle reference nodes
-        let dir::Type::Named(reference) = dir_type else {
+        let dir::Type::Reference(reference) = dir_type else {
             return None;
         };
 
@@ -516,7 +513,7 @@ impl ModuleLowerer<'_> {
         }
 
         // use nominal names without suffix adjustments
-        if let dir::Type::Named(reference) = dir_type {
+        if let dir::Type::Reference(reference) = dir_type {
             return self.qualified_symbol_name(reference.symbol).or_else(|| {
                 let dir = self.dir_bound_if_present(reference.symbol.module_id)?;
                 let bindings = dir.binding_table();
@@ -567,15 +564,13 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Resolve a metadata name for builtin type functions.
-    fn builtin_type_function_metadata_name(&self, function: dir::BuiltinTypeFunction) -> String {
+    /// Resolve a metadata name for string mappings.
+    fn string_mapping_metadata_name(&self, function: dir::StringMapping) -> String {
         let suffix = match function {
-            dir::BuiltinTypeFunction::Uppercase => "uppercase",
-            dir::BuiltinTypeFunction::Lowercase => "lowercase",
-            dir::BuiltinTypeFunction::Capitalize => "capitalize",
-            dir::BuiltinTypeFunction::Uncapitalize => "uncapitalize",
-            dir::BuiltinTypeFunction::NoInfer => "no_infer",
-            dir::BuiltinTypeFunction::BuiltinIteratorReturn => "builtin_iterator_return",
+            dir::StringMapping::Uppercase => "uppercase",
+            dir::StringMapping::Lowercase => "lowercase",
+            dir::StringMapping::Capitalize => "capitalize",
+            dir::StringMapping::Uncapitalize => "uncapitalize",
         };
 
         format!("{INTRINSIC_METADATA_PREFIX}{suffix}")

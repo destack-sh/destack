@@ -31,7 +31,7 @@ impl TypeLowerer<'_> {
         for element_id in collected {
             let dir_type = types.get_type(element_id);
             match dir_type {
-                dir::Type::Named(reference) => {
+                dir::Type::Reference(reference) => {
                     if matches!(
                         self.symbol_kind(reference.symbol),
                         Some(

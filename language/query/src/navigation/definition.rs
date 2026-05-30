@@ -264,7 +264,7 @@ fn resolve_nominal_type_symbol(
     type_id: dir::LocalTypeId,
 ) -> Option<dir::GlobalSymbolId> {
     match types.get_type(type_id) {
-        dir::Type::Named(reference) => Some(reference.symbol),
+        dir::Type::Reference(reference) => Some(reference.symbol),
         dir::Type::Form(value) => resolve_nominal_type_symbol(types, value.value),
         dir::Type::Dynamic(dynamic) => resolve_nominal_type_symbol(types, dynamic.constraint),
         dir::Type::Operation(operation) => {

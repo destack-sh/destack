@@ -658,7 +658,7 @@ impl FunctionLowerer<'_> {
 
         // require a nominal reference type
         let symbol = match self.context.types.get_type(type_id) {
-            dir::Type::Named(reference) => reference.symbol,
+            dir::Type::Reference(reference) => reference.symbol,
             _ => return Ok(None),
         };
 
@@ -697,7 +697,7 @@ impl FunctionLowerer<'_> {
         for index in 0..type_count {
             let type_id = dir::LocalTypeId::new(index);
             let dir_type = self.context.types.get_type(type_id);
-            if let dir::Type::Named(reference) = dir_type
+            if let dir::Type::Reference(reference) = dir_type
                 && reference.symbol == symbol
             {
                 return Some(type_id);

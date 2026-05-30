@@ -382,7 +382,7 @@ impl<'a> TypeLowerer<'a> {
         }
 
         let mir_type = match dir_type {
-            dir::Type::Named(reference) => self.lower_reference_type(
+            dir::Type::Reference(reference) => self.lower_reference_type(
                 types,
                 type_id,
                 reference.symbol,
@@ -682,7 +682,7 @@ impl<'a> TypeLowerer<'a> {
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<mir::LocalNodeId<mir::Type>> {
-        let dir::Type::Named(reference) = types.get_type(type_id) else {
+        let dir::Type::Reference(reference) = types.get_type(type_id) else {
             return self.lower_type(types, type_id, module_id, node, builder);
         };
 

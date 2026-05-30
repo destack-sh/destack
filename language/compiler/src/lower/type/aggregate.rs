@@ -34,7 +34,7 @@ impl TypeLowerer<'_> {
                     return u64::try_from(*value).ok();
                 }
                 dir::Type::Form(value) => type_id = value.value,
-                dir::Type::Named(reference) => {
+                dir::Type::Reference(reference) => {
                     type_id = types.get_value_type_id(reference.symbol)?;
                 }
                 _ => return None,

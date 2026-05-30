@@ -29,8 +29,9 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Primitive(primitive) => Self::primitive_type_label(*primitive),
             dir::Type::Literal(literal) => self.scalar_literal_label(literal),
             dir::Type::Parameter(parameter) => self.parameter_type_label(parameter),
-            dir::Type::Named(named) => self.named_type_label(named),
+            dir::Type::Reference(named) => self.reference_type_label(named),
             dir::Type::This => "this".to_string(),
+            dir::Type::Member(member) => self.member_type_label(types, member),
             dir::Type::Form(form) => self.form_type_label(types, form),
             dir::Type::Dynamic(any) => {
                 let constraint = self.type_id_label(types, any.constraint);
@@ -39,6 +40,7 @@ impl DirSnapshotBuilder<'_> {
             }
             dir::Type::Predicate(predicate) => self.predicate_type_label(types, predicate),
             dir::Type::Operation(operation) => self.operation_type_label(types, operation),
+            dir::Type::Array(array) => self.array_type_label(types, array),
             dir::Type::FixedArray(array) => self.fixed_array_type_label(types, array),
             dir::Type::Range(range) => self.range_type_label(range),
             dir::Type::Slice(slice) => self.slice_type_label(types, slice),
@@ -80,21 +82,34 @@ impl DirSnapshotBuilder<'_> {
         }
     }
 
-    /// Return one named type label.
-    fn named_type_label(&self, named: &dir::NamedType) -> String {
-        if named.arguments.is_empty() {
-            return self.symbol_path_label(named.symbol);
+    /// Return one reference type label.
+    fn reference_type_label(&self, reference: &dir::ReferenceType) -> String {
+        if reference.arguments.is_empty() {
+            return self.symbol_path_label(reference.symbol);
         }
 
-        if let Some(label) = self.collection_type_label(named.symbol, &named.arguments) {
+        if let Some(label) = self.collection_type_label(reference.symbol, &reference.arguments) {
             return label;
         }
 
         // render static arguments only when the reference is applied
-        let arguments = self.static_argument_list_label(&named.arguments);
-        let symbol = self.symbol_path_label(named.symbol);
+        let arguments = self.static_argument_list_label(&reference.arguments);
+        let symbol = self.symbol_path_label(reference.symbol);
 
         format!("{symbol}<{arguments}>")
+    }
+
+    /// Return one member type label.
+    fn member_type_label(&self, types: &dir::TypeTable<'_>, member: &dir::MemberType) -> String {
+        let owner = self.type_id_label(types, member.owner);
+        let key = self.static_key(member.key);
+        if member.arguments.is_empty() {
+            return format!("{owner}.{key}");
+        }
+
+        let arguments = self.static_argument_list_label(&member.arguments);
+
+        format!("{owner}.{key}<{arguments}>")
     }
 
     /// Return one collection type label.
@@ -201,8 +216,11 @@ impl DirSnapshotBuilder<'_> {
         operation: &dir::TypeOperation,
     ) -> String {
         match operation {
-            dir::TypeOperation::BuiltinTypeFunction(function) => {
-                Self::builtin_type_function_label(*function).to_string()
+            dir::TypeOperation::StringMapping { mapping, target } => {
+                let target = self.type_id_label(types, *target);
+                let mapping = Self::string_mapping_label(*mapping);
+
+                format!("{mapping}<{target}>")
             }
             dir::TypeOperation::Conditional(conditional) => {
                 self.conditional_type_label(types, conditional)
@@ -228,15 +246,13 @@ impl DirSnapshotBuilder<'_> {
         }
     }
 
-    /// Return one builtin type function label.
-    fn builtin_type_function_label(function: dir::BuiltinTypeFunction) -> &'static str {
+    /// Return one string mapping label.
+    fn string_mapping_label(function: dir::StringMapping) -> &'static str {
         match function {
-            dir::BuiltinTypeFunction::Uppercase => "Uppercase",
-            dir::BuiltinTypeFunction::Lowercase => "Lowercase",
-            dir::BuiltinTypeFunction::Capitalize => "Capitalize",
-            dir::BuiltinTypeFunction::Uncapitalize => "Uncapitalize",
-            dir::BuiltinTypeFunction::NoInfer => "NoInfer",
-            dir::BuiltinTypeFunction::BuiltinIteratorReturn => "BuiltinIteratorReturn",
+            dir::StringMapping::Uppercase => "Uppercase",
+            dir::StringMapping::Lowercase => "Lowercase",
+            dir::StringMapping::Capitalize => "Capitalize",
+            dir::StringMapping::Uncapitalize => "Uncapitalize",
         }
     }
 
@@ -326,6 +342,14 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one fixed array type label.
+    fn array_type_label(&self, types: &dir::TypeTable<'_>, array: &dir::ArrayType) -> String {
+        // render homogeneous array notation
+        let element = self.type_id_label(types, array.element);
+
+        format!("{element}[]")
+    }
+
+    /// Return one fixed array type label.
     fn fixed_array_type_label(
         &self,
         types: &dir::TypeTable<'_>,
@@ -334,9 +358,8 @@ impl DirSnapshotBuilder<'_> {
         // render element and count
         let element = self.type_id_label(types, array.element);
         let count = self.static_label(array.count);
-        let prefix = if array.is_readonly { "readonly " } else { "" };
 
-        format!("{prefix}[{element}; {count}]")
+        format!("[{element}; {count}]")
     }
 
     /// Return one range type label.
@@ -359,18 +382,16 @@ impl DirSnapshotBuilder<'_> {
 
     /// Return one slice type label.
     fn slice_type_label(&self, types: &dir::TypeTable<'_>, slice: &dir::SliceType) -> String {
-        // render readonly slice notation
+        // render slice notation
         let element = self.type_id_label(types, slice.element);
-        let prefix = if slice.is_readonly { "readonly " } else { "" };
 
-        format!("{prefix}[{element}]")
+        format!("[{element}]")
     }
 
     /// Return one tuple type label.
     fn tuple_type_label(&self, types: &dir::TypeTable<'_>, tuple: &dir::TupleType) -> String {
         // render tuple elements with labels and modifiers
         let mut elements = self.tuple_element_list_label(types, &tuple.elements);
-        let prefix = if tuple.is_readonly { "readonly " } else { "" };
 
         match tuple.form {
             dir::TupleForm::Tuple => {
@@ -378,9 +399,9 @@ impl DirSnapshotBuilder<'_> {
                     elements.push(',');
                 }
 
-                format!("{prefix}({elements})")
+                format!("({elements})")
             }
-            dir::TupleForm::Array => format!("{prefix}[{elements}]"),
+            dir::TupleForm::Array => format!("[{elements}]"),
         }
     }
 
