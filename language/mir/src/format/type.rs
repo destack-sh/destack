@@ -245,8 +245,8 @@ fn format_type_inner<'a>(
         Type::Atomic { value } => {
             write!(f, [token("atomic"), token("<"), value, token(">")])
         }
-        Type::Any { interface } => {
-            write!(f, [token("any"), token("<"), interface, token(">")])
+        Type::Dynamic { constraint } => {
+            write!(f, [token("dynamic"), token("<"), constraint, token(">")])
         }
         Type::Uninit { value } => {
             write!(f, [token("uninit"), token("<"), value, token(">")])

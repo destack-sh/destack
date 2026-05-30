@@ -50,8 +50,8 @@ impl<'a> FunctionBuilder<'a> {
         });
     }
 
-    /// Call a class method through a class dispatch slot.
-    pub fn call_class(
+    /// Call a virtual method through a virtual dispatch slot.
+    pub fn call_virtual(
         &mut self,
         receiver: Value,
         class: LocalNodeId<Type>,
@@ -63,7 +63,7 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
         let arguments = self.add_call_arguments(argument_values);
-        let instruction = self.insert_instruction(Instruction::CallClass {
+        let instruction = self.insert_instruction(Instruction::CallVirtual {
             destination: Some(destination.into()),
             receiver: receiver.into(),
             class: class.into(),
@@ -81,8 +81,8 @@ impl<'a> FunctionBuilder<'a> {
         Some(destination)
     }
 
-    /// Call a class method with no return value.
-    pub fn call_class_void(
+    /// Call a virtual method with no return value.
+    pub fn call_virtual_void(
         &mut self,
         receiver: Value,
         class: LocalNodeId<Type>,
@@ -92,7 +92,7 @@ impl<'a> FunctionBuilder<'a> {
         argument_values: Vec<Value>,
     ) {
         let arguments = self.add_call_arguments(argument_values);
-        let instruction = self.insert_instruction(Instruction::CallClass {
+        let instruction = self.insert_instruction(Instruction::CallVirtual {
             destination: None,
             receiver: receiver.into(),
             class: class.into(),
@@ -108,11 +108,11 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Call an interface method through an interface table slot.
-    pub fn call_interface(
+    /// Call a dynamic method through a dynamic table slot.
+    pub fn call_dynamic(
         &mut self,
         receiver: Value,
-        interface: LocalNodeId<Type>,
+        constraint: LocalNodeId<Type>,
         slot: DispatchSlot,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -120,10 +120,10 @@ impl<'a> FunctionBuilder<'a> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
         let arguments = self.add_call_arguments(argument_values);
-        self.insert_instruction(Instruction::CallInterface {
+        self.insert_instruction(Instruction::CallDynamic {
             destination: Some(destination.into()),
             receiver: receiver.into(),
-            interface: interface.into(),
+            constraint: constraint.into(),
             slot,
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
@@ -131,20 +131,20 @@ impl<'a> FunctionBuilder<'a> {
         Some(destination)
     }
 
-    /// Call an interface method with no return value.
-    pub fn call_interface_void(
+    /// Call a dynamic method with no return value.
+    pub fn call_dynamic_void(
         &mut self,
         receiver: Value,
-        interface: LocalNodeId<Type>,
+        constraint: LocalNodeId<Type>,
         slot: DispatchSlot,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
     ) {
         let arguments = self.add_call_arguments(argument_values);
-        self.insert_instruction(Instruction::CallInterface {
+        self.insert_instruction(Instruction::CallDynamic {
             destination: None,
             receiver: receiver.into(),
-            interface: interface.into(),
+            constraint: constraint.into(),
             slot,
             call: Call::new(arguments, TypeReference::Type(signature)),
         });
@@ -165,15 +165,15 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Construct a callable value for one function and environment.
-    pub fn callable_bind(
+    /// Construct a closure value for one function and environment.
+    pub fn closure_bind(
         &mut self,
         function: LocalNodeId<Function>,
         signature: LocalNodeId<Type>,
         environment: Value,
     ) -> Value {
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::CallableBind {
+        self.insert_instruction(Instruction::ClosureBind {
             destination: destination.into(),
             function: function.into(),
             environment: environment.into(),
@@ -183,13 +183,13 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Load the hidden environment pointer for the current function.
-    pub fn callable_environment(&mut self, environment_type: LocalNodeId<Type>) -> Value {
+    pub fn closure_environment(&mut self, environment_type: LocalNodeId<Type>) -> Value {
         // record the hidden environment type on the function metadata
         {
             let function = self.tree.get_mut(self.function_id);
             match function.environment {
                 Some(existing) if existing != environment_type.into() => {
-                    panic!("mismatched environment types for callable.environment");
+                    panic!("mismatched environment types for closure.environment");
                 }
                 Some(_) => {}
                 None => {
@@ -199,7 +199,7 @@ impl<'a> FunctionBuilder<'a> {
         }
 
         let destination = self.allocate_value();
-        self.insert_instruction(Instruction::CallableEnvironment {
+        self.insert_instruction(Instruction::ClosureEnvironment {
             destination: destination.into(),
         });
         self.define_value(destination, environment_type);

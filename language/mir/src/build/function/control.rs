@@ -180,8 +180,8 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Call a class method with an explicit continuation.
-    pub fn call_class_branch(
+    /// Call a virtual method with an explicit continuation.
+    pub fn call_virtual_branch(
         &mut self,
         receiver: Value,
         class: LocalNodeId<Type>,
@@ -198,7 +198,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::CallClass {
+        *terminator = Terminator::CallVirtual {
             receiver: receiver.into(),
             class: class.into(),
             slot,
@@ -224,11 +224,11 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Call an interface method with an explicit continuation.
-    pub fn call_interface_branch(
+    /// Call a dynamic method with an explicit continuation.
+    pub fn call_dynamic_branch(
         &mut self,
         receiver: Value,
-        interface: LocalNodeId<Type>,
+        constraint: LocalNodeId<Type>,
         slot: DispatchSlot,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -241,9 +241,9 @@ impl<'a> FunctionBuilder<'a> {
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::CallInterface {
+        *terminator = Terminator::CallDynamic {
             receiver: receiver.into(),
-            interface: interface.into(),
+            constraint: constraint.into(),
             slot,
             call: Call::new(
                 argument_values
@@ -285,10 +285,10 @@ impl<'a> FunctionBuilder<'a> {
         };
     }
 
-    /// Tail call through a class dispatch slot.
+    /// Tail call through a virtual dispatch slot.
     ///
     /// The callee's return value becomes this function's return value.
-    pub fn tail_call_class(
+    pub fn tail_call_virtual(
         &mut self,
         receiver: Value,
         class: LocalNodeId<Type>,
@@ -301,7 +301,7 @@ impl<'a> FunctionBuilder<'a> {
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::TailCallClass {
+        *terminator = Terminator::TailCallVirtual {
             receiver: receiver.into(),
             class: class.into(),
             slot,
@@ -322,13 +322,13 @@ impl<'a> FunctionBuilder<'a> {
         }
     }
 
-    /// Tail call through an interface dispatch slot.
+    /// Tail call through a dynamic dispatch slot.
     ///
     /// The callee's return value becomes this function's return value.
-    pub fn tail_call_interface(
+    pub fn tail_call_dynamic(
         &mut self,
         receiver: Value,
-        interface: LocalNodeId<Type>,
+        constraint: LocalNodeId<Type>,
         slot: DispatchSlot,
         signature: LocalNodeId<Type>,
         argument_values: Vec<Value>,
@@ -337,9 +337,9 @@ impl<'a> FunctionBuilder<'a> {
         let terminator_id = self.tree.get(block_id).terminator;
         let terminator = self.tree.get_mut(terminator_id);
 
-        *terminator = Terminator::TailCallInterface {
+        *terminator = Terminator::TailCallDynamic {
             receiver: receiver.into(),
-            interface: interface.into(),
+            constraint: constraint.into(),
             slot,
             call: Call::new(
                 argument_values

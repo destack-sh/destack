@@ -11,7 +11,7 @@ block0(v0: boolean):
     local.get v0
     local.address v0
     function.address @misc.foo_bar
-    callable.environment
+    closure.environment
     global.address @G0
     global.address @G1
     return

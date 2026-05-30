@@ -74,10 +74,10 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::NewUninit { .. }
                 | Instruction::FrameAllocZeroed { .. }
                 | Instruction::FrameAllocUninit { .. } => {}
-                Instruction::CallableBind { environment, .. } => {
+                Instruction::ClosureBind { environment, .. } => {
                     Self::replace_value_in_slot(environment, from, to);
                 }
-                Instruction::CallableEnvironment { .. } => {}
+                Instruction::ClosureEnvironment { .. } => {}
                 Instruction::Binary { left, right, .. } => {
                     Self::replace_value_in_slot(left, from, to);
                     Self::replace_value_in_slot(right, from, to);
@@ -243,8 +243,8 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_value_in_slot(then_value, from, to);
                     Self::replace_value_in_slot(else_value, from, to);
                 }
-                Instruction::CallClass { receiver, .. }
-                | Instruction::CallInterface { receiver, .. } => {
+                Instruction::CallVirtual { receiver, .. }
+                | Instruction::CallDynamic { receiver, .. } => {
                     Self::replace_value_in_slot(receiver, from, to);
                 }
                 Instruction::Select {
@@ -447,7 +447,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_values_in_slice(&mut unwind.arguments, from, to);
                 }
             }
-            Terminator::CallClass {
+            Terminator::CallVirtual {
                 receiver,
                 call,
                 target,
@@ -461,7 +461,7 @@ impl<'a> FunctionBuilder<'a> {
                     Self::replace_values_in_slice(&mut unwind.arguments, from, to);
                 }
             }
-            Terminator::CallInterface {
+            Terminator::CallDynamic {
                 receiver,
                 call,
                 target,
@@ -490,8 +490,8 @@ impl<'a> FunctionBuilder<'a> {
                 Self::replace_value_in_slot(callee, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
             }
-            Terminator::TailCallClass { receiver, call, .. }
-            | Terminator::TailCallInterface { receiver, call, .. } => {
+            Terminator::TailCallVirtual { receiver, call, .. }
+            | Terminator::TailCallDynamic { receiver, call, .. } => {
                 Self::replace_value_in_slot(receiver, from, to);
                 Self::replace_values_in_slice(&mut call.arguments, from, to);
             }

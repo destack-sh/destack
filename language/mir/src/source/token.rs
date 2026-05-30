@@ -138,14 +138,14 @@ pub enum TokenType {
     CallIndirect,
     /// `tailCall.indirect`
     TailCallIndirect,
-    /// `call.class`
-    CallClass,
-    /// `tailCall.class`
-    TailCallClass,
-    /// `call.interface`
-    CallInterface,
-    /// `tailCall.interface`
-    TailCallInterface,
+    /// `call.virtual`
+    CallVirtual,
+    /// `tailCall.virtual`
+    TailCallVirtual,
+    /// `call.dynamic`
+    CallDynamic,
+    /// `tailCall.dynamic`
+    TailCallDynamic,
     /// `void`
     Void,
     /// `boolean`
@@ -209,10 +209,10 @@ impl TokenType {
             "call" => Self::Call,
             "call.indirect" => Self::CallIndirect,
             "tailCall.indirect" => Self::TailCallIndirect,
-            "call.class" => Self::CallClass,
-            "tailCall.class" => Self::TailCallClass,
-            "call.interface" => Self::CallInterface,
-            "tailCall.interface" => Self::TailCallInterface,
+            "call.virtual" => Self::CallVirtual,
+            "tailCall.virtual" => Self::TailCallVirtual,
+            "call.dynamic" => Self::CallDynamic,
+            "tailCall.dynamic" => Self::TailCallDynamic,
             "void" => Self::Void,
             "boolean" => Self::Boolean,
             "ref" => Self::Ref,

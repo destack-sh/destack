@@ -308,8 +308,8 @@ impl<'a> FunctionBuilder<'a> {
             }
             Terminator::Call { target, .. }
             | Terminator::CallIndirect { target, .. }
-            | Terminator::CallClass { target, .. }
-            | Terminator::CallInterface { target, .. } => {
+            | Terminator::CallVirtual { target, .. }
+            | Terminator::CallDynamic { target, .. } => {
                 if target.block == BlockReference::Block(to_block) {
                     target.arguments.push(value.into());
                 }

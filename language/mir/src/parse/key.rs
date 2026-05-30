@@ -51,8 +51,8 @@ pub(super) enum TypeKey {
     TypeId,
     /// Atomic storage cell type.
     Atomic { value: TypeReference },
-    /// Runtime-erased interface value.
-    Any { interface: TypeReference },
+    /// Runtime-erased dynamic value.
+    Dynamic { constraint: TypeReference },
     /// Linear uninitialized allocation token.
     Uninit { value: TypeReference },
     /// Reference/pointer type.
@@ -153,8 +153,8 @@ impl TypeKey {
             Type::TypeDescriptor => TypeKey::TypeDescriptor,
             Type::TypeId => TypeKey::TypeId,
             Type::Atomic { value } => TypeKey::Atomic { value: *value },
-            Type::Any { interface } => TypeKey::Any {
-                interface: *interface,
+            Type::Dynamic { constraint } => TypeKey::Dynamic {
+                constraint: *constraint,
             },
             Type::Uninit { value } => TypeKey::Uninit { value: *value },
 

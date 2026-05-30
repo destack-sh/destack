@@ -241,19 +241,19 @@
             },
             {
               "type": "STRING",
-              "value": "call.class"
+              "value": "call.virtual"
             },
             {
               "type": "STRING",
-              "value": "tailCall.class"
+              "value": "tailCall.virtual"
             },
             {
               "type": "STRING",
-              "value": "call.interface"
+              "value": "call.dynamic"
             },
             {
               "type": "STRING",
-              "value": "tailCall.interface"
+              "value": "tailCall.dynamic"
             }
           ]
         }

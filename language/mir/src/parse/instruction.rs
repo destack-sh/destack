@@ -208,11 +208,11 @@ impl Parser {
                     call: Call::new(arguments, signature),
                 }
             }
-            "call.class" => {
+            "call.virtual" => {
                 let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
-                Instruction::CallClass {
+                Instruction::CallVirtual {
                     destination,
                     receiver,
                     class,
@@ -220,14 +220,14 @@ impl Parser {
                     call: Call::new(arguments, signature),
                 }
             }
-            "call.interface" => {
-                let (receiver, interface, slot, arguments, signature) =
-                    self.parse_interface_call_target_segments(&mut segment_spans)?;
+            "call.dynamic" => {
+                let (receiver, constraint, slot, arguments, signature) =
+                    self.parse_dynamic_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_arguments(&arguments);
-                Instruction::CallInterface {
+                Instruction::CallDynamic {
                     destination,
                     receiver,
-                    interface,
+                    constraint,
                     slot,
                     call: Call::new(arguments, signature),
                 }
@@ -361,17 +361,17 @@ impl Parser {
                             function,
                         }
                     }
-                    "callable.bind" => {
+                    "closure.bind" => {
                         let function = self.parse_function_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let environment = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::CallableBind {
+                        Instruction::ClosureBind {
                             destination,
                             function,
                             environment,
                         }
                     }
-                    "callable.environment" => Instruction::CallableEnvironment { destination },
+                    "closure.environment" => Instruction::ClosureEnvironment { destination },
 
                     // memory operations
                     "load" => {
@@ -1847,7 +1847,7 @@ impl Parser {
         Ok((function, arguments, signature))
     }
 
-    /// Parse one class call target and signature.
+    /// Parse one virtual call target and signature.
     pub(super) fn parse_class_call_target(
         &mut self,
     ) -> ParseResult<(
@@ -1861,7 +1861,7 @@ impl Parser {
         self.parse_class_call_target_segments(&mut segment_spans)
     }
 
-    /// Parse one class call target and signature with source segments.
+    /// Parse one virtual call target and signature with source segments.
     pub(super) fn parse_class_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
@@ -1878,7 +1878,7 @@ impl Parser {
         self.eat_token(TokenType::Comma)?;
         let slot = self.parse_int_segment(segment_spans)?;
         let slot = u32::try_from(slot)
-            .map_err(|_| ParseError::invalid("class dispatch slot", self.pos()))?;
+            .map_err(|_| ParseError::invalid("virtual dispatch slot", self.pos()))?;
         let slot = DispatchSlot::new(slot);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
@@ -1886,8 +1886,8 @@ impl Parser {
         Ok((receiver, class.into(), slot, arguments, signature))
     }
 
-    /// Parse one interface call target and signature.
-    pub(super) fn parse_interface_call_target(
+    /// Parse one dynamic call target and signature.
+    pub(super) fn parse_dynamic_call_target(
         &mut self,
     ) -> ParseResult<(
         ValueReference,
@@ -1897,11 +1897,11 @@ impl Parser {
         TypeReference,
     )> {
         let mut segment_spans = Vec::new();
-        self.parse_interface_call_target_segments(&mut segment_spans)
+        self.parse_dynamic_call_target_segments(&mut segment_spans)
     }
 
-    /// Parse one interface call target and signature with source segments.
-    pub(super) fn parse_interface_call_target_segments(
+    /// Parse one dynamic call target and signature with source segments.
+    pub(super) fn parse_dynamic_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
     ) -> ParseResult<(
@@ -1913,16 +1913,16 @@ impl Parser {
     )> {
         let receiver = self.parse_value_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
-        let interface = self.parse_type_segment(segment_spans)?;
+        let constraint = self.parse_type_segment(segment_spans)?;
         self.eat_token(TokenType::Comma)?;
         let slot = self.parse_int_segment(segment_spans)?;
         let slot =
-            u32::try_from(slot).map_err(|_| ParseError::invalid("interface slot", self.pos()))?;
+            u32::try_from(slot).map_err(|_| ParseError::invalid("dynamic slot", self.pos()))?;
         let slot = DispatchSlot::new(slot);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_required_call_signature_segment(segment_spans)?;
 
-        Ok((receiver, interface.into(), slot, arguments, signature))
+        Ok((receiver, constraint.into(), slot, arguments, signature))
     }
 
     /// Parse one indirect call target and signature.

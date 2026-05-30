@@ -631,24 +631,24 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
         match terminator {
             Terminator::Call { call, .. }
             | Terminator::CallIndirect { call, .. }
-            | Terminator::CallClass { call, .. }
-            | Terminator::CallInterface { call, .. }
+            | Terminator::CallVirtual { call, .. }
+            | Terminator::CallDynamic { call, .. }
             | Terminator::TailCall { call, .. }
             | Terminator::TailCallIndirect { call, .. }
-            | Terminator::TailCallClass { call, .. }
-            | Terminator::TailCallInterface { call, .. } => {
+            | Terminator::TailCallVirtual { call, .. }
+            | Terminator::TailCallDynamic { call, .. } => {
                 record_type_use(tree, call.signature, &mut counts);
             }
             _ => {}
         }
 
         match terminator {
-            Terminator::CallClass { class, .. } | Terminator::TailCallClass { class, .. } => {
+            Terminator::CallVirtual { class, .. } | Terminator::TailCallVirtual { class, .. } => {
                 record_type_use(tree, *class, &mut counts);
             }
-            Terminator::CallInterface { interface, .. }
-            | Terminator::TailCallInterface { interface, .. } => {
-                record_type_use(tree, *interface, &mut counts);
+            Terminator::CallDynamic { constraint, .. }
+            | Terminator::TailCallDynamic { constraint, .. } => {
+                record_type_use(tree, *constraint, &mut counts);
             }
             _ => {}
         }
@@ -690,14 +690,14 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
             Instruction::Call { call, .. } => {
                 record_type_use(tree, call.signature, &mut counts);
             }
-            Instruction::CallClass { class, call, .. } => {
+            Instruction::CallVirtual { class, call, .. } => {
                 record_type_use(tree, *class, &mut counts);
                 record_type_use(tree, call.signature, &mut counts);
             }
-            Instruction::CallInterface {
-                interface, call, ..
+            Instruction::CallDynamic {
+                constraint, call, ..
             } => {
-                record_type_use(tree, *interface, &mut counts);
+                record_type_use(tree, *constraint, &mut counts);
                 record_type_use(tree, call.signature, &mut counts);
             }
             Instruction::CallIndirect { call, .. } => {
@@ -814,11 +814,17 @@ fn record_type_use_inner(
             };
             record_type_use_inner(tree, value, counts, visited);
         }
-        Type::Any { interface } | Type::Uninit { value: interface } => {
-            let TypeReference::Type(interface) = *interface else {
+        Type::Dynamic { constraint } => {
+            let TypeReference::Type(constraint) = *constraint else {
                 return;
             };
-            record_type_use_inner(tree, interface, counts, visited);
+            record_type_use_inner(tree, constraint, counts, visited);
+        }
+        Type::Uninit { value } => {
+            let TypeReference::Type(value) = *value else {
+                return;
+            };
+            record_type_use_inner(tree, value, counts, visited);
         }
         Type::Array { element, .. } | Type::Slice { element, .. } => {
             let TypeReference::Type(element) = *element else {
@@ -1333,8 +1339,17 @@ fn collect_alias_dependencies(
             Type::Atomic { value } => {
                 record_dependency(*value, root, alias_types, &mut dependencies, &mut stack);
             }
-            Type::Any { interface } | Type::Uninit { value: interface } => {
-                record_dependency(*interface, root, alias_types, &mut dependencies, &mut stack);
+            Type::Dynamic { constraint } => {
+                record_dependency(
+                    *constraint,
+                    root,
+                    alias_types,
+                    &mut dependencies,
+                    &mut stack,
+                );
+            }
+            Type::Uninit { value } => {
+                record_dependency(*value, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Array { element, .. } | Type::Slice { element, .. } => {
                 record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);

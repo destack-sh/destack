@@ -251,10 +251,10 @@ pub enum Type {
         /// The stored value type.
         value: TypeReference,
     },
-    /// Runtime-erased value satisfying one lowered interface contract.
-    Any {
-        /// The lowered interface contract type.
-        interface: TypeReference,
+    /// Runtime-erased value satisfying one dynamic constraint.
+    Dynamic {
+        /// The lowered dynamic constraint type.
+        constraint: TypeReference,
     },
     /// Reference with explicit kind and access.
     Reference {
@@ -595,7 +595,7 @@ impl Type {
             Type::Atomic { .. } => Copy::No,
 
             // erased values may own hidden payloads
-            Type::Any { .. } => Copy::No,
+            Type::Dynamic { .. } => Copy::No,
 
             // initialization tokens are linear capabilities
             Type::Uninit { .. } => Copy::No,

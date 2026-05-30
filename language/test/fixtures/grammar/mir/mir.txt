@@ -115,7 +115,7 @@ type @Tensor = tensorView<float32, raw, readonly, (4, 4)>
 //                                 ^^^ keyword.other.memory.dsmir
 //                                      ^^^^^^^^ keyword.other.memory.dsmir
 
-function @tokens(v0: ref<int64, raw>, v1: ref<any<@Iface>, owned>) -> void {
+function @tokens(v0: ref<int64, raw>, v1: ref<dynamic<@Iface>, owned>) -> void {
 entry0(v0: ref<int64, raw>):
     jump block1
 //  ^^^^ keyword.control.flow.dsmir
@@ -123,9 +123,9 @@ block1:
     switch v0, block2, block3
 //  ^^^^^^ keyword.control.flow.dsmir
 block2:
-    tailCall.class @Klass.method(v0) -> (int64) -> void
+    tailCall.virtual @Klass.method(v0) -> (int64) -> void
 //  ^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
-    call.interface @Iface.method(v0) -> (int64) -> void
+    call.dynamic @Iface.method(v0) -> (int64) -> void
 //  ^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
     call.indirect v0(v1) -> (int64) -> void
 //  ^^^^^^^^^^^^^ keyword.operator.instruction.dsmir

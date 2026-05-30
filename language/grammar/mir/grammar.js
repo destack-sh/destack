@@ -57,10 +57,10 @@ module.exports = grammar({
         "tailCall",
         "call.indirect",
         "tailCall.indirect",
-        "call.class",
-        "tailCall.class",
-        "call.interface",
-        "tailCall.interface"
+        "call.virtual",
+        "tailCall.virtual",
+        "call.dynamic",
+        "tailCall.dynamic"
       ))),
 
     type_keyword: () =>

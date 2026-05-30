@@ -203,7 +203,7 @@ pub enum Terminator {
     },
     /// Indirect call with an explicit continuation.
     CallIndirect {
-        /// The callable value to call.
+        /// The function pointer or closure value to call.
         callee: ValueReference,
         /// The shared call payload.
         call: Call<Vec<ValueReference>>,
@@ -213,7 +213,7 @@ pub enum Terminator {
         unwind: Option<BlockTarget>,
     },
     /// Class call with an explicit continuation.
-    CallClass {
+    CallVirtual {
         /// The receiver value for dispatch.
         receiver: ValueReference,
         /// The class type declaring this dispatch slot.
@@ -227,12 +227,12 @@ pub enum Terminator {
         /// The cleanup block when this call panics.
         unwind: Option<BlockTarget>,
     },
-    /// Interface call with an explicit continuation.
-    CallInterface {
+    /// Dynamic call with an explicit continuation.
+    CallDynamic {
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The interface type declaring this dispatch slot.
-        interface: TypeReference,
+        /// The dynamic constraint type declaring this dispatch slot.
+        constraint: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
         /// The shared call payload.
@@ -310,13 +310,13 @@ pub enum Terminator {
     },
     /// Tail call through a function pointer.
     TailCallIndirect {
-        /// The callable value to tail call.
+        /// The function pointer or closure value to tail call.
         callee: ValueReference,
         /// The shared call payload.
         call: Call<Vec<ValueReference>>,
     },
-    /// Tail call through a class dispatch slot.
-    TailCallClass {
+    /// Tail call through a virtual dispatch slot.
+    TailCallVirtual {
         /// The receiver value for dispatch.
         receiver: ValueReference,
         /// The class type declaring this dispatch slot.
@@ -326,12 +326,12 @@ pub enum Terminator {
         /// The shared call payload.
         call: Call<Vec<ValueReference>>,
     },
-    /// Tail call through an interface dispatch slot.
-    TailCallInterface {
+    /// Tail call through a dynamic dispatch slot.
+    TailCallDynamic {
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The interface type declaring this dispatch slot.
-        interface: TypeReference,
+        /// The dynamic constraint type declaring this dispatch slot.
+        constraint: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
         /// The shared call payload.
@@ -352,11 +352,11 @@ impl Terminator {
             Terminator::CallIndirect { .. } | Terminator::TailCallIndirect { .. } => {
                 Some(CallDispatchKind::Indirect)
             }
-            Terminator::CallClass { slot, .. } | Terminator::TailCallClass { slot, .. } => {
-                Some(CallDispatchKind::Class { slot: *slot })
+            Terminator::CallVirtual { slot, .. } | Terminator::TailCallVirtual { slot, .. } => {
+                Some(CallDispatchKind::Virtual { slot: *slot })
             }
-            Terminator::CallInterface { slot, .. } | Terminator::TailCallInterface { slot, .. } => {
-                Some(CallDispatchKind::Interface { slot: *slot })
+            Terminator::CallDynamic { slot, .. } | Terminator::TailCallDynamic { slot, .. } => {
+                Some(CallDispatchKind::Dynamic { slot: *slot })
             }
             _ => None,
         }
@@ -368,12 +368,12 @@ impl Terminator {
             Terminator::Error => None,
             Terminator::Call { call, .. }
             | Terminator::CallIndirect { call, .. }
-            | Terminator::CallClass { call, .. }
-            | Terminator::CallInterface { call, .. }
+            | Terminator::CallVirtual { call, .. }
+            | Terminator::CallDynamic { call, .. }
             | Terminator::TailCall { call, .. }
             | Terminator::TailCallIndirect { call, .. }
-            | Terminator::TailCallClass { call, .. }
-            | Terminator::TailCallInterface { call, .. } => Some(call.signature),
+            | Terminator::TailCallVirtual { call, .. }
+            | Terminator::TailCallDynamic { call, .. } => Some(call.signature),
             _ => None,
         }
     }
@@ -411,8 +411,8 @@ impl Terminator {
             Terminator::Yield { resume, .. } => smallvec![resume.block],
             Terminator::Call { target, unwind, .. }
             | Terminator::CallIndirect { target, unwind, .. }
-            | Terminator::CallClass { target, unwind, .. }
-            | Terminator::CallInterface { target, unwind, .. } => {
+            | Terminator::CallVirtual { target, unwind, .. }
+            | Terminator::CallDynamic { target, unwind, .. } => {
                 let mut successors = smallvec![target.block];
                 if let Some(unwind) = unwind {
                     successors.push(unwind.block);
@@ -437,8 +437,8 @@ impl Terminator {
             Terminator::Unreachable => smallvec![],
             Terminator::TailCall { .. } => smallvec![],
             Terminator::TailCallIndirect { .. } => smallvec![],
-            Terminator::TailCallClass { .. } => smallvec![],
-            Terminator::TailCallInterface { .. } => smallvec![],
+            Terminator::TailCallVirtual { .. } => smallvec![],
+            Terminator::TailCallDynamic { .. } => smallvec![],
         }
     }
 
@@ -522,7 +522,7 @@ impl Terminator {
                 }
                 uses
             }
-            Terminator::CallClass {
+            Terminator::CallVirtual {
                 receiver,
                 call,
                 target,
@@ -537,7 +537,7 @@ impl Terminator {
                 }
                 uses
             }
-            Terminator::CallInterface {
+            Terminator::CallDynamic {
                 receiver,
                 call,
                 target,
@@ -590,8 +590,8 @@ impl Terminator {
                 uses.extend(call.arguments.iter().copied());
                 uses
             }
-            Terminator::TailCallClass { receiver, call, .. }
-            | Terminator::TailCallInterface { receiver, call, .. } => {
+            Terminator::TailCallVirtual { receiver, call, .. }
+            | Terminator::TailCallDynamic { receiver, call, .. } => {
                 let mut uses = smallvec![*receiver];
                 uses.extend(call.arguments.iter().copied());
                 uses

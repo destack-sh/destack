@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Access, ArgumentSlice, Attribute, Block, CommentSpan, Field, FieldSpan, Function,
-    FunctionHeaderSpans, Global, Instruction, InterfaceShape, InterfaceTable, Layout, LayoutId,
-    Lifetime, Local, LocalNodeId, Metadata, Node, NodeType, PlaceProjection, PlaceTable,
+    Access, ArgumentSlice, Attribute, Block, CommentSpan, DynamicShape, DynamicTable, Field,
+    FieldSpan, Function, FunctionHeaderSpans, Global, Instruction, Layout, LayoutId, Lifetime,
+    Local, LocalNodeId, Metadata, Node, NodeType, Nullability, PlaceProjection, PlaceTable,
     ReferenceKind, Space, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeLineage,
     TypeMetadata, TypeReference, TypedValueSpan, ValueReference, Vtable,
 };
@@ -314,7 +314,9 @@ impl Tree {
                 .filter(|lifetime| !lifetime.is_empty())
             }
             Type::Newtype { inner, .. } => self.type_reference_lifetime_inner(*inner, visited),
-            Type::Any { interface } => self.type_reference_lifetime_inner(*interface, visited),
+            Type::Dynamic { constraint } => {
+                self.type_reference_lifetime_inner(*constraint, visited)
+            }
             Type::Uninit { value } => self.type_reference_lifetime_inner(*value, visited),
             Type::Variant {
                 tag,
@@ -391,7 +393,7 @@ impl Tree {
                 self.type_reference_contains_borrowed_refs(field.ty)
             }),
             Type::Newtype { inner, .. } => self.type_reference_contains_borrowed_refs(*inner),
-            Type::Any { interface } => self.type_reference_contains_borrowed_refs(*interface),
+            Type::Dynamic { constraint } => self.type_reference_contains_borrowed_refs(*constraint),
             Type::Uninit { value } => self.type_reference_contains_borrowed_refs(*value),
             Type::Variant {
                 tag,
@@ -446,7 +448,7 @@ impl Tree {
             | Instruction::NewSliceUninit { destination, .. }
             | Instruction::FrameAllocZeroed { destination, .. }
             | Instruction::FrameAllocUninit { destination, .. }
-            | Instruction::CallableEnvironment { destination } => {
+            | Instruction::ClosureEnvironment { destination } => {
                 if let Some(value) = destination.value() {
                     places.set_value(value, *destination);
                 }
@@ -728,13 +730,13 @@ impl Tree {
         self.metadata.dispatch.vtable(ty)
     }
 
-    /// Return the interface table for a concrete type and interface when present.
-    pub fn interface_table_for_type(
+    /// Return the dynamic table for a concrete type and constraint when present.
+    pub fn dynamic_table_for_type(
         &self,
         concrete: LocalNodeId<Type>,
-        interface: LocalNodeId<Type>,
-    ) -> Option<&InterfaceTable> {
-        self.metadata.dispatch.interface_table(concrete, interface)
+        constraint: LocalNodeId<Type>,
+    ) -> Option<&DynamicTable> {
+        self.metadata.dispatch.dynamic_table(concrete, constraint)
     }
 
     /// Return the display name for a type when present.
@@ -742,9 +744,9 @@ impl Tree {
         self.metadata.types.display_name(ty)
     }
 
-    /// Return the interface shape when present.
-    pub fn interface_shape(&self, interface: LocalNodeId<Type>) -> Option<&InterfaceShape> {
-        self.metadata.dispatch.interface_shape(interface)
+    /// Return the dynamic shape when present.
+    pub fn dynamic_shape(&self, constraint: LocalNodeId<Type>) -> Option<&DynamicShape> {
+        self.metadata.dispatch.dynamic_shape(constraint)
     }
 
     /// Return the usize type id.
@@ -802,14 +804,14 @@ impl Tree {
         panic!("missing float type id for width {width}");
     }
 
-    /// Return the canonical storage type for the hidden environment field in one callable.
-    pub fn callable_environment_type(&self) -> LocalNodeId<Type> {
+    /// Return the canonical storage type for the hidden environment field in one closure.
+    pub fn closure_environment_type(&self) -> LocalNodeId<Type> {
         let void_type = if let Some(type_id) = self.metadata.types.void_type() {
             type_id
         } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
             type_id
         } else {
-            panic!("missing void type for callable environment storage");
+            panic!("missing void type for closure environment storage");
         };
 
         if let Some(type_id) = self.find_type_by_predicate(|ty| {
@@ -820,7 +822,7 @@ impl Tree {
                     space: Space::Local,
                     access: Access::Mutable,
                     pointee,
-                    nullability: crate::Nullability::Null,
+                    nullability: Nullability::Null,
                     ..
                 } if *pointee == TypeReference::Type(void_type)
             )
@@ -828,11 +830,11 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing canonical callable environment storage type");
+        panic!("missing canonical closure environment storage type");
     }
 
-    /// Ensure the canonical storage type for the hidden environment field in one callable.
-    pub fn ensure_callable_environment_type(&mut self) -> LocalNodeId<Type> {
+    /// Ensure the canonical storage type for the hidden environment field in one closure.
+    pub fn ensure_closure_environment_type(&mut self) -> LocalNodeId<Type> {
         // reuse or create the canonical void type
         let void_type = if let Some(type_id) = self.metadata.types.void_type() {
             type_id

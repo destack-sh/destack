@@ -318,7 +318,7 @@ impl Parser {
         let ty = match name {
             "slice" => self.parse_slice_type()?,
             "atomic" => self.parse_atomic_type()?,
-            "any" => self.parse_any_type()?,
+            "dynamic" => self.parse_dynamic_type()?,
             "uninit" => self.parse_uninit_type()?,
             "variant" => self.parse_variant_type()?,
             _ => {
@@ -364,15 +364,15 @@ impl Parser {
         })
     }
 
-    /// Parse an erased interface value type.
-    fn parse_any_type(&mut self) -> ParseResult<Type> {
+    /// Parse a dynamic erased value type.
+    fn parse_dynamic_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let interface = self.parse_type()?;
+        let constraint = self.parse_type()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Any {
-            interface: interface.into(),
+        Ok(Type::Dynamic {
+            constraint: constraint.into(),
         })
     }
 
@@ -447,7 +447,7 @@ impl Parser {
 
         if self.eat_token_maybe(TokenType::FatArrow) {
             let signature = self.parse_function_signature(parameters)?;
-            let environment = self.tree.ensure_callable_environment_type();
+            let environment = self.tree.ensure_closure_environment_type();
 
             return Ok(Type::Closure {
                 signature: signature.into(),

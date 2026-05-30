@@ -206,7 +206,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_call_continuation(target, unwind.as_ref(), f)
         }
 
-        Terminator::CallClass {
+        Terminator::CallVirtual {
             receiver,
             call,
             class,
@@ -218,7 +218,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("call.class"),
+                    token("call.virtual"),
                     space(),
                     receiver,
                     token(","),
@@ -234,10 +234,10 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_call_continuation(target, unwind.as_ref(), f)
         }
 
-        Terminator::CallInterface {
+        Terminator::CallDynamic {
             receiver,
             call,
-            interface,
+            constraint,
             slot,
             target,
             unwind,
@@ -246,12 +246,12 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("call.interface"),
+                    token("call.dynamic"),
                     space(),
                     receiver,
                     token(","),
                     space(),
-                    interface,
+                    constraint,
                     token(","),
                     space(),
                     text(&slot.0.to_string())
@@ -358,7 +358,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_call_signature_suffix(call.signature, f)
         }
 
-        Terminator::TailCallClass {
+        Terminator::TailCallVirtual {
             receiver,
             call,
             class,
@@ -368,7 +368,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             write!(
                 f,
                 [
-                    token("tailCall.class"),
+                    token("tailCall.virtual"),
                     space(),
                     receiver,
                     token(","),
@@ -383,22 +383,22 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
             format_call_signature_suffix(call.signature, f)
         }
 
-        Terminator::TailCallInterface {
+        Terminator::TailCallDynamic {
             receiver,
             call,
-            interface,
+            constraint,
             slot,
             ..
         } => {
             write!(
                 f,
                 [
-                    token("tailCall.interface"),
+                    token("tailCall.dynamic"),
                     space(),
                     receiver,
                     token(","),
                     space(),
-                    interface,
+                    constraint,
                     token(","),
                     space(),
                     text(&slot.0.to_string())
