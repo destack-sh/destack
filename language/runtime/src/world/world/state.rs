@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::ResourceId;
 use crate::runtime::random::Random;
 use crate::runtime::time::{Clock, Instant, Nanos};
 use crate::runtime::{RuntimeId, WorkerId};
@@ -9,9 +8,7 @@ use crate::world::policy::Policy;
 use crate::world::scenario::{FaultRule, FaultRuleId, Scenario, ScenarioId};
 use crate::world::trace::{Observation, ObservationSequence, Observations, Trace};
 
-use crate::host::ResourceId;
-
-use super::{BranchId, Entity, Resource, Topology};
+use super::{BranchId, Entity, Topology};
 
 /// Shared world state used by runtimes and workers.
 #[derive(Debug)]
@@ -32,8 +29,6 @@ pub(crate) struct WorldState {
     pub(crate) next_worker_id: u64,
     /// Topology registry for world metadata.
     pub(crate) topology: Topology,
-    /// Resource records keyed by resource identifier.
-    pub(crate) resources: BTreeMap<ResourceId, Resource>,
     /// Shared world clock.
     pub(crate) clock: Clock,
     /// Shared world randomness state.
@@ -83,10 +78,10 @@ impl WorldState {
     /// Attach one resource to the world topology and resource table.
     pub(crate) fn attach_resource(
         &mut self,
-        resource: Resource,
+        resource_id: ResourceId,
         entity: Entity,
     ) -> RuntimeResult<()> {
-        let result = self.topology.attach_resource(&resource, entity);
+        let result = self.topology.attach_resource(resource_id, entity);
         result.map_err(|message| {
             RuntimeError::Internal {
                 message: message.to_string(),
@@ -94,17 +89,12 @@ impl WorldState {
             .boxed()
         })?;
 
-        self.resources.insert(resource.id, resource);
-
         Ok(())
     }
 
     /// Detach one resource from the world topology and resource table.
     pub(crate) fn detach_resource(&mut self, resource_id: ResourceId) {
-        let resource = self.resources.remove(&resource_id);
-        if let Some(resource) = resource {
-            self.topology.detach_resource(&resource);
-        }
+        self.topology.detach_resource(resource_id);
     }
 
     /// Return the current live execution coordinate.
@@ -113,24 +103,34 @@ impl WorldState {
     }
 
     /// Emit one observation at the current execution coordinate.
-    pub(crate) fn observe(&self, observation: Observation) -> ObservationSequence {
+    pub(crate) fn observe(&self, observation: Observation) -> RuntimeResult<ObservationSequence> {
         self.observations.record_at(self.moment(), observation)
     }
 
     /// Allocate one runtime identifier.
-    pub(crate) fn allocate_runtime_id(&mut self) -> RuntimeId {
+    pub(crate) fn allocate_runtime_id(&mut self) -> RuntimeResult<RuntimeId> {
         let runtime_id = self.next_runtime_id;
-        self.next_runtime_id = runtime_id + 1;
+        self.next_runtime_id = runtime_id.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "runtime identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
 
-        RuntimeId(runtime_id)
+        Ok(RuntimeId(runtime_id))
     }
 
     /// Allocate one worker identifier.
-    pub(crate) fn allocate_worker_id(&mut self) -> WorkerId {
+    pub(crate) fn allocate_worker_id(&mut self) -> RuntimeResult<WorkerId> {
         let worker_id = self.next_worker_id;
-        self.next_worker_id = worker_id + 1;
+        self.next_worker_id = worker_id.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "worker identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
 
-        WorkerId(worker_id)
+        Ok(WorkerId(worker_id))
     }
 
     /// Return the next scenario identifier without consuming it.
@@ -152,7 +152,13 @@ impl WorldState {
         }
 
         scenario.validate_with_topology(&self.topology)?;
-        self.next_scenario_id = self.next_scenario_id.max(scenario.id.0 + 1);
+        let next_scenario_id = scenario.id.0.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "scenario identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+        self.next_scenario_id = self.next_scenario_id.max(next_scenario_id);
         self.scenarios.push(scenario);
 
         Ok(())

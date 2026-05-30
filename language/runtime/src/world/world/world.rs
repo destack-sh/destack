@@ -8,7 +8,7 @@ use crate::host::binding::BindingReplayPayload;
 use crate::host::core::HostQueue;
 use crate::host::poller::{HostPollerInstance, create_host_poller};
 use crate::host::time::HostClockSource;
-use crate::host::{Host, HostError, ResourceId, compile_target_host};
+use crate::host::{Host, HostError, compile_target_host};
 use crate::runtime::random::{Random, RandomSource, RandomStreamId};
 use crate::runtime::time::{Clock, ClockSource, Instant, Nanos};
 use crate::runtime::{Runtime, WorkerId};
@@ -26,9 +26,7 @@ pub(crate) use super::topology::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
     RuntimeId,
 };
-use super::{
-    BranchId, Lineage, Mutation, ROOT_BRANCH, Resource, WorldImage, WorldMemory, WorldState,
-};
+use super::{BranchId, Lineage, Mutation, ROOT_BRANCH, WorldImage, WorldMemory, WorldState};
 
 /// One interconnected runtime world.
 pub struct World {
@@ -142,7 +140,6 @@ impl World {
             next_worker_id: 1,
             next_scenario_id: 1,
             topology,
-            resources: BTreeMap::new(),
             clock,
             random,
             trace,
@@ -157,7 +154,6 @@ impl World {
             policy: state.policy.clone(),
             scenarios: state.scenarios.clone(),
             topology: state.topology.clone(),
-            resources: state.resources.clone(),
             simulation: state.simulation.clone(),
             clock: state.clock.snapshot(),
             random: state.random.snapshot(),
@@ -169,7 +165,7 @@ impl World {
         let lineage = Arc::new(RwLock::new(Lineage::new_root(
             root_image.clock.wall,
             root_image.clock.monotonic,
-            root_trace_image.next_sequence(),
+            root_trace_image.next_sequence()?,
             root_image,
             root_trace_image,
         )));
@@ -286,11 +282,6 @@ impl World {
         self.state.topology.edges().clone()
     }
 
-    /// Snapshot world resources.
-    pub fn resources(&self) -> BTreeMap<ResourceId, Resource> {
-        self.state.resources.clone()
-    }
-
     /// Snapshot active scenario scripts.
     pub fn scenarios(&self) -> Vec<Scenario> {
         self.state.scenarios.clone()
@@ -317,7 +308,7 @@ impl World {
     }
 
     /// Emit one observation at the current world moment.
-    pub fn observe(&mut self, observation: Observation) -> ObservationSequence {
+    pub fn observe(&mut self, observation: Observation) -> RuntimeResult<ObservationSequence> {
         let moment = self.moment();
 
         self.state.observations.record_at(moment, observation)

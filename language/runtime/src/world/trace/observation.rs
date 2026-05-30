@@ -2,7 +2,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::host::{ResourceBacking, ResourceCapture, ResourceId, ResourcePortability};
+use crate::diagnostic::{RuntimeError, RuntimeResult};
+use crate::host::ResourceId;
 use crate::runtime::time::Instant;
 use crate::runtime::{RuntimeId, WorkerId};
 use crate::world::Moment;
@@ -149,13 +150,7 @@ impl Observation {
     }
 
     /// Create one resource-attached observation.
-    pub fn resource_attached(
-        worker_id: WorkerId,
-        resource_id: ResourceId,
-        backing: ResourceBacking,
-        capture: ResourceCapture,
-        portability: ResourcePortability,
-    ) -> Self {
+    pub fn resource_attached(worker_id: WorkerId, resource_id: ResourceId) -> Self {
         Self::annotations(
             ObservationCategory::Resource,
             ObservationScope::resource(worker_id, resource_id),
@@ -163,9 +158,6 @@ impl Observation {
             [
                 ("worker_id", worker_id.0.to_string()),
                 ("resource_id", resource_id.local_id.to_string()),
-                ("backing", format!("{backing:?}")),
-                ("capture", format!("{capture:?}")),
-                ("portability", format!("{portability:?}")),
             ],
         )
     }
@@ -235,8 +227,15 @@ impl ObservationSequence {
     }
 
     /// Return the next observation sequence.
-    pub const fn next(self) -> Self {
-        Self(self.0 + 1)
+    pub fn next(self) -> RuntimeResult<Self> {
+        let value = self.0.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "observation sequence space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
+
+        Ok(Self(value))
     }
 }
 
