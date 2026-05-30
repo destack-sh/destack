@@ -23,16 +23,6 @@ impl ResourceId {
     }
 }
 
-/// The ownership mode for one transferred resource.
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum ResourceOwnership {
-    /// The sender retains ownership.
-    Borrowed = 1,
-    /// The receiver takes ownership.
-    Owned = 2,
-}
-
 /// Typed resource-handle contract bound to one canonical resource kind.
 pub trait ResourceHandle: Copy {
     /// Canonical resource kind for this handle type.
