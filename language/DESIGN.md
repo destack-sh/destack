@@ -697,12 +697,12 @@ function collect<I: Iterator>(iter: I): I.Item[] {}
 Associated types are type aliases scoped to some struct, class, or interface and can also reference the owner's generic parameters.
 
 ```ds
-interface Allocator {
-    type Pointer<T>;
+interface BufferPool {
+    type Buffer<T>;
     type Error;
 
-    allocate<T>(count: usize): Result<this.Pointer<T>, this.Error>;
-    free<T>(ptr: this.Pointer<T>): void;
+    acquire<T>(count: usize): Result<this.Buffer<T>, this.Error>;
+    release<T>(buffer: this.Buffer<T>): void;
 }
 ```
 
@@ -1455,7 +1455,7 @@ However, if `PointLike.x` were mutable, this conversion of `Point` to `PointLike
 #### Index Signatures
 
 Index signatures like `{ [index: string]: string }` (as in `Record<K, V>`) are transparent (structural) constraints for object-shaped values, and can be satisfied with both fixed object shapes and types implementing `Index` for readonly / `IndexSet` for writable shapes.
-It's important to note that while Destack supports structural index signatures, the actual compiled shape must still be known, and so `Record`-like types _by themselves_  are not concrete.
+It's important to note that while Destack supports structural index signatures, the actual compiled shape must still be known, and so `Record`-like types _by themselves_  are not concrete (they're just constraints).
 
 ```ds
 interface Bag<T> {
@@ -2486,7 +2486,7 @@ Low-level code can of course still control finalization explicitly:
 `drop(value)` ends ownership immediately, `forget(value)` intentionally suppresses automatic drop, `ManuallyDrop<T>` stores a value outside automatic drop handling, and `Box<T>.leak()` turns one owned allocation into a static borrow.
 
 
-### Allocator
+### Allocation
 
 The primary way to construct new values is `new`, which initializes a `T` and produces the ownership form required by the _destination_ type - `new` is really just an initializer that calls the type's constructor.
 The required destination type decides whether that is managed storage, owned storage, inline frame storage, shared storage, or some lower-level allocation form.
@@ -2496,17 +2496,21 @@ let a: User = new User();   // managed
 let b: ^User = new User();  // owned
 ```
 
-Of course, Destack also supports direct allocation control via direct access to the underlying `Allocator`:
+In some situations it is useful to handle allocation errors directly, and for that Destack supports more direct fallible allocation accessors both via higher level `try*` methods in standard libary types (like `Array.tryReserve`) and the low level intrinsics (`MaybeUninit<T>`, `Unique<T>`, etc.) that they are built on.
+Regular managed object allocation (`new T()`) can also be made fallible via the `new?` operator, which behaves similar in spirit to the regular `?` and `await?` operators, propagating an `AllocationError` to the containing context:
 
 ```ds
-let allocator = defaultAllocator<"shared">();
-let layout = AllocationLayout { size: 4096, align: 64 };
-let page = allocator.allocate(layout)?;
-
-page satisfies Allocation<"shared">;
+try {
+    let buffer: Block[] = Array.tryWithCapacity(count)?;
+    let page = new? Page(buffer);
+    page.fill()?;
+    return page;
+} catch (e: AllocationError) {
+    return null;
+}
 ```
 
-Memory-sensitive code can also opt out of managed allocation locally:
+Code can also opt out of managed allocation locally:
 
 ```ds
 @noManaged
@@ -2578,7 +2582,6 @@ Unsafe begins when code relies on a memory invariant the compiler cannot prove:
 | access memory through a pointer | `asReference(pointer)`, `read(pointer)`, `write(pointer, value)` | no | bypasses borrow checking |
 | build typed views from raw storage | `Slice.fromRaw(pointer, length)` | no | claims a valid region of `T` |
 | raw bytes and layout tricks | `copyBytes(dst, src, n)`, `readVolatile(pointer)`, `transmute<T, U>(value)` | no | touches or reinterprets unchecked memory |
-| raw allocation lifecycle | `allocator.allocate(layout)`, `allocator.deallocate(allocation)` | allocate yes, free no | allocation returns an inert token; free must match allocator and layout |
 
 The compiler rejects unsafe operations, like raw pointer dereferencing, outside explicit `@unsafe` / `@safe` contexts.
 
