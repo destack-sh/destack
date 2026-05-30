@@ -20,7 +20,7 @@ const value = "hello";
 }
 
 #[test]
-fn test_let_string_widens_literal_type() {
+fn test_let_string_widens_binding_type() {
     let session = TestSession::single(
         r#"
 let value = "hello";
@@ -33,13 +33,13 @@ let value = "hello";
         r#"
 let value = "hello";
 /// @type.symbol symbol=value type=string
-/// @type.node source="\"hello\"" type=string
+/// @type.node source="\"hello\"" type="hello"
 "#,
     );
 }
 
 #[test]
-fn test_annotation_context_widens_string_literal() {
+fn test_annotation_context_widens_binding_type() {
     let session = TestSession::single(
         r#"
 const value: string = "hello";
@@ -52,7 +52,7 @@ const value: string = "hello";
         r#"
 const value: string = "hello";
 /// @type.symbol symbol=value type=string
-/// @type.node source="\"hello\"" type=string
+/// @type.node source="\"hello\"" type="hello"
 "#,
     );
 }

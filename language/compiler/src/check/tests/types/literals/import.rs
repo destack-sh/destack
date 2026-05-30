@@ -66,7 +66,7 @@ const copy = counter;
 === values.ds ===
 export let counter = 1;
 /// @type.symbol symbol=counter type=int32
-/// @type.node source=1 type=int32
+/// @type.node source=1 type=1
 
 === main.ds ===
 import { counter } from "./values.ds";

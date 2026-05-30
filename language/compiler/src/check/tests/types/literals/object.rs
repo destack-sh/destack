@@ -15,8 +15,8 @@ const version = config.version;
         r#"
 const config = { version: 1 };
 /// @type.symbol symbol=config type={ version: int32 }
-/// @type.node source="{ version: 1 }" type={ version: int32 }
-/// @type.node source=1 type=int32
+/// @type.node source="{ version: 1 }" type={ version: 1 }
+/// @type.node source=1 type=1
 
 const version = config.version;
 /// @type.symbol symbol=version type=int32

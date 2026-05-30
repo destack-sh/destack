@@ -14,9 +14,9 @@ let values = [1, 2];
         r#"
 let values = [1, 2];
 /// @type.symbol symbol=values type=Array<int32>
-/// @type.node source=[1, 2] type=Array<int32>
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
+/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 "#,
     );
 }
@@ -35,9 +35,9 @@ const values = [1, 2];
         r#"
 const values = [1, 2];
 /// @type.symbol symbol=values type=Array<int32>
-/// @type.node source=[1, 2] type=Array<int32>
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
+/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 "#,
     );
 }
@@ -58,6 +58,7 @@ const first = values[0];
 const values = [1, 2] as const;
 /// @type.symbol symbol=values type=readonly [1, 2]
 /// @type.node source="[1, 2] as const" type=readonly [1, 2]
+/// @type.node source=[1, 2] type=readonly [1, 2]
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -66,6 +67,7 @@ const first = values[0];
 /// @type.node source=values type=readonly [1, 2]
 /// @type.node source=values[0] type=1
 /// @resolution.name source=values target=values
+/// @resolution.member source=values[0] receiver=readonly [1, 2] kind=builtin builtin=subscript.index
 /// @type.node source=0 type=0
 "#,
     );
@@ -104,10 +106,10 @@ let values = [1, "two", true];
         r#"
 let values = [1, "two", true];
 /// @type.symbol symbol=values type=Array<int32 | string | boolean>
-/// @type.node source=[1, "two", true] type=Array<int32 | string | boolean>
-/// @type.node source=1 type=int32 | string | boolean
-/// @type.node source="\"two\"" type=int32 | string | boolean
-/// @type.node source=true type=int32 | string | boolean
+/// @type.node source=[1, "two", true] type=Array<1 | "two" | true>
+/// @type.node source=1 type=1
+/// @type.node source="\"two\"" type="two"
+/// @type.node source=true type=true
 "#,
     );
 }
@@ -126,10 +128,10 @@ const values: number[] = [1, 2, 3];
         r#"
 const values: number[] = [1, 2, 3];
 /// @type.symbol symbol=values type=Array<float64>
-/// @type.node source=[1, 2, 3] type=Array<float64>
-/// @type.node source=1 type=float64
-/// @type.node source=2 type=float64
-/// @type.node source=3 type=float64
+/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 "#,
     );
 }
@@ -148,8 +150,8 @@ const values: number[] = [1, "two"];
         r#"
 const values: number[] = [1, "two"];
 /// @type.symbol symbol=values type=Array<float64>
-/// @type.node source=[1, "two"] type=Array<float64 | string>
-/// @type.node source=1 type=float64
+/// @type.node source=[1, "two"] type=Array<1 | "two">
+/// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 
 "#,

@@ -20,7 +20,7 @@ const value = 42n;
 }
 
 #[test]
-fn test_let_bigint_widens_literal_type() {
+fn test_let_bigint_widens_binding_type() {
     let session = TestSession::single(
         r#"
 let value = 42n;
@@ -33,13 +33,13 @@ let value = 42n;
         r#"
 let value = 42n;
 /// @type.symbol symbol=value type=bigint
-/// @type.node source=42n type=bigint
+/// @type.node source=42n type=42n
 "#,
     );
 }
 
 #[test]
-fn test_annotation_context_widens_bigint_literal() {
+fn test_annotation_context_widens_binding_type() {
     let session = TestSession::single(
         r#"
 const value: bigint = 42n;
@@ -52,7 +52,7 @@ const value: bigint = 42n;
         r#"
 const value: bigint = 42n;
 /// @type.symbol symbol=value type=bigint
-/// @type.node source=42n type=bigint
+/// @type.node source=42n type=42n
 "#,
     );
 }
@@ -95,7 +95,7 @@ const value: bigint | string = 42n;
         r#"
 const value: bigint | string = 42n;
 /// @type.symbol symbol=value type=bigint | string
-/// @type.node source=42n type=bigint | string
+/// @type.node source=42n type=42n
 "#,
     );
 }

@@ -14,9 +14,9 @@ const value = { a: 1, b: "two" };
         r#"
 const value = { a: 1, b: "two" };
 /// @type.symbol symbol=value type={ a: int32; b: string }
-/// @type.node source="{ a: 1, b: \"two\" }" type={ a: int32; b: string }
-/// @type.node source=1 type=int32
-/// @type.node source="\"two\"" type=string
+/// @type.node source="{ a: 1, b: \"two\" }" type={ a: 1; b: "two" }
+/// @type.node source=1 type=1
+/// @type.node source="\"two\"" type="two"
 "#,
     );
 }
@@ -45,7 +45,7 @@ const age = 42;
 
 const person = { name, age };
 /// @type.symbol symbol=person type={ name: string; age: int32 }
-/// @type.node source="{ name, age }" type={ name: string; age: int32 }
+/// @type.node source="{ name, age }" type={ name: "Ada"; age: 42 }
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
 /// @type.node source=age type=42
@@ -88,6 +88,7 @@ const value = { a: 1, b: "two" } as const;
 const value = { a: 1, b: "two" } as const;
 /// @type.symbol symbol=value type={ readonly a: 1; readonly b: "two" }
 /// @type.node source="{ a: 1, b: \"two\" } as const" type={ readonly a: 1; readonly b: "two" }
+/// @type.node source="{ a: 1, b: \"two\" }" type={ readonly a: 1; readonly b: "two" }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 "#,
@@ -110,8 +111,8 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.symbol symbol=value type={ a: float64; b: string }
 /// @type.symbol symbol=a type=float64
 /// @type.symbol symbol=b type=string
-/// @type.node source="{ a: 1, b: 2 }" type={ a: float64; b: 2 }
-/// @type.node source=1 type=float64
+/// @type.node source="{ a: 1, b: 2 }" type={ a: 1; b: 2 }
+/// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
 "#,

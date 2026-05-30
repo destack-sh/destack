@@ -14,9 +14,9 @@ const pair: [int32; 2] = [1, 2];
         r#"
 const pair: [int32; 2] = [1, 2];
 /// @type.symbol symbol=pair type=[int32; 2]
-/// @type.node source=[1, 2] type=[int32; 2]
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
+/// @type.node source=[1, 2] type=Array<1 | 2>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 "#,
     );
 }
@@ -35,7 +35,7 @@ const pair: [int32; 2] = [1, 2, 3];
         r#"
 const pair: [int32; 2] = [1, 2, 3];
 /// @type.symbol symbol=pair type=[int32; 2]
-/// @type.node source=[1, 2, 3] type=Array<int32>
+/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
@@ -62,11 +62,11 @@ const bytes: [uint8; _] = [1, 2, 3, 4];
         r#"
 const bytes: [uint8; _] = [1, 2, 3, 4];
 /// @type.symbol symbol=bytes type=[uint8; 4]
-/// @type.node source=[1, 2, 3, 4] type=[uint8; 4]
-/// @type.node source=1 type=uint8
-/// @type.node source=2 type=uint8
-/// @type.node source=3 type=uint8
-/// @type.node source=4 type=uint8
+/// @type.node source=[1, 2, 3, 4] type=Array<1 | 2 | 3 | 4>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
+/// @type.node source=4 type=4
 "#,
     );
 }
@@ -85,11 +85,11 @@ const values: [_; _] = [1, 2, 3, 4];
         r#"
 const values: [_; _] = [1, 2, 3, 4];
 /// @type.symbol symbol=values type=[int32; 4]
-/// @type.node source=[1, 2, 3, 4] type=[int32; 4]
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @type.node source=3 type=int32
-/// @type.node source=4 type=int32
+/// @type.node source=[1, 2, 3, 4] type=Array<1 | 2 | 3 | 4>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
+/// @type.node source=4 type=4
 "#,
     );
 }
@@ -108,10 +108,10 @@ const values: [_; 3] = [1, 2, 3];
         r#"
 const values: [_; 3] = [1, 2, 3];
 /// @type.symbol symbol=values type=[int32; 3]
-/// @type.node source=[1, 2, 3] type=[int32; 3]
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @type.node source=3 type=int32
+/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 "#,
     );
 }
@@ -130,10 +130,10 @@ const values: [1 | 2 | 3; 3] = [1, 2, 3];
         r#"
 const values: [1 | 2 | 3; 3] = [1, 2, 3];
 /// @type.symbol symbol=values type=[1 | 2 | 3; 3]
-/// @type.node source=[1, 2, 3] type=[1 | 2 | 3; 3]
-/// @type.node source=1 type=1 | 2 | 3
-/// @type.node source=2 type=1 | 2 | 3
-/// @type.node source=3 type=1 | 2 | 3
+/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 "#,
     );
 }
@@ -153,10 +153,11 @@ const values = [1, 2, 3] as [_; _];
 const values = [1, 2, 3] as [_; _];
 /// @type.symbol symbol=values type=[int32; 3]
 /// @type.node source=[1, 2, 3] as [_; _] type=[int32; 3]
-/// @type.node source=[1, 2, 3] type=[int32; 3]
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @type.node source=3 type=int32
+/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @coercion.node source=[1, 2, 3] as [_; _] from=Array<1 | 2 | 3> to=[int32; 3] origin=explicit
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 "#,
     );
 }
@@ -176,13 +177,14 @@ const values = [1, 2, 3] as Slice<_>;
 const values = [1, 2, 3] as Slice<_>;
 /// @type.symbol symbol=values type=[int32]
 /// @type.node source="[1, 2, 3] as Slice<_>" type=[int32]
-/// @type.node source=[1, 2, 3] type=[int32]
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @type.node source=3 type=int32
-/// @generic.application source=Slice<_> id=Slice<int32>
+/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @coercion.node source="[1, 2, 3] as Slice<_>" from=Array<1 | 2 | 3> to=[int32] origin=explicit
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
+/// @generic.application source=Slice<_> id=collections.slice.Slice<int32>
 /// @resolution.name source=Slice target=collections.slice.Slice
-/// @generic.instance id=Slice<int32> symbol=collections.slice.Slice arguments=[int32]
+/// @generic.instance id=collections.slice.Slice<int32> symbol=collections.slice.Slice arguments=[int32]
 "#,
     );
 }
@@ -202,10 +204,11 @@ const values = [1, 2, 3] as [_];
 const values = [1, 2, 3] as [_];
 /// @type.symbol symbol=values type=[int32]
 /// @type.node source=[1, 2, 3] as [_] type=[int32]
-/// @type.node source=[1, 2, 3] type=[int32]
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @type.node source=3 type=int32
+/// @type.node source=[1, 2, 3] type=Array<1 | 2 | 3>
+/// @coercion.node source=[1, 2, 3] as [_] from=Array<1 | 2 | 3> to=[int32] origin=explicit
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+/// @type.node source=3 type=3
 "#,
     );
 }
