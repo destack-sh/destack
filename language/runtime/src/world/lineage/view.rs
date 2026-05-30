@@ -4,11 +4,11 @@ use std::sync::Arc;
 use crate::diagnostic::RuntimeResult;
 use crate::host::ResourceId;
 use crate::runtime::{RuntimeImage, WorkerId, WorkerImage};
+use crate::world::WorldImage;
 use crate::world::policy::Policy;
 use crate::world::topology::{
     Edge, EdgeDefinition, EdgeKind, Entity, EntityDefinition, EntityKind, RuntimeId,
 };
-use crate::world::{Resource, WorldImage};
 
 use super::Moment;
 
@@ -61,11 +61,6 @@ impl WorldView {
     /// Return all retained worker images visible at this moment.
     pub fn workers(&self) -> &BTreeMap<WorkerId, Arc<WorkerImage>> {
         self.image.workers()
-    }
-
-    /// Return all world resources visible at this moment.
-    pub fn resources(&self) -> &BTreeMap<ResourceId, Resource> {
-        self.image.resources()
     }
 
     /// Return all runtime ids visible at this moment.
@@ -149,11 +144,6 @@ impl WorldView {
     /// Return labels for one worker visible at this moment.
     pub fn worker_labels(&self, worker_id: WorkerId) -> RuntimeResult<&BTreeMap<String, String>> {
         self.image.worker_labels(worker_id)
-    }
-
-    /// Return one resource by id when present.
-    pub fn resource(&self, resource_id: ResourceId) -> Option<&Resource> {
-        self.image.resource(resource_id)
     }
 
     /// Return one topology entity by id when present.

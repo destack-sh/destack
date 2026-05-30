@@ -6,7 +6,6 @@ use std::fmt;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::WorkerId;
-use crate::world::Resource;
 use crate::world::policy::{Policy, Rule, RuleId};
 use crate::world::scenario::{FaultRule, FaultRuleId, Scenario, ScenarioId};
 
@@ -31,8 +30,8 @@ pub enum Mutation {
     },
     /// Add one logical world resource.
     AddResource {
-        /// Resource payload to add.
-        resource: Resource,
+        /// Resource identifier to add.
+        resource_id: ResourceId,
         /// Topology entity for this resource.
         entity: Entity,
     },
@@ -232,8 +231,11 @@ impl World {
 
                 self.remove_worker_metadata(worker_id);
             }
-            Mutation::AddResource { resource, entity } => {
-                self.state.attach_resource(resource, entity)?;
+            Mutation::AddResource {
+                resource_id,
+                entity,
+            } => {
+                self.state.attach_resource(resource_id, entity)?;
             }
             Mutation::RemoveResource { resource_id } => {
                 self.state.detach_resource(resource_id);
@@ -367,8 +369,11 @@ impl World {
     }
 
     /// Add one world resource.
-    pub fn add_resource(&mut self, resource: Resource, entity: Entity) -> RuntimeResult<()> {
-        self.mutate(Mutation::AddResource { resource, entity })
+    pub fn add_resource(&mut self, resource_id: ResourceId, entity: Entity) -> RuntimeResult<()> {
+        self.mutate(Mutation::AddResource {
+            resource_id,
+            entity,
+        })
     }
 
     /// Remove one world resource.
@@ -581,9 +586,6 @@ impl World {
 
     /// Remove worker metadata from world-owned registries.
     pub(super) fn remove_worker_metadata(&mut self, worker_id: WorkerId) {
-        self.state
-            .resources
-            .retain(|resource_id, _| resource_id.worker_id != worker_id);
         self.state.topology.remove_worker(worker_id);
     }
 }

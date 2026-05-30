@@ -9,8 +9,8 @@ use super::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
     EntityRole, RuntimeId, TopologyError, TopologyResult,
 };
+use crate::host::ResourceId;
 use crate::runtime::WorkerId;
-use crate::world::Resource;
 use crate::world::scenario::{base_edge_faults, base_entity_faults};
 
 /// World topology graph and kind catalog.
@@ -106,6 +106,23 @@ impl Topology {
     pub(crate) fn runtime_owns_worker(&self, runtime_id: RuntimeId, worker_id: WorkerId) -> bool {
         self.edges
             .contains_key(&runtime_id.owns_worker_edge_id(worker_id))
+    }
+
+    /// Return whether one resource entity exists.
+    pub(crate) fn has_resource(&self, resource_id: ResourceId) -> bool {
+        self.entities
+            .contains_key(resource_entity_id(resource_id).as_str())
+            && self
+                .edges
+                .contains_key(&resource_ownership_edge_id(resource_id))
+    }
+
+    /// Return the number of attached resource entities.
+    pub(crate) fn resource_count(&self) -> usize {
+        self.edges
+            .values()
+            .filter(|edge| edge.kind.as_str() == EdgeKind::WORKER_OWNS_RESOURCE)
+            .count()
     }
 
     /// Add one runtime metadata record.
@@ -237,24 +254,25 @@ impl Topology {
     /// Attach one resource entity to one worker.
     pub(crate) fn attach_resource(
         &mut self,
-        resource: &Resource,
+        resource_id: ResourceId,
         entity: Entity,
     ) -> TopologyResult<()> {
+        let resource_entity_id = resource_entity_id(resource_id);
+        let ownership_edge_id = resource_ownership_edge_id(resource_id);
+        let worker_entity_id = resource_id.worker_id.entity_id();
+
         // reject mismatched resource metadata
-        if entity.id != resource.entity_id() {
+        if entity.id != resource_entity_id {
             return Err(TopologyError::EntityIdMismatch {
-                expected: resource.entity_id(),
+                expected: resource_entity_id,
                 actual: entity.id,
             });
         }
 
         // reject missing owning worker
-        if !self
-            .entities
-            .contains_key(&resource.id.worker_id.entity_id())
-        {
+        if !self.entities.contains_key(&worker_entity_id) {
             return Err(TopologyError::UnknownEntity {
-                entity_id: resource.id.worker_id.entity_id(),
+                entity_id: worker_entity_id,
                 role: EntityRole::Source,
             });
         }
@@ -264,10 +282,10 @@ impl Topology {
 
         // ownership edge
         let edge = Edge::new(
-            resource.ownership_edge_id(),
+            ownership_edge_id,
             EdgeKind::WORKER_OWNS_RESOURCE,
-            resource.id.worker_id.entity_id(),
-            resource.entity_id(),
+            worker_entity_id,
+            resource_entity_id,
         );
         self.upsert_edge(edge)?;
 
@@ -275,8 +293,8 @@ impl Topology {
     }
 
     /// Detach one resource metadata record from one worker.
-    pub(crate) fn detach_resource(&mut self, resource: &Resource) -> bool {
-        self.remove_entity(resource.entity_id().as_str())
+    pub(crate) fn detach_resource(&mut self, resource_id: ResourceId) -> bool {
+        self.remove_entity(resource_entity_id(resource_id).as_str())
     }
 
     /// Define one entity kind in topology.
@@ -455,7 +473,7 @@ impl Topology {
         self.edges
             .retain(|_, edge| edge.from.as_str() != entity_id && edge.to.as_str() != entity_id);
 
-        before_edge_count.saturating_sub(self.edges.len())
+        before_edge_count - self.edges.len()
     }
 
     /// Return the owning runtime id for one worker entity.
@@ -475,4 +493,20 @@ impl Topology {
                 && edge.from.as_str() == runtime_entity_id
         })
     }
+}
+
+/// Return the canonical topology entity id for one resource.
+pub(crate) fn resource_entity_id(resource_id: ResourceId) -> EntityId {
+    EntityId::new(format!(
+        "runtime.resource.{}.{}",
+        resource_id.worker_id.0, resource_id.local_id
+    ))
+}
+
+/// Return the canonical ownership edge id for one resource.
+pub(crate) fn resource_ownership_edge_id(resource_id: ResourceId) -> EdgeId {
+    EdgeId::new(format!(
+        "runtime.worker.{}.owns.resource.{}",
+        resource_id.worker_id.0, resource_id.local_id
+    ))
 }

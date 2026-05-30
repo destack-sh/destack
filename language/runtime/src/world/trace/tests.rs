@@ -6,14 +6,14 @@ use crate::host::binding::{
     BindingAffinity, BindingDescriptor, BindingDeterminism, BindingId, BindingProvider,
     BindingReplayKind, BindingReplayPayload,
 };
-use crate::host::{HostError, ResourceBacking, ResourceCapture, ResourceId, ResourcePortability};
+use crate::host::{HostError, ResourceId};
 use crate::runtime::WorkerId;
 use crate::runtime::engine::Entry;
 use crate::runtime::random::RandomStreamId;
 use crate::runtime::time::Instant;
 use crate::world::policy::{ActionSelector, Rule};
 use crate::world::trace::{EntropySubject, EntrypointCall, Trace, TraceError, TraceHeader};
-use crate::world::{Entity, EntityDefinition, EntityKind, Mutation, Resource, RuntimeId};
+use crate::world::{Entity, EntityDefinition, EntityKind, Mutation, RuntimeId};
 use destack_vm as vm;
 use destack_workspace::Environment;
 use destack_workspace::config::ExecutionMode;
@@ -357,12 +357,7 @@ fn test_record_replay_mutations() {
             entity: Entity::new("test.program.entity.1", "test.program.entity"),
         },
         Mutation::AddResource {
-            resource: Resource::new(
-                ResourceId::new(WorkerId(42), 7),
-                ResourceBacking::Virtual,
-                ResourceCapture::State,
-                ResourcePortability::Portable,
-            ),
+            resource_id: ResourceId::new(WorkerId(42), 7),
             entity: Entity::new("runtime.resource.42.7", EntityKind::from("host.time.timer"))
                 .named("test-timer"),
         },

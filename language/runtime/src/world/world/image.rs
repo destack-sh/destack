@@ -16,7 +16,7 @@ use crate::world::policy::Policy;
 use crate::world::scenario::Scenario;
 use crate::world::topology::{Edge, Entity, RuntimeId, Topology};
 
-use super::{Resource, World};
+use super::World;
 
 /// World image payload for one materialized world restore point.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,8 +33,6 @@ pub struct WorldImage {
     pub(crate) scenarios: Vec<Scenario>,
     /// Captured topology metadata graph.
     pub(crate) topology: Topology,
-    /// Captured world resources.
-    pub(crate) resources: BTreeMap<ResourceId, Resource>,
     /// Captured simulation state.
     pub(crate) simulation: Simulation,
     /// Captured world clock state.
@@ -63,11 +61,6 @@ impl WorldImage {
         &self.workers
     }
 
-    /// Return the captured world resources keyed by resource id.
-    pub fn resources(&self) -> &BTreeMap<ResourceId, Resource> {
-        &self.resources
-    }
-
     /// Return the number of captured runtimes.
     pub fn runtime_count(&self) -> usize {
         self.runtimes.len()
@@ -80,7 +73,7 @@ impl WorldImage {
 
     /// Return the number of captured logical resources.
     pub fn resource_count(&self) -> usize {
-        self.resources.len()
+        self.topology.resource_count()
     }
 
     /// Return the number of captured topology entities.
@@ -105,7 +98,7 @@ impl WorldImage {
 
     /// Report whether one resource exists in this image.
     pub fn has_resource(&self, resource_id: ResourceId) -> bool {
-        self.resources.contains_key(&resource_id)
+        self.topology.has_resource(resource_id)
     }
 
     /// Report whether one topology entity exists in this image.
@@ -197,11 +190,6 @@ impl WorldImage {
             .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())
     }
 
-    /// Return one logical world resource by id.
-    pub fn resource(&self, resource_id: ResourceId) -> Option<&Resource> {
-        self.resources.get(&resource_id)
-    }
-
     /// Return one topology entity by id.
     pub fn entity(&self, entity_id: &str) -> Option<&Entity> {
         self.topology.entities().get(entity_id)
@@ -235,7 +223,6 @@ impl World {
                 policy: self.state.policy.clone(),
                 scenarios: self.state.scenarios.clone(),
                 topology: self.state.topology.clone(),
-                resources: self.state.resources.clone(),
                 simulation: self.state.simulation.clone(),
                 clock: self.state.clock.snapshot(),
                 random: self.state.random.snapshot(),
@@ -264,7 +251,6 @@ impl World {
             self.state.policy = image.policy.clone();
             self.state.scenarios = image.scenarios.clone();
             self.state.topology = image.topology.clone();
-            self.state.resources = image.resources.clone();
             self.state.simulation = image.simulation.clone();
 
             self.state.clock.restore_snapshot(&image.clock);

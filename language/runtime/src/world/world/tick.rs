@@ -57,7 +57,7 @@ impl World {
             {
                 runtime.tick_shared_gc()?;
 
-                world.observe(Observation::scheduler_progressed());
+                world.observe(Observation::scheduler_progressed())?;
 
                 return Ok(TickResult::Progress);
             }
@@ -66,7 +66,7 @@ impl World {
         // shared heap work also counts as scheduler progress
         for runtime in self.runtimes.values_mut() {
             if runtime.tick_shared_gc()? {
-                world.observe(Observation::scheduler_progressed());
+                world.observe(Observation::scheduler_progressed())?;
 
                 return Ok(TickResult::Progress);
             }
@@ -74,7 +74,7 @@ impl World {
 
         // ingress without immediate worker execution still advanced scheduler state
         if ingress_progressed {
-            world.observe(Observation::scheduler_progressed());
+            world.observe(Observation::scheduler_progressed())?;
 
             return Ok(TickResult::Progress);
         }
@@ -107,7 +107,7 @@ impl World {
 
         // record the resolved world time jump
         let deadline = world.trace.resolve_time_advance(deadline)?;
-        world.clock.advance_runtime_to(deadline);
+        world.clock.advance_runtime_to(deadline)?;
         world.trace.record_time_advance(deadline)?;
 
         // collect due worker timers across runtimes
@@ -137,7 +137,7 @@ impl World {
             }
         }
 
-        world.observe(Observation::scheduler_advanced_time(deadline));
+        world.observe(Observation::scheduler_advanced_time(deadline))?;
 
         Ok(TickResult::TimeAdvanced)
     }
