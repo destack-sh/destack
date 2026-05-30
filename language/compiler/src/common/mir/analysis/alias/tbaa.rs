@@ -85,7 +85,7 @@ impl TypeBasedAA {
             // this is conservative, matching C's char* can alias anything rule
             (TypeKey::Int { .. }, TypeKey::Int { .. }) => false,
 
-            // different float widths may alias
+            // different float formats may alias
             (TypeKey::Float { .. }, TypeKey::Float { .. }) => false,
 
             // struct vs tuple cannot alias
@@ -271,7 +271,9 @@ mod tests {
             width: 32,
             signed: true,
         };
-        let float_ty = TypeKey::Float { width: 64 };
+        let float_ty = TypeKey::Float {
+            format: mir::FloatType::Float64,
+        };
 
         let loc_int = make_loc_with_type(0, int_ty);
         let loc_float = make_loc_with_type(1, float_ty);
@@ -470,7 +472,9 @@ mod tests {
             lifetime: mir::Lifetime::empty(),
             space: mir::Space::Local,
             access: mir::Access::Mutable,
-            pointee: Box::new(TypeKey::Float { width: 64 }),
+            pointee: Box::new(TypeKey::Float {
+                format: mir::FloatType::Float64,
+            }),
             nullability: mir::Nullability::None,
         };
 
@@ -496,7 +500,9 @@ mod tests {
             copy: mir::Copy::Yes,
         };
         let array_f64 = TypeKey::Array {
-            element: Box::new(TypeKey::Float { width: 64 }),
+            element: Box::new(TypeKey::Float {
+                format: mir::FloatType::Float64,
+            }),
             length: 10,
             copy: mir::Copy::Yes,
         };

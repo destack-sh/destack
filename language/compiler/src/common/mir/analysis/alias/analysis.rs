@@ -364,7 +364,9 @@ b0:
             width: 32,
             signed: true,
         };
-        let float_ty = TypeKey::Float { width: 64 };
+        let float_ty = TypeKey::Float {
+            format: mir::FloatType::Float64,
+        };
 
         // basic analysis already proves these don't alias (different allocations)
         // but TBAA would also prove it if they were the same allocation

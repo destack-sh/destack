@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
 
 use super::{
@@ -17,7 +18,7 @@ pub enum ConstantType {
     /// Integer constant type.
     Int { width: u16, signed: bool },
     /// Floating point constant type.
-    Float { width: u8 },
+    Float { format: mir::FloatType },
     /// Character constant type.
     Char,
 }
@@ -50,7 +51,7 @@ pub fn constant_type_of(constant: &mir::Constant) -> ConstantType {
             width: *width,
             signed: false,
         },
-        mir::Constant::Float { width, .. } => ConstantType::Float { width: *width },
+        mir::Constant::Float { format, .. } => ConstantType::Float { format: *format },
         mir::Constant::Char { .. } => ConstantType::Char,
     }
 }
@@ -79,9 +80,7 @@ pub fn constant_matches_type(
             };
             width == ty_width && signed == ty_signed
         }
-        (ConstantType::Float { width }, mir::Type::Float(float_type)) => {
-            u16::from(width) == float_type.width()
-        }
+        (ConstantType::Float { format }, mir::Type::Float(float_type)) => format == *float_type,
         (
             ConstantType::Char,
             mir::Type::Int {
@@ -273,8 +272,9 @@ pub fn constant_is_float_zero(constant: Option<&mir::Constant>) -> bool {
 /// Check if a float constant is one.
 pub fn constant_is_float_one(constant: Option<&mir::Constant>) -> bool {
     match constant {
-        Some(mir::Constant::Float { bits, width: 32 }) => f32::from_bits(*bits as u32) == 1.0,
-        Some(mir::Constant::Float { bits, width: 64 }) => f64::from_bits(*bits) == 1.0,
+        Some(mir::Constant::Float { bits, format }) => {
+            float_from_bits(format.format(), *bits) == 1.0
+        }
         _ => false,
     }
 }
@@ -293,9 +293,9 @@ pub fn constant_zero_like(template: &mir::Constant) -> mir::Constant {
             value: 0,
             width: *width,
         },
-        mir::Constant::Float { width, .. } => mir::Constant::Float {
+        mir::Constant::Float { format, .. } => mir::Constant::Float {
             bits: 0,
-            width: *width,
+            format: *format,
         },
         mir::Constant::Boolean { .. } => mir::Constant::Boolean { value: false },
         _ => mir::Constant::Int {
@@ -314,7 +314,7 @@ pub fn constant_zero_for_type(ty: &mir::Type, pointer_width_bits: u16) -> Option
         return match ty {
             mir::Type::Float(float_type) => Some(mir::Constant::Float {
                 bits: 0,
-                width: float_type.width() as u8,
+                format: *float_type,
             }),
             mir::Type::Boolean => Some(mir::Constant::Boolean { value: false }),
             _ => None,
@@ -639,29 +639,20 @@ fn encode_int_constant(value: u128, width: u16, is_signed: bool) -> mir::Constan
 }
 
 /// Decode a float constant into f64 payload and width.
-fn decode_float_constant(constant: &mir::Constant) -> Option<(f64, u8)> {
+fn decode_float_constant(constant: &mir::Constant) -> Option<(f64, mir::FloatType)> {
     match constant {
-        mir::Constant::Float { bits, width: 32 } => {
-            let value = f32::from_bits(*bits as u32) as f64;
-            Some((value, 32))
+        mir::Constant::Float { bits, format } => {
+            Some((float_from_bits(format.format(), *bits), *format))
         }
-        mir::Constant::Float { bits, width: 64 } => Some((f64::from_bits(*bits), 64)),
         _ => None,
     }
 }
 
 /// Encode a float payload back into a constant.
-fn encode_float_constant(value: f64, width: u8) -> mir::Constant {
-    if width == 32 {
-        mir::Constant::Float {
-            bits: (value as f32).to_bits() as u64,
-            width,
-        }
-    } else {
-        mir::Constant::Float {
-            bits: value.to_bits(),
-            width,
-        }
+fn encode_float_constant(value: f64, format: mir::FloatType) -> mir::Constant {
+    mir::Constant::Float {
+        bits: float_to_bits(format.format(), value),
+        format,
     }
 }
 
@@ -794,7 +785,7 @@ fn constant_tree_from_zero(
         }),
         mir::Type::Float(float_type) => ConstantTree::Scalar(mir::Constant::Float {
             bits: 0,
-            width: float_type.width() as u8,
+            format: *float_type,
         }),
         mir::Type::Newtype { inner, .. } => {
             constant_tree_from_zero(*inner, tree, max_aggregate_elements, pointer_width_bits)
@@ -1044,13 +1035,13 @@ pub fn fold_binary(
         (
             mir::Constant::Float {
                 bits: lb,
-                width: lw,
+                format: left_format,
             },
             mir::Constant::Float {
                 bits: rb,
-                width: rw,
+                format: right_format,
             },
-        ) if lw == rw => fold_binary_float(*lb, *rb, *lw, operator),
+        ) if left_format == right_format => fold_binary_float(*lb, *rb, *left_format, operator),
 
         (mir::Constant::Boolean { value: l }, mir::Constant::Boolean { value: r }) => {
             fold_binary_bool(*l, *r, operator)
@@ -1161,21 +1152,22 @@ pub fn fold_binary_unsigned(
 pub fn fold_binary_float(
     left_bits: u64,
     right_bits: u64,
-    width: u8,
+    format: mir::FloatType,
     operator: mir::BinaryOperator,
 ) -> Option<mir::Constant> {
     let result_float = |value: f64| {
         Some(mir::Constant::Float {
-            bits: value.to_bits(),
-            width,
+            bits: float_to_bits(format.format(), value),
+            format,
         })
     };
     let result_bool = |value: bool| Some(mir::Constant::Boolean { value });
 
-    if width == 32 {
+    if format == mir::FloatType::Float32 {
         let left = f32::from_bits(left_bits as u32);
         let right = f32::from_bits(right_bits as u32);
-        match operator {
+
+        return match operator {
             mir::BinaryOperator::FloatAdd => result_float((left + right) as f64),
             mir::BinaryOperator::FloatSubtract => result_float((left - right) as f64),
             mir::BinaryOperator::FloatMultiply => result_float((left * right) as f64),
@@ -1187,25 +1179,24 @@ pub fn fold_binary_float(
             mir::BinaryOperator::FloatGreaterThan => result_bool(left > right),
             mir::BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
             _ => None,
-        }
-    } else if width == 64 {
-        let left = f64::from_bits(left_bits);
-        let right = f64::from_bits(right_bits);
-        match operator {
-            mir::BinaryOperator::FloatAdd => result_float(left + right),
-            mir::BinaryOperator::FloatSubtract => result_float(left - right),
-            mir::BinaryOperator::FloatMultiply => result_float(left * right),
-            mir::BinaryOperator::FloatDivide => result_float(left / right),
-            mir::BinaryOperator::FloatEqual => result_bool(left == right),
-            mir::BinaryOperator::FloatNotEqual => result_bool(left != right),
-            mir::BinaryOperator::FloatLessThan => result_bool(left < right),
-            mir::BinaryOperator::FloatLessEqual => result_bool(left <= right),
-            mir::BinaryOperator::FloatGreaterThan => result_bool(left > right),
-            mir::BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
-            _ => None,
-        }
-    } else {
-        None
+        };
+    }
+
+    let left = float_from_bits(format.format(), left_bits);
+    let right = float_from_bits(format.format(), right_bits);
+
+    match operator {
+        mir::BinaryOperator::FloatAdd => result_float(left + right),
+        mir::BinaryOperator::FloatSubtract => result_float(left - right),
+        mir::BinaryOperator::FloatMultiply => result_float(left * right),
+        mir::BinaryOperator::FloatDivide => result_float(left / right),
+        mir::BinaryOperator::FloatEqual => result_bool(left == right),
+        mir::BinaryOperator::FloatNotEqual => result_bool(left != right),
+        mir::BinaryOperator::FloatLessThan => result_bool(left < right),
+        mir::BinaryOperator::FloatLessEqual => result_bool(left <= right),
+        mir::BinaryOperator::FloatGreaterThan => result_bool(left > right),
+        mir::BinaryOperator::FloatGreaterEqual => result_bool(left >= right),
+        _ => None,
     }
 }
 
@@ -1323,18 +1314,8 @@ pub fn fold_cast(
 
             // convert float to signed int
             match value {
-                mir::Constant::Float { bits, width: 32 } => {
-                    let value = f32::from_bits(bits as u32) as f64;
-                    let (min_bound, max_bound) = integer_bounds(target_width, true)?;
-                    let converted = float_to_int_checked(value, min_bound, max_bound)?;
-                    Some(mir::Constant::Int {
-                        value: converted,
-                        width: target_width,
-                        is_signed: true,
-                    })
-                }
-                mir::Constant::Float { bits, width: 64 } => {
-                    let value = f64::from_bits(bits);
+                mir::Constant::Float { bits, format } => {
+                    let value = float_from_bits(format.format(), bits);
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
                     Some(mir::Constant::Int {
@@ -1356,17 +1337,8 @@ pub fn fold_cast(
 
             // convert float to unsigned int
             match value {
-                mir::Constant::Float { bits, width: 32 } => {
-                    let value = f32::from_bits(bits as u32) as f64;
-                    let (min_bound, max_bound) = integer_bounds(target_width, false)?;
-                    let converted = float_to_int_checked(value, min_bound, max_bound)?;
-                    Some(mir::Constant::UInt {
-                        value: converted as u128,
-                        width: target_width,
-                    })
-                }
-                mir::Constant::Float { bits, width: 64 } => {
-                    let value = f64::from_bits(bits);
+                mir::Constant::Float { bits, format } => {
+                    let value = float_from_bits(format.format(), bits);
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_checked(value, min_bound, max_bound)?;
                     Some(mir::Constant::UInt {
@@ -1387,18 +1359,8 @@ pub fn fold_cast(
 
             // convert float to signed int with saturation
             match value {
-                mir::Constant::Float { bits, width: 32 } => {
-                    let value = f32::from_bits(bits as u32) as f64;
-                    let (min_bound, max_bound) = integer_bounds(target_width, true)?;
-                    let converted = float_to_int_saturating(value, min_bound, max_bound);
-                    Some(mir::Constant::Int {
-                        value: converted,
-                        width: target_width,
-                        is_signed: true,
-                    })
-                }
-                mir::Constant::Float { bits, width: 64 } => {
-                    let value = f64::from_bits(bits);
+                mir::Constant::Float { bits, format } => {
+                    let value = float_from_bits(format.format(), bits);
                     let (min_bound, max_bound) = integer_bounds(target_width, true)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
                     Some(mir::Constant::Int {
@@ -1420,17 +1382,8 @@ pub fn fold_cast(
 
             // convert float to unsigned int with saturation
             match value {
-                mir::Constant::Float { bits, width: 32 } => {
-                    let value = f32::from_bits(bits as u32) as f64;
-                    let (min_bound, max_bound) = integer_bounds(target_width, false)?;
-                    let converted = float_to_int_saturating(value, min_bound, max_bound);
-                    Some(mir::Constant::UInt {
-                        value: converted as u128,
-                        width: target_width,
-                    })
-                }
-                mir::Constant::Float { bits, width: 64 } => {
-                    let value = f64::from_bits(bits);
+                mir::Constant::Float { bits, format } => {
+                    let value = float_from_bits(format.format(), bits);
                     let (min_bound, max_bound) = integer_bounds(target_width, false)?;
                     let converted = float_to_int_saturating(value, min_bound, max_bound);
                     Some(mir::Constant::UInt {
@@ -1443,73 +1396,69 @@ pub fn fold_cast(
         }
 
         mir::CastOperator::SignedIntToFloat => {
-            // read target float width
-            let target_width = match target_type {
-                mir::Type::Float(float_type) => float_type.width(),
-                _ => 64,
+            // read target float format
+            let target_format = match target_type {
+                mir::Type::Float(float_type) => *float_type,
+                _ => mir::FloatType::Float64,
             };
 
             // convert signed int to float
             match value {
-                mir::Constant::Int { value, .. } if target_width == 32 => {
-                    Some(mir::Constant::Float {
-                        bits: (value as f32).to_bits() as u64,
-                        width: 32,
-                    })
-                }
                 mir::Constant::Int { value, .. } => Some(mir::Constant::Float {
-                    bits: (value as f64).to_bits(),
-                    width: 64,
+                    bits: float_to_bits(target_format.format(), value as f64),
+                    format: target_format,
                 }),
                 _ => Some(value),
             }
         }
 
         mir::CastOperator::UnsignedIntToFloat => {
-            // read target float width
-            let target_width = match target_type {
-                mir::Type::Float(float_type) => float_type.width(),
-                _ => 64,
+            // read target float format
+            let target_format = match target_type {
+                mir::Type::Float(float_type) => *float_type,
+                _ => mir::FloatType::Float64,
             };
 
             // convert unsigned int to float
             match value {
-                mir::Constant::UInt { value, .. } if target_width == 32 => {
-                    Some(mir::Constant::Float {
-                        bits: (value as f32).to_bits() as u64,
-                        width: 32,
-                    })
-                }
                 mir::Constant::UInt { value, .. } => Some(mir::Constant::Float {
-                    bits: (value as f64).to_bits(),
-                    width: 64,
+                    bits: float_to_bits(target_format.format(), value as f64),
+                    format: target_format,
                 }),
                 _ => Some(value),
             }
         }
 
         mir::CastOperator::FloatTruncate => {
-            // truncate float64 to float32
+            // convert to target float format
+            let target_format = match target_type {
+                mir::Type::Float(float_type) => *float_type,
+                _ => mir::FloatType::Float32,
+            };
             match value {
-                mir::Constant::Float { bits, width: 64 } => {
-                    let f = f64::from_bits(bits);
+                mir::Constant::Float { bits, format } => {
+                    let value = float_from_bits(format.format(), bits);
                     Some(mir::Constant::Float {
-                        bits: (f as f32).to_bits() as u64,
-                        width: 32,
+                        bits: float_to_bits(target_format.format(), value),
+                        format: target_format,
                     })
                 }
                 _ => Some(value),
             }
         }
 
-        mir::CastOperator::FloatExtend => {
-            // extend float32 to float64
+        mir::CastOperator::FloatExtend | mir::CastOperator::FloatConvert => {
+            // convert to target float format
+            let target_format = match target_type {
+                mir::Type::Float(float_type) => *float_type,
+                _ => mir::FloatType::Float64,
+            };
             match value {
-                mir::Constant::Float { bits, width: 32 } => {
-                    let f = f32::from_bits(bits as u32);
+                mir::Constant::Float { bits, format } => {
+                    let value = float_from_bits(format.format(), bits);
                     Some(mir::Constant::Float {
-                        bits: (f as f64).to_bits(),
-                        width: 64,
+                        bits: float_to_bits(target_format.format(), value),
+                        format: target_format,
                     })
                 }
                 _ => Some(value),
@@ -1665,22 +1614,13 @@ pub fn fold_unary(operator: mir::UnaryOperator, value: mir::Constant) -> Option<
             is_signed: true,
         }),
 
-        (mir::UnaryOperator::FloatNegate, mir::Constant::Float { bits, width }) => {
-            if *width == 32 {
-                let f = f32::from_bits(*bits as u32);
-                Some(mir::Constant::Float {
-                    bits: ((-f).to_bits()) as u64,
-                    width: 32,
-                })
-            } else if *width == 64 {
-                let f = f64::from_bits(*bits);
-                Some(mir::Constant::Float {
-                    bits: (-f).to_bits(),
-                    width: 64,
-                })
-            } else {
-                None
-            }
+        (mir::UnaryOperator::FloatNegate, mir::Constant::Float { bits, format }) => {
+            let value = -float_from_bits(format.format(), *bits);
+
+            Some(mir::Constant::Float {
+                bits: float_to_bits(format.format(), value),
+                format: *format,
+            })
         }
 
         (mir::UnaryOperator::Not, mir::Constant::Boolean { value: v }) => {

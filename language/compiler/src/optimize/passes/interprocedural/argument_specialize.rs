@@ -146,7 +146,7 @@ enum ConstantKey {
     /// Unsigned integer constant.
     UInt { value: u128, width: u16 },
     /// Floating point constant.
-    Float { bits: u64, width: u8 },
+    Float { bits: u64, format: mir::FloatType },
     /// Character constant.
     Char(char),
 }
@@ -386,9 +386,9 @@ fn constant_key(constant: &mir::Constant) -> ConstantKey {
             value: *value,
             width: *width,
         },
-        mir::Constant::Float { bits, width } => ConstantKey::Float {
+        mir::Constant::Float { bits, format } => ConstantKey::Float {
             bits: *bits,
-            width: *width,
+            format: *format,
         },
         mir::Constant::Char { value } => ConstantKey::Char(*value),
     }
