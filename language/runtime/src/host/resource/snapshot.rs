@@ -8,42 +8,15 @@ use crate::diagnostic::HostError;
 use crate::host::resource::table::ResourceEntry;
 use crate::host::resource::{ResourceAffinity, ResourceId, ResourceKind};
 
-/// Backing model for one resource instance.
+/// Restore model for one resource kind.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ResourceBacking {
-    /// The resource is world-owned and virtualized by the runtime.
-    Virtual,
-    /// The resource is backed by one host object or handle.
-    Host,
-}
-
-/// Capture model for one resource instance.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ResourceCapture {
-    /// The resource does not currently support capture.
+pub enum ResourceRestore {
+    /// The resource does not support capture.
     None,
-    /// The resource captures full state payload.
+    /// The resource restores from serialized host state.
     State,
-    /// The resource captures one reattach recipe.
-    Recipe,
-}
-
-/// Portability model for one captured resource instance.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ResourcePortability {
-    /// The resource can only be restored locally.
-    Local,
-    /// The resource can be restored on another compatible machine.
-    Portable,
-    /// The resource needs external help or rebinding to restore.
-    External,
-}
-
-/// Typed route metadata for one resource instance.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ResourceRoute {
-    /// Resource has an adapter-defined route label.
-    Label(String),
+    /// The resource restores through an external rebinding hook.
+    Rebind,
 }
 
 /// Durable restore payload for one attached resource.
@@ -94,14 +67,8 @@ pub struct ResourceImageEntry {
     pub kind: ResourceKind,
     /// Optional diagnostic label for the resource.
     pub label: Option<String>,
-    /// Optional typed route metadata for the resource.
-    pub route: Option<ResourceRoute>,
-    /// Backing model for the resource.
-    pub backing: ResourceBacking,
-    /// Capture model for the resource.
-    pub capture: ResourceCapture,
-    /// Portability model for the resource.
-    pub portability: ResourcePortability,
+    /// Restore model for the resource.
+    pub restore: ResourceRestore,
     /// Optional execution-affinity requirement for the resource.
     pub affinity: Option<ResourceAffinity>,
     /// Optional captured restore payload.

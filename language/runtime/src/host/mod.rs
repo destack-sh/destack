@@ -38,7 +38,5 @@ pub use self::core::{
     MemoryPressureEvent, MemoryPressureLevel, PowerMode, PowerModeEvent, ThermalEvent,
     ThermalState, WallClockEvent,
 };
-pub(crate) use self::resource::{
-    ResourceBacking, ResourceCapture, ResourceId, ResourceKind, ResourcePortability, ResourceTable,
-};
+pub(crate) use self::resource::{ResourceId, ResourceKind, ResourceTable};
 pub use crate::diagnostic::{HostError, HostErrorCode, HostResult};

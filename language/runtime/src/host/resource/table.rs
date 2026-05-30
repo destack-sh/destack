@@ -11,8 +11,8 @@ use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ResourceAffinity, ResourceBacking, ResourceCapture, ResourceId, ResourceImageEntry,
-    ResourceKind, ResourcePortability, ResourceProvider, ResourceRebinders, ResourceRoute,
+    ResourceAffinity, ResourceId, ResourceImageEntry, ResourceKind, ResourceProvider,
+    ResourceRebinders, ResourceRestore,
 };
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::WorkerId;
@@ -38,14 +38,8 @@ pub struct ResourceEntry {
     pub kind: ResourceKind,
     /// Optional label for diagnostics.
     pub label: Option<String>,
-    /// Optional typed route metadata.
-    pub route: Option<ResourceRoute>,
-    /// Backing model for this resource.
-    pub backing: ResourceBacking,
-    /// Capture model for this resource.
-    pub capture: ResourceCapture,
-    /// Portability model for this resource.
-    pub portability: ResourcePortability,
+    /// Restore model for this resource.
+    pub restore: ResourceRestore,
     /// Optional execution-affinity requirement for this resource.
     pub affinity: Option<ResourceAffinity>,
     /// Optional raw handle payload.
@@ -64,10 +58,7 @@ impl fmt::Debug for ResourceEntry {
         f.debug_struct("ResourceEntry")
             .field("kind", &self.kind)
             .field("label", &self.label)
-            .field("route", &self.route)
-            .field("backing", &self.backing)
-            .field("capture", &self.capture)
-            .field("portability", &self.portability)
+            .field("restore", &self.restore)
             .field("affinity", &self.affinity)
             .field("has_raw_handle", &{
                 #[cfg(windows)]
@@ -92,10 +83,7 @@ impl ResourceEntry {
         Self {
             kind,
             label: None,
-            route: None,
-            backing: ResourceBacking::Host,
-            capture: ResourceCapture::None,
-            portability: ResourcePortability::Local,
+            restore: ResourceRestore::None,
             affinity: None,
             #[cfg(windows)]
             raw_handle: None,
@@ -116,15 +104,9 @@ impl ResourceEntry {
         self
     }
 
-    /// Attach one explicit resource capture model.
-    pub fn with_capture(mut self, capture: ResourceCapture) -> Self {
-        self.capture = capture;
-        self
-    }
-
-    /// Attach one explicit resource portability model.
-    pub fn with_portability(mut self, portability: ResourcePortability) -> Self {
-        self.portability = portability;
+    /// Attach one explicit restore model.
+    pub fn with_restore(mut self, restore: ResourceRestore) -> Self {
+        self.restore = restore;
         self
     }
 
@@ -180,10 +162,20 @@ impl ResourceTable {
     }
 
     /// Allocate one new resource identifier.
-    fn allocate_id(&self) -> ResourceId {
-        let local_id = self.next_sequence.fetch_add(1, Ordering::Relaxed);
+    fn allocate_id(&self) -> RuntimeResult<ResourceId> {
+        let local_id = self
+            .next_sequence
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+                value.checked_add(1)
+            })
+            .map_err(|_| {
+                RuntimeError::Internal {
+                    message: "resource identifier space exhausted".to_string(),
+                }
+                .boxed()
+            })?;
 
-        ResourceId::new(self.worker_id, local_id)
+        Ok(ResourceId::new(self.worker_id, local_id))
     }
 
     /// Register one resource provider for a resource kind.
@@ -224,18 +216,30 @@ impl ResourceTable {
     }
 
     /// Allocate and insert a resource entry.
-    pub fn insert(&self, entry: ResourceEntry) -> ResourceId {
-        let id = self.allocate_id();
+    pub fn insert(&self, entry: ResourceEntry) -> RuntimeResult<ResourceId> {
+        let id = self.allocate_id()?;
         self.entries.write().insert(id, entry);
 
-        id
+        Ok(id)
     }
 
     /// Insert a resource entry with an explicit id.
-    pub fn insert_with_id(&self, resource_id: ResourceId, entry: ResourceEntry) {
+    pub fn insert_with_id(
+        &self,
+        resource_id: ResourceId,
+        entry: ResourceEntry,
+    ) -> RuntimeResult<()> {
         self.entries.write().insert(resource_id, entry);
+        let next_sequence = resource_id.local_id.checked_add(1).ok_or_else(|| {
+            RuntimeError::Internal {
+                message: "resource identifier space exhausted".to_string(),
+            }
+            .boxed()
+        })?;
         self.next_sequence
-            .fetch_max(resource_id.local_id + 1, Ordering::Relaxed);
+            .fetch_max(next_sequence, Ordering::Relaxed);
+
+        Ok(())
     }
 
     /// Return true if the table contains the resource id.
@@ -298,8 +302,8 @@ impl ResourceTable {
         resource_id: ResourceId,
         entry: &ResourceEntry,
     ) -> RuntimeResult<ResourceImageEntry> {
-        let snapshot = match entry.capture {
-            ResourceCapture::None => {
+        let snapshot = match entry.restore {
+            ResourceRestore::None => {
                 return Err(RuntimeError::Internal {
                     message: format!(
                         "resource {} of kind {:?} does not support capture",
@@ -308,7 +312,7 @@ impl ResourceTable {
                 }
                 .boxed());
             }
-            ResourceCapture::State | ResourceCapture::Recipe => {
+            ResourceRestore::State | ResourceRestore::Rebind => {
                 let provider = entry
                     .provider
                     .clone()
@@ -339,10 +343,7 @@ impl ResourceTable {
             resource_id,
             kind: entry.kind,
             label: entry.label.clone(),
-            route: entry.route.clone(),
-            backing: entry.backing,
-            capture: entry.capture,
-            portability: entry.portability,
+            restore: entry.restore,
             affinity: entry.affinity,
             snapshot,
         })
@@ -374,9 +375,9 @@ impl ResourceTable {
 
         let mut entries = self.entries.write();
         for image_entry in &snapshot.entries {
-            let mut entry = match image_entry.capture {
-                ResourceCapture::None => ResourceEntry::new(image_entry.kind),
-                ResourceCapture::State | ResourceCapture::Recipe => {
+            let mut entry = match image_entry.restore {
+                ResourceRestore::None => ResourceEntry::new(image_entry.kind),
+                ResourceRestore::State | ResourceRestore::Rebind => {
                     let snapshot = image_entry.snapshot.as_ref().ok_or_else(|| {
                         RuntimeError::Internal {
                             message: format!(
@@ -387,7 +388,7 @@ impl ResourceTable {
                         .boxed()
                     })?;
 
-                    if image_entry.portability == ResourcePortability::External {
+                    if image_entry.restore == ResourceRestore::Rebind {
                         let rebinder = rebind_context
                             .and_then(|context| context.rebinder(image_entry.kind))
                             .ok_or_else(|| {
@@ -440,10 +441,7 @@ impl ResourceTable {
 
             entry.kind = image_entry.kind;
             entry.label = image_entry.label.clone();
-            entry.route = image_entry.route.clone();
-            entry.backing = image_entry.backing;
-            entry.capture = image_entry.capture;
-            entry.portability = image_entry.portability;
+            entry.restore = image_entry.restore;
             entry.affinity = image_entry.affinity;
             entries.insert(image_entry.resource_id, entry);
         }
@@ -487,7 +485,7 @@ mod tests {
     use super::ResourceId;
     use crate::diagnostic::HostError;
     use crate::host::resource::{
-        ResourceCapture, ResourcePortability, ResourceRebinder, ResourceRebinders, ResourceSnapshot,
+        ResourceRebinder, ResourceRebinders, ResourceRestore, ResourceSnapshot,
     };
 
     use super::{ResourceEntry, ResourceFinalizer, ResourceKind, ResourceProvider, ResourceTable};
@@ -514,7 +512,7 @@ mod tests {
 
         // insert an entry with a finalizer
         let entry = ResourceEntry::new(ResourceKind::Timer).with_finalizer(finalizer);
-        let resource_id = table.insert(entry);
+        let resource_id = table.insert(entry).expect("insert resource");
         assert!(table.contains(resource_id));
 
         // remove and finalize the entry
@@ -535,10 +533,8 @@ mod tests {
         let provider = Arc::new(TestResourceProvider);
         table.register_provider(ResourceKind::Timer, provider);
 
-        let entry = ResourceEntry::new(ResourceKind::Timer)
-            .with_capture(ResourceCapture::State)
-            .with_portability(ResourcePortability::Portable);
-        let resource_id = table.insert(entry);
+        let entry = ResourceEntry::new(ResourceKind::Timer).with_restore(ResourceRestore::State);
+        let resource_id = table.insert(entry).expect("insert resource");
 
         let snapshot = table
             .snapshot(CaptureMode::Fork)
@@ -561,10 +557,8 @@ mod tests {
         let provider = Arc::new(TestResourceProvider);
         table.register_provider(ResourceKind::Timer, provider);
 
-        let entry = ResourceEntry::new(ResourceKind::Timer)
-            .with_capture(ResourceCapture::Recipe)
-            .with_portability(ResourcePortability::External);
-        let _ = table.insert(entry);
+        let entry = ResourceEntry::new(ResourceKind::Timer).with_restore(ResourceRestore::Rebind);
+        table.insert(entry).expect("insert resource");
 
         let snapshot = table
             .snapshot(CaptureMode::Hibernate)
@@ -616,9 +610,7 @@ mod tests {
         fn restore(&self, snapshot: &ResourceSnapshot) -> Result<ResourceEntry, Box<HostError>> {
             let _ = snapshot;
 
-            Ok(ResourceEntry::new(ResourceKind::Timer)
-                .with_capture(ResourceCapture::State)
-                .with_portability(ResourcePortability::Portable))
+            Ok(ResourceEntry::new(ResourceKind::Timer).with_restore(ResourceRestore::State))
         }
     }
 
@@ -628,9 +620,7 @@ mod tests {
         fn rebind(&self, snapshot: &ResourceSnapshot) -> Result<ResourceEntry, Box<HostError>> {
             let _ = snapshot;
 
-            Ok(ResourceEntry::new(ResourceKind::Timer)
-                .with_capture(ResourceCapture::Recipe)
-                .with_portability(ResourcePortability::External))
+            Ok(ResourceEntry::new(ResourceKind::Timer).with_restore(ResourceRestore::Rebind))
         }
     }
 }
