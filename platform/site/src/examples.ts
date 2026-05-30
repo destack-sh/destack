@@ -554,7 +554,7 @@ export const packageName = manifest.name;`,
 
 export function outputFor(key: SnippetKey, target: OutputTarget): string {
     const example = compiledExample(key);
-    return example[target] ?? "";
+    return example[target] ?? terminalFor(key);
 }
 
 export function highlightedOutputFor(key: SnippetKey, target: OutputTarget): string {
@@ -568,7 +568,11 @@ export function highlightedOutputFor(key: SnippetKey, target: OutputTarget): str
         return hljs.highlight(output, { language: "javascript" }).value;
     }
 
-    return highlightDiagnostic(output);
+    if (output.startsWith("error ")) {
+        return highlightDiagnostic(output);
+    }
+
+    return highlightTerminal(output);
 }
 
 export function targetsFor(topic: ExampleTopic): readonly OutputTarget[] {
@@ -607,6 +611,37 @@ function compiled(assembly: string, javascript: string): CompiledExample {
 
 function diagnostic(value: string): CompiledExample {
     return { output: value };
+}
+
+function terminalFor(key: SnippetKey): string {
+    const path = `${key}.ds`;
+    const segments = key.split("/");
+    const name = segments[segments.length - 1];
+
+    return `$ destack check ${path}
+ok ${path}
+$ destack compile ${path} --target asm,js
+emitted ${name}.asm
+emitted ${name}.js`;
+}
+
+function highlightTerminal(output: string): string {
+    return output
+        .split("\n")
+        .map((line) => {
+            const escaped = escapeHtml(line);
+
+            if (line.startsWith("$ ")) {
+                return `<span data-k="terminal-command">${escaped}</span>`;
+            }
+
+            if (line.startsWith("ok ") || line.startsWith("emitted ")) {
+                return `<span data-k="terminal-ok">${escaped}</span>`;
+            }
+
+            return escaped;
+        })
+        .join("\n");
 }
 
 function highlightDiagnostic(output: string): string {
