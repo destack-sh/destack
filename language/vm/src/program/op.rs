@@ -51,11 +51,11 @@ pub(crate) enum Op {
     /// Materialize a function pointer.
     AddressFunction,
     /// Bind a function pointer to one word environment.
-    BindCallableWord,
+    BindClosureWord,
     /// Bind a function pointer to one frame address environment.
-    BindCallableAddress,
-    /// Load the current callable environment.
-    LoadCallableEnvironment,
+    BindClosureAddress,
+    /// Load the current closure environment.
+    LoadClosureEnvironment,
 
     // ============================================================================
     // scalar loads
@@ -734,44 +734,44 @@ pub(crate) enum Op {
     CallBranch,
     /// Call a function pointer.
     CallIndirect,
-    /// Call a callable value.
-    CallCallable,
+    /// Call a closure value.
+    CallClosure,
     /// Call a function pointer with an explicit continuation.
     CallIndirectBranch,
-    /// Call a callable value with an explicit continuation.
-    CallCallableBranch,
-    /// Call a class method through a local heap receiver.
-    CallClassHeap,
-    /// Call a class method through a shared heap receiver.
-    CallClassSharedHeap,
-    /// Call a class method through a local heap receiver with an explicit continuation.
-    CallClassHeapBranch,
-    /// Call a class method through a shared heap receiver with an explicit continuation.
-    CallClassSharedHeapBranch,
-    /// Call an interface method through a local heap receiver.
-    CallInterfaceHeap,
-    /// Call an interface method through a shared heap receiver.
-    CallInterfaceSharedHeap,
-    /// Call an interface method through a local heap receiver with an explicit continuation.
-    CallInterfaceHeapBranch,
-    /// Call an interface method through a shared heap receiver with an explicit continuation.
-    CallInterfaceSharedHeapBranch,
+    /// Call a closure value with an explicit continuation.
+    CallClosureBranch,
+    /// Call a virtual method through a local heap receiver.
+    CallVirtualHeap,
+    /// Call a virtual method through a shared heap receiver.
+    CallVirtualSharedHeap,
+    /// Call a virtual method through a local heap receiver with an explicit continuation.
+    CallVirtualHeapBranch,
+    /// Call a virtual method through a shared heap receiver with an explicit continuation.
+    CallVirtualSharedHeapBranch,
+    /// Call a dynamic method through a local heap receiver.
+    CallDynamicHeap,
+    /// Call a dynamic method through a shared heap receiver.
+    CallDynamicSharedHeap,
+    /// Call a dynamic method through a local heap receiver with an explicit continuation.
+    CallDynamicHeapBranch,
+    /// Call a dynamic method through a shared heap receiver with an explicit continuation.
+    CallDynamicSharedHeapBranch,
     /// Tail call a known function.
     TailCall,
     /// Tail call the current function.
     TailCallSelf,
     /// Tail call a function pointer.
     TailCallIndirect,
-    /// Tail call a callable value.
-    TailCallCallable,
-    /// Tail call a class method through a local heap receiver.
-    TailCallClassHeap,
-    /// Tail call a class method through a shared heap receiver.
-    TailCallClassSharedHeap,
-    /// Tail call an interface method through a local heap receiver.
-    TailCallInterfaceHeap,
-    /// Tail call an interface method through a shared heap receiver.
-    TailCallInterfaceSharedHeap,
+    /// Tail call a closure value.
+    TailCallClosure,
+    /// Tail call a virtual method through a local heap receiver.
+    TailCallVirtualHeap,
+    /// Tail call a virtual method through a shared heap receiver.
+    TailCallVirtualSharedHeap,
+    /// Tail call a dynamic method through a local heap receiver.
+    TailCallDynamicHeap,
+    /// Tail call a dynamic method through a shared heap receiver.
+    TailCallDynamicSharedHeap,
 
     // ============================================================================
     // control flow

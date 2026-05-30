@@ -436,14 +436,12 @@ impl<'a> BlockLowerer<'a> {
 
             mir::Terminator::Call { .. }
             | mir::Terminator::CallIndirect { .. }
-            | mir::Terminator::CallClass { .. }
-            | mir::Terminator::CallInterface { .. }
+            | mir::Terminator::CallVirtual { .. }
+            | mir::Terminator::CallDynamic { .. }
             | mir::Terminator::TailCall { .. }
             | mir::Terminator::TailCallIndirect { .. }
-            | mir::Terminator::TailCallClass { .. }
-            | mir::Terminator::TailCallInterface { .. } => {
-                self.lower_call_terminator(term, pool)?
-            }
+            | mir::Terminator::TailCallVirtual { .. }
+            | mir::Terminator::TailCallDynamic { .. } => self.lower_call_terminator(term, pool)?,
         })
     }
 }

@@ -3,13 +3,14 @@ use destack_engine as engine;
 use super::frame::{
     FrameValue, load_arguments, load_moved_arguments, move_values, store_parameters,
 };
-use super::{access, callable};
+use super::{access, closure};
 use crate::diagnostic::Error;
 use crate::interpreter::{Frame, Machine};
 use crate::program::{
-    ArgumentRange, Call, CallBranch, CallClass, CallClassBranch, CallIndirect, CallIndirectBranch,
-    CallInterface, CallInterfaceBranch, CallTarget, CallableBind, Function, Instruction, MoveRange,
-    Projection, TailCall, TailCallClass, TailCallIndirect, TailCallInterface, Transfer, WordLayout,
+    ArgumentRange, Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect,
+    CallIndirectBranch, CallTarget, CallVirtual, CallVirtualBranch, ClosureBind, Function,
+    Instruction, MoveRange, Projection, TailCall, TailCallDynamic, TailCallIndirect,
+    TailCallVirtual, Transfer, WordLayout,
 };
 use crate::{FunctionPointer, Word};
 use destack_mir as mir;
@@ -68,8 +69,8 @@ fn load_function_pointer(address: usize, pointer_bytes: usize) -> Result<Word, E
     Ok(WordLayout::FunctionPointer.decode(raw))
 }
 
-/// Resolve the callee for one class call.
-fn resolve_class_callee<const IS_SHARED: bool>(
+/// Resolve the callee for one virtual call.
+fn resolve_virtual_callee<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     receiver: Word,
     table_field: Projection,
@@ -82,34 +83,34 @@ fn resolve_class_callee<const IS_SHARED: bool>(
     load_dispatch_slot(machine, vtable_pointer, slot)
 }
 
-/// Resolve the callee for one interface call.
-fn resolve_interface_callee<const IS_SHARED: bool>(
+/// Resolve the callee for one dynamic call.
+fn resolve_dynamic_callee<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     receiver: Word,
     table_field: Projection,
     slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
-    // load the interface table pointer from the erased receiver
-    let interface_table_value = load_receiver_field::<IS_SHARED>(machine, receiver, table_field)?;
-    let interface_table_pointer = interface_table_value.as_static_pointer();
+    // load the dynamic table pointer from the erased receiver
+    let dynamic_table_value = load_receiver_field::<IS_SHARED>(machine, receiver, table_field)?;
+    let dynamic_table_pointer = dynamic_table_value.as_static_pointer();
 
-    load_dispatch_slot(machine, interface_table_pointer, slot)
+    load_dispatch_slot(machine, dynamic_table_pointer, slot)
 }
 
 /// Resolve the callee for one indirect call.
 fn resolve_indirect_callee<const HAS_ENVIRONMENT: bool>(
     machine: &mut Machine<'_, '_>,
-    callable: Word,
+    callee: Word,
 ) -> Result<(mir::LocalNodeId<mir::Function>, Option<Word>), Error> {
     // function pointers are already the callee payload
     if !HAS_ENVIRONMENT {
-        let function = mir::LocalNodeId::new(callable.as_function_pointer().function_index());
+        let function = mir::LocalNodeId::new(callee.as_function_pointer().function_index());
 
         return Ok((function, None));
     }
 
-    // callable values carry a function pointer and environment pointer
-    let (function, environment_value) = callable::decode_callable(machine, callable)?;
+    // closure values carry a function pointer and environment pointer
+    let (function, environment_value) = closure::decode_closure(machine, callee)?;
     let function = mir::LocalNodeId::new(function.as_function_pointer().function_index());
 
     Ok((function, Some(environment_value)))
@@ -144,26 +145,26 @@ pub(crate) fn execute_address_function(
     Ok(())
 }
 
-/// Build a callable value from one function and word environment.
-pub(crate) fn execute_bind_callable_word(
+/// Build a closure value from one function and word environment.
+pub(crate) fn execute_bind_closure_word(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest_offset = instruction.a;
     let function = instruction.b;
     let environment_offset = instruction.c;
-    let CallableBind {
-        callable_layout,
+    let ClosureBind {
+        closure_layout,
         object_layout,
         environment,
-    } = *machine.side_record::<CallableBind>(instruction.d);
+    } = *machine.side_record::<ClosureBind>(instruction.d);
 
-    // bind the function pointer and environment into a callable object
+    // bind the function pointer and environment into a closure object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
     let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
-    let value = callable::bind_callable(
+    let value = closure::bind_closure(
         machine,
-        callable_layout,
+        closure_layout,
         object_layout,
         function,
         environment,
@@ -176,26 +177,26 @@ pub(crate) fn execute_bind_callable_word(
     Ok(())
 }
 
-/// Build a callable value from one function and frame address environment.
-pub(crate) fn execute_bind_callable_address(
+/// Build a closure value from one function and frame address environment.
+pub(crate) fn execute_bind_closure_address(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest_offset = instruction.a;
     let function = instruction.b;
     let environment_offset = instruction.c;
-    let CallableBind {
-        callable_layout,
+    let ClosureBind {
+        closure_layout,
         object_layout,
         environment,
-    } = *machine.side_record::<CallableBind>(instruction.d);
+    } = *machine.side_record::<ClosureBind>(instruction.d);
 
-    // bind the function pointer and environment into a callable object
+    // bind the function pointer and environment into a closure object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
     let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
-    let value = callable::bind_callable(
+    let value = closure::bind_closure(
         machine,
-        callable_layout,
+        closure_layout,
         object_layout,
         function,
         environment,
@@ -208,8 +209,8 @@ pub(crate) fn execute_bind_callable_address(
     Ok(())
 }
 
-/// Load the callable environment pointer for the current frame.
-pub(crate) fn execute_load_callable_environment(
+/// Load the closure environment pointer for the current frame.
+pub(crate) fn execute_load_closure_environment(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -408,24 +409,24 @@ pub(crate) fn execute_call_branch(
 }
 
 /// Execute a class function call with a statically known receiver heap.
-fn execute_call_class<const IS_SHARED: bool>(
+fn execute_call_virtual<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
     // decode side records
-    let CallClass {
+    let CallVirtual {
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = machine.side::<CallClass>(instruction);
+    } = machine.side::<CallVirtual>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
-        match resolve_class_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -450,40 +451,40 @@ fn execute_call_class<const IS_SHARED: bool>(
 }
 
 /// Execute class function call through a local heap receiver.
-pub(crate) fn execute_call_class_heap(
+pub(crate) fn execute_call_virtual_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_class::<false>(machine, instruction, pc)
+    execute_call_virtual::<false>(machine, instruction, pc)
 }
 
 /// Execute class function call through a shared heap receiver.
-pub(crate) fn execute_call_class_shared_heap(
+pub(crate) fn execute_call_virtual_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_class::<true>(machine, instruction, pc)
+    execute_call_virtual::<true>(machine, instruction, pc)
 }
 
-/// Execute a class call terminator with a statically known receiver heap.
-fn execute_call_class_branch<const IS_SHARED: bool>(
+/// Execute a virtual call terminator with a statically known receiver heap.
+fn execute_call_virtual_branch<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let CallClassBranch {
+    let CallVirtualBranch {
         receiver_offset,
         table_field,
         slot,
         arguments,
         target_state,
-    } = machine.side::<CallClassBranch>(instruction);
+    } = machine.side::<CallVirtualBranch>(instruction);
 
     let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
-        match resolve_class_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -495,41 +496,41 @@ fn execute_call_class_branch<const IS_SHARED: bool>(
     call_branch_transfer(function_id, target, *arguments, None, *target_state)
 }
 
-/// Execute class call terminator through a local heap receiver.
-pub(crate) fn execute_call_class_heap_branch(
+/// Execute virtual call terminator through a local heap receiver.
+pub(crate) fn execute_call_virtual_heap_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_class_branch::<false>(machine, instruction)
+    execute_call_virtual_branch::<false>(machine, instruction)
 }
 
-/// Execute class call terminator through a shared heap receiver.
-pub(crate) fn execute_call_class_shared_heap_branch(
+/// Execute virtual call terminator through a shared heap receiver.
+pub(crate) fn execute_call_virtual_shared_heap_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_class_branch::<true>(machine, instruction)
+    execute_call_virtual_branch::<true>(machine, instruction)
 }
 
-/// Execute an interface function call with a statically known receiver heap.
-fn execute_call_interface<const IS_SHARED: bool>(
+/// Execute a dynamic function call with a statically known receiver heap.
+fn execute_call_dynamic<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
     // decode side records
-    let CallInterface {
+    let CallDynamic {
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = machine.side::<CallInterface>(instruction);
+    } = machine.side::<CallDynamic>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
-        match resolve_interface_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_dynamic_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -553,41 +554,41 @@ fn execute_call_interface<const IS_SHARED: bool>(
     )
 }
 
-/// Execute interface function call through a local heap receiver.
-pub(crate) fn execute_call_interface_heap(
+/// Execute dynamic function call through a local heap receiver.
+pub(crate) fn execute_call_dynamic_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_interface::<false>(machine, instruction, pc)
+    execute_call_dynamic::<false>(machine, instruction, pc)
 }
 
-/// Execute interface function call through a shared heap receiver.
-pub(crate) fn execute_call_interface_shared_heap(
+/// Execute dynamic function call through a shared heap receiver.
+pub(crate) fn execute_call_dynamic_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
 ) -> Transfer {
-    execute_call_interface::<true>(machine, instruction, pc)
+    execute_call_dynamic::<true>(machine, instruction, pc)
 }
 
-/// Execute an interface call terminator with a statically known receiver heap.
-fn execute_call_interface_branch<const IS_SHARED: bool>(
+/// Execute a dynamic call terminator with a statically known receiver heap.
+fn execute_call_dynamic_branch<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let CallInterfaceBranch {
+    let CallDynamicBranch {
         receiver_offset,
         table_field,
         slot,
         arguments,
         target_state,
-    } = machine.side::<CallInterfaceBranch>(instruction);
+    } = machine.side::<CallDynamicBranch>(instruction);
 
     let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
-        match resolve_interface_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_dynamic_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -599,20 +600,20 @@ fn execute_call_interface_branch<const IS_SHARED: bool>(
     call_branch_transfer(function_id, target, *arguments, None, *target_state)
 }
 
-/// Execute interface call terminator through a local heap receiver.
-pub(crate) fn execute_call_interface_heap_branch(
+/// Execute dynamic call terminator through a local heap receiver.
+pub(crate) fn execute_call_dynamic_heap_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_interface_branch::<false>(machine, instruction)
+    execute_call_dynamic_branch::<false>(machine, instruction)
 }
 
-/// Execute interface call terminator through a shared heap receiver.
-pub(crate) fn execute_call_interface_shared_heap_branch(
+/// Execute dynamic call terminator through a shared heap receiver.
+pub(crate) fn execute_call_dynamic_shared_heap_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_call_interface_branch::<true>(machine, instruction)
+    execute_call_dynamic_branch::<true>(machine, instruction)
 }
 
 /// Execute an indirect call with a statically known callee shape.
@@ -631,7 +632,7 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     // load callee value
     let callee_value = machine.load_word_at(*callee_offset);
 
-    // resolve callable function and environment
+    // resolve closure function and environment
     let (function_id, env) = match resolve_indirect_callee::<HAS_ENVIRONMENT>(machine, callee_value)
     {
         Ok(callee) => callee,
@@ -674,8 +675,8 @@ pub(crate) fn execute_call_indirect(
     execute_indirect_call::<false>(machine, instruction, pc)
 }
 
-/// Execute callable value call.
-pub(crate) fn execute_call_callable(
+/// Execute closure value call.
+pub(crate) fn execute_call_closure(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
     pc: usize,
@@ -725,8 +726,8 @@ pub(crate) fn execute_call_indirect_branch(
     execute_indirect_call_branch::<false>(machine, instruction)
 }
 
-/// Execute callable call terminator.
-pub(crate) fn execute_call_callable_branch(
+/// Execute closure call terminator.
+pub(crate) fn execute_call_closure_branch(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
@@ -936,32 +937,32 @@ pub(crate) fn execute_tail_call_indirect(
     execute_indirect_tail_call::<false>(machine, instruction)
 }
 
-/// Execute callable value tail call.
-pub(crate) fn execute_tail_call_callable(
+/// Execute closure value tail call.
+pub(crate) fn execute_tail_call_closure(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
     execute_indirect_tail_call::<true>(machine, instruction)
 }
 
-/// Execute a class tail call with a statically known receiver heap.
-fn execute_tail_call_class<const IS_SHARED: bool>(
+/// Execute a virtual tail call with a statically known receiver heap.
+fn execute_tail_call_virtual<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
-    let TailCallClass {
+    let TailCallVirtual {
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = machine.side::<TailCallClass>(instruction);
+    } = machine.side::<TailCallVirtual>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
-        match resolve_class_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_virtual_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -979,40 +980,40 @@ fn execute_tail_call_class<const IS_SHARED: bool>(
     }
 }
 
-/// Execute class tail call through a local heap receiver.
-pub(crate) fn execute_tail_call_class_heap(
+/// Execute virtual tail call through a local heap receiver.
+pub(crate) fn execute_tail_call_virtual_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_class::<false>(machine, instruction)
+    execute_tail_call_virtual::<false>(machine, instruction)
 }
 
-/// Execute class tail call through a shared heap receiver.
-pub(crate) fn execute_tail_call_class_shared_heap(
+/// Execute virtual tail call through a shared heap receiver.
+pub(crate) fn execute_tail_call_virtual_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_class::<true>(machine, instruction)
+    execute_tail_call_virtual::<true>(machine, instruction)
 }
 
-/// Execute an interface tail call with a statically known receiver heap.
-fn execute_tail_call_interface<const IS_SHARED: bool>(
+/// Execute a dynamic tail call with a statically known receiver heap.
+fn execute_tail_call_dynamic<const IS_SHARED: bool>(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
     // decode side records
-    let TailCallInterface {
+    let TailCallDynamic {
         receiver_offset,
         table_field,
         slot,
         arguments,
-    } = machine.side::<TailCallInterface>(instruction);
+    } = machine.side::<TailCallDynamic>(instruction);
 
     // resolve dynamic callee
     let receiver_value = machine.load_word_at(*receiver_offset);
     let table_field = machine.projection(*table_field);
     let function_id =
-        match resolve_interface_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
+        match resolve_dynamic_callee::<IS_SHARED>(machine, receiver_value, table_field, *slot) {
             Ok(function_id) => function_id,
             Err(error) => return Transfer::Error(error),
         };
@@ -1030,20 +1031,20 @@ fn execute_tail_call_interface<const IS_SHARED: bool>(
     }
 }
 
-/// Execute interface tail call through a local heap receiver.
-pub(crate) fn execute_tail_call_interface_heap(
+/// Execute dynamic tail call through a local heap receiver.
+pub(crate) fn execute_tail_call_dynamic_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_interface::<false>(machine, instruction)
+    execute_tail_call_dynamic::<false>(machine, instruction)
 }
 
-/// Execute interface tail call through a shared heap receiver.
-pub(crate) fn execute_tail_call_interface_shared_heap(
+/// Execute dynamic tail call through a shared heap receiver.
+pub(crate) fn execute_tail_call_dynamic_shared_heap(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Transfer {
-    execute_tail_call_interface::<true>(machine, instruction)
+    execute_tail_call_dynamic::<true>(machine, instruction)
 }
 
 /// Execute an indirect tail call with a statically known callee shape.
@@ -1061,7 +1062,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     // load callee value
     let callee_value = machine.load_word_at(*callee_offset);
 
-    // resolve callable function and environment
+    // resolve closure function and environment
     let (function_id, env) = match resolve_indirect_callee::<HAS_ENVIRONMENT>(machine, callee_value)
     {
         Ok(callee) => callee,

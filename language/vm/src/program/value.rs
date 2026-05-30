@@ -69,8 +69,8 @@ pub(crate) enum ValueLayout {
     },
     /// Function pointer value with result type.
     FunctionPointer { result: mir::LocalNodeId<mir::Type> },
-    /// Opaque callable value.
-    Callable { ty: mir::LocalNodeId<mir::Type> },
+    /// Opaque closure value.
+    Closure { ty: mir::LocalNodeId<mir::Type> },
     /// Frame byte value with concrete type.
     FrameBytes { ty: mir::LocalNodeId<mir::Type> },
     /// Fixed-size array value with element type.
@@ -320,7 +320,7 @@ pub(crate) fn value_layout_from_type(
             Some(value) => value_layout_from_type(tree, value),
             None => ValueLayout::Unknown,
         },
-        mir::Type::Any { .. } => ValueLayout::FrameBytes { ty },
+        mir::Type::Dynamic { .. } => ValueLayout::FrameBytes { ty },
         mir::Type::Atomic { value } => match value.ty() {
             Some(value) => value_layout_from_type(tree, value),
             None => ValueLayout::Unknown,
@@ -329,7 +329,7 @@ pub(crate) fn value_layout_from_type(
             Some(inner) => value_layout_from_type(tree, inner),
             None => ValueLayout::Unknown,
         },
-        mir::Type::Closure { .. } => ValueLayout::Callable { ty },
+        mir::Type::Closure { .. } => ValueLayout::Closure { ty },
         mir::Type::Tuple { .. }
         | mir::Type::Struct { .. }
         | mir::Type::Variant { .. }

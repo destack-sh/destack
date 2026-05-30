@@ -3,16 +3,16 @@ use crate::interpreter::Machine;
 use crate::{HeapReference, Word};
 use destack_mir as mir;
 
-use crate::program::{CallableEnvironment, CallableObjectLayout, WordLayout};
+use crate::program::{ClosureEnvironment, ClosureObjectLayout, WordLayout};
 
 use super::access;
 
-/// Decode one callable object into function and environment values.
-fn decode_callable_object(
+/// Decode one closure object into function and environment values.
+fn decode_closure_object(
     machine: &mut Machine<'_, '_>,
     reference: HeapReference,
 ) -> Result<(Word, Word), Error> {
-    let layout = machine.program.callable_object_layout();
+    let layout = machine.program.closure_object_layout();
     let base_address = machine.heap_address(reference, 0);
 
     // split the two pointer fields
@@ -24,7 +24,7 @@ fn decode_callable_object(
     let function_id = mir::LocalNodeId::new(function.function_index());
     let function = Word::function_pointer(function);
 
-    // decode the environment through lowered callable metadata
+    // decode the environment through lowered function metadata
     let environment_layout = machine
         .program
         .functions
@@ -36,8 +36,8 @@ fn decode_callable_object(
     Ok((function, environment_value))
 }
 
-/// Encode one word callable environment into pointer-sized bits.
-fn encode_callable_word_environment(
+/// Encode one word closure environment into pointer-sized bits.
+fn encode_closure_word_environment(
     machine: &mut Machine<'_, '_>,
     layout: WordLayout,
     environment_offset: u32,
@@ -47,8 +47,8 @@ fn encode_callable_word_environment(
     layout.encode(environment)
 }
 
-/// Encode one frame callable environment into pointer-sized bits.
-fn encode_callable_address_environment(
+/// Encode one frame closure environment into pointer-sized bits.
+fn encode_closure_address_environment(
     machine: &mut Machine<'_, '_>,
     layout: mir::LayoutId,
     byte_len: usize,
@@ -63,29 +63,29 @@ fn encode_callable_address_environment(
     Ok(environment_reference.bits() as u64)
 }
 
-/// Encode one callable environment into pointer-sized bits.
-fn encode_callable_environment(
+/// Encode one closure environment into pointer-sized bits.
+fn encode_closure_environment(
     machine: &mut Machine<'_, '_>,
-    environment: CallableEnvironment,
+    environment: ClosureEnvironment,
     environment_offset: u32,
 ) -> Result<u64, Error> {
     match environment {
-        CallableEnvironment::Word { layout } => Ok(encode_callable_word_environment(
+        ClosureEnvironment::Word { layout } => Ok(encode_closure_word_environment(
             machine,
             layout,
             environment_offset,
         )),
-        CallableEnvironment::Frame { layout, byte_len } => {
-            encode_callable_address_environment(machine, layout, byte_len, environment_offset)
+        ClosureEnvironment::Frame { layout, byte_len } => {
+            encode_closure_address_environment(machine, layout, byte_len, environment_offset)
         }
     }
 }
 
-/// Bind one function and encoded environment into a callable value.
-fn bind_callable_object(
+/// Bind one function and encoded environment into a closure value.
+fn bind_closure_object(
     machine: &mut Machine<'_, '_>,
-    callable_layout: mir::LayoutId,
-    object_layout: CallableObjectLayout,
+    closure_layout: mir::LayoutId,
+    object_layout: ClosureObjectLayout,
     function: Word,
     environment_bits: u64,
 ) -> Result<Word, Error> {
@@ -104,44 +104,41 @@ fn bind_callable_object(
     bytes[object_layout.environment_offset..environment_end]
         .copy_from_slice(&environment_bytes[..pointer_bytes]);
 
-    // allocate the callable object
-    let reference = machine.allocate_heap_layout_bytes(callable_layout, bytes)?;
+    // allocate the closure object
+    let reference = machine.allocate_heap_layout_bytes(closure_layout, bytes)?;
 
     Ok(Word::heap_reference(reference))
 }
 
-/// Bind one function and environment into a callable value.
-pub(crate) fn bind_callable(
+/// Bind one function and environment into a closure value.
+pub(crate) fn bind_closure(
     machine: &mut Machine<'_, '_>,
-    callable_layout: mir::LayoutId,
-    object_layout: CallableObjectLayout,
+    closure_layout: mir::LayoutId,
+    object_layout: ClosureObjectLayout,
     function: Word,
-    environment: CallableEnvironment,
+    environment: ClosureEnvironment,
     environment_offset: u32,
 ) -> Result<Word, Error> {
-    let environment_bits = encode_callable_environment(machine, environment, environment_offset)?;
+    let environment_bits = encode_closure_environment(machine, environment, environment_offset)?;
 
-    bind_callable_object(
+    bind_closure_object(
         machine,
-        callable_layout,
+        closure_layout,
         object_layout,
         function,
         environment_bits,
     )
 }
 
-/// Decode one callable value into function and environment values.
-pub(crate) fn decode_callable(
+/// Decode one closure value into function and environment values.
+pub(crate) fn decode_closure(
     machine: &mut Machine<'_, '_>,
     value: Word,
 ) -> Result<(Word, Word), Error> {
     let reference = value.as_heap_reference();
     if machine.is_heap_live(reference) {
-        return decode_callable_object(machine, reference);
+        return decode_closure_object(machine, reference);
     }
 
-    Err(Error::type_mismatch(
-        "callable object",
-        format!("{value:?}"),
-    ))
+    Err(Error::type_mismatch("closure object", format!("{value:?}")))
 }

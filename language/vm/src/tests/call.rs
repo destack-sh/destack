@@ -2,7 +2,7 @@ use crate::Value;
 use crate::diagnostic::{Error, ImportError};
 use crate::tests::{assert_runtime_error_matches, run_mir, run_mir_expect};
 
-/// function.address produces a callable pointer for call.indirect.
+/// function.address produces a function pointer for call.indirect.
 #[test]
 fn test_function_addr_indirect_call() {
     let mir = r#"

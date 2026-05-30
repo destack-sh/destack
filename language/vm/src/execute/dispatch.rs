@@ -100,14 +100,14 @@ macro_rules! dispatch_instruction {
             Op::AddressLocal => $step!(super::execute_address_local($machine, instruction)),
             Op::AddressStatic => $step!(super::execute_address_static($machine, instruction)),
             Op::AddressFunction => $step!(super::execute_address_function($machine, instruction)),
-            Op::BindCallableWord => {
-                $step!(super::execute_bind_callable_word($machine, instruction))
+            Op::BindClosureWord => {
+                $step!(super::execute_bind_closure_word($machine, instruction))
             }
-            Op::BindCallableAddress => {
-                $step!(super::execute_bind_callable_address($machine, instruction))
+            Op::BindClosureAddress => {
+                $step!(super::execute_bind_closure_address($machine, instruction))
             }
-            Op::LoadCallableEnvironment => {
-                $step!({ super::execute_load_callable_environment($machine, instruction) })
+            Op::LoadClosureEnvironment => {
+                $step!({ super::execute_load_closure_environment($machine, instruction) })
             }
             Op::LoadHeapU8 => $step!(super::execute_load_heap_scalar::<1, false>(
                 $machine,
@@ -912,8 +912,8 @@ macro_rules! dispatch_instruction {
                     $block_pc
                 ))
             }
-            Op::CallCallable => {
-                $transfer!(super::execute_call_callable(
+            Op::CallClosure => {
+                $transfer!(super::execute_call_closure(
                     $machine,
                     instruction,
                     $block_pc
@@ -922,42 +922,45 @@ macro_rules! dispatch_instruction {
             Op::CallIndirectBranch => {
                 $transfer!(super::execute_call_indirect_branch($machine, instruction))
             }
-            Op::CallCallableBranch => {
-                $transfer!(super::execute_call_callable_branch($machine, instruction))
+            Op::CallClosureBranch => {
+                $transfer!(super::execute_call_closure_branch($machine, instruction))
             }
-            Op::CallClassHeap => $transfer!(super::execute_call_class_heap(
+            Op::CallVirtualHeap => $transfer!(super::execute_call_virtual_heap(
                 $machine,
                 instruction,
                 $block_pc
             )),
-            Op::CallClassSharedHeap => $transfer!({
-                super::execute_call_class_shared_heap($machine, instruction, $block_pc)
+            Op::CallVirtualSharedHeap => $transfer!({
+                super::execute_call_virtual_shared_heap($machine, instruction, $block_pc)
             }),
-            Op::CallClassHeapBranch => {
-                $transfer!(super::execute_call_class_heap_branch($machine, instruction))
-            }
-            Op::CallClassSharedHeapBranch => {
-                $transfer!(super::execute_call_class_shared_heap_branch(
+            Op::CallVirtualHeapBranch => {
+                $transfer!(super::execute_call_virtual_heap_branch(
                     $machine,
                     instruction
                 ))
             }
-            Op::CallInterfaceHeap => $transfer!(super::execute_call_interface_heap(
+            Op::CallVirtualSharedHeapBranch => {
+                $transfer!(super::execute_call_virtual_shared_heap_branch(
+                    $machine,
+                    instruction
+                ))
+            }
+            Op::CallDynamicHeap => $transfer!(super::execute_call_dynamic_heap(
                 $machine,
                 instruction,
                 $block_pc
             )),
-            Op::CallInterfaceSharedHeap => $transfer!({
-                super::execute_call_interface_shared_heap($machine, instruction, $block_pc)
+            Op::CallDynamicSharedHeap => $transfer!({
+                super::execute_call_dynamic_shared_heap($machine, instruction, $block_pc)
             }),
-            Op::CallInterfaceHeapBranch => {
-                $transfer!(super::execute_call_interface_heap_branch(
+            Op::CallDynamicHeapBranch => {
+                $transfer!(super::execute_call_dynamic_heap_branch(
                     $machine,
                     instruction
                 ))
             }
-            Op::CallInterfaceSharedHeapBranch => {
-                $transfer!(super::execute_call_interface_shared_heap_branch(
+            Op::CallDynamicSharedHeapBranch => {
+                $transfer!(super::execute_call_dynamic_shared_heap_branch(
                     $machine,
                     instruction
                 ))
@@ -967,26 +970,23 @@ macro_rules! dispatch_instruction {
             Op::TailCallIndirect => {
                 $transfer!(super::execute_tail_call_indirect($machine, instruction))
             }
-            Op::TailCallCallable => {
-                $transfer!(super::execute_tail_call_callable($machine, instruction))
+            Op::TailCallClosure => {
+                $transfer!(super::execute_tail_call_closure($machine, instruction))
             }
-            Op::TailCallClassHeap => {
-                $transfer!(super::execute_tail_call_class_heap($machine, instruction))
+            Op::TailCallVirtualHeap => {
+                $transfer!(super::execute_tail_call_virtual_heap($machine, instruction))
             }
-            Op::TailCallClassSharedHeap => {
-                $transfer!(super::execute_tail_call_class_shared_heap(
+            Op::TailCallVirtualSharedHeap => {
+                $transfer!(super::execute_tail_call_virtual_shared_heap(
                     $machine,
                     instruction
                 ))
             }
-            Op::TailCallInterfaceHeap => {
-                $transfer!(super::execute_tail_call_interface_heap(
-                    $machine,
-                    instruction
-                ))
+            Op::TailCallDynamicHeap => {
+                $transfer!(super::execute_tail_call_dynamic_heap($machine, instruction))
             }
-            Op::TailCallInterfaceSharedHeap => {
-                $transfer!(super::execute_tail_call_interface_shared_heap(
+            Op::TailCallDynamicSharedHeap => {
+                $transfer!(super::execute_tail_call_dynamic_shared_heap(
                     $machine,
                     instruction
                 ))

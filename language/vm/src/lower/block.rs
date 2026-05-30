@@ -124,8 +124,8 @@ impl BlockOrder {
                 }
                 mir::Terminator::Call { target, unwind, .. }
                 | mir::Terminator::CallIndirect { target, unwind, .. }
-                | mir::Terminator::CallClass { target, unwind, .. }
-                | mir::Terminator::CallInterface { target, unwind, .. } => {
+                | mir::Terminator::CallVirtual { target, unwind, .. }
+                | mir::Terminator::CallDynamic { target, unwind, .. } => {
                     queue.push(
                         (target.block)
                             .block()
@@ -149,8 +149,8 @@ impl BlockOrder {
                 | mir::Terminator::Unreachable
                 | mir::Terminator::TailCall { .. }
                 | mir::Terminator::TailCallIndirect { .. }
-                | mir::Terminator::TailCallClass { .. }
-                | mir::Terminator::TailCallInterface { .. } => {}
+                | mir::Terminator::TailCallVirtual { .. }
+                | mir::Terminator::TailCallDynamic { .. } => {}
             }
         }
 

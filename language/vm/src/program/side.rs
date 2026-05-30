@@ -2,7 +2,7 @@ use destack_engine as engine;
 use destack_mir::{self as mir, LayoutId};
 
 use super::{
-    ArgumentRange, AtomicOrder, AtomicShape, CallTarget, CallableObjectLayout, MoveRange,
+    ArgumentRange, AtomicOrder, AtomicShape, CallTarget, ClosureObjectLayout, MoveRange,
     Projection, ProjectionId, ScalarLayout, TensorAddress, TensorConvolutionId, TensorDotId,
     TensorGatherId, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId, ValueLayout,
     WordLayout,
@@ -217,9 +217,9 @@ pub(crate) struct VectorConvert {
     pub(crate) element_count: u32,
 }
 
-/// Callable environment representation.
+/// Closure environment representation.
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum CallableEnvironment {
+pub(crate) enum ClosureEnvironment {
     /// Environment stored in one VM word.
     Word {
         /// The environment word layout.
@@ -234,15 +234,15 @@ pub(crate) enum CallableEnvironment {
     },
 }
 
-/// Callable bind operation.
+/// Closure bind operation.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CallableBind {
-    /// The callable heap layout.
-    pub(crate) callable_layout: LayoutId,
-    /// The callable object field layout.
-    pub(crate) object_layout: CallableObjectLayout,
+pub(crate) struct ClosureBind {
+    /// The closure heap layout.
+    pub(crate) closure_layout: LayoutId,
+    /// The closure object field layout.
+    pub(crate) object_layout: ClosureObjectLayout,
     /// The environment representation.
-    pub(crate) environment: CallableEnvironment,
+    pub(crate) environment: ClosureEnvironment,
 }
 
 /// Direct function call.
@@ -273,7 +273,7 @@ pub(crate) struct CallBranch {
 
 /// Class method call.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CallClass {
+pub(crate) struct CallVirtual {
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
@@ -286,7 +286,7 @@ pub(crate) struct CallClass {
 
 /// Class method call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CallClassBranch {
+pub(crate) struct CallVirtualBranch {
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
@@ -299,27 +299,27 @@ pub(crate) struct CallClassBranch {
     pub(crate) target_state: engine::FrameStateId,
 }
 
-/// Interface method call.
+/// Dynamic method call.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CallInterface {
+pub(crate) struct CallDynamic {
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
-    /// The interface table field projection.
+    /// The dynamic table field projection.
     pub(crate) table_field: ProjectionId,
-    /// The interface table slot.
+    /// The dynamic table slot.
     pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
 }
 
-/// Interface method call terminator with an explicit continuation.
+/// Dynamic method call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct CallInterfaceBranch {
+pub(crate) struct CallDynamicBranch {
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
-    /// The interface table field projection.
+    /// The dynamic table field projection.
     pub(crate) table_field: ProjectionId,
-    /// The interface table slot.
+    /// The dynamic table slot.
     pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
@@ -332,7 +332,7 @@ pub(crate) struct CallInterfaceBranch {
 pub(crate) struct CallIndirect {
     /// The callee word offset.
     pub(crate) callee_offset: u32,
-    /// The expected callable signature.
+    /// The expected closure signature.
     pub(crate) signature: mir::LocalNodeId<mir::Type>,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
@@ -343,7 +343,7 @@ pub(crate) struct CallIndirect {
 pub(crate) struct CallIndirectBranch {
     /// The callee word offset.
     pub(crate) callee_offset: u32,
-    /// The expected callable signature.
+    /// The expected closure signature.
     pub(crate) signature: mir::LocalNodeId<mir::Type>,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
@@ -1003,7 +1003,7 @@ pub(crate) struct TailCall {
 
 /// Class tail call.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct TailCallClass {
+pub(crate) struct TailCallVirtual {
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
@@ -1014,14 +1014,14 @@ pub(crate) struct TailCallClass {
     pub(crate) arguments: ArgumentRange,
 }
 
-/// Interface tail call.
+/// Dynamic tail call.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct TailCallInterface {
+pub(crate) struct TailCallDynamic {
     /// The receiver word offset.
     pub(crate) receiver_offset: u32,
-    /// The interface table field projection.
+    /// The dynamic table field projection.
     pub(crate) table_field: ProjectionId,
-    /// The interface table slot.
+    /// The dynamic table slot.
     pub(crate) slot: u32,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
@@ -1032,7 +1032,7 @@ pub(crate) struct TailCallInterface {
 pub(crate) struct TailCallIndirect {
     /// The callee word offset.
     pub(crate) callee_offset: u32,
-    /// The expected callable signature.
+    /// The expected closure signature.
     pub(crate) signature: mir::LocalNodeId<mir::Type>,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,

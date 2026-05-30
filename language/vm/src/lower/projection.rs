@@ -30,7 +30,7 @@ pub(super) fn field_projection(
 }
 
 /// Build the vtable projection for one class receiver.
-pub(super) fn vtable_projection(
+pub(super) fn virtual_table_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
@@ -49,7 +49,7 @@ pub(super) fn vtable_projection(
 }
 
 /// Build the dispatch-table projection for one dynamic receiver.
-pub(super) fn interface_table_projection(
+pub(super) fn dynamic_table_projection(
     tree: &mir::Tree,
     layouts: &HashMap<mir::LocalNodeId<mir::Type>, Layout>,
     receiver_type: Option<mir::LocalNodeId<mir::Type>>,
