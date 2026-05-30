@@ -788,6 +788,57 @@ b0(v0: float32, v1: float32):
     );
 }
 
+/// Float16 operations use the generic float VM path.
+#[test]
+fn test_float16_operations() {
+    let mir = r#"
+function f16Add(v0: float16, v1: float16): float16 {
+b0(v0: float16, v1: float16):
+    v2: float16 = float.add v0, v1
+    return v2
+}"#;
+    run_mir_expect(
+        mir,
+        "f16Add",
+        &[Value::float16(1.5), Value::float16(2.5)],
+        Value::float16(4.0),
+    );
+}
+
+/// Bfloat16 operations use the generic float VM path.
+#[test]
+fn test_bfloat16_operations() {
+    let mir = r#"
+function bf16Mul(v0: bfloat16, v1: bfloat16): bfloat16 {
+b0(v0: bfloat16, v1: bfloat16):
+    v2: bfloat16 = float.mul v0, v1
+    return v2
+}"#;
+    run_mir_expect(
+        mir,
+        "bf16Mul",
+        &[Value::bfloat16(3.0), Value::bfloat16(4.0)],
+        Value::bfloat16(12.0),
+    );
+}
+
+/// Float16 comparisons use decoded floating-point semantics.
+#[test]
+fn test_float16_compare() {
+    let mir = r#"
+function f16Lt(v0: float16, v1: float16): boolean {
+b0(v0: float16, v1: float16):
+    v2: boolean = float.lt v0, v1
+    return v2
+}"#;
+    run_mir_expect(
+        mir,
+        "f16Lt",
+        &[Value::float16(1.0), Value::float16(2.0)],
+        Value::bool(true),
+    );
+}
+
 /// Bitwise NOT on integers.
 #[test]
 fn test_bitwise_not_int() {

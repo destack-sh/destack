@@ -13,7 +13,9 @@ use super::scalar::{
 use crate::Word;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::program::{ConstValue, ConstValueId, Instruction, ScalarLayout};
+use crate::program::{
+    BinaryFloat, ConstValue, ConstValueId, Instruction, ScalarLayout, UnaryFloat,
+};
 
 const INTEGER_SIGN_BIT: u32 = 1 << 16;
 const INTEGER_WIDTH_MASK: u32 = INTEGER_SIGN_BIT - 1;
@@ -556,6 +558,23 @@ pub(crate) fn execute_ge_f64(
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_word_values(machine, instruction);
     machine.store_word_at(dest, Word::bool(left.as_f64() >= right.as_f64()));
+
+    Ok(())
+}
+
+/// Execute one generic binary float operation.
+#[inline(always)]
+pub(crate) fn execute_binary_float(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let operation = BinaryFloat::from_field(instruction.d);
+    let (format, kernel) = operation.decode()?;
+    let layout = ScalarLayout::Float { format };
+    let (dest, left, right) = load_binary_word_values(machine, instruction);
+    let result = super::scalar::binary_float(layout, kernel, left, right)?;
+
+    machine.store_word_at(dest, result);
 
     Ok(())
 }
@@ -1299,6 +1318,23 @@ pub(crate) fn execute_neg_f64(
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_word_value(machine, instruction);
     machine.store_word_at(dest, Word::float64(-argument.as_f64()));
+
+    Ok(())
+}
+
+/// Execute one generic unary float operation.
+#[inline(always)]
+pub(crate) fn execute_unary_float(
+    machine: &mut Machine<'_, '_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let operation = UnaryFloat::from_field(instruction.d);
+    let (format, kernel) = operation.decode()?;
+    let layout = ScalarLayout::Float { format };
+    let (dest, value) = load_unary_word_value(machine, instruction);
+    let result = super::scalar::unary_float(layout, kernel, value)?;
+
+    machine.store_word_at(dest, result);
 
     Ok(())
 }

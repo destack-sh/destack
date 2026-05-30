@@ -250,6 +250,8 @@ fn closure_trace_map(environment_offset: usize, environment_layout: WordLayout) 
         | WordLayout::Bool
         | WordLayout::Int { .. }
         | WordLayout::Uint { .. }
+        | WordLayout::Float16
+        | WordLayout::Bfloat16
         | WordLayout::Float32
         | WordLayout::Float64
         | WordLayout::Address

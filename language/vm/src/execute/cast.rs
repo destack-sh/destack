@@ -1,8 +1,14 @@
+use destack_core::{float_from_bits, float_to_bits};
+use destack_mir as mir;
+
 use super::scalar::{convert_integer_bytes, integer_bytes_to_word};
 use crate::Word;
 use crate::diagnostic::Error;
 use crate::interpreter::Machine;
-use crate::program::{FrameSelect, Instruction, IntegerCast, PointerCast, WideIntegerCast};
+use crate::program::{
+    FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast, PointerCast,
+    WideIntegerCast, WordLayout,
+};
 
 /// Execute one lowered word cast.
 fn execute_word_cast(
@@ -198,9 +204,10 @@ fn cast_sign_extend(argument: Word, field: u32) -> Result<Word, Error> {
 
 /// Convert one float word to a signed integer word.
 fn cast_float_to_signed_int(argument: Word, field: u32) -> Result<Word, Error> {
-    let (target_width, _) = IntegerCast::from_field(field).decode();
+    let (source, target_width) = FloatToIntCast::from_field(field).decode()?;
     let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::invalid_cast())?;
-    let converted = float_to_int_checked(argument.as_f64(), min_bound, max_bound)
+    let value = float_word_to_f64(argument, source)?;
+    let converted = float_to_int_checked(value, min_bound, max_bound)
         .ok_or(Error::bad_conversion_to_integer())?;
 
     Ok(Word::int(converted as i64, target_width))
@@ -208,9 +215,10 @@ fn cast_float_to_signed_int(argument: Word, field: u32) -> Result<Word, Error> {
 
 /// Convert one float word to an unsigned integer word.
 fn cast_float_to_unsigned_int(argument: Word, field: u32) -> Result<Word, Error> {
-    let (target_width, _) = IntegerCast::from_field(field).decode();
+    let (source, target_width) = FloatToIntCast::from_field(field).decode()?;
     let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::invalid_cast())?;
-    let converted = float_to_int_checked(argument.as_f64(), min_bound, max_bound)
+    let value = float_word_to_f64(argument, source)?;
+    let converted = float_to_int_checked(value, min_bound, max_bound)
         .ok_or(Error::bad_conversion_to_integer())?;
 
     Ok(Word::uint(converted as u64, target_width))
@@ -218,50 +226,44 @@ fn cast_float_to_unsigned_int(argument: Word, field: u32) -> Result<Word, Error>
 
 /// Saturating convert one float word to a signed integer word.
 fn cast_float_to_signed_int_saturating(argument: Word, field: u32) -> Result<Word, Error> {
-    let (target_width, _) = IntegerCast::from_field(field).decode();
+    let (source, target_width) = FloatToIntCast::from_field(field).decode()?;
     let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::invalid_cast())?;
-    let converted = float_to_int_saturating(argument.as_f64(), min_bound, max_bound);
+    let value = float_word_to_f64(argument, source)?;
+    let converted = float_to_int_saturating(value, min_bound, max_bound);
 
     Ok(Word::int(converted as i64, target_width))
 }
 
 /// Saturating convert one float word to an unsigned integer word.
 fn cast_float_to_unsigned_int_saturating(argument: Word, field: u32) -> Result<Word, Error> {
-    let (target_width, _) = IntegerCast::from_field(field).decode();
+    let (source, target_width) = FloatToIntCast::from_field(field).decode()?;
     let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::invalid_cast())?;
-    let converted = float_to_int_saturating(argument.as_f64(), min_bound, max_bound);
+    let value = float_word_to_f64(argument, source)?;
+    let converted = float_to_int_saturating(value, min_bound, max_bound);
 
     Ok(Word::uint(converted as u64, target_width))
 }
 
-/// Convert one signed integer word to a float32 word.
-fn cast_signed_int_to_f32(argument: Word, _field: u32) -> Result<Word, Error> {
-    Ok(Word::float32(argument.as_i64() as f32))
+/// Convert one signed integer word to a float word.
+fn cast_signed_int_to_float(argument: Word, field: u32) -> Result<Word, Error> {
+    let destination = IntToFloatCast::from_field(field).decode()?;
+
+    f64_to_float_word(argument.as_i64() as f64, destination)
 }
 
-/// Convert one signed integer word to a float64 word.
-fn cast_signed_int_to_f64(argument: Word, _field: u32) -> Result<Word, Error> {
-    Ok(Word::float64(argument.as_i64() as f64))
+/// Convert one unsigned integer word to a float word.
+fn cast_unsigned_int_to_float(argument: Word, field: u32) -> Result<Word, Error> {
+    let destination = IntToFloatCast::from_field(field).decode()?;
+
+    f64_to_float_word(argument.as_u64() as f64, destination)
 }
 
-/// Convert one unsigned integer word to a float32 word.
-fn cast_unsigned_int_to_f32(argument: Word, _field: u32) -> Result<Word, Error> {
-    Ok(Word::float32(argument.as_u64() as f32))
-}
+/// Convert one float word.
+fn cast_float_convert(argument: Word, field: u32) -> Result<Word, Error> {
+    let (source, destination) = FloatCast::from_field(field).decode()?;
+    let value = float_word_to_f64(argument, source)?;
 
-/// Convert one unsigned integer word to a float64 word.
-fn cast_unsigned_int_to_f64(argument: Word, _field: u32) -> Result<Word, Error> {
-    Ok(Word::float64(argument.as_u64() as f64))
-}
-
-/// Truncate one float word.
-fn cast_float_truncate(argument: Word, _field: u32) -> Result<Word, Error> {
-    Ok(Word::float32(argument.as_f64() as f32))
-}
-
-/// Extend one float word.
-fn cast_float_extend(argument: Word, _field: u32) -> Result<Word, Error> {
-    Ok(Word::float64(argument.as_f32() as f64))
+    f64_to_float_word(value, destination)
 }
 
 /// Convert one pointer word to an integer word.
@@ -340,52 +342,62 @@ pub(crate) fn execute_cast_float_to_unsigned_int_saturating(
     execute_word_cast(machine, instruction, cast_float_to_unsigned_int_saturating)
 }
 
-/// Execute signed integer to float32 word op.
-pub(crate) fn execute_cast_signed_int_to_f32(
+/// Execute signed integer to float word op.
+pub(crate) fn execute_cast_signed_int_to_float(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_signed_int_to_f32)
+    execute_word_cast(machine, instruction, cast_signed_int_to_float)
 }
 
-/// Execute signed integer to float64 word op.
-pub(crate) fn execute_cast_signed_int_to_f64(
+/// Execute unsigned integer to float word op.
+pub(crate) fn execute_cast_unsigned_int_to_float(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_signed_int_to_f64)
+    execute_word_cast(machine, instruction, cast_unsigned_int_to_float)
 }
 
-/// Execute unsigned integer to float32 word op.
-pub(crate) fn execute_cast_unsigned_int_to_f32(
+/// Execute float convert word op.
+pub(crate) fn execute_cast_float_convert(
     machine: &mut Machine<'_, '_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_unsigned_int_to_f32)
+    execute_word_cast(machine, instruction, cast_float_convert)
 }
 
-/// Execute unsigned integer to float64 word op.
-pub(crate) fn execute_cast_unsigned_int_to_f64(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_unsigned_int_to_f64)
+/// Decode one float word as f64.
+fn float_word_to_f64(word: Word, layout: WordLayout) -> Result<f64, Error> {
+    match layout {
+        WordLayout::Float16 => Ok(float_from_bits(
+            mir::FloatType::Float16.format(),
+            word.bits(),
+        )),
+        WordLayout::Bfloat16 => Ok(float_from_bits(
+            mir::FloatType::Bfloat16.format(),
+            word.bits(),
+        )),
+        WordLayout::Float32 => Ok(word.as_float32() as f64),
+        WordLayout::Float64 => Ok(word.as_float64()),
+        _ => Err(Error::invalid_cast()),
+    }
 }
 
-/// Execute float truncate word op.
-pub(crate) fn execute_cast_float_truncate(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_float_truncate)
-}
-
-/// Execute float extend word op.
-pub(crate) fn execute_cast_float_extend(
-    machine: &mut Machine<'_, '_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    execute_word_cast(machine, instruction, cast_float_extend)
+/// Encode one f64 into a float word layout.
+fn f64_to_float_word(value: f64, layout: WordLayout) -> Result<Word, Error> {
+    match layout {
+        WordLayout::Float16 => Ok(Word::from_bits(float_to_bits(
+            mir::FloatType::Float16.format(),
+            value,
+        ))),
+        WordLayout::Bfloat16 => Ok(Word::from_bits(float_to_bits(
+            mir::FloatType::Bfloat16.format(),
+            value,
+        ))),
+        WordLayout::Float32 => Ok(Word::float32(value as f32)),
+        WordLayout::Float64 => Ok(Word::float64(value)),
+        _ => Err(Error::invalid_cast()),
+    }
 }
 
 /// Execute pointer to integer word op.

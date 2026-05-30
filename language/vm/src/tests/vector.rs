@@ -95,3 +95,24 @@ b0(v0: float64):
         Value::int32(3),
     );
 }
+
+/// Vector float16 arithmetic uses the generic element kernel.
+#[test]
+fn test_vector_float16_binary() {
+    let mir = r#"
+function vectorFloat16(v0: float16, v1: float16): float16 {
+b0(v0: float16, v1: float16):
+    v2: vector<float16, 4> = vector.splat v0
+    v3: vector<float16, 4> = vector.splat v1
+    v4: vector<float16, 4> = float.add v2, v3
+    v5: int32 = 0int32
+    v6: float16 = vector.extract v4, v5
+    return v6
+}"#;
+    run_mir_expect(
+        mir,
+        "vectorFloat16",
+        &[Value::float16(1.5), Value::float16(2.5)],
+        Value::float16(4.0),
+    );
+}

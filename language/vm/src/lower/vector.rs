@@ -455,8 +455,18 @@ impl<'a> BlockLowerer<'a> {
                 },
                 2,
             ) => Some(PackedVector::U64x2),
-            (ScalarLayout::Float { width: 32 }, 4) => Some(PackedVector::F32x4),
-            (ScalarLayout::Float { width: 64 }, 2) => Some(PackedVector::F64x2),
+            (
+                ScalarLayout::Float {
+                    format: mir::FloatType::Float32,
+                },
+                4,
+            ) => Some(PackedVector::F32x4),
+            (
+                ScalarLayout::Float {
+                    format: mir::FloatType::Float64,
+                },
+                2,
+            ) => Some(PackedVector::F64x2),
             _ => None,
         })
     }
@@ -492,6 +502,12 @@ fn is_element_compare_kernel(kernel: &ElementBinaryKernel) -> bool {
             | Kernel::GtF64
             | Kernel::GeF32
             | Kernel::GeF64
+            | Kernel::EqFloat
+            | Kernel::NeFloat
+            | Kernel::LtFloat
+            | Kernel::LeFloat
+            | Kernel::GtFloat
+            | Kernel::GeFloat
     )
 }
 

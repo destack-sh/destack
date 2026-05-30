@@ -781,6 +781,7 @@ macro_rules! dispatch_instruction {
             Op::SubF64 => $step!(super::execute_sub_f64($machine, instruction)),
             Op::MulF64 => $step!(super::execute_mul_f64($machine, instruction)),
             Op::DivF64 => $step!(super::execute_div_f64($machine, instruction)),
+            Op::BinaryFloat => $step!(super::execute_binary_float($machine, instruction)),
             Op::EqF64 => $step!(super::execute_eq_f64($machine, instruction)),
             Op::NeF64 => $step!(super::execute_ne_f64($machine, instruction)),
             Op::LtF64 => $step!(super::execute_lt_f64($machine, instruction)),
@@ -837,6 +838,7 @@ macro_rules! dispatch_instruction {
             Op::NotWideInt => $step!(super::execute_not_wide_int($machine, instruction)),
             Op::NegF32 => $step!(super::execute_neg_f32($machine, instruction)),
             Op::NegF64 => $step!(super::execute_neg_f64($machine, instruction)),
+            Op::UnaryFloat => $step!(super::execute_unary_float($machine, instruction)),
             Op::NotBool => $step!(super::execute_not_bool($machine, instruction)),
             Op::VectorUnary => $step!(super::execute_vector_unary($machine, instruction)),
             Op::TensorUnary => $step!(super::execute_tensor_unary($machine, instruction)),
@@ -871,24 +873,19 @@ macro_rules! dispatch_instruction {
             Op::CastFloatToUnsignedIntSaturating => $step!({
                 super::execute_cast_float_to_unsigned_int_saturating($machine, instruction)
             }),
-            Op::CastSignedIntToF32 => {
-                $step!(super::execute_cast_signed_int_to_f32($machine, instruction))
+            Op::CastSignedIntToFloat => {
+                $step!(super::execute_cast_signed_int_to_float(
+                    $machine,
+                    instruction
+                ))
             }
-            Op::CastSignedIntToF64 => {
-                $step!(super::execute_cast_signed_int_to_f64($machine, instruction))
-            }
-            Op::CastUnsignedIntToF32 => $step!(super::execute_cast_unsigned_int_to_f32(
+            Op::CastUnsignedIntToFloat => $step!(super::execute_cast_unsigned_int_to_float(
                 $machine,
                 instruction
             )),
-            Op::CastUnsignedIntToF64 => $step!(super::execute_cast_unsigned_int_to_f64(
-                $machine,
-                instruction
-            )),
-            Op::CastFloatTruncate => {
-                $step!(super::execute_cast_float_truncate($machine, instruction))
+            Op::CastFloatConvert => {
+                $step!(super::execute_cast_float_convert($machine, instruction))
             }
-            Op::CastFloatExtend => $step!(super::execute_cast_float_extend($machine, instruction)),
             Op::CastPointerToInt => {
                 $step!(super::execute_cast_pointer_to_int($machine, instruction))
             }

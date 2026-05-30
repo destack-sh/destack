@@ -564,7 +564,7 @@ fn infer_instruction_layout(
             let input_layout = left_layout.or(right_layout);
 
             match (operator.is_float(), input_layout) {
-                (true, Some(ValueLayout::Float { width })) => Some(ValueLayout::Float { width }),
+                (true, Some(ValueLayout::Float { format })) => Some(ValueLayout::Float { format }),
                 (false, Some(ValueLayout::Bool))
                     if matches!(
                         operator,
@@ -836,9 +836,7 @@ fn layout_from_constant(constant: &mir::Constant) -> ValueLayout {
             width: *width,
             signed: false,
         },
-        mir::Constant::Float { width, .. } => ValueLayout::Float {
-            width: *width as u16,
-        },
+        mir::Constant::Float { format, .. } => ValueLayout::Float { format: *format },
         mir::Constant::Char { .. } => ValueLayout::Char,
     }
 }

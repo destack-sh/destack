@@ -635,8 +635,8 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
 
         match layout {
-            ValueLayout::Float { width } if width <= Word::BIT_LEN as u16 => {
-                Ok((value, width as u8))
+            ValueLayout::Float { format } if format.width() <= Word::BIT_LEN as u16 => {
+                Ok((value, format.width() as u8))
             }
             _ => Err(self.runtime_error(Error::type_mismatch(
                 "word-sized float",
@@ -1615,7 +1615,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
             return Ok(0);
         }
 
-        // SAFETY: raw pointer intrinsics require caller-provided valid byte ranges
+        // SAFETY: raw pointer intrinsics require caller provided valid byte ranges
         let (left_bytes, right_bytes) = unsafe {
             let left = slice::from_raw_parts(left as *const u8, len);
             let right = slice::from_raw_parts(right as *const u8, len);
@@ -1623,7 +1623,7 @@ impl<'ctx, 'iso> Machine<'ctx, 'iso> {
         };
 
         for (left, right) in left_bytes.iter().zip(right_bytes) {
-            match left.cmp(&right) {
+            match left.cmp(right) {
                 Ordering::Less => return Ok(-1),
                 Ordering::Greater => return Ok(1),
                 Ordering::Equal => continue,
