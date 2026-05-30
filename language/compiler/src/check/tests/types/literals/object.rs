@@ -11,7 +11,9 @@ const version = config.version;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked()
+            .with_reference_types()
+            .with_check_solve_stats(),
         r#"
 const config = { version: 1 };
 /// @type.symbol symbol=config type={ version: int32 }
@@ -24,6 +26,7 @@ const version = config.version;
 /// @type.node source=config.version type=int32
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.version receiver={ version: int32 } kind=field key=version
+/// @check.stats.solve variables=0 definitions=0 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

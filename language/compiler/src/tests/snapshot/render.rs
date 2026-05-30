@@ -238,6 +238,7 @@ impl<'a> SnapshotRenderer<'a> {
             "capture" => 13,
             "macro" => 14,
             "layout" => 15,
+            "check" => 16,
             _ => u8::MAX,
         }
     }
@@ -276,6 +277,8 @@ impl<'a> SnapshotRenderer<'a> {
             "variant" => 28,
             "newtype" => 29,
             "replaced_symbol" => 30,
+            "stats.solve" => 31,
+            "stats.output" => 32,
             "summary" => u8::MAX,
             _ => 128,
         }

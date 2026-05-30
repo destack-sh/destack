@@ -1,5 +1,9 @@
-use destack_artifact::{ArtifactKey, ArtifactPayload, DirChecked, DirCheckedComponent};
-use destack_source::{ComponentId, ModuleId};
+use std::iter;
+
+use destack_artifact::{
+    ArtifactKey, ArtifactPayload, ArtifactSidecar, DirChecked, DirCheckedComponent,
+};
+use destack_source::{ComponentId, FileContent, ModuleId};
 use destack_workspace::{ProfileId, ProviderContext};
 use smallvec::SmallVec;
 
@@ -64,6 +68,14 @@ impl Compiler {
         check.walk()?;
         check.prepare()?;
         check.solve()?;
+        let stats = check.stats();
+        context.emit_sidecar(ArtifactSidecar::new(
+            "metadata",
+            iter::once(("phase", "check")),
+            FileContent::Text {
+                content: stats.render_metadata(),
+            },
+        ));
 
         // commit checked DIR tables
         let (modules, diagnostics) = check.commit()?;

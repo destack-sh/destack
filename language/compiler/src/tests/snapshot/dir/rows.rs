@@ -1,3 +1,6 @@
+const CHECK_SOLVE_STATS_ROWS: &[&str] = &["check.stats.solve"];
+const CHECK_STATS_ROWS: &[&str] = &["check.stats.solve", "check.stats.output"];
+
 /// Rows to render into a DIR snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct DirRows {
@@ -35,6 +38,8 @@ pub(crate) struct DirRows {
     pub(super) macros: bool,
     /// Whether to render layout table rows.
     pub(super) layout: bool,
+    /// Metadata row prefixes to render.
+    pub(super) metadata_rows: &'static [&'static str],
     /// Whether to render summary rows.
     pub(super) summaries: bool,
 }
@@ -61,6 +66,7 @@ impl DirRows {
             capture: false,
             macros: false,
             layout: false,
+            metadata_rows: &[],
             summaries: false,
         }
     }
@@ -162,6 +168,28 @@ impl DirRows {
     pub(crate) const fn with_layout(mut self) -> Self {
         self.layout = true;
         self
+    }
+
+    /// Include check stats rows.
+    pub(crate) const fn with_check_stats(mut self) -> Self {
+        self.metadata_rows = CHECK_STATS_ROWS;
+        self
+    }
+
+    /// Include check solve stats rows.
+    pub(crate) const fn with_check_solve_stats(mut self) -> Self {
+        self.metadata_rows = CHECK_SOLVE_STATS_ROWS;
+        self
+    }
+
+    /// Return whether metadata rows are selected.
+    pub(crate) const fn includes_metadata(self) -> bool {
+        !self.metadata_rows.is_empty()
+    }
+
+    /// Return selected metadata row prefixes.
+    pub(crate) const fn metadata_rows(self) -> &'static [&'static str] {
+        self.metadata_rows
     }
 
     /// Include coercion table rows.

@@ -15,7 +15,9 @@ const text = identity("x");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked()
+            .with_reference_types()
+            .with_check_solve_stats(),
         r#"
 function identity<T>(value: T): T {
 /// @generic.slot symbol=identity.T index=0 kind=type
@@ -47,6 +49,7 @@ const text = identity("x");
 /// @type.node source="\"x\"" type="x"
 /// @generic.instance id="identity<\"x\">" symbol=identity arguments=["x"]
 /// @generic.instance id=identity<1> symbol=identity arguments=[1]
+/// @check.stats.solve variables=2 definitions=0 constraints=2 obligations=0 solutions=2 bounds=0 decisions=2
 "#);
 }
 
