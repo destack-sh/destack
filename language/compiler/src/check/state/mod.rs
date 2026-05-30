@@ -9,6 +9,7 @@ mod materialize;
 mod module;
 mod origin;
 mod solution;
+mod stats;
 mod symbol;
 mod variable;
 

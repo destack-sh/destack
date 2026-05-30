@@ -14,7 +14,10 @@ const value = add(1, 2);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_node_types().without_reference_types(),
+        DirRows::checked()
+            .with_node_types()
+            .without_reference_types()
+            .with_check_solve_stats(),
         r#"
 function add(left: int32, right: int32): int32 {
 /// @type.symbol symbol=add type=(int32, int32) => int32
@@ -36,6 +39,7 @@ const value = add(1, 2);
 /// @resolution.call source="add(1, 2)" parameters=(int32, int32) return=int32 kind=symbol target=add
 /// @type.node source=1 type=int32
 /// @type.node source=2 type=int32
+/// @check.stats.solve variables=0 definitions=0 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
 "#);
 }
 

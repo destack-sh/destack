@@ -9,6 +9,7 @@ mod global;
 mod import;
 mod layout;
 mod r#macro;
+mod metadata;
 mod module;
 mod name;
 mod relation;

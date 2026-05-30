@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -222,6 +222,27 @@ impl TestSession {
             .expect("test diagnostics should be readable");
 
         render_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
+    }
+
+    /// Return one text artifact sidecar.
+    pub(crate) fn artifact_text_sidecar(
+        &self,
+        key: ArtifactKey,
+        name: &str,
+        labels: &BTreeMap<String, String>,
+    ) -> String {
+        let sidecar = self
+            .repository
+            .artifact_sidecar(self.revision, key, name, labels)
+            .expect("test artifact sidecar should be readable")
+            .unwrap_or_else(|| panic!("test artifact sidecar `{name}` should exist"));
+
+        match sidecar.content {
+            FileContent::Text { content } => content,
+            FileContent::Binary { .. } => {
+                panic!("test artifact sidecar `{name}` should be text")
+            }
+        }
     }
 
     /// Assert bound DIR rows for one module.
@@ -507,7 +528,7 @@ impl TestSession {
         if paths.len() == 1 {
             let entry = self.module_entry(paths[0]);
             if is_checked {
-                return self.render_checked_module_snapshot(entry, rows);
+                return self.render_checked_module_snapshot(paths[0], entry, rows);
             }
 
             return self.render_module_snapshot(entry, rows);
@@ -518,7 +539,7 @@ impl TestSession {
             .map(|path| {
                 let entry = self.module_entry(path);
                 let body = if is_checked {
-                    self.render_checked_module_snapshot(entry, rows)
+                    self.render_checked_module_snapshot(path, entry, rows)
                 } else {
                     self.render_module_snapshot(entry, rows)
                 };
@@ -530,7 +551,12 @@ impl TestSession {
     }
 
     /// Render one checked module snapshot.
-    fn render_checked_module_snapshot(&self, entry: &TestModule, selection: DirRows) -> String {
+    fn render_checked_module_snapshot(
+        &self,
+        path: &str,
+        entry: &TestModule,
+        selection: DirRows,
+    ) -> String {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
         let expanded = self.dir_expanded(entry);
@@ -566,6 +592,20 @@ impl TestSession {
         }
 
         builder.add_checked(selection, &bound, &expanded, &checked);
+
+        if selection.includes_metadata() {
+            let key = self.dir_checked_component_key(path);
+
+            let metadata_rows = selection.metadata_rows();
+
+            for phase in metadata_phases(metadata_rows) {
+                let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
+                let metadata = self.artifact_text_sidecar(key, "metadata", &labels);
+                let rows = metadata_rows_for_phase(metadata_rows, phase);
+
+                builder.add_metadata(&rows, &metadata);
+            }
+        }
 
         if let Some(resolved) = &resolved {
             if selection.includes_import() {
@@ -728,6 +768,30 @@ impl TestSession {
             .get(path)
             .unwrap_or_else(|| panic!("missing test module path '{path}'"))
     }
+}
+
+/// Return selected metadata phases in stable order.
+fn metadata_phases(rows: &[&'static str]) -> Vec<&'static str> {
+    rows.iter()
+        .map(|row| metadata_phase(row))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+/// Return selected metadata rows for one phase.
+fn metadata_rows_for_phase(rows: &[&'static str], phase: &'static str) -> Vec<&'static str> {
+    rows.iter()
+        .copied()
+        .filter(|row| metadata_phase(row) == phase)
+        .collect()
+}
+
+/// Return the phase prefix for one metadata row.
+fn metadata_phase(row: &'static str) -> &'static str {
+    row.split_once('.')
+        .map(|(phase, _)| phase)
+        .unwrap_or_else(|| panic!("metadata row `{row}` must include a phase prefix"))
 }
 
 /// Assert exact multiline text equality.

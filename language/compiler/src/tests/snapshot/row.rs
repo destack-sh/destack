@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::fmt::Display;
 
 use destack_source::Span;
@@ -24,9 +25,13 @@ impl SnapshotRow {
     }
 
     /// Add one field to the row.
-    pub(crate) fn field(mut self, key: &'static str, value: impl Into<String>) -> Self {
+    pub(crate) fn field(
+        mut self,
+        key: impl Into<Cow<'static, str>>,
+        value: impl Into<String>,
+    ) -> Self {
         self.fields.push(SnapshotField {
-            key,
+            key: key.into(),
             value: value.into(),
             style: SnapshotFieldStyle::Plain,
         });
@@ -34,9 +39,13 @@ impl SnapshotRow {
     }
 
     /// Add one type field to the row.
-    pub(crate) fn type_field(mut self, key: &'static str, value: impl Into<String>) -> Self {
+    pub(crate) fn type_field(
+        mut self,
+        key: impl Into<Cow<'static, str>>,
+        value: impl Into<String>,
+    ) -> Self {
         self.fields.push(SnapshotField {
-            key,
+            key: key.into(),
             value: value.into(),
             style: SnapshotFieldStyle::Type,
         });
@@ -139,7 +148,7 @@ pub(crate) struct SnapshotTag {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SnapshotField {
     /// The field key.
-    pub(crate) key: &'static str,
+    pub(crate) key: Cow<'static, str>,
     /// The rendered field value.
     pub(crate) value: String,
     /// How to quote the rendered field value.

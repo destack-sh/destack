@@ -14,6 +14,7 @@ impl SnapshotTable for dir::StaticSegment {
             let term = self.get_static(static_id);
             let row = SnapshotRow::new(builder.anchor_symbol(symbol_id), "static", "symbol")
                 .field("symbol", builder.symbol_path_label(symbol_id))
+                .optional_field("source", builder.symbol_source(symbol_id))
                 .field("value", builder.static_term_label(term));
 
             builder.push(row);
