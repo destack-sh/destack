@@ -147,10 +147,16 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
                 visitor.visit_type(tree, value, value_ty);
             }
         }
-        Type::Any { interface } | Type::Uninit { value: interface } => {
-            if let TypeReference::Type(interface) = *interface {
-                let interface_ty = tree.get(interface);
-                visitor.visit_type(tree, interface, interface_ty);
+        Type::Dynamic { constraint } => {
+            if let TypeReference::Type(constraint) = *constraint {
+                let constraint_ty = tree.get(constraint);
+                visitor.visit_type(tree, constraint, constraint_ty);
+            }
+        }
+        Type::Uninit { value } => {
+            if let TypeReference::Type(value) = *value {
+                let value_ty = tree.get(value);
+                visitor.visit_type(tree, value, value_ty);
             }
         }
         Type::Array { element, .. } => {

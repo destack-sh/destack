@@ -50,13 +50,13 @@ impl ArgumentSlice {
 pub enum CallDispatchKind {
     /// Direct function call.
     Direct,
-    /// Class call through a class dispatch slot.
-    Class {
+    /// Virtual call through an object dispatch slot.
+    Virtual {
         /// The dispatch slot for the method.
         slot: DispatchSlot,
     },
-    /// Interface call through a dispatch table slot.
-    Interface {
+    /// Dynamic call through an erased dispatch table slot.
+    Dynamic {
         /// The dispatch slot for the method.
         slot: DispatchSlot,
     },
@@ -175,17 +175,17 @@ pub enum Instruction {
         /// The function to take the address of.
         function: FunctionReference,
     },
-    /// Bind one environment to a function and produce a callable value (callable.bind).
-    CallableBind {
-        /// The SSA value to define with the callable value.
+    /// Bind one environment to a function and produce a closure value (closure.bind).
+    ClosureBind {
+        /// The SSA value to define with the closure value.
         destination: ValueReference,
         /// The function to pair with the environment.
         function: FunctionReference,
-        /// The environment value to capture in the callable.
+        /// The environment value to capture in the closure.
         environment: ValueReference,
     },
-    /// Load the hidden environment for the current function (callable.environment).
-    CallableEnvironment {
+    /// Load the hidden environment for the current function (closure.environment).
+    ClosureEnvironment {
         /// The SSA value to define with the hidden environment pointer.
         destination: ValueReference,
     },
@@ -663,7 +663,7 @@ pub enum Instruction {
         tensor: ValueReference,
     },
 
-    // function calls (call, call.class, call.interface, call.indirect)
+    // function calls (call, call.virtual, call.dynamic, call.indirect)
     /// Call a function directly.
     Call {
         /// The SSA value to define with the return value, if any.
@@ -673,8 +673,8 @@ pub enum Instruction {
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
-    /// Call a class method through a class dispatch slot.
-    CallClass {
+    /// Call a virtual method through a virtual dispatch slot.
+    CallVirtual {
         /// The SSA value to define with the return value, if any.
         destination: Option<ValueReference>,
         /// The receiver value for dispatch.
@@ -686,14 +686,14 @@ pub enum Instruction {
         /// The shared call payload.
         call: Call<ArgumentSlice>,
     },
-    /// Call through an interface dispatch table slot.
-    CallInterface {
+    /// Call through a dynamic dispatch table slot.
+    CallDynamic {
         /// The SSA value to define with the return value, if any.
         destination: Option<ValueReference>,
         /// The receiver value for dispatch.
         receiver: ValueReference,
-        /// The interface type declaring this dispatch slot.
-        interface: TypeReference,
+        /// The dynamic constraint type declaring this dispatch slot.
+        constraint: TypeReference,
         /// The dispatch slot for the method.
         slot: DispatchSlot,
         /// The shared call payload.
@@ -703,7 +703,7 @@ pub enum Instruction {
     CallIndirect {
         /// The SSA value to define with the return value, if any.
         destination: Option<ValueReference>,
-        /// The callable value to call.
+        /// The function pointer or closure value to call.
         callee: ValueReference,
         /// The shared call payload.
         call: Call<ArgumentSlice>,
@@ -934,8 +934,8 @@ impl Instruction {
             Instruction::LocalSet { .. } => None,
             Instruction::GlobalAddr { destination, .. } => Some(*destination),
             Instruction::FunctionAddr { destination, .. } => Some(*destination),
-            Instruction::CallableBind { destination, .. } => Some(*destination),
-            Instruction::CallableEnvironment { destination, .. } => Some(*destination),
+            Instruction::ClosureBind { destination, .. } => Some(*destination),
+            Instruction::ClosureEnvironment { destination, .. } => Some(*destination),
             Instruction::Load { destination, .. } => Some(*destination),
             Instruction::Store { .. } => None,
             Instruction::FieldGet { destination, .. } => Some(*destination),
@@ -980,8 +980,8 @@ impl Instruction {
             Instruction::TensorScatter { destination, .. } => Some(*destination),
             Instruction::TensorConvert { destination, .. } => Some(*destination),
             Instruction::Call { destination, .. } => *destination,
-            Instruction::CallClass { destination, .. } => *destination,
-            Instruction::CallInterface { destination, .. } => *destination,
+            Instruction::CallVirtual { destination, .. } => *destination,
+            Instruction::CallDynamic { destination, .. } => *destination,
             Instruction::CallIndirect { destination, .. } => *destination,
             Instruction::NewZeroed { destination, .. }
             | Instruction::NewUninit { destination, .. }
@@ -1007,7 +1007,7 @@ impl Instruction {
 
     /// Get inline values used by this instruction (excludes externalized arguments).
     ///
-    /// For Call, CallClass, CallInterface, CallIndirect, and Intrinsic, the arguments are stored externally
+    /// For Call, CallVirtual, CallDynamic, CallIndirect, and Intrinsic, the arguments are stored externally
     /// in Tree's argument buffer and must be fetched via `Tree::get_arguments()`.
     pub fn uses(&self) -> SmallVec<[ValueReference; 4]> {
         match self {
@@ -1027,8 +1027,8 @@ impl Instruction {
             Instruction::LocalSet { value, .. } => smallvec![*value],
             Instruction::GlobalAddr { .. } => smallvec![],
             Instruction::FunctionAddr { .. } => smallvec![],
-            Instruction::CallableBind { environment, .. } => smallvec![*environment],
-            Instruction::CallableEnvironment { .. } => smallvec![],
+            Instruction::ClosureBind { environment, .. } => smallvec![*environment],
+            Instruction::ClosureEnvironment { .. } => smallvec![],
             Instruction::Load { pointer, .. } => smallvec![*pointer],
             Instruction::Store { pointer, value, .. } => smallvec![*pointer, *value],
             Instruction::FieldGet { aggregate, .. } => smallvec![*aggregate],
@@ -1109,8 +1109,8 @@ impl Instruction {
             } => smallvec![*operand, *indices, *updates],
             Instruction::TensorConvert { tensor, .. } => smallvec![*tensor],
             Instruction::Call { .. } => smallvec![],
-            Instruction::CallClass { receiver, .. } => smallvec![*receiver],
-            Instruction::CallInterface { receiver, .. } => smallvec![*receiver],
+            Instruction::CallVirtual { receiver, .. } => smallvec![*receiver],
+            Instruction::CallDynamic { receiver, .. } => smallvec![*receiver],
             Instruction::CallIndirect { callee, .. } => smallvec![*callee],
             Instruction::NewZeroed { .. } | Instruction::NewUninit { .. } => smallvec![],
             Instruction::NewComplete { value, .. } => smallvec![*value],
@@ -1146,7 +1146,7 @@ impl Instruction {
 
     /// Get the argument slice for instructions that have externalized arguments.
     ///
-    /// Returns `Some(ArgumentSlice)` for Struct, Tuple, Array, Call, CallClass, CallInterface,
+    /// Returns `Some(ArgumentSlice)` for Struct, Tuple, Array, Call, CallVirtual, CallDynamic,
     /// CallIndirect, Intrinsic, and tensor instructions that externalize value lists.
     /// Returns `None` for all other instructions.
     pub fn argument_slice(&self) -> Option<ArgumentSlice> {
@@ -1163,8 +1163,8 @@ impl Instruction {
             Instruction::TensorPad { arguments, .. } => Some(*arguments),
             Instruction::TensorConcat { tensors, .. } => Some(*tensors),
             Instruction::Call { call, .. } => Some(call.arguments),
-            Instruction::CallClass { call, .. } => Some(call.arguments),
-            Instruction::CallInterface { call, .. } => Some(call.arguments),
+            Instruction::CallVirtual { call, .. } => Some(call.arguments),
+            Instruction::CallDynamic { call, .. } => Some(call.arguments),
             Instruction::CallIndirect { call, .. } => Some(call.arguments),
             Instruction::Intrinsic { arguments, .. } => Some(*arguments),
             _ => None,
@@ -1175,9 +1175,11 @@ impl Instruction {
     pub fn call_dispatch_kind(&self) -> Option<CallDispatchKind> {
         match self {
             Instruction::Call { .. } => Some(CallDispatchKind::Direct),
-            Instruction::CallClass { slot, .. } => Some(CallDispatchKind::Class { slot: *slot }),
-            Instruction::CallInterface { slot, .. } => {
-                Some(CallDispatchKind::Interface { slot: *slot })
+            Instruction::CallVirtual { slot, .. } => {
+                Some(CallDispatchKind::Virtual { slot: *slot })
+            }
+            Instruction::CallDynamic { slot, .. } => {
+                Some(CallDispatchKind::Dynamic { slot: *slot })
             }
             Instruction::CallIndirect { .. } => Some(CallDispatchKind::Indirect),
             _ => None,
@@ -1188,8 +1190,8 @@ impl Instruction {
     pub fn call_signature(&self) -> Option<TypeReference> {
         match self {
             Instruction::Call { call, .. }
-            | Instruction::CallClass { call, .. }
-            | Instruction::CallInterface { call, .. }
+            | Instruction::CallVirtual { call, .. }
+            | Instruction::CallDynamic { call, .. }
             | Instruction::CallIndirect { call, .. } => Some(call.signature),
             _ => None,
         }

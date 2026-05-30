@@ -454,14 +454,14 @@ impl Parser {
                 || self.peek_token(TokenType::Unreachable)
                 || self.peek_token(TokenType::TailCall)
                 || self.peek_token(TokenType::TailCallIndirect)
-                || self.peek_token(TokenType::TailCallClass)
-                || self.peek_token(TokenType::TailCallInterface)
+                || self.peek_token(TokenType::TailCallVirtual)
+                || self.peek_token(TokenType::TailCallDynamic)
                 || self.is_allocation_try_terminator_line()
                 || (self.is_call_terminator_line()
                     && (self.peek_token(TokenType::Call)
                         || self.peek_token(TokenType::CallIndirect)
-                        || self.peek_token(TokenType::CallClass)
-                        || self.peek_token(TokenType::CallInterface)))
+                        || self.peek_token(TokenType::CallVirtual)
+                        || self.peek_token(TokenType::CallDynamic)))
             {
                 let recovery_pos = self.pos();
                 let main_token = self.peek().cloned();
@@ -951,23 +951,23 @@ impl Parser {
                     unwind: None,
                 })
             }
-            TokenType::TailCallClass => {
+            TokenType::TailCallVirtual => {
                 self.bump();
                 let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target()?;
-                Ok(Terminator::TailCallClass {
+                Ok(Terminator::TailCallVirtual {
                     receiver,
                     class,
                     slot,
                     call: Call::new(arguments, signature),
                 })
             }
-            TokenType::CallClass => {
+            TokenType::CallVirtual => {
                 self.bump();
                 let (receiver, class, slot, arguments, signature) =
                     self.parse_class_call_target()?;
                 let target = self.parse_call_continuation()?;
-                Ok(Terminator::CallClass {
+                Ok(Terminator::CallVirtual {
                     receiver,
                     class,
                     slot,
@@ -976,25 +976,25 @@ impl Parser {
                     unwind: None,
                 })
             }
-            TokenType::TailCallInterface => {
+            TokenType::TailCallDynamic => {
                 self.bump();
-                let (receiver, interface, slot, arguments, signature) =
-                    self.parse_interface_call_target()?;
-                Ok(Terminator::TailCallInterface {
+                let (receiver, constraint, slot, arguments, signature) =
+                    self.parse_dynamic_call_target()?;
+                Ok(Terminator::TailCallDynamic {
                     receiver,
-                    interface,
+                    constraint,
                     slot,
                     call: Call::new(arguments, signature),
                 })
             }
-            TokenType::CallInterface => {
+            TokenType::CallDynamic => {
                 self.bump();
-                let (receiver, interface, slot, arguments, signature) =
-                    self.parse_interface_call_target()?;
+                let (receiver, constraint, slot, arguments, signature) =
+                    self.parse_dynamic_call_target()?;
                 let target = self.parse_call_continuation()?;
-                Ok(Terminator::CallInterface {
+                Ok(Terminator::CallDynamic {
                     receiver,
-                    interface,
+                    constraint,
                     slot,
                     call: Call::new(arguments, signature),
                     target,

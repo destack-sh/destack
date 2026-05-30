@@ -161,9 +161,9 @@ pub enum LayoutShape {
         /// The byte offset of the storage field.
         storage_offset: u32,
     },
-    /// Object layout with a class dispatch table header.
+    /// Object layout with a virtual dispatch table header.
     Object {
-        /// The byte offset of the class dispatch table pointer.
+        /// The byte offset of the virtual dispatch table pointer.
         table_offset: u32,
         /// Field layouts in concrete memory order.
         fields: Vec<LayoutField>,

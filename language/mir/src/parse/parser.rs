@@ -349,8 +349,8 @@ impl Parser {
             | TokenType::Struct
             | TokenType::Call
             | TokenType::CallIndirect
-            | TokenType::CallClass
-            | TokenType::CallInterface => {
+            | TokenType::CallVirtual
+            | TokenType::CallDynamic => {
                 let text = self.tree.source_text(token.span).to_string();
                 let start = token.start;
                 self.bump();

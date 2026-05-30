@@ -87,10 +87,10 @@ impl ModuleBuilder {
         self.tree.insert_type(Type::TypeId)
     }
 
-    /// Create an erased interface value type.
-    pub fn type_any(&mut self, interface: LocalNodeId<Type>) -> LocalNodeId<Type> {
-        self.tree.insert_type(Type::Any {
-            interface: interface.into(),
+    /// Create a dynamic erased value type.
+    pub fn type_dynamic(&mut self, constraint: LocalNodeId<Type>) -> LocalNodeId<Type> {
+        self.tree.insert_type(Type::Dynamic {
+            constraint: constraint.into(),
         })
     }
 

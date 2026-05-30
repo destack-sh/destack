@@ -215,7 +215,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 format_function_reference(*function, f)
             }
-            Instruction::CallableBind {
+            Instruction::ClosureBind {
                 destination,
                 function,
                 environment,
@@ -223,22 +223,16 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [
-                        space(),
-                        token("="),
-                        space(),
-                        token("callable.bind"),
-                        space()
-                    ]
+                    [space(), token("="), space(), token("closure.bind"), space()]
                 )?;
                 format_function_reference(*function, f)?;
                 write!(f, [token(","), space(), environment])
             }
-            Instruction::CallableEnvironment { destination } => {
+            Instruction::ClosureEnvironment { destination } => {
                 format_typed_destination(*destination, f)?;
                 write!(
                     f,
-                    [space(), token("="), space(), token("callable.environment")]
+                    [space(), token("="), space(), token("closure.environment")]
                 )
             }
 
@@ -1326,7 +1320,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_call_signature_suffix(call.signature, f)
             }
 
-            Instruction::CallClass {
+            Instruction::CallVirtual {
                 destination,
                 receiver,
                 call,
@@ -1341,7 +1335,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(
                     f,
                     [
-                        token("call.class"),
+                        token("call.virtual"),
                         space(),
                         receiver,
                         token(","),
@@ -1357,11 +1351,11 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_call_signature_suffix(call.signature, f)
             }
 
-            Instruction::CallInterface {
+            Instruction::CallDynamic {
                 destination,
                 receiver,
                 call,
-                interface,
+                constraint,
                 slot,
                 ..
             } => {
@@ -1372,12 +1366,12 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(
                     f,
                     [
-                        token("call.interface"),
+                        token("call.dynamic"),
                         space(),
                         receiver,
                         token(","),
                         space(),
-                        interface,
+                        constraint,
                         token(","),
                         space(),
                         text(&slot.0.to_string())

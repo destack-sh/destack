@@ -149,17 +149,17 @@ entry0(value0: { x: int32, y: float64 }):
     );
 }
 
-/// Formats erased Any type forms canonically.
+/// Formats erased dynamic type forms canonically.
 #[test]
-fn test_format_any_types() {
+fn test_format_dynamic_types() {
     assert_format(
         r#"
 type Writer {
     write: () -> uint32;
 }
 
-function erased(value0: any<Writer>): any<Writer> {
-entry0(value0: any<Writer>):
+function erased(value0: dynamic<Writer>): dynamic<Writer> {
+entry0(value0: dynamic<Writer>):
     return value0
 }
 "#,

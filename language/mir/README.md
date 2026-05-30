@@ -67,12 +67,12 @@ The terminators themselves are also quite straightforward: control flow can retu
 | `switch` | Jumps to one of many blocks based on an integer value. | `switch v0, b3, 0 => b1, 1 => b2` |
 | `call` | Calls a static function and branches to an explicit continuation. | `call foo(v0): (int32) -> int32 -> okBlock` |
 | `call.indirect` | Calls a function value and branches to an explicit continuation. | `call.indirect v1(v0): (int32) -> int32 -> okBlock` |
-| `call.class` | Dispatches a class method and branches to an explicit continuation. | `call.class receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> int32 -> okBlock` |
-| `call.interface` | Dispatches through an interface table and branches to an explicit continuation. | `call.interface receiver, InterfaceName, 3(v0): (any<InterfaceName>) -> int32 -> okBlock` |
+| `call.virtual` | Dispatches a virtual method and branches to an explicit continuation. | `call.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> int32 -> okBlock` |
+| `call.dynamic` | Dispatches through a dynamic table and branches to an explicit continuation. | `call.dynamic receiver, DynamicConstraint, 3(v0): (dynamic<DynamicConstraint>) -> int32 -> okBlock` |
 | `tailCall` | Calls a static function and reuses the current frame, never returning to the caller. | `tailCall foo(v0): (int32) -> void` |
 | `tailCall.indirect` | Tail-calls through a function value, reusing the current frame. | `tailCall.indirect v1(v0): (int32) -> void` |
-| `tailCall.class` | Tail-calls a class method, reusing the current frame. | `tailCall.class receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> void` |
-| `tailCall.interface` | Tail-calls through an interface table, reusing the current frame. | `tailCall.interface receiver, InterfaceName, 3(v0): (any<InterfaceName>) -> void` |
+| `tailCall.virtual` | Tail-calls a virtual method, reusing the current frame. | `tailCall.virtual receiver, TypeName, 3(v0): (ref<TypeName, managed, readonly>) -> void` |
+| `tailCall.dynamic` | Tail-calls through a dynamic table, reusing the current frame. | `tailCall.dynamic receiver, DynamicConstraint, 3(v0): (dynamic<DynamicConstraint>) -> void` |
 | `yield` | Suspends the coroutine, returning a value and remembering where to resume in a "resume block". | `yield v0, resume(v1)` |
 | `trap` | Terminates the program unrecoverably; trap kind is `trap.abort` or `trap.panic`. `trap.panic` carries a non-null readonly managed string payload. | `trap.panic v0` |
 | `unreachable` | Asserts that this point is never reached; traps with a panic if it is. | `unreachable` |
@@ -89,12 +89,12 @@ Instructions perform "operations" and may produce SSA `Value`s.
 | Selection | `select` (conditional value without branching) |
 | Local variables | `local.get`, `local.set`, `local.address` |
 | Globals | `global.address` |
-| Functions | `function.address`, `callable.bind`, `callable.environment` |
+| Functions | `function.address`, `closure.bind`, `closure.environment` |
 | Memory | `load`, `store`, `pin`, `unpin`, `drop` |
 | Aggregates | `struct`, `tuple`, `array`, `field.get`, `field.set`, `field.address`, `element.get`, `element.set`, `element.address` |
 | Vector | `vector.*` (splat, extract, insert, shuffle, select, reduce, compare, convert) |
 | Tensor | `tensor.*` (splat, extract, load, store, fill, copy, reshape, broadcast, transpose, cast, view, slice, pad, concat, compare, select, reduce, dot, convolution, gather, scatter, convert) |
-| Calls | `call`, `call.class`, `call.interface`, `call.indirect` |
+| Calls | `call`, `call.virtual`, `call.dynamic`, `call.indirect` |
 | Allocation | `new.zeroed`, `new.uninit`, `new.complete`, `new.slice.zeroed`, `new.slice.uninit`, `frame.alloc.*` |
 | Intrinsics | `intrinsic.*` |
 

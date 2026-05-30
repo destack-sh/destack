@@ -5,8 +5,8 @@ Call instruction families
 function @calls(v0: int64, v1: int64, v2: (int64, int64) -> int64) -> int64 {
 block0(v0: int64, v1: int64, v2: (int64, int64) -> int64):
     v3: int64 = call @callee(v0, v1) -> (int64, int64) -> int64
-    v4: int64 = call.class @Class.add(v0, v1) -> (int64, int64) -> int64
-    v5: int64 = call.interface @iface.mul(v0, v1) -> (int64, int64) -> int64
+    v4: int64 = call.virtual @Class.add(v0, v1) -> (int64, int64) -> int64
+    v5: int64 = call.dynamic @iface.mul(v0, v1) -> (int64, int64) -> int64
     v6: int64 = call.indirect v2(v4, v5) -> (int64, int64) -> int64
     return v6
 }

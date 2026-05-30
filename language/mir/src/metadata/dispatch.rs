@@ -14,14 +14,13 @@ pub struct DispatchMetadata {
     /// Class dispatch table vector index keyed by type id.
     #[serde(skip, default)]
     pub(crate) vtable_indices: HashMap<LocalNodeId<Type>, usize>,
-    /// The interface dispatch tables.
-    pub interface_tables: Vec<InterfaceTable>,
-    /// The interface table vector index keyed by concrete type id, then interface type id.
+    /// Dynamic dispatch tables.
+    pub dynamic_tables: Vec<DynamicTable>,
+    /// Dynamic table vector index keyed by concrete type id, then constraint type id.
     #[serde(skip, default)]
-    pub(crate) interface_table_indices:
-        HashMap<LocalNodeId<Type>, HashMap<LocalNodeId<Type>, usize>>,
-    /// Interface slot layouts keyed by interface type id.
-    pub interface_shapes: HashMap<LocalNodeId<Type>, InterfaceShape>,
+    pub(crate) dynamic_table_indices: HashMap<LocalNodeId<Type>, HashMap<LocalNodeId<Type>, usize>>,
+    /// Dynamic slot layouts keyed by constraint type id.
+    pub dynamic_shapes: HashMap<LocalNodeId<Type>, DynamicShape>,
 }
 
 impl DispatchMetadata {
@@ -36,17 +35,17 @@ impl DispatchMetadata {
             self.vtable_indices.insert(to, index);
         }
 
-        let interface_tables = self
-            .interface_tables
+        let dynamic_tables = self
+            .dynamic_tables
             .iter()
             .enumerate()
             .filter_map(|(index, table)| {
-                (table.concrete == from).then_some((table.interface, index))
+                (table.concrete == from).then_some((table.constraint, index))
             })
             .collect::<HashMap<_, _>>();
 
-        if !interface_tables.is_empty() {
-            self.interface_table_indices.insert(to, interface_tables);
+        if !dynamic_tables.is_empty() {
+            self.dynamic_table_indices.insert(to, dynamic_tables);
         }
     }
 
@@ -69,75 +68,75 @@ impl DispatchMetadata {
         self.vtables.iter()
     }
 
-    /// Insert an interface table.
-    pub fn insert_interface_table(&mut self, table: InterfaceTable) {
-        let index = self.interface_tables.len();
-        self.record_interface_table(table.concrete, table.interface, index);
-        self.interface_tables.push(table);
+    /// Insert a dynamic table.
+    pub fn insert_dynamic_table(&mut self, table: DynamicTable) {
+        let index = self.dynamic_tables.len();
+        self.record_dynamic_table(table.concrete, table.constraint, index);
+        self.dynamic_tables.push(table);
     }
 
-    /// Return the interface table for a concrete type and interface when present.
-    pub fn interface_table(
+    /// Return the dynamic table for a concrete type and constraint when present.
+    pub fn dynamic_table(
         &self,
         concrete: LocalNodeId<Type>,
-        interface: LocalNodeId<Type>,
-    ) -> Option<&InterfaceTable> {
-        let index = self.interface_table_index(concrete, interface)?;
+        constraint: LocalNodeId<Type>,
+    ) -> Option<&DynamicTable> {
+        let index = self.dynamic_table_index(concrete, constraint)?;
 
-        self.interface_tables.get(index)
+        self.dynamic_tables.get(index)
     }
 
-    /// Iterate all interface tables.
-    pub fn iter_interface_tables(&self) -> impl Iterator<Item = &InterfaceTable> {
-        self.interface_tables.iter()
+    /// Iterate all dynamic tables.
+    pub fn iter_dynamic_tables(&self) -> impl Iterator<Item = &DynamicTable> {
+        self.dynamic_tables.iter()
     }
 
-    /// Return interface shape metadata for an interface type id.
-    pub fn interface_shape(&self, interface: LocalNodeId<Type>) -> Option<&InterfaceShape> {
-        self.interface_shapes.get(&interface)
+    /// Return dynamic shape metadata for a constraint type id.
+    pub fn dynamic_shape(&self, constraint: LocalNodeId<Type>) -> Option<&DynamicShape> {
+        self.dynamic_shapes.get(&constraint)
     }
 
-    /// Insert interface shape metadata for an interface type id.
-    pub fn insert_interface_shape(
+    /// Insert dynamic shape metadata for a constraint type id.
+    pub fn insert_dynamic_shape(
         &mut self,
-        interface: LocalNodeId<Type>,
-        shape: InterfaceShape,
-    ) -> Option<InterfaceShape> {
-        self.interface_shapes.insert(interface, shape)
+        constraint: LocalNodeId<Type>,
+        shape: DynamicShape,
+    ) -> Option<DynamicShape> {
+        self.dynamic_shapes.insert(constraint, shape)
     }
 
     /// Rebuild dispatch lookup indexes from canonical tables.
     pub fn rebuild_indices(&mut self) {
         self.vtable_indices.clear();
-        self.interface_table_indices.clear();
+        self.dynamic_table_indices.clear();
 
         for (index, vtable) in self.vtables.iter().enumerate() {
             self.vtable_indices.insert(vtable.ty, index);
         }
 
         let table_entries = self
-            .interface_tables
+            .dynamic_tables
             .iter()
             .enumerate()
-            .map(|(index, table)| (table.concrete, table.interface, index))
+            .map(|(index, table)| (table.concrete, table.constraint, index))
             .collect::<Vec<_>>();
 
-        for (concrete, interface, index) in table_entries {
-            self.record_interface_table(concrete, interface, index);
+        for (concrete, constraint, index) in table_entries {
+            self.record_dynamic_table(concrete, constraint, index);
         }
     }
 
-    /// Record one interface table lookup entry.
-    fn record_interface_table(
+    /// Record one dynamic table lookup entry.
+    fn record_dynamic_table(
         &mut self,
         concrete: LocalNodeId<Type>,
-        interface: LocalNodeId<Type>,
+        constraint: LocalNodeId<Type>,
         index: usize,
     ) {
-        self.interface_table_indices
+        self.dynamic_table_indices
             .entry(concrete)
             .or_default()
-            .insert(interface, index);
+            .insert(constraint, index);
     }
 
     /// Return the vtable vector index for one type.
@@ -148,20 +147,20 @@ impl DispatchMetadata {
             .or_else(|| self.vtables.iter().position(|vtable| vtable.ty == ty))
     }
 
-    /// Return the interface table vector index for one concrete and interface pair.
-    fn interface_table_index(
+    /// Return the dynamic table vector index for one concrete and constraint pair.
+    fn dynamic_table_index(
         &self,
         concrete: LocalNodeId<Type>,
-        interface: LocalNodeId<Type>,
+        constraint: LocalNodeId<Type>,
     ) -> Option<usize> {
-        self.interface_table_indices
+        self.dynamic_table_indices
             .get(&concrete)
-            .and_then(|interface_tables| interface_tables.get(&interface))
+            .and_then(|dynamic_tables| dynamic_tables.get(&constraint))
             .copied()
             .or_else(|| {
-                self.interface_tables
+                self.dynamic_tables
                     .iter()
-                    .position(|table| table.concrete == concrete && table.interface == interface)
+                    .position(|table| table.concrete == concrete && table.constraint == constraint)
             })
     }
 }
@@ -177,41 +176,38 @@ pub struct Vtable {
     pub entries: Vec<VtableEntry>,
 }
 
-/// Metadata for one concrete implementation of one interface.
+/// Metadata for one concrete implementation of one dynamic constraint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct InterfaceTable {
+pub struct DynamicTable {
     /// The concrete type providing the implementation.
     pub concrete: LocalNodeId<Type>,
-    /// The interface type being dispatched.
-    pub interface: LocalNodeId<Type>,
+    /// The dynamic constraint type being dispatched.
+    pub constraint: LocalNodeId<Type>,
     /// The static global containing this table.
     pub global: LocalNodeId<Global>,
-    /// Slots in interface shape order.
-    pub entries: Vec<InterfaceTableEntry>,
+    /// Slots in dynamic shape order.
+    pub entries: Vec<DynamicEntry>,
 }
 
-impl InterfaceTable {
-    /// The first user-visible interface slot.
-    pub const FIRST_SLOT: DispatchSlot = DispatchSlot(1);
-
-    /// Return the table slot for one interface slot index.
+impl DynamicTable {
+    /// Return the table slot for one dynamic slot index.
     pub const fn slot_for_index(index: usize) -> DispatchSlot {
-        DispatchSlot(Self::FIRST_SLOT.0 + index as u32)
+        DispatchSlot(index as u32)
     }
 
-    /// Return the storage slot count for an interface table.
-    pub const fn storage_len(interface_slots: usize) -> usize {
-        Self::FIRST_SLOT.0 as usize + interface_slots
+    /// Return the storage slot count for a dynamic table.
+    pub const fn storage_len(dynamic_slots: usize) -> usize {
+        dynamic_slots
     }
 }
 
-/// Slot layout for one interface.
+/// Slot layout for one dynamic constraint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct InterfaceShape {
-    /// The interface type owning this shape.
-    pub interface: LocalNodeId<Type>,
-    /// User-visible slots in declaration order.
-    pub slots: Vec<InterfaceSlot>,
+pub struct DynamicShape {
+    /// The dynamic constraint type owning this shape.
+    pub constraint: LocalNodeId<Type>,
+    /// Slots in declaration order.
+    pub slots: Vec<DynamicSlot>,
 }
 
 /// Entry in a class vtable.
@@ -231,36 +227,70 @@ pub enum VtableEntry {
     },
 }
 
-/// Entry in an interface dispatch table.
+/// Entry in a dynamic dispatch table.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum InterfaceTableEntry {
+pub enum DynamicEntry {
     /// Slot containing a field offset.
-    FieldOffset {
+    Field {
         /// The field offset in bytes.
         offset: u32,
+    },
+    /// Slot containing a concrete getter implementation.
+    Getter {
+        /// The concrete getter implementation.
+        function: LocalNodeId<Function>,
+    },
+    /// Slot containing a concrete setter implementation.
+    Setter {
+        /// The concrete setter implementation.
+        function: LocalNodeId<Function>,
     },
     /// Slot containing a concrete method implementation.
     Method {
         /// The concrete method implementation.
         function: LocalNodeId<Function>,
     },
+    /// Slot containing a concrete call implementation.
+    Call {
+        /// The concrete call implementation.
+        function: LocalNodeId<Function>,
+    },
 }
 
-/// Slot descriptor for an interface layout.
+/// Slot descriptor for a dynamic layout.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum InterfaceSlot {
+pub enum DynamicSlot {
     /// Field slot.
     Field {
         /// The canonical dispatch field id.
         field: LocalNodeId<Field>,
         /// The field name.
-        field_name: StringId,
+        name: StringId,
+    },
+    /// Getter slot.
+    Getter {
+        /// The getter name.
+        name: StringId,
+        /// The getter signature.
+        signature: LocalNodeId<Type>,
+    },
+    /// Setter slot.
+    Setter {
+        /// The setter name.
+        name: StringId,
+        /// The setter signature.
+        signature: LocalNodeId<Type>,
     },
     /// Method slot.
     Method {
         /// The method name.
         name: StringId,
         /// The method signature.
+        signature: LocalNodeId<Type>,
+    },
+    /// Call signature slot.
+    Call {
+        /// The call signature.
         signature: LocalNodeId<Type>,
     },
 }
