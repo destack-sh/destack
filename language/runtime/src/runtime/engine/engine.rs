@@ -14,8 +14,8 @@ const VM_ENGINE: &str = "vm";
 
 /// Execution backend owned by one worker.
 pub enum Engine {
-    /// VM interpreter backend.
-    Vm(vm::Isolate),
+    /// VM machine backend.
+    Vm(Box<vm::Machine>),
     /// Native compiled backend.
     Native(native::Engine),
 }
@@ -32,9 +32,8 @@ impl Engine {
     /// Initialize worker-owned static bytes.
     pub fn initialize(&mut self, context: MemoryContext<'_>) -> RuntimeResult<()> {
         match self {
-            Self::Vm(engine) => {
-                engine::Engine::initialize(engine, context).map_err(Box::<RuntimeError>::from)
-            }
+            Self::Vm(engine) => engine::Engine::initialize(engine.as_mut(), context)
+                .map_err(Box::<RuntimeError>::from),
             Self::Native(engine) => {
                 engine::Engine::initialize(engine, context).map_err(native_runtime_error)
             }
@@ -53,7 +52,7 @@ impl Engine {
                 let entry = engine
                     .entry_by_name(entry.name())
                     .map_err(Box::<RuntimeError>::from)?;
-                let outcome = engine::Engine::run(engine, context, entry, args)
+                let outcome = engine::Engine::run(engine.as_mut(), context, entry, args)
                     .map_err(Box::<RuntimeError>::from)?;
 
                 Ok(outcome_from_vm(outcome))
@@ -79,7 +78,7 @@ impl Engine {
     ) -> RuntimeResult<Outcome<Continuation>> {
         match (self, continuation) {
             (Self::Vm(engine), Continuation::Vm(continuation)) => {
-                let outcome = engine::Engine::resume(engine, context, continuation, value)
+                let outcome = engine::Engine::resume(engine.as_mut(), context, continuation, value)
                     .map_err(Box::<RuntimeError>::from)?;
 
                 Ok(outcome_from_vm(outcome))
@@ -106,8 +105,10 @@ impl Engine {
         visit: &mut dyn FnMut(heap::RootSlot<'_>) -> heap::HeapResult<()>,
     ) -> RuntimeResult<()> {
         match self {
-            Self::Vm(engine) => engine::Engine::visit_root_slots(engine, worker_static, visit)
-                .map_err(Box::<RuntimeError>::from),
+            Self::Vm(engine) => {
+                engine::Engine::visit_root_slots(engine.as_mut(), worker_static, visit)
+                    .map_err(Box::<RuntimeError>::from)
+            }
             Self::Native(engine) => engine::Engine::visit_root_slots(engine, worker_static, visit)
                 .map_err(native_runtime_error),
         }
@@ -121,7 +122,7 @@ impl Engine {
     ) -> RuntimeResult<()> {
         match (self, continuation) {
             (Self::Vm(engine), Continuation::Vm(continuation)) => {
-                engine::Engine::visit_continuation_root_slots(engine, continuation, visit)
+                engine::Engine::visit_continuation_root_slots(engine.as_mut(), continuation, visit)
                     .map_err(Box::<RuntimeError>::from)
             }
             (Self::Native(engine), Continuation::Native(continuation)) => {
@@ -142,7 +143,7 @@ impl Engine {
     ) -> RuntimeResult<()> {
         match (self, continuation) {
             (Self::Vm(engine), ContinuationImage::Vm(continuation)) => {
-                vm::Isolate::visit_image_root_slots(engine, continuation, visit)
+                vm::Machine::visit_image_root_slots(engine.as_mut(), continuation, visit)
                     .map_err(Box::<RuntimeError>::from)
             }
             (Self::Native(_), ContinuationImage::Native(_)) => Ok(()),
@@ -155,10 +156,10 @@ impl Engine {
     pub fn fork(&self, context: MemoryContext<'_>) -> RuntimeResult<Self> {
         match self {
             Self::Vm(engine) => {
-                let engine =
-                    engine::Engine::fork(engine, context).map_err(Box::<RuntimeError>::from)?;
+                let engine = engine::Engine::fork(engine.as_ref(), context)
+                    .map_err(Box::<RuntimeError>::from)?;
 
-                Ok(Self::Vm(engine))
+                Ok(Self::Vm(Box::new(engine)))
             }
             Self::Native(engine) => {
                 let engine = engine::Engine::fork(engine, context).map_err(native_runtime_error)?;
@@ -172,8 +173,8 @@ impl Engine {
     pub fn image(&self, context: MemoryContext<'_>) -> RuntimeResult<Image> {
         match self {
             Self::Vm(engine) => {
-                let image =
-                    engine::Engine::image(engine, context).map_err(Box::<RuntimeError>::from)?;
+                let image = engine::Engine::image(engine.as_ref(), context)
+                    .map_err(Box::<RuntimeError>::from)?;
 
                 Ok(Image::Vm(image))
             }
@@ -189,7 +190,8 @@ impl Engine {
     pub fn restore(&mut self, context: MemoryContext<'_>, image: &Image) -> RuntimeResult<()> {
         match (self, image) {
             (Self::Vm(engine), Image::Vm(image)) => {
-                engine::Engine::restore(engine, context, image).map_err(Box::<RuntimeError>::from)
+                engine::Engine::restore(engine.as_mut(), context, image)
+                    .map_err(Box::<RuntimeError>::from)
             }
             (Self::Native(engine), Image::Native(image)) => {
                 engine::Engine::restore(engine, context, image).map_err(native_runtime_error)
@@ -206,7 +208,7 @@ impl Engine {
     ) -> RuntimeResult<ContinuationImage> {
         match (self, continuation) {
             (Self::Vm(engine), Continuation::Vm(continuation)) => {
-                let image = vm::Isolate::continuation_image(engine, continuation)
+                let image = vm::Machine::continuation_image(engine.as_ref(), continuation)
                     .map_err(Box::<RuntimeError>::from)?;
 
                 Ok(ContinuationImage::Vm(image))
@@ -230,7 +232,7 @@ impl Engine {
     ) -> RuntimeResult<Continuation> {
         match (self, image) {
             (Self::Vm(engine), ContinuationImage::Vm(image)) => {
-                let continuation = vm::Isolate::restore_continuation_image(engine, image)
+                let continuation = vm::Machine::restore_continuation_image(engine.as_ref(), image)
                     .map_err(Box::<RuntimeError>::from)?;
 
                 Ok(Continuation::Vm(continuation))
@@ -252,9 +254,9 @@ impl Engine {
         match image {
             Image::Vm(image) => {
                 let engine =
-                    vm::Isolate::from_image(image.clone()).map_err(Box::<RuntimeError>::from)?;
+                    vm::Machine::from_image(image.clone()).map_err(Box::<RuntimeError>::from)?;
 
-                Ok(Self::Vm(engine))
+                Ok(Self::Vm(Box::new(engine)))
             }
             Image::Native(_) => Err(engine_error(
                 NATIVE_ENGINE,
@@ -275,9 +277,9 @@ impl std::fmt::Debug for Engine {
     }
 }
 
-impl From<vm::Isolate> for Engine {
-    fn from(engine: vm::Isolate) -> Self {
-        Self::Vm(engine)
+impl From<vm::Machine> for Engine {
+    fn from(engine: vm::Machine) -> Self {
+        Self::Vm(Box::new(engine))
     }
 }
 
