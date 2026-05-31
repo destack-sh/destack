@@ -53,10 +53,7 @@ impl FileId {
 
     /// Create a file id from one explicit source payload.
     pub fn from_source_bytes(bytes: &[u8]) -> Self {
-        let id = stable_source_id(FILE_SOURCE_DOMAIN, &[bytes]);
-        let id = if id == 0 { 1 } else { id };
-
-        Self(id)
+        Self(stable_source_id(FILE_SOURCE_DOMAIN, &[bytes]))
     }
 }
 
