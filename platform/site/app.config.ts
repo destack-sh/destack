@@ -1,6 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "@solidjs/start/config";
 
+import { contentPlugin } from "./build/content";
 import { prerenderRoutes } from "./src/generated/prerender-routes";
 
 export default defineConfig({
@@ -11,6 +12,6 @@ export default defineConfig({
         },
     },
     vite: {
-        plugins: [tailwindcss()],
+        plugins: [contentPlugin(), tailwindcss()],
     },
 });
