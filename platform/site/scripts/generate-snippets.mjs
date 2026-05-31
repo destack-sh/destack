@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -149,7 +149,7 @@ if (isCheck) {
     }
 } else {
     mkdirSync(dirname(generatedSnippetFile), { recursive: true });
-    writeFileSync(generatedSnippetFile, generatedSnippetSource);
+    writeGeneratedFile(generatedSnippetFile, generatedSnippetSource);
 }
 
 const snippetFiles = listSnippetFiles(snippetDirectory, snippetDirectory);
@@ -165,6 +165,13 @@ for (const file of expectedFiles) {
     if (!snippetFiles.has(file)) {
         throw new Error(`missing snippet file: ${file}`);
     }
+}
+
+function writeGeneratedFile(file, source) {
+    const temporaryFile = `${file}.${process.pid}.tmp`;
+
+    writeFileSync(temporaryFile, source);
+    renameSync(temporaryFile, file);
 }
 
 function highlightRanges(file, source) {

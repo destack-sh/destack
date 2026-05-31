@@ -4,7 +4,15 @@ import javascript from "highlight.js/lib/languages/javascript";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
 import { marked } from "marked";
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import {
+    existsSync,
+    mkdirSync,
+    readFileSync,
+    readdirSync,
+    renameSync,
+    statSync,
+    writeFileSync,
+} from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -67,8 +75,8 @@ if (isCheck) {
     checkGeneratedFile(generatedRouteFile, routeSource);
 } else {
     mkdirSync(generatedDirectory, { recursive: true });
-    writeFileSync(generatedPostFile, postSource);
-    writeFileSync(generatedRouteFile, routeSource);
+    writeGeneratedFile(generatedPostFile, postSource);
+    writeGeneratedFile(generatedRouteFile, routeSource);
 }
 
 function readPosts() {
@@ -641,6 +649,13 @@ function checkGeneratedFile(file, source) {
     if (current !== source) {
         throw new Error("generated posts are out of date, run `just platform/site/format`");
     }
+}
+
+function writeGeneratedFile(file, source) {
+    const temporaryFile = `${file}.${process.pid}.tmp`;
+
+    writeFileSync(temporaryFile, source);
+    renameSync(temporaryFile, file);
 }
 
 function escapeHtml(value) {
