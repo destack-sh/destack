@@ -140,10 +140,10 @@ fn add_member_resolution_row(
             .field("kind", "symbol")
             .field("target", builder.member_candidate_label(candidate))
             .optional_field(
-                "instance",
+                "application",
                 candidate
-                    .instance
-                    .map(|id| builder.generic_instance_label(id)),
+                    .application
+                    .map(|id| builder.generic_application_label(id)),
             ),
         dir::MemberTarget::Select(candidates) => row.field("kind", "select").list_field(
             "targets",
@@ -238,9 +238,9 @@ fn add_call_candidate_fields(
             candidate.receiver.map(|ty| builder.type_label(ty)),
         )
         .optional_field(
-            "instance",
+            "application",
             candidate
-                .instance
-                .map(|id| builder.generic_instance_label(id)),
+                .application
+                .map(|id| builder.generic_application_label(id)),
         )
 }

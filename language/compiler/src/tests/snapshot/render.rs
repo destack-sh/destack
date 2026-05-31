@@ -226,7 +226,6 @@ impl<'a> SnapshotRenderer<'a> {
             "generic" => 1,
             "type" => 2,
             "resolution" => 3,
-            "instance" => 4,
             "static" => 5,
             "relation" => 6,
             "extension" => 7,

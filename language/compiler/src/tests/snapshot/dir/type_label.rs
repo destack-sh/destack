@@ -702,7 +702,8 @@ impl DirSnapshotBuilder<'_> {
         let generics = self.generics.as_ref()?;
 
         generics.iter_slots().find_map(|(_, slot)| {
-            let is_match = slot.owner() == parameter.owner
+            let template = generics.get_template(slot.template());
+            let is_match = template.owner == parameter.owner
                 && slot.key() == parameter.key
                 && slot.index() == parameter.index;
 
