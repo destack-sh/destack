@@ -212,7 +212,7 @@ export class Schema<T> {
     }
 
     /// Return true when `value` satisfies this schema.
-    is(&readonly this, value: unknown): value is T {
+    is(&readonly this, value: unknown): boolean {
         this.issues(value).length == 0
     }
 }
@@ -235,7 +235,7 @@ export function issues<T>(schema: &readonly Schema<T>, value: unknown): [Issue] 
 }
 
 /// Return true when `value` satisfies `schema`.
-export function is<T>(schema: &readonly Schema<T>, value: unknown): value is T {
+export function is<T>(schema: &readonly Schema<T>, value: unknown): boolean {
     issues(schema, value).length == 0
 }
 
