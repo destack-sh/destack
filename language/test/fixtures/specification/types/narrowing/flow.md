@@ -140,7 +140,7 @@ Destructured aliases to the same object cannot preserve stale property narrows a
 let state: { value: string | number } = { value: "ok" };
 const alias = state;
 
-if (typeof state.value === "string") {
+if (state.value is string) {
     alias.value = 1;
     state.value.toUpperCase();
 }

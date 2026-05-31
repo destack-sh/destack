@@ -94,22 +94,6 @@ function pick(value: Foo | Bar): int32 {
 }
 ```
 
-### typeof guards narrow the arm
-
-`typeof` guards narrow the matched value.
-
-```ds
-function pick(value: string | int32): int32 {
-    return match (value) {
-        _ if (typeof value == "string") => {
-            value satisfies string;
-            0
-        }
-        _ => 0
-    };
-}
-```
-
 ### boolean guards keep narrowing facts
 
 `&&` keeps narrowing from its left side.

@@ -58,7 +58,7 @@ While conditions contribute control-flow narrowing inside the loop body.
 
 ```ds
 let value: string | int32 = "ok";
-while (typeof value == "string") {
+while (value is string) {
     value satisfies string;
     break;
 }

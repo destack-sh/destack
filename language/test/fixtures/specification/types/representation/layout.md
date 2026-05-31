@@ -51,7 +51,7 @@ struct Header {
     size: uint32;
 }
 
-type Slots<T, comptime N: usize = strideOf<T>()> = [uint8; N];
+type Slots<T: Concrete, comptime N: usize = strideOf<T>()> = [uint8; N];
 
 declare let slots: Slots<Header>;
 
@@ -74,7 +74,7 @@ layout satisfies Layout;
 layout.shape satisfies { kind: "aggregate"; fields: readonly LayoutField[] };
 ```
 
-### transparent constraints cannot be measured directly
+### layout queries require concrete types
 
 Transparent constraints have no single layout before they are specialized or erased.
 

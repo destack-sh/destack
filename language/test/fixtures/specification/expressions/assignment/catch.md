@@ -26,7 +26,7 @@ declare function fail(): Result<void, string>;
 try {
     fail()?;
 } catch (e) {
-    if (typeof e === "string") {
+    if (e is string) {
         e = e.toUpperCase();
     }
 }
