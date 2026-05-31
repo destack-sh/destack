@@ -307,14 +307,6 @@ pub fn type_expression_contains_reference_segment(
             type_expression_contains_reference_segment(tree, constraint, target_segment)
         }),
 
-        dir::TypeExpression::Predicate {
-            asserts: _,
-            subject: _,
-            target,
-        } => target.is_some_and(|target| {
-            type_expression_contains_reference_segment(tree, target, target_segment)
-        }),
-
         _ => false,
     }
 }

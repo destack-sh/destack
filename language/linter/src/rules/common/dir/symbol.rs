@@ -112,7 +112,7 @@ pub fn expression_has_symbol_decorator(
     .is_some()
 }
 
-/// Collect member and call target symbols for one resolved node.
+/// Collect member, call, and construct target symbols for one resolved node.
 pub fn resolution_target_symbols(
     resolutions: &dir::ResolutionTable<'_>,
     node_id: dir::GlobalNodeIdAny,
@@ -124,7 +124,7 @@ pub fn resolution_target_symbols(
             dir::MemberTarget::Symbol(candidate) => {
                 push_unique_symbol(&mut symbols, candidate.symbol);
             }
-            dir::MemberTarget::Select(candidates) => {
+            dir::MemberTarget::Union(candidates) => {
                 for candidate in candidates {
                     push_unique_symbol(&mut symbols, candidate.symbol);
                 }
@@ -135,16 +135,22 @@ pub fn resolution_target_symbols(
 
     if let Some(resolution) = resolutions.call_resolution(node_id) {
         match &resolution.target {
-            dir::CallTarget::Construct(candidate) | dir::CallTarget::Symbol(candidate) => {
+            dir::CallTarget::Symbol(candidate) => {
                 push_unique_symbol(&mut symbols, candidate.symbol);
             }
-            dir::CallTarget::Select(candidates) => {
+            dir::CallTarget::Union(candidates) => {
                 for candidate in candidates {
                     push_unique_symbol(&mut symbols, candidate.symbol);
                 }
             }
-            dir::CallTarget::Builtin(_) | dir::CallTarget::Value => {}
+            dir::CallTarget::Builtin(_) | dir::CallTarget::Expression { .. } => {}
         }
+    }
+
+    if let Some(resolution) = resolutions.construct_resolution(node_id) {
+        let symbol = resolution.target.symbol();
+
+        push_unique_symbol(&mut symbols, symbol);
     }
 
     symbols

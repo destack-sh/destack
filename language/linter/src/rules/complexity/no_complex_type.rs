@@ -377,15 +377,6 @@ fn type_expression_complexity_inner(
                 ));
             }
         }
-        TypeExpression::Predicate { target, .. } => {
-            if let Some(target) = target {
-                max_depth = max_depth.max(type_expression_complexity_inner(
-                    tree,
-                    *target,
-                    current_depth,
-                ));
-            }
-        }
         TypeExpression::Tuple { elements } | TypeExpression::ArrayTuple { elements } => {
             for element_id in elements {
                 let element = tree.get(*element_id);
