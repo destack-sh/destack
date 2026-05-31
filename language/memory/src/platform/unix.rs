@@ -260,7 +260,14 @@ pub(crate) fn map_page_writable(
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_frame_range_writable(base, page_index, page_size_bytes, page_size_bytes, allocator, frame)
+    map_frame_range_writable(
+        base,
+        page_index,
+        page_size_bytes,
+        page_size_bytes,
+        allocator,
+        frame,
+    )
 }
 
 /// Map one page frame range as copy on write memory.

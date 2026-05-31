@@ -198,7 +198,9 @@ fn allocate_frame_storage(
         };
 
         for _ in 0..frame_count {
-            state.frames.push(vec![0; page_size_bytes].into_boxed_slice());
+            state
+                .frames
+                .push(vec![0; page_size_bytes].into_boxed_slice());
         }
 
         (frame, false)
@@ -242,7 +244,14 @@ pub(crate) fn map_frame_range_cow(
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_frame_range(base, first_page, page_size_bytes, byte_len, allocator, frame)
+    map_frame_range(
+        base,
+        first_page,
+        page_size_bytes,
+        byte_len,
+        allocator,
+        frame,
+    )
 }
 
 /// Copy one page frame range into linear memory.
@@ -254,7 +263,14 @@ pub(crate) fn map_frame_range_writable(
     allocator: &PageFrameAllocator,
     frame: PageFrame,
 ) -> MemoryResult<()> {
-    map_frame_range(base, first_page, page_size_bytes, byte_len, allocator, frame)
+    map_frame_range(
+        base,
+        first_page,
+        page_size_bytes,
+        byte_len,
+        allocator,
+        frame,
+    )
 }
 
 /// Prepare copied linear memory pages for writes.

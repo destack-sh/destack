@@ -471,7 +471,14 @@ fn map_frame_range(
             offset: frame.offset + (page_offset * page_size_bytes) as u64,
         };
 
-        map_page(base, page_index, page_size_bytes, allocator, frame, protection)?;
+        map_page(
+            base,
+            page_index,
+            page_size_bytes,
+            allocator,
+            frame,
+            protection,
+        )?;
     }
 
     Ok(())
