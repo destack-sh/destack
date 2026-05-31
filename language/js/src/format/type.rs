@@ -1,6 +1,6 @@
 use crate::{
     Keyword, LocalNodeId, MappedTypeModifier, PrimitiveType, TupleElement, TypeExpression,
-    TypeLiteral, TypeMember, TypePredicateSubject,
+    TypeLiteral, TypeMember,
 };
 use destack_fir::format::FormatResult;
 
@@ -342,25 +342,6 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
                     write!(f, [space(), Keyword::Extends, space(), constraint])?;
                 }
             }
-            TypeExpression::Predicate {
-                asserts,
-                subject,
-                target,
-            } => {
-                if *asserts {
-                    write!(f, [Keyword::Asserts, space()])?;
-                }
-
-                match subject {
-                    TypePredicateSubject::Identifier(name) => write!(f, [*name])?,
-                    TypePredicateSubject::This => write!(f, [Keyword::This])?,
-                }
-
-                if let Some(target) = target {
-                    write!(f, [space(), Keyword::Is, space(), target])?;
-                }
-            }
-
             TypeExpression::Array { element } => {
                 write!(f, [element, token("[]")])?;
             }

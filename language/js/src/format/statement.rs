@@ -113,7 +113,7 @@ fn format_dependency_attributes<'ast>(
 ) -> FormatResult<()> {
     let keyword = match attributes.kind {
         crate::DependencyAttributeClauseKind::With => Keyword::With,
-        crate::DependencyAttributeClauseKind::Assert => Keyword::Asserts,
+        crate::DependencyAttributeClauseKind::Assert => Keyword::Assert,
     };
 
     write!(

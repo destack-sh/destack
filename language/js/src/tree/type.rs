@@ -78,15 +78,6 @@ pub struct TypeMappedParameter {
     pub key_remap: Option<LocalNodeId<TypeExpression>>,
 }
 
-/// One type predicate subject.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum TypePredicateSubject {
-    /// One identifier subject.
-    Identifier(StringId),
-    /// The `this` subject.
-    This,
-}
-
 /// One type template literal.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeTemplateLiteral {
@@ -191,13 +182,6 @@ pub enum TypeExpression {
         name: StringId,
         constraint: Option<LocalNodeId<TypeExpression>>,
     },
-    /// Type predicate.
-    Predicate {
-        asserts: bool,
-        subject: TypePredicateSubject,
-        target: Option<LocalNodeId<TypeExpression>>,
-    },
-
     /// Array type `T[]`.
     Array {
         element: LocalNodeId<TypeExpression>,
