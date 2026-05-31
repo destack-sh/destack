@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Duration;
 
@@ -17,6 +18,10 @@ use crate::{DaemonConnectOptions, connect_ipc_daemon};
 #[cfg(unix)]
 type DaemonServerResult = Result<(), crate::daemon::DaemonServerError>;
 
+/// Unique suffix counter for ipc probe socket paths.
+#[cfg(unix)]
+static IPC_PROBE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
 /// Return true when ipc tests may be skipped in constrained runtimes.
 #[cfg(unix)]
 fn allow_ipc_test_skip() -> bool {
@@ -26,11 +31,13 @@ fn allow_ipc_test_skip() -> bool {
 /// Validate that the runtime supports unix socket ipc for tests.
 #[cfg(unix)]
 fn ensure_ipc_test_environment() -> bool {
+    let sequence = IPC_PROBE_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+
     // probe unix domain socket bind support
     let probe_path = std::env::temp_dir().join(format!(
         "destack-ipc-probe-{}-{}.sock",
         std::process::id(),
-        std::thread::current().id().as_u64()
+        sequence,
     ));
     let _ = std::fs::remove_file(&probe_path);
 

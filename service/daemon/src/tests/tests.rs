@@ -130,7 +130,7 @@ impl TestDaemon {
             .with_cache(Arc::new(MemoryCacheStore::new())),
         );
 
-        let daemon = Daemon::new(repository.clone(), 1, None);
+        let daemon = Daemon::new_with_roots(repository.clone(), roots.clone(), 1, None);
 
         Self {
             fs,
@@ -185,47 +185,39 @@ impl TestDaemon {
     /// Resolve the tracked file id for a path.
     pub fn file_id_for_path(&self, path: impl AsRef<Path>) -> FileId {
         let path = self.path_for(path);
-        let file_id = self.repository.file_id(&path);
-        let revision = current_root_revision(self.repository.as_ref());
-        let is_present = self
-            .repository
-            .file(revision, file_id)
-            .unwrap_or_else(|error| {
-                panic!(
-                    "failed to read file '{}' from revision: {error}",
-                    path.display()
-                )
-            })
-            .is_some();
-        if !is_present {
-            panic!("missing file id for {}", path.display());
-        }
+        let view = self
+            .daemon
+            .language_service
+            .file_view(&path)
+            .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
 
-        file_id
+        view.file_id
     }
 
     /// Return the current revision scoped file snapshot for a path.
     pub fn file_for_path(&self, path: impl AsRef<Path>) -> Arc<destack_source::File> {
         let path = self.path_for(path);
-        let file_id = self.repository.file_id(&path);
-        let revision = current_root_revision(self.repository.as_ref());
-        self.repository
-            .file(revision, file_id)
-            .unwrap_or_else(|error| {
-                panic!(
-                    "failed to read file '{}' from revision: {error}",
-                    path.display()
-                )
-            })
-            .unwrap_or_else(|| panic!("missing file for {}", path.display()))
+        let view = self
+            .daemon
+            .language_service
+            .file_view(&path)
+            .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
+
+        view.file
     }
 
     /// Return the current revision scoped module id for a path.
     pub fn module_id_for_path(&self, path: impl AsRef<Path>) -> destack_source::ModuleId {
         let path = self.path_for(path);
-        let revision = current_root_revision(self.repository.as_ref());
-        self.repository
-            .module_id_for_path(revision, &path)
+        let view = self
+            .daemon
+            .language_service
+            .file_view(&path)
+            .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
+        let repository = view.repository();
+
+        repository
+            .module_id_for_file(view.revision(), view.file_id)
             .unwrap_or_else(|error| {
                 panic!(
                     "failed to resolve module id for '{}' in revision: {error}",

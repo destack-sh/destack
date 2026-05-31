@@ -95,8 +95,6 @@ impl CommandContext<'_> {
 
         // derive target summaries
         let targets = config.as_ref().map(|config| {
-            let config = config;
-
             config
                 .targets
                 .iter()
@@ -120,7 +118,6 @@ impl CommandContext<'_> {
             configs
                 .iter()
                 .flat_map(|config| {
-                    let config = config;
                     let package_dir = config.directory.display().to_string();
 
                     config

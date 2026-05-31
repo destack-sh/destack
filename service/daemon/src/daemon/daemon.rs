@@ -55,6 +55,17 @@ impl Daemon {
         session_event_handler: Option<SessionEventHandler>,
     ) -> Self {
         let roots = vec![repository.workspace_root().to_path_buf()];
+
+        Self::new_with_roots(repository, roots, worker_limit, session_event_handler)
+    }
+
+    /// Create a daemon with explicit language roots.
+    pub fn new_with_roots(
+        repository: Arc<Repository>,
+        roots: Vec<PathBuf>,
+        worker_limit: usize,
+        session_event_handler: Option<SessionEventHandler>,
+    ) -> Self {
         let language_service = LanguageService::new(
             repository.clone(),
             None,

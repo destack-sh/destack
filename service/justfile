@@ -15,7 +15,7 @@ _default:
 
 # run static checks
 lint:
-    cargo clippy --release {{ packages }}
+    cargo clippy --release {{ packages }} --no-deps
 
 # build packages
 build:

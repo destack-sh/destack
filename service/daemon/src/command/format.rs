@@ -73,7 +73,7 @@ impl CommandContext<'_> {
         // format inline eval when provided
         if let Some(eval) = format_options.eval.as_ref() {
             summary.files_total = 1;
-            let file_id = FileId::new(0);
+            let file_id = FileId::from_logical_str("<eval>");
             let file = File::from_text(
                 file_id,
                 "<eval>".to_string(),
@@ -266,11 +266,13 @@ fn check_and_collect_errors(
     // collect diagnostics and check for errors
     let diagnostics = diagnostics.collect();
     let has_errors = diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error);
-    if has_errors && !suppress_output {
-        if let Err(error) = print_diagnostics_to_output(file_for_id, &diagnostics, output) {
-            output.push_stderr(format!("failed to render diagnostics: {error}\n").into_bytes());
-        }
+    if has_errors
+        && !suppress_output
+        && let Err(error) = print_diagnostics_to_output(file_for_id, &diagnostics, output)
+    {
+        output.push_stderr(format!("failed to render diagnostics: {error}\n").into_bytes());
     }
+
     has_errors
 }
 
@@ -417,7 +419,7 @@ fn formatting_options_for_path(
     if let Some(package) = package
         && let Ok(Some(config)) = repository.destack_for_package_id(revision, package.id)
     {
-        return config.formatter.clone();
+        return config.formatter;
     }
 
     workspace_formatting_options(repository, revision).unwrap_or_default()
@@ -544,7 +546,7 @@ fn format_single_file(
 
 /// Format JSON content.
 fn format_json_content(content: &str, formatter: FormatterOptions) -> CommandResult<String> {
-    let file_id = FileId::new(0);
+    let file_id = FileId::from_logical_str("<json>");
     let doc = parse_json(content, file_id).map_err(|e| e.to_string())?;
     let options: JsonFormatOptions = formatter.into();
 
@@ -554,7 +556,7 @@ fn format_json_content(content: &str, formatter: FormatterOptions) -> CommandRes
 /// Render formatted output for eval mode.
 fn colorize_formatted_output(formatted: &str) -> String {
     let formatted_file = File::from_text(
-        FileId::new(0),
+        FileId::from_logical_str("<eval:formatted>"),
         "<eval>".to_string(),
         Uri::from_string("<eval>"),
         None,
@@ -584,7 +586,7 @@ fn workspace_formatting_options(
         .map_err(|error| format!("failed to derive workspace options: {error}"))?;
 
     Ok(workspace_config
-        .map(|options| options.formatter.clone())
+        .map(|options| options.formatter)
         .unwrap_or_default())
 }
 
