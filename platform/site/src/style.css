@@ -21,14 +21,14 @@ button {
 }
 
 .page-title {
-    font-size: 2rem;
+    font-size: 1.75rem;
     font-weight: 900;
     line-height: 1;
 }
 
 @media (min-width: 768px) {
     .page-title {
-        font-size: 2.75rem;
+        font-size: 2.25rem;
     }
 }
 
@@ -214,9 +214,49 @@ button {
 
 .blog-prose p,
 .blog-prose ul,
-.blog-prose ol {
+.blog-prose ol,
+.blog-prose blockquote,
+.blog-prose table {
     margin: 0;
     width: 100%;
+}
+
+.blog-prose ul,
+.blog-prose ol {
+    display: grid;
+    gap: 0.5rem;
+    padding-left: 1.5rem;
+}
+
+.blog-prose ul {
+    list-style: square;
+}
+
+.blog-prose ol {
+    list-style: decimal;
+}
+
+.blog-prose li {
+    padding-left: 0.25rem;
+}
+
+.blog-prose li::marker {
+    color: #c2410c;
+    font-weight: 900;
+}
+
+.blog-prose li > p {
+    display: inline;
+}
+
+.blog-prose li > ul,
+.blog-prose li > ol {
+    margin-top: 0.5rem;
+}
+
+.blog-prose input[type="checkbox"] {
+    margin-right: 0.5rem;
+    accent-color: var(--color-destack-accent);
 }
 
 .blog-prose a {
@@ -232,8 +272,57 @@ button {
     text-decoration-color: var(--color-destack-accent);
 }
 
+.blog-prose :not(pre) > code {
+    border: 1px solid rgb(10 10 10 / 0.18);
+    background: var(--color-destack-panel);
+    padding: 0.05rem 0.25rem;
+    color: #c2410c;
+    font-size: 0.92em;
+    font-weight: 900;
+}
+
+.blog-prose a code {
+    color: inherit;
+}
+
 .blog-prose sup {
     font-size: 0.75rem;
+    font-weight: 900;
+}
+
+.blog-prose blockquote {
+    border-left: 0.5rem solid #d4d4d4;
+    background: var(--color-destack-panel);
+    padding: 1rem;
+}
+
+.blog-prose blockquote > * + * {
+    margin-top: 0.75rem;
+}
+
+.blog-prose hr {
+    width: 100%;
+    border: 0;
+    border-top: 2px solid #0a0a0a;
+}
+
+.blog-prose table {
+    border-collapse: collapse;
+    background: var(--color-destack-panel);
+    font-size: 0.875rem;
+    line-height: 1.5rem;
+}
+
+.blog-prose th,
+.blog-prose td {
+    border: 2px solid #0a0a0a;
+    padding: 0.5rem 0.625rem;
+    text-align: left;
+    vertical-align: top;
+}
+
+.blog-prose th {
+    background: #f5f5f5;
     font-weight: 900;
 }
 
@@ -251,6 +340,10 @@ button {
     font-size: 0.6875rem;
     line-height: 1rem;
     text-decoration: none;
+}
+
+.blog-margin-note {
+    display: none;
 }
 
 .blog-callout,
@@ -393,6 +486,37 @@ button {
     font-size: 0.75rem;
     font-weight: 900;
     text-transform: lowercase;
+}
+
+@media (min-width: 88rem) {
+    .blog-prose {
+        position: relative;
+    }
+
+    .blog-margin-note {
+        display: block;
+        position: absolute;
+        left: calc(100% + 2rem);
+        width: 14rem;
+        margin-top: 0.1rem;
+        border-left: 0.35rem solid #d4d4d4;
+        padding-left: 0.75rem;
+        color: #525252;
+        font-size: 0.75rem;
+        font-weight: 800;
+        line-height: 1.2rem;
+    }
+
+    .blog-margin-note span {
+        margin-right: 0.5rem;
+        border-bottom: 0.2rem solid var(--color-destack-accent);
+        color: #0a0a0a;
+        font-weight: 900;
+    }
+
+    .blog-footnotes {
+        display: none;
+    }
 }
 
 .code-block .hljs-built_in,
