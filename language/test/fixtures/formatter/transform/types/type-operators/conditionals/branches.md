@@ -34,17 +34,17 @@ type Result<T> = T extends string // test-line
       OtherValue;
 ```
 
-### conditional tuple predicate branch
+### conditional tuple function branch
 
-Tuple inference and predicate function types compose inside conditional branches.
+Tuple inference and function types compose inside conditional branches.
 
 ```ds line-width=80
-type ExtractRoute<T> = T extends [infer Head, ...infer Tail] ? (value: Head) => value is Tail[number] : never
+type ExtractRoute<T> = T extends [infer Head, ...infer Tail] ? (value: Head) => Tail[number] : never
 ```
 
 ```ds expected
 type ExtractRoute<T> = T extends [infer Head, ...infer Tail]
-    ? (value: Head) => value is Tail[number]
+    ? (value: Head) => Tail[number]
     : never;
 ```
 

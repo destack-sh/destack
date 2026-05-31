@@ -45,3 +45,35 @@ interface Foo {
     readonly x: number;
 }
 ```
+
+## Associated Members
+
+### associated type modifiers
+
+Associated type modifiers are preserved.
+
+```ds
+interface Foo { abstract type Item override type Output = string }
+```
+
+```ds expected
+interface Foo {
+    abstract type Item;
+    override type Output = string;
+}
+```
+
+### associated constant modifiers
+
+Associated constant modifiers are preserved.
+
+```ds
+interface Foo { abstract comptime const Size: uint override comptime const Count: uint = 2 }
+```
+
+```ds expected
+interface Foo {
+    abstract comptime const Size: uint;
+    override comptime const Count: uint = 2;
+}
+```

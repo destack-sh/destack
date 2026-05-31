@@ -67,7 +67,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -158,7 +157,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -909,7 +907,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -992,7 +989,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -1093,7 +1089,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -1242,7 +1237,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -1639,7 +1633,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -1734,7 +1727,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -1836,7 +1828,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -1932,7 +1923,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -2031,7 +2021,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
@@ -2642,7 +2631,6 @@ static: keyword
 struct: keyword
 switch: keyword
 typeof: keyword
-asserts: keyword
 declare: keyword
 default: keyword
 extends: keyword
