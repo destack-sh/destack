@@ -294,10 +294,14 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                     value,
                     visibility,
                     is_ambient,
+                    is_abstract,
+                    is_override,
                 } => {
                     // prefixes
                     write_ambient_prefix(f, *is_ambient)?;
                     write_visibility_prefix(f, *visibility)?;
+                    write_abstract_prefix(f, *is_abstract)?;
+                    write_override_prefix(f, *is_override)?;
 
                     // keyword pair
                     write!(
