@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BinaryOperator, GlobalSymbolId, LocalInstanceId, LocalTypeId, StaticKey, UnaryOperator,
+    BinaryOperator, GlobalSymbolId, LocalGenericApplicationId, LocalTypeId, StaticKey,
+    UnaryOperator,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -107,7 +108,7 @@ pub struct MemberCandidate {
     /// The selected member symbol.
     pub symbol: GlobalSymbolId,
     /// The instance of the member symbol, if statically applied.
-    pub instance: Option<LocalInstanceId>,
+    pub instance: Option<LocalGenericApplicationId>,
 }
 
 /// Callable selected at a call site.
@@ -174,5 +175,5 @@ pub struct CallCandidate {
     /// The selected callable symbol.
     pub symbol: GlobalSymbolId,
     /// The instance of the callable symbol, if statically applied.
-    pub instance: Option<LocalInstanceId>,
+    pub instance: Option<LocalGenericApplicationId>,
 }

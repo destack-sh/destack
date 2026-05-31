@@ -7,6 +7,18 @@ use crate::{
     GlobalSymbolId, LocalStaticId, LocalTypeId, StaticArgument, StringId, VarianceModifier,
 };
 
+/// Unique identifier for generic templates.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct LocalGenericTemplateId(pub u32);
+
+impl LocalGenericTemplateId {
+    /// Wrap an id as a local generic template id.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+}
+
 /// Unique identifier for generic slots.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -19,57 +31,57 @@ impl LocalGenericSlotId {
     }
 }
 
-/// Unique identifier for generic instances.
+/// Unique identifier for generic applications.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct LocalInstanceId(pub u32);
+pub struct LocalGenericApplicationId(pub u32);
 
-impl LocalInstanceId {
-    /// Wrap an id as a local instance id.
+impl LocalGenericApplicationId {
+    /// Wrap an id as a local generic application id.
     pub fn new(id: u32) -> Self {
         Self(id)
     }
 
-    /// Turn into a global instance id.
-    pub fn into_global(self, module_id: ModuleId) -> GlobalInstanceId {
-        GlobalInstanceId {
+    /// Turn into a global generic application id.
+    pub fn into_global(self, module_id: ModuleId) -> GlobalGenericApplicationId {
+        GlobalGenericApplicationId {
             module_id,
             local_id: self,
         }
     }
 }
 
-/// Global instance id across modules.
+/// Global generic application id across modules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct GlobalInstanceId {
-    /// The module id of the global instance.
+pub struct GlobalGenericApplicationId {
+    /// The module id of the global generic application.
     pub module_id: ModuleId,
-    /// The local id of the global instance.
-    pub local_id: LocalInstanceId,
+    /// The local generic application id.
+    pub local_id: LocalGenericApplicationId,
 }
 
-impl GlobalInstanceId {
-    /// Create a new global instance id.
-    pub fn new(module_id: ModuleId, local_id: LocalInstanceId) -> Self {
+impl GlobalGenericApplicationId {
+    /// Create a new global generic application id.
+    pub fn new(module_id: ModuleId, local_id: LocalGenericApplicationId) -> Self {
         Self {
             module_id,
             local_id,
         }
     }
 
-    /// Turn into a local instance id.
-    pub fn into_local(self) -> LocalInstanceId {
+    /// Turn into a local generic application id.
+    pub fn into_local(self) -> LocalGenericApplicationId {
         self.local_id
     }
 }
 
-impl From<GlobalInstanceId> for LocalInstanceId {
-    fn from(id: GlobalInstanceId) -> Self {
+impl From<GlobalGenericApplicationId> for LocalGenericApplicationId {
+    fn from(id: GlobalGenericApplicationId) -> Self {
         id.local_id
     }
 }
 
-impl Display for LocalInstanceId {
+impl Display for LocalGenericApplicationId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "#{}", self.0)
     }
@@ -115,13 +127,32 @@ impl GenericSlotIndex {
     }
 }
 
+/// One owner-level declaration of generic slots.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GenericTemplate {
+    /// The symbol that owns this generic template.
+    pub owner: GlobalSymbolId,
+    /// The generic slots in declaration order.
+    pub slots: Vec<LocalGenericSlotId>,
+}
+
+impl GenericTemplate {
+    /// Create an empty generic template for one owner.
+    pub fn new(owner: GlobalSymbolId) -> Self {
+        Self {
+            owner,
+            slots: Vec::new(),
+        }
+    }
+}
+
 /// One declaration-side generic slot.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum GenericSlot {
     /// Type generic slot.
     Type {
-        /// The generic owner symbol.
-        owner: GlobalSymbolId,
+        /// The generic template that owns this slot.
+        template: LocalGenericTemplateId,
         /// The slot key.
         key: GenericSlotKey,
         /// The declaration order index.
@@ -137,8 +168,8 @@ pub enum GenericSlot {
     },
     /// Variadic type generic slot.
     VariadicType {
-        /// The generic owner symbol.
-        owner: GlobalSymbolId,
+        /// The generic template that owns this slot.
+        template: LocalGenericTemplateId,
         /// The slot key.
         key: GenericSlotKey,
         /// The declaration order index.
@@ -154,8 +185,8 @@ pub enum GenericSlot {
     },
     /// Static generic slot.
     Static {
-        /// The generic owner symbol.
-        owner: GlobalSymbolId,
+        /// The generic template that owns this slot.
+        template: LocalGenericTemplateId,
         /// The slot key.
         key: GenericSlotKey,
         /// The declaration order index.
@@ -169,8 +200,8 @@ pub enum GenericSlot {
     },
     /// Variadic static generic slot.
     VariadicStatic {
-        /// The generic owner symbol.
-        owner: GlobalSymbolId,
+        /// The generic template that owns this slot.
+        template: LocalGenericTemplateId,
         /// The slot key.
         key: GenericSlotKey,
         /// The declaration order index.
@@ -185,13 +216,13 @@ pub enum GenericSlot {
 }
 
 impl GenericSlot {
-    /// Return the owner symbol.
-    pub fn owner(&self) -> GlobalSymbolId {
+    /// Return the owner generic template.
+    pub fn template(&self) -> LocalGenericTemplateId {
         match self {
-            Self::Type { owner, .. }
-            | Self::VariadicType { owner, .. }
-            | Self::Static { owner, .. }
-            | Self::VariadicStatic { owner, .. } => *owner,
+            Self::Type { template, .. }
+            | Self::VariadicType { template, .. }
+            | Self::Static { template, .. }
+            | Self::VariadicStatic { template, .. } => *template,
         }
     }
 
@@ -226,18 +257,21 @@ impl GenericSlot {
     }
 }
 
-/// A concrete application of static arguments to one generic symbol.
+/// One concrete application of static arguments to a generic template.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GenericInstance {
-    /// The symbol being instantiated.
-    pub symbol: GlobalSymbolId,
+pub struct GenericApplication {
+    /// The generic template being applied.
+    pub template: LocalGenericTemplateId,
     /// The static arguments in declaration order.
     pub arguments: Vec<StaticArgument>,
 }
 
-impl GenericInstance {
-    /// Create a generic instance.
-    pub fn new(symbol: GlobalSymbolId, arguments: Vec<StaticArgument>) -> Self {
-        Self { symbol, arguments }
+impl GenericApplication {
+    /// Create a generic application.
+    pub fn new(template: LocalGenericTemplateId, arguments: Vec<StaticArgument>) -> Self {
+        Self {
+            template,
+            arguments,
+        }
     }
 }
