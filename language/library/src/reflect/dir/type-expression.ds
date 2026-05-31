@@ -193,23 +193,6 @@ export enum TypeModifier {
     None,
 }
 
-/// A type predicate subject.
-export type TypePredicateSubject = IdentifierTypePredicateSubject | ThisTypePredicateSubject;
-
-/// Identifier predicate subject.
-export interface IdentifierTypePredicateSubject {
-    /// The subject kind.
-    kind: "identifier";
-    /// The subject name.
-    name: string;
-}
-
-/// `this` predicate subject.
-export interface ThisTypePredicateSubject {
-    /// The subject kind.
-    kind: "this";
-}
-
 /// One function type in type space.
 export interface FunctionType {
     /// The generic parameters.
@@ -274,7 +257,6 @@ export type TypeExpression =
     | IndexTypeExpression
     | TemplateLiteralTypeExpression
     | InferTypeExpression
-    | PredicateTypeExpression
     | MissingTypeExpression
     | ErrorTypeExpression;
 
@@ -668,20 +650,6 @@ export interface InferTypeExpression extends Node {
     name: string;
     /// The constraint when present.
     constraint?: TypeExpression;
-}
-
-/// Type predicate.
-export interface PredicateTypeExpression extends Node {
-    /// The node kind.
-    nodeKind: "typeExpression";
-    /// The type-expression kind.
-    kind: "predicate";
-    /// Whether the predicate asserts the subject.
-    asserts: boolean;
-    /// The predicate subject.
-    subject: TypePredicateSubject;
-    /// The predicate target when present.
-    target?: TypeExpression;
 }
 
 /// Missing type child.

@@ -230,34 +230,6 @@ export interface MappedTypeParameter {
     keyRemap?: Type;
 }
 
-/// A predicate subject in evaluated type space.
-export type PredicateSubject =
-    | UnresolvedPredicateSubject
-    | SymbolPredicateSubject
-    | ThisPredicateSubject;
-
-/// Unresolved identifier predicate subject.
-export interface UnresolvedPredicateSubject {
-    /// The subject kind.
-    kind: "unresolved";
-    /// The subject name.
-    name: string;
-}
-
-/// Resolved symbol predicate subject.
-export interface SymbolPredicateSubject {
-    /// The subject kind.
-    kind: "symbol";
-    /// The subject symbol.
-    symbol: Symbol;
-}
-
-/// `this` predicate subject.
-export interface ThisPredicateSubject {
-    /// The subject kind.
-    kind: "this";
-}
-
 /// An index signature in an object type.
 export interface TypeIndexSignature {
     /// The parameter name.
@@ -287,7 +259,6 @@ export type Type<T = unknown> = TypeBase &
         | TemplateLiteralType
         | ImportType
         | InferType
-        | PredicateType
         | ReadonlyType
         | KeyOfType
         | MustType
@@ -423,18 +394,6 @@ export interface InferType {
     name: string;
     /// The constraint when present.
     constraint?: Type;
-}
-
-/// Type predicate expression.
-export interface PredicateType {
-    /// The type kind.
-    kind: "predicate";
-    /// Whether the predicate asserts the subject.
-    asserts: boolean;
-    /// The predicate subject.
-    subject: PredicateSubject;
-    /// The predicate target when present.
-    target?: Type;
 }
 
 /// Type wrapper with a target type.
