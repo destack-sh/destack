@@ -27,9 +27,9 @@ use destack_dir::{
     FunctionType, GenericArgument, GenericParameter, InferForm, Key, Keyword, LocalNodeId,
     MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property, RangeEnd,
     TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral, TypeMappedParameter,
-    TypeMember, TypePredicateSubject, VarianceBound, WhereClause,
+    TypeMember, VarianceBound, WhereClause,
 };
-use destack_fir::format::{Buffer, FormatError, FormatResult};
+use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token, *};
 use destack_fir::{format_args, write};
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
@@ -77,7 +77,6 @@ fn type_needs_postfix_parentheses(
         | TypeExpression::BorrowedOf { .. }
         | TypeExpression::PointerOf { .. }
         | TypeExpression::Infer { .. }
-        | TypeExpression::Predicate { .. }
         | TypeExpression::Function(_)
         | TypeExpression::Constructor(_) => true,
         _ => false,
@@ -107,7 +106,6 @@ fn type_needs_index_object_parentheses(
         | TypeExpression::BorrowedOf { .. }
         | TypeExpression::PointerOf { .. }
         | TypeExpression::Infer { .. }
-        | TypeExpression::Predicate { .. }
         | TypeExpression::Function(_)
         | TypeExpression::Constructor(_) => true,
         _ => false,
@@ -1331,35 +1329,6 @@ pub(crate) fn write_type_expression_without_prefix_annotations<'ast>(
     write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
 }
 
-/// Write comments between a type predicate subject and its `is` operator.
-fn write_type_predicate_subject_trivia<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    node_id: LocalNodeId<TypeExpression>,
-) -> FormatResult<()> {
-    let subject_span = f
-        .context()
-        .tree
-        .get_main_span(node_id)
-        .ok_or(FormatError::SyntaxError {
-            message: "type predicate target requires subject span",
-        })?;
-    let operator_span = f
-        .context()
-        .tree
-        .get_side_span(node_id, NodeSpanType::Region(NodeSpanRegion::Type))
-        .ok_or(FormatError::SyntaxError {
-            message: "type predicate target requires operator span",
-        })?;
-
-    let comments = f
-        .context()
-        .comments()
-        .comments_in_range(subject_span.end, operator_span.start)
-        .to_vec();
-
-    write!(f, [FormatTrailingComments::Comments(&comments)])
-}
-
 /// Return whether one prefix type operand needs grouping.
 fn prefix_type_operand_needs_grouping(
     context: &DestackFormatContext<'_>,
@@ -1550,9 +1519,7 @@ fn type_needs_prefix_operand_parentheses(
         | TypeExpression::Mapped { .. }
         | TypeExpression::Range { .. } => true,
         TypeExpression::Infer { constraint, .. } => constraint.is_some(),
-        TypeExpression::Predicate { .. }
-        | TypeExpression::Function(_)
-        | TypeExpression::Constructor(_) => true,
+        TypeExpression::Function(_) | TypeExpression::Constructor(_) => true,
         _ => false,
     }
 }
@@ -1622,7 +1589,6 @@ fn conditional_extends_branch_needs_function_like_parentheses(
 
     match context.tree.get(return_type) {
         TypeExpression::Infer { constraint, .. } => constraint.is_some(),
-        TypeExpression::Predicate { target, .. } => target.is_some(),
         _ => false,
     }
 }
@@ -2872,25 +2838,6 @@ pub(crate) fn write_type_expression_body<'ast>(
                 }
             }
         },
-        TypeExpression::Predicate {
-            asserts,
-            subject,
-            target,
-        } => {
-            if *asserts {
-                write!(f, [Keyword::Asserts, space()])?;
-            }
-
-            match subject {
-                TypePredicateSubject::Identifier(name) => write!(f, [*name])?,
-                TypePredicateSubject::This => write!(f, [Keyword::This])?,
-            }
-
-            if let Some(target) = target {
-                write_type_predicate_subject_trivia(f, node_id)?;
-                write!(f, [space(), Keyword::Is, space(), target])?;
-            }
-        }
         TypeExpression::Missing => {}
         TypeExpression::Error => {
             write!(f, [token("/* ERROR */")])?;
@@ -3009,8 +2956,17 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 where_clauses,
                 constraint,
                 value,
+                is_abstract,
+                is_override,
                 ..
             } => {
+                if *is_abstract {
+                    write!(f, [Keyword::Abstract, space()])?;
+                }
+                if *is_override {
+                    write!(f, [Keyword::Override, space()])?;
+                }
+
                 write!(f, [Keyword::Type, space(), *name])?;
 
                 if !generic_parameters.is_empty() {
@@ -3037,8 +2993,17 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
                 name,
                 declared_type,
                 value,
+                is_abstract,
+                is_override,
                 ..
             } => {
+                if *is_abstract {
+                    write!(f, [Keyword::Abstract, space()])?;
+                }
+                if *is_override {
+                    write!(f, [Keyword::Override, space()])?;
+                }
+
                 write!(
                     f,
                     [Keyword::Comptime, space(), Keyword::Const, space(), *name]
