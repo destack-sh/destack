@@ -4,8 +4,8 @@ use indexmap::IndexSet;
 
 use crate::CompilerResult;
 use crate::check::{
-    Condition, GenericParameter, GenericSlot, GenericSlotId, Origin, Solution, StaticTerm,
-    TypeTerm, VariableId, VariableKind,
+    Condition, GenericSlot, GenericSlotHeader, GenericSlotId, Origin, Solution, StaticTerm,
+    TypeOperand, TypeTerm, VariableId, VariableKind,
 };
 
 use super::CheckState;
@@ -139,26 +139,6 @@ impl CheckState<'_> {
         symbols
     }
 
-    /// Import one dependency symbol type as a local check variable.
-    pub(in crate::check) fn import_symbol_type_variable(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> VariableId {
-        assert!(
-            self.module(module).dependencies.contains(&symbol.module_id),
-            "dependency type symbol module must be visible"
-        );
-
-        let source = self
-            .dependency(symbol.module_id)
-            .types
-            .get_symbol_type_id(symbol)
-            .unwrap_or_else(|| panic!("dependency type symbol {symbol:?} has no checked type"));
-
-        self.import_dependency_type_variable(module, symbol.module_id, source)
-    }
-
     /// Import one dependency symbol value as a local check variable.
     pub(in crate::check) fn import_symbol_static_variable(
         &mut self,
@@ -179,13 +159,13 @@ impl CheckState<'_> {
         self.import_dependency_static_variable(symbol.module_id, source)
     }
 
-    /// Import one dependency type id as a local check variable.
-    pub(in crate::check) fn import_dependency_type_variable(
+    /// Import one dependency type id as a local check operand.
+    pub(in crate::check) fn import_dependency_type_operand(
         &mut self,
         module: ModuleId,
         dependency: ModuleId,
         source: dir::LocalTypeId,
-    ) -> VariableId {
+    ) -> TypeOperand {
         let source_id = source.into_global(dependency);
         let parameter = match self.dependency(dependency).types.get_type(source) {
             dir::Type::Parameter(parameter) => Some(*parameter),
@@ -195,16 +175,16 @@ impl CheckState<'_> {
             self.import_type_parameter_variable(module, source_id, parameter, dependency);
         }
 
-        self.materialize_type_id(source_id)
+        self.materialize_type_by_id(source_id).into()
     }
 
     /// Import the dependency type attached to one source node.
-    pub(in crate::check) fn import_dependency_node_type_variable(
+    pub(in crate::check) fn import_dependency_require_node_type(
         &mut self,
         module: ModuleId,
         dependency: ModuleId,
         source: dir::GlobalNodeIdAny,
-    ) -> VariableId {
+    ) -> TypeOperand {
         assert_eq!(
             source.module_id, dependency,
             "dependency type node must belong to the imported module"
@@ -216,7 +196,7 @@ impl CheckState<'_> {
             .get_node_type_id(source)
             .unwrap_or_else(|| panic!("checked dependency node {source:?} has no type"));
 
-        self.import_dependency_type_variable(module, dependency, source)
+        self.import_dependency_type_operand(module, dependency, source)
     }
 
     /// Import one dependency static id as a local check variable.
@@ -231,7 +211,7 @@ impl CheckState<'_> {
                 .into_global(dependency),
         );
 
-        self.materialize_static_id(origin, source.into_global(dependency))
+        self.materialize_static_by_id(origin, source.into_global(dependency))
     }
 
     /// Import one checked dependency symbol through a local alias.
@@ -248,7 +228,7 @@ impl CheckState<'_> {
         let mut imported = IndexSet::new();
 
         self.import_dependency_symbol_tree(module, target, &mut imported)?;
-        self.add_import_alias_definitions(module, alias, target);
+        self.set_import_alias_outputs(module, alias, target);
 
         Ok(())
     }
@@ -260,7 +240,7 @@ impl CheckState<'_> {
             .types
             .get_symbol_type_id(target);
         if let Some(ty) = ty {
-            self.import_dependency_type_variable(module, target.module_id, ty);
+            self.import_dependency_type_operand(module, target.module_id, ty);
         }
         let value = self
             .dependency(target.module_id)
@@ -271,8 +251,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Add local import alias definitions from a checked dependency symbol.
-    fn add_import_alias_definitions(
+    /// Set local import alias operands from a checked dependency symbol.
+    fn set_import_alias_outputs(
         &mut self,
         module: ModuleId,
         alias: dir::GlobalSymbolId,
@@ -288,34 +268,33 @@ impl CheckState<'_> {
             .types
             .get_symbol_type_id(target);
         if let Some(ty) = ty {
-            self.add_import_alias_type_definition(module, alias, ty, target.module_id);
+            self.set_import_alias_type(module, alias, ty, target.module_id);
         }
         let value = self
             .dependency(target.module_id)
             .statics
             .get_symbol_static_id(target);
         if let Some(value) = value {
-            self.add_import_alias_static_definition(module, alias, value, target.module_id);
+            self.set_import_alias_static(module, alias, value, target.module_id);
         }
     }
 
-    /// Add one local import alias type definition.
-    fn add_import_alias_type_definition(
+    /// Set one local import alias type operand.
+    fn set_import_alias_type(
         &mut self,
         module: ModuleId,
         alias: dir::GlobalSymbolId,
         source: dir::LocalTypeId,
         dependency: ModuleId,
     ) {
-        let imported = self.import_dependency_type_variable(module, dependency, source);
-        let variable = self.intern_local_symbol_type_variable(module, alias);
-        let term = TypeTerm::Variable(imported);
+        let imported = self.import_dependency_type_operand(module, dependency, source);
+        let term = imported.to_type_term(self);
 
-        self.add_type_definition(variable, term, Condition::Always);
+        self.output_symbol_type(module, alias, term, Condition::Always);
     }
 
-    /// Add one local import alias static definition.
-    fn add_import_alias_static_definition(
+    /// Set one local import alias static operand.
+    fn set_import_alias_static(
         &mut self,
         module: ModuleId,
         alias: dir::GlobalSymbolId,
@@ -323,10 +302,10 @@ impl CheckState<'_> {
         dependency: ModuleId,
     ) {
         let imported = self.import_dependency_static_variable(dependency, source);
-        let variable = self.intern_symbol_static_variable(module, alias);
+        let variable = self.output_symbol_static_variable(module, alias);
         let term = StaticTerm::Variable(imported);
 
-        self.add_static_definition(variable, term, Condition::Always);
+        self.equate_static(variable, term, Condition::Always);
     }
 
     /// Import one checked type parameter as a generic variable.
@@ -337,7 +316,7 @@ impl CheckState<'_> {
         parameter: dir::GenericParameterRef,
         dependency: ModuleId,
     ) {
-        if self.variables.type_by_id.contains_key(&target_id) {
+        if self.inference.variables.type_by_id.contains_key(&target_id) {
             return;
         }
         let slot = self
@@ -346,24 +325,33 @@ impl CheckState<'_> {
             .unwrap_or_else(|| panic!("dependency generic parameter {parameter:?} has no slot"));
         let slot_id = GenericSlotId::from(parameter);
         if let Some(variable) = self.imported_generic_slot_variable(module, slot_id) {
-            self.variables.type_by_id.insert(target_id, variable);
+            self.inference
+                .variables
+                .type_by_id
+                .insert(target_id, variable);
 
             return;
         }
 
-        let generic = self.import_generic_parameter(module, slot, dependency);
-        let variable = self.imported_generic_parameter_variable(module, &generic);
+        let generic = self.import_generic_slot(module, slot, dependency);
+        let variable = self.allocate_imported_generic_slot_variable(module, &generic);
 
-        self.attach_imported_generic_parameter(module, variable, generic);
-        self.variables.type_by_id.insert(target_id, variable);
+        self.attach_imported_generic_slot(module, variable, generic);
+        self.inference
+            .variables
+            .type_by_id
+            .insert(target_id, variable);
 
         match self.variable(variable).kind {
             VariableKind::Type => {
-                let term = self.terms.push(TypeTerm::Parameter(slot_id));
+                let term = self.inference.terms.push(TypeTerm::Parameter(slot_id));
                 self.insert_known_solution(variable, Solution::Type(term));
             }
             VariableKind::Static => {
-                let term = self.terms.push(StaticTerm::Parameter(parameter.into()));
+                let term = self
+                    .inference
+                    .terms
+                    .push(StaticTerm::Parameter(parameter.into()));
                 self.insert_known_solution(variable, Solution::Static(term));
             }
         }
@@ -382,14 +370,18 @@ impl CheckState<'_> {
     }
 
     /// Import one committed generic slot as check generic metadata.
-    fn import_generic_parameter(
+    fn import_generic_slot(
         &mut self,
         module: ModuleId,
         slot: dir::GenericSlot,
         dependency: ModuleId,
-    ) -> GenericParameter {
-        let owner = slot.owner();
-        let generic_slot = GenericSlot {
+    ) -> GenericSlot {
+        let owner = self
+            .dependency(dependency)
+            .generics
+            .get_template(slot.template())
+            .owner;
+        let generic_slot = GenericSlotHeader {
             owner,
             key: slot.key(),
             index: slot.index(),
@@ -402,63 +394,61 @@ impl CheckState<'_> {
                 constraint,
                 default,
                 ..
-            } => GenericParameter::Type {
+            } => GenericSlot::Type {
                 slot: generic_slot,
                 variance,
-                constraint: constraint.map(|id| {
-                    self.import_dependency_type_variable(module, dependency, id)
-                        .into()
-                }),
+                constraint: constraint
+                    .map(|id| self.import_dependency_type_operand(module, dependency, id)),
                 default: default
-                    .map(|id| self.import_dependency_type_variable(module, dependency, id)),
+                    .map(|id| self.import_dependency_type_operand(module, dependency, id)),
             },
             dir::GenericSlot::VariadicType {
                 variance,
                 constraint,
                 default,
                 ..
-            } => GenericParameter::VariadicType {
+            } => GenericSlot::VariadicType {
                 slot: generic_slot,
                 variance,
-                constraint: constraint.map(|id| {
-                    self.import_dependency_type_variable(module, dependency, id)
-                        .into()
-                }),
+                constraint: constraint
+                    .map(|id| self.import_dependency_type_operand(module, dependency, id)),
                 default: default
-                    .map(|id| self.import_dependency_type_variable(module, dependency, id)),
+                    .map(|id| self.import_dependency_type_operand(module, dependency, id)),
             },
             dir::GenericSlot::Static {
                 constraint,
                 default,
                 ..
-            } => GenericParameter::Static {
+            } => GenericSlot::Static {
                 slot: generic_slot,
-                constraint: constraint.map(|id| {
-                    self.import_dependency_type_variable(module, dependency, id)
+                constraint: constraint
+                    .map(|id| self.import_dependency_type_operand(module, dependency, id)),
+                default: default.map(|id| {
+                    self.import_dependency_static_variable(dependency, id)
                         .into()
                 }),
-                default: default.map(|id| self.import_dependency_static_variable(dependency, id)),
             },
             dir::GenericSlot::VariadicStatic {
                 constraint,
                 default,
                 ..
-            } => GenericParameter::VariadicStatic {
+            } => GenericSlot::VariadicStatic {
                 slot: generic_slot,
-                constraint: constraint.map(|id| {
-                    self.import_dependency_type_variable(module, dependency, id)
+                constraint: constraint
+                    .map(|id| self.import_dependency_type_operand(module, dependency, id)),
+                default: default.map(|id| {
+                    self.import_dependency_static_variable(dependency, id)
                         .into()
                 }),
-                default: default.map(|id| self.import_dependency_static_variable(dependency, id)),
             },
         }
     }
 
     /// Return a variable for one imported generic parameter.
-    fn imported_generic_parameter_variable(
+    fn allocate_imported_generic_slot_variable(
         &mut self,
         module: ModuleId,
-        generic: &GenericParameter,
+        generic: &GenericSlot,
     ) -> VariableId {
         let kind = if generic.is_static() {
             VariableKind::Static
@@ -467,7 +457,7 @@ impl CheckState<'_> {
         };
         let source = Origin::Node(self.module(module).bound.module_node.into_global(module));
 
-        self.allocate_inference_variable(module, kind, source)
+        self.allocate_variable(module, kind, source)
     }
 }
 

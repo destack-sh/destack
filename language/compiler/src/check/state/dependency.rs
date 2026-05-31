@@ -44,11 +44,12 @@ impl CheckDependencyState {
     ) -> Option<dir::GenericSlot> {
         self.generics
             .iter_slots()
-            .map(|(_, slot)| slot)
-            .find(|slot| {
-                slot.owner() == parameter.owner
+            .find_map(|(_, slot)| {
+                let template = self.generics.get_template(slot.template());
+                (template.owner == parameter.owner
                     && slot.key() == parameter.key
-                    && slot.index() == parameter.index
+                    && slot.index() == parameter.index)
+                    .then_some(slot)
             })
             .copied()
     }

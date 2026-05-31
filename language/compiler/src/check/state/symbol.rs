@@ -139,40 +139,4 @@ impl CheckState<'_> {
 
         Some(symbol.kind)
     }
-
-    /// Return the type symbol named by one interface heritage expression.
-    pub(in crate::check) fn require_interface_heritage_symbol(
-        &mut self,
-        module: ModuleId,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalSymbolId> {
-        let view = self.module(module).view();
-        match view.get(expression) {
-            // Interface
-            dir::Expression::Identifier { name } => self.require_symbol_by_name(
-                module,
-                expression.into_any(),
-                *name,
-                dir::SymbolSpace::Type,
-            ),
-            // Namespace.Interface
-            dir::Expression::QualifiedReference {
-                path,
-                generic_arguments: _,
-            } => {
-                let [name] = path.segments.as_slice() else {
-                    return None;
-                };
-
-                self.require_symbol_by_name(
-                    module,
-                    expression.into_any(),
-                    *name,
-                    dir::SymbolSpace::Type,
-                )
-            }
-            // not a heritage reference
-            _ => None,
-        }
-    }
 }

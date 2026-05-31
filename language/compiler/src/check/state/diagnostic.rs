@@ -70,14 +70,26 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic);
     }
 
-    /// Report an invalid static condition at one source node.
-    pub(in crate::check) fn report_invalid_static_condition(
+    /// Report an invalid static guard at one source node.
+    pub(in crate::check) fn report_invalid_static_guard(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) {
         let anchor = self.diagnostic_anchor(module, source);
         let diagnostic = CheckError::InvalidCondition { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic);
+    }
+
+    /// Report a method receiver omitted under implicit receiver restrictions.
+    pub(in crate::check) fn report_implicit_receiver(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ImplicitReceiver { anchor, module };
 
         self.module_mut(module).diagnostics.push(diagnostic);
     }
@@ -193,11 +205,12 @@ impl CheckState<'_> {
         CheckError::CircularType { anchor, module }
     }
 
-    /// Return a type complexity diagnostic for one origin.
-    pub(in crate::check) fn type_too_complex_error(&self, origin: Origin) -> CheckError {
-        let (module, anchor) = self.diagnostic_anchor_for_origin(origin);
+    /// Report a circular type at one origin.
+    pub(in crate::check) fn report_circular_type(&mut self, origin: Origin) {
+        let module = origin.module();
+        let diagnostic = self.circular_type_error(origin);
 
-        CheckError::TypeTooComplex { anchor, module }
+        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Return a human readable path label.
