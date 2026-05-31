@@ -1,98 +1,130 @@
 use destack_dir as dir;
 
 use crate::check::{
-    CheckState, FlowPath, Origin, PatternRelation, TypeOperationTerm, TypeRelation, TypeTerm,
+    CheckState, FlowPath, Origin, PatternRelation, TypeLiteralTerm, TypeOperand, TypeOperationTerm,
+    TypeRelation, TypeTerm, WalkState,
 };
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Walk one declarator.
+    ///
+    /// Example:
+    /// ```ds
+    /// value: number = 1
+    /// ```
     pub(in crate::check) fn walk_declarator(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
     ) {
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
         }
 
-        // define the direct binding type from its annotation or initializer
-        let symbol = self.declaration_symbol(tree.module_id, declarator.pattern.into_any());
-        let binding_type =
-            symbol.map(|symbol| self.intern_local_symbol_type_variable(tree.module_id, symbol));
-        if let Some(variable) = binding_type {
-            // let x: T
-            let term = if let Some(ty) = declarator.ty {
-                Some(TypeTerm::Variable(
-                    self.intern_local_node_type_variable(tree.module_id, ty),
-                ))
-            }
-            // let x = value
-            else if let Some(value) = declarator.value {
-                let source = self.intern_local_node_type_variable(tree.module_id, value);
+        if let Some(symbol) = self.find_declarator_binding_symbol(tree, declarator) {
+            self.walk_name_declarator(tree, symbol, declarator);
+        } else {
+            self.walk_pattern_declarator(tree, id, declarator);
+        }
 
-                // widen mutable bindings and fresh aggregate literals
-                if symbol
-                    .is_some_and(|symbol| self.declarator_widens_inferred_type(symbol, value, tree))
-                {
-                    let operation = self.terms.push(TypeOperationTerm::Widen { source });
+        self.pop_static_guard();
+    }
 
-                    Some(TypeTerm::Operation(operation))
-                }
-                // preserve exact type
-                else {
-                    Some(TypeTerm::Variable(source))
-                }
-            }
-            // let x
-            else {
-                None
-            };
+    /// Walk one declarator that binds a plain name.
+    ///
+    /// Example:
+    /// ```ds
+    /// value = 1
+    /// ```
+    fn walk_name_declarator(
+        &mut self,
+        tree: &dir::Tree,
+        symbol: dir::GlobalSymbolId,
+        declarator: &dir::Declarator,
+    ) {
+        // walk sources before reading their checked types
+        if let Some(ty) = declarator.ty {
+            self.walk_type_expression(tree, ty, tree.get(ty));
+        }
+        if let Some(value) = declarator.value {
+            self.walk_expression(tree, value, tree.get(value));
+        }
 
-            // : T
-            if let Some(term) = term {
-                let condition = self.active_static_condition(tree.module_id);
+        let condition = self.active_static_guard();
 
-                self.add_type_definition(variable, term, condition);
-            }
+        // set binding type from annotation or initializer
+        if let Some(ty) = declarator.ty {
+            let operand = self.check.require_local_node_type(tree.module_id, ty);
 
-            // check initializers against explicit annotations
-            if let (Some(ty), Some(value)) = (declarator.ty, declarator.value) {
-                let origin = Origin::Node(value.into_global_any(tree.module_id));
-                let value = self.intern_local_node_type_variable(tree.module_id, value);
-                let target = self.intern_local_node_type_variable(tree.module_id, ty);
-                let condition = self.active_static_condition(tree.module_id);
+            self.check
+                .output_symbol_type_operand(tree.module_id, symbol, operand, condition);
+        } else if let Some(value) = declarator.value {
+            let operand = self.check.require_local_node_type(tree.module_id, value);
 
-                self.add_type_constraint(
-                    origin,
-                    TypeRelation::Assignable,
-                    value,
-                    target,
-                    condition,
-                );
+            if let Some(term) =
+                self.lower_name_declarator_widened_type(symbol, value, operand, tree)
+            {
+                self.check
+                    .output_symbol_type(tree.module_id, symbol, term, condition);
+            } else {
+                self.check
+                    .output_symbol_type_operand(tree.module_id, symbol, operand, condition);
             }
         }
 
-        // constrain the declared pattern against its initializer
-        let matched_value = binding_type
-            .or_else(|| {
-                declarator
-                    .value
-                    .map(|value| self.intern_local_node_type_variable(tree.module_id, value))
-            })
+        // check initializers against explicit annotations
+        if let (Some(ty), Some(value)) = (declarator.ty, declarator.value) {
+            let origin = Origin::Node(value.into_global_any(tree.module_id));
+            let value = self.check.require_local_node_type(tree.module_id, value);
+            let target = self.check.require_local_node_type(tree.module_id, ty);
+            let condition = self.active_static_guard();
+
+            self.check
+                .relate_type(origin, TypeRelation::Assignable, value, target, condition);
+        }
+    }
+
+    /// Walk one declarator that destructures or matches a value.
+    ///
+    /// Example:
+    /// ```ds
+    /// { name } = user
+    /// ```
+    fn walk_pattern_declarator(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Declarator>,
+        declarator: &dir::Declarator,
+    ) {
+        self.walk_pattern(tree, declarator.pattern, tree.get(declarator.pattern));
+
+        // walk declared type
+        if let Some(ty) = declarator.ty {
+            self.walk_type_expression(tree, ty, tree.get(ty));
+        }
+
+        // walk matched value
+        if let Some(value) = declarator.value {
+            self.walk_expression(tree, value, tree.get(value));
+        }
+
+        let matched_value = declarator
+            .value
+            .map(|value| self.check.require_local_node_type(tree.module_id, value))
             .or_else(|| {
                 declarator
                     .ty
-                    .map(|ty| self.intern_local_node_type_variable(tree.module_id, ty))
+                    .map(|ty| self.check.require_local_node_type(tree.module_id, ty))
             });
 
         if let Some(value) = matched_value
-            && let Some(pattern) = self.build_pattern_term(tree.module_id, declarator.pattern, tree)
+            && let Some(pattern) = self.lower_pattern_term(tree.module_id, declarator.pattern, tree)
         {
-            let condition = self.active_static_condition(tree.module_id);
+            let condition = self.active_static_guard();
 
-            if Self::declarator_requires_irrefutable_pattern(tree, id) {
-                self.require_irrefutable_pattern(
+            if Self::is_irrefutable_declarator_pattern_required(tree, id) {
+                self.check.require_irrefutable_pattern(
                     tree.module_id,
                     declarator.pattern.into_any(),
                     pattern,
@@ -101,7 +133,7 @@ impl CheckState<'_> {
                 );
             }
 
-            self.constrain_pattern(
+            self.check.relate_pattern(
                 tree.module_id,
                 PatternRelation::Match(pattern),
                 declarator.pattern.into_any(),
@@ -109,34 +141,65 @@ impl CheckState<'_> {
                 condition,
             );
         }
-        self.walk_pattern(tree, declarator.pattern, tree.get(declarator.pattern));
+    }
 
-        // type
-        if let Some(ty) = declarator.ty {
-            self.walk_type_expression(tree, ty, tree.get(ty));
+    /// Return the symbol bound by a plain name declarator.
+    fn find_declarator_binding_symbol(
+        &self,
+        tree: &dir::Tree,
+        declarator: &dir::Declarator,
+    ) -> Option<dir::GlobalSymbolId> {
+        match tree.get(declarator.pattern) {
+            dir::Pattern::Binding { pattern: None, .. } => self
+                .check
+                .declaration_symbol(tree.module_id, declarator.pattern.into_any()),
+            _ => None,
+        }
+    }
+
+    /// Lower the widened inferred type term for one name declarator value.
+    ///
+    /// Example:
+    /// ```ds
+    /// let value = 1
+    /// ```
+    fn lower_name_declarator_widened_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        value: dir::LocalNodeId<dir::Expression>,
+        source: TypeOperand,
+        tree: &dir::Tree,
+    ) -> Option<TypeTerm> {
+        if !self.is_declarator_initializer_widened(symbol, value, tree) {
+            return None;
+        }
+        let source_term = source.to_type_term(self.check);
+        if let TypeTerm::Literal(TypeLiteralTerm::Scalar(literal)) = source_term {
+            return Some(TypeTerm::Literal(CheckState::widen_scalar_literal(literal)));
         }
 
-        // value
-        if let Some(value) = declarator.value {
-            self.walk_expression(tree, value, tree.get(value));
-        }
+        let operation = self
+            .check
+            .inference
+            .terms
+            .push(TypeOperationTerm::Widen { source });
 
-        self.pop_static_condition(tree.module_id);
+        Some(TypeTerm::Operation(operation))
     }
 
     /// Return whether one declarator widens its inferred initializer type.
-    fn declarator_widens_inferred_type(
+    fn is_declarator_initializer_widened(
         &self,
         symbol: dir::GlobalSymbolId,
         value: dir::LocalNodeId<dir::Expression>,
         tree: &dir::Tree,
     ) -> bool {
-        let bindings = self.module(symbol.module_id).binding_table();
+        let bindings = self.check.module(symbol.module_id).binding_table();
         let binding = bindings.get_symbol(symbol.local_id);
 
         match tree.get(value) {
             dir::Expression::Parenthesized { expression } => {
-                return self.declarator_widens_inferred_type(symbol, *expression, tree);
+                return self.is_declarator_initializer_widened(symbol, *expression, tree);
             }
             dir::Expression::Satisfies { .. } => {
                 return false;
@@ -162,7 +225,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one declarator is outside a matching context.
-    fn declarator_requires_irrefutable_pattern(
+    fn is_irrefutable_declarator_pattern_required(
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Declarator>,
     ) -> bool {
@@ -186,8 +249,13 @@ impl CheckState<'_> {
         }
     }
 
-    /// Apply successful pattern narrowings from one matching declarator.
-    pub(in crate::check) fn apply_declarator_pattern_narrowings(
+    /// Narrow flow from one successful matching declarator.
+    ///
+    /// Example:
+    /// ```ds
+    /// if let Some(value) = option { value }
+    /// ```
+    pub(in crate::check) fn narrow_declarator_pattern_success(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Declarator>,
@@ -200,11 +268,16 @@ impl CheckState<'_> {
             return;
         };
 
-        self.apply_pattern_success_narrowings(tree, path, declarator.pattern);
+        self.narrow_pattern_success(tree, path, declarator.pattern);
     }
 
-    /// Apply successful pattern narrowings to one flow path.
-    pub(in crate::check) fn apply_pattern_success_narrowings(
+    /// Narrow one flow path from a successful pattern.
+    ///
+    /// Example:
+    /// ```ds
+    /// value is T
+    /// ```
+    pub(in crate::check) fn narrow_pattern_success(
         &mut self,
         tree: &dir::Tree,
         path: FlowPath,
@@ -226,31 +299,31 @@ impl CheckState<'_> {
                 pattern: Some(pattern),
                 ..
             } => {
-                self.apply_pattern_success_narrowings(tree, path, *pattern);
+                self.narrow_pattern_success(tree, path, *pattern);
             }
             // value
             dir::Pattern::Expression { value } => {
-                let ty = self.intern_local_node_type_variable(tree.module_id, *value);
+                let ty = self.check.require_local_node_type(tree.module_id, *value);
 
                 self.narrow_flow_path(path, ty);
             }
             // value is T
             dir::Pattern::TypeExpression { value } => {
-                let ty = self.intern_local_node_type_variable(tree.module_id, *value);
+                let ty = self.check.require_local_node_type(tree.module_id, *value);
 
                 self.narrow_flow_path(path, ty);
             }
             // T(a, b), T { name }
             dir::Pattern::Newtype { ty, fields }
             | dir::Pattern::NominalObject { ty, fields } => {
-                let narrowed = self.intern_local_node_type_variable(tree.module_id, *ty);
+                let narrowed = self.check.require_local_node_type(tree.module_id, *ty);
 
                 self.narrow_flow_path(path.clone(), narrowed);
-                self.apply_pattern_field_success_narrowings(tree, path, fields);
+                self.narrow_pattern_fields_success(tree, path, fields);
             }
             // { name }
             dir::Pattern::Object { fields } => {
-                self.apply_pattern_field_success_narrowings(tree, path, fields);
+                self.narrow_pattern_fields_success(tree, path, fields);
             }
             // _, name
             dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. } => {}
@@ -263,8 +336,13 @@ impl CheckState<'_> {
         }
     }
 
-    /// Apply successful object field pattern narrowings.
-    fn apply_pattern_field_success_narrowings(
+    /// Narrow object field paths from successful patterns.
+    ///
+    /// Example:
+    /// ```ds
+    /// { name: value is string }
+    /// ```
+    fn narrow_pattern_fields_success(
         &mut self,
         tree: &dir::Tree,
         path: FlowPath,
@@ -281,7 +359,7 @@ impl CheckState<'_> {
                     let mut field_path = path.clone();
                     field_path.push_segment(name.static_key());
 
-                    self.apply_pattern_success_narrowings(tree, field_path, *pattern);
+                    self.narrow_pattern_success(tree, field_path, *pattern);
                 }
                 // { [key]: pattern }
                 dir::PatternField::Computed { .. }

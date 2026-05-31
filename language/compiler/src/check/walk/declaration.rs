@@ -3,319 +3,443 @@ use destack_source::ModuleId;
 
 use super::property::MemberReceiverContext;
 
-use crate::check::{CheckState, ReceiverCapture, TypeTerm, VariableId};
+use crate::check::{ReceiverCapture, TypeOperand, TypeTerm, WalkState};
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Walk one declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// struct User { name: string }
+    /// ```
     pub(in crate::check) fn walk_declaration(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) {
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
         }
 
         match declaration {
             // global { ... }
             dir::Declaration::Global(declaration) => {
-                for expression in &declaration.expressions {
-                    self.walk_expression(tree, *expression, tree.get(*expression));
-                }
+                self.walk_global_declaration(tree, declaration)
             }
             // module M { ... }
             dir::Declaration::Module(declaration) => {
-                for expression in &declaration.expressions {
-                    self.walk_expression(tree, *expression, tree.get(*expression));
-                }
+                self.walk_module_declaration(tree, declaration)
             }
             // type X = T
             dir::Declaration::Type(declaration) => {
-                // define the declaration symbol output
-                if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
-                    if !declaration.is_nominal {
-                        let variable =
-                            self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                        let value =
-                            self.intern_local_node_type_variable(tree.module_id, declaration.value);
-                        let condition = self.active_static_condition(tree.module_id);
-
-                        self.add_type_definition(variable, TypeTerm::Variable(value), condition);
-                    }
-                }
-
-                // walk generic header
-                for parameter in &declaration.generic_parameters {
-                    self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
-                }
-                for where_clause in &declaration.where_clauses {
-                    self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
-                }
-
-                // walk aliased type expression
-                self.walk_type_expression(tree, declaration.value, tree.get(declaration.value));
-
-                if declaration.is_nominal
-                    && let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any())
-                {
-                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                }
+                self.walk_type_declaration(tree, id, declaration)
             }
             // struct S { ... }
             dir::Declaration::Struct(declaration) => {
-                let symbol = self.declaration_symbol(tree.module_id, id.into_any());
-
-                // walk generic header
-                for parameter in &declaration.generic_parameters {
-                    self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
-                }
-                for where_clause in &declaration.where_clauses {
-                    self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
-                }
-
-                // walk implemented types
-                for implemented_type in &declaration.implements_types {
-                    self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
-                }
-
-                // walk members with a nominal receiver
-                let receiver = symbol.map(|symbol| MemberReceiverContext {
-                    owner: Some(symbol),
-                    ty: self.intern_local_symbol_type_variable(tree.module_id, symbol),
-                });
-
-                for member in &declaration.members {
-                    self.walk_member(tree, *member, tree.get(*member), receiver);
-                }
-
-                if let Some(symbol) = symbol {
-                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                }
+                self.walk_struct_declaration(tree, id, declaration);
             }
             // class C { ... }
             dir::Declaration::Class(declaration) => {
-                let symbol = self.declaration_symbol(tree.module_id, id.into_any());
-
-                // walk generic header
-                for parameter in &declaration.generic_parameters {
-                    self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
-                }
-                for where_clause in &declaration.where_clauses {
-                    self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
-                }
-
-                // walk superclass and implemented types
-                if let Some(extends_expression) = declaration.extends_expression {
-                    // check superclass expression in declaration context
-                    let before_extends = self.checkpoint_flow(tree.module_id);
-
-                    self.walk_expression(tree, extends_expression, tree.get(extends_expression));
-                    self.restore_flow(tree.module_id, before_extends);
-                }
-                for implemented_type in &declaration.implements_types {
-                    self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
-                }
-
-                // walk members with a nominal receiver
-                let receiver = symbol.map(|symbol| MemberReceiverContext {
-                    owner: Some(symbol),
-                    ty: self.intern_local_symbol_type_variable(tree.module_id, symbol),
-                });
-
-                for member in &declaration.members {
-                    self.walk_member(tree, *member, tree.get(*member), receiver);
-                }
-
-                if let Some(symbol) = symbol {
-                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                }
+                self.walk_class_declaration(tree, id, declaration)
             }
             // enum E { ... }
             dir::Declaration::Enum(declaration) => {
-                let symbol = self.declaration_symbol(tree.module_id, id.into_any());
-
-                // walk generic header
-                for parameter in &declaration.generic_parameters {
-                    self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
-                }
-                for where_clause in &declaration.where_clauses {
-                    self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
-                }
-
-                // walk implemented types and variants
-                for implemented_type in &declaration.implements_types {
-                    self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
-                }
-                for field in &declaration.fields {
-                    self.walk_enum_field(tree, *field, tree.get(*field));
-                }
-
-                // walk members with a nominal receiver
-                let receiver = symbol.map(|symbol| MemberReceiverContext {
-                    owner: Some(symbol),
-                    ty: self.intern_local_symbol_type_variable(tree.module_id, symbol),
-                });
-
-                for member in &declaration.members {
-                    self.walk_member(tree, *member, tree.get(*member), receiver);
-                }
-
-                if let Some(symbol) = symbol {
-                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                }
+                self.walk_enum_declaration(tree, id, declaration)
             }
             // interface I { ... }
             dir::Declaration::Interface(declaration) => {
-                // define the interface symbol output
-                if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
-                    if !declaration.is_nominal {
-                        self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                    }
-                }
-
-                // walk generic header
-                for parameter in &declaration.generic_parameters {
-                    self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
-                }
-                for where_clause in &declaration.where_clauses {
-                    self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
-                }
-
-                // walk inherited contracts and members
-                for heritage in &declaration.extends {
-                    // check inherited contract expression in declaration context
-                    let before_heritage = self.checkpoint_flow(tree.module_id);
-
-                    self.walk_expression(tree, heritage.expression, tree.get(heritage.expression));
-                    self.restore_flow(tree.module_id, before_heritage);
-
-                    for argument in &heritage.generic_arguments {
-                        self.walk_generic_argument(tree, *argument, tree.get(*argument));
-                    }
-                }
-                for member in &declaration.members {
-                    self.walk_type_member(tree, *member, tree.get(*member));
-                }
-
-                if declaration.is_nominal
-                    && let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any())
-                {
-                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                }
+                self.walk_interface_declaration(tree, id, declaration);
             }
             // extension T { ... }
             dir::Declaration::Extension(declaration) => {
-                if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
-                    self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                }
-
-                // walk generic header
-                for parameter in &declaration.generic_parameters {
-                    self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
-                }
-                for where_clause in &declaration.where_clauses {
-                    self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
-                }
-
-                // walk extended target and implemented contracts
-                self.walk_type_expression(
-                    tree,
-                    declaration.target_type,
-                    tree.get(declaration.target_type),
-                );
-                for implemented_type in &declaration.implements_types {
-                    self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
-                }
-
-                // extension members receive the target type as `this`
-                let receiver = Some(MemberReceiverContext {
-                    owner: None,
-                    ty: self
-                        .intern_local_node_type_variable(tree.module_id, declaration.target_type),
-                });
-
-                for member in &declaration.members {
-                    self.walk_member(tree, *member, tree.get(*member), receiver);
-                }
+                self.walk_extension_declaration(tree, id, declaration);
             }
             // function f() {}
             dir::Declaration::Function(declaration) => {
-                let return_type = self.intern_function_return_type_variable(id, declaration, tree);
-
-                // define the callable symbol output
-                if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
-                    let variable = self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                    let term = self.build_function_signature_term(
-                        &declaration.signature,
-                        return_type,
-                        tree,
-                    );
-                    let condition = self.active_static_condition(tree.module_id);
-
-                    self.add_type_definition(variable, TypeTerm::Function(term), condition);
-
-                    // walk signature and body in the function flow frame
-                    self.walk_function_declaration(
-                        tree,
-                        symbol,
-                        &declaration.signature,
-                        declaration.body,
-                        return_type,
-                    );
-                } else {
-                    self.walk_function_signature(tree, &declaration.signature);
-                }
+                self.walk_function_item_declaration(tree, id, declaration);
             }
-        };
+        }
 
-        self.pop_static_condition(tree.module_id);
+        self.pop_static_guard();
+    }
+
+    /// Walk one global declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// global { console.log("ready") }
+    /// ```
+    fn walk_global_declaration(&mut self, tree: &dir::Tree, declaration: &dir::GlobalDeclaration) {
+        for expression in &declaration.expressions {
+            self.walk_expression(tree, *expression, tree.get(*expression));
+        }
+    }
+
+    /// Walk one module declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// module app { export const value = 1 }
+    /// ```
+    fn walk_module_declaration(&mut self, tree: &dir::Tree, declaration: &dir::ModuleDeclaration) {
+        for expression in &declaration.expressions {
+            self.walk_expression(tree, *expression, tree.get(*expression));
+        }
+    }
+
+    /// Walk one type declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// type Id<T> = T
+    /// ```
+    fn walk_type_declaration(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::TypeDeclaration,
+    ) {
+        // walk generic header
+        for parameter in &declaration.generic_parameters {
+            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+        }
+        for where_clause in &declaration.where_clauses {
+            self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
+        }
+
+        self.walk_type_expression(tree, declaration.value, tree.get(declaration.value));
+
+        if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
+            if !declaration.is_nominal
+                && !self.is_intrinsic_language_item_type_declaration(
+                    symbol,
+                    tree.get(declaration.value),
+                )
+            {
+                let value = self
+                    .check
+                    .require_local_node_type(tree.module_id, declaration.value);
+                let condition = self.active_static_guard();
+
+                self.check
+                    .output_symbol_type_operand(tree.module_id, symbol, value, condition);
+            }
+        }
+
+        if declaration.is_nominal
+            && let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any())
+        {
+            if !matches!(tree.get(declaration.value), dir::TypeExpression::Intrinsic) {
+                let value = self
+                    .check
+                    .require_local_node_type(tree.module_id, declaration.value);
+
+                self.check
+                    .push_induction_root(symbol, value.to_type_term(self.check));
+            }
+
+            self.check
+                .ensure_symbol_type_output_variable(tree.module_id, symbol);
+        }
+    }
+
+    /// Return whether one type declaration defines an opaque language item.
+    pub(in crate::check) fn is_intrinsic_language_item_type_declaration(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        value: &dir::TypeExpression,
+    ) -> bool {
+        matches!(value, dir::TypeExpression::Intrinsic)
+            && self.check.environment.language.item(symbol).is_some()
+    }
+
+    /// Walk one struct declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// struct Point { x: number, y: number }
+    /// ```
+    fn walk_struct_declaration(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::StructDeclaration,
+    ) {
+        let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
+        let receiver = self.ensure_declaration_member_receiver(tree.module_id, symbol);
+
+        // walk generic header
+        for parameter in &declaration.generic_parameters {
+            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+        }
+        for where_clause in &declaration.where_clauses {
+            self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
+        }
+
+        // walk implemented contracts
+        for implemented_type in &declaration.implements_types {
+            self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
+        }
+
+        for member in &declaration.members {
+            self.walk_member(tree, *member, tree.get(*member), receiver);
+        }
+    }
+
+    /// Walk one class declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// class User extends Entity { name: string }
+    /// ```
+    fn walk_class_declaration(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::ClassDeclaration,
+    ) {
+        let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
+        let receiver = self.ensure_declaration_member_receiver(tree.module_id, symbol);
+
+        // walk generic header
+        for parameter in &declaration.generic_parameters {
+            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+        }
+        for where_clause in &declaration.where_clauses {
+            self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
+        }
+
+        // check superclass expression in declaration context
+        if let Some(extends_expression) = declaration.extends_expression {
+            let before_extends = self.checkpoint_flow();
+
+            self.walk_expression(tree, extends_expression, tree.get(extends_expression));
+            self.restore_flow(before_extends);
+        }
+
+        // walk implemented contracts
+        for implemented_type in &declaration.implements_types {
+            self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
+        }
+
+        for member in &declaration.members {
+            self.walk_member(tree, *member, tree.get(*member), receiver);
+        }
+    }
+
+    /// Walk one enum declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// enum Option<T> { Some(T), None }
+    /// ```
+    fn walk_enum_declaration(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::EnumDeclaration,
+    ) {
+        let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
+        let receiver = self.ensure_declaration_member_receiver(tree.module_id, symbol);
+
+        // walk generic header
+        for parameter in &declaration.generic_parameters {
+            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+        }
+        for where_clause in &declaration.where_clauses {
+            self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
+        }
+
+        // walk implemented contracts and variants
+        for implemented_type in &declaration.implements_types {
+            self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
+        }
+        for field in &declaration.fields {
+            self.walk_enum_field(tree, *field, tree.get(*field));
+        }
+
+        for member in &declaration.members {
+            self.walk_member(tree, *member, tree.get(*member), receiver);
+        }
+    }
+
+    /// Walk one interface declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// interface Reader { read(): string }
+    /// ```
+    fn walk_interface_declaration(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::InterfaceDeclaration,
+    ) {
+        if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
+            self.check
+                .ensure_symbol_type_output_variable(tree.module_id, symbol);
+        }
+
+        // walk generic header
+        for parameter in &declaration.generic_parameters {
+            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+        }
+        for where_clause in &declaration.where_clauses {
+            self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
+        }
+
+        // walk inherited contracts
+        for heritage in &declaration.extends {
+            let before_heritage = self.checkpoint_flow();
+
+            self.walk_expression(tree, heritage.expression, tree.get(heritage.expression));
+            self.restore_flow(before_heritage);
+
+            for argument in &heritage.generic_arguments {
+                self.walk_generic_argument(tree, *argument, tree.get(*argument));
+            }
+        }
+
+        for member in &declaration.members {
+            self.walk_type_member(tree, *member, tree.get(*member));
+        }
+    }
+
+    /// Walk one extension declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// extension string { len(): number }
+    /// ```
+    fn walk_extension_declaration(
+        &mut self,
+        tree: &dir::Tree,
+        _id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::ExtensionDeclaration,
+    ) {
+        // walk generic header
+        for parameter in &declaration.generic_parameters {
+            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+        }
+        for where_clause in &declaration.where_clauses {
+            self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
+        }
+
+        self.walk_type_expression(
+            tree,
+            declaration.target_type,
+            tree.get(declaration.target_type),
+        );
+        for implemented_type in &declaration.implements_types {
+            self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
+        }
+
+        let receiver = Some(MemberReceiverContext {
+            module: tree.module_id,
+            owner: None,
+            ty: self
+                .check
+                .require_local_node_type(tree.module_id, declaration.target_type),
+        });
+
+        for member in &declaration.members {
+            self.walk_member(tree, *member, tree.get(*member), receiver);
+        }
+    }
+
+    /// Walk one function declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// function id<T>(value: T): T { value }
+    /// ```
+    fn walk_function_item_declaration(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Declaration>,
+        declaration: &dir::FunctionDeclaration,
+    ) {
+        if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
+            // walk signature before reading its term inputs
+            self.walk_function_signature(tree, &declaration.signature);
+
+            let return_type = self.ensure_signature_return_type(
+                tree.module_id,
+                id.into_any(),
+                &declaration.signature,
+                declaration.body,
+            );
+
+            // publish function symbol type
+            let term = self.lower_function_signature_term(
+                &declaration.signature,
+                return_type.map(Into::into),
+                tree,
+            );
+            let condition = self.active_static_guard();
+
+            self.check
+                .push_induction_root(symbol, TypeTerm::Function(term));
+            self.check.output_symbol_type(
+                tree.module_id,
+                symbol,
+                TypeTerm::Function(term),
+                condition,
+            );
+
+            // walk body after its return channel exists
+            if let (Some(body), Some(return_type)) = (declaration.body, return_type) {
+                let receiver =
+                    self.bind_explicit_receiver(declaration.signature.this_parameter, None, tree);
+
+                self.walk_function_body(
+                    tree,
+                    symbol,
+                    &declaration.signature,
+                    body,
+                    return_type,
+                    receiver,
+                );
+            }
+        } else {
+            // still validate local signature syntax
+            self.walk_function_signature(tree, &declaration.signature);
+        }
     }
 
     /// Walk one enum field.
+    ///
+    /// Example:
+    /// ```ds
+    /// Some(value)
+    /// ```
     pub(in crate::check) fn walk_enum_field(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::EnumField>,
         enum_field: &dir::EnumField,
     ) {
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
         }
         if let Some(value) = enum_field.value {
             // check enum value in declaration context
-            let before_value = self.checkpoint_flow(tree.module_id);
+            let before_value = self.checkpoint_flow();
 
             self.walk_expression(tree, value, tree.get(value));
-            self.restore_flow(tree.module_id, before_value);
+            self.restore_flow(before_value);
         }
 
-        self.pop_static_condition(tree.module_id);
-    }
-
-    /// Walk one function signature and body with a flow frame.
-    fn walk_function_declaration(
-        &mut self,
-        tree: &dir::Tree,
-        symbol: dir::GlobalSymbolId,
-        signature: &dir::FunctionSignature,
-        body: Option<dir::LocalNodeId<dir::Expression>>,
-        return_type: Option<VariableId>,
-    ) {
-        self.walk_function_signature(tree, signature);
-
-        let Some(body) = body else {
-            return;
-        };
-        let Some(return_type) = return_type else {
-            return;
-        };
-        let receiver = self.function_receiver(signature.this_parameter, None, tree);
-
-        self.walk_function_body(tree, symbol, signature, body, return_type, receiver);
+        self.pop_static_guard();
     }
 
     /// Constrain the value produced by a function body that reaches its end.
+    ///
+    /// Example:
+    /// ```ds
+    /// function value(): number { 1 }
+    /// ```
     pub(in crate::check) fn constrain_function_fallthrough_return(
         &mut self,
         tree: &dir::Tree,
@@ -325,17 +449,19 @@ impl CheckState<'_> {
             // { ... }
             dir::Expression::Block(block) => {
                 let block = tree.get(*block);
-                if block.context == dir::BlockContext::Expression {
-                    let value = self.intern_local_node_type_variable(tree.module_id, body);
+                if block.context == dir::BlockContext::Expression
+                    && let Some(tail) = block.tail_expression
+                {
+                    let value = self.check.require_local_node_type(tree.module_id, tail);
 
-                    self.constrain_return_value(tree.module_id, body.into_any(), value);
+                    self.constrain_return_value(tree.module_id, tail.into_any(), value);
                 } else {
                     self.constrain_void_return(tree.module_id, body.into_any());
                 }
             }
             // expression
             _ => {
-                let value = self.intern_local_node_type_variable(tree.module_id, body);
+                let value = self.check.require_local_node_type(tree.module_id, body);
 
                 self.constrain_return_value(tree.module_id, body.into_any(), value);
             }
@@ -343,17 +469,22 @@ impl CheckState<'_> {
     }
 
     /// Walk one function signature without entering the function body.
+    ///
+    /// Example:
+    /// ```ds
+    /// <T>(value: T): T where T: Copy
+    /// ```
     pub(in crate::check) fn walk_function_signature(
         &mut self,
         tree: &dir::Tree,
         signature: &dir::FunctionSignature,
     ) {
-        // generic parameters
+        // walk generic parameters
         for parameter in &signature.generic_parameters {
-            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
         }
 
-        // parameters
+        // walk receiver and runtime parameters
         let is_annotation_required = signature.form != dir::FunctionForm::Lambda;
         if let Some(parameter) = signature.this_parameter {
             self.walk_parameter(tree, parameter, tree.get(parameter), is_annotation_required);
@@ -367,47 +498,24 @@ impl CheckState<'_> {
             );
         }
 
-        // return type
+        // walk return type
         if let Some(return_type) = signature.return_type {
             self.walk_type_expression(tree, return_type, tree.get(return_type));
         }
 
-        // where clauses
+        // walk where clauses
         for where_clause in &signature.where_clauses {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
         }
     }
 
-    /// Return the declared or inferred return type variable for one function.
-    fn intern_function_return_type_variable(
-        &mut self,
-        id: dir::LocalNodeId<dir::Declaration>,
-        declaration: &dir::FunctionDeclaration,
-        tree: &dir::Tree,
-    ) -> Option<VariableId> {
-        // use explicit return annotations
-        if let Some(return_type) = declaration.signature.return_type {
-            return Some(self.intern_local_node_type_variable(tree.module_id, return_type));
-        }
-
-        // use concise expression bodies directly
-        if declaration.signature.asynchrony == dir::Asynchrony::Sync
-            && !declaration.signature.is_generator
-            && let Some(body) = declaration.body
-            && !matches!(tree.get(body), dir::Expression::Block(_))
-        {
-            return Some(self.intern_local_node_type_variable(tree.module_id, body));
-        }
-
-        // declarations without bodies do not infer returns
-        declaration.body?;
-
-        // otherwise use the declaration node as the inferred output
-        Some(self.intern_local_node_type_variable(tree.module_id, id))
-    }
-
-    /// Return the lexical receiver introduced by one function signature.
-    pub(in crate::check) fn function_receiver(
+    /// Bind the explicit receiver introduced by one function signature.
+    ///
+    /// Example:
+    /// ```ds
+    /// function method(this: Box): number { 1 }
+    /// ```
+    pub(in crate::check) fn bind_explicit_receiver(
         &mut self,
         this_parameter: Option<dir::LocalNodeId<dir::Parameter>>,
         owner: Option<dir::GlobalSymbolId>,
@@ -415,33 +523,67 @@ impl CheckState<'_> {
     ) -> Option<ReceiverCapture> {
         // no `this` parameter means no lexical receiver
         let parameter = this_parameter?;
-        let Some(symbol) = self.declaration_symbol(tree.module_id, parameter.into_any()) else {
+        let Some(symbol) = self
+            .check
+            .declaration_symbol(tree.module_id, parameter.into_any())
+        else {
             return None;
         };
 
         // bind the receiver to its parameter type
-        let ty = self.intern_parameter_type_variable(parameter, tree)?;
+        let ty = self.ensure_parameter_type(parameter, tree)?;
 
         Some(ReceiverCapture { symbol, owner, ty })
     }
 
-    /// Return the declared or inferred return type for one function signature.
-    pub(in crate::check) fn intern_signature_return_type_variable(
+    /// Ensure one function signature has a checked return type operand.
+    ///
+    /// Example:
+    /// ```ds
+    /// function value(): number { 1 }
+    /// ```
+    pub(in crate::check) fn ensure_signature_return_type(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         body: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> Option<VariableId> {
+    ) -> Option<TypeOperand> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            return Some(self.intern_local_node_type_variable(module, return_type));
+            return Some(self.check.require_local_node_type(module, return_type));
         }
 
-        // signatures without bodies do not infer returns
+        // skip return inference for signatures without bodies
         body?;
 
-        // otherwise use the declaration node as the inferred output
-        Some(self.intern_node_type_variable(module, source.into_global(module)))
+        // reserve the source node as the inferred return type
+        let node = source.into_global(module);
+
+        Some(self.check.output_node_type_variable(module, node).into())
+    }
+
+    /// Ensure one nominal declaration has a member receiver context.
+    ///
+    /// Example:
+    /// ```ds
+    /// struct Box { value: number }
+    /// ```
+    fn ensure_declaration_member_receiver(
+        &mut self,
+        module: ModuleId,
+        symbol: Option<dir::GlobalSymbolId>,
+    ) -> Option<MemberReceiverContext> {
+        let symbol = symbol?;
+        let ty = self
+            .check
+            .ensure_symbol_type_output_variable(module, symbol)
+            .into();
+
+        Some(MemberReceiverContext {
+            module,
+            owner: Some(symbol),
+            ty,
+        })
     }
 }

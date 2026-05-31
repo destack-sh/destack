@@ -1,9 +1,15 @@
 use destack_dir as dir;
 
-use crate::check::CheckState;
+use crate::check::WalkState;
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Walk one decorator.
+    ///
+    /// Example:
+    /// ```ds
+    /// @inline
+    /// function f() {}
+    /// ```
     pub(in crate::check) fn walk_decorator(
         &mut self,
         tree: &dir::Tree,
@@ -11,9 +17,9 @@ impl CheckState<'_> {
         decorator: &dir::Decorator,
     ) {
         // check decorator operand outside owner flow
-        let before_decorator = self.checkpoint_flow(tree.module_id);
+        let before_decorator = self.checkpoint_flow();
 
         self.walk_expression(tree, decorator.expression, tree.get(decorator.expression));
-        self.restore_flow(tree.module_id, before_decorator);
+        self.restore_flow(before_decorator);
     }
 }

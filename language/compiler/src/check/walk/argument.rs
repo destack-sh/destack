@@ -2,17 +2,22 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, GenericArgument};
+use crate::check::{GenericArgument, GenericSlot, WalkState};
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Walk one generic argument.
+    ///
+    /// Example:
+    /// ```ds
+    /// <T, comptime Size = 4>
+    /// ```
     pub(in crate::check) fn walk_generic_argument(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::GenericArgument>,
         generic_argument: &dir::GenericArgument,
     ) {
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
         }
 
@@ -29,45 +34,36 @@ impl CheckState<'_> {
             dir::GenericArgument::AssociatedType { value, .. } => {
                 self.walk_type_expression(tree, *value, tree.get(*value));
             }
-            // <C>
-            dir::GenericArgument::Value { value } => {
+            // <C>, <comptime Size = N>, <...C>
+            dir::GenericArgument::Value { value }
+            | dir::GenericArgument::AssociatedConst { value, .. }
+            | dir::GenericArgument::SpreadValue { value } => {
                 // check static argument value in static context
-                let before_value = self.checkpoint_flow(tree.module_id);
+                let before_value = self.checkpoint_flow();
 
                 self.walk_expression(tree, *value, tree.get(*value));
-                self.restore_flow(tree.module_id, before_value);
-            }
-            // <comptime Size = N>
-            dir::GenericArgument::AssociatedConst { value, .. } => {
-                // check static argument value in static context
-                let before_value = self.checkpoint_flow(tree.module_id);
-
-                self.walk_expression(tree, *value, tree.get(*value));
-                self.restore_flow(tree.module_id, before_value);
-            }
-            // <...C>
-            dir::GenericArgument::SpreadValue { value } => {
-                // check static argument value in static context
-                let before_value = self.checkpoint_flow(tree.module_id);
-
-                self.walk_expression(tree, *value, tree.get(*value));
-                self.restore_flow(tree.module_id, before_value);
+                self.restore_flow(before_value);
             }
             // ignore damaged syntax
             dir::GenericArgument::Error => {}
         };
 
-        self.pop_static_condition(tree.module_id);
+        self.pop_static_guard();
     }
 
     /// Walk one runtime argument.
+    ///
+    /// Example:
+    /// ```ds
+    /// f(name: value, ...rest)
+    /// ```
     pub(in crate::check) fn walk_argument(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Argument>,
         argument: &dir::Argument,
     ) {
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
         }
 
@@ -92,25 +88,18 @@ impl CheckState<'_> {
             dir::Argument::Error => {}
         };
 
-        self.pop_static_condition(tree.module_id);
+        self.pop_static_guard();
     }
 
-    /// Build generic argument terms from argument syntax.
-    pub(in crate::check) fn build_generic_arguments(
+    /// Lower generic argument terms from argument syntax.
+    ///
+    /// Example:
+    /// ```ds
+    /// <T, U, comptime Size = 4>
+    /// ```
+    pub(in crate::check) fn lower_generic_arguments(
         &mut self,
-        arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        tree: &dir::Tree,
-    ) -> SmallVec<[GenericArgument; 4]> {
-        arguments
-            .iter()
-            .map(|argument| self.build_generic_argument_term(*argument, None, tree))
-            .collect()
-    }
-
-    /// Build generic argument terms against one owner's slots.
-    pub(in crate::check) fn build_generic_arguments_for_owner(
-        &mut self,
-        owner: dir::GlobalSymbolId,
+        owner: Option<dir::GlobalSymbolId>,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         tree: &dir::Tree,
     ) -> SmallVec<[GenericArgument; 4]> {
@@ -118,95 +107,88 @@ impl CheckState<'_> {
             .iter()
             .enumerate()
             .map(|(index, argument)| {
-                let is_static =
-                    self.generic_argument_is_static_for_owner(tree.module_id, owner, index);
-
-                self.build_generic_argument_term(*argument, Some(is_static), tree)
+                self.lower_generic_argument_term(*argument, owner, index, tree)
             })
             .collect()
     }
 
-    /// Return one generic argument term.
-    fn build_generic_argument_term(
+    /// Lower one generic argument term.
+    ///
+    /// Example:
+    /// ```ds
+    /// <T>
+    /// ```
+    fn lower_generic_argument_term(
         &mut self,
         id: dir::LocalNodeId<dir::GenericArgument>,
-        is_static: Option<bool>,
+        owner: Option<dir::GlobalSymbolId>,
+        index: usize,
+        tree: &dir::Tree,
+    ) -> GenericArgument {
+        let Some(owner) = owner else {
+            return self.lower_unselected_generic_argument_term(id, tree);
+        };
+        let Some(parameter) = self.generic_argument_parameter(tree.module_id, owner, index) else {
+            return self.lower_type_generic_argument_term(id, tree);
+        };
+
+        match parameter {
+            GenericSlot::Type { .. } | GenericSlot::VariadicType { .. } => {
+                self.lower_type_generic_argument_term(id, tree)
+            }
+            GenericSlot::Static { .. } | GenericSlot::VariadicStatic { .. } => {
+                self.lower_static_generic_argument_term(id, tree)
+            }
+        }
+    }
+
+    /// Lower one argument for a type generic slot.
+    ///
+    /// Example:
+    /// ```ds
+    /// <T>
+    /// ```
+    fn lower_type_generic_argument_term(
+        &mut self,
+        id: dir::LocalNodeId<dir::GenericArgument>,
         tree: &dir::Tree,
     ) -> GenericArgument {
         let module = tree.module_id;
         let term = match tree.get(id) {
-            // <T> for a static parameter
-            dir::GenericArgument::Type { value } if is_static == Some(true) => {
-                GenericArgument::Static(self.static_argument_variable(*value, tree).into())
-            }
-            // <...T> for a variadic static parameter
-            dir::GenericArgument::SpreadType { value } if is_static == Some(true) => {
-                GenericArgument::SpreadStatic(self.static_argument_variable(*value, tree).into())
-            }
-            // <T> with no known generic owner
-            dir::GenericArgument::Type { value } if is_static.is_none() => {
-                GenericArgument::TypeOrStatic {
-                    ty: self.intern_local_node_type_variable(module, *value).into(),
-                    value: self.static_argument_variable(*value, tree).into(),
-                }
-            }
-            // <...T> with no known generic owner
-            dir::GenericArgument::SpreadType { value } if is_static.is_none() => {
-                GenericArgument::SpreadTypeOrStatic {
-                    ty: self.intern_local_node_type_variable(module, *value).into(),
-                    value: self.static_argument_variable(*value, tree).into(),
-                }
-            }
             // <T>
             dir::GenericArgument::Type { value } => {
-                GenericArgument::Type(self.intern_local_node_type_variable(module, *value).into())
+                GenericArgument::Type(self.lower_type_expression_operand(tree, *value).into())
             }
             // <...T>
-            dir::GenericArgument::SpreadType { value } => GenericArgument::SpreadType(
-                self.intern_local_node_type_variable(module, *value).into(),
-            ),
+            dir::GenericArgument::SpreadType { value } => {
+                GenericArgument::SpreadType(self.lower_type_expression_operand(tree, *value).into())
+            }
             // <type Item = T>
             dir::GenericArgument::AssociatedType { name, value } => {
                 GenericArgument::AssociatedType {
                     name: *name,
-                    value: self.intern_local_node_type_variable(module, *value).into(),
+                    value: self.lower_type_expression_operand(tree, *value).into(),
                 }
             }
             // <C>
-            dir::GenericArgument::Value { value } => GenericArgument::Static(
-                self.define_static_expression_variable(
-                    module,
-                    *value,
-                    self.active_static_condition(module),
-                )
-                .into(),
-            ),
+            dir::GenericArgument::Value { value } => {
+                GenericArgument::Static(self.lower_static_expression_operand(tree, *value))
+            }
             // <comptime Size = N>
             dir::GenericArgument::AssociatedConst { name, value } => {
                 GenericArgument::AssociatedConst {
                     name: *name,
-                    value: self
-                        .define_static_expression_variable(
-                            module,
-                            *value,
-                            self.active_static_condition(module),
-                        )
-                        .into(),
+                    value: self.lower_static_expression_operand(tree, *value),
                 }
             }
             // <...C>
-            dir::GenericArgument::SpreadValue { value } => GenericArgument::SpreadStatic(
-                self.define_static_expression_variable(
-                    module,
-                    *value,
-                    self.active_static_condition(module),
-                )
-                .into(),
-            ),
+            dir::GenericArgument::SpreadValue { value } => {
+                GenericArgument::SpreadStatic(self.lower_static_expression_operand(tree, *value))
+            }
             // keep the argument arity visible to solve
             dir::GenericArgument::Error => {
                 let source = id.into_global_any(module);
-                let variable = self.intern_node_type_variable(module, source);
+                let variable = self.check.require_node_type(source);
 
                 GenericArgument::Type(variable.into())
             }
@@ -215,26 +197,138 @@ impl CheckState<'_> {
         term
     }
 
-    /// Return whether one generic argument position expects a static term.
-    fn generic_argument_is_static_for_owner(
+    /// Lower one argument for a static generic slot.
+    ///
+    /// Example:
+    /// ```ds
+    /// <4>
+    /// ```
+    fn lower_static_generic_argument_term(
+        &mut self,
+        id: dir::LocalNodeId<dir::GenericArgument>,
+        tree: &dir::Tree,
+    ) -> GenericArgument {
+        let module = tree.module_id;
+        let term = match tree.get(id) {
+            // <T>
+            dir::GenericArgument::Type { value } => {
+                GenericArgument::Static(self.create_static_argument_variable(*value, tree).into())
+            }
+            // <...T>
+            dir::GenericArgument::SpreadType { value } => GenericArgument::SpreadStatic(
+                self.create_static_argument_variable(*value, tree).into(),
+            ),
+            // <type Item = T>
+            dir::GenericArgument::AssociatedType { name, value } => {
+                GenericArgument::AssociatedConst {
+                    name: *name,
+                    value: self.create_static_argument_variable(*value, tree).into(),
+                }
+            }
+            // <C>
+            dir::GenericArgument::Value { value } => {
+                GenericArgument::Static(self.lower_static_expression_operand(tree, *value))
+            }
+            // <comptime Size = N>
+            dir::GenericArgument::AssociatedConst { name, value } => {
+                GenericArgument::AssociatedConst {
+                    name: *name,
+                    value: self.lower_static_expression_operand(tree, *value),
+                }
+            }
+            // <...C>
+            dir::GenericArgument::SpreadValue { value } => {
+                GenericArgument::SpreadStatic(self.lower_static_expression_operand(tree, *value))
+            }
+            // keep the argument arity visible to solve
+            dir::GenericArgument::Error => {
+                let source = id.into_global_any(module);
+                let variable = self.check.require_node_type(source);
+
+                GenericArgument::Type(variable.into())
+            }
+        };
+
+        term
+    }
+
+    /// Lower one argument whose generic owner is not selected yet.
+    ///
+    /// Example:
+    /// ```ds
+    /// <T>
+    /// ```
+    fn lower_unselected_generic_argument_term(
+        &mut self,
+        id: dir::LocalNodeId<dir::GenericArgument>,
+        tree: &dir::Tree,
+    ) -> GenericArgument {
+        let module = tree.module_id;
+        let term = match tree.get(id) {
+            // <T>
+            dir::GenericArgument::Type { value } => GenericArgument::TypeOrStatic {
+                ty: self.lower_type_expression_operand(tree, *value).into(),
+                value: self.create_static_argument_variable(*value, tree).into(),
+            },
+            // <...T>
+            dir::GenericArgument::SpreadType { value } => GenericArgument::SpreadTypeOrStatic {
+                ty: self.lower_type_expression_operand(tree, *value).into(),
+                value: self.create_static_argument_variable(*value, tree).into(),
+            },
+            // <type Item = T>
+            dir::GenericArgument::AssociatedType { name, value } => {
+                GenericArgument::AssociatedType {
+                    name: *name,
+                    value: self.lower_type_expression_operand(tree, *value).into(),
+                }
+            }
+            // <C>
+            dir::GenericArgument::Value { value } => {
+                GenericArgument::Static(self.lower_static_expression_operand(tree, *value))
+            }
+            // <comptime Size = N>
+            dir::GenericArgument::AssociatedConst { name, value } => {
+                GenericArgument::AssociatedConst {
+                    name: *name,
+                    value: self.lower_static_expression_operand(tree, *value),
+                }
+            }
+            // <...C>
+            dir::GenericArgument::SpreadValue { value } => {
+                GenericArgument::SpreadStatic(self.lower_static_expression_operand(tree, *value))
+            }
+            // keep the argument arity visible to solve
+            dir::GenericArgument::Error => {
+                let source = id.into_global_any(module);
+                let variable = self.check.require_node_type(source);
+
+                GenericArgument::Type(variable.into())
+            }
+        };
+
+        term
+    }
+
+    /// Return the generic parameter matched by one argument position.
+    fn generic_argument_parameter(
         &self,
         module: ModuleId,
         owner: dir::GlobalSymbolId,
         index: usize,
-    ) -> bool {
+    ) -> Option<GenericSlot> {
         let index = dir::GenericSlotIndex::new(index as u32);
         let mut variadic = None;
 
-        for (_, generic) in self.generic_parameters_for_owner(module, owner) {
+        for (_, generic) in self.check.generic_slots_for_owner(module, owner) {
             if generic.slot().index == index {
-                return generic.is_static();
+                return Some(generic);
             }
 
             if generic.is_variadic() && generic.slot().index <= index {
-                variadic = Some(generic.is_static());
+                variadic = Some(generic);
             }
         }
 
-        variadic.unwrap_or(false)
+        variadic
     }
 }

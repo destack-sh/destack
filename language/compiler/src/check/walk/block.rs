@@ -1,31 +1,25 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, TypeLiteralTerm, TypeTerm};
+use crate::check::{TypeLiteralTerm, TypeTerm, WalkState};
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Walk one block.
+    ///
+    /// Example:
+    /// ```ds
+    /// {
+    ///     const value = 1;
+    ///     value
+    /// }
+    /// ```
     pub(in crate::check) fn walk_block(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Block>,
         block: &dir::Block,
     ) {
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
-        }
-
-        // define expression block output
-        if block.context == dir::BlockContext::Expression {
-            let variable = self.intern_local_node_type_variable(tree.module_id, id);
-            let term = match block.tail_expression {
-                Some(expression) => TypeTerm::Variable(
-                    self.intern_local_node_type_variable(tree.module_id, expression),
-                ),
-                None => TypeTerm::Literal(TypeLiteralTerm::Void),
-            };
-            let condition = self.active_static_condition(tree.module_id);
-
-            self.add_type_definition(variable, term, condition);
         }
 
         // walk leading statements
@@ -34,14 +28,14 @@ impl CheckState<'_> {
             // update flow through reachable expressions
             if is_reachable {
                 self.walk_expression(tree, *expression, tree.get(*expression));
-                is_reachable = self.expression_can_fall_through(tree, *expression);
+                is_reachable = self.can_expression_fall_through(tree, *expression);
             }
             // check unreachable expression in isolated flow
             else {
-                let before = self.checkpoint_flow(tree.module_id);
+                let before = self.checkpoint_flow();
 
                 self.walk_expression(tree, *expression, tree.get(*expression));
-                self.restore_flow(tree.module_id, before);
+                self.restore_flow(before);
             }
         }
 
@@ -53,13 +47,28 @@ impl CheckState<'_> {
             }
             // check unreachable tail in isolated flow
             else {
-                let before = self.checkpoint_flow(tree.module_id);
+                let before = self.checkpoint_flow();
 
                 self.walk_expression(tree, expression, tree.get(expression));
-                self.restore_flow(tree.module_id, before);
+                self.restore_flow(before);
             }
         }
 
-        self.pop_static_condition(tree.module_id);
+        // set expression block type
+        if block.context == dir::BlockContext::Expression {
+            if let Some(expression) = block.tail_expression {
+                let tail = self
+                    .check
+                    .require_local_node_type(tree.module_id, expression);
+
+                self.output_node_type_operand(tree.module_id, id, tail);
+            } else {
+                let term = TypeTerm::Literal(TypeLiteralTerm::Void);
+
+                self.output_node_type(tree.module_id, id, term);
+            }
+        }
+
+        self.pop_static_guard();
     }
 }
