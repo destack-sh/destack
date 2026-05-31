@@ -48,8 +48,6 @@ pub(super) struct TypeScope {
     pub(super) disallows_conditional: bool,
     /// Whether heritage clauses own `implements`.
     pub(super) stops_before_implements: bool,
-    /// Whether type predicate syntax is valid.
-    pub(super) allows_type_predicate: bool,
     /// Whether static type closers stop parsing.
     pub(super) is_static: bool,
 }
@@ -113,7 +111,6 @@ impl TypeScope {
                 || flags.is_in_type_conditional_right(),
             disallows_conditional: flags.is_disallow_type_conditional(),
             stops_before_implements: flags.is_in_before_block() || flags.is_in_super_type(),
-            allows_type_predicate: flags.allows_type_predicate(),
             is_static: flags.is_in_static(),
         }
     }

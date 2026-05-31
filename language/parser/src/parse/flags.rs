@@ -20,7 +20,6 @@ impl ParserFlags {
         | Self::IN_TYPE_CONDITIONAL_RIGHT_FLAG
         | Self::DISALLOW_TYPE_CONDITIONAL_FLAG
         | Self::IN_ARROW_RETURN_TYPE_FLAG
-        | Self::ALLOW_TYPE_PREDICATE_FLAG
         | Self::ALLOW_SEQUENCE_EXPRESSION_FLAG
         | Self::IN_MATCH_CASE_BODY_FLAG;
     const AMBIENT_FLAG_MASK: u32 = !Self::EXPRESSION_FLAG_MASK;
@@ -43,7 +42,6 @@ impl ParserFlags {
     const IN_TERNARY_CONDITION_FLAG: u32 = 1 << 15;
     const IN_TYPE_CONDITIONAL_RIGHT_FLAG: u32 = 1 << 16;
     const IN_ARROW_RETURN_TYPE_FLAG: u32 = 1 << 17;
-    const ALLOW_TYPE_PREDICATE_FLAG: u32 = 1 << 18;
     const IN_TYPE_MAPPED_CONSTRAINT_FLAG: u32 = 1 << 19;
     const IN_FOR_EACH_FLAG: u32 = 1 << 20;
     const IN_NEW_RECEIVER_FLAG: u32 = 1 << 21;
@@ -180,11 +178,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) const fn is_in_arrow_return_type(self) -> bool {
         self.has_flag(Self::IN_ARROW_RETURN_TYPE_FLAG)
-    }
-
-    #[inline]
-    pub(crate) const fn allows_type_predicate(self) -> bool {
-        self.has_flag(Self::ALLOW_TYPE_PREDICATE_FLAG)
     }
 
     #[inline]
@@ -534,12 +527,6 @@ impl ParserFlags {
     #[inline]
     pub(crate) fn in_arrow_return_type(self) -> Self {
         self.with_flag(Self::IN_ARROW_RETURN_TYPE_FLAG, true)
-    }
-
-    /// Set `allow_type_predicate=true`.
-    #[inline]
-    pub(crate) fn allow_type_predicate(self) -> Self {
-        self.with_flag(Self::ALLOW_TYPE_PREDICATE_FLAG, true)
     }
 
     /// Set `in_type_mapped_constraint=true`.

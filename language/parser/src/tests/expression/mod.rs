@@ -9,7 +9,6 @@ mod literal;
 mod member;
 mod operator;
 mod postfix;
-mod predicate;
 mod primary;
 mod range;
 mod regex;

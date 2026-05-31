@@ -386,13 +386,6 @@ impl Parser {
         self.next_token_type() == TokenType::Dot
     }
 
-    /// Return whether a type predicate asserts expression starts here.
-    pub(crate) fn can_start_type_predicate_asserts(&mut self) -> bool {
-        self.current_keyword() == Some(Keyword::Asserts)
-            && (self.token_type_at_offset(1) == TokenType::Identifier
-                || self.keyword_at_offset(1) == Some(Keyword::This))
-    }
-
     /// Eat one member name and its span.
     ///
     /// Examples:

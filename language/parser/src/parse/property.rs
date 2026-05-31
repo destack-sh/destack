@@ -372,6 +372,64 @@ impl Parser {
         modifiers.is_some_and(|modifiers| modifiers.is_ambient)
     }
 
+    /// Return whether the current type member modifiers introduce an associated member.
+    fn type_member_modifiers_start_associated_member(&mut self) -> bool {
+        self.lookahead(|parser| {
+            let mut consumed_modifier = false;
+
+            loop {
+                // scan associated modifiers
+                if matches!(
+                    parser.current_keyword(),
+                    Some(Keyword::Abstract | Keyword::Override)
+                ) {
+                    parser.bump();
+                    consumed_modifier = true;
+                    continue;
+                }
+
+                break;
+            }
+
+            consumed_modifier
+                && (parser.is_keyword(Keyword::Type)
+                    || parser.is_keyword(Keyword::Comptime)
+                        && parser.next_keyword() == Some(Keyword::Const))
+        })
+    }
+
+    /// Eat abstraction modifiers before an associated member.
+    fn eat_type_member_associated_modifiers_maybe(&mut self) -> Option<BindingModifiers> {
+        if !self.type_member_modifiers_start_associated_member() {
+            return None;
+        }
+
+        let mut modifiers = BindingModifiers::default();
+        let mut has_modifiers = false;
+
+        loop {
+            // abstract
+            if self.is_keyword(Keyword::Abstract) {
+                self.bump(); // eat abstract
+                modifiers.is_abstract = true;
+                has_modifiers = true;
+                continue;
+            }
+
+            // override
+            if self.is_keyword(Keyword::Override) {
+                self.bump(); // eat override
+                modifiers.is_override = true;
+                has_modifiers = true;
+                continue;
+            }
+
+            break;
+        }
+
+        has_modifiers.then_some(modifiers)
+    }
+
     /// Eat method parameters in property or member contexts.
     #[inline]
     fn eat_method_parameters(
@@ -401,7 +459,7 @@ impl Parser {
         self.eat_type_expression_or_recover_missing(
             self.flags
                 .with_ambient_context(ambient_context)
-                .with_expression_context(expression_context.allow_type_predicate()),
+                .with_expression_context(expression_context),
             owner,
         )
     }
@@ -726,6 +784,7 @@ impl Parser {
     fn try_eat_type_member_associated_type(
         &mut self,
         start: &ParserSpanStart,
+        modifiers: Option<&BindingModifiers>,
     ) -> ParserResult<Option<LocalNodeId<TypeMember>>> {
         if !self.language.is_destack()
             || !self.is_keyword(Keyword::Type)
@@ -784,6 +843,8 @@ impl Parser {
             where_clauses,
             constraint,
             value,
+            is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
+            is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
         };
         let member_id = self.insert_node(member, self.get_span_from(start));
         self.tree.set_main_span(member_id, name_span);
@@ -795,6 +856,7 @@ impl Parser {
     fn try_eat_type_member_associated_const(
         &mut self,
         start: &ParserSpanStart,
+        modifiers: Option<&BindingModifiers>,
     ) -> ParserResult<Option<LocalNodeId<TypeMember>>> {
         if !self.language.is_destack()
             || !self.is_keyword(Keyword::Comptime)
@@ -851,6 +913,8 @@ impl Parser {
             name,
             declared_type,
             value,
+            is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
+            is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
         };
         let member_id = self.insert_node(member, self.get_span_from(start));
         self.tree.set_main_span(member_id, name_span);
@@ -1614,14 +1678,25 @@ impl Parser {
             return Ok(member_id);
         }
 
-        // associated members
+        // eat associated member modifiers
+        let associated_modifiers = self.eat_type_member_associated_modifiers_maybe();
+
+        // parse associated members
         if container_kind.allows_associated_members() {
-            if let Some(member_id) = self.try_eat_type_member_associated_type(&start)? {
+            if let Some(member_id) =
+                self.try_eat_type_member_associated_type(&start, associated_modifiers.as_ref())?
+            {
                 return Ok(member_id);
             }
-            if let Some(member_id) = self.try_eat_type_member_associated_const(&start)? {
+            if let Some(member_id) =
+                self.try_eat_type_member_associated_const(&start, associated_modifiers.as_ref())?
+            {
                 return Ok(member_id);
             }
+        }
+
+        if associated_modifiers.is_some() {
+            return Err(ParserError::unexpected(self.peek()?.span));
         }
 
         // static
@@ -2346,6 +2421,8 @@ impl Parser {
                     value: default,
                     visibility: modifiers.and_then(|modifiers| modifiers.visibility),
                     is_ambient: self.is_ambient_for_modifiers(modifiers.as_ref()),
+                    is_abstract: modifiers.is_some_and(|modifiers| modifiers.is_abstract),
+                    is_override: modifiers.is_some_and(|modifiers| modifiers.is_override),
                 }
             } else {
                 let Some(key) = key else {

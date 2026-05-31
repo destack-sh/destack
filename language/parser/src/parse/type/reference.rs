@@ -31,11 +31,6 @@ impl Parser {
             return Ok(type_expression);
         }
 
-        // predicate value reference
-        if self.current_token_starts_type_predicate_reference() {
-            return self.eat_type_predicate_reference(start);
-        }
-
         // literal types
         if let Some(type_expression) = self.eat_type_literal_primary(start)? {
             return Ok(type_expression);
@@ -111,38 +106,6 @@ impl Parser {
         }
 
         Ok(None)
-    }
-
-    /// Return whether the current token starts a type predicate reference.
-    fn current_token_starts_type_predicate_reference(&mut self) -> bool {
-        self.flags.allows_type_predicate()
-            && self.next_keyword() == Some(Keyword::Is)
-            && self.peek_type_literal().is_ok()
-    }
-
-    /// Eat a type predicate value reference.
-    ///
-    /// Examples:
-    /// ```ds
-    /// value is string
-    /// this is Ready
-    /// namespace.value is Kind
-    /// ```
-    fn eat_type_predicate_reference(
-        &mut self,
-        start: &ParserSpanStart,
-    ) -> ParserResult<LocalNodeId<TypeExpression>> {
-        let (path, segment_spans) = self.eat_path_with_segment_spans()?;
-        let id = self.insert_node(
-            TypeExpression::Reference {
-                path,
-                generic_arguments: Vec::new(),
-            },
-            self.get_span_from(start),
-        );
-        self.set_path_type_expression_spans(id, &segment_spans)?;
-
-        Ok(id)
     }
 
     /// Eat a literal type primary when present.
@@ -298,9 +261,6 @@ impl Parser {
                 ))
             }
             Keyword::Infer => Some(self.eat_type_infer_expression()?),
-            Keyword::Asserts if self.can_start_type_predicate_asserts() => {
-                Some(self.eat_type_predicate_asserts()?)
-            }
             Keyword::Typeof => Some(self.eat_typeof_query(start)?),
             _ => None,
         };

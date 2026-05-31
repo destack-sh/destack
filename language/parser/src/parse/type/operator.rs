@@ -1,9 +1,8 @@
 use crate::{Parser, ParserError, ParserResult};
 use destack_dir::{
     BinaryOperator, Keyword, LocalNodeId, OperatorPrecedence, TokenType, TypeExpression,
-    TypePredicateSubject,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use destack_source::Span;
 
 /// Type-space unary operators.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -52,8 +51,6 @@ pub(in crate::parse) enum TypeInfixOperator {
     Binary(BinaryOperator),
     /// `extends` or `implements`.
     Relation(TypeBinaryOperator),
-    /// Type predicate relation.
-    Is,
     /// Destack range operator.
     Range(destack_dir::RangeEnd),
 }
@@ -64,7 +61,6 @@ impl TypeInfixOperator {
         match self {
             Self::Binary(operator) => operator.precedence(),
             Self::Relation(operator) => operator.precedence(),
-            Self::Is => OperatorPrecedence::Comparison as u16,
             Self::Range(_) => OperatorPrecedence::Range as u16,
         }
     }
@@ -93,7 +89,6 @@ impl Parser {
         head_span: Span,
         left: LocalNodeId<TypeExpression>,
         operator: TypeInfixOperator,
-        operator_span: Span,
         right: LocalNodeId<TypeExpression>,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         let expression = match operator {
@@ -121,32 +116,6 @@ impl Parser {
             TypeInfixOperator::Relation(TypeBinaryOperator::Implements) => {
                 TypeExpression::Implements { left, right }
             }
-            TypeInfixOperator::Is => {
-                let Some(subject) = self.type_predicate_subject_from_type_expression(left) else {
-                    return Err(ParserError::unexpected(self.tree.get_span(left)));
-                };
-                self.set_node_leading_span(right, operator_span.end);
-                let id = self.insert_node(
-                    TypeExpression::Predicate {
-                        asserts: false,
-                        subject,
-                        target: Some(right),
-                    },
-                    source_span,
-                );
-                let subject_span = self
-                    .tree
-                    .get_main_span(left)
-                    .unwrap_or_else(|| self.tree.get_span(left));
-                self.tree.set_main_span(id, subject_span);
-                self.tree.set_head_span(id, head_span);
-                self.tree.set_side_span(
-                    id,
-                    NodeSpanType::Region(NodeSpanRegion::Type),
-                    operator_span,
-                );
-                return Ok(id);
-            }
             _ => return Err(ParserError::unexpected(self.tree.get_span(right))),
         };
 
@@ -154,31 +123,6 @@ impl Parser {
         self.tree.set_head_span(id, head_span);
 
         Ok(id)
-    }
-
-    /// Return one type predicate subject from a type expression.
-    pub(crate) fn type_predicate_subject_from_type_expression(
-        &self,
-        expression_id: LocalNodeId<TypeExpression>,
-    ) -> Option<TypePredicateSubject> {
-        match self.tree.get(expression_id) {
-            TypeExpression::Reference {
-                path,
-                generic_arguments,
-            } if generic_arguments.is_empty() && path.segments.len() == 1 => {
-                Some(TypePredicateSubject::Identifier(path.segments[0]))
-            }
-            TypeExpression::This => Some(TypePredicateSubject::This),
-            _ => None,
-        }
-    }
-
-    /// Return true when a type expression is bare `this`.
-    pub(crate) fn type_expression_is_bare_this(
-        &self,
-        expression_id: LocalNodeId<TypeExpression>,
-    ) -> bool {
-        matches!(self.tree.get(expression_id), TypeExpression::This)
     }
 
     /// Return flattened type binary elements for chain nodes.

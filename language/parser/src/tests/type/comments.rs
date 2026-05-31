@@ -6,7 +6,7 @@ use crate::{
 };
 use destack_core::StringPool;
 use destack_dir::*;
-use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
+use destack_source::{LanguageType, NodeSpanBoundary, NodeSpanType};
 
 #[test]
 fn test_parse_type_union_line_comment_on_rhs_separator_owner() {
@@ -83,44 +83,6 @@ fn test_parse_type_intersection_line_comment_on_rhs_separator_owner() {
         CommentPosition::Trailing
     );
     assert_eq!(parser.tree.comments()[0].attached_to, 0);
-}
-
-/// Parse type predicate comments into subject and target boundaries.
-#[test]
-fn test_parse_type_predicate_comment_boundaries() {
-    let source = "type Guard<T> = (value: unknown) => value /* subject */ is /* is */ T";
-    let mut test = TestParser::new(source);
-    let mut parser = test.prepare();
-    let expressions = parser.parse();
-
-    assert_eq!(expressions.len(), 1);
-    assert_eq!(parser.tree.comments().len(), 2);
-
-    let expression_id = parser.unwrap_label_expression(expressions[0]);
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
-                let predicate_id = function.return_type.expect("expected return type");
-                assert_node!(parser.tree, predicate_id, TypeExpression::Predicate { target, .. } => {
-                    let target = target.expect("expected predicate target");
-                    let operator_span = parser
-                        .tree
-                        .get_side_span(predicate_id, NodeSpanType::Region(NodeSpanRegion::Type))
-                        .expect("expected predicate operator span");
-                    let target_leading_span = parser
-                        .tree
-                        .get_side_span(target, NodeSpanType::Boundary(NodeSpanBoundary::Leading))
-                        .expect("expected target leading span");
-
-                    assert_eq!(parser.get_span_str(operator_span), "is");
-                    assert_eq!(parser.get_span_str(target_leading_span), " /* is */ ");
-                });
-            });
-        });
-    });
-
-    assert_comment!(parser, 0, CommentKind::SingleLineBlock, " subject");
-    assert_comment!(parser, 1, CommentKind::SingleLineBlock, " is");
 }
 
 #[test]

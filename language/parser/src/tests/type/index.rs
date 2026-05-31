@@ -45,67 +45,6 @@ fn test_parse_function_type_return_conditional() {
     });
 }
 
-/// Parse function type return predicates.
-#[test]
-fn test_parse_function_type_return_predicate() {
-    let mut test = TestParser::new("type Is<T> = (value: any) => value is T");
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-
-    test.assert_no_errors(&parser);
-
-    // type Is<T> = (value: any) => value is T
-    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Function(function) => {
-                assert_eq!(function.parameters.len(), 1);
-                assert!(function.this_parameter.is_none());
-                assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Predicate { asserts, subject, target } => {
-                    assert!(!*asserts);
-                    assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("value")));
-                    assert_expression_path!(parser, parser.tree.get(target.expect("expected predicate target")), "T");
-                });
-            });
-        });
-    });
-}
-
-/// Parse function type predicates inside conditional type tests.
-#[test]
-fn test_parse_function_type_predicate_in_conditional_type() {
-    let mut test = TestParser::new(
-        "type Guarded<Actual> = Actual extends (value: any, ...args: any[]) => value is infer T ? T : never",
-    );
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-
-    test.assert_no_errors(&parser);
-
-    // type Guarded<Actual> = Actual extends (...) => value is infer T ? T : never
-    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Conditional { left, extends_type, then_type, else_type } => {
-                assert_expression_path!(parser, parser.tree.get(*left), "Actual");
-                assert_node!(parser.tree, *extends_type, TypeExpression::Function(function) => {
-                    assert_eq!(function.parameters.len(), 2);
-                    assert_node!(parser.tree, function.return_type.expect("expected return type"), TypeExpression::Predicate { asserts, subject, target } => {
-                        assert!(!*asserts);
-                        assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("value")));
-                        assert_node!(parser.tree, target.expect("expected predicate target"), TypeExpression::Infer { name, constraint, .. } => {
-                            assert_string!(parser, name.expect("expected infer name"), "T");
-                            assert!(constraint.is_none());
-                        });
-                    });
-                });
-                assert_expression_path!(parser, parser.tree.get(*then_type), "T");
-                assert_node!(parser.tree, *else_type, TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::Never);
-                });
-            });
-        });
-    });
-}
-
 #[test]
 fn test_parse_type_arguments_with_conditional() {
     let mut test = TestParser::new(
@@ -657,47 +596,4 @@ fn test_parse_deno_conditional_indexed_access() {
             assert_node!(parser.tree, *value, TypeExpression::Conditional { .. });
         });
     });
-}
-
-#[test]
-fn test_reject_type_predicate_alias_expression() {
-    let mut test = TestParser::new("type T = value is string");
-    let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
-    let (span, node_type, expected) = error.leaf_content();
-
-    assert_eq!(
-        (node_type, expected, parser.get_span_str(span)),
-        (None, None, "is")
-    );
-}
-
-#[test]
-fn test_parse_this_type_predicate_alias_expression() {
-    let mut test = TestParser::new("type T = this is Foo");
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-
-    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Predicate { asserts, subject, target } => {
-                assert!(!asserts);
-                assert_eq!(*subject, TypePredicateSubject::This);
-                assert_expression_path!(parser, parser.tree.get(target.unwrap()), "Foo");
-            });
-        });
-    });
-}
-
-#[test]
-fn test_reject_parenthesized_type_predicate_subject() {
-    let mut test = TestParser::new("function isString(value: unknown): (value) is string {}");
-    let mut parser = test.prepare();
-    let error = parser.eat_expression(parser.flags).unwrap_err();
-    let (span, node_type, expected) = error.leaf_content();
-
-    assert_eq!(
-        (node_type, expected, parser.get_span_str(span)),
-        (None, None, "(value)")
-    );
 }

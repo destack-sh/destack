@@ -1,30 +1,7 @@
 use crate::tests::*;
-use crate::{assert_comment, assert_expression_path, assert_node, assert_path, assert_string};
+use crate::{assert_expression_path, assert_node, assert_path, assert_string};
 use destack_dir::*;
 use destack_source::LanguageType;
-
-#[test]
-fn test_parse_type_predicate_asserts_target_with_boundary_comment() {
-    let source = "type T = asserts value is // predicate-target\nstring";
-    let mut test = TestParser::new(source);
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-    parser.attach_comments();
-
-    assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { value, .. }) => {
-            assert_node!(parser.tree, *value, TypeExpression::Predicate { asserts, target, .. } => {
-                assert!(*asserts);
-                let target = target.expect("expected predicate target");
-                assert_node!(parser.tree, target, TypeExpression::Literal { value } => {
-                    assert_eq!(*value, TypeLiteral::String);
-                });
-            });
-        });
-    });
-    assert_eq!(parser.tree.comments().len(), 1);
-    assert_comment!(parser, 0, CommentKind::Line, "predicate-target");
-}
 
 #[test]
 fn test_parse_type_infer_span() {

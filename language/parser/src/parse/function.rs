@@ -829,7 +829,6 @@ impl Parser {
     /// ```ds
     /// => value
     /// : string => value
-    /// : asserts value is Ready => value
     /// ```
     fn eat_arrow_tail(
         &mut self,
@@ -864,8 +863,6 @@ impl Parser {
     /// Examples:
     /// ```ds
     /// : string
-    /// : value is Ready
-    /// : asserts value is Ready
     /// ```
     fn eat_arrow_return_type(
         &mut self,
@@ -899,7 +896,7 @@ impl Parser {
             flags = flags.in_static();
         }
 
-        flags.in_arrow_return_type().allow_type_predicate()
+        flags.in_arrow_return_type()
     }
 
     /// Eat an identifier arrow when present.
@@ -1169,7 +1166,6 @@ impl Parser {
         if self.flags.is_in_static() {
             flags = flags.in_static();
         }
-        flags = flags.allow_type_predicate();
         if !self.flags.is_in_type() {
             flags = flags.in_arrow_return_type();
         }
@@ -1234,7 +1230,7 @@ impl Parser {
             flags = flags.in_static();
         }
 
-        flags.allow_type_predicate()
+        flags
     }
 
     /// Eat a function body when the source form owns one.

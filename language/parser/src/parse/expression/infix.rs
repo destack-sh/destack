@@ -508,7 +508,6 @@ impl Parser {
             self.type_expression_head_span(left_type),
             left_type,
             TypeInfixOperator::Relation(operator),
-            operator_span,
             right,
         )?;
 
