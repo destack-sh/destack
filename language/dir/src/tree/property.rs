@@ -187,6 +187,8 @@ pub enum Member {
         value: Option<LocalNodeId<Expression>>,
         visibility: Option<Visibility>,
         is_ambient: bool,
+        is_abstract: bool,
+        is_override: bool,
     },
     /// Named field.
     Field {

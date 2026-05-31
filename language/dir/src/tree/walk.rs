@@ -480,16 +480,6 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_type_expression(tree, *constraint_id, constraint_node);
             }
         }
-        TypeExpression::Predicate {
-            asserts: _,
-            subject: _,
-            target,
-        } => {
-            if let Some(target_id) = target {
-                let target_node = tree.get(*target_id);
-                visitor.visit_type_expression(tree, *target_id, target_node);
-            }
-        }
         TypeExpression::Missing | TypeExpression::Error => {}
     }
 }
@@ -599,6 +589,8 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
             where_clauses,
             constraint,
             value,
+            is_abstract: _,
+            is_override: _,
         } => {
             for parameter_id in generic_parameters {
                 let parameter = tree.get(*parameter_id);
@@ -624,6 +616,8 @@ pub fn walk_type_member<V: NodeVisitor + ?Sized>(
             name: _,
             declared_type,
             value,
+            is_abstract: _,
+            is_override: _,
         } => {
             if let Some(declared_type_id) = declared_type {
                 let declared_type_node = tree.get(*declared_type_id);
@@ -1617,6 +1611,8 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             value,
             visibility: _,
             is_ambient: _,
+            is_abstract: _,
+            is_override: _,
         } => {
             if let Some(declared_type) = declared_type {
                 let declared_type_expression = tree.get(*declared_type);
