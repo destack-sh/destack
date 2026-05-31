@@ -1,16 +1,21 @@
 use destack_dir as dir;
 
-use crate::check::CheckState;
+use crate::check::WalkState;
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Walk one dependency item.
+    ///
+    /// Example:
+    /// ```ds
+    /// export const value: number = 1;
+    /// ```
     pub(in crate::check) fn walk_dependency_item(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::DependencyItem>,
         dependency_item: &dir::DependencyItem,
     ) {
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
         }
 
@@ -20,10 +25,10 @@ impl CheckState<'_> {
                 value: Some(value), ..
             } => {
                 // check dependency alias in declaration context
-                let before_value = self.checkpoint_flow(tree.module_id);
+                let before_value = self.checkpoint_flow();
 
                 self.walk_expression(tree, *value, tree.get(*value));
-                self.restore_flow(tree.module_id, before_value);
+                self.restore_flow(before_value);
             }
             // import { name }
             dir::DependencyItem::Binding { value: None, .. } => {}
@@ -31,6 +36,6 @@ impl CheckState<'_> {
             dir::DependencyItem::Error => {}
         };
 
-        self.pop_static_condition(tree.module_id);
+        self.pop_static_guard();
     }
 }

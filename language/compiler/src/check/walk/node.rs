@@ -1,19 +1,32 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, TypeTerm};
+use crate::check::{TypeOperand, TypeTerm, WalkState};
 
-impl CheckState<'_> {
-    /// Define one node output type.
-    pub(in crate::check) fn define_node_type<T: dir::Node + Clone>(
+impl WalkState<'_, '_> {
+    /// Output one node checked type under the active guard.
+    pub(in crate::check) fn output_node_type<T: dir::Node + Clone>(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<T>,
         term: TypeTerm,
     ) {
-        let variable = self.intern_local_node_type_variable(module, id);
-        let condition = self.active_static_condition(module);
+        let condition = self.active_static_guard();
 
-        self.add_type_definition(variable, term, condition);
+        self.check
+            .output_node_type_guarded(module, id, term, condition);
+    }
+
+    /// Output one node checked type operand under the active guard.
+    pub(in crate::check) fn output_node_type_operand<T: dir::Node + Clone>(
+        &mut self,
+        module: ModuleId,
+        id: dir::LocalNodeId<T>,
+        operand: TypeOperand,
+    ) {
+        let condition = self.active_static_guard();
+
+        self.check
+            .output_node_type_operand_guarded(module, id, operand, condition);
     }
 }

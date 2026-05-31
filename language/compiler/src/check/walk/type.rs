@@ -3,13 +3,18 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckState, FormTerm, MappedParameter, MemberTerm, Origin, ReceiverCapture, ShapeMember,
-    StaticTerm, TupleElement, TypeLiteralTerm, TypeOperand, TypeOperationTerm, TypeTerm,
-    VariableId, VariableKind,
+    FormTerm, MappedParameter, MemberTerm, Origin, ReceiverCapture, ShapeMember, StaticOperand,
+    StaticTerm, TupleElement, TypeLiteralTerm, TypeOperand, TypeOperationTerm, TypeRelation,
+    TypeTerm, VariableKind, WalkState,
 };
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Walk one type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// readonly Box<T>
+    /// ```
     pub(in crate::check) fn walk_type_expression(
         &mut self,
         tree: &dir::Tree,
@@ -17,154 +22,277 @@ impl CheckState<'_> {
         type_expression: &dir::TypeExpression,
     ) {
         // enter static owner guard
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
         }
         match type_expression {
             // (T)
             dir::TypeExpression::Parenthesized { expression } => {
-                let ty = self.intern_local_node_type_variable(tree.module_id, *expression);
-
-                self.define_node_type(tree.module_id, id, TypeTerm::Variable(ty));
-                self.walk_type_expression(tree, *expression, tree.get(*expression));
+                self.walk_parenthesized_type_expression(tree, id, *expression);
             }
             // 1
             dir::TypeExpression::ScalarLiteral { value } => {
-                let term = TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()));
-
-                self.define_node_type(tree.module_id, id, term);
+                self.walk_scalar_literal_type_expression(tree, id, value);
             }
             // null
             dir::TypeExpression::Literal { value } => {
-                let term = if *value == dir::TypeLiteral::Void {
-                    TypeTerm::unit()
-                } else if *value == dir::TypeLiteral::Object {
-                    self.report_unsupported_type(tree.module_id, id.into_any(), "object");
-                    TypeTerm::Literal(TypeLiteralTerm::Error)
-                } else {
-                    let ty = dir::Type::from(value.clone());
-                    let literal = TypeLiteralTerm::from_type(&ty).unwrap_or(TypeLiteralTerm::Error);
-                    TypeTerm::Literal(literal)
-                };
-
-                self.define_node_type(tree.module_id, id, term);
+                self.walk_literal_type_expression(tree, id, value);
             }
-            // intrinsic
-            dir::TypeExpression::Intrinsic => {
-                self.define_node_type(tree.module_id, id, TypeTerm::Intrinsic);
-            }
+            // intrinsic marker
+            dir::TypeExpression::Intrinsic => {}
             // const
-            dir::TypeExpression::Const => {
-                self.define_node_type(tree.module_id, id, TypeTerm::ConstAssertion);
-            }
+            dir::TypeExpression::Const => {}
             // this
-            dir::TypeExpression::This => {
-                self.define_node_type(tree.module_id, id, TypeTerm::This);
-            }
+            dir::TypeExpression::This => self.walk_this_type_expression(tree, id),
             // (T, U)
             dir::TypeExpression::Tuple { elements } => {
-                let term = self.build_tuple_type_term(elements, dir::TupleForm::Tuple, tree);
-
-                self.define_node_type(tree.module_id, id, term);
-
-                for element in elements {
-                    self.walk_tuple_element(tree, *element, tree.get(*element));
-                }
+                self.walk_tuple_type_expression(tree, id, elements);
             }
             // [T, U]
             dir::TypeExpression::ArrayTuple { elements } => {
-                let term = self.build_tuple_type_term(elements, dir::TupleForm::Array, tree);
-
-                self.define_node_type(tree.module_id, id, term);
-
-                for element in elements {
-                    self.walk_tuple_element(tree, *element, tree.get(*element));
-                }
+                self.walk_array_tuple_type_expression(tree, id, elements);
             }
             // T[]
             dir::TypeExpression::Array { element } => {
-                let term = TypeTerm::Array {
-                    element: self.intern_local_node_type_variable(tree.module_id, *element).into(),
-                };
-
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *element, tree.get(*element));
+                self.walk_array_type_expression(tree, id, *element);
             }
             // [T]
             dir::TypeExpression::Slice { element } => {
-                let term = TypeTerm::Slice {
-                    element: self.intern_local_node_type_variable(tree.module_id, *element).into(),
-                    is_readonly: false,
-                };
-
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *element, tree.get(*element));
+                self.walk_slice_type_expression(tree, id, *element);
             }
             // [T; N]
             dir::TypeExpression::FixedArray { element, length } => {
-                let condition = self.active_static_condition(tree.module_id);
-                let length_variable =
-                    self.define_static_expression_variable(tree.module_id, *length, condition);
-                let term = TypeTerm::FixedArray {
-                    element: self.intern_local_node_type_variable(tree.module_id, *element).into(),
-                    length: length_variable.into(),
-                    is_readonly: false,
-                };
-
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *element, tree.get(*element));
-
-                // check fixed array length in type context
-                let before_length = self.checkpoint_flow(tree.module_id);
-
-                self.walk_expression(tree, *length, tree.get(*length));
-                self.restore_flow(tree.module_id, before_length);
+                self.walk_fixed_array_type_expression(tree, id, *element, *length);
             }
             // { name: T }
             dir::TypeExpression::Object { members } => {
-                let term = TypeTerm::Shape {
-                    members: self.build_shape_member_terms(members, tree),
-                };
-
-                self.define_node_type(tree.module_id, id, term);
-
-                for member in members {
-                    self.walk_type_member(tree, *member, tree.get(*member));
-                }
+                self.walk_object_type_expression(tree, id, members);
             }
             // (value: T) => U
             dir::TypeExpression::Function(declaration) => {
-                let return_type = declaration
-                    .return_type
-                    .map(|return_type| self.intern_local_node_type_variable(tree.module_id, return_type));
-                let term = self.build_function_type_term(declaration, return_type, tree);
-
-                self.define_node_type(tree.module_id, id, TypeTerm::Function(term));
-                self.walk_function_type(tree, declaration);
+                self.walk_function_type_expression(tree, id, declaration);
             }
             // new (value: T) => U
             dir::TypeExpression::Constructor(declaration) => {
-                let return_type = declaration
-                    .return_type
-                    .map(|return_type| self.intern_local_node_type_variable(tree.module_id, return_type));
-                let term = self.build_constructor_type_term(declaration, return_type, tree);
-
-                self.define_node_type(tree.module_id, id, TypeTerm::Function(term));
-                self.walk_constructor_type(tree, declaration);
+                self.walk_constructor_type_expression(tree, id, declaration);
             }
             // T
             dir::TypeExpression::Reference {
                 path,
                 generic_arguments,
+            } => self.walk_reference_type_expression(tree, id, path, generic_arguments),
+            // T.Item
+            dir::TypeExpression::Member {
+                left,
+                name,
+                generic_arguments,
+            } => self.walk_member_type_expression(tree, id, *left, *name, generic_arguments),
+            // 0..10
+            dir::TypeExpression::Range {
+                start,
+                end,
+                end_kind,
+            } => self.walk_range_type_expression(tree, id, *start, *end, *end_kind),
+            // readonly T
+            dir::TypeExpression::Readonly { target_type } => {
+                self.walk_readonly_type_expression(tree, id, *target_type);
+            }
+            // ^T
+            dir::TypeExpression::OwnedOf { target_type, .. } => {
+                self.walk_owned_type_expression(tree, id, *target_type);
+            }
+            // &T
+            dir::TypeExpression::BorrowedOf {
+                mutability,
+                target_type,
+                ..
+            } => self.walk_borrowed_type_expression(tree, id, *mutability, *target_type),
+            // *T
+            dir::TypeExpression::PointerOf { target_type, .. } => {
+                self.walk_pointer_type_expression(tree, id, *target_type);
+            }
+            // local T
+            dir::TypeExpression::Local { target_type } => {
+                self.walk_local_type_expression(tree, id, *target_type);
+            }
+            // shared T
+            dir::TypeExpression::Shared { target_type } => {
+                self.walk_shared_type_expression(tree, id, *target_type);
+            }
+            // T!
+            dir::TypeExpression::Must { target_type } => {
+                self.walk_must_type_expression(tree, id, *target_type);
+            }
+            // !T
+            dir::TypeExpression::Not { target_type } => {
+                self.walk_not_type_expression(tree, id, *target_type);
+            }
+            // keyof T
+            dir::TypeExpression::KeyOf { target_type } => {
+                self.walk_keyof_type_expression(tree, id, *target_type);
+            }
+            // typeof value
+            dir::TypeExpression::TypeOfValue { value } => {
+                self.walk_typeof_value_type_expression(tree, id, *value);
+            }
+            // T | U
+            dir::TypeExpression::Union { elements } => {
+                self.walk_union_type_expression(tree, id, elements);
+            }
+            // T & U
+            dir::TypeExpression::Intersection { elements } => {
+                self.walk_intersection_type_expression(tree, id, elements);
+            }
+            // T extends U ? X : Y
+            dir::TypeExpression::Conditional {
+                left,
+                extends_type,
+                then_type,
+                else_type,
+            } => self.walk_conditional_type_expression(
+                tree,
+                id,
+                *left,
+                *extends_type,
+                *then_type,
+                *else_type,
+            ),
+            // T extends U
+            dir::TypeExpression::Extends { left, right } => {
+                self.walk_extends_type_expression(tree, id, *left, *right);
+            }
+            // T implements U
+            dir::TypeExpression::Implements { left, right } => {
+                self.walk_implements_type_expression(tree, id, *left, *right);
+            }
+            // { [K in keyof T]: T[K] }
+            dir::TypeExpression::Mapped {
+                parameter,
+                readonly,
+                optional,
+                value,
             } => {
-                if let Some(term) =
-                    self.build_reference_type_term(id, path, generic_arguments, tree)
-                {
-                    self.define_node_type(tree.module_id, id, term);
-                }
+                self.walk_mapped_type_expression(tree, id, *parameter, *readonly, *optional, *value)
+            }
+            // T[K]
+            dir::TypeExpression::Index { left, index } => {
+                self.walk_index_type_expression(tree, id, *left, *index);
+            }
+            // `get${Name}`
+            dir::TypeExpression::TemplateLiteral { strings, spans } => {
+                self.walk_template_literal_type_expression(tree, id, strings, spans);
+            }
+            // _
+            dir::TypeExpression::Infer {
+                form: dir::InferForm::Hole,
+                name: _,
+                constraint,
+            } => self.walk_hole_type_expression(tree, *constraint),
+            // infer T extends U
+            dir::TypeExpression::Infer {
+                form: dir::InferForm::Infer,
+                name,
+                constraint,
+                ..
+            } => self.walk_infer_type_expression(tree, id, *name, *constraint),
+            // value is T
+            dir::TypeExpression::Predicate {
+                asserts,
+                subject,
+                target,
+            } => self.walk_predicate_type_expression(tree, id, *asserts, *subject, *target),
+            // missing type
+            dir::TypeExpression::Missing => {}
+            // ignore damaged syntax
+            dir::TypeExpression::Error => {}
+        }
 
-                for argument in generic_arguments {
-                    self.walk_generic_argument(tree, *argument, tree.get(*argument));
+        self.pop_static_guard();
+    }
+
+    /// Lower one type expression operand without publishing a checked node output.
+    ///
+    /// Example:
+    /// ```ds
+    /// Box<T>
+    /// ```
+    pub(in crate::check) fn lower_type_expression_operand(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> TypeOperand {
+        // return directly lowered terms when possible
+        if let Some(term) = self.lower_type_expression_term(tree, id) {
+            let term = self.check.inference.terms.push(term);
+
+            return term.into();
+        }
+
+        // fall back to an argument local hole
+        let source = id.into_global_any(tree.module_id);
+        let origin = Origin::Node(source);
+        let variable = self
+            .check
+            .allocate_variable(tree.module_id, VariableKind::Type, origin);
+
+        variable.into()
+    }
+
+    /// Lower one type expression term without publishing a checked node output.
+    ///
+    /// Example:
+    /// ```ds
+    /// readonly Box<T>
+    /// ```
+    fn lower_type_expression_term(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> Option<TypeTerm> {
+        let term = match tree.get(id) {
+            // (T)
+            dir::TypeExpression::Parenthesized { expression } => self
+                .lower_type_expression_operand(tree, *expression)
+                .to_type_term(self.check),
+            // 1
+            dir::TypeExpression::ScalarLiteral { value } => {
+                TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()))
+            }
+            // null
+            dir::TypeExpression::Literal { value } => {
+                if *value == dir::TypeLiteral::Void {
+                    TypeTerm::unit()
+                } else {
+                    let ty = dir::Type::from(value.clone());
+                    let literal = TypeLiteralTerm::from_type(&ty).unwrap_or(TypeLiteralTerm::Error);
+
+                    TypeTerm::Literal(literal)
+                }
+            }
+            // this
+            dir::TypeExpression::This => TypeTerm::This,
+            // T[]
+            dir::TypeExpression::Array { element } => TypeTerm::Array {
+                element: self.lower_type_expression_operand(tree, *element).into(),
+            },
+            // [T]
+            dir::TypeExpression::Slice { element } => TypeTerm::Slice {
+                element: self.lower_type_expression_operand(tree, *element).into(),
+            },
+            // [T; N]
+            dir::TypeExpression::FixedArray { element, length } => TypeTerm::FixedArray {
+                element: self.lower_type_expression_operand(tree, *element).into(),
+                length: self.lower_static_expression_operand(tree, *length),
+            },
+            // T
+            dir::TypeExpression::Reference {
+                path,
+                generic_arguments,
+            } => {
+                if let Some(term) = self.lower_string_mapping_term(path, generic_arguments, tree) {
+                    term
+                } else {
+                    self.bind_reference_type_term(id, path, generic_arguments, tree)?
                 }
             }
             // T.Item
@@ -173,61 +301,38 @@ impl CheckState<'_> {
                 name,
                 generic_arguments,
             } => {
-                let arguments = self.build_generic_arguments(generic_arguments, tree);
-                let owner = self.intern_local_node_type_variable(tree.module_id, *left);
-                let member = self.terms.push(MemberTerm {
+                let arguments = self.lower_generic_arguments(None, generic_arguments, tree);
+                let owner = self.lower_type_expression_operand(tree, *left);
+                let member = self.check.inference.terms.push(MemberTerm {
                     origin: Origin::Node(id.into_global_any(tree.module_id)),
                     owner,
                     key: dir::StaticKey::Name(*name),
                     arguments,
                 });
-                let term = TypeTerm::Member(member);
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *left, tree.get(*left));
-
-                for argument in generic_arguments {
-                    self.walk_generic_argument(tree, *argument, tree.get(*argument));
-                }
-            }
-            // 0..10
-            dir::TypeExpression::Range {
-                start,
-                end,
-                end_kind,
-            } => {
-                if let Some(term) = self.build_range_type_term(*start, *end, *end_kind, tree) {
-                    self.define_node_type(tree.module_id, id, term);
-                }
-
-                if let Some(start) = start {
-                    self.walk_type_expression(tree, *start, tree.get(*start));
-                }
-                if let Some(end) = end {
-                    self.walk_type_expression(tree, *end, tree.get(*end));
-                }
+                TypeTerm::Member(member)
             }
             // readonly T
             dir::TypeExpression::Readonly { target_type } => {
-                let form = self.terms.push(FormTerm::Readonly);
-                let term = TypeTerm::Form {
-                    form,
-                    payload: self.intern_local_node_type_variable(tree.module_id, *target_type).into(),
-                };
+                let form = self.check.inference.terms.push(FormTerm::Readonly);
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *target_type, tree.get(*target_type));
+                TypeTerm::Form {
+                    form,
+                    payload: self
+                        .lower_type_expression_operand(tree, *target_type)
+                        .into(),
+                }
             }
             // ^T
             dir::TypeExpression::OwnedOf { target_type, .. } => {
-                let form = self.terms.push(FormTerm::Owned);
-                let term = TypeTerm::Form {
-                    form,
-                    payload: self.intern_local_node_type_variable(tree.module_id, *target_type).into(),
-                };
+                let form = self.check.inference.terms.push(FormTerm::Owned);
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *target_type, tree.get(*target_type));
+                TypeTerm::Form {
+                    form,
+                    payload: self
+                        .lower_type_expression_operand(tree, *target_type)
+                        .into(),
+                }
             }
             // &T
             dir::TypeExpression::BorrowedOf {
@@ -240,129 +345,125 @@ impl CheckState<'_> {
                     .map(dir::Mutability::access)
                     .unwrap_or(dir::Access::Mutable);
                 let access = self
+                    .check
+                    .inference
                     .terms
                     .push(StaticTerm::Literal(dir::StaticTerm::Access { access }));
                 let lifetime =
-                    self.allocate_inference_variable(tree.module_id, VariableKind::Static, origin);
-                let form = self.terms.push(FormTerm::Borrowed {
+                    self.check
+                        .allocate_variable(tree.module_id, VariableKind::Static, origin);
+                let form = self.check.inference.terms.push(FormTerm::Borrowed {
                     lifetime: lifetime.into(),
                     access: access.into(),
                 });
-                let term = TypeTerm::Form {
-                    form,
-                    payload: self.intern_local_node_type_variable(tree.module_id, *target_type).into(),
-                };
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *target_type, tree.get(*target_type));
+                TypeTerm::Form {
+                    form,
+                    payload: self
+                        .lower_type_expression_operand(tree, *target_type)
+                        .into(),
+                }
             }
             // *T
             dir::TypeExpression::PointerOf { target_type, .. } => {
-                let form = self.terms.push(FormTerm::Raw);
-                let term = TypeTerm::Form {
-                    form,
-                    payload: self.intern_local_node_type_variable(tree.module_id, *target_type).into(),
-                };
+                let form = self.check.inference.terms.push(FormTerm::Raw);
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *target_type, tree.get(*target_type));
+                TypeTerm::Form {
+                    form,
+                    payload: self
+                        .lower_type_expression_operand(tree, *target_type)
+                        .into(),
+                }
             }
             // local T
             dir::TypeExpression::Local { target_type } => {
                 let place = dir::StaticTerm::Place {
                     place: dir::Place::Space(dir::Space::Local),
                 };
-                let place = self.terms.push(StaticTerm::Literal(place));
-                let form = self.terms.push(FormTerm::Placed {
+                let place = self.check.inference.terms.push(StaticTerm::Literal(place));
+                let form = self.check.inference.terms.push(FormTerm::Placed {
                     place: place.into(),
                 });
-                let term = TypeTerm::Form {
-                    form,
-                    payload: self.intern_local_node_type_variable(tree.module_id, *target_type).into(),
-                };
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *target_type, tree.get(*target_type));
+                TypeTerm::Form {
+                    form,
+                    payload: self
+                        .lower_type_expression_operand(tree, *target_type)
+                        .into(),
+                }
             }
             // shared T
             dir::TypeExpression::Shared { target_type } => {
                 let place = dir::StaticTerm::Place {
                     place: dir::Place::Space(dir::Space::Shared),
                 };
-                let place = self.terms.push(StaticTerm::Literal(place));
-                let form = self.terms.push(FormTerm::Placed {
+                let place = self.check.inference.terms.push(StaticTerm::Literal(place));
+                let form = self.check.inference.terms.push(FormTerm::Placed {
                     place: place.into(),
                 });
-                let term = TypeTerm::Form {
-                    form,
-                    payload: self.intern_local_node_type_variable(tree.module_id, *target_type).into(),
-                };
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *target_type, tree.get(*target_type));
+                TypeTerm::Form {
+                    form,
+                    payload: self
+                        .lower_type_expression_operand(tree, *target_type)
+                        .into(),
+                }
             }
             // T!
-            dir::TypeExpression::Must { target_type }
-            // !T
-            | dir::TypeExpression::Not { target_type } => {
-                self.define_input_node_type(tree.module_id, id);
-                self.walk_type_expression(tree, *target_type, tree.get(*target_type));
+            dir::TypeExpression::Must { target_type } => {
+                let source = self.lower_type_expression_operand(tree, *target_type);
+                let null = self
+                    .check
+                    .inference
+                    .terms
+                    .push(TypeTerm::Literal(TypeLiteralTerm::Null));
+                let without_null = self.check.inference.terms.push(TypeOperationTerm::Exclude {
+                    source,
+                    target: null.into(),
+                });
+                let without_null = self
+                    .check
+                    .inference
+                    .terms
+                    .push(TypeTerm::Operation(without_null));
+                let undefined = self
+                    .check
+                    .inference
+                    .terms
+                    .push(TypeTerm::Literal(TypeLiteralTerm::Undefined));
+                let without_undefined =
+                    self.check.inference.terms.push(TypeOperationTerm::Exclude {
+                        source: without_null.into(),
+                        target: undefined.into(),
+                    });
+
+                TypeTerm::Operation(without_undefined)
             }
             // keyof T
             dir::TypeExpression::KeyOf { target_type } => {
-                let target = self.intern_local_node_type_variable(tree.module_id, *target_type);
-                let operation = self.terms.push(TypeOperationTerm::KeyOf {
-                    target,
-                });
-                let term = TypeTerm::Operation(operation);
+                let target = self.lower_type_expression_operand(tree, *target_type);
+                let operation = self
+                    .check
+                    .inference
+                    .terms
+                    .push(TypeOperationTerm::KeyOf { target });
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *target_type, tree.get(*target_type));
-            }
-            // typeof value
-            dir::TypeExpression::TypeOfValue { value } => {
-                let ty = self.intern_local_node_type_variable(tree.module_id, *value);
-
-                self.define_node_type(tree.module_id, id, TypeTerm::Variable(ty));
-
-                // check type query operand in type context
-                let before_value = self.checkpoint_flow(tree.module_id);
-
-                self.walk_expression(tree, *value, tree.get(*value));
-                self.restore_flow(tree.module_id, before_value);
+                TypeTerm::Operation(operation)
             }
             // T | U
-            dir::TypeExpression::Union { elements } => {
-                let term = TypeTerm::Union {
-                    elements: elements
-                        .iter()
-                        .map(|element| self.intern_local_node_type_variable(tree.module_id, *element))
-                        .map(TypeOperand::from)
-                        .collect(),
-                };
-
-                self.define_node_type(tree.module_id, id, term);
-
-                for element in elements {
-                    self.walk_type_expression(tree, *element, tree.get(*element));
-                }
-            }
+            dir::TypeExpression::Union { elements } => TypeTerm::Union {
+                elements: elements
+                    .iter()
+                    .map(|element| self.lower_type_expression_operand(tree, *element))
+                    .collect(),
+            },
             // T & U
-            dir::TypeExpression::Intersection { elements } => {
-                let term = TypeTerm::Intersection {
-                    elements: elements
-                        .iter()
-                        .map(|element| self.intern_local_node_type_variable(tree.module_id, *element))
-                        .map(TypeOperand::from)
-                        .collect(),
-                };
-
-                self.define_node_type(tree.module_id, id, term);
-
-                for element in elements {
-                    self.walk_type_expression(tree, *element, tree.get(*element));
-                }
-            }
+            dir::TypeExpression::Intersection { elements } => TypeTerm::Intersection {
+                elements: elements
+                    .iter()
+                    .map(|element| self.lower_type_expression_operand(tree, *element))
+                    .collect(),
+            },
             // T extends U ? X : Y
             dir::TypeExpression::Conditional {
                 left,
@@ -370,157 +471,1097 @@ impl CheckState<'_> {
                 then_type,
                 else_type,
             } => {
-                let left_variable = self.intern_local_node_type_variable(tree.module_id, *left);
-                let right_variable =
-                    self.intern_local_node_type_variable(tree.module_id, *extends_type);
-                let then_variable = self.intern_local_node_type_variable(tree.module_id, *then_type);
-                let else_variable = self.intern_local_node_type_variable(tree.module_id, *else_type);
-                let operation = self.terms.push(TypeOperationTerm::Conditional {
-                    left: left_variable,
-                    right: right_variable,
-                    then_type: then_variable,
-                    else_type: else_variable,
-                });
-                let term = TypeTerm::Operation(operation);
+                // lower all conditional operands before interning the operation
+                let left = self.lower_type_expression_operand(tree, *left);
+                let right = self.lower_type_expression_operand(tree, *extends_type);
+                let then_type = self.lower_type_expression_operand(tree, *then_type);
+                let else_type = self.lower_type_expression_operand(tree, *else_type);
+                let operation = self
+                    .check
+                    .inference
+                    .terms
+                    .push(TypeOperationTerm::Conditional {
+                        left,
+                        right,
+                        then_type,
+                        else_type,
+                    });
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *left, tree.get(*left));
-                self.walk_type_expression(tree, *extends_type, tree.get(*extends_type));
-                self.walk_type_expression(tree, *then_type, tree.get(*then_type));
-                self.walk_type_expression(tree, *else_type, tree.get(*else_type));
-            }
-            // T extends U
-            dir::TypeExpression::Extends { left, right }
-            // T implements U
-            | dir::TypeExpression::Implements { left, right } => {
-                self.define_input_node_type(tree.module_id, id);
-                self.walk_type_expression(tree, *left, tree.get(*left));
-                self.walk_type_expression(tree, *right, tree.get(*right));
-            }
-            // { [K in keyof T]: T[K] }
-            dir::TypeExpression::Mapped {
-                parameter,
-                readonly,
-                optional,
-                value,
-            } => {
-                if let Some(term) =
-                    self.build_mapped_type_term(*parameter, *readonly, *optional, *value, tree)
-                {
-                    self.define_node_type(tree.module_id, id, term);
-                }
-
-                self.walk_type_mapped_parameter(tree, *parameter, tree.get(*parameter));
-
-                if let Some(value) = value {
-                    self.walk_type_expression(tree, *value, tree.get(*value));
-                }
+                TypeTerm::Operation(operation)
             }
             // T[K]
             dir::TypeExpression::Index { left, index } => {
-                let left_variable = self.intern_local_node_type_variable(tree.module_id, *left);
-                let index_variable = self.intern_local_node_type_variable(tree.module_id, *index);
-                let operation = self.terms.push(TypeOperationTerm::Index {
-                    left: left_variable,
-                    index: index_variable,
-                });
-                let term = TypeTerm::Operation(operation);
+                // lower both sides before interning the operation
+                let left = self.lower_type_expression_operand(tree, *left);
+                let index = self.lower_type_expression_operand(tree, *index);
+                let operation = self
+                    .check
+                    .inference
+                    .terms
+                    .push(TypeOperationTerm::Index { left, index });
 
-                self.define_node_type(tree.module_id, id, term);
-                self.walk_type_expression(tree, *left, tree.get(*left));
-                self.walk_type_expression(tree, *index, tree.get(*index));
+                TypeTerm::Operation(operation)
             }
             // `get${Name}`
             dir::TypeExpression::TemplateLiteral { strings, spans } => {
-                let span_variables = spans
+                let spans = spans
                     .iter()
-                    .map(|span| self.intern_local_node_type_variable(tree.module_id, *span))
+                    .map(|span| self.lower_type_expression_operand(tree, *span))
                     .collect();
-                let operation = self.terms.push(TypeOperationTerm::TemplateLiteral {
-                    strings: strings.clone(),
-                    spans: span_variables,
-                });
-                let term = TypeTerm::Operation(operation);
+                let operation =
+                    self.check
+                        .inference
+                        .terms
+                        .push(TypeOperationTerm::TemplateLiteral {
+                            strings: strings.to_vec(),
+                            spans,
+                        });
 
-                self.define_node_type(tree.module_id, id, term);
-
-                for span in spans {
-                    self.walk_type_expression(tree, *span, tree.get(*span));
-                }
-            }
-            // _
-            dir::TypeExpression::Infer {
-                form: dir::InferForm::Hole,
-                name: _,
-                constraint,
-            } => {
-                if let Some(constraint) = constraint {
-                    self.walk_type_expression(tree, *constraint, tree.get(*constraint));
-                }
+                TypeTerm::Operation(operation)
             }
             // infer T extends U
             dir::TypeExpression::Infer {
                 form: dir::InferForm::Infer,
-                name, constraint, ..
+                name,
+                constraint,
+                ..
             } => {
-                let constraint_variable = constraint
-                    .map(|constraint| self.intern_local_node_type_variable(tree.module_id, constraint));
-                let operation = self.terms.push(TypeOperationTerm::Infer {
+                let constraint = constraint
+                    .map(|constraint| self.lower_type_expression_operand(tree, constraint));
+                let operation = self.check.inference.terms.push(TypeOperationTerm::Infer {
                     name: *name,
-                    constraint: constraint_variable,
+                    constraint,
                 });
-                let term = TypeTerm::Operation(operation);
 
-                self.define_node_type(tree.module_id, id, term);
-
-                if let Some(constraint) = constraint {
-                    self.walk_type_expression(tree, *constraint, tree.get(*constraint));
-                }
+                TypeTerm::Operation(operation)
             }
             // value is T
             dir::TypeExpression::Predicate {
                 asserts,
                 subject,
-                target: Some(target),
+                target,
             } => {
-                if let Some(subject) = self.predicate_subject(tree.module_id, id, *subject) {
-                    let term = TypeTerm::Predicate {
-                        asserts: *asserts,
-                        subject,
-                        target: Some(self.intern_local_node_type_variable(tree.module_id, *target)),
-                    };
+                let subject = self.bind_predicate_subject(tree.module_id, id, *subject)?;
+                let target = target.map(|target| self.lower_type_expression_operand(tree, target));
 
-                    self.define_node_type(tree.module_id, id, term);
-                }
-
-                self.walk_type_expression(tree, *target, tree.get(*target));
-            }
-            // asserts value
-            dir::TypeExpression::Predicate {
-                asserts,
-                subject,
-                target: None,
-            } => {
-                if let Some(subject) = self.predicate_subject(tree.module_id, id, *subject) {
-                    let term = TypeTerm::Predicate {
-                        asserts: *asserts,
-                        subject,
-                        target: None,
-                    };
-
-                    self.define_node_type(tree.module_id, id, term);
+                TypeTerm::Predicate {
+                    asserts: *asserts,
+                    subject,
+                    target,
                 }
             }
-            // ignore damaged syntax
-            dir::TypeExpression::Missing => {}
-            // ignore damaged syntax
-            dir::TypeExpression::Error => {}
+            // unsupported type expression lowering
+            _ => return None,
+        };
+
+        Some(term)
+    }
+
+    /// Walk one parenthesized type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// (T)
+    /// ```
+    fn walk_parenthesized_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        expression: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, expression, tree.get(expression));
+
+        let ty = self
+            .check
+            .require_local_node_type(tree.module_id, expression);
+
+        self.output_node_type(tree.module_id, id, ty.to_type_term(self.check));
+    }
+
+    /// Walk one scalar literal type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// 1
+    /// ```
+    fn walk_scalar_literal_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        value: &dir::ScalarLiteral,
+    ) {
+        let term = TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()));
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one literal type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// null
+    /// ```
+    fn walk_literal_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        value: &dir::TypeLiteral,
+    ) {
+        let term = if *value == dir::TypeLiteral::Void {
+            TypeTerm::unit()
+        } else if *value == dir::TypeLiteral::Object {
+            self.check
+                .report_unsupported_type(tree.module_id, id.into_any(), "object");
+            TypeTerm::Literal(TypeLiteralTerm::Error)
+        } else {
+            let ty = dir::Type::from(value.clone());
+            let literal = TypeLiteralTerm::from_type(&ty).unwrap_or(TypeLiteralTerm::Error);
+
+            TypeTerm::Literal(literal)
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one this type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// this
+    /// ```
+    fn walk_this_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.output_node_type(tree.module_id, id, TypeTerm::This);
+    }
+
+    /// Walk one tuple type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// (left: string, right?: number)
+    /// ```
+    fn walk_tuple_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        elements: &[dir::LocalNodeId<dir::TupleElement>],
+    ) {
+        // walk tuple elements
+        for element in elements {
+            self.walk_tuple_element(tree, *element, tree.get(*element));
         }
 
-        self.pop_static_condition(tree.module_id);
+        let term = self.lower_tuple_type_term(elements, dir::TupleForm::Tuple, tree);
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one array tuple type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// [string, number]
+    /// ```
+    fn walk_array_tuple_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        elements: &[dir::LocalNodeId<dir::TupleElement>],
+    ) {
+        // walk tuple elements
+        for element in elements {
+            self.walk_tuple_element(tree, *element, tree.get(*element));
+        }
+
+        let term = self.lower_tuple_type_term(elements, dir::TupleForm::Array, tree);
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one array type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// T[]
+    /// ```
+    fn walk_array_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        element: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, element, tree.get(element));
+
+        let term = TypeTerm::Array {
+            element: self
+                .check
+                .require_local_node_type(tree.module_id, element)
+                .into(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one slice type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// [T]
+    /// ```
+    fn walk_slice_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        element: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, element, tree.get(element));
+
+        let term = TypeTerm::Slice {
+            element: self
+                .check
+                .require_local_node_type(tree.module_id, element)
+                .into(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one fixed array type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// [T; 4]
+    /// ```
+    fn walk_fixed_array_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        element: dir::LocalNodeId<dir::TypeExpression>,
+        length: dir::LocalNodeId<dir::Expression>,
+    ) {
+        self.walk_type_expression(tree, element, tree.get(element));
+
+        // check fixed array length in type context
+        let before_length = self.checkpoint_flow();
+
+        self.walk_expression(tree, length, tree.get(length));
+        self.restore_flow(before_length);
+
+        let condition = self.active_static_guard();
+        let length_variable =
+            self.check
+                .output_static_expression_variable(tree.module_id, length, condition);
+        let term = TypeTerm::FixedArray {
+            element: self
+                .check
+                .require_local_node_type(tree.module_id, element)
+                .into(),
+            length: length_variable.into(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one object type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// { name: string, count?: number }
+    /// ```
+    fn walk_object_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        members: &[dir::LocalNodeId<dir::TypeMember>],
+    ) {
+        let result = self
+            .check
+            .output_node_type_variable(tree.module_id, id.into_global_any(tree.module_id));
+
+        // walk shape members
+        for member in members {
+            self.walk_type_member(tree, *member, tree.get(*member));
+        }
+
+        let term = TypeTerm::Shape {
+            members: self.lower_shape_member_terms(members, tree),
+        };
+        let condition = self.active_static_guard();
+
+        self.check.equate_type(result, term, condition);
+    }
+
+    /// Walk one function type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// (value: T) => U
+    /// ```
+    fn walk_function_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        declaration: &dir::FunctionType,
+    ) {
+        self.walk_function_type(tree, declaration);
+
+        let return_type = declaration.return_type.map(|return_type| {
+            self.check
+                .require_local_node_type(tree.module_id, return_type)
+        });
+        let term = self.lower_function_type_term(declaration, return_type, tree);
+
+        self.output_node_type(tree.module_id, id, TypeTerm::Function(term));
+    }
+
+    /// Walk one constructor type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// new (value: T) => Box<T>
+    /// ```
+    fn walk_constructor_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        declaration: &dir::ConstructorType,
+    ) {
+        self.walk_constructor_type(tree, declaration);
+
+        let return_type = declaration.return_type.map(|return_type| {
+            self.check
+                .require_local_node_type(tree.module_id, return_type)
+        });
+        let term = self.lower_constructor_type_term(declaration, return_type, tree);
+
+        self.output_node_type(tree.module_id, id, TypeTerm::Function(term));
+    }
+
+    /// Walk one reference type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// Box<T>
+    /// ```
+    fn walk_reference_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        path: &dir::Path,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    ) {
+        if let Some(term) = self.lower_string_mapping_term(path, generic_arguments, tree) {
+            self.output_node_type(tree.module_id, id, term);
+            return;
+        }
+
+        if let Some(term) = self.bind_reference_type_term(id, path, generic_arguments, tree) {
+            self.output_node_type(tree.module_id, id, term);
+        }
+    }
+
+    /// Walk one member type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// Box<T>.Item
+    /// ```
+    fn walk_member_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        left: dir::LocalNodeId<dir::TypeExpression>,
+        name: dir::StringId,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+    ) {
+        self.walk_type_expression(tree, left, tree.get(left));
+
+        let arguments = self.lower_generic_arguments(None, generic_arguments, tree);
+        let owner = self.check.require_local_node_type(tree.module_id, left);
+        let member = self.check.inference.terms.push(MemberTerm {
+            origin: Origin::Node(id.into_global_any(tree.module_id)),
+            owner,
+            key: dir::StaticKey::Name(name),
+            arguments,
+        });
+        let term = TypeTerm::Member(member);
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one range type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// 0..10
+    /// ```
+    fn walk_range_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        start: Option<dir::LocalNodeId<dir::TypeExpression>>,
+        end: Option<dir::LocalNodeId<dir::TypeExpression>>,
+        end_kind: dir::RangeEnd,
+    ) {
+        if let Some(term) = self.lower_range_type_term(start, end, end_kind, tree) {
+            self.output_node_type(tree.module_id, id, term);
+        }
+
+        // walk range boundaries
+        if let Some(start) = start {
+            self.walk_type_expression(tree, start, tree.get(start));
+        }
+        if let Some(end) = end {
+            self.walk_type_expression(tree, end, tree.get(end));
+        }
+    }
+
+    /// Walk one readonly type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// readonly T
+    /// ```
+    fn walk_readonly_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, target_type, tree.get(target_type));
+
+        let form = self.check.inference.terms.push(FormTerm::Readonly);
+        let term = TypeTerm::Form {
+            form,
+            payload: self
+                .check
+                .require_local_node_type(tree.module_id, target_type)
+                .into(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one owned type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// ^T
+    /// ```
+    fn walk_owned_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, target_type, tree.get(target_type));
+
+        let form = self.check.inference.terms.push(FormTerm::Owned);
+        let term = TypeTerm::Form {
+            form,
+            payload: self
+                .check
+                .require_local_node_type(tree.module_id, target_type)
+                .into(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one borrowed type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// &mut T
+    /// ```
+    fn walk_borrowed_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        mutability: Option<dir::Mutability>,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, target_type, tree.get(target_type));
+
+        let origin = Origin::Node(id.into_global_any(tree.module_id));
+        let access = mutability
+            .map(dir::Mutability::access)
+            .unwrap_or(dir::Access::Mutable);
+        let access = self
+            .check
+            .inference
+            .terms
+            .push(StaticTerm::Literal(dir::StaticTerm::Access { access }));
+        let lifetime = self
+            .check
+            .allocate_variable(tree.module_id, VariableKind::Static, origin);
+        let form = self.check.inference.terms.push(FormTerm::Borrowed {
+            lifetime: lifetime.into(),
+            access: access.into(),
+        });
+        let term = TypeTerm::Form {
+            form,
+            payload: self
+                .check
+                .require_local_node_type(tree.module_id, target_type)
+                .into(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one pointer type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// *T
+    /// ```
+    fn walk_pointer_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, target_type, tree.get(target_type));
+
+        let form = self.check.inference.terms.push(FormTerm::Raw);
+        let term = TypeTerm::Form {
+            form,
+            payload: self
+                .check
+                .require_local_node_type(tree.module_id, target_type)
+                .into(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one local type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// local T
+    /// ```
+    fn walk_local_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, target_type, tree.get(target_type));
+
+        let place = dir::StaticTerm::Place {
+            place: dir::Place::Space(dir::Space::Local),
+        };
+        let place = self.check.inference.terms.push(StaticTerm::Literal(place));
+        let form = self.check.inference.terms.push(FormTerm::Placed {
+            place: place.into(),
+        });
+        let term = TypeTerm::Form {
+            form,
+            payload: self
+                .check
+                .require_local_node_type(tree.module_id, target_type)
+                .into(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one shared type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// shared T
+    /// ```
+    fn walk_shared_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, target_type, tree.get(target_type));
+
+        let place = dir::StaticTerm::Place {
+            place: dir::Place::Space(dir::Space::Shared),
+        };
+        let place = self.check.inference.terms.push(StaticTerm::Literal(place));
+        let form = self.check.inference.terms.push(FormTerm::Placed {
+            place: place.into(),
+        });
+        let term = TypeTerm::Form {
+            form,
+            payload: self
+                .check
+                .require_local_node_type(tree.module_id, target_type)
+                .into(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one must type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// T!
+    /// ```
+    fn walk_must_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, target_type, tree.get(target_type));
+
+        let source = self
+            .check
+            .require_local_node_type(tree.module_id, target_type);
+        let null = self
+            .check
+            .inference
+            .terms
+            .push(TypeTerm::Literal(TypeLiteralTerm::Null));
+        let without_null = self.check.inference.terms.push(TypeOperationTerm::Exclude {
+            source,
+            target: null.into(),
+        });
+        let without_null = self
+            .check
+            .inference
+            .terms
+            .push(TypeTerm::Operation(without_null));
+        let undefined = self
+            .check
+            .inference
+            .terms
+            .push(TypeTerm::Literal(TypeLiteralTerm::Undefined));
+        let without_undefined = self.check.inference.terms.push(TypeOperationTerm::Exclude {
+            source: without_null.into(),
+            target: undefined.into(),
+        });
+        let term = TypeTerm::Operation(without_undefined);
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one not type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// !T
+    /// ```
+    fn walk_not_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        let target = self.create_static_argument_variable(target_type, tree);
+        let left = self
+            .check
+            .inference
+            .terms
+            .push(StaticTerm::Variable(target));
+        let right =
+            self.check
+                .inference
+                .terms
+                .push(StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
+                    value: dir::ScalarLiteral::Boolean(true),
+                }));
+        let value = StaticTerm::Equal {
+            left,
+            right,
+            is_negated: true,
+        };
+
+        self.set_static_value_type(tree, id, value);
+    }
+
+    /// Walk one keyof type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// keyof T
+    /// ```
+    fn walk_keyof_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        target_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, target_type, tree.get(target_type));
+
+        let target = self
+            .check
+            .require_local_node_type(tree.module_id, target_type);
+        let operation = self
+            .check
+            .inference
+            .terms
+            .push(TypeOperationTerm::KeyOf { target });
+        let term = TypeTerm::Operation(operation);
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one typeof value type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// typeof value
+    /// ```
+    fn walk_typeof_value_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) {
+        // check type query operand in type context
+        let before_value = self.checkpoint_flow();
+
+        self.walk_expression(tree, value, tree.get(value));
+        self.restore_flow(before_value);
+
+        let ty = self.check.require_local_node_type(tree.module_id, value);
+
+        self.output_node_type(tree.module_id, id, ty.to_type_term(self.check));
+    }
+
+    /// Walk one union type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// A | B
+    /// ```
+    fn walk_union_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        elements: &[dir::LocalNodeId<dir::TypeExpression>],
+    ) {
+        // walk union elements
+        for element in elements {
+            self.walk_type_expression(tree, *element, tree.get(*element));
+        }
+
+        let term = TypeTerm::Union {
+            elements: elements
+                .iter()
+                .map(|element| self.check.require_local_node_type(tree.module_id, *element))
+                .map(TypeOperand::from)
+                .collect(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one intersection type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// A & B
+    /// ```
+    fn walk_intersection_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        elements: &[dir::LocalNodeId<dir::TypeExpression>],
+    ) {
+        // walk intersection elements
+        for element in elements {
+            self.walk_type_expression(tree, *element, tree.get(*element));
+        }
+
+        let term = TypeTerm::Intersection {
+            elements: elements
+                .iter()
+                .map(|element| self.check.require_local_node_type(tree.module_id, *element))
+                .map(TypeOperand::from)
+                .collect(),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one conditional type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// T extends U ? X : Y
+    /// ```
+    fn walk_conditional_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        left: dir::LocalNodeId<dir::TypeExpression>,
+        extends_type: dir::LocalNodeId<dir::TypeExpression>,
+        then_type: dir::LocalNodeId<dir::TypeExpression>,
+        else_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, left, tree.get(left));
+        self.walk_type_expression(tree, extends_type, tree.get(extends_type));
+        self.walk_type_expression(tree, then_type, tree.get(then_type));
+        self.walk_type_expression(tree, else_type, tree.get(else_type));
+
+        let left_variable = self.check.require_local_node_type(tree.module_id, left);
+        let right_variable = self
+            .check
+            .require_local_node_type(tree.module_id, extends_type);
+        let then_variable = self
+            .check
+            .require_local_node_type(tree.module_id, then_type);
+        let else_variable = self
+            .check
+            .require_local_node_type(tree.module_id, else_type);
+        let operation = self
+            .check
+            .inference
+            .terms
+            .push(TypeOperationTerm::Conditional {
+                left: left_variable,
+                right: right_variable,
+                then_type: then_variable,
+                else_type: else_variable,
+            });
+        let term = TypeTerm::Operation(operation);
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one extends type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// T extends U
+    /// ```
+    fn walk_extends_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        left: dir::LocalNodeId<dir::TypeExpression>,
+        right: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_relation_expression(tree, id, TypeRelation::Extends, left, right);
+    }
+
+    /// Walk one implements type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// T implements U
+    /// ```
+    fn walk_implements_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        left: dir::LocalNodeId<dir::TypeExpression>,
+        right: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_relation_expression(tree, id, TypeRelation::Implements, left, right);
+    }
+
+    /// Walk one type relation expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// T extends U
+    /// ```
+    fn walk_type_relation_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        relation: TypeRelation,
+        left: dir::LocalNodeId<dir::TypeExpression>,
+        right: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, left, tree.get(left));
+        self.walk_type_expression(tree, right, tree.get(right));
+
+        let value = StaticTerm::TypeRelation {
+            relation,
+            left: self.check.require_local_node_type(tree.module_id, left),
+            right: self.check.require_local_node_type(tree.module_id, right),
+        };
+
+        self.set_static_value_type(tree, id, value);
+    }
+
+    /// Walk one mapped type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// { [K in keyof T]: T[K] }
+    /// ```
+    fn walk_mapped_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        parameter: dir::LocalNodeId<dir::TypeMappedParameter>,
+        readonly: dir::MappedTypeModifier,
+        optional: dir::MappedTypeModifier,
+        value: Option<dir::LocalNodeId<dir::TypeExpression>>,
+    ) {
+        self.walk_type_mapped_parameter(tree, parameter, tree.get(parameter));
+
+        if let Some(value) = value {
+            self.walk_type_expression(tree, value, tree.get(value));
+        }
+
+        if let Some(term) = self.lower_mapped_type_term(parameter, readonly, optional, value, tree)
+        {
+            self.output_node_type(tree.module_id, id, term);
+        }
+    }
+
+    /// Walk one index type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// T[K]
+    /// ```
+    fn walk_index_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        left: dir::LocalNodeId<dir::TypeExpression>,
+        index: dir::LocalNodeId<dir::TypeExpression>,
+    ) {
+        self.walk_type_expression(tree, left, tree.get(left));
+        self.walk_type_expression(tree, index, tree.get(index));
+
+        let left_variable = self.check.require_local_node_type(tree.module_id, left);
+        let index_variable = self.check.require_local_node_type(tree.module_id, index);
+        let operation = self.check.inference.terms.push(TypeOperationTerm::Index {
+            left: left_variable,
+            index: index_variable,
+        });
+        let term = TypeTerm::Operation(operation);
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one template literal type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// `get${Name}`
+    /// ```
+    fn walk_template_literal_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        strings: &[dir::StringId],
+        spans: &[dir::LocalNodeId<dir::TypeExpression>],
+    ) {
+        // walk template spans
+        for span in spans {
+            self.walk_type_expression(tree, *span, tree.get(*span));
+        }
+
+        let span_variables = spans
+            .iter()
+            .map(|span| self.check.require_local_node_type(tree.module_id, *span))
+            .collect();
+        let operation = self
+            .check
+            .inference
+            .terms
+            .push(TypeOperationTerm::TemplateLiteral {
+                strings: strings.to_vec(),
+                spans: span_variables,
+            });
+        let term = TypeTerm::Operation(operation);
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one anonymous inference hole type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// _
+    /// ```
+    fn walk_hole_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        constraint: Option<dir::LocalNodeId<dir::TypeExpression>>,
+    ) {
+        if let Some(constraint) = constraint {
+            self.walk_type_expression(tree, constraint, tree.get(constraint));
+        }
+    }
+
+    /// Walk one infer type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// infer T extends U
+    /// ```
+    fn walk_infer_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        name: Option<dir::StringId>,
+        constraint: Option<dir::LocalNodeId<dir::TypeExpression>>,
+    ) {
+        if let Some(constraint) = constraint {
+            self.walk_type_expression(tree, constraint, tree.get(constraint));
+        }
+
+        let constraint_variable = constraint.map(|constraint| {
+            self.check
+                .require_local_node_type(tree.module_id, constraint)
+        });
+        let operation = self.check.inference.terms.push(TypeOperationTerm::Infer {
+            name,
+            constraint: constraint_variable,
+        });
+        let term = TypeTerm::Operation(operation);
+
+        self.output_node_type(tree.module_id, id, term);
+    }
+
+    /// Walk one predicate type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// value is T
+    /// ```
+    fn walk_predicate_type_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        asserts: bool,
+        subject: dir::TypePredicateSubject,
+        target: Option<dir::LocalNodeId<dir::TypeExpression>>,
+    ) {
+        if let Some(target) = target {
+            self.walk_type_expression(tree, target, tree.get(target));
+        }
+
+        if let Some(subject) = self.bind_predicate_subject(tree.module_id, id, subject) {
+            let term = TypeTerm::Predicate {
+                asserts,
+                subject,
+                target: target
+                    .map(|target| self.check.require_local_node_type(tree.module_id, target)),
+            };
+
+            self.output_node_type(tree.module_id, id, term);
+        }
     }
 
     /// Walk one type member.
+    ///
+    /// Example:
+    /// ```ds
+    /// method(value: T): U
+    /// ```
     pub(in crate::check) fn walk_type_member(
         &mut self,
         tree: &dir::Tree,
@@ -528,8 +1569,8 @@ impl CheckState<'_> {
         type_member: &dir::TypeMember,
     ) {
         // enter static owner guard
-        let static_receiver = self.type_member_static_receiver(tree.module_id, id);
-        if !self.push_static_condition_for(tree, id.into_any(), static_receiver) {
+        let static_receiver = self.find_type_member_static_guard_receiver(tree.module_id, id);
+        if !self.push_static_guard_for(tree, id.into_any(), static_receiver) {
             return;
         }
 
@@ -539,22 +1580,28 @@ impl CheckState<'_> {
                 key, declared_type, ..
             } => {
                 if declared_type.is_none() {
-                    self.report_missing_type_annotation(tree.module_id, id.into_any());
+                    self.check
+                        .report_missing_type_annotation(tree.module_id, id.into_any());
+                }
+
+                if let Some(declared_type) = declared_type {
+                    self.walk_type_expression(tree, *declared_type, tree.get(*declared_type));
                 }
 
                 if let Some(declared_type) = declared_type {
                     if key.direct_static_key().is_some() {
-                        if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any())
+                        if let Some(symbol) =
+                            self.check.declaration_symbol(tree.module_id, id.into_any())
                         {
-                            let variable =
-                                self.intern_local_symbol_type_variable(tree.module_id, symbol);
                             let declared_type = self
-                                .intern_local_node_type_variable(tree.module_id, *declared_type);
-                            let condition = self.active_static_condition(tree.module_id);
+                                .check
+                                .require_local_node_type(tree.module_id, *declared_type);
+                            let condition = self.active_static_guard();
 
-                            self.add_type_definition(
-                                variable,
-                                TypeTerm::Variable(declared_type),
+                            self.check.output_symbol_type(
+                                tree.module_id,
+                                symbol,
+                                declared_type.to_type_term(self.check),
                                 condition,
                             );
                         }
@@ -563,14 +1610,10 @@ impl CheckState<'_> {
 
                 // check computed type member key in declaration context
                 if let dir::Key::Expression(key) = key {
-                    let before_key = self.checkpoint_flow(tree.module_id);
+                    let before_key = self.checkpoint_flow();
 
                     self.walk_expression(tree, *key, tree.get(*key));
-                    self.restore_flow(tree.module_id, before_key);
-                }
-
-                if let Some(declared_type) = declared_type {
-                    self.walk_type_expression(tree, *declared_type, tree.get(*declared_type));
+                    self.restore_flow(before_key);
                 }
             }
             // method(): T
@@ -583,38 +1626,49 @@ impl CheckState<'_> {
             } => {
                 // check computed type member key in declaration context
                 if let dir::Key::Expression(key) = key {
-                    let before_key = self.checkpoint_flow(tree.module_id);
+                    let before_key = self.checkpoint_flow();
 
                     self.walk_expression(tree, *key, tree.get(*key));
-                    self.restore_flow(tree.module_id, before_key);
+                    self.restore_flow(before_key);
                 }
 
-                let receiver = self.type_member_receiver(tree, id, signature, *is_static);
-                let symbol = self.declaration_symbol(tree.module_id, id.into_any());
+                let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
+
+                // walk signature before reading its term inputs
+                self.walk_function_signature(tree, signature);
+                let receiver = self.bind_type_member_receiver(tree, id, signature, *is_static);
+
+                // publish type member method symbol
                 if let Some(symbol) = symbol {
-                    let variable = self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                    let return_type = self.intern_signature_return_type_variable(
+                    let return_type = self.ensure_signature_return_type(
                         tree.module_id,
                         id.into_any(),
                         signature,
                         *body,
                     );
-                    let term = self.build_function_signature_term(signature, return_type, tree);
-                    let function = self.terms.get_mut(term);
+                    let term = self.lower_function_signature_term(
+                        signature,
+                        return_type.map(Into::into),
+                        tree,
+                    );
+                    let function = self.check.inference.terms.get_mut(term);
                     if function.this_parameter.is_none() && !*is_static {
-                        function.this_parameter = receiver.map(|receiver| receiver.ty.into());
+                        function.this_parameter = receiver.map(|receiver| receiver.ty);
                     }
-                    let condition = self.active_static_condition(tree.module_id);
+                    let condition = self.active_static_guard();
 
-                    self.add_type_definition(variable, TypeTerm::Function(term), condition);
+                    self.check.output_symbol_type(
+                        tree.module_id,
+                        symbol,
+                        TypeTerm::Function(term),
+                        condition,
+                    );
                 }
 
-                self.walk_function_signature(tree, signature);
-
-                // walk method body when bind provided the required symbols
+                // walk method body after its return channel exists
                 if let Some(body) = body
                     && let Some(symbol) = symbol
-                    && let Some(return_type) = self.intern_signature_return_type_variable(
+                    && let Some(return_type) = self.ensure_signature_return_type(
                         tree.module_id,
                         id.into_any(),
                         signature,
@@ -629,26 +1683,22 @@ impl CheckState<'_> {
                 self.walk_function_type(tree, signature);
 
                 let return_type = signature.return_type.map(|return_type| {
-                    self.intern_local_node_type_variable(tree.module_id, return_type)
+                    self.check
+                        .require_local_node_type(tree.module_id, return_type)
                 });
-                let term = self.build_function_type_term(signature, return_type, tree);
-                let variable = self.intern_local_node_type_variable(tree.module_id, id);
-                let condition = self.active_static_condition(tree.module_id);
-
-                self.add_type_definition(variable, TypeTerm::Function(term), condition);
+                let term = self.lower_function_type_term(signature, return_type, tree);
+                self.output_node_type(tree.module_id, id, TypeTerm::Function(term));
             }
             // new (...): T
             dir::TypeMember::ConstructSignature { signature } => {
                 self.walk_constructor_type(tree, signature);
 
                 let return_type = signature.return_type.map(|return_type| {
-                    self.intern_local_node_type_variable(tree.module_id, return_type)
+                    self.check
+                        .require_local_node_type(tree.module_id, return_type)
                 });
-                let term = self.build_constructor_type_term(signature, return_type, tree);
-                let variable = self.intern_local_node_type_variable(tree.module_id, id);
-                let condition = self.active_static_condition(tree.module_id);
-
-                self.add_type_definition(variable, TypeTerm::Function(term), condition);
+                let term = self.lower_constructor_type_term(signature, return_type, tree);
+                self.output_node_type(tree.module_id, id, TypeTerm::Function(term));
             }
             // [key: K]: V
             dir::TypeMember::IndexSignature {
@@ -667,23 +1717,8 @@ impl CheckState<'_> {
                 value,
                 ..
             } => {
-                if let Some(value) = value {
-                    if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
-                        let variable =
-                            self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                        let value = self.intern_local_node_type_variable(tree.module_id, *value);
-                        let condition = self.active_static_condition(tree.module_id);
-
-                        self.add_type_definition(variable, TypeTerm::Variable(value), condition);
-                    }
-                }
-
                 for generic_parameter in generic_parameters {
-                    self.walk_generic_parameter(
-                        tree,
-                        *generic_parameter,
-                        tree.get(*generic_parameter),
-                    );
+                    self.walk_generic_slot(tree, *generic_parameter, tree.get(*generic_parameter));
                 }
 
                 for where_clause in where_clauses {
@@ -697,6 +1732,22 @@ impl CheckState<'_> {
                 if let Some(value) = value {
                     self.walk_type_expression(tree, *value, tree.get(*value));
                 }
+
+                if let Some(value) = value {
+                    if let Some(symbol) =
+                        self.check.declaration_symbol(tree.module_id, id.into_any())
+                    {
+                        let value = self.check.require_local_node_type(tree.module_id, *value);
+                        let condition = self.active_static_guard();
+
+                        self.check.output_symbol_type(
+                            tree.module_id,
+                            symbol,
+                            value.to_type_term(self.check),
+                            condition,
+                        );
+                    }
+                }
             }
             // const item: T = value
             dir::TypeMember::AssociatedConst {
@@ -705,41 +1756,8 @@ impl CheckState<'_> {
                 ..
             } => {
                 if value.is_some() && declared_type.is_none() {
-                    self.report_missing_type_annotation(tree.module_id, id.into_any());
-                }
-
-                if let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) {
-                    // associated const type lives in type space
-                    if let Some(declared_type) = declared_type {
-                        let variable =
-                            self.intern_local_symbol_type_variable(tree.module_id, symbol);
-                        let declared_type =
-                            self.intern_local_node_type_variable(tree.module_id, *declared_type);
-                        let condition = self.active_static_condition(tree.module_id);
-
-                        self.add_type_definition(
-                            variable,
-                            TypeTerm::Variable(declared_type),
-                            condition,
-                        );
-                    }
-
-                    // associated const value lives in static space
-                    if let Some(value) = value {
-                        let variable = self.intern_symbol_static_variable(tree.module_id, symbol);
-                        let condition = self.active_static_condition(tree.module_id);
-                        let value = self.define_static_expression_variable(
-                            tree.module_id,
-                            *value,
-                            condition.clone(),
-                        );
-
-                        self.add_static_definition(
-                            variable,
-                            StaticTerm::Variable(value),
-                            condition,
-                        );
-                    }
+                    self.check
+                        .report_missing_type_annotation(tree.module_id, id.into_any());
                 }
 
                 if let Some(declared_type) = declared_type {
@@ -749,27 +1767,65 @@ impl CheckState<'_> {
                 if let Some(value) = value {
                     self.walk_static_expression(tree, *value);
                 }
+
+                if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
+                    // associated const type lives in type space
+                    if let Some(declared_type) = declared_type {
+                        let declared_type = self
+                            .check
+                            .require_local_node_type(tree.module_id, *declared_type);
+                        let condition = self.active_static_guard();
+
+                        self.check.output_symbol_type(
+                            tree.module_id,
+                            symbol,
+                            declared_type.to_type_term(self.check),
+                            condition,
+                        );
+                    }
+
+                    // associated const value lives in static space
+                    if let Some(value) = value {
+                        let variable = self
+                            .check
+                            .output_symbol_static_variable(tree.module_id, symbol);
+                        let condition = self.active_static_guard();
+                        let value = self.check.output_static_expression_variable(
+                            tree.module_id,
+                            *value,
+                            condition.clone(),
+                        );
+
+                        self.check
+                            .equate_static(variable, StaticTerm::Variable(value), condition);
+                    }
+                }
             }
             // ignore damaged syntax
             dir::TypeMember::Error => {}
         }
 
-        self.pop_static_condition(tree.module_id);
+        self.pop_static_guard();
     }
 
     /// Return the receiver visible to decorators on one type member.
-    fn type_member_static_receiver(
+    fn find_type_member_static_guard_receiver(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::TypeMember>,
     ) -> Option<ReceiverCapture> {
-        let symbol = self.implicit_receiver_symbol(module, id.into_any())?;
-        let (owner, ty) = self.type_member_receiver_type(module, id)?;
+        let symbol = self.check.implicit_receiver_symbol(module, id.into_any())?;
+        let (owner, ty) = self.find_implicit_type_member_receiver(module, id)?;
 
         Some(ReceiverCapture { symbol, owner, ty })
     }
 
     /// Walk one mapped type parameter.
+    ///
+    /// Example:
+    /// ```ds
+    /// K in keyof T as Remap<K>
+    /// ```
     pub(in crate::check) fn walk_type_mapped_parameter(
         &mut self,
         tree: &dir::Tree,
@@ -777,7 +1833,7 @@ impl CheckState<'_> {
         type_mapped_parameter: &dir::TypeMappedParameter,
     ) {
         // enter static owner guard
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
         }
         self.walk_type_expression(
@@ -790,10 +1846,15 @@ impl CheckState<'_> {
             self.walk_type_expression(tree, key_remap, tree.get(key_remap));
         }
 
-        self.pop_static_condition(tree.module_id);
+        self.pop_static_guard();
     }
 
     /// Walk one tuple element.
+    ///
+    /// Example:
+    /// ```ds
+    /// label?: T
+    /// ```
     pub(in crate::check) fn walk_tuple_element(
         &mut self,
         tree: &dir::Tree,
@@ -801,7 +1862,7 @@ impl CheckState<'_> {
         tuple_element: &dir::TupleElement,
     ) {
         // enter static owner guard
-        if !self.push_static_condition_for(tree, id.into_any(), None) {
+        if !self.push_static_guard_for(tree, id.into_any(), None) {
             return;
         }
         match tuple_element {
@@ -817,13 +1878,18 @@ impl CheckState<'_> {
             dir::TupleElement::Error => {}
         }
 
-        self.pop_static_condition(tree.module_id);
+        self.pop_static_guard();
     }
 
     /// Walk one type-space function declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// (value: T) => U
+    /// ```
     fn walk_function_type(&mut self, tree: &dir::Tree, declaration: &dir::FunctionType) {
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
         }
 
         if let Some(parameter) = declaration.this_parameter {
@@ -844,9 +1910,14 @@ impl CheckState<'_> {
     }
 
     /// Walk one type-space constructor declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// new (value: T) => Box<T>
+    /// ```
     fn walk_constructor_type(&mut self, tree: &dir::Tree, declaration: &dir::ConstructorType) {
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
         }
 
         for parameter in &declaration.parameters {
@@ -862,74 +1933,96 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return the receiver visible inside one type-surface method.
-    fn type_member_receiver(
+    /// Bind the receiver visible inside one type member method.
+    ///
+    /// Example:
+    /// ```ds
+    /// method(this: Box): number
+    /// ```
+    fn bind_type_member_receiver(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::TypeMember>,
         signature: &dir::FunctionSignature,
         is_static: bool,
     ) -> Option<ReceiverCapture> {
-        let owner = self.type_member_receiver_owner(tree.module_id, id);
-        if let Some(receiver) = self.function_receiver(signature.this_parameter, owner, tree) {
+        let owner = self.find_implicit_type_member_receiver_owner(tree.module_id, id);
+        if let Some(receiver) = self.bind_explicit_receiver(signature.this_parameter, owner, tree) {
             return Some(receiver);
         }
         if is_static {
             return None;
         }
-        let Some(symbol) = self.implicit_receiver_symbol(tree.module_id, id.into_any()) else {
+        let Some(symbol) = self
+            .check
+            .implicit_receiver_symbol(tree.module_id, id.into_any())
+        else {
             return None;
         };
-        let Some((owner, ty)) = self.type_member_receiver_type(tree.module_id, id) else {
+        let Some((owner, ty)) = self.find_implicit_type_member_receiver(tree.module_id, id) else {
             return None;
         };
+        if self
+            .check
+            .module(tree.module_id)
+            .profile
+            .flags
+            .no_implicit_receivers
+        {
+            self.check
+                .report_implicit_receiver(tree.module_id, id.into_any());
+        }
 
         Some(ReceiverCapture { symbol, owner, ty })
     }
 
     /// Return the contextual type used for an implicit type member receiver.
-    fn type_member_receiver_type(
+    fn find_implicit_type_member_receiver(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::TypeMember>,
-    ) -> Option<(Option<dir::GlobalSymbolId>, VariableId)> {
-        if let Some(object) = self.enclosing_object_type_expression(module, id) {
-            let ty = self.intern_local_node_type_variable(module, object);
-
-            return Some((None, ty));
+    ) -> Option<(Option<dir::GlobalSymbolId>, TypeOperand)> {
+        if let Some(object) = self.find_enclosing_object_type_expression(module, id) {
+            return Some((None, self.check.require_local_node_type(module, object)));
         }
 
-        let declaration = self.enclosing_declaration(module, id.into_any())?;
-        let Some(owner) = self.declaration_symbol(module, declaration.into_any()) else {
+        let declaration = self.find_enclosing_declaration(module, id.into_any())?;
+        let Some(owner) = self
+            .check
+            .declaration_symbol(module, declaration.into_any())
+        else {
             return None;
         };
-        let ty = self.intern_local_symbol_type_variable(module, owner);
 
-        Some((Some(owner), ty))
+        Some((Some(owner), self.check.require_symbol_type(owner)))
     }
 
     /// Return the nominal owner that provides one type member receiver.
-    fn type_member_receiver_owner(
+    fn find_implicit_type_member_receiver_owner(
         &self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::TypeMember>,
     ) -> Option<dir::GlobalSymbolId> {
-        if self.enclosing_object_type_expression(module, id).is_some() {
+        if self
+            .find_enclosing_object_type_expression(module, id)
+            .is_some()
+        {
             return None;
         }
 
-        let declaration = self.enclosing_declaration(module, id.into_any())?;
+        let declaration = self.find_enclosing_declaration(module, id.into_any())?;
 
-        self.declaration_symbol(module, declaration.into_any())
+        self.check
+            .declaration_symbol(module, declaration.into_any())
     }
 
     /// Return the enclosing object type expression.
-    fn enclosing_object_type_expression(
+    fn find_enclosing_object_type_expression(
         &self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::TypeMember>,
     ) -> Option<dir::LocalNodeId<dir::TypeExpression>> {
-        let view = self.module(module).view();
+        let view = self.check.module(module).view();
         let parent = view.get_parent_for(id)?;
         if parent.ty != dir::NodeType::TypeExpression {
             return None;
@@ -944,12 +2037,12 @@ impl CheckState<'_> {
     }
 
     /// Return the nearest enclosing declaration.
-    fn enclosing_declaration(
+    fn find_enclosing_declaration(
         &self,
         module: ModuleId,
         id: dir::LocalNodeIdAny,
     ) -> Option<dir::LocalNodeId<dir::Declaration>> {
-        let view = self.module(module).view();
+        let view = self.check.module(module).view();
         let mut current = view.get_parent(id.id);
 
         while let Some(node) = current {
@@ -963,25 +2056,56 @@ impl CheckState<'_> {
         None
     }
 
-    /// Define one type expression from the input type table.
-    fn define_input_node_type(
+    /// Lower one string mapping reference.
+    ///
+    /// Example:
+    /// ```ds
+    /// Uppercase<Name>
+    /// ```
+    fn lower_string_mapping_term(
         &mut self,
-        module: ModuleId,
-        id: dir::LocalNodeId<dir::TypeExpression>,
-    ) {
-        let source = id.into_global_any(module);
-        let type_id = self
-            .module(module)
-            .type_table()
-            .get_node_type_id(source)
-            .unwrap_or_else(|| panic!("check input node {source:?} has no type"));
-        let materialized = self.materialize_type_id(type_id.into_global(module));
+        path: &dir::Path,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        tree: &dir::Tree,
+    ) -> Option<TypeTerm> {
+        let mapping = self.find_string_mapping_for_path(tree.module_id, path)?;
+        let arguments = self.lower_generic_arguments(None, generic_arguments, tree);
+        let Some(argument) = arguments
+            .first()
+            .and_then(|argument| argument.type_operand())
+        else {
+            return Some(TypeTerm::Literal(TypeLiteralTerm::Error));
+        };
+        let operation = self
+            .check
+            .inference
+            .terms
+            .push(TypeOperationTerm::StringMapping { mapping, argument });
 
-        self.define_node_type(module, id, TypeTerm::Variable(materialized));
+        Some(TypeTerm::Operation(operation))
+    }
+
+    /// Return the string mapping named by one path.
+    fn find_string_mapping_for_path(
+        &self,
+        module: ModuleId,
+        path: &dir::Path,
+    ) -> Option<dir::StringMapping> {
+        let [name] = path.segments.as_slice() else {
+            return None;
+        };
+        let name = self.check.module(module).strings.get(*name);
+
+        dir::StringMapping::try_from(name).ok()
     }
 
     /// Return one compact scalar range type term.
-    fn build_range_type_term(
+    ///
+    /// Example:
+    /// ```ds
+    /// 0..10
+    /// ```
+    fn lower_range_type_term(
         &self,
         start: Option<dir::LocalNodeId<dir::TypeExpression>>,
         end: Option<dir::LocalNodeId<dir::TypeExpression>>,
@@ -989,11 +2113,11 @@ impl CheckState<'_> {
         tree: &dir::Tree,
     ) -> Option<TypeTerm> {
         let start = match start {
-            Some(start) => Some(self.scalar_range_bound(start, tree)?),
+            Some(start) => Some(self.lower_scalar_range_bound(start, tree)?),
             None => None,
         };
         let end = match end {
-            Some(end) => Some(self.scalar_range_bound(end, tree)?),
+            Some(end) => Some(self.lower_scalar_range_bound(end, tree)?),
             None => None,
         };
 
@@ -1005,7 +2129,12 @@ impl CheckState<'_> {
     }
 
     /// Return one scalar literal range bound.
-    fn scalar_range_bound(
+    ///
+    /// Example:
+    /// ```ds
+    /// 10
+    /// ```
+    fn lower_scalar_range_bound(
         &self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         tree: &dir::Tree,
@@ -1018,8 +2147,13 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one semantic predicate subject.
-    fn predicate_subject(
+    /// Bind one semantic predicate subject.
+    ///
+    /// Example:
+    /// ```ds
+    /// value is T
+    /// ```
+    fn bind_predicate_subject(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::TypeExpression>,
@@ -1028,7 +2162,7 @@ impl CheckState<'_> {
         match subject {
             // value is T
             dir::TypePredicateSubject::Identifier(name) => {
-                let symbol = self.require_symbol_by_name(
+                let symbol = self.check.require_symbol_by_name(
                     module,
                     id.into_any(),
                     name,
@@ -1036,7 +2170,7 @@ impl CheckState<'_> {
                 )?;
                 let source = id.into_global_any(module);
 
-                self.use_value_symbol(source, symbol);
+                self.select_value_reference(source, symbol);
 
                 Some(dir::PredicateSubject::Symbol(symbol))
             }
@@ -1046,7 +2180,12 @@ impl CheckState<'_> {
     }
 
     /// Return one tuple type term.
-    fn build_tuple_type_term(
+    ///
+    /// Example:
+    /// ```ds
+    /// [name: string, age?: number]
+    /// ```
+    fn lower_tuple_type_term(
         &mut self,
         elements: &[dir::LocalNodeId<dir::TupleElement>],
         form: dir::TupleForm,
@@ -1054,18 +2193,19 @@ impl CheckState<'_> {
     ) -> TypeTerm {
         let elements = elements
             .iter()
-            .filter_map(|element| self.build_tuple_element_term(*element, tree))
+            .filter_map(|element| self.lower_tuple_element_term(*element, tree))
             .collect();
 
-        TypeTerm::Tuple {
-            form,
-            elements,
-            is_readonly: false,
-        }
+        TypeTerm::Tuple { form, elements }
     }
 
     /// Return one tuple element term from tuple type syntax.
-    fn build_tuple_element_term(
+    ///
+    /// Example:
+    /// ```ds
+    /// ...items
+    /// ```
+    fn lower_tuple_element_term(
         &mut self,
         id: dir::LocalNodeId<dir::TupleElement>,
         tree: &dir::Tree,
@@ -1080,7 +2220,8 @@ impl CheckState<'_> {
             } => TupleElement {
                 label: *label,
                 ty: self
-                    .intern_local_node_type_variable(tree.module_id, *value)
+                    .check
+                    .require_local_node_type(tree.module_id, *value)
                     .into(),
                 is_optional: *is_optional,
                 is_readonly: *is_readonly,
@@ -1090,7 +2231,8 @@ impl CheckState<'_> {
             dir::TupleElement::Spread { label, value } => TupleElement {
                 label: *label,
                 ty: self
-                    .intern_local_node_type_variable(tree.module_id, *value)
+                    .check
+                    .require_local_node_type(tree.module_id, *value)
                     .into(),
                 is_optional: false,
                 is_readonly: false,
@@ -1104,19 +2246,29 @@ impl CheckState<'_> {
     }
 
     /// Return shape member terms from object type syntax.
-    fn build_shape_member_terms(
+    ///
+    /// Example:
+    /// ```ds
+    /// { name: string, read(): string }
+    /// ```
+    fn lower_shape_member_terms(
         &mut self,
         members: &[dir::LocalNodeId<dir::TypeMember>],
         tree: &dir::Tree,
     ) -> SmallVec<[ShapeMember; 8]> {
         members
             .iter()
-            .filter_map(|member| self.build_shape_member_term(*member, tree))
+            .filter_map(|member| self.lower_shape_member_term(*member, tree))
             .collect()
     }
 
     /// Return one shape member term from object type syntax.
-    fn build_shape_member_term(
+    ///
+    /// Example:
+    /// ```ds
+    /// name?: string
+    /// ```
+    fn lower_shape_member_term(
         &mut self,
         id: dir::LocalNodeId<dir::TypeMember>,
         tree: &dir::Tree,
@@ -1132,9 +2284,9 @@ impl CheckState<'_> {
             } => {
                 let key = key.static_key(tree)?;
                 let ty = if let Some(declared_type) = declared_type {
-                    self.intern_local_node_type_variable(tree.module_id, *declared_type)
+                    self.check.require_local_node_type(tree.module_id, *declared_type)
                 } else {
-                    self.intern_local_node_type_variable(tree.module_id, id)
+                    self.check.require_local_node_type(tree.module_id, id)
                 };
 
                 ShapeMember::Field {
@@ -1152,10 +2304,10 @@ impl CheckState<'_> {
                 ..
             } => {
                 let key = key.static_key(tree)?;
-                let Some(symbol) = self.declaration_symbol(tree.module_id, id.into_any()) else {
+                let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) else {
                     return None;
                 };
-                let ty = self.intern_local_symbol_type_variable(tree.module_id, symbol);
+                let ty = self.check.require_symbol_type(symbol);
 
                 ShapeMember::Field {
                     key,
@@ -1166,11 +2318,11 @@ impl CheckState<'_> {
             }
             // (...): T
             dir::TypeMember::CallSignature { .. } => ShapeMember::CallSignature {
-                ty: self.intern_local_node_type_variable(tree.module_id, id).into(),
+                ty: self.check.require_local_node_type(tree.module_id, id).into(),
             },
             // new (...): T
             dir::TypeMember::ConstructSignature { .. } => ShapeMember::ConstructSignature {
-                ty: self.intern_local_node_type_variable(tree.module_id, id).into(),
+                ty: self.check.require_local_node_type(tree.module_id, id).into(),
             },
             // [key: K]: V
             dir::TypeMember::IndexSignature {
@@ -1179,13 +2331,15 @@ impl CheckState<'_> {
                 value_type,
                 is_optional,
                 is_readonly,
-            } => ShapeMember::IndexSignature {
-                name: *name,
-                key_type: self.intern_local_node_type_variable(tree.module_id, *key_type).into(),
-                value_type: self.intern_local_node_type_variable(tree.module_id, *value_type).into(),
-                is_optional: *is_optional,
-                is_readonly: *is_readonly,
-            },
+            } => {
+                ShapeMember::IndexSignature {
+                    name: *name,
+                    key_type: self.check.require_local_node_type(tree.module_id, *key_type).into(),
+                    value_type: self.check.require_local_node_type(tree.module_id, *value_type).into(),
+                    is_optional: *is_optional,
+                    is_readonly: *is_readonly,
+                }
+            }
             // static field: T
             dir::TypeMember::Field {
                 is_static: true, ..
@@ -1206,7 +2360,12 @@ impl CheckState<'_> {
     }
 
     /// Return one mapped type operation term.
-    fn build_mapped_type_term(
+    ///
+    /// Example:
+    /// ```ds
+    /// { [K in keyof T]: T[K] }
+    /// ```
+    fn lower_mapped_type_term(
         &mut self,
         parameter: dir::LocalNodeId<dir::TypeMappedParameter>,
         readonly: dir::MappedTypeModifier,
@@ -1215,26 +2374,53 @@ impl CheckState<'_> {
         tree: &dir::Tree,
     ) -> Option<TypeTerm> {
         let mapped_parameter = tree.get(parameter);
-        let symbol = self.declaration_symbol(tree.module_id, parameter.into_any())?;
+        let symbol = self
+            .check
+            .declaration_symbol(tree.module_id, parameter.into_any())?;
         let value = value?;
         let parameter = MappedParameter {
             name: mapped_parameter.name,
             symbol,
             constraint: self
-                .intern_local_node_type_variable(tree.module_id, mapped_parameter.source_type),
-            key_remap: mapped_parameter
-                .key_remap
-                .map(|key_remap| self.intern_local_node_type_variable(tree.module_id, key_remap)),
+                .check
+                .require_local_node_type(tree.module_id, mapped_parameter.source_type),
+            key_remap: mapped_parameter.key_remap.map(|key_remap| {
+                self.check
+                    .require_local_node_type(tree.module_id, key_remap)
+            }),
         };
         let modifiers = dir::MappedTypeModifiers { readonly, optional };
 
-        let value = self.intern_local_node_type_variable(tree.module_id, value);
-        let operation = self.terms.push(TypeOperationTerm::Mapped {
+        let value = self.check.require_local_node_type(tree.module_id, value);
+        let operation = self.check.inference.terms.push(TypeOperationTerm::Mapped {
             parameter,
             modifiers,
             value,
         });
 
         Some(TypeTerm::Operation(operation))
+    }
+
+    /// Set one type expression to the singleton type of a static computation.
+    fn set_static_value_type(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::TypeExpression>,
+        term: StaticTerm,
+    ) {
+        let node = id.into_global_any(tree.module_id);
+        let origin = Origin::Node(node);
+        let variable = self
+            .check
+            .allocate_variable(tree.module_id, VariableKind::Static, origin);
+        let condition = self.active_static_guard();
+
+        self.check.equate_static(variable, term, condition);
+
+        let term = TypeTerm::StaticValue {
+            value: StaticOperand::Variable(variable),
+        };
+
+        self.output_node_type(tree.module_id, id, term);
     }
 }

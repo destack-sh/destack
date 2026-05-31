@@ -1,20 +1,19 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, IndexTerm, MemberTerm, Origin, Place, PlaceTarget, TypeTerm};
+use crate::check::{IndexTerm, MemberTerm, Origin, Place, PlaceTarget, TypeTerm, WalkState};
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Walk one assignment target as a place.
+    ///
+    /// Example:
+    /// ```ds
+    /// value.member
+    /// ```
     pub(in crate::check) fn walk_assignment_target(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         tree: &dir::Tree,
     ) {
-        if let Some(place) = self.build_place(id, tree) {
-            let ty = place.ty.to_type_term(self);
-
-            self.define_node_type(tree.module_id, id, ty);
-        }
-
         match tree.get(id) {
             // x
             dir::Expression::Identifier { .. }
@@ -41,15 +40,24 @@ impl CheckState<'_> {
             } => {
                 self.walk_expression(tree, *right, tree.get(*right));
             }
-            // fallback
+            // check non place expression normally
             _ => {
                 self.walk_expression(tree, id, tree.get(id));
             }
         }
+
+        if let Some(place) = self.lower_place(id, tree) {
+            self.output_node_type_operand(tree.module_id, id, place.ty);
+        }
     }
 
-    /// Build one writable place from expression syntax.
-    pub(in crate::check) fn build_place(
+    /// Lower one writable place from expression syntax.
+    ///
+    /// Example:
+    /// ```ds
+    /// value[index]
+    /// ```
+    pub(in crate::check) fn lower_place(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         tree: &dir::Tree,
@@ -60,26 +68,22 @@ impl CheckState<'_> {
             // x
             dir::Expression::Identifier { name } => {
                 let symbol =
-                    self.require_symbol_by_name(module, id.into_any(), *name, dir::SymbolSpace::Value)?;
+                    self.check.require_symbol_by_name(module, id.into_any(), *name, dir::SymbolSpace::Value)?;
 
-                self.use_value_symbol(source, symbol);
+                self.select_value_reference(source, symbol);
+                let ty = self.check.require_symbol_type(symbol);
 
-                (
-                    self.symbol_type_variable(module, symbol).into(),
-                    PlaceTarget::Binding { symbol },
-                )
+                (ty, PlaceTarget::Binding { symbol })
             }
             // namespace.x
             dir::Expression::QualifiedReference { path, .. } => {
                 let symbol =
-                    self.require_path_symbol(module, id.into_any(), path, dir::SymbolSpace::Value)?;
+                    self.check.require_path_symbol(module, id.into_any(), path, dir::SymbolSpace::Value)?;
 
-                self.use_value_symbol(source, symbol);
+                self.select_value_reference(source, symbol);
+                let ty = self.check.require_symbol_type(symbol);
 
-                (
-                    self.symbol_type_variable(module, symbol).into(),
-                    PlaceTarget::Binding { symbol },
-                )
+                (ty, PlaceTarget::Binding { symbol })
             }
             // value.member
             dir::Expression::Member {
@@ -91,15 +95,15 @@ impl CheckState<'_> {
                 left,
                 name: Some(name),
             } => {
-                let owner = self.intern_local_node_type_variable(module, *left);
+                let owner = self.check.require_local_node_type(module, *left);
                 let key = dir::StaticKey::Name(*name);
-                let member = self.terms.push(MemberTerm {
+                let member = self.check.inference.terms.push(MemberTerm {
                     origin: Origin::Node(source),
                     owner,
                     key,
                     arguments: Vec::new().into(),
                 });
-                let term = self.terms.push(TypeTerm::Member(member));
+                let term = self.check.inference.terms.push(TypeTerm::Member(member));
 
                 (term.into(), PlaceTarget::MemberTerm { owner, key })
             }
@@ -110,15 +114,15 @@ impl CheckState<'_> {
                 ..
             } => {
                 let index_node = *index;
-                let receiver = self.intern_local_node_type_variable(module, *left);
-                let index = self.intern_local_node_type_variable(module, index_node);
-                let term = self.terms.push(IndexTerm {
+                let receiver = self.check.require_local_node_type(module, *left);
+                let index = self.check.require_local_node_type(module, index_node);
+                let term = self.check.inference.terms.push(IndexTerm {
                     source,
                     receiver,
                     index,
                     key: tree.get(index_node).static_key(),
                 });
-                let term = self.terms.push(TypeTerm::Index(term));
+                let term = self.check.inference.terms.push(TypeTerm::Index(term));
 
                 (term.into(), PlaceTarget::IndexTerm { receiver, index })
             }
@@ -127,13 +131,13 @@ impl CheckState<'_> {
                 operator: dir::UnaryOperator::Dereference,
                 right,
             } => {
-                let output = self.intern_local_node_type_variable(module, *right);
+                let ty = self.check.require_local_node_type(module, *right);
 
-                (output.into(), PlaceTarget::Dereference { output })
+                (ty.into(), PlaceTarget::Dereference)
             }
             // not writable place syntax
             _ => {
-                self.report_not_writable(module, id.into_any());
+                self.check.report_not_writable(module, id.into_any());
 
                 return None;
             }
