@@ -4,39 +4,6 @@ Guard expressions refine values in control flow.
 
 ## Familiar guards
 
-### typeof narrows primitives
-
-```ds
-const value: string | number = 0;
-if (typeof value == "string") {
-    value satisfies string;
-} else {
-    value satisfies number;
-}
-```
-
-### typeof preserves null objects
-
-```ds
-const value: { name: string } | null | string = "hello";
-if (typeof value == "object") {
-    value satisfies { name: string } | null;
-} else {
-    value satisfies string;
-}
-```
-
-### typeof recognizes callable values
-
-```ds
-const value: (() => void) | string = "hello";
-if (typeof value == "function") {
-    value satisfies () => void;
-} else {
-    value satisfies string;
-}
-```
-
 ### instanceof narrows classes
 
 ```ds
