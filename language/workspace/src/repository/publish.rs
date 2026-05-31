@@ -140,7 +140,7 @@ impl Repository {
                     content,
                 } => {
                     let logical_path = normalize_logical_path(&logical_path);
-                    let file_id = FileId::from_source_bytes(logical_path.as_bytes());
+                    let file_id = FileId::from_logical_str(&logical_path);
                     if files.contains_key(&file_id) {
                         return Err(RepositoryError::FileAlreadyExists { path: logical_path });
                     }
@@ -155,7 +155,7 @@ impl Repository {
                     content,
                 } => {
                     let logical_path = normalize_logical_path(&logical_path);
-                    let file_id = FileId::from_source_bytes(logical_path.as_bytes());
+                    let file_id = FileId::from_logical_str(&logical_path);
                     let content = self.files.intern(content);
                     files.insert(file_id, FileEntry::loaded(logical_path, content));
                 }
@@ -163,7 +163,7 @@ impl Repository {
                 // remove the requested file payload
                 Edit::RemoveFile { logical_path } => {
                     let logical_path = normalize_logical_path(&logical_path);
-                    let file_id = FileId::from_source_bytes(logical_path.as_bytes());
+                    let file_id = FileId::from_logical_str(&logical_path);
                     if !files.contains_key(&file_id) {
                         return Err(RepositoryError::MissingFile { path: logical_path });
                     }
@@ -179,14 +179,14 @@ impl Repository {
 
                     let from = normalize_logical_path(&from);
                     let to = normalize_logical_path(&to);
-                    let from_file_id = FileId::from_source_bytes(from.as_bytes());
+                    let from_file_id = FileId::from_logical_str(&from);
                     if !files.contains_key(&from_file_id) {
                         return Err(RepositoryError::MissingFile { path: from });
                     }
                     let Some(from_file) = files.get(&from_file_id).cloned() else {
                         return Err(RepositoryError::MissingFile { path: from });
                     };
-                    let to_file_id = FileId::from_source_bytes(to.as_bytes());
+                    let to_file_id = FileId::from_logical_str(&to);
                     if files.contains_key(&to_file_id) {
                         return Err(RepositoryError::FileAlreadyExists { path: to });
                     }
