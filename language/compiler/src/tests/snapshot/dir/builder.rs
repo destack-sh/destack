@@ -238,7 +238,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(checked.resolutions.as_ref());
         }
 
-        if selection.instance {
+        if selection.generics {
             self.add_table(checked.generics.as_ref());
         }
 
@@ -272,29 +272,33 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.rows.push(row);
     }
 
-    /// Return the debug label for one checked generic instance.
-    pub(super) fn generic_instance_label(&self, instance_id: dir::LocalInstanceId) -> String {
+    /// Return the debug label for one checked generic application.
+    pub(super) fn generic_application_label(
+        &self,
+        application_id: dir::LocalGenericApplicationId,
+    ) -> String {
         let Some(generics) = &self.generics else {
-            panic!("dir snapshot missing generic table for {instance_id:?}");
+            panic!("dir snapshot missing generic table for {application_id:?}");
         };
 
         // render the solved semantic application
-        let instance = generics.get_instance(instance_id);
-        if instance.arguments.is_empty() {
-            return self.symbol_path_label(instance.symbol);
+        let application = generics.get_application(application_id);
+        let template = generics.get_template(application.template);
+        if application.arguments.is_empty() {
+            return self.symbol_path_label(template.owner);
         }
 
-        let arguments = instance
+        let arguments = application
             .arguments
             .iter()
             .map(|argument| self.static_argument_label(argument))
             .collect::<Vec<_>>()
             .join(", ");
-        if let Some(label) = self.collection_type_label(instance.symbol, &instance.arguments) {
+        if let Some(label) = self.collection_type_label(template.owner, &application.arguments) {
             return label;
         }
 
-        let symbol = self.symbol_path_label(instance.symbol);
+        let symbol = self.symbol_path_label(template.owner);
 
         format!("{symbol}<{arguments}>")
     }

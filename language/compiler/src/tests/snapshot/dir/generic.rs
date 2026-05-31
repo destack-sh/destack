@@ -5,100 +5,39 @@ use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::GenericSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
-        // slots
-        for (_, slot) in self.iter_slots() {
-            let anchor = builder.anchor_symbol(slot.owner());
-            let row = match slot {
-                dir::GenericSlot::Type {
-                    owner,
-                    key,
-                    index,
-                    constraint,
-                    default,
-                    ..
-                } => generic_slot_key_field(
-                    SnapshotRow::new(anchor, "generic", "slot"),
-                    builder,
-                    *owner,
-                    *key,
-                )
-                .field("index", index.get().to_string())
-                .field("kind", "type")
-                .optional_type_field("constraint", constraint.map(|id| builder.type_label(id)))
-                .optional_type_field("default", default.map(|id| builder.type_label(id))),
-                dir::GenericSlot::VariadicType {
-                    owner,
-                    key,
-                    index,
-                    constraint,
-                    default,
-                    ..
-                } => generic_slot_key_field(
-                    SnapshotRow::new(anchor, "generic", "slot"),
-                    builder,
-                    *owner,
-                    *key,
-                )
-                .field("index", index.get().to_string())
-                .field("kind", "variadicType")
-                .optional_type_field("constraint", constraint.map(|id| builder.type_label(id)))
-                .optional_type_field("default", default.map(|id| builder.type_label(id))),
-                dir::GenericSlot::Static {
-                    owner,
-                    key,
-                    index,
-                    constraint,
-                    default,
-                    ..
-                } => generic_slot_key_field(
-                    SnapshotRow::new(anchor, "generic", "slot"),
-                    builder,
-                    *owner,
-                    *key,
-                )
-                .field("index", index.get().to_string())
-                .field("kind", "static")
-                .optional_type_field("constraint", constraint.map(|id| builder.type_label(id)))
-                .optional_field("default", default.map(|id| builder.static_label(id))),
-                dir::GenericSlot::VariadicStatic {
-                    owner,
-                    key,
-                    index,
-                    constraint,
-                    default,
-                    ..
-                } => generic_slot_key_field(
-                    SnapshotRow::new(anchor, "generic", "slot"),
-                    builder,
-                    *owner,
-                    *key,
-                )
-                .field("index", index.get().to_string())
-                .field("kind", "variadicStatic")
-                .optional_type_field("constraint", constraint.map(|id| builder.type_label(id)))
-                .optional_field("default", default.map(|id| builder.static_label(id))),
-            };
+        // render generic templates
+        for (_, template) in self.iter_templates() {
+            let anchor = builder.anchor_symbol(template.owner);
+            let row = SnapshotRow::new(anchor, "generic", "template")
+                .field("symbol", builder.symbol_path_label(template.owner))
+                .list_field(
+                    "parameters",
+                    template.slots.iter().map(|slot| {
+                        generic_template_parameter_label(self.get_slot(*slot), builder)
+                    }),
+                );
 
             builder.push(row);
         }
 
         // render generic application sites
-        for (node_id, instance_id) in self.node_instances() {
+        for (node_id, application_id) in self.node_applications() {
             let row = SnapshotRow::new(builder.anchor_node(node_id), "generic", "application")
                 .optional_field("source", builder.node_source(node_id))
-                .field("id", builder.generic_instance_label(instance_id));
+                .field("id", builder.generic_application_label(application_id));
 
             builder.push(row);
         }
 
-        // render generic instances
-        for (instance_id, instance) in self.iter_instances() {
-            let row = SnapshotRow::new(SnapshotAnchor::End, "generic", "instance")
-                .field("id", builder.generic_instance_label(instance_id))
-                .field("symbol", builder.symbol_path_label(instance.symbol))
+        // render generic applications
+        for (application_id, application) in self.iter_applications() {
+            let template = self.get_template(application.template);
+            let row = SnapshotRow::new(SnapshotAnchor::End, "generic", "application")
+                .field("id", builder.generic_application_label(application_id))
+                .field("symbol", builder.symbol_path_label(template.owner))
                 .list_field(
                     "arguments",
-                    instance
+                    application
                         .arguments
                         .iter()
                         .map(|argument| builder.static_argument_label(argument)),
@@ -107,44 +46,127 @@ impl SnapshotTable for dir::GenericSegment {
             builder.push(row);
         }
 
+        let template_count = self.template_count();
         let slot_count = self.slot_count();
-        let instance_count = self.instance_count();
-        let application_count = self.node_instance_count();
-        if slot_count == 0 && instance_count == 0 && application_count == 0 {
+        let application_count = self.application_count();
+        let application_site_count = self.node_application_count();
+        if template_count == 0
+            && slot_count == 0
+            && application_count == 0
+            && application_site_count == 0
+        {
             return;
         }
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "generic", "summary")
+            .count_field("templates", template_count)
             .count_field("slots", slot_count)
-            .count_field("instances", instance_count)
-            .count_field("applications", application_count);
+            .count_field("applications", application_count)
+            .count_field("application_sites", application_site_count);
         builder.push(row);
     }
 }
 
-/// Add one generic slot key field.
-fn generic_slot_key_field(
-    row: SnapshotRow,
+/// Return one generic template parameter label.
+fn generic_template_parameter_label(
+    slot: &dir::GenericSlot,
     builder: &DirSnapshotBuilder<'_>,
-    owner: dir::GlobalSymbolId,
-    key: dir::GenericSlotKey,
-) -> SnapshotRow {
-    match key {
-        dir::GenericSlotKey::Symbol(symbol) => row.field(
-            "symbol",
-            format!(
-                "{}.{}",
-                builder.symbol_path_label(owner),
-                builder.symbol_label(symbol)
-            ),
-        ),
-        dir::GenericSlotKey::Generated(_) => row.field(
-            "key",
-            format!(
-                "{}.{}",
-                builder.symbol_path_label(owner),
-                builder.generic_slot_key_label(key)
-            ),
-        ),
+) -> String {
+    match slot {
+        dir::GenericSlot::Type {
+            key,
+            variance,
+            constraint,
+            default,
+            ..
+        } => {
+            let name = generic_parameter_name(*key, builder);
+            let name = generic_variance_label(*variance, name);
+
+            generic_type_parameter_label(name, *constraint, *default, builder)
+        }
+        dir::GenericSlot::VariadicType {
+            key,
+            variance,
+            constraint,
+            default,
+            ..
+        } => {
+            let name = format!("...{}", generic_parameter_name(*key, builder));
+            let name = generic_variance_label(*variance, name);
+
+            generic_type_parameter_label(name, *constraint, *default, builder)
+        }
+        dir::GenericSlot::Static {
+            key,
+            constraint,
+            default,
+            ..
+        } => {
+            let name = format!("comptime {}", generic_parameter_name(*key, builder));
+
+            generic_static_parameter_label(name, *constraint, *default, builder)
+        }
+        dir::GenericSlot::VariadicStatic {
+            key,
+            constraint,
+            default,
+            ..
+        } => {
+            let name = format!("...comptime {}", generic_parameter_name(*key, builder));
+
+            generic_static_parameter_label(name, *constraint, *default, builder)
+        }
     }
+}
+
+/// Return one generic parameter source name.
+fn generic_parameter_name(key: dir::GenericSlotKey, builder: &DirSnapshotBuilder<'_>) -> String {
+    match key {
+        dir::GenericSlotKey::Symbol(symbol) => builder.symbol_label(symbol),
+        dir::GenericSlotKey::Generated(_) => builder.generic_slot_key_label(key),
+    }
+}
+
+/// Add one optional variance prefix.
+fn generic_variance_label(variance: Option<dir::VarianceModifier>, name: String) -> String {
+    if let Some(variance) = variance {
+        return format!("{} {name}", variance.as_str());
+    }
+
+    name
+}
+
+/// Return one type generic parameter label.
+fn generic_type_parameter_label(
+    name: String,
+    constraint: Option<dir::LocalTypeId>,
+    default: Option<dir::LocalTypeId>,
+    builder: &DirSnapshotBuilder<'_>,
+) -> String {
+    let constraint = constraint
+        .map(|constraint| format!(": {}", builder.type_label(constraint)))
+        .unwrap_or_default();
+    let default = default
+        .map(|default| format!(" = {}", builder.type_label(default)))
+        .unwrap_or_default();
+
+    format!("{name}{constraint}{default}")
+}
+
+/// Return one static generic parameter label.
+fn generic_static_parameter_label(
+    name: String,
+    constraint: Option<dir::LocalTypeId>,
+    default: Option<dir::LocalStaticId>,
+    builder: &DirSnapshotBuilder<'_>,
+) -> String {
+    let constraint = constraint
+        .map(|constraint| format!(": {}", builder.type_label(constraint)))
+        .unwrap_or_default();
+    let default = default
+        .map(|default| format!(" = {}", builder.static_label(default)))
+        .unwrap_or_default();
+
+    format!("{name}{constraint}{default}")
 }

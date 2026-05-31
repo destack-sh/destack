@@ -1,4 +1,3 @@
-const CHECK_SOLVE_STATS_ROWS: &[&str] = &["check.stats.solve"];
 const CHECK_STATS_ROWS: &[&str] = &["check.stats.solve", "check.stats.output"];
 
 /// Rows to render into a DIR snapshot.
@@ -18,8 +17,8 @@ pub(crate) struct DirRows {
     pub(super) statics: bool,
     /// Whether to render resolution table rows.
     pub(super) resolution: bool,
-    /// Whether to render instance table rows.
-    pub(super) instance: bool,
+    /// Whether to render generic table rows.
+    pub(super) generics: bool,
     /// Whether to render relation table rows.
     pub(super) relation: bool,
     /// Whether to render coercion table rows.
@@ -56,7 +55,7 @@ impl DirRows {
             type_references: false,
             statics: false,
             resolution: false,
-            instance: false,
+            generics: false,
             relation: false,
             coercion: false,
             extension: false,
@@ -118,7 +117,7 @@ impl DirRows {
             type_nodes: false,
             type_references: false,
             resolution: true,
-            instance: true,
+            generics: true,
             relation: true,
             extension: true,
             ..Self::none()
@@ -176,12 +175,6 @@ impl DirRows {
         self
     }
 
-    /// Include check solve stats rows.
-    pub(crate) const fn with_check_solve_stats(mut self) -> Self {
-        self.metadata_rows = CHECK_SOLVE_STATS_ROWS;
-        self
-    }
-
     /// Return whether metadata rows are selected.
     pub(crate) const fn includes_metadata(self) -> bool {
         !self.metadata_rows.is_empty()
@@ -235,7 +228,7 @@ impl DirRows {
         self.types
             || self.statics
             || self.resolution
-            || self.instance
+            || self.generics
             || self.relation
             || self.coercion
             || self.capture
