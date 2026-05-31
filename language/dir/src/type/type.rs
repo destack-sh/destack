@@ -334,6 +334,8 @@ pub struct FunctionTypeShape {
 pub struct FunctionParameterType {
     /// The parameter type.
     pub ty: LocalTypeId,
+    /// The static generic slot supplied by this runtime argument.
+    pub static_slot: Option<GenericParameterRef>,
     /// Whether the parameter may be omitted at the call site.
     pub is_optional: bool,
     /// Whether the parameter captures remaining call arguments.
