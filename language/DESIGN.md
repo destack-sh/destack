@@ -1195,12 +1195,12 @@ match (user) {
 
 ### Guards
 
-Guards are boolean expressions that can refine types, like the familiar `typeof value == "string"`, `"name" in value`, and `instanceof` checks:
- - `typeof` for primitive families (`"string"`, `"number"`, `"boolean"`, `"bigint"`, `"symbol"`, and `"undefined"`).
+Guards are boolean expressions that can refine types, like `"name" in value`, `instanceof`, and `value is T` checks:
  - `"name" in value` for object types, and is quite imprecise.
  - `instanceof` for classes.
+ - `value is T` for primitive, nominal, and class cases.
 
-Destack adds an additional `value is T` check, which asks whether the current runtime representation of `value` carries the case or identity for `T`:
+Destack does not need (or support) the vague `typeof` check, but supports an additional precise `value is T` to check whether the current runtime representation of `value` carries the case or identity for `T`:
 
 ```ds
 struct User {
