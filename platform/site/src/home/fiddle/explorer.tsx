@@ -213,14 +213,14 @@ function TreeFolder(props: TreeFolderProps) {
         <button
             aria-expanded={props.isExpanded}
             aria-selected={props.isActive}
-            class="group grid h-5 min-w-0 grid-cols-[3rem_minmax(0,1fr)] items-center text-left outline-none focus-visible:bg-destack-panel focus-visible:ring-2 focus-visible:ring-destack-accent"
+            class="group grid h-5 min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] items-center text-left outline-none focus-visible:bg-destack-panel focus-visible:ring-2 focus-visible:ring-destack-accent"
             classList={{
                 "bg-destack-panel text-neutral-950": props.isActive,
                 "text-neutral-600 hover:bg-destack-panel hover:text-neutral-950": !props.isActive,
             }}
             data-tree-node
             onClick={props.onClick}
-            style={`--tree-indent: ${props.depth * 0.875}rem`}
+            style={`--tree-indent: ${props.depth * 1.125}rem`}
             type="button"
         >
             <span
@@ -229,7 +229,7 @@ function TreeFolder(props: TreeFolderProps) {
             >
                 {props.isExpanded ? "▾" : "▸"}
             </span>
-            <span class="min-w-0 truncate pr-5 pl-[calc(1.25rem+var(--tree-indent))]">
+            <span class="min-w-0 truncate pr-5 pl-[var(--tree-indent)]">
                 {props.label}
             </span>
         </button>
@@ -247,14 +247,14 @@ function TreeFile(props: TreeFileProps) {
     return (
         <button
             aria-selected={props.isActive}
-            class="group grid h-5 min-w-0 grid-cols-[3rem_minmax(0,1fr)] items-center text-left outline-none focus-visible:bg-destack-panel focus-visible:ring-2 focus-visible:ring-destack-accent"
+            class="group grid h-5 min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] items-center text-left outline-none focus-visible:bg-destack-panel focus-visible:ring-2 focus-visible:ring-destack-accent"
             classList={{
                 "bg-destack-panel text-neutral-950": props.isActive,
                 "text-neutral-500 hover:bg-destack-panel hover:text-neutral-950": !props.isActive,
             }}
             data-tree-node
             onClick={props.onClick}
-            style={`--tree-indent: ${props.depth * 0.875}rem`}
+            style={`--tree-indent: ${props.depth * 1.125}rem`}
             type="button"
         >
             <span class="flex justify-center pl-0.5">
@@ -267,7 +267,7 @@ function TreeFile(props: TreeFileProps) {
                     }}
                 />
             </span>
-            <span class="min-w-0 truncate pr-5 pl-[calc(1.25rem+var(--tree-indent))]">
+            <span class="min-w-0 truncate pr-5 pl-[var(--tree-indent)]">
                 {props.label}
             </span>
         </button>

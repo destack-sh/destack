@@ -222,9 +222,11 @@ function renderMarkdown(markdown, context) {
     renderer.link = (token) => {
         const href = resolveLink(token.href, context);
         const title = token.title == undefined ? "" : ` title="${escapeAttribute(token.title)}"`;
+        const rel = isExternalLink(href) ? " rel=\"external noopener noreferrer\"" : "";
+        const target = isExternalLink(href) ? " target=\"_blank\"" : "";
         const text = marked.parseInline(token.text);
 
-        return `<a href="${escapeAttribute(href)}"${title}>${text}</a>`;
+        return `<a href="${escapeAttribute(href)}"${title}${rel}${target}>${text}</a>`;
     };
     renderer.image = (token) => {
         const src = resolveLink(token.href, context);
@@ -245,7 +247,6 @@ function extractFootnotes(markdown, context) {
     const notes = [];
     const lines = markdown.split("\n");
     const kept = [];
-    const numbers = new Map();
 
     for (const line of lines) {
         const match = line.match(/^\[\^([^\]]+)]:\s*(.+)$/);
@@ -256,21 +257,22 @@ function extractFootnotes(markdown, context) {
 
         const number = notes.length + 1;
         notes.push({ id: match[1], number, text: match[2] });
-        numbers.set(match[1], number);
     }
 
     const nextIndex = new Map();
     const rewritten = kept.join("\n").replace(/\[\^([^\]]+)]/g, (_, id) => {
-        if (!numbers.has(id)) {
+        const note = notes.find((note) => note.id === id);
+        if (note == undefined) {
             throw new Error(`missing footnote definition in ${context.slug}: ${id}`);
         }
 
         const count = (nextIndex.get(id) ?? 0) + 1;
-        const number = numbers.get(id);
         const referenceId = count === 1 ? id : `${id}-${count}`;
+        const noteId = escapeAttribute(id);
+        const reference = escapeAttribute(referenceId);
         nextIndex.set(id, count);
 
-        return `<sup class="blog-footnote-ref" id="fnref-${escapeAttribute(referenceId)}"><a href="#fn-${escapeAttribute(id)}">${escapeHtml(String(number))}</a></sup>`;
+        return `<sup class="blog-footnote-ref" id="fnref-${reference}"><a href="#fn-${noteId}">${escapeHtml(String(note.number))}</a></sup><span class="blog-margin-note" aria-hidden="true"><span>${escapeHtml(String(note.number))}</span>${marked.parseInline(note.text)}</span>`;
     });
 
     return { markdown: rewritten, notes };
