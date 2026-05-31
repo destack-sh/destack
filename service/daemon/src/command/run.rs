@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
 use destack_runtime::runtime::World;
-use destack_runtime::runtime::engine::Entry;
+use destack_runtime::runtime::engine::{EngineId, Entry, Value};
 use destack_source::{ModuleId, ProfileId, TargetId};
-use destack_vm::{Isolate, IsolateId, IsolateOptions, Value};
+use destack_vm::{Machine, MachineOptions};
 use destack_workspace::{Environment, Profile, Repository, Revision};
 use serde::{Deserialize, Serialize};
 
@@ -187,13 +187,13 @@ fn run_entry_module(
     let mut runtime_options = target.target.runtime_options.clone();
     runtime_options.conditions = profile.conditions().clone();
 
-    // vm isolate
-    let isolate = create_isolate(
+    // vm machine
+    let machine = create_machine(
         repository,
         revision,
         entry_module,
         &target_id,
-        IsolateOptions::default(),
+        MachineOptions::default(),
     )?;
 
     // runtime launch
@@ -201,10 +201,10 @@ fn run_entry_module(
         .first()
         .ok_or_else(|| "run requires an entry module".to_string())?;
     let environment = environment_for_source(entry_source, args);
-    let mut world = World::from_options(&runtime_options, environment.clone())
-        .map_err(|error| format!("{error}"))?;
+    let mut world =
+        World::new(&runtime_options, environment.clone()).map_err(|error| format!("{error}"))?;
     let runtime_id = world
-        .spawn_runtime(environment, &runtime_options, isolate)
+        .spawn_runtime(environment, &runtime_options, machine)
         .map_err(|error| format!("{error}"))?;
 
     let entry = Entry::new(entry_name);
@@ -259,13 +259,14 @@ fn format_value_for_eval(value: &Value) -> String {
         Value::Bool(value) => value.to_string(),
         Value::Int { value, .. } => value.to_string(),
         Value::UInt { value, .. } => value.to_string(),
+        Value::Float16 { bits } => format!("0x{bits:04x}"),
+        Value::Bfloat16 { bits } => format!("0x{bits:04x}"),
         Value::Float32 { bits } => f32::from_bits(*bits).to_string(),
         Value::Float64 { bits } => f64::from_bits(*bits).to_string(),
         Value::Char(value) => value.to_string(),
-        Value::HeapReference(_)
-        | Value::SharedHeapReference(_)
-        | Value::RawPointer(_)
-        | Value::SharedRawPointer(_) => format!("{value:?}"),
+        Value::HeapReference(_) | Value::SharedHeapReference(_) | Value::Address(_) => {
+            format!("{value:?}")
+        }
     }
 }
 
@@ -306,13 +307,14 @@ fn value_payload(value: &Value) -> serde_json::Value {
         Value::Bool(value) => serde_json::Value::Bool(*value),
         Value::Int { value, .. } => int_payload(*value),
         Value::UInt { value, .. } => uint_payload(*value),
+        Value::Float16 { bits } => serde_json::Value::String(format!("0x{bits:04x}")),
+        Value::Bfloat16 { bits } => serde_json::Value::String(format!("0x{bits:04x}")),
         Value::Float32 { bits } => float_payload(f32::from_bits(*bits).into()),
         Value::Float64 { bits } => float_payload(f64::from_bits(*bits)),
         Value::Char(value) => serde_json::Value::String(value.to_string()),
-        Value::HeapReference(_)
-        | Value::SharedHeapReference(_)
-        | Value::RawPointer(_)
-        | Value::SharedRawPointer(_) => serde_json::Value::String(format!("{value:?}")),
+        Value::HeapReference(_) | Value::SharedHeapReference(_) | Value::Address(_) => {
+            serde_json::Value::String(format!("{value:?}"))
+        }
     }
 }
 
@@ -334,14 +336,14 @@ fn uint_payload(value: u128) -> serde_json::Value {
     }
 }
 
-/// Create a VM isolate from the module MIR.
-fn create_isolate(
+/// Create a VM machine from the module MIR.
+fn create_machine(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
     target_id: &TargetId,
-    options: IsolateOptions,
-) -> CommandResult<Isolate> {
+    options: MachineOptions,
+) -> CommandResult<Machine> {
     let profile_id = target_profile_id(repository, revision, module_id, *target_id)?;
     let optimized_key = ArtifactKey::mir_optimized(module_id, profile_id, *target_id);
     let lowered_key = ArtifactKey::mir_lowered(module_id, profile_id, *target_id);
@@ -368,10 +370,10 @@ fn create_isolate(
     };
     let strings = repository.string_pool().as_ref().clone();
 
-    let isolate_id = IsolateId::new(1);
+    let machine_id = EngineId::new(1);
 
     Ok(
-        Isolate::build_with_options(isolate_id, tree, strings, options)
+        Machine::build_with_options(machine_id, tree, strings, options)
             .map_err(|error| error.to_string())?,
     )
 }

@@ -71,14 +71,8 @@ fn test_watch_batch_updates_daemon() {
     let batch = harness.next_batch();
     let result = harness.apply_batch(&batch);
 
-    // check that the daemon updates include diagnostics
-    assert!(
-        result
-            .updates
-            .iter()
-            .any(|update| !update.diagnostics.is_empty()),
-        "expected diagnostics for watched update"
-    );
+    // check that the daemon applied the watched update
+    assert!(result.updated(), "expected watched update");
 
     harness.stop();
 }

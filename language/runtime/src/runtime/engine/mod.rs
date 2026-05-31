@@ -5,7 +5,7 @@ mod image;
 mod outcome;
 
 pub use continuation::*;
-pub use destack_engine::{CallContext, MemoryContext};
+pub use destack_engine::{CallContext, EngineId, MemoryContext, Value};
 pub use engine::*;
 pub use entry::*;
 pub use image::*;
