@@ -44,12 +44,16 @@ pub enum TypeMember {
         where_clauses: Vec<LocalNodeId<WhereClause>>,
         constraint: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<TypeExpression>>,
+        is_abstract: bool,
+        is_override: bool,
     },
     /// Associated compile-time constant requirement or definition.
     AssociatedConst {
         name: StringId,
         declared_type: Option<LocalNodeId<TypeExpression>>,
         value: Option<LocalNodeId<Expression>>,
+        is_abstract: bool,
+        is_override: bool,
     },
     /// Malformed type member slot.
     Error,
@@ -202,15 +206,6 @@ pub enum MappedTypeModifier {
     Remove,
     /// No modifier specified.
     None,
-}
-
-/// A type predicate subject.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TypePredicateSubject {
-    /// Identifier subject.
-    Identifier(StringId),
-    /// `this` subject.
-    This,
 }
 
 /// One function type in type space.
@@ -663,20 +658,6 @@ pub enum TypeExpression {
         form: InferForm,
         name: Option<StringId>,
         constraint: Option<LocalNodeId<TypeExpression>>,
-    },
-
-    /// Type predicate.
-    ///
-    /// Examples:
-    /// ```
-    /// value is Foo
-    /// asserts value is Foo
-    /// asserts this is Ready
-    /// ```
-    Predicate {
-        asserts: bool,
-        subject: TypePredicateSubject,
-        target: Option<LocalNodeId<TypeExpression>>,
     },
 
     /// Missing type child.
