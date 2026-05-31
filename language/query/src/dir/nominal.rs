@@ -89,7 +89,7 @@ fn recorded_member_resolution(
 
                 Some(candidate.symbol)
             }
-            MemberTarget::Select(candidates) => {
+            MemberTarget::Union(candidates) => {
                 if candidates.len() == 1 {
                     let symbol_id = candidates[0].symbol;
                     if !dir.symbol_is_visible(symbol_id) {

@@ -204,22 +204,18 @@ fn call_expression_target_symbol(
         return call_target_symbol(ctx, dir_tree, *left);
     }
 
-    // resolve constructor calls from checked call resolution
-    if matches!(expression, dir::Expression::New { .. }) {
+    // resolve constructor calls from checked construct resolution
+    if matches!(
+        expression,
+        dir::Expression::New { .. } | dir::Expression::NewMaybe { .. }
+    ) {
         let node_id = dir::GlobalNodeIdAny {
             module_id: ctx.module_id(),
             local_id: expression_id.into(),
         };
-        let resolution = ctx.dir().resolutions().call_resolution(node_id)?;
-        return match &resolution.target {
-            dir::CallTarget::Construct(candidate) | dir::CallTarget::Symbol(candidate) => {
-                Some(candidate.symbol)
-            }
-            dir::CallTarget::Select(candidates) => {
-                candidates.first().map(|candidate| candidate.symbol)
-            }
-            dir::CallTarget::Builtin(_) | dir::CallTarget::Value => None,
-        };
+        let resolution = ctx.dir().resolutions().construct_resolution(node_id)?;
+
+        return Some(resolution.target.symbol());
     }
 
     None

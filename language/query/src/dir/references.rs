@@ -72,7 +72,7 @@ pub(crate) fn build_reference_targets_for_module(
                 MemberTarget::Symbol(candidate) => {
                     insert_reference_target_keys(dir, &mut targets, candidate.symbol)
                 }
-                MemberTarget::Select(candidates) => {
+                MemberTarget::Union(candidates) => {
                     for candidate in candidates {
                         insert_reference_target_keys(dir, &mut targets, candidate.symbol);
                     }
@@ -82,16 +82,21 @@ pub(crate) fn build_reference_targets_for_module(
         }
         if let Some(resolution) = dir.resolutions().call_resolution(node_id) {
             match &resolution.target {
-                DirCallTarget::Construct(candidate) | DirCallTarget::Symbol(candidate) => {
+                DirCallTarget::Symbol(candidate) => {
                     insert_reference_target_keys(dir, &mut targets, candidate.symbol)
                 }
-                DirCallTarget::Select(candidates) => {
+                DirCallTarget::Union(candidates) => {
                     for candidate in candidates {
                         insert_reference_target_keys(dir, &mut targets, candidate.symbol);
                     }
                 }
-                DirCallTarget::Builtin(_) | DirCallTarget::Value => {}
+                DirCallTarget::Builtin(_) | DirCallTarget::Expression => {}
             }
+        }
+        if let Some(resolution) = dir.resolutions().construct_resolution(node_id) {
+            let symbol = resolution.target.symbol();
+
+            insert_reference_target_keys(dir, &mut targets, symbol);
         }
 
         if let Expression::QualifiedReference { path, .. } = expression {
@@ -685,7 +690,7 @@ fn member_resolution_matches_reference_target(
     };
 
     match &resolution.target {
-        MemberTarget::Select(candidates) => candidates
+        MemberTarget::Union(candidates) => candidates
             .iter()
             .any(|candidate| ctx.symbol_matches_reference_target(candidate.symbol, canonical_id)),
         _ => false,

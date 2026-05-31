@@ -138,18 +138,25 @@ fn call_target_symbols(
     };
 
     match &resolution.target {
-        DirCallTarget::Construct(candidate) | DirCallTarget::Symbol(candidate) => {
+        DirCallTarget::Symbol(candidate) => {
             targets.push(candidate.symbol);
             targets.push(dir.canonical_symbol(candidate.symbol));
         }
-        DirCallTarget::Select(candidates) => {
+        DirCallTarget::Union(candidates) => {
             for candidate in candidates {
                 targets.push(candidate.symbol);
                 targets.push(dir.canonical_symbol(candidate.symbol));
             }
         }
-        DirCallTarget::Builtin(_) | DirCallTarget::Value => {}
+        DirCallTarget::Builtin(_) | DirCallTarget::Expression => {}
     };
+
+    if let Some(resolution) = dir.resolutions().construct_resolution(node_id) {
+        let symbol = resolution.target.symbol();
+
+        targets.push(symbol);
+        targets.push(dir.canonical_symbol(symbol));
+    }
 
     targets.sort();
     targets.dedup();
