@@ -5,7 +5,6 @@ use crate::{CompilerResult, DiagnosticAnchor};
 
 use crate::check::{
     CheckError, CheckState, Condition, Decision, PatternTerm, Place, TermId, TypeOperand,
-    VariableId,
 };
 
 /// Selector for one active match case.
@@ -18,7 +17,7 @@ pub(in crate::check) enum MatchCase {
         /// The pattern checked for this case.
         pattern: TermId<PatternTerm>,
         /// The optional guard type.
-        guard: Option<VariableId>,
+        guard: Option<TypeOperand>,
     },
 }
 
@@ -37,7 +36,7 @@ pub(in crate::check) enum Obligation {
         /// The match expression.
         source: dir::GlobalNodeIdAny,
         /// The matched value type.
-        value: VariableId,
+        value: TypeOperand,
         /// The active match cases in source order.
         cases: Vec<MatchCase>,
         /// The static condition under which this obligation exists.
@@ -54,7 +53,7 @@ pub(in crate::check) enum Obligation {
         /// The checked pattern term.
         pattern: TermId<PatternTerm>,
         /// The matched value type.
-        value: VariableId,
+        value: TypeOperand,
         /// The static condition under which this obligation exists.
         condition: Condition,
     },
@@ -69,7 +68,7 @@ pub(in crate::check) enum Obligation {
         /// The tried value type.
         value: TypeOperand,
         /// The enclosing function return type.
-        return_type: Option<VariableId>,
+        return_type: Option<TypeOperand>,
         /// The static condition under which this obligation exists.
         condition: Condition,
     },
@@ -96,16 +95,14 @@ pub(in crate::check) enum Obligation {
 }
 
 impl CheckState<'_> {
-    /// Add one check obligation.
-    pub(in crate::check) fn add_obligation(&mut self, obligation: Obligation) {
-        self.obligations.push(obligation);
+    /// Require one solved check after reduction.
+    pub(in crate::check) fn require(&mut self, obligation: Obligation) {
+        self.inference.obligations.push(obligation);
     }
-}
 
-impl CheckState<'_> {
     /// Check solved obligations for diagnostics.
     pub(in crate::check) fn check_obligations(&mut self) -> CompilerResult<Vec<CheckError>> {
-        let obligations = self.obligations.clone();
+        let obligations = self.inference.obligations.clone();
         let mut diagnostics = Vec::new();
 
         // check obligations in collection order
@@ -125,10 +122,11 @@ impl CheckState<'_> {
                 cases,
                 condition,
             } => {
-                if let Some(diagnostic) = self.check_obligation_condition(source, &condition)? {
+                let condition = self.reduce_condition_decision(&condition)?;
+                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, condition) {
                     return Ok(Some(diagnostic));
                 }
-                if self.obligation_is_active(&condition)? {
+                if condition == Decision::Yes {
                     return self.check_match_exhaustive(source, value, &cases);
                 }
             }
@@ -138,10 +136,11 @@ impl CheckState<'_> {
                 value,
                 condition,
             } => {
-                if let Some(diagnostic) = self.check_obligation_condition(source, &condition)? {
+                let condition = self.reduce_condition_decision(&condition)?;
+                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, condition) {
                     return Ok(Some(diagnostic));
                 }
-                if self.obligation_is_active(&condition)? {
+                if condition == Decision::Yes {
                     return self.check_irrefutable_pattern(source, pattern, value);
                 }
             }
@@ -151,20 +150,22 @@ impl CheckState<'_> {
                 return_type,
                 condition,
             } => {
-                if let Some(diagnostic) = self.check_obligation_condition(source, &condition)? {
+                let condition = self.reduce_condition_decision(&condition)?;
+                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, condition) {
                     return Ok(Some(diagnostic));
                 }
-                if self.obligation_is_active(&condition)? {
+                if condition == Decision::Yes {
                     return self.check_try_propagates(source, value, return_type);
                 }
             }
             Obligation::WritablePlace { place, condition } => {
+                let condition = self.reduce_condition_decision(&condition)?;
                 if let Some(diagnostic) =
-                    self.check_obligation_condition(place.source, &condition)?
+                    self.obligation_condition_diagnostic(place.source, condition)
                 {
                     return Ok(Some(diagnostic));
                 }
-                if self.obligation_is_active(&condition)? {
+                if condition == Decision::Yes {
                     return self.check_writable_place(place);
                 }
             }
@@ -174,28 +175,19 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Return an undecidable guard diagnostic for one obligation when needed.
-    fn check_obligation_condition(
-        &mut self,
+    /// Return an undecidable condition diagnostic for one obligation when needed.
+    fn obligation_condition_diagnostic(
+        &self,
         source: dir::GlobalNodeIdAny,
-        condition: &Condition,
-    ) -> CompilerResult<Option<CheckError>> {
-        let diagnostic = match self.reduce_condition_decision(condition)? {
+        condition: Decision,
+    ) -> Option<CheckError> {
+        match condition {
             Decision::Yes | Decision::No => None,
             Decision::Undecidable => {
                 let (module, anchor) = self.source_anchor(source);
                 Some(CheckError::CannotSolve { anchor, module })
             }
-        };
-
-        Ok(diagnostic)
-    }
-
-    /// Return whether an obligation condition is active.
-    fn obligation_is_active(&mut self, condition: &Condition) -> CompilerResult<bool> {
-        let is_active = self.reduce_condition_decision(condition)? == Decision::Yes;
-
-        Ok(is_active)
+        }
     }
 
     /// Return the diagnostic anchor for one source node.

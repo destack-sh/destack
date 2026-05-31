@@ -1,8 +1,6 @@
-use smallvec::SmallVec;
+use super::{PatternRelation, StaticRelation};
 
-use super::PatternRelation;
-
-use crate::check::{CheckState, Condition, Origin, TypeOperand, TypeRelation, VariableId};
+use crate::check::{CheckState, Condition, Origin, StaticOperand, TypeOperand, TypeRelation};
 
 /// One check constraint.
 #[derive(Debug, Clone, PartialEq)]
@@ -19,6 +17,23 @@ pub(in crate::check) enum Constraint {
         left: TypeOperand,
         /// The right type.
         right: TypeOperand,
+        /// The source that produced this constraint.
+        origin: Origin,
+        /// The static condition under which this constraint exists.
+        condition: Condition,
+    },
+    /// Constrain two static operands.
+    ///
+    /// ```ts
+    /// const value: [int32; _] = [1, 2];
+    /// ```
+    Static {
+        /// The required relation.
+        relation: StaticRelation,
+        /// The left static value.
+        left: StaticOperand,
+        /// The right static value.
+        right: StaticOperand,
         /// The source that produced this constraint.
         origin: Origin,
         /// The static condition under which this constraint exists.
@@ -45,41 +60,16 @@ impl Constraint {
     /// Return the static condition guarding this constraint.
     pub(in crate::check) fn condition(&self) -> Condition {
         match self {
-            Self::Type { condition, .. } | Self::Pattern { condition, .. } => condition.clone(),
+            Self::Type { condition, .. }
+            | Self::Static { condition, .. }
+            | Self::Pattern { condition, .. } => condition.clone(),
         }
     }
+}
 
-    /// Return variables watched by this constraint.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
-        match self {
-            Self::Type {
-                relation: _,
-                left,
-                right,
-                origin: _,
-                condition,
-            } => {
-                let mut variables = left.referenced_variables(state);
-                variables.extend(right.referenced_variables(state));
-                variables.extend(condition.referenced_variables(state));
-
-                variables
-            }
-            Self::Pattern {
-                relation,
-                value,
-                origin: _,
-                condition,
-            } => {
-                let mut variables = value.referenced_variables(state);
-                variables.extend(condition.referenced_variables(state));
-                variables.extend(relation.referenced_variables(state));
-
-                variables
-            }
-        }
+impl CheckState<'_> {
+    /// Store one solver constraint.
+    pub(super) fn push_constraint(&mut self, constraint: Constraint) {
+        self.inference.constraints.push(constraint);
     }
 }

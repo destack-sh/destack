@@ -1,10 +1,12 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, Condition, Constraint, Origin, TypeLiteralTerm, TypeOperand, TypeTerm, VariableId,
+    CheckState, Condition, Constraint, Origin, StaticTerm, TypeLiteralTerm, TypeOperand, TypeTerm,
+    VariableId,
 };
 
-/// A relation between two type variables.
+/// Relation between two type operands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum TypeRelation {
     /// Types must be equal.
@@ -21,7 +23,7 @@ pub(in crate::check) enum TypeRelation {
     Implements,
 }
 
-/// A relation between two static variables.
+/// Relation between two static operands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum StaticRelation {
     /// Static values must be equal.
@@ -31,8 +33,41 @@ pub(in crate::check) enum StaticRelation {
 }
 
 impl CheckState<'_> {
-    /// Constrain two type variables.
-    pub(in crate::check) fn add_type_constraint(
+    /// Equate one type variable to one type term.
+    pub(in crate::check) fn equate_type(
+        &mut self,
+        variable: VariableId,
+        term: TypeTerm,
+        condition: Condition,
+    ) {
+        let origin = self.variable(variable).source;
+        let term = self.inference.terms.push(term);
+
+        self.relate_type(origin, TypeRelation::Equal, variable, term, condition);
+    }
+
+    /// Equate one static variable to one static term.
+    pub(in crate::check) fn equate_static(
+        &mut self,
+        variable: VariableId,
+        term: StaticTerm,
+        condition: Condition,
+    ) {
+        let origin = self.variable(variable).source;
+        let term = self.inference.terms.push(term);
+        let constraint = Constraint::Static {
+            relation: StaticRelation::Equal,
+            left: variable.into(),
+            right: term.into(),
+            origin,
+            condition,
+        };
+
+        self.push_constraint(constraint);
+    }
+
+    /// Relate two type operands.
+    pub(in crate::check) fn relate_type(
         &mut self,
         origin: Origin,
         relation: TypeRelation,
@@ -48,22 +83,24 @@ impl CheckState<'_> {
             condition,
         };
 
-        self.add_constraint(constraint);
+        self.push_constraint(constraint);
     }
 
-    /// Constrain one expression condition to boolean.
+    /// Expect one expression condition to be boolean.
     pub(in crate::check) fn constrain_condition(
         &mut self,
+        module: ModuleId,
         source: dir::LocalNodeIdAny,
-        condition: VariableId,
+        condition: TypeOperand,
         static_condition: Condition,
     ) {
-        let origin = Origin::Node(source.into_global(condition.module));
+        let origin = Origin::Node(source.into_global(module));
         let expected = self
+            .inference
             .terms
             .push(TypeTerm::Literal(TypeLiteralTerm::boolean()));
 
-        self.add_type_constraint(
+        self.relate_type(
             origin,
             TypeRelation::Assignable,
             condition,
