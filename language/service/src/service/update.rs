@@ -457,7 +457,7 @@ impl LanguageService {
     ) -> Result<FileContentId, LanguageServiceError> {
         // open files must point at an existing file payload
         let repository = session.repository();
-        let file_id = repository.file_id(path);
+        let file_id = session.file_id(path);
         let content_id = repository.file_content_id(revision, file_id)?.ok_or(
             LanguageServiceError::Internal {
                 detail: format!("file has no content in revision: {}", path.display()),
