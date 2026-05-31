@@ -106,7 +106,7 @@ fn recorded_member_resolution(
     }
 
     let resolution = dir.resolutions().name_resolution(node_id)?;
-    let symbol = resolution.symbol()?;
+    let symbol = resolution.symbol();
     if !dir.symbol_is_visible(symbol) {
         return None;
     }

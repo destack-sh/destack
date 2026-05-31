@@ -148,7 +148,7 @@ fn call_target_symbols(
                 targets.push(dir.canonical_symbol(candidate.symbol));
             }
         }
-        DirCallTarget::Builtin(_) | DirCallTarget::Expression => {}
+        DirCallTarget::Builtin(_) | DirCallTarget::Expression { .. } => {}
     };
 
     if let Some(resolution) = dir.resolutions().construct_resolution(node_id) {
