@@ -562,45 +562,6 @@ fn test_parse_generic_arrow_with_function_type_return_annotation() {
     });
 }
 
-/// Parse a typed arrow predicate with a nested optional-parameter function type.
-#[test]
-fn test_parse_arrow_return_type_predicate_with_nested_optional_parameter_function_type() {
-    let mut test = TestParser::new_with_language(
-        "(b): b is FormField<unknown> & { focus: (options?: FocusOptions) => void } => b.focus !== undefined",
-        LanguageType::TypeScript,
-    );
-    let mut parser = test.prepare();
-    let expr_id = parser.eat_expression(parser.flags).unwrap();
-    assert_node!(parser.tree, expr_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, .. }) => {
-            assert_node!(parser.tree, signature.return_type.expect("expected return type"), TypeExpression::Predicate { asserts, subject, target } => {
-                assert!(!*asserts);
-                assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("b")));
-                assert_node!(parser.tree, target.expect("expected type predicate target"), TypeExpression::Intersection { elements } => {
-                    assert_eq!(elements.len(), 2);
-                    assert_node!(parser.tree, elements[1], TypeExpression::Object { members: properties } => {
-                        assert_eq!(properties.len(), 1);
-                        assert_node!(parser.tree, properties[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type, .. } => {
-                            assert_string!(parser, *name, "focus");
-                            assert_node!(parser.tree, declared_type.expect("expected declared type"), TypeExpression::Function(function) => {
-                                assert_eq!(function.parameters.len(), 1);
-                                assert_node!(parser.tree, function.parameters[0], Parameter::Named { is_optional, name, declared_type: Some(declared_type), .. } => {
-                                    assert!(*is_optional);
-                                    assert_string!(parser, *name, "options");
-                                    assert_expression_path!(parser, parser.tree.get(*declared_type), "FocusOptions");
-                                });
-                                assert_node!(parser.tree, function.return_type.expect("expected function type return"), TypeExpression::Literal { value } => {
-                                    assert_eq!(*value, TypeLiteral::Void);
-                                });
-                            });
-                        });
-                    });
-                });
-            });
-        });
-    });
-}
-
 /// Parse static parameter constraints with object keys named `in`.
 #[test]
 fn test_parse_generic_parameter_constraint_object_property_named_in() {

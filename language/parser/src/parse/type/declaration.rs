@@ -177,7 +177,6 @@ impl Parser {
     /// ```ds
     /// Foo.Bar<T>
     /// { a: string, b: number }
-    /// value is string
     /// T extends U ? X : Y
     /// ```
     pub(crate) fn eat_type_expression(&mut self) -> ParserResult<LocalNodeId<TypeExpression>> {

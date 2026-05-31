@@ -92,12 +92,9 @@ impl Parser {
             let right = self.type_infix_right(operator);
 
             // fold operator into the left expression
-            left =
-                self.eat_type_infix_operator(start, left, operator, operator_span, right, scope)?;
+            left = self.eat_type_infix_operator(start, left, operator, operator_span, right)?;
 
-            if operator != TypeInfixOperator::Is {
-                self.tree.set_main_span(left, operator_span);
-            }
+            self.tree.set_main_span(left, operator_span);
         }
 
         Ok(left)
@@ -128,7 +125,6 @@ impl Parser {
     #[inline]
     fn type_infix_operator_from_keyword(&mut self) -> Option<TypeInfixOperator> {
         match self.current_keyword()? {
-            Keyword::Is => Some(TypeInfixOperator::Is),
             Keyword::Extends => Some(TypeInfixOperator::Relation(TypeBinaryOperator::Extends)),
             Keyword::Implements => {
                 Some(TypeInfixOperator::Relation(TypeBinaryOperator::Implements))
@@ -140,10 +136,6 @@ impl Parser {
     /// Return the right operand scope for one type infix operator.
     fn type_infix_right(&self, operator: TypeInfixOperator) -> TypeScope {
         let flags = self.type_nested_flags();
-
-        if operator == TypeInfixOperator::Is {
-            return TypeScope::from_flags(flags);
-        }
 
         TypeScope::from_flags(flags).at_precedence(Some(operator.precedence()))
     }
@@ -164,12 +156,7 @@ impl Parser {
     /// Return whether one type infix operator belongs to an outer parser.
     fn type_infix_stops(&mut self, operator: TypeInfixOperator, scope: TypeScope) -> bool {
         // newline sensitive operators
-        if self.current_token_is_on_new_line()
-            && matches!(
-                operator,
-                TypeInfixOperator::Range(_) | TypeInfixOperator::Is
-            )
-        {
+        if self.current_token_is_on_new_line() && matches!(operator, TypeInfixOperator::Range(_)) {
             return true;
         }
 
@@ -225,7 +212,6 @@ impl Parser {
         operator: TypeInfixOperator,
         operator_span: Span,
         right: TypeScope,
-        scope: TypeScope,
     ) -> ParserResult<LocalNodeId<TypeExpression>> {
         // conditional type
         if operator == TypeInfixOperator::Relation(TypeBinaryOperator::Extends) {
@@ -237,13 +223,6 @@ impl Parser {
             return self.eat_type_range_rest(start, left, end_kind, right);
         }
 
-        // predicate validity
-        if operator == TypeInfixOperator::Is
-            && !(scope.allows_type_predicate || self.type_expression_is_bare_this(left))
-        {
-            return Err(ParserError::unexpected(operator_span));
-        }
-
         // ordinary type infix expression
         let right = self.eat_type_infix_right(right)?;
         let type_id = self.make_type_infix_expression(
@@ -251,7 +230,6 @@ impl Parser {
             self.type_expression_head_span(left),
             left,
             operator,
-            operator_span,
             right,
         )?;
 

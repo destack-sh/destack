@@ -3,7 +3,7 @@ use destack_dir::{
     Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole, GenericArgument,
     GenericParameter, IntegerType, InterfaceDeclaration, Key, Member, MethodAbstraction, Name,
     NodeType, Parameter, Property, ScalarLiteral, TokenType, TypeExpression, TypeLiteral,
-    TypeMember, TypePredicateSubject, Visibility,
+    TypeMember, Visibility,
 };
 use destack_source::LanguageType;
 
@@ -746,6 +746,37 @@ readonly value: string
 }
 
 #[test]
+fn test_parse_type_members_with_associated_abstraction_modifiers() {
+    let mut test = TestParser::new(
+        r#"interface Boundary {
+abstract type Item
+override comptime const Rows: number = 4
+}"#,
+    );
+    let mut parser = test.prepare();
+    let roots = parser.parse();
+
+    assert_node!(parser.tree, roots[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { members, .. }) => {
+            assert_eq!(members.len(), 2);
+
+            assert_node!(parser.tree, members[0], TypeMember::AssociatedType { name, is_abstract, is_override, .. } => {
+                assert_string!(parser, *name, "Item");
+                assert!(*is_abstract);
+                assert!(!*is_override);
+            });
+            assert_node!(parser.tree, members[1], TypeMember::AssociatedConst { name, is_abstract, is_override, .. } => {
+                assert_string!(parser, *name, "Rows");
+                assert!(!*is_abstract);
+                assert!(*is_override);
+            });
+        });
+    });
+
+    test.assert_no_errors(&parser);
+}
+
+#[test]
 fn test_parse_property_with_value_and_default_value() {
     let mut test = TestParser::new("x: int32 = 42");
     let mut parser = test.prepare();
@@ -1127,6 +1158,19 @@ fn test_parse_member_type_with_visibility() {
 }
 
 #[test]
+fn test_parse_member_type_with_abstraction_modifiers() {
+    let mut test = TestParser::new("abstract override type Item = string");
+    let mut parser = test.prepare();
+    let member_id = parser.eat_member().unwrap();
+
+    assert_node!(parser.tree, member_id, Member::AssociatedType { name, is_abstract, is_override, .. } => {
+        assert_string!(parser, *name, "Item");
+        assert!(*is_abstract);
+        assert!(*is_override);
+    });
+}
+
+#[test]
 fn test_parse_member_type_with_generic_parameters() {
     let mut test = TestParser::new("type View<U> = [Item, U]");
     let mut parser = test.prepare();
@@ -1184,6 +1228,19 @@ fn test_parse_member_associated_comptime_const() {
         assert_node!(parser.tree, *value, Expression::ScalarLiteral(value) => {
             assert_eq!(*value, ScalarLiteral::Integer(128));
         });
+    });
+}
+
+#[test]
+fn test_parse_member_associated_comptime_const_with_abstraction_modifiers() {
+    let mut test = TestParser::new("abstract override comptime const Rows: number");
+    let mut parser = test.prepare();
+    let member_id = parser.eat_member().unwrap();
+
+    assert_node!(parser.tree, member_id, Member::AssociatedConst { name, is_abstract, is_override, .. } => {
+        assert_string!(parser, *name, "Rows");
+        assert!(*is_abstract);
+        assert!(*is_override);
     });
 }
 
@@ -1282,26 +1339,6 @@ fn test_parse_member_method_with_multiline_return_type() {
         assert_eq!(signature.parameters.len(), 1);
         assert!(signature.return_type.is_some());
         assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Union { .. });
-    });
-}
-
-#[test]
-fn test_parse_member_method_with_type_predicate_return_type() {
-    let mut test = TestParser::new_with_language(
-        "public isDynamicModule(module: Type<any> | DynamicModule): module is DynamicModule",
-        LanguageType::TypeScript,
-    );
-    let mut parser = test.prepare();
-    parser.flags = parser.flags.in_variant();
-
-    let member_id = parser.eat_member().unwrap();
-    assert_node!(parser.tree, member_id, Member::Method { signature, .. } => {
-        assert_eq!(signature.parameters.len(), 1);
-        assert_node!(parser.tree, signature.return_type.unwrap(), TypeExpression::Predicate { asserts, subject, target } => {
-            assert!(!asserts);
-            assert_eq!(*subject, TypePredicateSubject::Identifier(parser.strings.intern("module")));
-            assert_expression_path!(parser, parser.tree.get(target.unwrap()), "DynamicModule");
-        });
     });
 }
 
