@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Condition, Origin, StaticOperand, StaticTerm, TermId, TypeOperand, TypeTerm,
+    CheckState, Condition, Origin, StaticOperand, StaticTerm, TypeOperand, TypeTerm,
 };
 
 /// Component-valid id for one check variable.
@@ -78,13 +78,27 @@ pub(in crate::check) enum VariableKind {
 /// Solved value for one check variable.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum Solution {
-    /// Solved type term.
-    Type(TermId<TypeTerm>),
-    /// Solved static term.
-    Static(TermId<StaticTerm>),
+    /// Solved type operand.
+    Type(TypeOperand),
+    /// Solved static operand.
+    Static(StaticOperand),
 }
 
 impl CheckState<'_> {
+    /// Insert one solution known before ordinary solver reduction.
+    pub(in crate::check) fn insert_known_solution(
+        &mut self,
+        variable: VariableId,
+        solution: Solution,
+    ) {
+        let previous = self.inference.insert_variable_solution(variable, solution);
+
+        assert!(
+            previous.is_none(),
+            "check variable {variable:?} already has a known solution"
+        );
+    }
+
     /// Allocate one solver variable.
     pub(in crate::check) fn allocate_variable(
         &mut self,
@@ -98,9 +112,9 @@ impl CheckState<'_> {
             "check inference variable source must be local"
         );
 
-        let id = VariableId::new(module, self.inference.variables.variables.len() as u32);
+        let id = VariableId::new(module, self.inference.variable_count() as u32);
         let variable = Variable::new(id, kind, source);
-        self.inference.variables.variables.push(variable);
+        self.inference.push_variable(variable);
 
         id
     }
@@ -124,17 +138,17 @@ impl CheckState<'_> {
 
     /// Return the number of allocated variables.
     pub(in crate::check) fn variable_count(&self) -> usize {
-        self.inference.variables.variables.len()
+        self.inference.variable_count()
     }
 
     /// Return one variable.
     pub(in crate::check) fn variable(&self, id: VariableId) -> &Variable {
-        &self.inference.variables.variables[id.index as usize]
+        self.inference.variable_at(id.index as usize)
     }
 
     /// Return one variable by allocation index.
     pub(in crate::check) fn variable_at(&self, index: usize) -> &Variable {
-        &self.inference.variables.variables[index]
+        self.inference.variable_at(index)
     }
 
     /// Return the source symbol for one variable.
@@ -154,22 +168,9 @@ impl CheckState<'_> {
         variable: VariableId,
         lower_bound: TypeOperand,
     ) -> CompilerResult<bool> {
-        if self
+        Ok(self
             .inference
-            .type_lower_bounds
-            .get(&variable)
-            .is_some_and(|bounds| bounds.contains(&lower_bound))
-        {
-            Ok(false)
-        } else {
-            let bounds = self
-                .inference
-                .type_lower_bounds
-                .entry(variable)
-                .or_default();
-            bounds.push(lower_bound);
-            Ok(true)
-        }
+            .insert_lower_type_bound(variable, lower_bound))
     }
 
     /// Insert one upper type bound for a variable.
@@ -178,22 +179,9 @@ impl CheckState<'_> {
         variable: VariableId,
         upper_bound: TypeOperand,
     ) -> CompilerResult<bool> {
-        if self
+        Ok(self
             .inference
-            .type_upper_bounds
-            .get(&variable)
-            .is_some_and(|bounds| bounds.contains(&upper_bound))
-        {
-            Ok(false)
-        } else {
-            let bounds = self
-                .inference
-                .type_upper_bounds
-                .entry(variable)
-                .or_default();
-            bounds.push(upper_bound);
-            Ok(true)
-        }
+            .insert_upper_type_bound(variable, upper_bound))
     }
 
     /// Insert one lower static bound for a variable.
@@ -202,22 +190,9 @@ impl CheckState<'_> {
         variable: VariableId,
         lower_bound: StaticOperand,
     ) -> CompilerResult<bool> {
-        if self
+        Ok(self
             .inference
-            .static_lower_bounds
-            .get(&variable)
-            .is_some_and(|bounds| bounds.contains(&lower_bound))
-        {
-            Ok(false)
-        } else {
-            let bounds = self
-                .inference
-                .static_lower_bounds
-                .entry(variable)
-                .or_default();
-            bounds.push(lower_bound);
-            Ok(true)
-        }
+            .insert_lower_static_bound(variable, lower_bound))
     }
 
     /// Insert one upper static bound for a variable.
@@ -226,54 +201,29 @@ impl CheckState<'_> {
         variable: VariableId,
         upper_bound: StaticOperand,
     ) -> CompilerResult<bool> {
-        if self
+        Ok(self
             .inference
-            .static_upper_bounds
-            .get(&variable)
-            .is_some_and(|bounds| bounds.contains(&upper_bound))
-        {
-            Ok(false)
-        } else {
-            let bounds = self
-                .inference
-                .static_upper_bounds
-                .entry(variable)
-                .or_default();
-            bounds.push(upper_bound);
-            Ok(true)
-        }
+            .insert_upper_static_bound(variable, upper_bound))
     }
 
     /// Return lower type bounds for one variable.
-    pub(in crate::check) fn lower_type_bounds(&self, variable: VariableId) -> &[TypeOperand] {
-        self.inference
-            .type_lower_bounds
-            .get(&variable)
-            .map_or(&[], Vec::as_slice)
+    pub(in crate::check) fn lower_type_bounds(&self, variable: VariableId) -> Vec<TypeOperand> {
+        self.inference.lower_type_bounds(variable)
     }
 
     /// Return upper type bounds for one variable.
-    pub(in crate::check) fn upper_type_bounds(&self, variable: VariableId) -> &[TypeOperand] {
-        self.inference
-            .type_upper_bounds
-            .get(&variable)
-            .map_or(&[], Vec::as_slice)
+    pub(in crate::check) fn upper_type_bounds(&self, variable: VariableId) -> Vec<TypeOperand> {
+        self.inference.upper_type_bounds(variable)
     }
 
     /// Return lower static bounds for one variable.
-    pub(in crate::check) fn lower_static_bounds(&self, variable: VariableId) -> &[StaticOperand] {
-        self.inference
-            .static_lower_bounds
-            .get(&variable)
-            .map_or(&[], Vec::as_slice)
+    pub(in crate::check) fn lower_static_bounds(&self, variable: VariableId) -> Vec<StaticOperand> {
+        self.inference.lower_static_bounds(variable)
     }
 
     /// Return upper static bounds for one variable.
-    pub(in crate::check) fn upper_static_bounds(&self, variable: VariableId) -> &[StaticOperand] {
-        self.inference
-            .static_upper_bounds
-            .get(&variable)
-            .map_or(&[], Vec::as_slice)
+    pub(in crate::check) fn upper_static_bounds(&self, variable: VariableId) -> Vec<StaticOperand> {
+        self.inference.upper_static_bounds(variable)
     }
 
     /// Return one variable's source node for diagnostics.
@@ -300,16 +250,22 @@ impl CheckState<'_> {
 
     /// Return the solved type for one variable.
     pub(in crate::check) fn variable_type_solution(&self, id: VariableId) -> Option<TypeTerm> {
-        match self.inference.variable_solutions.get(&id).cloned() {
-            Some(Solution::Type(term)) => Some(self.inference.terms.get(term).clone()),
+        match self.inference.variable_solution(id) {
+            Some(Solution::Type(TypeOperand::Variable(variable))) => {
+                Some(TypeTerm::Variable(variable))
+            }
+            Some(Solution::Type(TypeOperand::Term(term))) => Some(self.term(term).clone()),
             _ => None,
         }
     }
 
     /// Return the solved static value for one variable.
     pub(in crate::check) fn variable_static_solution(&self, id: VariableId) -> Option<StaticTerm> {
-        match self.inference.variable_solutions.get(&id).cloned() {
-            Some(Solution::Static(term)) => Some(self.inference.terms.get(term).clone()),
+        match self.inference.variable_solution(id) {
+            Some(Solution::Static(StaticOperand::Variable(variable))) => {
+                Some(StaticTerm::Variable(variable))
+            }
+            Some(Solution::Static(StaticOperand::Term(term))) => Some(self.term(term).clone()),
             _ => None,
         }
     }

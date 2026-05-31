@@ -1,193 +1,104 @@
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Constraint, Decision, Definition, Origin, PatternRelation, StaticTerm,
-    TypeOperationTerm, TypeTerm, VariableId,
+    CheckEvent, CheckState, Constraint, Decision, PatternRelation, SolveEvent, SolveProgress,
+    StaticRelation,
 };
 
 use super::Progress;
-use super::solver::{SolveTask, Solver};
 
 impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
     pub(in crate::check) fn solve(&mut self) -> CompilerResult<()> {
-        let tasks = self.initial_solve_tasks();
-        let mut solver = Solver::new(tasks, self);
+        self.record_trace(CheckEvent::Solve(SolveEvent::Started {
+            tasks: self.inference.constraint_count() + self.variable_count(),
+            variables: self.variable_count(),
+        }));
 
-        // step queued tasks until no variable changes
-        while let Some((index, task)) = solver.next() {
-            let progress = self.step_solve_task(task)?;
-            solver.discover_tasks(self);
-            solver.refresh(index, self);
-            solver.wake(progress, self);
+        let mut passes = 0;
+        loop {
+            let constraints_before = self.inference.constraint_count();
+            let variables_before = self.variable_count();
+            let progress = self.step_solve_pass()?;
+            let progress_summary = SolveProgress::from(&progress);
+
+            passes += 1;
+
+            self.record_trace(CheckEvent::Solve(SolveEvent::PassStepped {
+                pass: passes,
+                progress: progress_summary,
+            }));
+
+            let counts_changed = self.inference.constraint_count() != constraints_before
+                || self.variable_count() != variables_before;
+            if progress.is_unchanged() && !counts_changed {
+                break;
+            }
         }
+
+        self.record_trace(CheckEvent::Solve(SolveEvent::Finished {
+            passes,
+            variables: self.variable_count(),
+        }));
 
         Ok(())
     }
 
-    /// Collect all component solver tasks in stable module order.
-    fn initial_solve_tasks(&self) -> Vec<SolveTask> {
-        let mut tasks = Vec::new();
+    /// Step all collected solver work once.
+    fn step_solve_pass(&mut self) -> CompilerResult<Progress> {
+        let mut progress = Progress::Unchanged;
 
-        let variables = &self.variables;
-
-        tasks.extend(
-            variables
-                .definitions
-                .iter()
-                .enumerate()
-                .map(|(index, _)| SolveTask::Definition(index)),
-        );
-        tasks.extend(
-            variables
-                .constraints
-                .iter()
-                .enumerate()
-                .map(|(index, _)| SolveTask::Constraint(index)),
-        );
-
-        tasks
-    }
-
-    /// Step one solver task once.
-    fn step_solve_task(&mut self, task: SolveTask) -> CompilerResult<Progress> {
-        match task {
-            SolveTask::Definition(index) => self.step_definition(index),
-            SolveTask::Constraint(index) => self.step_constraint(index),
-            SolveTask::Variable(variable) => self.solve_bound_variable(variable),
-        }
-    }
-
-    /// Step one definition once.
-    fn step_definition(&mut self, index: usize) -> CompilerResult<Progress> {
-        let condition = match &self.variables.definitions[index] {
-            Definition::Type { condition, .. } | Definition::Static { condition, .. } => condition,
-        }
-        .clone();
-
-        if self.reduce_condition_decision(&condition)? == Decision::No {
-            return Ok(Progress::Unchanged);
+        for index in 0..self.inference.constraint_count() {
+            progress = progress.merge(self.step_constraint(index)?);
         }
 
-        match &self.variables.definitions[index] {
-            Definition::Type {
-                result,
-                term,
-                origin,
-                condition: _,
-            } => {
-                let origin = *origin;
-                let result = *result;
-                let term = self.terms.get(*term).clone();
+        let mut index = 0;
+        while index < self.variable_count() {
+            let variable = self.variable_at(index).id;
 
-                self.step_type_definition(origin, result, &term)
-            }
-            Definition::Static {
-                result,
-                term,
-                origin,
-                condition: _,
-            } => {
-                let origin = *origin;
-                let result = *result;
-                let term = self.terms.get(*term).clone();
-
-                self.step_static_definition(origin, result, &term)
-            }
+            progress = progress.merge(self.solve_bound_variable(variable)?);
+            index += 1;
         }
+
+        Ok(progress)
     }
 
     /// Step one constraint once.
     fn step_constraint(&mut self, index: usize) -> CompilerResult<Progress> {
-        let condition = self.variables.constraints[index].condition();
+        let constraint = self.inference.constraint(index).clone();
+        let condition = constraint.condition();
         if self.reduce_condition_decision(&condition)? != Decision::Yes {
             return Ok(Progress::Unchanged);
         }
 
-        match &self.variables.constraints[index] {
+        match constraint {
             Constraint::Type {
                 relation,
                 left,
                 right,
                 origin,
                 condition: _,
-            } => {
-                let origin = *origin;
-                let relation = *relation;
-                let left = *left;
-                let right = *right;
-
-                self.solve_type_relation(origin, relation, left, right)
-            }
+            } => self.relate_type_relation(origin, relation, left, right),
+            Constraint::Static {
+                relation,
+                left,
+                right,
+                origin: _,
+                condition: _,
+            } => match relation {
+                StaticRelation::Equal => self.relate_static_equality(left, right),
+                StaticRelation::Assignable => self.relate_static_assignability(left, right),
+            },
             Constraint::Pattern {
                 relation,
                 value,
                 origin,
                 condition: _,
             } => match relation {
-                PatternRelation::Match(pattern) => {
-                    self.expect_pattern_term(*origin, *value, *pattern)
-                }
+                PatternRelation::Match(pattern) => self.expect_pattern_term(origin, value, pattern),
                 PatternRelation::Assign(pattern) => {
-                    self.expect_assign_pattern_term(*origin, *value, *pattern)
+                    self.expect_assign_pattern_term(origin, value, pattern)
                 }
             },
-        }
-    }
-
-    /// Step one type definition.
-    fn step_type_definition(
-        &mut self,
-        origin: Origin,
-        result: VariableId,
-        term: &TypeTerm,
-    ) -> CompilerResult<Progress> {
-        let reduction = self.reduce_type_term(origin, term)?;
-        let forward = match reduction.value {
-            Some(term) => self.solve_type_variable(result, term)?,
-            None if self.type_term_is_durable(term) => {
-                self.solve_type_variable(result, term.clone())?
-            }
-            None => Progress::Unchanged,
-        };
-        let backward = self.expect_type_term(origin, result, term)?;
-
-        Ok(reduction.progress.merge(forward).merge(backward))
-    }
-
-    /// Return whether an unreduced type term can be committed as type structure.
-    fn type_term_is_durable(&self, term: &TypeTerm) -> bool {
-        let TypeTerm::Operation(operation) = term else {
-            return false;
-        };
-
-        matches!(
-            self.terms.get(*operation),
-            TypeOperationTerm::Conditional { .. }
-                | TypeOperationTerm::Index { .. }
-                | TypeOperationTerm::TemplateLiteral { .. }
-                | TypeOperationTerm::Infer { .. }
-                | TypeOperationTerm::KeyOf { .. }
-                | TypeOperationTerm::Mapped { .. }
-        )
-    }
-
-    /// Step one static definition.
-    fn step_static_definition(
-        &mut self,
-        origin: Origin,
-        result: VariableId,
-        term: &StaticTerm,
-    ) -> CompilerResult<Progress> {
-        if let Some(term) = self.reduce_static_term(origin, term)? {
-            return self.solve_static_variable(result, term);
-        }
-
-        match term {
-            // preserve parametric static source for generic substitution
-            StaticTerm::Expression(_) | StaticTerm::Variable(_) | StaticTerm::Parameter(_) => {
-                self.solve_static_variable(result, term.clone())
-            }
-            _ => Ok(Progress::Unchanged),
         }
     }
 }

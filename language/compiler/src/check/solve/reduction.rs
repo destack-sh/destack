@@ -17,14 +17,6 @@ impl<T> Reduction<T> {
         }
     }
 
-    /// Return a reduced value with side progress.
-    pub(in crate::check) fn with_progress(value: T, progress: Progress) -> Self {
-        Self {
-            value: Some(value),
-            progress,
-        }
-    }
-
     /// Return a pending reduction with no side progress.
     pub(in crate::check) fn pending() -> Self {
         Self {

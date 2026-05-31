@@ -303,7 +303,7 @@ impl CheckState<'_> {
             TypeOperand::Variable(variable) => variable,
             TypeOperand::Term(term) => {
                 let variable = self.allocate_variable(module, VariableKind::Type, origin);
-                let term = self.inference.terms.get(term).clone();
+                let term = self.term(term).clone();
 
                 self.equate_type(variable, term, condition);
 
@@ -335,7 +335,7 @@ impl CheckState<'_> {
         condition: Condition,
     ) -> TypeOperand {
         if condition == Condition::Always && term.is_stable(self) {
-            let term = self.inference.terms.push(term);
+            let term = self.push_term(term);
 
             return TypeOperand::Term(term);
         }

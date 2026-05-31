@@ -77,38 +77,15 @@ check.stats.output.symbol_statics={}",
 impl CheckState<'_> {
     /// Return derived size counters for this component.
     pub(in crate::check) fn stats(&self) -> CheckStats {
-        let type_variables = self
-            .inference
-            .variables
-            .variables
-            .iter()
+        let type_variables = (0..self.variable_count())
+            .map(|index| self.variable_at(index))
             .filter(|variable| variable.kind == VariableKind::Type)
             .count();
-        let static_variables = self.inference.variables.variables.len() - type_variables;
-        let type_lower_bounds = self
-            .inference
-            .type_lower_bounds
-            .values()
-            .map(Vec::len)
-            .sum::<usize>();
-        let type_upper_bounds = self
-            .inference
-            .type_upper_bounds
-            .values()
-            .map(Vec::len)
-            .sum::<usize>();
-        let static_lower_bounds = self
-            .inference
-            .static_lower_bounds
-            .values()
-            .map(Vec::len)
-            .sum::<usize>();
-        let static_upper_bounds = self
-            .inference
-            .static_upper_bounds
-            .values()
-            .map(Vec::len)
-            .sum::<usize>();
+        let static_variables = self.variable_count() - type_variables;
+        let type_lower_bounds = self.inference.lower_type_bound_count();
+        let type_upper_bounds = self.inference.upper_type_bound_count();
+        let static_lower_bounds = self.inference.lower_static_bound_count();
+        let static_upper_bounds = self.inference.upper_static_bound_count();
         let bounds =
             type_lower_bounds + type_upper_bounds + static_lower_bounds + static_upper_bounds;
         let node_types = self.outputs.node_types.len();
@@ -116,23 +93,16 @@ impl CheckState<'_> {
         let node_statics = self.outputs.node_statics.len();
         let symbol_statics = self.outputs.symbol_statics.len();
         let outputs = node_types + symbol_types + node_statics + symbol_statics;
-        let decisions = self.inference.calls.len()
-            + self.inference.constructs.len()
-            + self.inference.operators.len()
-            + self.inference.identities.len()
-            + self.inference.layouts.len()
-            + self.inference.members.len()
-            + self.inference.receivers.len()
-            + self.inference.names.len();
+        let decisions = self.inference.decision_count();
 
         CheckStats {
-            variables: self.inference.variables.variables.len(),
+            variables: self.variable_count(),
             type_variables,
             static_variables,
-            constraints: self.inference.constraints.len(),
-            obligations: self.inference.obligations.len(),
-            terms: self.inference.terms.len(),
-            solutions: self.inference.variable_solutions.len(),
+            constraints: self.inference.constraint_count(),
+            obligations: self.inference.obligation_count(),
+            terms: self.inference.term_count_total(),
+            solutions: self.inference.solution_count(),
             bounds,
             type_lower_bounds,
             type_upper_bounds,

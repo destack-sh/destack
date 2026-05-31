@@ -225,7 +225,7 @@ impl CheckState<'_> {
     ) {
         let root = Induction { owner, term };
 
-        self.inference.inductions.push(root);
+        self.inference.push_induction(root);
     }
 
     /// Return an existing static generic parameter variable for one symbol.
