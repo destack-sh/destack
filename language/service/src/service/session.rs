@@ -57,10 +57,10 @@ impl LanguageService {
             let session = entry.value();
             let revision = session.revision(session.head())?;
             let repository = session.repository();
-            let file_id = repository.file_id(path);
+            let file_id = session.file_id(path);
             let is_member = repository.file(revision, file_id)?.is_some()
                 || (canonical_path != path && {
-                    let file_id = repository.file_id(&canonical_path);
+                    let file_id = session.file_id(&canonical_path);
 
                     repository.file(revision, file_id)?.is_some()
                 });

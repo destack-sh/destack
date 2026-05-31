@@ -35,7 +35,7 @@ impl SessionRevisionView {
 
     /// Return one tracked file id for a path in this revision.
     pub fn file_id(&self, path: &Path) -> Result<Option<FileId>, LanguageServiceError> {
-        let file_id = self.repository().file_id(path);
+        let file_id = self.session.file_id(path);
         let file = self.repository().file(self.revision(), file_id)?;
 
         Ok(file.map(|_| file_id))

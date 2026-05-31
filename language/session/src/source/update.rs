@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use destack_source::{FileContent, FileId, Uri};
-use destack_workspace::{Edit, Ref, Repository, RepositoryChange, Revision};
+use destack_workspace::{Edit, Ref, RepositoryChange, Revision};
 
 use crate::{FileChange, FileUpdate, FileUpdateKind, Session, SessionError};
 
@@ -15,12 +15,13 @@ impl Session {
         update: FileChange,
     ) -> Result<Vec<FileUpdate>, SessionError> {
         let repository = self.repository();
-        let edit = Self::edit_for_file(repository.as_ref(), path, update);
+        let edit = self.edit_for_file(path, update);
         let change = RepositoryChange::from_edit(edit);
         let file_ids = change.file_ids().to_vec();
         let before = self.revision(reference)?;
+        let before_pin = repository.pin(before)?;
         let revision = repository.commit_change(before, change)?;
-        let _revision_pin = repository.pin(revision)?;
+        let revision_pin = repository.pin(revision)?;
 
         // publish when the ref still points at the edited base
         let was_published = repository.advance_ref(reference, before, revision)?;
@@ -32,19 +33,22 @@ impl Session {
             });
         }
 
-        self.project_file_updates(before, revision, file_ids)
+        let updates =
+            self.project_file_updates(before_pin.revision(), revision_pin.revision(), file_ids)?;
+
+        Ok(updates)
     }
 
     /// Build source edits from one file change.
-    fn edit_for_file(repository: &Repository, path: &Path, update: FileChange) -> Edit {
-        let logical_path = repository.logical_path(path);
+    fn edit_for_file(&self, path: &Path, update: FileChange) -> Edit {
+        let repository_path = self.repository_path(path);
         match update {
-            FileChange::Text { content } => Edit::set_text(logical_path, content),
+            FileChange::Text { content } => Edit::set_text(repository_path, content),
             FileChange::Bytes { content } => Edit::SetFile {
-                logical_path,
+                logical_path: repository_path,
                 content: FileContent::Binary { content },
             },
-            FileChange::Removed => Edit::remove_file(logical_path),
+            FileChange::Removed => Edit::remove_file(repository_path),
         }
     }
 

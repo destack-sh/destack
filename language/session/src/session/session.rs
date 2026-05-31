@@ -5,7 +5,7 @@ use std::thread;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_source::ModuleId;
+use destack_source::{FileId, ModuleId};
 use destack_workspace::{Ref, Repository, Revision};
 
 use crate::executor::Executor;
@@ -117,6 +117,38 @@ impl Session {
         &self.cwd
     }
 
+    /// Return one session-root relative repository path.
+    pub fn repository_path(&self, path: &Path) -> String {
+        // direct root-relative path
+        if let Ok(path) = path.strip_prefix(&self.root) {
+            return self.normalize_repository_path(path);
+        }
+
+        // canonical root-relative path
+        let repository = self.state.repository();
+        let root = repository.file_system().canonicalize(&self.root);
+        let canonical_path = repository.file_system().canonicalize(path);
+        if let (Ok(root), Ok(canonical_path)) = (root, canonical_path)
+            && let Ok(path) = canonical_path.strip_prefix(root)
+        {
+            return self.normalize_repository_path(path);
+        }
+
+        self.normalize_repository_path(path)
+    }
+
+    /// Return one session-root relative file id.
+    pub fn file_id(&self, path: &Path) -> FileId {
+        let repository_path = self.repository_path(path);
+
+        FileId::from_logical_str(&repository_path)
+    }
+
+    /// Normalize one session repository path.
+    fn normalize_repository_path(&self, path: impl AsRef<Path>) -> String {
+        path.as_ref().to_string_lossy().replace('\\', "/")
+    }
+
     /// Return the repository for this session.
     pub fn repository(&self) -> Arc<Repository> {
         self.state.repository()
@@ -166,9 +198,9 @@ impl Session {
         }
 
         // read the requested filesystem source file
-        let logical_path = repository.logical_path(path);
+        let repository_path = self.repository_path(path);
         let mut source = FileSystemSource::new(repository.as_ref(), self.root());
-        let Some(file) = source.get(Path::new(&logical_path))? else {
+        let Some(file) = source.get(Path::new(&repository_path))? else {
             return Err(SessionError::ModulePathNotLoadable {
                 path: path.to_path_buf(),
                 detail: "source file is not importable".to_string(),

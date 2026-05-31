@@ -316,9 +316,8 @@ impl RepositorySource for FileSystemSource<'_> {
 
                     continue;
                 }
-
                 // collect filesystem files
-                if metadata.is_file {
+                else if metadata.is_file {
                     let repository_path = self.repository_path(&path);
 
                     // skip files outside this source sync

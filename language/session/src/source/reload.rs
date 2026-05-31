@@ -40,8 +40,9 @@ impl Session {
         // apply repository source changes
         let change = source.poll(repository.as_ref(), before, RepositorySourceFilter::All)?;
         let file_ids = change.file_ids().to_vec();
+        let before_pin = repository.pin(before)?;
         let revision = repository.commit_change(before, change)?;
-        let _revision_pin = repository.pin(revision)?;
+        let revision_pin = repository.pin(revision)?;
 
         // publish when the ref still points at the scanned base
         let was_published = repository.advance_ref(reference, before, revision)?;
@@ -53,7 +54,10 @@ impl Session {
             });
         }
 
-        self.project_file_updates(before, revision, file_ids)
+        let updates =
+            self.project_file_updates(before_pin.revision(), revision_pin.revision(), file_ids)?;
+
+        Ok(updates)
     }
 
     /// Read one filesystem path as a file update.
