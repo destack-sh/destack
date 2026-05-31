@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, Decision, TypeOperand, VariableId};
+use crate::check::{CheckState, Decision, TypeOperand};
 use crate::{CheckError, CompilerResult};
 
 impl CheckState<'_> {
@@ -9,7 +9,7 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         value: TypeOperand,
-        return_type: Option<VariableId>,
+        return_type: Option<TypeOperand>,
     ) -> CompilerResult<Option<CheckError>> {
         let Some(return_type) = return_type else {
             let (module, anchor) = self.source_anchor(source);

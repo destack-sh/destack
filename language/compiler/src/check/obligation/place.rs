@@ -3,13 +3,13 @@ use destack_dir as dir;
 use crate::CompilerResult;
 use crate::check::{
     CheckError, CheckState, Condition, Decision, Obligation, Place, PlaceTarget, ShapeMember,
-    TypeTerm, VariableId,
+    TypeOperand, TypeTerm,
 };
 
 impl CheckState<'_> {
     /// Require one place to accept a write.
     pub(in crate::check) fn require_writable_place(&mut self, place: Place, condition: Condition) {
-        self.add_obligation(Obligation::WritablePlace { place, condition });
+        self.require(Obligation::WritablePlace { place, condition });
     }
 }
 
@@ -43,7 +43,7 @@ impl CheckState<'_> {
                 self.decide_writable_binding(place.source, symbol)?
             }
             PlaceTarget::MemberTerm { owner, key } => self.decide_writable_member(owner, key)?,
-            PlaceTarget::IndexTerm { .. } | PlaceTarget::Dereference { .. } => Decision::Yes,
+            PlaceTarget::IndexTerm { .. } | PlaceTarget::Dereference => Decision::Yes,
         };
 
         Ok(decision)
@@ -79,10 +79,10 @@ impl CheckState<'_> {
     /// Return whether one member target can be assigned.
     fn decide_writable_member(
         &self,
-        owner: VariableId,
+        owner: TypeOperand,
         key: dir::StaticKey,
     ) -> CompilerResult<Decision> {
-        let Some(owner) = self.solved_type_term(owner)? else {
+        let Some(owner) = self.type_operand_term(owner)? else {
             return Ok(Decision::Undecidable);
         };
 

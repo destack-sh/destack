@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Decision, GenericSubstitution, Origin, StaticTerm, VariableId};
+use crate::check::{CheckState, Decision, GenericSubstitution, Origin, StaticTerm};
 
 /// One static boolean predicate with its reduction context.
 #[derive(Debug, Clone, PartialEq)]
@@ -29,14 +29,6 @@ pub(in crate::check) enum Condition {
 }
 
 impl ConditionPredicate {
-    /// Return variables whose changes can decide this predicate.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
-        self.term.referenced_variables(state)
-    }
-
     /// Substitute generic arguments through this predicate.
     pub(in crate::check) fn substitute(
         &self,
@@ -77,20 +69,6 @@ impl Condition {
         }
     }
 
-    /// Return variables whose changes can decide this condition.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 2]> {
-        match self {
-            Self::Always | Self::Never => SmallVec::new(),
-            Self::When { conditions } => conditions
-                .iter()
-                .flat_map(|condition| condition.referenced_variables(state))
-                .collect(),
-        }
-    }
-
     /// Substitute generic arguments through this condition.
     pub(in crate::check) fn substitute(
         &self,
@@ -110,12 +88,6 @@ impl Condition {
         };
 
         Ok(condition)
-    }
-}
-
-impl Default for Condition {
-    fn default() -> Self {
-        Self::Always
     }
 }
 
