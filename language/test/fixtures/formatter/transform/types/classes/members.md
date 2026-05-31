@@ -86,6 +86,37 @@ class Foo {
 }
 ```
 
+## Associated Members
+
+### associated type modifiers
+
+Associated type modifiers are preserved.
+
+```ds
+abstract class Foo { abstract type Item override type Output = string }
+```
+
+```ds expected
+abstract class Foo {
+    abstract type Item;
+    override type Output = string;
+}
+```
+
+### associated constant modifiers
+
+Associated constant modifiers are preserved.
+
+```ds
+abstract class Foo { abstract comptime const Size: uint override comptime const Count: uint = 2 }
+```
+
+```ds expected
+abstract class Foo {
+    abstract comptime const Size: uint;
+    override comptime const Count: uint = 2;
+}
+```
 
 ## Methods
 

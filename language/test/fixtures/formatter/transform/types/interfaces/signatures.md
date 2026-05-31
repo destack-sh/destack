@@ -61,17 +61,17 @@ interface Callable {
 }
 ```
 
-### callable predicate signature in declaration interface
+### callable boolean signature in declaration interface
 
-Declaration interfaces can expose callable type predicate signatures.
+Declaration interfaces can expose callable boolean signatures.
 
 ```ds
-interface Guard<T> { (value: unknown): value is T; readonly source?: string }
+interface Guard<T> { (value: unknown): boolean; readonly source?: string }
 ```
 
 ```ds expected
 interface Guard<T> {
-    (value: unknown): value is T;
+    (value: unknown): boolean;
     readonly source?: string;
 }
 ```
