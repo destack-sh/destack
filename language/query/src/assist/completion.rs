@@ -1689,7 +1689,6 @@ fn keyword_completions() -> Vec<Completion> {
         Keyword::Declare,
         Keyword::New,
         Keyword::Constructor,
-        Keyword::Asserts,
         Keyword::Extends,
         Keyword::Implements,
         Keyword::Satisfies,

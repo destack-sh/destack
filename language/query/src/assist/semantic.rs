@@ -356,8 +356,8 @@ pub fn semantic_tokens(ctx: &ModuleQueryContext<'_>) -> Vec<SemanticToken> {
                 let mods = modifiers_from_member_flags(true, false, false, *is_abstract);
                 (SemanticTokenType::Type, mods)
             }
-            dir::Member::AssociatedConst { .. } => {
-                let mut mods = modifiers_from_member_flags(true, true, false, false);
+            dir::Member::AssociatedConst { is_abstract, .. } => {
+                let mut mods = modifiers_from_member_flags(true, true, false, *is_abstract);
                 mods = mods.union(SemanticTokenModifiers::READONLY);
                 (SemanticTokenType::Property, mods)
             }

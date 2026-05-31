@@ -81,18 +81,6 @@ pub fn format_type(
             let constraint = format_local_type(dynamic.constraint, types, ctx);
             format!("Dynamic<{constraint}>")
         }
-        dir::Type::Predicate(predicate) => {
-            let subject = format_type_predicate_subject(predicate.subject, ctx);
-            let target = predicate
-                .target
-                .map(|target| format_local_type(target, types, ctx));
-            match (predicate.asserts, target) {
-                (true, Some(target)) => format!("asserts {subject} is {target}"),
-                (true, None) => format!("asserts {subject}"),
-                (false, Some(target)) => format!("{subject} is {target}"),
-                (false, None) => subject,
-            }
-        }
         dir::Type::FixedArray(array) => {
             let element = format_local_type(array.element, types, ctx);
             let count = format_static_id(array.count, ctx);
@@ -860,14 +848,4 @@ fn format_function_parameter(
     }
 
     result
-}
-
-fn format_type_predicate_subject(
-    subject: dir::PredicateSubject,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    match subject {
-        dir::PredicateSubject::This => "this".to_string(),
-        dir::PredicateSubject::Symbol(symbol_id) => format_symbol_name(symbol_id, ctx),
-    }
 }
