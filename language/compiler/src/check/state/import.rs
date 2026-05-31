@@ -316,7 +316,7 @@ impl CheckState<'_> {
         parameter: dir::GenericParameterRef,
         dependency: ModuleId,
     ) {
-        if self.inference.variables.type_by_id.contains_key(&target_id) {
+        if self.inference.contains_type_variable_id(target_id) {
             return;
         }
         let slot = self
@@ -325,10 +325,7 @@ impl CheckState<'_> {
             .unwrap_or_else(|| panic!("dependency generic parameter {parameter:?} has no slot"));
         let slot_id = GenericSlotId::from(parameter);
         if let Some(variable) = self.imported_generic_slot_variable(module, slot_id) {
-            self.inference
-                .variables
-                .type_by_id
-                .insert(target_id, variable);
+            self.inference.insert_type_variable_id(target_id, variable);
 
             return;
         }
@@ -337,22 +334,16 @@ impl CheckState<'_> {
         let variable = self.allocate_imported_generic_slot_variable(module, &generic);
 
         self.attach_imported_generic_slot(module, variable, generic);
-        self.inference
-            .variables
-            .type_by_id
-            .insert(target_id, variable);
+        self.inference.insert_type_variable_id(target_id, variable);
 
         match self.variable(variable).kind {
             VariableKind::Type => {
-                let term = self.inference.terms.push(TypeTerm::Parameter(slot_id));
-                self.insert_known_solution(variable, Solution::Type(term));
+                let term = self.push_term(TypeTerm::Parameter(slot_id));
+                self.insert_known_solution(variable, Solution::Type(term.into()));
             }
             VariableKind::Static => {
-                let term = self
-                    .inference
-                    .terms
-                    .push(StaticTerm::Parameter(parameter.into()));
-                self.insert_known_solution(variable, Solution::Static(term));
+                let term = self.push_term(StaticTerm::Parameter(parameter.into()));
+                self.insert_known_solution(variable, Solution::Static(term.into()));
             }
         }
     }

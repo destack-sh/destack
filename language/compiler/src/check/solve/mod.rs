@@ -2,9 +2,8 @@ mod decision;
 mod progress;
 mod reduction;
 mod relation;
-mod solution;
 mod solve;
-mod solver;
+mod variable;
 
 pub(in crate::check) use decision::*;
 pub(in crate::check) use progress::*;

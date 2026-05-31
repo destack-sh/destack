@@ -13,19 +13,19 @@ use super::CheckState;
 impl CheckState<'_> {
     /// Materialize one checked type id as a solved variable.
     pub(in crate::check) fn materialize_type_by_id(&mut self, id: dir::GlobalTypeId) -> VariableId {
-        if let Some(variable) = self.inference.variables.type_by_id.get(&id).copied() {
+        if let Some(variable) = self.inference.type_variable_by_id(id) {
             return variable;
         }
 
         let source = self.visible_type_source(id);
         let origin = Origin::Node(source.into_global(id.module_id));
         let variable = self.allocate_variable(id.module_id, VariableKind::Type, origin);
-        self.inference.variables.type_by_id.insert(id, variable);
+        self.inference.insert_type_variable_id(id, variable);
 
         let ty = self.visible_type(id);
         let term = self.materialize_type_term(id.module_id, ty, origin);
-        let term = self.inference.terms.push(term);
-        self.insert_known_solution(variable, Solution::Type(term));
+        let term = self.push_term(term);
+        self.insert_known_solution(variable, Solution::Type(term.into()));
 
         variable
     }
@@ -36,17 +36,17 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalStaticId,
     ) -> VariableId {
-        if let Some(variable) = self.inference.variables.static_by_id.get(&id).copied() {
+        if let Some(variable) = self.inference.static_variable_by_id(id) {
             return variable;
         }
 
         let variable = self.allocate_variable(id.module_id, VariableKind::Static, origin);
-        self.inference.variables.static_by_id.insert(id, variable);
+        self.inference.insert_static_variable_id(id, variable);
 
         let term = self.visible_static(id);
         let term = self.materialize_static_term(id.module_id, origin, term);
-        let term = self.inference.terms.push(term);
-        self.insert_known_solution(variable, Solution::Static(term));
+        let term = self.push_term(term);
+        self.insert_known_solution(variable, Solution::Static(term.into()));
 
         variable
     }
@@ -96,7 +96,7 @@ impl CheckState<'_> {
                     key: member.key,
                     arguments,
                 };
-                let member = self.inference.terms.push(member);
+                let member = self.push_term(member);
 
                 TypeTerm::Member(member)
             }
@@ -105,14 +105,6 @@ impl CheckState<'_> {
                 payload: self
                     .materialize_type_by_id(form.value.into_global(module))
                     .into(),
-            },
-            dir::Type::Predicate(predicate) => TypeTerm::Predicate {
-                asserts: predicate.asserts,
-                subject: predicate.subject,
-                target: predicate.target.map(|target| {
-                    self.materialize_type_by_id(target.into_global(module))
-                        .into()
-                }),
             },
             dir::Type::Operation(operation) => self.materialize_type_operation(module, operation),
             dir::Type::Array(array) => TypeTerm::Array {
@@ -223,7 +215,7 @@ impl CheckState<'_> {
             dir::Form::Readonly => FormTerm::Readonly,
         };
 
-        self.inference.terms.push(form)
+        self.push_term(form)
     }
 
     /// Materialize static arguments.
@@ -389,7 +381,7 @@ impl CheckState<'_> {
             is_generator: function.is_generator,
         };
 
-        self.inference.terms.push(function)
+        self.push_term(function)
     }
 
     /// Materialize one type operation.
@@ -473,7 +465,7 @@ impl CheckState<'_> {
             }
         };
 
-        let operation = self.inference.terms.push(operation);
+        let operation = self.push_term(operation);
 
         TypeTerm::Operation(operation)
     }
