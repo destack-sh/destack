@@ -90,7 +90,7 @@ pub(crate) fn build_reference_targets_for_module(
                         insert_reference_target_keys(dir, &mut targets, candidate.symbol);
                     }
                 }
-                DirCallTarget::Builtin(_) | DirCallTarget::Expression => {}
+                DirCallTarget::Builtin(_) | DirCallTarget::Expression { .. } => {}
             }
         }
         if let Some(resolution) = dir.resolutions().construct_resolution(node_id) {
