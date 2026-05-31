@@ -2,7 +2,7 @@ use super::printer::Printer;
 use crate::{
     Argument, AssignPattern, AssignPatternField, EnumField, GenericParameter, JsPrintResult,
     Keyword, LocalNodeId, MappedTypeModifier, Mutability, Parameter, Pattern, PatternField,
-    TupleElement, TypeExpression, TypeMember, TypePredicateSubject,
+    TupleElement, TypeExpression, TypeMember,
 };
 
 impl<'a> Printer<'a> {
@@ -173,28 +173,6 @@ impl<'a> Printer<'a> {
                     self.write_keyword(Keyword::Extends);
                     self.write_punct(" ");
                     self.print_type_id(*constraint)?;
-                }
-            }
-            TypeExpression::Predicate {
-                asserts,
-                subject,
-                target,
-            } => {
-                if *asserts {
-                    self.write_keyword(Keyword::Asserts);
-                    self.write_punct(" ");
-                }
-
-                match subject {
-                    TypePredicateSubject::Identifier(name) => self.write_string_id(*name),
-                    TypePredicateSubject::This => self.write_keyword(Keyword::This),
-                }
-
-                if let Some(target) = target {
-                    self.write_punct(" ");
-                    self.write_keyword(Keyword::Is);
-                    self.write_punct(" ");
-                    self.print_type_id(*target)?;
                 }
             }
             TypeExpression::Array { element } => {
@@ -769,7 +747,7 @@ mod tests {
         FunctionTypeDeclaration, GenericParameter, JsFormatContext, JsFormatOptions, LocalNodeId,
         LocalNodeIdAny, MappedTypeModifier, NOOP_JS_SOURCE_MAP, Parameter, Path, PrimitiveType,
         ScalarLiteral, Tree, TypeExpression, TypeLiteral, TypeMappedModifiers, TypeMappedParameter,
-        TypePredicateSubject, TypeTemplateLiteral, format_roots, print_roots_minified,
+        TypeTemplateLiteral, format_roots, print_roots_minified,
     };
 
     fn insert_type(tree: &mut Tree, ty: TypeExpression) -> LocalNodeId<TypeExpression> {
@@ -929,29 +907,6 @@ mod tests {
             },
         );
 
-        let predicate_argument = insert_type(
-            tree,
-            TypeExpression::Scalar(TypeLiteral::ScalarLiteral(ScalarLiteral::String(
-                strings.intern("alpha"),
-            ))),
-        );
-        let predicate_target = insert_type(
-            tree,
-            TypeExpression::Import {
-                target: strings.intern("./shared"),
-                qualifier: Some(build_path(strings, &["Box"])),
-                generic_arguments: vec![predicate_argument],
-            },
-        );
-        let predicate = insert_type(
-            tree,
-            TypeExpression::Predicate {
-                asserts: true,
-                subject: TypePredicateSubject::Identifier(strings.intern("value")),
-                target: Some(predicate_target),
-            },
-        );
-
         let generic_constraint = insert_type(
             tree,
             TypeExpression::Scalar(TypeLiteral::Primitive(PrimitiveType::String)),
@@ -1008,7 +963,6 @@ mod tests {
             conditional.into_any(),
             import_index.into_any(),
             mapped.into_any(),
-            predicate.into_any(),
             function_type.into_any(),
         ]
     }
@@ -1074,7 +1028,7 @@ mod tests {
 
         assert_eq!(
             printed,
-            "T extends infer U?`box:${U}`:never;import(\"./shared\").Box<string>[\"value\"];{readonly [K in keyof T as `box:${K}`]?:T[K]};asserts value is import(\"./shared\").Box<\"alpha\">;<T extends string=\"alpha\">(value:T)=>T"
+            "T extends infer U?`box:${U}`:never;import(\"./shared\").Box<string>[\"value\"];{readonly [K in keyof T as `box:${K}`]?:T[K]};<T extends string=\"alpha\">(value:T)=>T"
         );
     }
 
@@ -1092,7 +1046,7 @@ mod tests {
 
         assert_eq!(
             printed,
-            "T extends infer U ? `box:${U}` : never\nimport(\"./shared\").Box<string>[\"value\"]\n{readonly [K in keyof T as `box:${K}`]?: T[K]}\nasserts value is import(\"./shared\").Box<\"alpha\">\n<T extends string = \"alpha\">(value: T) => T\n"
+            "T extends infer U ? `box:${U}` : never\nimport(\"./shared\").Box<string>[\"value\"]\n{readonly [K in keyof T as `box:${K}`]?: T[K]}\n<T extends string = \"alpha\">(value: T) => T\n"
         );
     }
 }

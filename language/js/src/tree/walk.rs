@@ -1535,16 +1535,6 @@ pub fn walk_type_expression<V: NodeVisitor + ?Sized>(
                 visitor.visit_type_expression(tree, *constraint, constraint_ty);
             }
         }
-        TypeExpression::Predicate {
-            asserts: _,
-            subject: _,
-            target,
-        } => {
-            if let Some(target) = target {
-                let target_ty = tree.get(*target);
-                visitor.visit_type_expression(tree, *target, target_ty);
-            }
-        }
         TypeExpression::Array { element } => {
             let element_ty = tree.get(*element);
             visitor.visit_type_expression(tree, *element, element_ty);

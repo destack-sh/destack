@@ -33,7 +33,7 @@ impl<'a> Printer<'a> {
                 if let Some(attributes) = attributes {
                     let keyword = match attributes.kind {
                         crate::DependencyAttributeClauseKind::With => Keyword::With,
-                        crate::DependencyAttributeClauseKind::Assert => Keyword::Asserts,
+                        crate::DependencyAttributeClauseKind::Assert => Keyword::Assert,
                     };
 
                     self.write_keyword(keyword);
@@ -61,7 +61,7 @@ impl<'a> Printer<'a> {
                 if let Some(attributes) = attributes {
                     let keyword = match attributes.kind {
                         crate::DependencyAttributeClauseKind::With => Keyword::With,
-                        crate::DependencyAttributeClauseKind::Assert => Keyword::Asserts,
+                        crate::DependencyAttributeClauseKind::Assert => Keyword::Assert,
                     };
 
                     self.write_keyword(keyword);
