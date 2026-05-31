@@ -104,7 +104,7 @@ impl Repository {
         // hash editable workspace paths
         let logical_path = self.logical_path(path);
 
-        FileId::from_source_bytes(logical_path.as_bytes())
+        FileId::from_logical_str(&logical_path)
     }
 
     /// Return one source file for one revision and file id.
