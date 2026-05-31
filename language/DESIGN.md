@@ -64,6 +64,8 @@ Destack requires sound and predictable types and understands only TypeScript-sha
 | **Thenables** | `await customThenable` | not supported | `await` works on the well known `Promise<T>` only |
 | **`any`** | `let x: any` | rejected in `.ds` | use `unknown`, which must be explicitly cast before use |
 | **Definite assignment assertions** | `let x!: T`, `field!: T` | rejected in `.ds` | locals and fields must be initialized before use |
+| **Runtime `typeof` narrowing** | `typeof x === "string"` | not supported | use `instanceof` or `is` instead |
+| **Type predicate and assertion signatures** | `function f(value): value is T`, `function g(value): asserts value is T` | not supported | callable type guards let arbitrary code claim flow refinements that cannot be checked soundly |
 | **Declaration parameter inference** | `function f(x = 1) {}` | not supported | public declaration surfaces need explicit parameter types |
 | **Generic argument ambiguity** | `Foo<{ value: string }>` | object-shaped type arguments need `type` | static value and type arguments share generic forms |
 | **`Record<K, V>`** | `Record<string, User>` | closed utility type | use `Map<K, V>` for dynamic keyed storage |
@@ -1216,7 +1218,7 @@ function label(value: User | string): string {
 }
 ```
 
-Like other type predicates, `value is T` returns `boolean` and narrows the branch:
+Like other guards, `value is T` returns `boolean` and narrows the branch:
  - When `true`: narrows to the part of its current type that can be `T`.
  - When `false`: narrows away the covered part when that can be represented.
 
