@@ -8,8 +8,8 @@ use destack_workspace::ProviderContext;
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckDependencyState, CheckModuleState, ExportLookupKey, ExportLookupState, FlowState,
-    Obligation, SolutionTable, TermTable, VariableId, VariableTable,
+    CheckDependencyState, CheckEvent, CheckModuleState, CheckTrace, ExportLookupKey,
+    ExportLookupState, GenericTable, InferenceTable, OperandTable, OutputTable, VariableId,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -28,18 +28,19 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) modules: IndexMap<ModuleId, CheckModuleState>,
     /// Loaded out-of-component dependencies keyed by module id.
     pub(in crate::check) dependencies: IndexMap<ModuleId, CheckDependencyState>,
-    /// Transient flow states for modules currently being walked.
-    pub(in crate::check) flow: IndexMap<ModuleId, FlowState>,
-    /// Component-wide variable graph.
-    pub(in crate::check) variables: VariableTable,
-    /// Component-wide post-solve obligations.
-    pub(in crate::check) obligations: Vec<Obligation>,
-    /// Component-wide term table.
-    pub(in crate::check) terms: TermTable,
-    /// Component-wide solver solutions.
-    pub(in crate::check) solutions: SolutionTable,
+
+    /// Source operands discovered during checking.
+    pub(in crate::check) operands: OperandTable,
+    /// Generic slots and applications discovered during checking.
+    pub(in crate::check) generics: GenericTable,
+    /// Checked source identities that should be committed.
+    pub(in crate::check) outputs: OutputTable,
+    /// Component-wide inference graph.
+    pub(in crate::check) inference: InferenceTable,
     /// Export lookups already computed during this check component.
     pub(in crate::check) exports: HashMap<ExportLookupKey, ExportLookupState>,
+    /// Trace events emitted during checking.
+    pub(in crate::check) trace: CheckTrace,
 }
 
 impl<'a> CheckState<'a> {
@@ -57,13 +58,18 @@ impl<'a> CheckState<'a> {
             environment,
             modules: IndexMap::new(),
             dependencies: IndexMap::new(),
-            flow: IndexMap::new(),
-            variables: VariableTable::new(),
-            obligations: Vec::new(),
-            terms: TermTable::new(),
-            solutions: SolutionTable::new(),
+            operands: OperandTable::new(),
+            generics: GenericTable::new(),
+            outputs: OutputTable::new(),
+            inference: InferenceTable::new(),
             exports: HashMap::new(),
+            trace: CheckTrace::new(),
         }
+    }
+
+    /// Record one check event.
+    pub(in crate::check) fn record_trace(&mut self, event: CheckEvent) {
+        self.trace.record(event);
     }
 
     /// Load all modules in one check component.
@@ -100,7 +106,7 @@ impl<'a> CheckState<'a> {
 
         // define declaration references after all induced slots are known
         for module in modules {
-            self.add_declaration_type_definitions(module);
+            self.equate_declaration_self_types(module);
         }
 
         Ok(())
@@ -173,27 +179,14 @@ impl<'a> CheckState<'a> {
         panic!("language item {item} module was not loaded for module {module:?}")
     }
 
-    /// Return the type variable for one symbol visible from a component module.
-    pub(in crate::check) fn symbol_type_variable(
+    /// Return one checked symbol static variable, importing it when missing.
+    pub(in crate::check) fn ensure_symbol_static_variable(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> VariableId {
         if self.modules.contains_key(&symbol.module_id) {
-            return self.intern_local_symbol_type_variable(symbol.module_id, symbol);
-        }
-
-        self.import_symbol_type_variable(module, symbol)
-    }
-
-    /// Return the static variable for one symbol visible from a component module.
-    pub(in crate::check) fn symbol_static_variable(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> VariableId {
-        if self.modules.contains_key(&symbol.module_id) {
-            return self.intern_symbol_static_variable(symbol.module_id, symbol);
+            return self.require_local_symbol_static_variable(symbol);
         }
 
         self.import_symbol_static_variable(module, symbol)

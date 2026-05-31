@@ -7,9 +7,7 @@ use destack_source::ModuleId;
 use destack_workspace::Module;
 use indexmap::{IndexMap, IndexSet};
 
-use crate::check::{
-    Capture, CheckError, CheckState, Condition, FlowState, GenericSlotId, VariableId,
-};
+use crate::check::{Capture, CheckError, CheckState, Condition, GenericSlotId, VariableId};
 
 /// State owned by one module inside a checked component.
 pub(in crate::check) struct CheckModuleState {
@@ -118,20 +116,6 @@ impl CheckState<'_> {
             Some(state) => state,
             None => panic!("check module {module:?} was not loaded"),
         }
-    }
-
-    /// Return flow state for one module.
-    pub(in crate::check) fn flow(&self, module: ModuleId) -> &FlowState {
-        self.flow
-            .get(&module)
-            .unwrap_or_else(|| panic!("check module {module:?} has no active flow state"))
-    }
-
-    /// Return flow state for one module mutably.
-    pub(in crate::check) fn flow_mut(&mut self, module: ModuleId) -> &mut FlowState {
-        self.flow
-            .get_mut(&module)
-            .unwrap_or_else(|| panic!("check module {module:?} has no active flow state"))
     }
 
     /// Return captures for one module mutably.

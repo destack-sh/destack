@@ -57,7 +57,7 @@ impl CheckComponentGraph {
         dependencies
     }
 
-    /// Build reverse dependency edges for loaded modules.
+    /// Return reverse dependency edges for loaded modules.
     fn reverse_edges(&self) -> IndexMap<ModuleId, Vec<ModuleId>> {
         let mut reverse_edges = IndexMap::new();
 
