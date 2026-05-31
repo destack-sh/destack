@@ -2218,8 +2218,7 @@ pub fn type_expression_has_side_effects(
         | dir::TypeExpression::Function(_)
         | dir::TypeExpression::Constructor(_)
         | dir::TypeExpression::Reference { .. }
-        | dir::TypeExpression::Infer { .. }
-        | dir::TypeExpression::Predicate { .. } => false,
+        | dir::TypeExpression::Infer { .. } => false,
 
         // type expressions that contain runtime expressions
         dir::TypeExpression::TypeOfValue { value } => expression_has_side_effects(ctx, *value),
@@ -2675,12 +2674,6 @@ impl dir::NodeVisitor for ExpressionSignatureCollector<'_> {
                 if let Some(name) = name {
                     self.push_string_id("type_expression_infer", *name);
                 }
-            }
-            dir::TypeExpression::Predicate {
-                asserts, subject, ..
-            } => {
-                self.push_debug("type_expression_predicate_asserts", *asserts);
-                self.push_debug("type_expression_predicate_subject", subject);
             }
             _ => {}
         }

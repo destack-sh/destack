@@ -604,7 +604,6 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Void
             | dir::Type::Any
             | dir::Type::Unknown
-            | dir::Type::Predicate(_)
             | dir::Type::Error => true,
             ty if type_is_reducible_operation(ty) => true,
             _ => false,
@@ -645,7 +644,6 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::This
             | dir::Type::Union(_)
             | dir::Type::Intersection(_)
-            | dir::Type::Predicate(_)
             | dir::Type::Form(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Range(_)
@@ -1422,7 +1420,6 @@ fn type_truthiness_inner(
             | dir::Type::Function(_) => TypeTruthiness::AlwaysTruthy,
             dir::Type::Parameter(_)
             | dir::Type::This
-            | dir::Type::Predicate(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Range(_)
             | dir::Type::Error => TypeTruthiness::Unknown,
@@ -1486,7 +1483,6 @@ fn type_nullishness_inner(
             | dir::Type::Function(_) => TypeNullishness::Never,
             dir::Type::Parameter(_)
             | dir::Type::This
-            | dir::Type::Predicate(_)
             | dir::Type::Dynamic(_)
             | dir::Type::Operation(_)
             | dir::Type::Error => TypeNullishness::Maybe,
