@@ -21,7 +21,7 @@ impl SnapshotTable for dir::CaptureSegment {
 
             let fields = frame.fields.iter().map(|field| {
                 let symbol = builder.symbol_label(field.symbol);
-                let ty = builder.type_label(field.ty);
+                let ty = builder.global_type_label(field.ty);
 
                 format!("{symbol}: {ty}")
             });
@@ -29,7 +29,7 @@ impl SnapshotTable for dir::CaptureSegment {
             let row = SnapshotRow::new(anchor, "capture", "frame")
                 .field("frame", builder.capture_frame_label(frame_id))
                 .field("scope", builder.global_scope_label(frame.scope))
-                .type_field("type", builder.type_label(frame.ty))
+                .type_field("type", builder.global_type_label(frame.ty))
                 .list_field("fields", fields);
             builder.push(row);
             frame_field_count += frame.fields.len();
@@ -53,7 +53,7 @@ impl SnapshotTable for dir::CaptureSegment {
                     .field("function", builder.symbol_path_label(*symbol_id))
                     .field("symbol", builder.symbol_label(binding.symbol()))
                     .field("mode", DirSnapshotBuilder::variant_label(binding.mode()))
-                    .type_field("type", builder.type_label(binding.ty()))
+                    .type_field("type", builder.global_type_label(binding.ty()))
                     .optional_field(
                         "frame",
                         binding
@@ -70,7 +70,7 @@ impl SnapshotTable for dir::CaptureSegment {
                     .field("function", builder.symbol_path_label(*symbol_id))
                     .field("symbol", builder.symbol_label(receiver.symbol))
                     .field("mode", DirSnapshotBuilder::variant_label(receiver.mode))
-                    .type_field("type", builder.type_label(receiver.ty));
+                    .type_field("type", builder.global_type_label(receiver.ty));
                 builder.push(row);
             }
 

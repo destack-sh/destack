@@ -24,6 +24,9 @@ impl DirSnapshotBuilder<'_> {
             if field.is_empty() {
                 continue;
             }
+            if field.contains('.') {
+                continue;
+            }
 
             row = row.field(field.to_string(), entry.value);
         }

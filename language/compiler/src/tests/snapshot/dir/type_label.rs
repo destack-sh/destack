@@ -63,8 +63,12 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one type id label through a table.
-    fn type_id_label(&self, types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> String {
-        self.type_table_label(types, type_id)
+    fn type_id_label(&self, types: &dir::TypeTable<'_>, type_id: dir::GlobalTypeId) -> String {
+        if type_id.module_id != types.module_id {
+            return self.global_type_label(type_id);
+        }
+
+        self.type_table_label(types, type_id.local_id)
     }
 
     /// Return one primitive type label.
@@ -159,14 +163,14 @@ impl DirSnapshotBuilder<'_> {
             dir::Form::Managed => format!("Managed<{value}>"),
             dir::Form::Owned => format!("Owned<{value}>"),
             dir::Form::Borrowed { lifetime, access } => {
-                let lifetime = self.static_label(*lifetime);
-                let access = self.static_label(*access);
+                let lifetime = self.global_static_label(*lifetime);
+                let access = self.global_static_label(*access);
 
                 format!("Borrowed<{value}, {lifetime}, {access}>")
             }
             dir::Form::Raw => format!("Raw<{value}>"),
             dir::Form::Placed { place } => {
-                let place = self.static_label(*place);
+                let place = self.global_static_label(*place);
 
                 format!("Placed<{value}, {place}>")
             }
@@ -322,7 +326,7 @@ impl DirSnapshotBuilder<'_> {
     ) -> String {
         // render element and count
         let element = self.type_id_label(types, array.element);
-        let count = self.static_label(array.count);
+        let count = self.global_static_label(array.count);
 
         format!("[{element}; {count}]")
     }
@@ -424,8 +428,9 @@ impl DirSnapshotBuilder<'_> {
         let readonly = if field.is_readonly { "readonly " } else { "" };
         let optional = if field.is_optional { "?" } else { "" };
 
-        // print function fields as method signatures
-        if let dir::Type::Function(function) = types.get_type(field.ty) {
+        if field.ty.module_id == types.module_id
+            && let dir::Type::Function(function) = types.get_type(field.ty.local_id)
+        {
             let signature = self.method_signature_label(types, function);
 
             format!("{readonly}{key}{optional}{signature}")
@@ -579,10 +584,14 @@ impl DirSnapshotBuilder<'_> {
     fn function_generic_parameter_label(
         &self,
         types: &dir::TypeTable<'_>,
-        type_id: dir::LocalTypeId,
+        type_id: dir::GlobalTypeId,
     ) -> String {
+        if type_id.module_id != types.module_id {
+            return self.global_type_label(type_id);
+        }
+
         // render parameter symbols with their constraints
-        if let dir::Type::Parameter(parameter) = types.get_type(type_id) {
+        if let dir::Type::Parameter(parameter) = types.get_type(type_id.local_id) {
             let label = self.parameter_type_label(parameter);
             let suffix = self.generic_slot_signature_suffix(types, parameter);
 
@@ -651,7 +660,7 @@ impl DirSnapshotBuilder<'_> {
                     .map(|ty| format!(": {}", self.type_id_label(types, ty)))
                     .unwrap_or_default();
                 let default = default
-                    .map(|static_id| format!(" = {}", self.static_label(static_id)))
+                    .map(|static_id| format!(" = {}", self.global_static_label(static_id)))
                     .unwrap_or_default();
 
                 format!("{constraint}{default}")
@@ -680,7 +689,7 @@ impl DirSnapshotBuilder<'_> {
     fn type_id_list_label(
         &self,
         types: &dir::TypeTable<'_>,
-        type_ids: &[dir::LocalTypeId],
+        type_ids: &[dir::GlobalTypeId],
         separator: &'static str,
     ) -> String {
         type_ids

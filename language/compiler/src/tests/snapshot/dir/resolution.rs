@@ -120,7 +120,7 @@ fn add_receiver_resolution_row(
         .optional_field("source", builder.node_source(node_id))
         .field("kind", receiver_kind_label(resolution.kind))
         .field("owner", builder.symbol_path_label(resolution.owner))
-        .type_field("type", builder.type_label(resolution.ty));
+        .type_field("type", builder.global_type_label(resolution.ty));
 
     builder.push(row);
 }
@@ -133,7 +133,7 @@ fn add_member_resolution_row(
 ) {
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "member")
         .optional_field("source", builder.node_source(node_id))
-        .type_field("receiver", builder.type_label(resolution.receiver));
+        .type_field("receiver", builder.global_type_label(resolution.receiver));
 
     let row = match &resolution.target {
         dir::MemberTarget::Builtin(builtin) => row
@@ -175,9 +175,9 @@ fn add_call_resolution_row(
             resolution
                 .parameters
                 .iter()
-                .map(|type_id| builder.type_label(*type_id)),
+                .map(|type_id| builder.global_type_label(*type_id)),
         )
-        .type_field("return", builder.type_label(resolution.return_type));
+        .type_field("return", builder.global_type_label(resolution.return_type));
 
     let row = match &resolution.target {
         dir::CallTarget::Builtin(builtin) => row
@@ -216,9 +216,9 @@ fn add_construct_resolution_row(
             resolution
                 .parameters
                 .iter()
-                .map(|type_id| builder.type_label(*type_id)),
+                .map(|type_id| builder.global_type_label(*type_id)),
         )
-        .type_field("return", builder.type_label(resolution.return_type));
+        .type_field("return", builder.global_type_label(resolution.return_type));
 
     let row = match &resolution.target {
         dir::ConstructTarget::Class(candidate) => {
@@ -256,15 +256,18 @@ fn add_pattern_resolution_row(
                 binding.pattern.map(|node| builder.node_label(node)),
             ),
         dir::PatternResolution::Literal(literal) => {
-            row.field("value", builder.static_label(literal.value))
+            row.field("value", builder.global_static_label(literal.value))
         }
         dir::PatternResolution::Range(range) => row
-            .type_field("domain", builder.type_label(range.domain))
+            .type_field("domain", builder.global_type_label(range.domain))
             .optional_field(
                 "start",
-                range.start.map(|value| builder.static_label(value)),
+                range.start.map(|value| builder.global_static_label(value)),
             )
-            .optional_field("end", range.end.map(|value| builder.static_label(value)))
+            .optional_field(
+                "end",
+                range.end.map(|value| builder.global_static_label(value)),
+            )
             .field("bound", DirSnapshotBuilder::variant_label(range.end_bound)),
         dir::PatternResolution::Tuple(tuple) => {
             row.list_field("fields", pattern_field_labels(builder, &tuple.fields))
@@ -305,7 +308,7 @@ fn add_pattern_resolution_row(
                 "discriminant",
                 variant
                     .discriminant
-                    .map(|value| builder.static_label(value)),
+                    .map(|value| builder.global_static_label(value)),
             )
             .list_field("fields", pattern_field_labels(builder, &variant.fields)),
         dir::PatternResolution::Union(union) => row.list_field(
@@ -392,7 +395,7 @@ fn add_call_candidate_fields(
     row.field("target", builder.call_candidate_label(candidate))
         .optional_type_field(
             "receiver",
-            candidate.receiver.map(|ty| builder.type_label(ty)),
+            candidate.receiver.map(|ty| builder.global_type_label(ty)),
         )
         .optional_field(
             "application",
@@ -461,7 +464,7 @@ fn add_pattern_sequence_fields(
             ),
         dir::PatternSequenceResolution::FixedArray { fields, length } => row
             .field("sequence", "fixed_array")
-            .field("length", builder.static_label(*length))
+            .field("length", builder.global_static_label(*length))
             .list_field("fields", pattern_field_labels(builder, fields)),
     }
 }

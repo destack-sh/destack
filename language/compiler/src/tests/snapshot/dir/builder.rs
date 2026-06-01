@@ -47,10 +47,10 @@ pub(crate) struct DirSnapshotBuilder<'a> {
         RefCell<BTreeMap<ModuleId, BTreeMap<dir::LocalSymbolId, String>>>,
     /// Language items keyed by resolved global symbol.
     pub(super) language_item_by_symbol: BTreeMap<dir::GlobalSymbolId, dir::LanguageItem>,
-    /// Semantic type labels keyed by local type id.
-    pub(super) type_labels: BTreeMap<dir::LocalTypeId, String>,
-    /// Semantic static labels keyed by local static id.
-    pub(super) static_labels: BTreeMap<dir::LocalStaticId, String>,
+    /// Semantic type labels keyed by global type id.
+    pub(super) type_labels: BTreeMap<dir::GlobalTypeId, String>,
+    /// Semantic static labels keyed by global static id.
+    pub(super) static_labels: BTreeMap<dir::GlobalStaticId, String>,
     /// Whether to render dense binding node rows.
     pub(super) binding_nodes: bool,
     /// Whether to render expression node type rows.
@@ -376,6 +376,16 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.anchor_node(node_id)
     }
 
+    /// Return the source anchor for one global type in this module.
+    pub(crate) fn anchor_global_type(&self, type_id: dir::GlobalTypeId) -> SnapshotAnchor {
+        if type_id.module_id != self.tree.module_id {
+            return SnapshotAnchor::End;
+        }
+        let type_id = self.local_type_id(type_id);
+
+        self.anchor_type(type_id)
+    }
+
     /// Return the source anchor for one scope.
     pub(super) fn anchor_scope(
         &self,
@@ -443,33 +453,58 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.node_source(declaration)
     }
 
-    /// Render one type id using semantic type text when possible.
-    pub(crate) fn type_label(&self, type_id: dir::LocalTypeId) -> String {
-        self.type_labels
-            .get(&type_id)
-            .cloned()
-            .unwrap_or_else(|| panic!("dir snapshot missing type label for {type_id:?}"))
+    /// Return the local type id for a global type in this snapshot.
+    fn local_type_id(&self, type_id: dir::GlobalTypeId) -> dir::LocalTypeId {
+        assert_eq!(
+            type_id.module_id, self.tree.module_id,
+            "dir snapshot cannot render foreign type {type_id:?}"
+        );
+
+        type_id.local_id
     }
 
-    /// Render one static id using semantic static text when possible.
-    pub(crate) fn static_label(&self, static_id: dir::LocalStaticId) -> String {
-        self.static_labels
-            .get(&static_id)
-            .cloned()
-            .unwrap_or_else(|| panic!("dir snapshot missing static label for {static_id:?}"))
-    }
-
-    /// Render a type value stored in a static term.
-    fn static_type_label(&self, type_id: dir::LocalTypeId) -> String {
+    /// Render one global type id using semantic type text when possible.
+    pub(crate) fn global_type_label(&self, type_id: dir::GlobalTypeId) -> String {
         if let Some(label) = self.type_labels.get(&type_id) {
             return label.clone();
+        }
+
+        if type_id.module_id != self.tree.module_id {
+            let module = self.module_path(type_id.module_id);
+
+            return format!("{module}.type{}", type_id.local_id.0);
         }
         let types = self
             .types
             .as_ref()
             .unwrap_or_else(|| panic!("dir snapshot missing type table for {type_id:?}"));
 
-        self.type_table_label(types, type_id)
+        self.type_table_label(types, type_id.local_id)
+    }
+
+    /// Render one global static id using semantic static text when possible.
+    pub(crate) fn global_static_label(&self, static_id: dir::GlobalStaticId) -> String {
+        if let Some(label) = self.static_labels.get(&static_id) {
+            return label.clone();
+        }
+
+        if static_id.module_id != self.tree.module_id {
+            let module = self.module_path(static_id.module_id);
+
+            return format!("{module}.static{}", static_id.local_id.0);
+        }
+        let statics = self
+            .statics
+            .as_ref()
+            .unwrap_or_else(|| panic!("dir snapshot missing static table for {static_id:?}"));
+        let term = statics.get_static(static_id.local_id);
+
+        self.static_term_label(term)
+    }
+
+    /// Render a type value stored in a static term.
+    fn static_type_label(&self, type_id: dir::GlobalTypeId) -> String {
+        self.global_type_label(type_id)
     }
 
     /// Render one local symbol id using its source name when possible.
@@ -593,17 +628,8 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Render one static argument value.
-    pub(super) fn static_argument_value_label(&self, static_id: dir::LocalStaticId) -> String {
-        if let Some(label) = self.static_labels.get(&static_id) {
-            return label.clone();
-        }
-        let statics = self
-            .statics
-            .as_ref()
-            .unwrap_or_else(|| panic!("dir snapshot missing static table for {static_id:?}"));
-        let term = statics.get_static(static_id);
-
-        self.static_term_label(term)
+    pub(super) fn static_argument_value_label(&self, static_id: dir::GlobalStaticId) -> String {
+        self.global_static_label(static_id)
     }
 
     /// Render one static term label.
@@ -621,7 +647,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             dir::StaticTerm::Lifetime { lifetime } => self.lifetime_label(lifetime),
             dir::StaticTerm::Union { elements } => elements
                 .iter()
-                .map(|element| self.static_label(*element))
+                .map(|element| self.global_static_label(*element))
                 .collect::<Vec<_>>()
                 .join(" | "),
             dir::StaticTerm::ScalarLiteral { value } => self.scalar_literal_label(value),
@@ -673,9 +699,9 @@ impl<'a> DirSnapshotBuilder<'a> {
                 let properties = self.static_property_labels(properties);
 
                 if properties.is_empty() {
-                    format!("{} {{}}", self.type_label(*ty))
+                    format!("{} {{}}", self.global_type_label(*ty))
                 } else {
-                    format!("{} {{ {properties} }}", self.type_label(*ty))
+                    format!("{} {{ {properties} }}", self.global_type_label(*ty))
                 }
             }
         }
@@ -913,7 +939,8 @@ impl<'a> DirSnapshotBuilder<'a> {
     fn add_type_labels(&mut self, types: &dir::TypeTable<'_>) {
         for type_id in types.iter_type_ids() {
             let label = self.type_table_label(types, type_id);
-            self.type_labels.insert(type_id, label);
+            self.type_labels
+                .insert(type_id.into_global(types.module_id), label);
         }
     }
 
@@ -922,7 +949,8 @@ impl<'a> DirSnapshotBuilder<'a> {
         for static_id in statics.iter_static_ids() {
             let term = statics.get_static(static_id);
             let label = self.static_term_label(term);
-            self.static_labels.insert(static_id, label);
+            self.static_labels
+                .insert(static_id.into_global(statics.module_id), label);
         }
     }
 

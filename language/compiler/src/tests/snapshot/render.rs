@@ -227,9 +227,10 @@ impl<'a> SnapshotRenderer<'a> {
     fn table_rank(table: &str) -> u8 {
         match table {
             "binding" => 0,
-            "generic" => 1,
-            "type" => 2,
-            "resolution" => 3,
+            "bind" => 1,
+            "generic" => 2,
+            "type" => 3,
+            "resolution" => 4,
             "static" => 5,
             "relation" => 6,
             "extension" => 7,
@@ -282,10 +283,9 @@ impl<'a> SnapshotRenderer<'a> {
             "variant" => 28,
             "newtype" => 29,
             "replaced_symbol" => 30,
-            "stats" => 31,
-            "stats.solve" => 32,
-            "stats.output" => 33,
-            "summary" => u8::MAX,
+            "summary" => 31,
+            "stats" => 32,
+            "stats.solve" => 33,
             _ => 128,
         }
     }
