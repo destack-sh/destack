@@ -111,7 +111,7 @@ impl ResolveState<'_> {
             .artifacts
             .dir_exported(module, self.profile)
             .map_err(CompilerError::from)?;
-        self.global_modules += 1;
+        self.stats.global_modules += 1;
 
         for key in keys {
             let Some(entries) = exported.globals.entries_by_key.get(key) else {

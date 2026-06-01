@@ -62,7 +62,7 @@ impl Compiler {
         state.resolve_syntax_language_items(&environment.language)?;
 
         // emit resolve stats before diagnostics are drained
-        let stats = state.stats();
+        let stats = state.stats;
         context.emit_sidecar(ArtifactSidecar::new(
             "metadata",
             iter::once(("phase", "resolve")),

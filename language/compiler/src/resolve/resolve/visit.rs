@@ -7,7 +7,7 @@ impl ResolveState<'_> {
     /// Walk active roots and collect module clauses.
     pub(in crate::resolve) fn walk(&mut self, roots: &[dir::LocalNodeId<dir::Expression>]) {
         let tree = self.view.tree();
-        self.roots = roots.len();
+        self.stats.roots += roots.len();
 
         for root in roots {
             let expression = tree.get(*root);
@@ -27,7 +27,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        self.expressions += 1;
+        self.stats.expressions += 1;
         self.walk_expression(tree, id, expression);
     }
 
@@ -37,7 +37,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         type_expression: &dir::TypeExpression,
     ) {
-        self.type_expressions += 1;
+        self.stats.type_expressions += 1;
         self.walk_type_expression(tree, id, type_expression);
     }
 
