@@ -1,17 +1,18 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, Place, PlaceTarget};
+use crate::check::{Place, PlaceTarget, WalkState};
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Mark one assigned place if it names a local binding.
     pub(in crate::check) fn mark_place_assigned(&mut self, place: Place) {
+        // ignore non binding places
         if let PlaceTarget::Binding { symbol } = place.target {
             // ignore imported bindings
-            if symbol.module_id != place.source.module_id {
+            if symbol.module_id != self.module {
                 return;
             }
 
-            self.flow_mut(place.source.module_id).mark_assigned(symbol);
+            self.flow_mut().mark_assigned(symbol);
         }
     }
 
@@ -21,6 +22,7 @@ impl CheckState<'_> {
         tree: &dir::Tree,
         declarator: &dir::Declarator,
     ) {
+        // only initialized declarators assign their pattern
         if declarator.value.is_some() {
             self.mark_bindings_assigned(tree, declarator.pattern.into_any());
         }
@@ -32,10 +34,12 @@ impl CheckState<'_> {
         tree: &dir::Tree,
         source: dir::LocalNodeIdAny,
     ) {
-        if let Some(symbol) = self.declaration_symbol(tree.module_id, source) {
-            self.flow_mut(tree.module_id).mark_assigned(symbol);
+        // mark direct declaration symbol first
+        if let Some(symbol) = self.check.declaration_symbol(tree.module_id, source) {
+            self.flow_mut().mark_assigned(symbol);
         }
 
+        // walk nested binding shapes
         match source.ty {
             // parameter
             dir::NodeType::Parameter => {
@@ -66,6 +70,7 @@ impl CheckState<'_> {
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Parameter>,
     ) {
+        // walk parameter binding shape
         match tree.get(id) {
             // ({ name })
             dir::Parameter::Pattern { pattern, .. }
@@ -88,6 +93,7 @@ impl CheckState<'_> {
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Pattern>,
     ) {
+        // walk pattern binding shape
         match tree.get(id) {
             // name: pattern
             dir::Pattern::Binding {
@@ -116,12 +122,14 @@ impl CheckState<'_> {
             | dir::Pattern::Newtype { fields, .. }
             // T { name }
             | dir::Pattern::NominalObject { fields, .. } => {
+                // mark each nested field pattern
                 for field in fields {
                     self.mark_pattern_field_bindings_assigned(tree, *field);
                 }
             }
             // a | b
             dir::Pattern::Union { patterns } => {
+                // mark each alternative binding pattern
                 for pattern in patterns {
                     self.mark_pattern_bindings_assigned(tree, *pattern);
                 }
@@ -145,6 +153,7 @@ impl CheckState<'_> {
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::PatternField>,
     ) {
+        // walk pattern field binding shape
         match tree.get(id) {
             // { name: pattern }
             dir::PatternField::Named {

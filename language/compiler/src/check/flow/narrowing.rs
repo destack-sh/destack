@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, FlowPath, TypeOperand, TypeOperationTerm, TypeTerm, VariableId};
+use crate::check::{FlowPath, TypeOperand, TypeOperationTerm, TypeTerm, WalkState};
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Return the stable flow path for one expression.
     pub(in crate::check) fn flow_path(
         &self,
@@ -12,8 +12,9 @@ impl CheckState<'_> {
         match tree.get(id) {
             // value
             dir::Expression::Identifier { name } => {
+                // resolve root binding
                 let symbol = self
-                    .lookup_symbol_by_name(
+                    .check.lookup_symbol_by_name(
                         tree.module_id,
                         id.into_any(),
                         *name,
@@ -25,9 +26,10 @@ impl CheckState<'_> {
             }
             // namespace
             dir::Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
+                // resolve root binding
                 let name = path.segments[0];
                 let symbol = self
-                    .lookup_symbol_by_name(
+                    .check.lookup_symbol_by_name(
                         tree.module_id,
                         id.into_any(),
                         name,
@@ -47,6 +49,7 @@ impl CheckState<'_> {
                 left,
                 name: Some(name),
             } => {
+                // extend root path with selected member
                 let mut path = self.flow_path(tree, *left)?;
                 path.push_segment(dir::StaticKey::Name(*name));
 
@@ -58,6 +61,7 @@ impl CheckState<'_> {
                 index: Some(index),
                 ..
             } => {
+                // extend root path with static index key
                 let key = tree.get(*index).static_key()?;
                 let mut path = self.flow_path(tree, *left)?;
 
@@ -78,9 +82,10 @@ impl CheckState<'_> {
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<TypeOperand> {
+        // resolve path before reading narrowing table
         let path = self.flow_path(tree, id)?;
 
-        self.flow(tree.module_id).narrowings.get(&path).copied()
+        self.flow().narrowings.get(&path).copied()
     }
 
     /// Narrow one flow path to an exact type operand.
@@ -89,25 +94,25 @@ impl CheckState<'_> {
         path: FlowPath,
         ty: impl Into<TypeOperand>,
     ) {
-        let module = path.root.module_id;
-
-        self.flow_mut(module).narrow(path, ty.into());
+        self.flow_mut().narrow(path, ty.into());
     }
 
     /// Narrow one flow path by excluding one tested type.
     pub(in crate::check) fn narrow_flow_path_excluding(
         &mut self,
         path: FlowPath,
-        original: VariableId,
+        original: impl Into<TypeOperand>,
         excluded: impl Into<TypeOperand>,
     ) {
-        let operation = self.terms.push(TypeOperationTerm::Exclude {
+        // build exclusion operation lazily
+        let operation = self.check.push_term(TypeOperationTerm::Exclude {
             source: original.into(),
             target: excluded.into(),
         });
-        let narrowed = self.terms.push(TypeTerm::Operation(operation));
+        let narrowed = self.check.push_term(TypeTerm::Operation(operation));
 
-        self.flow_mut(original.module).narrow(path, narrowed.into());
+        // store narrowed result on the flow path
+        self.flow_mut().narrow(path, narrowed.into());
     }
 
     /// Clear flow narrowings invalidated by mutating an expression.
@@ -116,10 +121,12 @@ impl CheckState<'_> {
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
     ) {
+        // ignore expressions without stable flow paths
         let Some(path) = self.flow_path(tree, id) else {
             return;
         };
 
-        self.flow_mut(tree.module_id).clear_narrowings_under(&path);
+        // clear all dependent narrowings
+        self.flow_mut().clear_narrowings_under(&path);
     }
 }

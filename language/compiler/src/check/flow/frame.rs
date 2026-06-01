@@ -17,7 +17,7 @@ pub(in crate::check) struct FunctionFrame {
     /// The lexical receiver visible inside this function.
     pub(in crate::check) receiver: Option<ReceiverCapture>,
     /// The value accepted by `return` inside this function body.
-    pub(in crate::check) return_type: VariableId,
+    pub(in crate::check) return_type: TypeOperand,
     /// The yielded value type for generator functions.
     pub(in crate::check) yield_type: Option<VariableId>,
     /// The value received when a generator resumes after `yield`.
