@@ -67,6 +67,65 @@ impl Node for DependencyItem {
 }
 
 impl DependencyItem {
+    /// Return the binding declared by this dependency item.
+    pub fn binding(&self) -> Option<DependencyBinding> {
+        let Self::Binding { binding, .. } = self else {
+            return None;
+        };
+
+        Some(*binding)
+    }
+
+    /// Return the source form declared by this dependency item.
+    pub fn form(&self) -> Option<DependencyForm> {
+        let Self::Binding { form, .. } = self else {
+            return None;
+        };
+
+        *form
+    }
+
+    /// Return the local string key introduced by this dependency item.
+    pub fn local_string_key(&self) -> Option<StringId> {
+        let Self::Binding { name, alias, .. } = self else {
+            return None;
+        };
+
+        alias.or(name.map(|name| name.string()))
+    }
+
+    /// Return the local alias name introduced by this import item.
+    pub fn local_import_alias_name(&self) -> Option<StringId> {
+        let Self::Binding {
+            binding,
+            name,
+            alias,
+            ..
+        } = self
+        else {
+            return None;
+        };
+
+        if *binding == DependencyBinding::Default {
+            name.as_ref().map(|name| name.string()).or(*alias)
+        } else {
+            *alias
+        }
+    }
+
+    /// Return the local binding name introduced by a default import item.
+    pub fn default_import_alias_name(&self) -> Option<StringId> {
+        let Self::Binding { binding, name, .. } = self else {
+            return None;
+        };
+
+        if *binding != DependencyBinding::Default {
+            return None;
+        }
+
+        name.as_ref().map(|name| name.string())
+    }
+
     /// Return the symbol key introduced by this dependency item.
     pub fn symbol_key(&self) -> Option<StaticKey> {
         let Self::Binding { name, alias, .. } = self else {
