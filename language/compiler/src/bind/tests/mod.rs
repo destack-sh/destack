@@ -5,3 +5,4 @@ mod label;
 mod member;
 mod module;
 mod pattern;
+mod stress;
