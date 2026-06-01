@@ -6,6 +6,7 @@ use destack_dir as dir;
 use destack_source::Loader;
 use destack_workspace::{Module, Revision};
 
+use crate::import::stats::ImportStats;
 use crate::{ImportError, ImportResult};
 
 /// Import phase state for one module.
@@ -28,6 +29,8 @@ pub(crate) struct ImportState<'a> {
     pub(in crate::import) modules: dir::ModuleSegment,
     /// The recoverable diagnostics produced while importing.
     pub(in crate::import) diagnostics: Vec<ImportError>,
+    /// The work stats accumulated while importing.
+    pub(in crate::import) stats: ImportStats,
 }
 
 impl<'a> ImportState<'a> {
@@ -51,6 +54,7 @@ impl<'a> ImportState<'a> {
             view,
             modules: dir::ModuleSegment::new(module.id),
             diagnostics: Vec::new(),
+            stats: ImportStats::default(),
         }
     }
 

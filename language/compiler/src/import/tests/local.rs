@@ -19,12 +19,13 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -48,12 +49,13 @@ let value = 1;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -77,12 +79,13 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Foo } from "./dep";
 /// @module.edge relation=import specifier=./dep module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -106,12 +109,13 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "src/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Foo } from "../dep.ds";
 /// @module.edge relation=import specifier=../dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -135,18 +139,20 @@ export type Foo = string;
 
     compiler.assert_dir_imported_many(
         &["main.ds", "dep.ds"],
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 === main.ds ===
 import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 
 === dep.ds ===
 export type Foo = string;
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:0,reexport:0
 "#,
     );
 }

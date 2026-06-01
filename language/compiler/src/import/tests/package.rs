@@ -56,12 +56,13 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui/button";
 /// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -122,12 +123,13 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui";
 /// @module.edge relation=import specifier=@acme/ui module=packages/@acme/ui/index.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -188,12 +190,13 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui/button";
 /// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/src/button.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -254,12 +257,13 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui/forms/button";
 /// @module.edge relation=import specifier=@acme/ui/forms/button module=packages/@acme/ui/src/forms/button.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -330,12 +334,13 @@ export type Button = never;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui/button";
 /// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -405,12 +410,13 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui/button";
 /// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -481,12 +487,13 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui/button";
 /// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -556,12 +563,13 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui/button";
 /// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -692,12 +700,13 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui/button";
 /// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -759,12 +768,13 @@ export type Button = string;
 
     compiler.assert_dir_imported(
         "packages/app/main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Button } from "@acme/ui/button";
 /// @module.edge relation=import specifier=@acme/ui/button module=packages/@acme/ui/button.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }

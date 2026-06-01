@@ -12,6 +12,8 @@ impl Compiler {
     ) -> CompilerResult<()> {
         // scan active expressions
         for root in roots {
+            state.stats.roots += 1;
+
             let expression = state.view.get(*root);
             self.collect_expression_modules(state, *root, expression)?;
         }

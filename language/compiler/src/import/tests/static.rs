@@ -20,13 +20,14 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(true)
 import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:0
 "#,
     );
 }
@@ -51,12 +52,13 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(false)
 import { Foo } from "./dep.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -81,12 +83,13 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(true && false)
 export { Foo } from "./dep.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:0,reexport:1 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -111,13 +114,14 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(true)
 export { Foo } from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:0,reexport:1 guards=evaluated:1,skipped:0
 "#,
     );
 }
@@ -144,7 +148,7 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 global {
     @if(true)
@@ -154,6 +158,7 @@ global {
 }
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=2 clauses=import:1,reexport:0 guards=evaluated:1,skipped:0
 "#,
     );
 }
@@ -171,11 +176,12 @@ import { @if(false) Foo } from "./missing.ds";
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { @if(false) Foo } from "./missing.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -200,12 +206,13 @@ export type Bar = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { @if(false) Foo, @if(true) Bar } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:2,skipped:0
 "#,
     );
 }
@@ -223,11 +230,12 @@ export { @if(false) Foo } from "./missing.ds";
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 export { @if(false) Foo } from "./missing.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:0,reexport:1 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -262,13 +270,14 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(import.meta.modes.includes("preview"))
 import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:0
 "#,
     );
 }
@@ -303,12 +312,13 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(import.meta.modes.includes("dev"))
 import { Foo } from "./dep.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -347,13 +357,14 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(import.meta.roles.includes("server"))
 import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:0
 "#,
     );
 }
@@ -392,13 +403,14 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(import.meta.runtime == "js")
 import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:0
 "#,
     );
 }
@@ -437,12 +449,13 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(import.meta.platform == "windows")
 import { Foo } from "./dep.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -467,12 +480,13 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(import.meta.product == "app")
 import { Foo } from "./dep.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -511,12 +525,13 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(import.meta.target.family == "windows")
 import { Foo } from "./dep.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -535,12 +550,13 @@ import { Foo } from "./missing.ds";
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(false)
 import { Foo } from "./missing.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -567,7 +583,7 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 const enabled = true;
 
@@ -575,6 +591,7 @@ const enabled = true;
 import { Foo } from "./dep.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=2 expressions=2 clauses=import:1,reexport:0 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -601,7 +618,7 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 const enabled = false;
 
@@ -610,6 +627,7 @@ import { Foo } from "./dep.ds";
 /// @module.edge relation=import specifier=./dep.ds module=dep.ds
 
 /// @module.summary edges=1
+/// @import.stats roots=2 expressions=2 clauses=import:1,reexport:0 guards=evaluated:1,skipped:0
 "#,
     );
 }
@@ -635,13 +653,14 @@ export type Foo = string;
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 @if(true)
 @if(false)
 import { Foo } from "./dep.ds";
 
 /// @module.summary edges=0
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0 guards=evaluated:2,skipped:1
 "#,
     );
 }

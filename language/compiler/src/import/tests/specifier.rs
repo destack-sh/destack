@@ -13,12 +13,13 @@ import { Math } from "destack:math";
 
     compiler.assert_dir_imported(
         "main.ds",
-        DirRows::modules().with_summaries(),
+        DirRows::modules().with_summaries().with_import_stats(),
         r#"
 import { Math } from "destack:math";
 /// @module.edge relation=import specifier=destack:math module=destack://math
 
 /// @module.summary edges=1
+/// @import.stats roots=1 expressions=1 clauses=import:1,reexport:0
 "#,
     );
 }
