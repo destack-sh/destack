@@ -1,6 +1,8 @@
-use destack_artifact::ArtifactPayload;
+use std::iter;
+
+use destack_artifact::{ArtifactPayload, ArtifactSidecar};
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{FileContent, ModuleId};
 use destack_workspace::{ProfileId, ProviderContext};
 
 use crate::export::state::ExportState;
@@ -46,7 +48,15 @@ impl Compiler {
         );
         self.collect_exports(&mut state, &expanded.roots)
             .map_err(CompilerError::from)?;
+        let stats = state.stats;
         let (exported, diagnostics) = state.finish();
+        context.emit_sidecar(ArtifactSidecar::new(
+            "metadata",
+            iter::once(("phase", "export")),
+            FileContent::Text {
+                content: stats.render_metadata(),
+            },
+        ));
         for diagnostic in diagnostics {
             self.emit_diagnostic(context, diagnostic)?;
         }

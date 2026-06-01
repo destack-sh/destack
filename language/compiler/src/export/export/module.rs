@@ -12,6 +12,8 @@ impl Compiler {
     ) -> ExportResult<()> {
         // record statically hidden declaration exports
         for root in roots {
+            state.stats.roots += 1;
+
             let expression = state.view.get(*root);
             self.collect_static_hidden_declarations(state, *root, expression)?;
         }
@@ -35,7 +37,10 @@ impl Compiler {
         expression_id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) -> ExportResult<()> {
+        state.stats.visibility_expressions += 1;
+
         if !state.static_allows(expression_id.into_any())? {
+            state.skip_static_node(expression_id.into_any());
             self.hide_expression_declarations(state, expression);
 
             return Ok(());
@@ -44,6 +49,7 @@ impl Compiler {
         match expression {
             dir::Expression::Declaration(declaration_id) => {
                 if !state.static_allows(declaration_id.into_any())? {
+                    state.skip_static_node(declaration_id.into_any());
                     self.hide_expression_declarations(state, expression);
 
                     return Ok(());

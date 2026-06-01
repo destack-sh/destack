@@ -13,7 +13,11 @@ impl Compiler {
         expression: &dir::Expression,
         is_global: bool,
     ) -> ExportResult<()> {
+        state.stats.export_expressions += 1;
+
         if !state.static_allows(expression_id.into_any())? {
+            state.skip_static_node(expression_id.into_any());
+
             return Ok(());
         }
 
@@ -21,6 +25,8 @@ impl Compiler {
             // collect exports inside a global block
             dir::Expression::Declaration(declaration_id) => {
                 if !state.static_allows(declaration_id.into_any())? {
+                    state.skip_static_node(declaration_id.into_any());
+
                     return Ok(());
                 }
 

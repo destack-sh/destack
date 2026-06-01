@@ -14,12 +14,13 @@ export let value: number = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries(),
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
 @if(false)
 export let value: number = 1;
 
 /// @export.summary
+/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -40,7 +41,7 @@ export { value };
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries(),
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
 let value = 1;
 
@@ -48,6 +49,7 @@ let value = 1;
 export { value };
 
 /// @export.summary
+/// @export.stats roots=2 expressions=visibility:2,export:2 symbols=scanned:2 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -66,12 +68,13 @@ export { @if(false) value };
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries(),
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
 let value = 1;
 export { @if(false) value };
 
 /// @export.summary
+/// @export.stats roots=2 expressions=visibility:2,export:2 symbols=scanned:2 guards=evaluated:1,skipped:0
 "#,
     );
 }
@@ -92,7 +95,7 @@ global {
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries(),
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
 @if(false)
 global {
@@ -100,6 +103,7 @@ global {
 }
 
 /// @export.summary
+/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -120,7 +124,10 @@ global {
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::modules().with_export().with_summaries(),
+        DirRows::modules()
+            .with_export()
+            .with_summaries()
+            .with_export_stats(),
         r#"
 global {
     @if(false)
@@ -129,6 +136,7 @@ global {
 
 /// @module.summary edges=0
 /// @export.summary
+/// @export.stats roots=1 expressions=visibility:2,export:2 symbols=scanned:1 guards=evaluated:1,skipped:1
 "#,
     );
 }
@@ -153,7 +161,10 @@ export let Bar = 2;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::modules().with_export().with_summaries(),
+        DirRows::modules()
+            .with_export()
+            .with_summaries()
+            .with_export_stats(),
         r#"
 export { @if(false) Foo, @if(true) Bar } from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
@@ -161,6 +172,7 @@ export { @if(false) Foo, @if(true) Bar } from "./dep.ds";
 
 /// @module.summary edges=1
 /// @export.summary exports=1
+/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:1 guards=evaluated:2,skipped:0
 "#,
     );
 }
