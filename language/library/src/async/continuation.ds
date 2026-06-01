@@ -32,7 +32,7 @@ export struct ContinuationReturn<T> {
 /// Result of resuming a continuation.
 @languageItem("async.ContinuationResult")
 @derive(Tagged)
-export type ContinuationResult<TYield, TReturn> = ContinuationYield<TYield> | ContinuationReturn<TReturn>;
+export newtype ContinuationResult<TYield, TReturn> = ContinuationYield<TYield> | ContinuationReturn<TReturn>;
 
 /// Suspend the current continuation and register its handle.
 @languageItem("async.suspendContinuation")

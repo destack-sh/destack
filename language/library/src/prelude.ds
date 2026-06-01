@@ -231,6 +231,9 @@ global {
         AsyncIterator,
         Generator,
         Promise,
+        PromiseFulfilledResult,
+        PromiseRejectedResult,
+        PromiseSettledResult,
     } from "destack:async";
 
     // destack:iter
