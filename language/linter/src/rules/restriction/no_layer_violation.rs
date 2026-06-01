@@ -100,10 +100,10 @@ fn collect_module_descriptors(
 
     // collect user modules and assign configured components
     for module_id in ctx.workspace_module_ids() {
-        let Some(module) = ctx.repository_module(module_id) else {
+        let Some(module) = ctx.session.repository_module(module_id) else {
             continue;
         };
-        let Some(file) = ctx.repository_file(module.file_id) else {
+        let Some(file) = ctx.session.repository_file(module.file_id) else {
             continue;
         };
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
@@ -222,15 +222,16 @@ fn module_dependencies(ctx: &LintWorkspaceContext, module_id: ModuleId) -> Vec<M
     let mut dependencies = Vec::new();
 
     // collect post expansion import edges
-    if let (Some(imported), Some(expanded)) =
-        (ctx.dir_imported(module_id), ctx.dir_expanded(module_id))
-    {
+    if let (Some(imported), Some(expanded)) = (
+        ctx.session.dir_imported(module_id),
+        ctx.session.dir_expanded(module_id),
+    ) {
         let modules = expanded.module_table(&imported);
         collect_module_table_dependencies(&modules, &mut dependencies);
     }
 
     // collect export edges
-    if let Some(exported) = ctx.dir_exported(module_id) {
+    if let Some(exported) = ctx.session.dir_exported(module_id) {
         collect_exported_module_dependencies(&exported, &mut dependencies);
     }
 

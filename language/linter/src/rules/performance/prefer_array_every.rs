@@ -198,7 +198,7 @@ impl<'a, 'b> PreferArrayEveryVisitor<'a, 'b> {
 
         // resolve the receiver type
         let type_id = self.ctx.expression_type_id(receiver_id)?;
-        let is_array = is_array_type(self.ctx.types, type_id, Some(self.array_symbol));
+        let is_array = is_array_type(self.ctx, type_id, Some(self.array_symbol));
         if !is_array {
             return None;
         }

@@ -64,7 +64,7 @@ impl LintRule for CommentCasing {
                 previous_comment_text.as_deref(),
                 comment_text,
                 next_comment_text.as_deref(),
-                ctx.options.style.comment_separator_heading_min_lines,
+                ctx.options().style.comment_separator_heading_min_lines,
             );
 
             // skip comments that are exempt from lowercase casing
@@ -74,12 +74,12 @@ impl LintRule for CommentCasing {
                 || is_separator_heading_triplet
                 || is_separator_heading_block(
                     comment_text,
-                    ctx.options.style.comment_separator_heading_min_lines,
+                    ctx.options().style.comment_separator_heading_min_lines,
                 )
                 || parse_keyword_comment_with_options(
                     comment_text,
-                    &ctx.options.style.comment_keywords,
-                    &ctx.options.style.comment_keyword_tags,
+                    &ctx.options().style.comment_keywords,
+                    &ctx.options().style.comment_keyword_tags,
                 )
                 .is_some()
             {

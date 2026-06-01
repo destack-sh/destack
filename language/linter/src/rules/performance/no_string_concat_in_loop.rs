@@ -178,7 +178,7 @@ impl<'a, 'b> NoStringConcatInLoopVisitor<'a, 'b> {
             return false;
         };
 
-        is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
+        is_string_type(self.ctx, type_id, Some(self.string_symbol))
     }
 
     /// Return true when the expression should be treated as a string.

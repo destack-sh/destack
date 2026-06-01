@@ -286,7 +286,7 @@ fn parameter_name_is_ignored(ctx: &LintModuleContext<'_>, name: dir::StringId) -
         return true;
     }
 
-    ctx.options
+    ctx.options()
         .correctness
         .ignored_unused_parameter_prefixes
         .iter()

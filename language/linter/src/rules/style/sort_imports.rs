@@ -48,11 +48,11 @@ impl LintRule for SortImports {
         let meta = self.meta();
         let imports = collect_imports(ctx);
 
-        if !ctx.options.style.sort_imports_ignore_declaration_sort {
+        if !ctx.options().style.sort_imports_ignore_declaration_sort {
             check_declaration_sorting(ctx, meta, &imports);
         }
 
-        if !ctx.options.style.sort_imports_ignore_member_sort {
+        if !ctx.options().style.sort_imports_ignore_member_sort {
             for import in &imports {
                 check_member_sorting(ctx, meta, import);
             }
@@ -75,7 +75,7 @@ fn collect_imports(ctx: &LintModuleContext<'_>) -> Vec<ImportInfo> {
         };
 
         imports.push(ImportInfo {
-            root_expression_id: root_expression_id,
+            root_expression_id,
             import_expression_id,
             span: ctx.dir.get_span(root_expression_id),
             items: items.clone().unwrap_or_default(),
@@ -106,7 +106,7 @@ fn check_declaration_sorting(
 
     for import in imports {
         if previous_import.is_some()
-            && ctx.options.style.sort_imports_allow_separated_groups
+            && ctx.options().style.sort_imports_allow_separated_groups
             && imports_are_separated_group(ctx, previous_import.unwrap().span, import.span)
         {
             previous_import = None;
@@ -327,7 +327,7 @@ fn item_binding(
 
 /// Return the configured form-group index for one import declaration.
 fn member_form_order_index(ctx: &LintModuleContext<'_>, group: SortImportsMemberSyntax) -> usize {
-    ctx.options
+    ctx.options()
         .style
         .sort_imports_member_syntax_sort_order
         .iter()
@@ -378,7 +378,7 @@ fn dependency_item_name(
 
 /// Normalize one import ordering name based on the case policy.
 fn normalize_import_name(ctx: &LintModuleContext<'_>, name: &str) -> String {
-    if ctx.options.style.sort_imports_ignore_case {
+    if ctx.options().style.sort_imports_ignore_case {
         return name.to_ascii_lowercase();
     }
 

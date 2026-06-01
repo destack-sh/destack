@@ -122,15 +122,6 @@ impl LintRule for PromiseFunctionAsync {
     }
 }
 
-/// Return true when one type resolves to Promise.
-fn type_is_promise_symbol(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
-    promise_symbol: dir::GlobalSymbolId,
-) -> bool {
-    is_promise_type(types, type_id, Some(promise_symbol))
-}
-
 /// Return true when one function symbol returns Promise.
 fn function_symbol_returns_promise(
     ctx: &LintModuleContext<'_>,
@@ -140,11 +131,11 @@ fn function_symbol_returns_promise(
     let Some(function_type_id) = ctx.types.get_symbol_type_id(symbol_id) else {
         return false;
     };
-    let Some(return_type_id) = function_return_type(ctx.types, function_type_id) else {
+    let Some(return_type_id) = function_return_type(ctx, function_type_id) else {
         return false;
     };
 
-    type_is_promise_symbol(ctx.types, return_type_id, promise_symbol)
+    is_promise_type(ctx, return_type_id, Some(promise_symbol))
 }
 
 /// Return true when one signature return annotation resolves to Promise.
@@ -162,7 +153,7 @@ fn signature_returns_promise(
         return false;
     };
 
-    type_is_promise_symbol(ctx.types, return_type_id, promise_symbol)
+    is_promise_type(ctx, return_type_id, Some(promise_symbol))
 }
 
 /// Report one Promise-function-async diagnostic.

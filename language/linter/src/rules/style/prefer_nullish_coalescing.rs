@@ -292,15 +292,15 @@ fn prefer_nullish_coalescing_options(
 ) -> PreferNullishCoalescingOptions {
     PreferNullishCoalescingOptions {
         ignore_conditional_tests: ctx
-            .options
+            .options()
             .style
             .prefer_nullish_coalescing_ignore_conditional_tests,
         ignore_mixed_logical_expressions: ctx
-            .options
+            .options()
             .style
             .prefer_nullish_coalescing_ignore_mixed_logical_expressions,
         ignore_ternary_tests: ctx
-            .options
+            .options()
             .style
             .prefer_nullish_coalescing_ignore_ternary_tests,
     }
@@ -621,17 +621,17 @@ fn left_side_prefers_nullish(
     let Some(type_id) = ctx.expression_type_id(expression_id) else {
         return false;
     };
-    if is_strict_boolean_type(ctx.types, type_id) {
+    if is_strict_boolean_type(ctx, type_id) {
         return false;
     }
 
     // require maybe-nullish values
-    if !is_maybe_nullish_type(ctx.types, type_id) {
+    if !is_maybe_nullish_type(ctx, type_id) {
         return false;
     }
 
     // reject candidates where non-nullish falsy values are possible
-    if has_non_nullish_falsy_type(ctx.types, ctx.strings, type_id) {
+    if has_non_nullish_falsy_type(ctx, ctx.strings, type_id) {
         return false;
     }
 

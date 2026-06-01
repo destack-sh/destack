@@ -31,7 +31,7 @@ impl LintRule for NoMagicNumbers {
 
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let allowed_numbers = &ctx.options.restriction.allowed_magic_numbers;
+        let allowed_numbers = ctx.options().restriction.allowed_magic_numbers.clone();
 
         // inspect candidate expressions
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {

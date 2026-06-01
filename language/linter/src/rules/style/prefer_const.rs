@@ -64,7 +64,7 @@ impl LintRule for PreferConst {
                     .filter(|symbol_id| symbol_should_be_const(ctx, &declaration, *symbol_id))
                     .collect::<Vec<_>>();
                 let requires_all_symbols = group.is_destructuring
-                    && ctx.options.style.prefer_const_destructuring
+                    && ctx.options().style.prefer_const_destructuring
                         == PreferConstDestructuring::All;
                 if requires_all_symbols && group_eligible_symbols.len() != group.symbols.len() {
                     continue;
@@ -352,7 +352,7 @@ fn symbol_has_single_const_eligible_assignment(
     let Some(assignment_expression_id) = assignment_expression_id else {
         return false;
     };
-    if ctx.options.style.prefer_const_ignore_read_before_assign && is_read_before_assignment {
+    if ctx.options().style.prefer_const_ignore_read_before_assign && is_read_before_assignment {
         return false;
     }
 

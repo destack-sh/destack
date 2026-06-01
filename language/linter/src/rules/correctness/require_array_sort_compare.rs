@@ -124,14 +124,13 @@ impl<'a, 'b> ArraySortVisitor<'a, 'b> {
         };
 
         // check if the receiver is an array type
-        if !is_array_type(self.ctx.types, type_id, Some(self.array_symbol)) {
+        if !is_array_type(self.ctx, type_id, Some(self.array_symbol)) {
             return;
         }
 
         // ignore string arrays because lexicographic ordering is usually intentional
         if is_string_array_type(
-            self.ctx.types,
-            self.ctx.statics,
+            self.ctx,
             type_id,
             Some(self.array_symbol),
             Some(self.string_symbol),

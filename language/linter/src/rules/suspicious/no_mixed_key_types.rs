@@ -186,28 +186,19 @@ fn key_expression_kind(
     }
 
     // resolve and classify expression types through a single DIR lookup
-    expression_type_map(
-        ctx.artifacts.as_ref(),
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.dir.tree(),
-        ctx.types,
-        ctx.resolutions,
-        expression_id,
-        |types, type_id| {
-            if is_symbol_like_property_key_type(types, type_id) {
-                return Some(ObjectKeyKind::SymbolLike);
-            }
-            if is_numeric_property_key_type(types, type_id) {
-                return Some(ObjectKeyKind::Numeric);
-            }
-            if is_string_like_property_key_type(types, type_id) {
-                return Some(ObjectKeyKind::StringLike);
-            }
+    expression_type_map(ctx, expression_id, |ctx, type_id| {
+        if is_symbol_like_property_key_type(ctx, type_id) {
+            return Some(ObjectKeyKind::SymbolLike);
+        }
+        if is_numeric_property_key_type(ctx, type_id) {
+            return Some(ObjectKeyKind::Numeric);
+        }
+        if is_string_like_property_key_type(ctx, type_id) {
+            return Some(ObjectKeyKind::StringLike);
+        }
 
-            None
-        },
-    )
+        None
+    })
     .flatten()
 }
 

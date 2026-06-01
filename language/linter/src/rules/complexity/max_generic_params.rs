@@ -35,7 +35,7 @@ impl LintRule for MaxGenericParams {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_generic_params = ctx.options.complexity.max_generic_params;
+        let max_generic_params = ctx.options().complexity.max_generic_params;
 
         // check declaration-level generic parameters
         for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {

@@ -40,7 +40,10 @@ impl LintRule for RequireUnicodeRegexp {
         let meta = self.meta();
         let regexp_name = ctx.string_id("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
-        let required_flag = ctx.options.performance.require_unicode_regexp_require_flag;
+        let required_flag = ctx
+            .options()
+            .performance
+            .require_unicode_regexp_require_flag;
         let required_flag_char = required_flag.as_char();
 
         // inspect candidate expressions

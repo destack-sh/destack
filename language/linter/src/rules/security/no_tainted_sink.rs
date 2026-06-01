@@ -84,17 +84,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         callee_id: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
-        let sink_labels = expression_sink_taint_labels(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            self.ctx.dir.tree(),
-            self.ctx.strings,
-            &self.ctx.symbols,
-            self.ctx.types,
-            self.ctx.resolutions,
-            callee_id,
-        );
+        let sink_labels = expression_sink_taint_labels(self.ctx, callee_id);
         if sink_labels.is_empty() {
             return;
         }
@@ -119,17 +109,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         left: dir::LocalNodeId<dir::Expression>,
         right: dir::LocalNodeId<dir::Expression>,
     ) {
-        let sink_labels = expression_sink_taint_labels(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            self.ctx.dir.tree(),
-            self.ctx.strings,
-            &self.ctx.symbols,
-            self.ctx.types,
-            self.ctx.resolutions,
-            left,
-        );
+        let sink_labels = expression_sink_taint_labels(self.ctx, left);
         if sink_labels.is_empty() {
             return;
         }
@@ -147,18 +127,7 @@ impl<'a, 'b> NoTaintedSinkVisitor<'a, 'b> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> TaintLabels {
-        let mut taint = TaintAnalysis::new(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            self.ctx.dir.tree(),
-            self.ctx.strings,
-            &self.ctx.symbols,
-            self.ctx.types,
-            self.ctx.resolutions,
-            &mut self.taint_cache,
-            false,
-        );
+        let mut taint = TaintAnalysis::new(self.ctx, &mut self.taint_cache, false);
         taint.expression_taint_labels(expression_id)
     }
 

@@ -87,13 +87,13 @@ impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
         let left_is_float = self
             .ctx
             .expression_type_id(left)
-            .is_some_and(|type_id| is_float_type(self.ctx.types, type_id));
+            .is_some_and(|type_id| is_float_type(self.ctx, type_id));
 
         // resolve the right operand type
         let right_is_float = self
             .ctx
             .expression_type_id(right)
-            .is_some_and(|type_id| is_float_type(self.ctx.types, type_id));
+            .is_some_and(|type_id| is_float_type(self.ctx, type_id));
 
         // at least one operand must be a float
         if !left_is_float && !right_is_float {
@@ -177,7 +177,7 @@ impl<'a, 'b> FloatEqualityVisitor<'a, 'b> {
             return false;
         };
 
-        is_float_type(self.ctx.types, receiver_type_id)
+        is_float_type(self.ctx, receiver_type_id)
     }
 }
 

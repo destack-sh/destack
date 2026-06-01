@@ -54,7 +54,7 @@ impl LintRule for NoEmpty {
             {
                 continue;
             }
-            if ctx.options.correctness.no_empty_allow_empty_catch
+            if ctx.options().correctness.no_empty_allow_empty_catch
                 && block_is_catch_body(ctx, node_id)
             {
                 continue;

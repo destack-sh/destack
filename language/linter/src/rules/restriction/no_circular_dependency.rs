@@ -101,6 +101,7 @@ fn build_cycle_diagnostic(
     ctx: &LintPackageContext,
 ) -> LintReport {
     let module = ctx
+        .session
         .repository_module(module_id)
         .unwrap_or_else(|| panic!("missing module for {module_id:?}"));
     let module = module.as_ref();
@@ -128,10 +129,10 @@ fn collect_eligible_modules(ctx: &LintPackageContext) -> HashSet<ModuleId> {
     let mut modules = HashSet::new();
 
     for module_id in ctx.package_module_ids() {
-        let Some(module) = ctx.repository_module(module_id) else {
+        let Some(module) = ctx.session.repository_module(module_id) else {
             continue;
         };
-        let Some(file) = ctx.repository_file(module.file_id) else {
+        let Some(file) = ctx.session.repository_file(module.file_id) else {
             continue;
         };
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
@@ -152,11 +153,11 @@ fn collect_module_display_names(
     let mut names = HashMap::new();
 
     for module_id in module_ids {
-        let Some(module) = ctx.repository_module(*module_id) else {
+        let Some(module) = ctx.session.repository_module(*module_id) else {
             continue;
         };
         let module = module.as_ref();
-        let Some(file) = ctx.repository_file(module.file_id) else {
+        let Some(file) = ctx.session.repository_file(module.file_id) else {
             continue;
         };
         names.insert(*module_id, file.name.clone());
@@ -217,15 +218,16 @@ fn build_adjacency(
         let mut dependencies = Vec::new();
 
         // collect post expansion import edges
-        if let (Some(imported), Some(expanded)) =
-            (ctx.dir_imported(module_id), ctx.dir_expanded(module_id))
-        {
+        if let (Some(imported), Some(expanded)) = (
+            ctx.session.dir_imported(module_id),
+            ctx.session.dir_expanded(module_id),
+        ) {
             let modules = expanded.module_table(&imported);
             collect_module_table_dependencies(&modules, &mut dependencies);
         }
 
         // collect export edges
-        if let Some(exported) = ctx.dir_exported(module_id) {
+        if let Some(exported) = ctx.session.dir_exported(module_id) {
             collect_exported_module_dependencies(&exported, &mut dependencies);
         }
 

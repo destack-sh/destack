@@ -1,29 +1,18 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirExpanded, DirExported, DirImported, GlobalEnvironment};
 use destack_dir::{self as dir, LanguageItem, StringId};
-use destack_source::{File, FileId, ModuleId, PackageId};
-use destack_workspace::{
-    ArtifactCache, LintSeverity, LinterOptions, Module, Package, ProfileId, Repository, Revision,
-};
+use destack_source::{ModuleId, PackageId};
+use destack_workspace::{LintSeverity, LinterOptions, Package, Repository, Revision};
 
 use crate::linter::library::is_library_module;
-use crate::{LintMeta, LintReport, LintRequirement};
+use crate::{LintMeta, LintReport, LintRequirement, LintSession};
 
 /// Context for package linting.
 pub struct LintPackageContext {
-    /// The repository backing this lint pass.
-    pub repository: Arc<Repository>,
-    /// Revision artifact cache for this lint pass.
-    pub artifacts: Arc<ArtifactCache>,
+    /// Shared lint pass state.
+    pub session: LintSession,
     /// The package being linted.
     pub package: Arc<Package>,
-    /// The source revision for this lint pass.
-    pub revision: Revision,
-    /// The active profile for this package pass.
-    pub profile_id: ProfileId,
-    /// Linter configuration.
-    options: LinterOptions,
     /// Collected diagnostics.
     diagnostics: Vec<LintReport>,
 }
@@ -32,91 +21,38 @@ impl std::fmt::Debug for LintPackageContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LintPackageContext")
             .field("package_id", &self.package.id)
-            .field("profile_id", &self.profile_id)
+            .field("profile_id", &self.session.profile_id)
             .finish()
     }
 }
 
 impl LintPackageContext {
     /// Create a new package lint context.
-    pub fn new(
-        repository: Arc<Repository>,
-        artifacts: Arc<ArtifactCache>,
-        package: Arc<Package>,
-        revision: Revision,
-        profile_id: ProfileId,
-        options: LinterOptions,
-    ) -> Self {
+    pub fn new(session: LintSession, package: Arc<Package>) -> Self {
         Self {
-            repository,
-            artifacts,
+            session,
             package,
-            revision,
-            profile_id,
-            options,
             diagnostics: Vec::new(),
         }
     }
 
     /// Get the linter options.
     pub fn options(&self) -> &LinterOptions {
-        &self.options
-    }
-
-    /// Return one module for the active revision when present.
-    pub fn repository_module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
-        self.repository
-            .module(self.revision, module_id)
-            .ok()
-            .flatten()
-    }
-
-    /// Return one package for the active revision when present.
-    pub fn repository_package(&self, package_id: PackageId) -> Option<Arc<Package>> {
-        self.repository
-            .package(self.revision, package_id)
-            .ok()
-            .flatten()
-    }
-
-    /// Return one source file for the active revision when present.
-    pub fn repository_file(&self, file_id: FileId) -> Option<Arc<File>> {
-        self.repository.file(self.revision, file_id).ok().flatten()
-    }
-
-    /// Return one imported DIR artifact for one revision-scoped module.
-    pub fn dir_imported(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
-        self.artifacts.dir_imported(module_id, self.profile_id)
-    }
-
-    /// Return one bound DIR artifact for one revision-scoped module.
-    pub fn dir_bound(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
-        self.artifacts.dir_bound(module_id, self.profile_id)
-    }
-
-    /// Return one expanded DIR artifact for one revision-scoped module.
-    pub fn dir_expanded(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
-        self.artifacts.dir_expanded(module_id, self.profile_id)
-    }
-
-    /// Return one exported DIR artifact for one revision-scoped module.
-    pub fn dir_exported(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
-        self.artifacts.dir_exported(module_id, self.profile_id)
-    }
-
-    /// Return the global environment for the active revision and profile.
-    pub fn global_environment(&self) -> Option<Arc<GlobalEnvironment>> {
-        self.artifacts.global_environment(self.profile_id)
+        &self.session.options
     }
 
     /// Return all visible module ids in the active package.
     pub fn package_module_ids(&self) -> Vec<ModuleId> {
-        collect_package_module_ids(&self.repository, self.revision, self.package.id)
+        collect_package_module_ids(
+            &self.session.repository,
+            self.session.revision,
+            self.package.id,
+        )
     }
 
     /// Resolve severity for a rule.
     pub fn get_severity(&self, meta: &LintMeta) -> LintSeverity {
-        self.options.resolve_severity(
+        self.session.options.resolve_severity(
             meta.id,
             meta.category,
             meta.category.default_severity(),
@@ -127,14 +63,14 @@ impl LintPackageContext {
 
     /// Get a cached declared library symbol for the active profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self.global_environment()?;
+        let environment = self.session.global_environment()?;
 
         environment.language.symbols.get(&name).copied()
     }
 
     /// Get a specific language item for the active profile.
     pub fn get_language_item(&self, symbol: LanguageItem) -> Option<dir::GlobalSymbolId> {
-        let environment = self.global_environment()?;
+        let environment = self.session.global_environment()?;
 
         environment.language.symbol(symbol)
     }
@@ -223,13 +159,13 @@ fn is_lib_available(ctx: &LintPackageContext, libs: &[&str]) -> bool {
         return true;
     }
 
-    let Some(environment) = ctx.global_environment() else {
+    let Some(environment) = ctx.session.global_environment() else {
         return false;
     };
 
     environment
         .globals
         .iter()
-        .filter_map(|module_id| ctx.repository_module(*module_id))
+        .filter_map(|module_id| ctx.session.repository_module(*module_id))
         .any(|module| is_library_module(module.as_ref(), libs))
 }

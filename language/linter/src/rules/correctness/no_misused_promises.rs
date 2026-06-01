@@ -6,9 +6,9 @@ use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{
-    expression_is_promise_like, expression_type_id, function_parameter_types_at,
-    function_return_type, is_any_type, is_async_function_type, is_function_type,
-    is_promise_or_any_type, supports_promise_spread_elements,
+    expression_is_promise_like, function_parameter_types_at, function_return_type, is_any_type,
+    is_async_function_type, is_function_type, is_promise_or_any_type,
+    supports_promise_spread_elements,
 };
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -69,11 +69,14 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let promise_symbol = ctx.language_item(LanguageItem::Promise);
         let check_conditionals = ctx
-            .options
+            .options()
             .correctness
             .no_misused_promises_check_conditionals;
-        let check_callbacks = ctx.options.correctness.no_misused_promises_check_callbacks;
-        let check_spreads = ctx.options.correctness.no_misused_promises_check_spreads;
+        let check_callbacks = ctx
+            .options()
+            .correctness
+            .no_misused_promises_check_callbacks;
+        let check_spreads = ctx.options().correctness.no_misused_promises_check_spreads;
 
         Self {
             ctx,
@@ -99,19 +102,13 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
     }
 
     /// Return true when a type allows Promise values.
-    fn type_allows_promise(&self, type_id: dir::LocalTypeId) -> bool {
-        is_promise_or_any_type(self.ctx.types, type_id, Some(self.promise_symbol))
+    fn type_allows_promise(&self, type_id: dir::GlobalTypeId) -> bool {
+        is_promise_or_any_type(self.ctx, type_id, Some(self.promise_symbol))
     }
 
     /// Return true when an expression type is Promise.
     fn is_promise_expression(&self, expression_id: dir::LocalNodeId<dir::Expression>) -> bool {
-        expression_is_promise_like(
-            self.ctx.module_id(),
-            self.ctx.dir.tree(),
-            self.ctx.types,
-            self.promise_symbol,
-            expression_id,
-        )
+        expression_is_promise_like(self.ctx, self.promise_symbol, expression_id)
     }
 
     /// Report a misused Promise diagnostic for a node.
@@ -174,12 +171,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) {
         // resolve callee type once
-        let Some(callee_type_id) = expression_type_id(
-            self.ctx.module_id(),
-            self.ctx.dir.tree(),
-            self.ctx.types,
-            callee_id,
-        ) else {
+        let Some(callee_type_id) = self.ctx.expression_type_id(callee_id) else {
             return;
         };
 
@@ -192,16 +184,10 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             };
 
             // require optional structure
-            let Some(argument_type_id) = expression_type_id(
-                self.ctx.module_id(),
-                self.ctx.dir.tree(),
-                self.ctx.types,
-                value_id,
-            ) else {
+            let Some(argument_type_id) = self.ctx.expression_type_id(value_id) else {
                 continue;
             };
-            let parameter_type_ids =
-                function_parameter_types_at(self.ctx.types, callee_type_id, index);
+            let parameter_type_ids = function_parameter_types_at(self.ctx, callee_type_id, index);
             if parameter_type_ids.is_empty() {
                 continue;
             }
@@ -213,12 +199,12 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
                 }
 
                 if supports_promise_spread_elements(
-                    self.ctx.types,
+                    self.ctx,
                     argument_type_id,
                     Some(self.promise_symbol),
                 ) && !parameter_type_ids.iter().any(|parameter_type_id| {
                     supports_promise_spread_elements(
-                        self.ctx.types,
+                        self.ctx,
                         *parameter_type_id,
                         Some(self.promise_symbol),
                     )
@@ -238,15 +224,10 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             }
 
             // promise passed where Promise is not accepted
-            if expression_is_promise_like(
-                self.ctx.module_id(),
-                self.ctx.dir.tree(),
-                self.ctx.types,
-                self.promise_symbol,
-                value_id,
-            ) && !parameter_type_ids
-                .iter()
-                .any(|parameter_type_id| self.type_allows_promise(*parameter_type_id))
+            if expression_is_promise_like(self.ctx, self.promise_symbol, value_id)
+                && !parameter_type_ids
+                    .iter()
+                    .any(|parameter_type_id| self.type_allows_promise(*parameter_type_id))
             {
                 self.report(
                     *argument_id,
@@ -257,7 +238,7 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
             }
 
             // async callback passed where sync callback is expected
-            if !is_async_function_type(self.ctx.types, argument_type_id) {
+            if !is_async_function_type(self.ctx, argument_type_id) {
                 continue;
             }
             let mut has_synchronous_callback_expectation = false;
@@ -265,14 +246,14 @@ impl<'a, 'b> MisusedPromiseVisitor<'a, 'b> {
 
             // inspect candidate nodes
             for parameter_type_id in parameter_type_ids {
-                if !is_function_type(self.ctx.types, parameter_type_id)
-                    || is_any_type(self.ctx.types, parameter_type_id)
+                if !is_function_type(self.ctx, parameter_type_id)
+                    || is_any_type(self.ctx, parameter_type_id)
                 {
                     continue;
                 }
 
                 has_synchronous_callback_expectation = true;
-                let expected_return_type = function_return_type(self.ctx.types, parameter_type_id);
+                let expected_return_type = function_return_type(self.ctx, parameter_type_id);
                 if expected_return_type
                     .is_some_and(|return_type| self.type_allows_promise(return_type))
                 {

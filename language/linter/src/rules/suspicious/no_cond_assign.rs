@@ -47,7 +47,7 @@ impl LintRule for NoCondAssign {
             // classify assignment wrapping style in the condition
             let assignment_style = condition_assignment_style(ctx.dir.tree(), condition_id);
             let has_assignment = expression_contains_assignment(ctx.dir.tree(), condition_id);
-            match ctx.options.correctness.no_cond_assign_mode {
+            match ctx.options().correctness.no_cond_assign_mode {
                 ConditionAssignmentMode::ExceptParens
                     if assignment_style == ConditionAssignmentStyle::None =>
                 {
@@ -77,7 +77,8 @@ impl LintRule for NoCondAssign {
             .label("did you mean `==`?");
 
             // only the except-parens mode has an intent preserving wrap fix
-            if ctx.options.correctness.no_cond_assign_mode == ConditionAssignmentMode::ExceptParens
+            if ctx.options().correctness.no_cond_assign_mode
+                == ConditionAssignmentMode::ExceptParens
                 && ctx.compute_fixes
             {
                 let condition_text = ctx.get_span_text(condition_span);

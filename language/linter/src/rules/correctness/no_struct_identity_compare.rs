@@ -90,22 +90,12 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
 
         // resolve the left operand type
         let left_is_struct = self.ctx.expression_type_id(left).is_some_and(|type_id| {
-            is_reference_symbol_kind(
-                self.ctx.types,
-                &self.ctx.symbols,
-                type_id,
-                SymbolKind::Struct,
-            )
+            is_reference_symbol_kind(self.ctx, &self.ctx.symbols, type_id, SymbolKind::Struct)
         });
 
         // resolve the right operand type
         let right_is_struct = self.ctx.expression_type_id(right).is_some_and(|type_id| {
-            is_reference_symbol_kind(
-                self.ctx.types,
-                &self.ctx.symbols,
-                type_id,
-                SymbolKind::Struct,
-            )
+            is_reference_symbol_kind(self.ctx, &self.ctx.symbols, type_id, SymbolKind::Struct)
         });
 
         // at least one operand must be a struct

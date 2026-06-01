@@ -56,7 +56,7 @@ impl<'a, 'b> NoBannedImportVisitor<'a, 'b> {
     /// Build a visitor for no-banned-import checks.
     fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let restricted_patterns = ctx
-            .options
+            .options()
             .restriction
             .restricted_imports
             .iter()
@@ -247,7 +247,7 @@ fn matching_target(
 
     // resolve target module
     let target_module = expression_target_module(ctx, expression_id, expression)?;
-    let module = ctx.repository_module(target_module)?;
+    let module = ctx.session.repository_module(target_module)?;
     let module = module.as_ref();
 
     // check resolved module path next
@@ -263,7 +263,7 @@ fn matching_target(
     }
 
     // check resolved file name as a fallback
-    let file = ctx.repository_file(module.file_id)?;
+    let file = ctx.session.repository_file(module.file_id)?;
     if let Some(pattern) = matching_pattern(&file.name, patterns) {
         return Some(MatchedTarget {
             pattern,

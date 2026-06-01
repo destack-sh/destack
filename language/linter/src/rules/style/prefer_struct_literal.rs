@@ -75,14 +75,7 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
             return false;
         };
 
-        symbol_for(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            &self.ctx.symbols,
-            target_symbol,
-        )
-        .is_some_and(|symbol| symbol.kind == SymbolKind::Struct)
+        symbol_for(self.ctx, target_symbol).is_some_and(|symbol| symbol.kind == SymbolKind::Struct)
     }
 
     /// Collect struct field names in constructor order for one constructor type.
@@ -92,31 +85,19 @@ impl<'a, 'b> PreferStructLiteralVisitor<'a, 'b> {
     ) -> Option<Vec<destack_core::StringId>> {
         // resolve the struct constructor symbol
         let target_symbol = self.ctx.type_expression_target_symbol(ty)?;
-        let target_symbol_entry = symbol_for(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            &self.ctx.symbols,
-            target_symbol,
-        )?;
+        let target_symbol_entry = symbol_for(self.ctx, target_symbol)?;
         if target_symbol_entry.kind != SymbolKind::Struct {
             return None;
         }
 
         // resolve the declaration for the struct symbol
-        let declaration_id = symbol_declaration_for(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            &self.ctx.symbols,
-            target_symbol,
-        )?;
+        let declaration_id = symbol_declaration_for(self.ctx, target_symbol)?;
         if declaration_id.local_id.ty != dir::NodeType::Declaration {
             return None;
         }
 
         // load the declaration module tree for cross module struct constructors
-        let module_dir = self.ctx.dir_parsed(declaration_id.module_id)?;
+        let module_dir = self.ctx.session.dir_parsed(declaration_id.module_id)?;
         let declaration = module_dir
             .tree
             .get(declaration_id.into_local_typed::<dir::Declaration>());

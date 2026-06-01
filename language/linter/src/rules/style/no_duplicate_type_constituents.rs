@@ -70,7 +70,7 @@ struct Constituent {
     /// The expression node id.
     expression_id: dir::LocalNodeId<dir::Expression>,
     /// The normalized type id for semantic duplicate checks.
-    normalized_type_id: dir::LocalTypeId,
+    normalized_type_id: dir::GlobalTypeId,
 }
 
 /// Report duplicate constituents for one top-level type chain.
@@ -94,19 +94,12 @@ fn report_duplicate_constituents(
     // resolve normalized type ids for every constituent first
     let mut constituents = Vec::new();
     for constituent_expression_id in expression_constituents {
-        let Some(type_id) = expression_type_map(
-            ctx.artifacts.as_ref(),
-            ctx.profile_id,
-            ctx.module_id(),
-            ctx.dir.tree(),
-            ctx.types,
-            ctx.resolutions,
-            constituent_expression_id,
-            |_, type_id| type_id,
-        ) else {
+        let Some(type_id) =
+            expression_type_map(ctx, constituent_expression_id, |_ctx, type_id| type_id)
+        else {
             return;
         };
-        let normalized_type_id = normalized_flow_type_id(ctx.types, type_id);
+        let normalized_type_id = normalized_flow_type_id(ctx, type_id);
         constituents.push(Constituent {
             expression_id: constituent_expression_id,
             normalized_type_id,

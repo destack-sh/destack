@@ -223,7 +223,7 @@ impl<'a, 'b> NoExtraBooleanCastVisitor<'a, 'b> {
         self.expression_is_in_flagged_context_inner(
             expression_id,
             self.ctx
-                .options
+                .options()
                 .style
                 .no_extra_boolean_cast_enforce_for_inner_expressions,
         )

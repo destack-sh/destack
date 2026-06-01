@@ -63,7 +63,7 @@ impl<'a, 'b> NoConsoleVisitor<'a, 'b> {
         let console_name = ctx.string_id("console");
         let console_symbol = ctx.declared_library_symbol(console_name);
         let allowed_methods = ctx
-            .options
+            .options()
             .restriction
             .allowed_console_methods
             .iter()

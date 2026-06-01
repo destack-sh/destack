@@ -42,7 +42,7 @@ impl LintRule for NoDuplicateString {
         let meta = self.meta();
 
         // collect all string literals with their locations
-        let max_occurrences = ctx.options.complexity.max_duplicate_string_occurrences;
+        let max_occurrences = ctx.options().complexity.max_duplicate_string_occurrences;
         let mut string_occurrences: HashMap<StringId, Vec<dir::LocalNodeId<dir::Expression>>> =
             HashMap::new();
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {

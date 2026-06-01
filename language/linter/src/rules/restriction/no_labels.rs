@@ -152,8 +152,8 @@ fn referenced_label_target_kind(
 /// Return true when one label target kind is allowed by configuration.
 fn label_kind_is_allowed(kind: LabelTargetKind, ctx: &LintModuleContext<'_>) -> bool {
     match kind {
-        LabelTargetKind::Loop => ctx.options.restriction.allow_loop_labels,
-        LabelTargetKind::Switch => ctx.options.restriction.allow_switch_labels,
+        LabelTargetKind::Loop => ctx.options().restriction.allow_loop_labels,
+        LabelTargetKind::Switch => ctx.options().restriction.allow_switch_labels,
         LabelTargetKind::Other => false,
     }
 }

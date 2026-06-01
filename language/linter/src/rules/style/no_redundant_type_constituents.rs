@@ -80,7 +80,7 @@ struct Constituent {
     /// The expression node id.
     expression_id: dir::LocalNodeId<dir::Expression>,
     /// The normalized type id for relation checks.
-    normalized_type_id: dir::LocalTypeId,
+    normalized_type_id: dir::GlobalTypeId,
 }
 
 /// Report redundant constituents in one top-level chain.
@@ -104,19 +104,12 @@ fn report_redundant_constituents(
     // resolve normalized type ids for each constituent
     let mut constituents = Vec::new();
     for constituent_expression_id in expression_constituents {
-        let Some(type_id) = expression_type_map(
-            ctx.artifacts.as_ref(),
-            ctx.profile_id,
-            ctx.module_id(),
-            ctx.dir.tree(),
-            ctx.types,
-            ctx.resolutions,
-            constituent_expression_id,
-            |_, type_id| type_id,
-        ) else {
+        let Some(type_id) =
+            expression_type_map(ctx, constituent_expression_id, |_ctx, type_id| type_id)
+        else {
             return;
         };
-        let normalized_type_id = normalized_flow_type_id(ctx.types, type_id);
+        let normalized_type_id = normalized_flow_type_id(ctx, type_id);
         constituents.push(Constituent {
             expression_id: constituent_expression_id,
             normalized_type_id,
@@ -128,14 +121,14 @@ fn report_redundant_constituents(
     let mut dominant_by_redundant = HashMap::<usize, usize>::new();
 
     mark_top_bottom_redundancies(
-        ctx.types,
+        ctx,
         &constituents,
         chain_kind,
         &mut redundant_indices,
         &mut dominant_by_redundant,
     );
     mark_literal_primitive_redundancies(
-        ctx.types,
+        ctx,
         &constituents,
         chain_kind,
         &mut redundant_indices,
@@ -208,7 +201,7 @@ fn report_redundant_constituents(
 
 /// Mark redundancies from top and bottom type constituents.
 fn mark_top_bottom_redundancies(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     constituents: &[Constituent],
     chain_kind: TypeConstituentChainKind,
     redundant_indices: &mut [bool],
@@ -218,22 +211,21 @@ fn mark_top_bottom_redundancies(
         .iter()
         .enumerate()
         .filter_map(|(index, constituent)| {
-            top_rank(types, constituent.normalized_type_id, chain_kind).map(|_| index)
+            top_rank(ctx, constituent.normalized_type_id, chain_kind).map(|_| index)
         })
         .collect();
     let bottom_indices: Vec<usize> = constituents
         .iter()
         .enumerate()
         .filter_map(|(index, constituent)| {
-            bottom_rank(types, constituent.normalized_type_id, chain_kind).map(|_| index)
+            bottom_rank(ctx, constituent.normalized_type_id, chain_kind).map(|_| index)
         })
         .collect();
 
     // union: top dominates all other constituents
     // intersection: bottom dominates all other constituents
     if chain_kind == TypeConstituentChainKind::Union {
-        if let Some(dominant_index) = choose_best_top(types, constituents, &top_indices, chain_kind)
-        {
+        if let Some(dominant_index) = choose_best_top(ctx, constituents, &top_indices, chain_kind) {
             for (index, is_redundant) in redundant_indices
                 .iter_mut()
                 .enumerate()
@@ -248,7 +240,7 @@ fn mark_top_bottom_redundancies(
             return;
         }
     } else if let Some(dominant_index) =
-        choose_best_bottom(types, constituents, &bottom_indices, chain_kind)
+        choose_best_bottom(ctx, constituents, &bottom_indices, chain_kind)
     {
         for (index, is_redundant) in redundant_indices
             .iter_mut()
@@ -263,7 +255,7 @@ fn mark_top_bottom_redundancies(
         }
         return;
     } else if let Some(dominant_index) =
-        choose_best_top(types, constituents, &top_indices, chain_kind)
+        choose_best_top(ctx, constituents, &top_indices, chain_kind)
     {
         for (index, is_redundant) in redundant_indices
             .iter_mut()
@@ -289,8 +281,8 @@ fn mark_top_bottom_redundancies(
 
     for (index, constituent) in constituents.iter().enumerate() {
         let is_unknown = matches!(
-            types.get_type(constituent.normalized_type_id),
-            dir::Type::Unknown
+            ctx.checked_type(constituent.normalized_type_id),
+            Some(dir::Type::Unknown)
         );
         if chain_kind == TypeConstituentChainKind::Intersection
             && is_unknown
@@ -303,20 +295,20 @@ fn mark_top_bottom_redundancies(
 
 /// Mark literal and primitive redundancies within one chain.
 fn mark_literal_primitive_redundancies(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     constituents: &[Constituent],
     chain_kind: TypeConstituentChainKind,
     redundant_indices: &mut [bool],
     dominant_by_redundant: &mut HashMap<usize, usize>,
 ) {
     for (left_index, left_constituent) in constituents.iter().enumerate() {
-        let left_kind = type_literal_kind(types, left_constituent.normalized_type_id);
+        let left_kind = type_literal_kind(ctx, left_constituent.normalized_type_id);
         for (right_index, right_constituent) in constituents.iter().enumerate() {
             if left_index == right_index {
                 continue;
             }
 
-            let right_kind = type_literal_kind(types, right_constituent.normalized_type_id);
+            let right_kind = type_literal_kind(ctx, right_constituent.normalized_type_id);
             if is_literal_redundant_against(left_kind, right_kind, chain_kind) {
                 redundant_indices[left_index] = true;
                 dominant_by_redundant
@@ -357,25 +349,25 @@ fn mark_semantically_equivalent_redundancies(
 
 /// Choose the strongest top constituent index.
 fn choose_best_top(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     constituents: &[Constituent],
     top_indices: &[usize],
     chain_kind: TypeConstituentChainKind,
 ) -> Option<usize> {
     top_indices.iter().copied().max_by_key(|index| {
-        top_rank(types, constituents[*index].normalized_type_id, chain_kind).unwrap_or(0)
+        top_rank(ctx, constituents[*index].normalized_type_id, chain_kind).unwrap_or(0)
     })
 }
 
 /// Choose the strongest bottom constituent index.
 fn choose_best_bottom(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     constituents: &[Constituent],
     bottom_indices: &[usize],
     chain_kind: TypeConstituentChainKind,
 ) -> Option<usize> {
     bottom_indices.iter().copied().max_by_key(|index| {
-        bottom_rank(types, constituents[*index].normalized_type_id, chain_kind).unwrap_or(0)
+        bottom_rank(ctx, constituents[*index].normalized_type_id, chain_kind).unwrap_or(0)
     })
 }
 
@@ -410,18 +402,20 @@ fn reduced_chain_replacement(
 
 /// Return one top-rank score for a type constituent when it is a top element.
 fn top_rank(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     chain_kind: TypeConstituentChainKind,
 ) -> Option<u8> {
+    let ty = ctx.checked_type(type_id)?;
+
     if chain_kind == TypeConstituentChainKind::Union {
-        if matches!(types.get_type(type_id), dir::Type::Any) {
+        if matches!(ty, dir::Type::Any) {
             return Some(3);
         }
-        if matches!(types.get_type(type_id), dir::Type::Unknown) {
+        if matches!(ty, dir::Type::Unknown) {
             return Some(2);
         }
-    } else if matches!(types.get_type(type_id), dir::Type::Any) {
+    } else if matches!(ty, dir::Type::Any) {
         return Some(3);
     }
 
@@ -430,12 +424,13 @@ fn top_rank(
 
 /// Return one bottom-rank score for a type constituent when it is a bottom element.
 fn bottom_rank(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     chain_kind: TypeConstituentChainKind,
 ) -> Option<u8> {
     let _ = chain_kind;
-    if matches!(types.get_type(type_id), dir::Type::Never) {
+    let ty = ctx.checked_type(type_id)?;
+    if matches!(ty, dir::Type::Never) {
         return Some(3);
     }
 
@@ -473,10 +468,10 @@ enum TypeLiteralKind {
 
 /// Return one comparable literal or primitive kind for a type id.
 fn type_literal_kind(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
 ) -> Option<TypeLiteralKind> {
-    let ty = types.get_type(type_id);
+    let ty = ctx.checked_type(type_id)?;
     match ty {
         dir::Type::Primitive(dir::PrimitiveType::Boolean) => {
             Some(TypeLiteralKind::PrimitiveBoolean)

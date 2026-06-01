@@ -38,7 +38,7 @@ impl LintRule for ArrayType {
     /// Check module DIR nodes for inconsistent array type forms.
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let preferred_style = ctx.options.style.array_type;
+        let preferred_style = ctx.options().style.array_type;
         let Some(array_symbol) = ctx.get_language_item(LanguageItem::Array) else {
             return;
         };
@@ -203,19 +203,12 @@ fn expression_is_array_semantic(
             .types
             .get_node_type_id(value.into_global_any(ctx.module_id()))
     {
-        return is_array_type(ctx.types, type_id, Some(array_symbol));
+        return is_array_type(ctx, type_id, Some(array_symbol));
     }
 
-    expression_type_map(
-        ctx.artifacts.as_ref(),
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.dir.tree(),
-        ctx.types,
-        ctx.resolutions,
-        expression_id,
-        |types, type_id| is_array_type(types, type_id, Some(array_symbol)),
-    )
+    expression_type_map(ctx, expression_id, |ctx, type_id| {
+        is_array_type(ctx, type_id, Some(array_symbol))
+    })
     .unwrap_or(false)
 }
 

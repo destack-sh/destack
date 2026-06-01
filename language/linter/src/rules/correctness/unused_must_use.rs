@@ -139,18 +139,7 @@ fn expression_has_must_use(
         return false;
     };
 
-    expression_has_symbol_decorator(
-        ctx.artifacts.as_ref(),
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.dir.tree(),
-        ctx.strings,
-        &ctx.symbols,
-        ctx.types,
-        ctx.resolutions,
-        expression_id,
-        must_use_symbol,
-    )
+    expression_has_symbol_decorator(ctx, expression_id, must_use_symbol)
 }
 
 /// Build a safe fix that explicitly discards the ignored result.

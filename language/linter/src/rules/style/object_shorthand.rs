@@ -35,7 +35,7 @@ impl LintRule for ObjectShorthand {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let methods_ignore_pattern = ctx
-            .options
+            .options()
             .style
             .object_shorthand_methods_ignore_pattern
             .as_deref()
@@ -89,7 +89,7 @@ fn check_object_expression(
     properties: &[dir::LocalNodeId<dir::Property>],
     methods_ignore_pattern: Option<&Regex>,
 ) {
-    match ctx.options.style.object_shorthand_mode {
+    match ctx.options().style.object_shorthand_mode {
         ObjectShorthandMode::Always => {
             for property_id in properties {
                 report_longform_property_if_needed(
@@ -451,7 +451,8 @@ fn redundant_method_name(
     if *is_shorthand {
         return None;
     }
-    if ctx.options.style.object_shorthand_ignore_constructors && is_constructor_name(&method_name) {
+    if ctx.options().style.object_shorthand_ignore_constructors && is_constructor_name(&method_name)
+    {
         return None;
     }
     if methods_ignore_pattern.is_some_and(|pattern| pattern.is_match(&method_name)) {
@@ -474,7 +475,7 @@ fn redundant_method_name(
         return None;
     }
     if ctx
-        .options
+        .options()
         .style
         .object_shorthand_avoid_explicit_return_arrows
         && declaration.signature.form == FunctionForm::Lambda
@@ -500,7 +501,7 @@ fn property_key_shorthand_name(ctx: &LintModuleContext<'_>, key: &Key) -> Option
 fn property_key_redundant_name(ctx: &LintModuleContext<'_>, key: &Key) -> Option<String> {
     match key {
         Key::Name(Name::Identifier(name)) => Some(ctx.strings.get(*name).to_string()),
-        Key::Name(Name::String(name)) if !ctx.options.style.object_shorthand_avoid_quotes => {
+        Key::Name(Name::String(name)) if !ctx.options().style.object_shorthand_avoid_quotes => {
             let name = ctx.strings.get(*name).to_string();
             is_identifier_like(&name).then_some(name)
         }

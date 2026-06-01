@@ -4,8 +4,8 @@ use destack_source::LabeledSpan;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    argument_expression_id, expression_candidate_symbols, expression_type_id,
-    expression_unwrap_parenthesized, is_string_type, symbol_declaration_for,
+    argument_expression_id, expression_candidate_symbols, expression_unwrap_parenthesized,
+    is_string_type, symbol_declaration_for,
 };
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -139,13 +139,7 @@ fn swapped_pair_type_compatible(
 
     // evaluate every local declaration candidate conservatively
     for symbol_id in candidate_symbols {
-        let Some(declaration_id) = symbol_declaration_for(
-            ctx.artifacts.as_ref(),
-            ctx.profile_id,
-            ctx.module_id(),
-            &ctx.symbols,
-            symbol_id,
-        ) else {
+        let Some(declaration_id) = symbol_declaration_for(ctx, symbol_id) else {
             continue;
         };
         if declaration_id.module_id != ctx.module_id() {
@@ -174,20 +168,12 @@ fn swapped_pair_type_compatible(
         };
 
         // require stable argument and parameter types before rejecting
-        let Some(first_argument_type_id) = expression_type_id(
-            ctx.module_id(),
-            ctx.dir.tree(),
-            ctx.types,
-            first_argument_expression_id,
-        ) else {
+        let Some(first_argument_type_id) = ctx.expression_type_id(first_argument_expression_id)
+        else {
             continue;
         };
-        let Some(second_argument_type_id) = expression_type_id(
-            ctx.module_id(),
-            ctx.dir.tree(),
-            ctx.types,
-            second_argument_expression_id,
-        ) else {
+        let Some(second_argument_type_id) = ctx.expression_type_id(second_argument_expression_id)
+        else {
             continue;
         };
         let Some(first_parameter_type_id) = parameter_type_id(ctx, first_parameter_id) else {
@@ -212,12 +198,12 @@ fn swapped_pair_type_compatible(
 /// Return true when one argument and parameter pair is obviously string incompatible.
 fn type_pair_has_string_mismatch(
     ctx: &LintModuleContext<'_>,
-    left_type_id: dir::LocalTypeId,
-    right_type_id: dir::LocalTypeId,
+    left_type_id: dir::GlobalTypeId,
+    right_type_id: dir::GlobalTypeId,
 ) -> bool {
     let string_symbol = ctx.get_language_item(dir::LanguageItem::String);
-    let left_is_string = is_string_type(ctx.types, left_type_id, string_symbol);
-    let right_is_string = is_string_type(ctx.types, right_type_id, string_symbol);
+    let left_is_string = is_string_type(ctx, left_type_id, string_symbol);
+    let right_is_string = is_string_type(ctx, right_type_id, string_symbol);
     left_is_string != right_is_string
 }
 
@@ -305,19 +291,13 @@ fn parameter_names_for_symbol(
     ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Vec<Option<StringId>>> {
-    let declaration_id = symbol_declaration_for(
-        ctx.artifacts.as_ref(),
-        ctx.profile_id,
-        ctx.module_id(),
-        &ctx.symbols,
-        symbol_id,
-    )?;
+    let declaration_id = symbol_declaration_for(ctx, symbol_id)?;
 
     if declaration_id.module_id == ctx.module_id() {
         return declaration_parameter_names(ctx.dir.tree(), declaration_id.local_id);
     }
 
-    let module_dir = ctx.dir_parsed(declaration_id.module_id)?;
+    let module_dir = ctx.session.dir_parsed(declaration_id.module_id)?;
     declaration_parameter_names(&module_dir.tree, declaration_id.local_id)
 }
 
@@ -339,7 +319,7 @@ fn declaration_parameter_names(
 fn parameter_type_id(
     ctx: &LintModuleContext<'_>,
     parameter_id: dir::LocalNodeId<dir::Parameter>,
-) -> Option<dir::LocalTypeId> {
+) -> Option<dir::GlobalTypeId> {
     let global_parameter_id = parameter_id.into_global_any(ctx.module_id());
 
     // prefer the checked parameter node type
@@ -349,7 +329,7 @@ fn parameter_type_id(
 
     // fall back to the bound parameter symbol
     let parameter_symbol = ctx.symbol_for_node(parameter_id)?;
-    ctx.types.get_symbol_type_id(parameter_symbol)
+    ctx.symbol_type_id(parameter_symbol)
 }
 
 /// Return parameter ids for one callable declaration node.

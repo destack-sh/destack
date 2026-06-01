@@ -48,7 +48,7 @@ impl LintRule for NoPlusplus {
                 continue;
             }
             if ctx
-                .options
+                .options()
                 .restriction
                 .allow_plusplus_for_loop_afterthoughts
                 && expression_is_for_loop_afterthought(ctx, node_id)

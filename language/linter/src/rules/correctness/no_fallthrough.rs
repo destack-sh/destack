@@ -36,14 +36,17 @@ impl LintRule for NoFallthrough {
     /// Check module source nodes for switch fallthrough cases.
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let allow_empty_case = ctx.options.correctness.no_fallthrough_allow_empty_case;
+        let allow_empty_case = ctx.options().correctness.no_fallthrough_allow_empty_case;
         let fallthrough_comment_pattern = compiled_no_fallthrough_comment_pattern(
-            ctx.options
+            ctx.options()
                 .correctness
                 .no_fallthrough_comment_pattern
                 .as_deref(),
         );
-        let report_unused_comment = ctx.options.correctness.no_fallthrough_report_unused_comment;
+        let report_unused_comment = ctx
+            .options()
+            .correctness
+            .no_fallthrough_report_unused_comment;
 
         // inspect candidate expressions
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {

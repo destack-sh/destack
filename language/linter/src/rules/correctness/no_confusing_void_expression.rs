@@ -64,11 +64,11 @@ impl<'a, 'b> NoConfusingVoidExpressionVisitor<'a, 'b> {
     /// Build a visitor for no-confusing-void-expression checks.
     fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let ignore_void_operator = ctx
-            .options
+            .options()
             .correctness
             .no_confusing_void_expression_ignore_void_operator;
         let ignore_void_returning_functions = ctx
-            .options
+            .options()
             .correctness
             .no_confusing_void_expression_ignore_void_returning_functions;
 
@@ -172,10 +172,10 @@ fn is_void_returning_function_result_position(
             let Some(function_type_id) = ctx.types.get_symbol_type_id(function_symbol_id) else {
                 return false;
             };
-            let Some(return_type_id) = function_return_type(ctx.types, function_type_id) else {
+            let Some(return_type_id) = function_return_type(ctx, function_type_id) else {
                 return false;
             };
-            if !is_void_or_never_type(ctx.types, return_type_id) {
+            if !is_void_or_never_type(ctx, return_type_id) {
                 return false;
             }
 
@@ -253,7 +253,7 @@ fn is_void_or_never_expression(
     };
 
     // accept void-like expression types
-    is_void_or_never_type(ctx.types, type_id)
+    is_void_or_never_type(ctx, type_id)
 }
 
 /// Return true when the expression is a `void` unary expression.

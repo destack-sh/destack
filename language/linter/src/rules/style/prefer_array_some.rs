@@ -447,7 +447,7 @@ impl<'a, 'b> PreferArraySomeVisitor<'a, 'b> {
             return false;
         };
 
-        is_array_type(self.ctx.types, type_id, Some(self.array_symbol))
+        is_array_type(self.ctx, type_id, Some(self.array_symbol))
     }
 }
 

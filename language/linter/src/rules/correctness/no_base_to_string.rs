@@ -129,7 +129,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         };
 
         // check if the receiver has useful toString
-        if has_useful_to_string_type(self.ctx.types, type_id) {
+        if has_useful_to_string_type(self.ctx, type_id) {
             return;
         }
 
@@ -191,7 +191,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         };
 
         // ignore useful stringification targets
-        if has_useful_to_string_type(self.ctx.types, type_id) {
+        if has_useful_to_string_type(self.ctx, type_id) {
             return;
         }
 
@@ -230,7 +230,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
         let Some(type_id) = self.ctx.expression_type_id(method_call.receiver_id) else {
             return;
         };
-        if has_useful_to_string_type(self.ctx.types, type_id) {
+        if has_useful_to_string_type(self.ctx, type_id) {
             return;
         }
 
@@ -274,7 +274,7 @@ impl<'a, 'b> BaseToStringVisitor<'a, 'b> {
             let Some(type_id) = self.ctx.expression_type_id(value_expression_id) else {
                 continue;
             };
-            if has_useful_to_string_type(self.ctx.types, type_id) {
+            if has_useful_to_string_type(self.ctx, type_id) {
                 continue;
             }
 

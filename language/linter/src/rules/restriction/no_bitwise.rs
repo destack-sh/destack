@@ -58,7 +58,7 @@ fn expression_is_bitwise_int32_hint(
     expression_id: dir::LocalNodeId<dir::Expression>,
     operator: BitwiseOperator,
 ) -> bool {
-    if !ctx.options.restriction.allow_bitwise_int32_hint || operator != BitwiseOperator::Or {
+    if !ctx.options().restriction.allow_bitwise_int32_hint || operator != BitwiseOperator::Or {
         return false;
     }
 
@@ -115,7 +115,7 @@ impl LintRule for NoBitwise {
                 continue;
             };
             if ctx
-                .options
+                .options()
                 .restriction
                 .allowed_bitwise_operators
                 .contains(&operator)

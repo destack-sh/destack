@@ -110,16 +110,9 @@ impl<'a, 'b> NoUnnecessaryTemplateExpressionVisitor<'a, 'b> {
             return true;
         }
 
-        expression_type_or_call_return_type_map(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            self.ctx.dir.tree(),
-            self.ctx.types,
-            self.ctx.resolutions,
-            expression_id,
-            |types, type_id| is_string_type(types, type_id, Some(self.string_symbol)),
-        )
+        expression_type_or_call_return_type_map(self.ctx, expression_id, |ctx, type_id| {
+            is_string_type(ctx, type_id, Some(self.string_symbol))
+        })
         .unwrap_or(false)
     }
 

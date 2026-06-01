@@ -4,7 +4,7 @@ use destack_workspace::LintSeverity;
 use crate::rules::common::{
     assign_pattern_contains_expression, call_like_invocation_is_receiver_bound,
     has_non_void_this_parameter_type, member_receiver_text, parent_is_receiver_helper,
-    resolution_target_symbols, symbol_declaration_for, symbol_type_id_for,
+    resolution_target_symbols, symbol_declaration_for,
 };
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -350,19 +350,13 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
     /// Return true when a symbol is a method that needs a bound `this`.
     fn is_this_bound_method_symbol(&self, symbol_id: dir::GlobalSymbolId) -> bool {
         // prefer declarations to identify method symbols and skip static members
-        let Some(declaration) = symbol_declaration_for(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            &self.ctx.symbols,
-            symbol_id,
-        ) else {
+        let Some(declaration) = symbol_declaration_for(self.ctx, symbol_id) else {
             return self.symbol_has_this_parameter(symbol_id);
         };
 
         // inspect member declarations and reject static methods
         if declaration.local_id.ty == dir::NodeType::Member {
-            let Some(module_dir) = self.ctx.dir_parsed(declaration.module_id) else {
+            let Some(module_dir) = self.ctx.session.dir_parsed(declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let member = module_dir
@@ -377,7 +371,7 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
         // inspect property declarations for method values
         if declaration.local_id.ty == dir::NodeType::Property {
-            let Some(module_dir) = self.ctx.dir_parsed(declaration.module_id) else {
+            let Some(module_dir) = self.ctx.session.dir_parsed(declaration.module_id) else {
                 return self.symbol_has_this_parameter(symbol_id);
             };
             let property = module_dir
@@ -391,26 +385,11 @@ impl<'a, 'b> UnboundMethodVisitor<'a, 'b> {
 
     /// Return true when a symbol value type declares a `this` parameter.
     fn symbol_has_this_parameter(&self, symbol_id: dir::GlobalSymbolId) -> bool {
-        let Some(symbol_type_id) = symbol_type_id_for(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            self.ctx.types,
-            symbol_id,
-        ) else {
+        let Some(type_id) = self.ctx.symbol_type_id(symbol_id) else {
             return false;
         };
 
-        // fast path when the type information is in this module
-        if symbol_type_id.module_id == self.ctx.module_id() {
-            return has_non_void_this_parameter_type(self.ctx.types, symbol_type_id.type_id);
-        }
-
-        // load foreign module types for the `this` parameter check
-        let Some(types) = self.ctx.dir_type_table(symbol_type_id.module_id) else {
-            return false;
-        };
-        has_non_void_this_parameter_type(&types, symbol_type_id.type_id)
+        has_non_void_this_parameter_type(self.ctx, type_id)
     }
 }
 

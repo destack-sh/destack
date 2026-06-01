@@ -41,7 +41,7 @@ impl LintRule for NoUselessEscape {
         let regexp_name = ctx.string_id("RegExp");
         let global_qualifier_names = regexp_global_qualifier_names(ctx.strings);
         let allowed_regex_escape_characters = configured_regex_escape_characters(
-            &ctx.options
+            &ctx.options()
                 .correctness
                 .no_useless_escape_allow_regex_characters,
         );

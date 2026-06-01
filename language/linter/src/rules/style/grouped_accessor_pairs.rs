@@ -63,12 +63,12 @@ impl LintRule for GroupedAccessorPairs {
                         meta,
                         &declaration.members,
                         collect_accessor_slots(ctx, &declaration.members),
-                        ctx.options.style.grouped_accessor_pairs_order,
+                        ctx.options().style.grouped_accessor_pairs_order,
                         true,
                     );
                 }
                 Declaration::Struct(declaration) => {
-                    if !ctx.options.style.grouped_accessor_pairs_enforce_for_types {
+                    if !ctx.options().style.grouped_accessor_pairs_enforce_for_types {
                         continue;
                     }
 
@@ -77,12 +77,12 @@ impl LintRule for GroupedAccessorPairs {
                         meta,
                         &declaration.members,
                         collect_accessor_slots(ctx, &declaration.members),
-                        ctx.options.style.grouped_accessor_pairs_order,
+                        ctx.options().style.grouped_accessor_pairs_order,
                         true,
                     );
                 }
                 Declaration::Extension(declaration) => {
-                    if !ctx.options.style.grouped_accessor_pairs_enforce_for_types {
+                    if !ctx.options().style.grouped_accessor_pairs_enforce_for_types {
                         continue;
                     }
 
@@ -91,12 +91,12 @@ impl LintRule for GroupedAccessorPairs {
                         meta,
                         &declaration.members,
                         collect_accessor_slots(ctx, &declaration.members),
-                        ctx.options.style.grouped_accessor_pairs_order,
+                        ctx.options().style.grouped_accessor_pairs_order,
                         true,
                     );
                 }
                 Declaration::Interface(declaration) => {
-                    if !ctx.options.style.grouped_accessor_pairs_enforce_for_types {
+                    if !ctx.options().style.grouped_accessor_pairs_enforce_for_types {
                         continue;
                     }
 
@@ -105,7 +105,7 @@ impl LintRule for GroupedAccessorPairs {
                         meta,
                         &declaration.members,
                         collect_accessor_slots(ctx, &declaration.members),
-                        ctx.options.style.grouped_accessor_pairs_order,
+                        ctx.options().style.grouped_accessor_pairs_order,
                         false,
                     );
                 }
@@ -126,7 +126,7 @@ impl LintRule for GroupedAccessorPairs {
                 meta,
                 properties,
                 collect_accessor_slots(ctx, properties),
-                ctx.options.style.grouped_accessor_pairs_order,
+                ctx.options().style.grouped_accessor_pairs_order,
                 true,
             );
         }

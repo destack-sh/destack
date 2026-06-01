@@ -33,7 +33,7 @@ impl LintRule for MaxBranchingFactor {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_branches = ctx.options.complexity.max_branching_factor;
+        let max_branches = ctx.options().complexity.max_branching_factor;
 
         // scan conditionals and branch based expressions
         for expression_id in ctx.dir.iter_nodes::<dir::Expression>() {

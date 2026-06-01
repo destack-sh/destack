@@ -99,10 +99,7 @@ fn ancestor_else_if_conditions(
     let mut parent_conditions = Vec::new();
 
     // walk parent chain while this node is an alternate branch
-    loop {
-        let Some(parent_id) = ctx.dir.get_parent_id(expression_id.id) else {
-            break;
-        };
+    while let Some(parent_id) = ctx.dir.get_parent_id(expression_id.id) {
         if ctx.dir.get_node_type(parent_id) != dir::NodeType::Expression {
             break;
         }

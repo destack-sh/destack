@@ -160,13 +160,7 @@ fn generic_parameter_defaults_for_symbol(
     ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<Vec<GenericParameterDefault>> {
-    let declaration_id = symbol_declaration_for(
-        ctx.artifacts.as_ref(),
-        ctx.profile_id,
-        ctx.module_id(),
-        &ctx.symbols,
-        symbol_id,
-    )?;
+    let declaration_id = symbol_declaration_for(ctx, symbol_id)?;
 
     // resolve defaults from the current module when possible
     if declaration_id.module_id == ctx.module_id() {
@@ -184,7 +178,7 @@ fn generic_parameter_defaults_for_symbol(
     }
 
     // fall back to loading declaration defaults from the owning module
-    let module_dir = ctx.dir_parsed(declaration_id.module_id)?;
+    let module_dir = ctx.session.dir_parsed(declaration_id.module_id)?;
     let generic_parameters =
         generic_parameters_for_declaration(&module_dir.tree, declaration_id.local_id)?;
     Some(
@@ -412,7 +406,7 @@ fn expression_source_signature_for_module(
     }
 
     // load the referenced module when the expression comes from another module
-    let module_dir = ctx.dir_parsed(module_id)?;
+    let module_dir = ctx.session.dir_parsed(module_id)?;
     let source_id = module_dir.tree.get_source(expression_id.id);
     if module_dir.tree.get_node_type(source_id) != dir::NodeType::Expression {
         return None;
@@ -482,8 +476,8 @@ fn type_expression_source_text_for_module(
     module_id: ModuleId,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
 ) -> Option<String> {
-    let module = ctx.repository_module(module_id)?;
-    let file = ctx.repository_file(module.file_id)?;
+    let module = ctx.session.repository_module(module_id)?;
+    let file = ctx.session.repository_file(module.file_id)?;
 
     if module_id == ctx.module_id() {
         let tree = ctx.dir.tree();
@@ -497,7 +491,7 @@ fn type_expression_source_text_for_module(
         return Some(file.text()[span.start as usize..span.end as usize].to_string());
     }
 
-    let module_dir = ctx.dir_parsed(module_id)?;
+    let module_dir = ctx.session.dir_parsed(module_id)?;
     let source_id = module_dir.tree.get_source(type_expression_id.id);
     if module_dir.tree.get_node_type(source_id) != dir::NodeType::TypeExpression {
         return None;

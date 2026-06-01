@@ -48,7 +48,7 @@ impl LintRule for NoEmptyPattern {
             // allow parameter object patterns when configured
             if matches!(pattern, dir::Pattern::Object { .. })
                 && ctx
-                    .options
+                    .options()
                     .correctness
                     .no_empty_pattern_allow_object_patterns_as_parameters
                 && object_pattern_is_parameter_position(ctx, node_id)

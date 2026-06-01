@@ -75,13 +75,10 @@ fn collect_statement_expression_ids(
     // global statement lists
     for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {
         let declaration = ctx.dir.get(declaration_id);
-        match declaration {
-            dir::Declaration::Global(declaration) => {
-                for statement_expression_id in &declaration.expressions {
-                    statement_expression_ids.push(*statement_expression_id);
-                }
+        if let dir::Declaration::Global(declaration) = declaration {
+            for statement_expression_id in &declaration.expressions {
+                statement_expression_ids.push(*statement_expression_id);
             }
-            _ => {}
         }
     }
 
@@ -151,7 +148,7 @@ fn expression_statement_is_directive(
 ) -> bool {
     // allow callers to disable directive handling
     if !ctx
-        .options
+        .options()
         .complexity
         .no_unused_expressions_ignore_directives
     {
@@ -440,26 +437,28 @@ fn expression_disallowed_by_rule_options(
 ) -> Option<bool> {
     match expression {
         dir::Expression::TaggedTemplateExpression { .. } => Some(
-            !ctx.options
+            !ctx.options()
                 .complexity
                 .no_unused_expressions_allow_tagged_templates,
         ),
-        dir::Expression::TreeExpression { .. } => {
-            Some(ctx.options.complexity.no_unused_expressions_enforce_for_jsx)
-        }
+        dir::Expression::TreeExpression { .. } => Some(
+            ctx.options()
+                .complexity
+                .no_unused_expressions_enforce_for_jsx,
+        ),
         dir::Expression::If {
             form: dir::IfForm::Ternary,
             then_expression,
             else_expression: Some(else_expression),
             ..
-        } if ctx.options.complexity.no_unused_expressions_allow_ternary => Some(
+        } if ctx.options().complexity.no_unused_expressions_allow_ternary => Some(
             expression_is_disallowed_in_statement(ctx, *then_expression)
                 || expression_is_disallowed_in_statement(ctx, *else_expression),
         ),
         dir::Expression::Binary {
             operator, right, ..
         } if ctx
-            .options
+            .options()
             .complexity
             .no_unused_expressions_allow_short_circuit
             && matches!(operator, dir::BinaryOperator::And | dir::BinaryOperator::Or) =>

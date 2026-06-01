@@ -268,17 +268,17 @@ fn collect_occurrences(
     let mut candidates = Vec::new();
 
     for module_id in ctx.workspace_module_ids() {
-        let Some(module) = ctx.repository_module(module_id) else {
+        let Some(module) = ctx.session.repository_module(module_id) else {
             continue;
         };
         let module = module.as_ref();
-        let Some(file) = ctx.repository_file(module.file_id) else {
+        let Some(file) = ctx.session.repository_file(module.file_id) else {
             continue;
         };
         if !file.ty.is_code() || is_declaration_file(file.ty, ctx) {
             continue;
         }
-        let Some(parsed) = ctx.dir_parsed(module.id) else {
+        let Some(parsed) = ctx.session.dir_parsed(module.id) else {
             continue;
         };
 
@@ -319,14 +319,14 @@ fn collect_occurrences(
     let mut occurrences = Vec::new();
     for candidate_index in candidate_indices {
         let candidate = &candidates[candidate_index];
-        let Some(module) = ctx.repository_module(candidate.module_id) else {
+        let Some(module) = ctx.session.repository_module(candidate.module_id) else {
             continue;
         };
         let module = module.as_ref();
-        let Some(parsed) = ctx.dir_parsed(module.id) else {
+        let Some(parsed) = ctx.session.dir_parsed(module.id) else {
             continue;
         };
-        let strings = ctx.repository.string_pool().clone();
+        let strings = ctx.session.repository.string_pool().clone();
 
         let signatures = build_block_signatures(
             strings.as_ref(),
@@ -849,7 +849,7 @@ fn report_group_diagnostics(
         if occurrence.file_id == reference.file_id {
             label.push_str("another block in this file");
         } else {
-            let Some(reference_file) = ctx.repository_file(reference.file_id) else {
+            let Some(reference_file) = ctx.session.repository_file(reference.file_id) else {
                 continue;
             };
             label.push_str("a ");

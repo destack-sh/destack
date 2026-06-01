@@ -33,7 +33,7 @@ impl LintRule for MaxSwitchCases {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_switch_cases = ctx.options.complexity.max_switch_cases;
+        let max_switch_cases = ctx.options().complexity.max_switch_cases;
 
         // check each switch expression against non-empty non-default case count
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {

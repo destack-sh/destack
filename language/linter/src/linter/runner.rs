@@ -9,7 +9,7 @@ use destack_workspace::{
 
 use crate::{
     BoxedLintRule, LintLevel, LintModuleContext, LintPackageContext, LintReport, LintScope,
-    LintWorkspaceContext, all_rules, recommended_rules, strict_rules,
+    LintSession, LintWorkspaceContext, all_rules, recommended_rules, strict_rules,
 };
 
 /// Per lint rule performance metrics.
@@ -330,6 +330,13 @@ impl LintRunner {
         mut performance: Option<&mut LintPerformanceReport>,
     ) -> Vec<LintReport> {
         let module = module.as_ref();
+        let session = LintSession::new(
+            repository.clone(),
+            artifacts.clone(),
+            revision,
+            profile.id(),
+            options.clone(),
+        );
         let Some(file) = Self::repository_file(repository.as_ref(), revision, module.file_id)
         else {
             return Vec::new();
@@ -357,10 +364,8 @@ impl LintRunner {
         let statics = checked.static_table(&bound, &expanded);
         let resolutions = checked.resolution_table();
         let mut ctx = LintModuleContext::new(
-            repository,
-            artifacts,
+            session,
             module,
-            revision,
             profile,
             file,
             parsed.as_ref(),
@@ -372,7 +377,6 @@ impl LintRunner {
             &statics,
             &resolutions,
             bound.namespace_scope,
-            options,
             self.compute_fixes,
         );
 
@@ -521,14 +525,8 @@ impl LintRunner {
             return LintRunReport::default();
         };
         let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
-        let mut ctx = LintWorkspaceContext::new(
-            repository,
-            artifacts,
-            workspace,
-            revision,
-            profile,
-            options.clone(),
-        );
+        let session = LintSession::new(repository, artifacts, revision, profile, options.clone());
+        let mut ctx = LintWorkspaceContext::new(session, workspace);
 
         for rule in &self.rules {
             let meta = rule.meta();
@@ -596,14 +594,8 @@ impl LintRunner {
             return LintRunReport::default();
         };
         let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));
-        let mut ctx = LintPackageContext::new(
-            repository,
-            artifacts,
-            package,
-            revision,
-            profile,
-            options.clone(),
-        );
+        let session = LintSession::new(repository, artifacts, revision, profile, options.clone());
+        let mut ctx = LintPackageContext::new(session, package);
 
         for rule in &self.rules {
             let meta = rule.meta();

@@ -289,7 +289,7 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
         let Some(argument_type_id) = self.ctx.expression_type_id(*argument_id) else {
             return;
         };
-        if !is_string_type(self.ctx.types, argument_type_id, Some(self.string_symbol)) {
+        if !is_string_type(self.ctx, argument_type_id, Some(self.string_symbol)) {
             return;
         }
 
@@ -456,12 +456,12 @@ impl<'a, 'b> PreferIncludesVisitor<'a, 'b> {
             return false;
         };
 
-        let is_array = is_array_type(self.ctx.types, type_id, Some(self.array_symbol));
+        let is_array = is_array_type(self.ctx, type_id, Some(self.array_symbol));
         if is_array {
             return true;
         }
 
-        is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
+        is_string_type(self.ctx, type_id, Some(self.string_symbol))
     }
 
     /// Return one plain substring pattern for a simple regex literal.

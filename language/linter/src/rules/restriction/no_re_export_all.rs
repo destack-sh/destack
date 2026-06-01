@@ -80,13 +80,7 @@ fn dependency_item_is_value_star_re_export(
     export_form: dir::DependencyForm,
     item: &dir::DependencyItem,
 ) -> bool {
-    let dir::DependencyItem::Binding {
-        binding,
-        form,
-        alias: _,
-        ..
-    } = item
-    else {
+    let dir::DependencyItem::Binding { binding, form, .. } = item else {
         return false;
     };
     if *binding != DependencyBinding::Namespace {

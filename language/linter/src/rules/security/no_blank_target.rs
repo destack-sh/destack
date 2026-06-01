@@ -75,7 +75,7 @@ impl LintRule for NoBlankTarget {
                 ctx,
                 args,
                 target_attribute_name,
-                &ctx.options.security.no_blank_target_allow_domains,
+                &ctx.options().security.no_blank_target_allow_domains,
             ) {
                 continue;
             }
@@ -90,7 +90,7 @@ impl LintRule for NoBlankTarget {
                 rel_safety_status(
                     ctx,
                     arg_id,
-                    ctx.options.security.no_blank_target_allow_no_referrer,
+                    ctx.options().security.no_blank_target_allow_no_referrer,
                 )
             });
             if rel_status == Some(RelSafetyStatus::Safe) {
@@ -115,12 +115,12 @@ impl LintRule for NoBlankTarget {
                 continue;
             }
 
-            let rel_requirement_message = if ctx.options.security.no_blank_target_allow_no_referrer
-            {
-                "add rel=\"noopener\" or rel=\"noreferrer\""
-            } else {
-                "add rel=\"noopener\""
-            };
+            let rel_requirement_message =
+                if ctx.options().security.no_blank_target_allow_no_referrer {
+                    "add rel=\"noopener\" or rel=\"noreferrer\""
+                } else {
+                    "add rel=\"noopener\""
+                };
             let mut diagnostic = LintReport::new(
                 NO_BLANK_TARGET.id,
                 NO_BLANK_TARGET.code,
