@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use destack_artifact::{DiagnosticAnchor, DirResolved};
+use destack_artifact::{DiagnosticAnchor, DirExported, DirResolved};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::{ModuleId, ProfileId};
@@ -43,6 +44,8 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) function_stack: Vec<FunctionContext>,
     /// Export lookups already resolved during this provider run.
     pub(in crate::resolve) export_lookups: HashMap<ExportLookupKey, ExportLookupState>,
+    /// Exported modules already loaded during this provider run.
+    pub(in crate::resolve) exported_modules: HashMap<ModuleId, Arc<DirExported>>,
     /// The DIR visitor options.
     pub(in crate::resolve) options: dir::NodeVisitorOptions,
 }
@@ -121,6 +124,7 @@ impl<'a> ResolveState<'a> {
             syntax_language_items: IndexSet::new(),
             function_stack: Vec::new(),
             export_lookups: HashMap::new(),
+            exported_modules: HashMap::new(),
             options: dir::NodeVisitorOptions::default(),
         }
     }

@@ -1,3 +1,6 @@
+use std::sync::Arc;
+
+use destack_artifact::DirExported;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -65,17 +68,30 @@ impl ResolveState<'_> {
         module: ModuleId,
         key: dir::ExportKey,
     ) -> CompilerResult<ExportLookup> {
+        let exported = self.exported_module(module)?;
+
+        if let Some(export) = exported.exports.export_by_key.get(&key).copied() {
+            return self.resolve_export_entry(module, export);
+        }
+
+        self.resolve_star_export_symbol(key, &exported.exports)
+    }
+
+    /// Return one exported module loaded through this provider run.
+    fn exported_module(&mut self, module: ModuleId) -> CompilerResult<Arc<DirExported>> {
+        if let Some(exported) = self.exported_modules.get(&module) {
+            return Ok(exported.clone());
+        }
+
         self.stats.export_table_loads += 1;
 
         let exported = self
             .artifacts
             .dir_exported(module, self.profile)
             .map_err(CompilerError::from)?;
-        if let Some(export) = exported.exports.export_by_key.get(&key).copied() {
-            return self.resolve_export_entry(module, export);
-        }
+        self.exported_modules.insert(module, exported.clone());
 
-        self.resolve_star_export_symbol(key, &exported.exports)
+        Ok(exported)
     }
 
     /// Resolve one concrete export entry.
