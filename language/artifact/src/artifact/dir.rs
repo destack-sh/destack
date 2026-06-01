@@ -206,6 +206,8 @@ pub struct DirExported {
 pub struct DirResolved {
     /// Resolved imports.
     pub imports: dir::ImportTable,
+    /// Resolved namespace import paths.
+    pub paths: dir::PathTable,
 }
 
 /// Checked DIR output for one source component.
