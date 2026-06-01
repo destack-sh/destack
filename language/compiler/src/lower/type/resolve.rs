@@ -368,6 +368,15 @@ impl FunctionLowerer<'_> {
         self.context.resolutions.call_resolution(node_id)
     }
 
+    /// Get the construct resolution for an expression.
+    pub(crate) fn get_construct_resolution(
+        &self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<&dir::ConstructResolution> {
+        let node_id = expression_id.into_global_any(self.context.module_id);
+        self.context.resolutions.construct_resolution(node_id)
+    }
+
     /// Get the member resolution for an expression.
     pub(crate) fn get_member_resolution(
         &self,

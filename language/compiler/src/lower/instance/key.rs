@@ -10,6 +10,6 @@ pub(crate) enum InstanceKey {
 impl InstanceKey {
     /// Build an instance key for a symbol.
     pub(crate) const fn symbol(symbol: dir::GlobalSymbolId) -> Self {
-        Self::Symbol(symbol)
+        Self::Constructor(symbol)
     }
 }

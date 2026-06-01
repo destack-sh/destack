@@ -62,11 +62,6 @@ impl ModuleLowerer<'_> {
             dir::Type::Operation(operation) => {
                 self.declare_nominal_layouts_for_type_operation(operation, visited)?;
             }
-            dir::Type::Predicate(predicate) => {
-                if let Some(target) = predicate.target {
-                    self.declare_nominal_layouts_for_type(target, visited)?;
-                }
-            }
             dir::Type::Dynamic(erased) => {
                 self.declare_nominal_layouts_for_type(erased.constraint, visited)?;
             }
