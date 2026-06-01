@@ -140,15 +140,15 @@ fn generic_variance_label(variance: Option<dir::VarianceModifier>, name: String)
 /// Return one type generic parameter label.
 fn generic_type_parameter_label(
     name: String,
-    constraint: Option<dir::LocalTypeId>,
-    default: Option<dir::LocalTypeId>,
+    constraint: Option<dir::GlobalTypeId>,
+    default: Option<dir::GlobalTypeId>,
     builder: &DirSnapshotBuilder<'_>,
 ) -> String {
     let constraint = constraint
-        .map(|constraint| format!(": {}", builder.type_label(constraint)))
+        .map(|constraint| format!(": {}", builder.global_type_label(constraint)))
         .unwrap_or_default();
     let default = default
-        .map(|default| format!(" = {}", builder.type_label(default)))
+        .map(|default| format!(" = {}", builder.global_type_label(default)))
         .unwrap_or_default();
 
     format!("{name}{constraint}{default}")
@@ -157,15 +157,15 @@ fn generic_type_parameter_label(
 /// Return one static generic parameter label.
 fn generic_static_parameter_label(
     name: String,
-    constraint: Option<dir::LocalTypeId>,
-    default: Option<dir::LocalStaticId>,
+    constraint: Option<dir::GlobalTypeId>,
+    default: Option<dir::GlobalStaticId>,
     builder: &DirSnapshotBuilder<'_>,
 ) -> String {
     let constraint = constraint
-        .map(|constraint| format!(": {}", builder.type_label(constraint)))
+        .map(|constraint| format!(": {}", builder.global_type_label(constraint)))
         .unwrap_or_default();
     let default = default
-        .map(|default| format!(" = {}", builder.static_label(default)))
+        .map(|default| format!(" = {}", builder.global_static_label(default)))
         .unwrap_or_default();
 
     format!("{name}{constraint}{default}")

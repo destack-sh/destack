@@ -8,8 +8,8 @@ impl SnapshotTable for dir::CoercionSegment {
         for (node_id, coercion) in self.coercions() {
             let row = SnapshotRow::new(builder.anchor_node(node_id), "coercion", "node")
                 .optional_field("source", builder.node_source(node_id))
-                .type_field("from", builder.type_label(coercion.source))
-                .type_field("to", builder.type_label(coercion.target))
+                .type_field("from", builder.global_type_label(coercion.source))
+                .type_field("to", builder.global_type_label(coercion.target))
                 .field("origin", cast_origin_label(coercion.origin));
 
             builder.push(row);

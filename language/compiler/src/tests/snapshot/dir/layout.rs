@@ -28,11 +28,11 @@ impl SnapshotTable for dir::LayoutSegment {
 fn add_type_layout_rows(
     builder: &mut DirSnapshotBuilder<'_>,
     layouts: &dir::LayoutSegment,
-    type_id: dir::LocalTypeId,
+    type_id: dir::GlobalTypeId,
     layout: &dir::Layout,
 ) {
-    let anchor = builder.anchor_type(type_id);
-    let ty = builder.type_label(type_id);
+    let anchor = builder.anchor_global_type(type_id);
+    let ty = builder.global_type_label(type_id);
     let row = SnapshotRow::new(anchor, "layout", "type")
         .type_field("type", ty.clone())
         .field(
@@ -102,7 +102,7 @@ fn add_layout_field_row(
     let row = SnapshotRow::new(anchor, "layout", entry)
         .field("parent", parent)
         .optional_field("key", field.key.map(|key| builder.static_key(key)))
-        .type_field("type", builder.type_label(field.ty))
+        .type_field("type", builder.global_type_label(field.ty))
         .optional_field(
             "offset",
             DirSnapshotBuilder::optional_u32_label(field.offset),
@@ -127,7 +127,7 @@ fn add_variant_case_row(
     let layout = layouts.get_layout(variant.layout);
     let row = SnapshotRow::new(anchor, "layout", "variant")
         .field("parent", parent)
-        .type_field("type", builder.type_label(variant.ty))
+        .type_field("type", builder.global_type_label(variant.ty))
         .optional_field("size", DirSnapshotBuilder::optional_u32_label(layout.size))
         .optional_field(
             "align",

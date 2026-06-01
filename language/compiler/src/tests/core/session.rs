@@ -231,6 +231,8 @@ impl TestSession {
         name: &str,
         labels: &BTreeMap<String, String>,
     ) -> String {
+        self.require_artifact(key);
+
         let sidecar = self
             .repository
             .artifact_sidecar(self.revision, key, name, labels)
@@ -485,10 +487,10 @@ impl TestSession {
         }
 
         if selection.includes_metadata() {
-            let key = self.dir_resolved_key(path);
             let metadata_rows = selection.metadata_rows();
 
             for phase in metadata_phases(metadata_rows) {
+                let key = self.metadata_artifact_key(path, phase);
                 let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
                 let metadata = self.artifact_text_sidecar(key, "metadata", &labels);
                 let rows = metadata_rows_for_phase(metadata_rows, phase);
@@ -607,11 +609,10 @@ impl TestSession {
         builder.add_checked(selection, &bound, &expanded, &checked);
 
         if selection.includes_metadata() {
-            let key = self.dir_checked_component_key(path);
-
             let metadata_rows = selection.metadata_rows();
 
             for phase in metadata_phases(metadata_rows) {
+                let key = self.metadata_artifact_key(path, phase);
                 let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
                 let metadata = self.artifact_text_sidecar(key, "metadata", &labels);
                 let rows = metadata_rows_for_phase(metadata_rows, phase);
@@ -726,6 +727,18 @@ impl TestSession {
     /// Require one artifact through the test provider.
     fn require_artifact_result(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
         self.provider.require(key)
+    }
+
+    /// Return the artifact key that owns one phase metadata sidecar.
+    fn metadata_artifact_key(&self, path: &str, phase: &str) -> ArtifactKey {
+        match phase {
+            "bind" => self.dir_bound_key(path),
+            "import" => self.dir_imported_key(path),
+            "export" => self.dir_exported_key(path),
+            "resolve" => self.dir_resolved_key(path),
+            "check" => self.dir_checked_component_key(path),
+            _ => panic!("unsupported metadata phase `{phase}`"),
+        }
     }
 
     /// Return the repository artifact store.

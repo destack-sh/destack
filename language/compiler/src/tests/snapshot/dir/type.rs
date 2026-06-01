@@ -13,7 +13,7 @@ impl SnapshotTable for dir::TypeSegment {
 
             let row = SnapshotRow::new(builder.anchor_node(node_id), "type", "node")
                 .optional_field("source", builder.node_source(node_id))
-                .type_field("type", builder.type_label(type_id));
+                .type_field("type", builder.global_type_label(type_id));
             builder.push(row);
         }
 
@@ -22,7 +22,7 @@ impl SnapshotTable for dir::TypeSegment {
             let row = SnapshotRow::new(builder.anchor_symbol(symbol_id), "type", "symbol")
                 .field("symbol", builder.symbol_path_label(symbol_id))
                 .optional_field("source", builder.symbol_source(symbol_id))
-                .type_field("type", builder.type_label(type_id));
+                .type_field("type", builder.global_type_label(type_id));
             builder.push(row);
         }
 
