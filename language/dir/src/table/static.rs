@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, GlobalSymbolId, LocalStaticId, SegmentView, StaticTerm};
+use crate::{Arena, GlobalStaticId, GlobalSymbolId, LocalStaticId, SegmentView, StaticTerm};
 
 /// Cumulative static values for one DIR module.
 #[derive(Debug, Clone)]
@@ -64,7 +64,7 @@ impl<'a> StaticTable<'a> {
     }
 
     /// Iterate effective static values keyed by symbol.
-    pub fn symbol_statics(&self) -> impl Iterator<Item = (GlobalSymbolId, LocalStaticId)> + '_ {
+    pub fn symbol_statics(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalStaticId)> + '_ {
         let mut entries = IndexMap::new();
 
         // apply later segment values over earlier ones
@@ -95,7 +95,7 @@ impl<'a> StaticTable<'a> {
     }
 
     /// Get the static value id for a symbol.
-    pub fn get_symbol_static_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalStaticId> {
+    pub fn get_symbol_static_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalStaticId> {
         for segment in self.segments.iter().rev() {
             if let Some(static_id) = segment.get_symbol_static_id(symbol_id) {
                 return Some(static_id);
@@ -153,7 +153,7 @@ pub struct StaticSegment {
     /// Interned static values.
     pub(crate) statics: Arena<StaticTerm>,
     /// Checked static value keyed by symbol.
-    pub(crate) static_by_symbol_id: IndexMap<GlobalSymbolId, LocalStaticId>,
+    pub(crate) static_by_symbol_id: IndexMap<GlobalSymbolId, GlobalStaticId>,
 }
 
 impl StaticSegment {
@@ -186,12 +186,12 @@ impl StaticSegment {
     }
 
     /// Set the static value for a symbol.
-    pub fn set_symbol_static(&mut self, symbol_id: GlobalSymbolId, static_id: LocalStaticId) {
+    pub fn set_symbol_static(&mut self, symbol_id: GlobalSymbolId, static_id: GlobalStaticId) {
         self.static_by_symbol_id.insert(symbol_id, static_id);
     }
 
     /// Iterate static values keyed by symbol.
-    pub fn symbol_statics(&self) -> impl Iterator<Item = (GlobalSymbolId, LocalStaticId)> + '_ {
+    pub fn symbol_statics(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalStaticId)> + '_ {
         self.static_by_symbol_id
             .iter()
             .map(|(symbol_id, static_id)| (*symbol_id, *static_id))
@@ -217,7 +217,7 @@ impl StaticSegment {
     }
 
     /// Get the static value id for a symbol.
-    pub fn get_symbol_static_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalStaticId> {
+    pub fn get_symbol_static_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalStaticId> {
         self.static_by_symbol_id.get(&symbol_id).copied()
     }
 

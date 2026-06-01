@@ -3,7 +3,7 @@ use std::fmt::Display;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, LocalTypeId};
+use crate::{GlobalSymbolId, GlobalTypeId};
 
 /// Unique identifier for extensions.
 #[repr(transparent)]
@@ -85,7 +85,7 @@ pub struct Extension {
     /// The nominal type symbol used to index extension lookup.
     pub target_symbol: GlobalSymbolId,
     /// The solved target type being extended.
-    pub target_type: LocalTypeId,
+    pub target_type: GlobalTypeId,
 }
 
 impl Extension {
@@ -94,7 +94,7 @@ impl Extension {
         symbol: GlobalSymbolId,
         form: ExtensionForm,
         target_symbol: GlobalSymbolId,
-        target_type: LocalTypeId,
+        target_type: GlobalTypeId,
     ) -> Self {
         Self {
             symbol,

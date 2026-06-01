@@ -2,7 +2,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, GenericSlotIndex, GenericSlotKey, GlobalSymbolId, LocalStaticId,
+    Asynchrony, GenericSlotIndex, GenericSlotKey, GlobalStaticId, GlobalSymbolId,
     MappedTypeModifier, ScalarLiteral, StaticArgument, StaticKey, StringId, TypeLiteral,
 };
 
@@ -54,9 +54,9 @@ pub struct MappedTypeParameter {
     /// The parameter symbol.
     pub symbol: GlobalSymbolId,
     /// The constraint type like `keyof T`.
-    pub constraint: LocalTypeId,
+    pub constraint: GlobalTypeId,
     /// The optional key remap like `as Foo<K>`.
-    pub key_remap: Option<LocalTypeId>,
+    pub key_remap: Option<GlobalTypeId>,
 }
 
 /// A semantic type parameter reference.
@@ -106,7 +106,7 @@ pub struct ReferenceType {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemberType {
     /// The owner type.
-    pub owner: LocalTypeId,
+    pub owner: GlobalTypeId,
     /// The selected member key.
     pub key: StaticKey,
     /// The static arguments applied to the member.
@@ -117,7 +117,7 @@ pub struct MemberType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DynamicType {
     /// The `Dynamic<T>` constraint.
-    pub constraint: LocalTypeId,
+    pub constraint: GlobalTypeId,
 }
 
 /// Canonical memory or access form.
@@ -126,7 +126,7 @@ pub struct FormType {
     /// The form constructor.
     pub form: Form,
     /// The type carried by the form.
-    pub value: LocalTypeId,
+    pub value: GlobalTypeId,
 }
 
 /// Canonical memory or access form constructor.
@@ -139,16 +139,16 @@ pub enum Form {
     /// Borrowed value.
     Borrowed {
         /// The solved borrow lifetime value.
-        lifetime: LocalStaticId,
+        lifetime: GlobalStaticId,
         /// The solved borrow access value.
-        access: LocalStaticId,
+        access: GlobalStaticId,
     },
     /// Raw pointer value.
     Raw,
     /// Placed value.
     Placed {
         /// The solved concrete or ambient place value.
-        place: LocalStaticId,
+        place: GlobalStaticId,
     },
     /// Readonly view.
     Readonly,
@@ -160,9 +160,9 @@ pub struct TypeIndexSignature {
     /// The parameter name like `K`.
     pub name: StringId,
     /// The key type.
-    pub key_type: LocalTypeId,
+    pub key_type: GlobalTypeId,
     /// The value type.
-    pub value_type: LocalTypeId,
+    pub value_type: GlobalTypeId,
     /// Whether the index signature is optional.
     pub is_optional: bool,
     /// Whether the index signature is readonly.
@@ -173,13 +173,13 @@ pub struct TypeIndexSignature {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConditionalType {
     /// The left operand.
-    pub left: LocalTypeId,
+    pub left: GlobalTypeId,
     /// The right operand.
-    pub right: LocalTypeId,
+    pub right: GlobalTypeId,
     /// The type selected when the condition holds.
-    pub then_type: LocalTypeId,
+    pub then_type: GlobalTypeId,
     /// The type selected when the condition does not hold.
-    pub else_type: LocalTypeId,
+    pub else_type: GlobalTypeId,
 }
 
 /// A mapped type.
@@ -190,16 +190,16 @@ pub struct MappedType {
     /// The mapped modifiers.
     pub modifiers: MappedTypeModifiers,
     /// The mapped value type.
-    pub value: LocalTypeId,
+    pub value: GlobalTypeId,
 }
 
 /// Indexed access type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IndexType {
     /// The indexed type.
-    pub left: LocalTypeId,
+    pub left: GlobalTypeId,
     /// The index type.
-    pub index: LocalTypeId,
+    pub index: GlobalTypeId,
 }
 
 /// A template literal type.
@@ -208,7 +208,7 @@ pub struct TemplateLiteralType {
     /// The literal string segments.
     pub strings: Vec<StringId>,
     /// The interpolated type spans.
-    pub spans: Vec<LocalTypeId>,
+    pub spans: Vec<GlobalTypeId>,
 }
 
 /// An infer binding inside a conditional type pattern.
@@ -217,30 +217,30 @@ pub struct InferType {
     /// The inferred binding name.
     pub name: Option<StringId>,
     /// The optional inferred constraint.
-    pub constraint: Option<LocalTypeId>,
+    pub constraint: Option<GlobalTypeId>,
 }
 
 /// A unary type operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnaryType {
     /// The target type.
-    pub target: LocalTypeId,
+    pub target: GlobalTypeId,
 }
 
 /// Homogeneous array type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArrayType {
     /// The element type.
-    pub element: LocalTypeId,
+    pub element: GlobalTypeId,
 }
 
 /// A fixed-length array type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FixedArrayType {
     /// The element type.
-    pub element: LocalTypeId,
+    pub element: GlobalTypeId,
     /// The static array length.
-    pub count: LocalStaticId,
+    pub count: GlobalStaticId,
 }
 
 /// Compact scalar interval type.
@@ -258,7 +258,7 @@ pub struct RangeType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SliceType {
     /// The element type.
-    pub element: LocalTypeId,
+    pub element: GlobalTypeId,
 }
 
 /// A tuple type.
@@ -285,9 +285,9 @@ pub struct ShapeType {
     /// The shape fields.
     pub fields: Vec<TypeField>,
     /// The call signatures.
-    pub call_signatures: Vec<LocalTypeId>,
+    pub call_signatures: Vec<GlobalTypeId>,
     /// The construct signatures.
-    pub construct_signatures: Vec<LocalTypeId>,
+    pub construct_signatures: Vec<GlobalTypeId>,
     /// The index signatures.
     pub index_signatures: Vec<TypeIndexSignature>,
 }
@@ -298,13 +298,13 @@ pub struct FunctionTypeShape {
     /// The function asynchrony.
     pub asynchrony: Asynchrony,
     /// The generic parameter types.
-    pub generic_parameters: Vec<LocalTypeId>,
+    pub generic_parameters: Vec<GlobalTypeId>,
     /// The optional `this` parameter type.
-    pub this_parameter: Option<LocalTypeId>,
+    pub this_parameter: Option<GlobalTypeId>,
     /// The runtime parameters.
     pub parameters: Vec<FunctionParameterType>,
     /// The optional return type.
-    pub return_type: Option<LocalTypeId>,
+    pub return_type: Option<GlobalTypeId>,
     /// Whether this is a generator function.
     pub is_generator: bool,
 }
@@ -313,7 +313,7 @@ pub struct FunctionTypeShape {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FunctionParameterType {
     /// The parameter type.
-    pub ty: LocalTypeId,
+    pub ty: GlobalTypeId,
     /// The static generic slot supplied by this runtime argument.
     pub static_slot: Option<GenericParameterRef>,
     /// Whether the parameter may be omitted at the call site.
@@ -326,23 +326,23 @@ pub struct FunctionParameterType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClosureType {
     /// The function contract.
-    pub function: LocalTypeId,
+    pub function: GlobalTypeId,
     /// The captured environment type.
-    pub environment: LocalTypeId,
+    pub environment: GlobalTypeId,
 }
 
 /// A union type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnionType {
     /// The union elements.
-    pub elements: Vec<LocalTypeId>,
+    pub elements: Vec<GlobalTypeId>,
 }
 
 /// An intersection type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IntersectionType {
     /// The intersection elements.
-    pub elements: Vec<LocalTypeId>,
+    pub elements: Vec<GlobalTypeId>,
 }
 
 /// Type-level operation preserved by check.
@@ -353,7 +353,7 @@ pub enum TypeOperation {
         /// The string mapping operation.
         mapping: StringMapping,
         /// The mapped string type.
-        target: LocalTypeId,
+        target: GlobalTypeId,
     },
     /// Conditional type expression.
     Conditional(ConditionalType),
@@ -513,7 +513,7 @@ pub struct TypeField {
     /// The key of the field.
     pub key: StaticKey,
     /// The type of the field.
-    pub ty: LocalTypeId,
+    pub ty: GlobalTypeId,
     /// Whether the field is optional.
     pub is_optional: bool,
     /// Whether the field is readonly.
@@ -526,7 +526,7 @@ pub struct TypeElement {
     /// The optional label for the element.
     pub label: Option<StringId>,
     /// The element type.
-    pub ty: LocalTypeId,
+    pub ty: GlobalTypeId,
     /// Whether the element is optional.
     pub is_optional: bool,
     /// Whether the element is readonly.
@@ -537,7 +537,7 @@ pub struct TypeElement {
 
 impl TypeElement {
     /// Create a default tuple element for a type.
-    pub fn new(ty: LocalTypeId) -> Self {
+    pub fn new(ty: GlobalTypeId) -> Self {
         Self {
             label: None,
             ty,

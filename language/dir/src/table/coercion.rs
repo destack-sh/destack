@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{CastOrigin, GlobalNodeIdAny, LocalTypeId, SegmentView};
+use crate::{CastOrigin, GlobalNodeIdAny, GlobalTypeId, SegmentView};
 
 /// Cumulative checked coercions for one DIR module.
 #[derive(Debug, Clone)]
@@ -98,16 +98,16 @@ impl<'a> CoercionTable<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Coercion {
     /// The source type before coercion.
-    pub source: LocalTypeId,
+    pub source: GlobalTypeId,
     /// The target type after coercion.
-    pub target: LocalTypeId,
+    pub target: GlobalTypeId,
     /// How the coercion entered DIR.
     pub origin: CastOrigin,
 }
 
 impl Coercion {
     /// Create one coercion.
-    pub fn new(source: LocalTypeId, target: LocalTypeId, origin: CastOrigin) -> Self {
+    pub fn new(source: GlobalTypeId, target: GlobalTypeId, origin: CastOrigin) -> Self {
         Self {
             source,
             target,

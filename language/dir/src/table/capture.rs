@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, GlobalScopeId, GlobalSymbolId, LocalTypeId, SegmentView, StringId};
+use crate::{Arena, GlobalScopeId, GlobalSymbolId, GlobalTypeId, SegmentView, StringId};
 
 /// Cumulative captures for one DIR module.
 #[derive(Debug, Clone)]
@@ -251,7 +251,7 @@ pub struct CaptureFrame {
     /// The lexical scope lifted into this frame.
     pub scope: GlobalScopeId,
     /// The checked frame representation type.
-    pub ty: LocalTypeId,
+    pub ty: GlobalTypeId,
     /// The fields in lexical order.
     pub fields: Vec<CaptureFrameField>,
 }
@@ -262,7 +262,7 @@ pub struct CaptureFrameField {
     /// The captured symbol.
     pub symbol: GlobalSymbolId,
     /// The checked field type.
-    pub ty: LocalTypeId,
+    pub ty: GlobalTypeId,
 }
 
 /// The capture mode for a closure binding.
@@ -317,28 +317,28 @@ pub enum CapturedBinding {
         /// The capture frame that stores this binding.
         frame: LocalCaptureFrameId,
         /// The checked binding type.
-        ty: LocalTypeId,
+        ty: GlobalTypeId,
     },
     /// Borrow the binding directly from the enclosing scope.
     Borrow {
         /// The captured symbol.
         symbol: GlobalSymbolId,
         /// The checked binding type.
-        ty: LocalTypeId,
+        ty: GlobalTypeId,
     },
     /// Copy the binding value into the closure environment.
     Copy {
         /// The captured symbol.
         symbol: GlobalSymbolId,
         /// The checked binding type.
-        ty: LocalTypeId,
+        ty: GlobalTypeId,
     },
     /// Move the binding value into the closure environment.
     Move {
         /// The captured symbol.
         symbol: GlobalSymbolId,
         /// The checked binding type.
-        ty: LocalTypeId,
+        ty: GlobalTypeId,
     },
 }
 
@@ -364,7 +364,7 @@ impl CapturedBinding {
     }
 
     /// Return the checked binding type.
-    pub fn ty(self) -> LocalTypeId {
+    pub fn ty(self) -> GlobalTypeId {
         match self {
             Self::Manage { ty, .. }
             | Self::Borrow { ty, .. }
@@ -390,7 +390,7 @@ pub struct CapturedReceiver {
     /// The capture mode for the receiver.
     pub mode: CaptureMode,
     /// The checked receiver type.
-    pub ty: LocalTypeId,
+    pub ty: GlobalTypeId,
 }
 
 /// Captures for a function declaration.
