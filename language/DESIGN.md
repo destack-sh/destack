@@ -96,7 +96,7 @@ Destack does not support any unsound, imprecise or dynamic legacy hooks into run
 | **Loose equality coercion** | `a == b`, `a != b` | object coercion is not allowed | implicit object conversion hides behavior |
 | **Truthiness** | `if (value)` | only for boolean values | control flow must use explicit boolean tests |
 | **Dynamic code generation** | runtime `eval`, `new Function`, dynamic class generation | unsupported, except explicit `comptime eval` | runtime code generation conflicts with AOT compilation |
-| **Exceptions** | executing `throw` / `catch` effects | `throw`, `try`, `catch`, `finally`, and Try / Result integration are supported, runtime exceptions are not | Destack uses `Result`-first error handling |
+| **Exceptions** | executing `throw` | `throw` is not supported in native Destack code; `try`, `catch`, and `finally` work for `Try`/`Result` control flow | Destack uses `Result`-first error handling |
 | **Coercion hooks** | `valueOf`, `toString`, `Symbol.toPrimitive` | not used for implicit coercion | conversion should be explicit and typed |
 | **Symbol magic** | `Symbol.hasInstance`, `Symbol.species`, `Symbol.isConcatSpreadable` | not supported | use typed protocols such as `iterator()` / `asyncIterator()` |
 | **Callable `Symbol`** | `Symbol("name")` | not supported | use `Symbol.create("name")` or `Symbol.for("name")` |
