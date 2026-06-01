@@ -1,18 +1,23 @@
+use destack_source::ModuleId;
+
 use crate::check::{CheckState, FlowState};
 
 /// State used only while walking one module.
 pub(in crate::check) struct WalkState<'check, 'state> {
     /// The component check state being populated.
     pub(in crate::check) check: &'check mut CheckState<'state>,
+    /// The module being walked.
+    pub(in crate::check) module: ModuleId,
     /// Flow state for the current module walk.
     flow: FlowState,
 }
 
 impl<'check, 'state> WalkState<'check, 'state> {
     /// Create walk state for one module.
-    pub(in crate::check) fn new(check: &'check mut CheckState<'state>) -> Self {
+    pub(in crate::check) fn new(module: ModuleId, check: &'check mut CheckState<'state>) -> Self {
         Self {
             check,
+            module,
             flow: FlowState::default(),
         }
     }

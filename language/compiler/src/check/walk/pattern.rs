@@ -2,8 +2,11 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    AssignPatternField, AssignPatternTerm, Origin, PatternField, PatternTerm, TermId, VariableKind,
-    WalkState,
+    AssignPatternField, AssignPatternTerm, Origin, PatternBindingResolution,
+    PatternBorrowResolution, PatternDecision, PatternDereferenceResolution, PatternField,
+    PatternFieldResolution, PatternFieldTargetResolution, PatternMoveResolution, PatternResolution,
+    PatternShapeResolution, PatternTarget, PatternTargetResolution, PatternTerm,
+    PatternTupleResolution, PatternUnionResolution, TermId, VariableKind, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -40,7 +43,7 @@ impl WalkState<'_, '_> {
                 self.walk_pattern(tree, *pattern, tree.get(*pattern));
 
                 // check pattern default in selector context
-                let before_value = self.checkpoint_flow();
+                let before_value = self.fork_flow();
 
                 self.walk_expression(tree, *value, tree.get(*value));
                 self.restore_flow(before_value);
@@ -57,7 +60,7 @@ impl WalkState<'_, '_> {
             // value
             dir::Pattern::Expression { value } => {
                 // check value pattern in selector context
-                let before_value = self.checkpoint_flow();
+                let before_value = self.fork_flow();
 
                 self.walk_expression(tree, *value, tree.get(*value));
                 self.restore_flow(before_value);
@@ -66,7 +69,7 @@ impl WalkState<'_, '_> {
             dir::Pattern::Range { start, end, .. } => {
                 if let Some(start) = start {
                     // check range bound in selector context
-                    let before_start = self.checkpoint_flow();
+                    let before_start = self.fork_flow();
 
                     self.walk_expression(tree, *start, tree.get(*start));
                     self.restore_flow(before_start);
@@ -74,7 +77,7 @@ impl WalkState<'_, '_> {
 
                 if let Some(end) = end {
                     // check range bound in selector context
-                    let before_end = self.checkpoint_flow();
+                    let before_end = self.fork_flow();
 
                     self.walk_expression(tree, *end, tree.get(*end));
                     self.restore_flow(before_end);
@@ -145,7 +148,7 @@ impl WalkState<'_, '_> {
             // { [key]: pattern }
             dir::PatternField::Computed { key, pattern } => {
                 // check computed key in selector context
-                let before_key = self.checkpoint_flow();
+                let before_key = self.fork_flow();
 
                 self.walk_expression(tree, *key, tree.get(*key));
                 self.restore_flow(before_key);
@@ -192,7 +195,7 @@ impl WalkState<'_, '_> {
                 self.walk_assign_pattern(tree, *pattern, tree.get(*pattern));
 
                 // check destructuring default in conditional assignment context
-                let before_value = self.checkpoint_flow();
+                let before_value = self.fork_flow();
 
                 self.walk_expression(tree, *value, tree.get(*value));
                 self.restore_flow(before_value);
@@ -271,37 +274,37 @@ impl WalkState<'_, '_> {
     ) -> Option<TermId<PatternTerm>> {
         let term = match tree.get(id) {
             // _
-            dir::Pattern::Wildcard => PatternTerm::Wildcard,
+            dir::Pattern::Wildcard => PatternTarget::Wildcard,
             // pattern!
-            dir::Pattern::Must(pattern) => PatternTerm::Must {
+            dir::Pattern::Must(pattern) => PatternTarget::Must {
                 pattern: self.lower_pattern_term(module, *pattern, tree)?,
             },
             // pattern = value
-            dir::Pattern::Assign { pattern, value } => PatternTerm::Assign {
+            dir::Pattern::Assign { pattern, value } => PatternTarget::Assign {
                 pattern: self.lower_pattern_term(module, *pattern, tree)?,
                 value: self.check.require_local_node_type(module, *value),
             },
             // &pattern
-            dir::Pattern::BorrowOf { mutability, right } => PatternTerm::BorrowOf {
+            dir::Pattern::BorrowOf { mutability, right } => PatternTarget::BorrowOf {
                 mutability: *mutability,
                 pattern: self.lower_pattern_term(module, *right, tree)?,
             },
             // ^pattern
-            dir::Pattern::MoveOf { mutability, right } => PatternTerm::MoveOf {
+            dir::Pattern::MoveOf { mutability, right } => PatternTarget::MoveOf {
                 mutability: *mutability,
                 pattern: self.lower_pattern_term(module, *right, tree)?,
             },
             // *pattern
-            dir::Pattern::DereferenceOf { right } => PatternTerm::DereferenceOf {
+            dir::Pattern::DereferenceOf { right } => PatternTarget::DereferenceOf {
                 pattern: self.lower_pattern_term(module, *right, tree)?,
             },
             // name, name: pattern
-            dir::Pattern::Binding { pattern, .. } => PatternTerm::Binding {
+            dir::Pattern::Binding { pattern, .. } => PatternTarget::Binding {
                 symbol: self.check.declaration_symbol(tree.module_id, id.into_any()),
                 pattern: pattern.and_then(|pattern| self.lower_pattern_term(module, pattern, tree)),
             },
             // value
-            dir::Pattern::Expression { value } => PatternTerm::Expression {
+            dir::Pattern::Expression { value } => PatternTarget::Expression {
                 value: self.check.require_local_node_type(module, *value),
             },
             // start..end
@@ -309,24 +312,24 @@ impl WalkState<'_, '_> {
                 start,
                 end,
                 end_kind,
-            } => PatternTerm::Range {
+            } => PatternTarget::Range {
                 start: start.map(|start| self.check.require_local_node_type(module, start)),
                 end: end.map(|end| self.check.require_local_node_type(module, end)),
                 end_kind: *end_kind,
             },
             // value is T
-            dir::Pattern::TypeExpression { value } => PatternTerm::Type {
+            dir::Pattern::TypeExpression { value } => PatternTarget::Type {
                 ty: self.check.require_local_node_type(module, *value),
             },
             // [a, b]
-            dir::Pattern::Tuple { fields } => PatternTerm::Tuple {
+            dir::Pattern::Tuple { fields } => PatternTarget::Tuple {
                 fields: fields
                     .iter()
                     .filter_map(|field| self.lower_pattern_field_term(module, *field, tree))
                     .collect(),
             },
             // T(a, b)
-            dir::Pattern::Newtype { ty, fields } => PatternTerm::Newtype {
+            dir::Pattern::Newtype { ty, fields } => PatternTarget::Newtype {
                 ty: self.check.require_local_node_type(module, *ty),
                 fields: fields
                     .iter()
@@ -334,21 +337,21 @@ impl WalkState<'_, '_> {
                     .collect(),
             },
             // [...items]
-            dir::Pattern::Sequence { fields } => PatternTerm::Sequence {
+            dir::Pattern::Sequence { fields } => PatternTarget::Sequence {
                 fields: fields
                     .iter()
                     .filter_map(|field| self.lower_pattern_field_term(module, *field, tree))
                     .collect(),
             },
             // { name }
-            dir::Pattern::Object { fields } => PatternTerm::Object {
+            dir::Pattern::Object { fields } => PatternTarget::Object {
                 fields: fields
                     .iter()
                     .filter_map(|field| self.lower_pattern_field_term(module, *field, tree))
                     .collect(),
             },
             // T { name }
-            dir::Pattern::NominalObject { ty, fields } => PatternTerm::NominalObject {
+            dir::Pattern::NominalObject { ty, fields } => PatternTarget::NominalObject {
                 ty: self.check.require_local_node_type(module, *ty),
                 fields: fields
                     .iter()
@@ -356,7 +359,7 @@ impl WalkState<'_, '_> {
                     .collect(),
             },
             // a | b
-            dir::Pattern::Union { patterns } => PatternTerm::Union {
+            dir::Pattern::Union { patterns } => PatternTarget::Union {
                 patterns: patterns
                     .iter()
                     .filter_map(|pattern| self.lower_pattern_term(module, *pattern, tree))
@@ -364,7 +367,192 @@ impl WalkState<'_, '_> {
             },
         };
 
-        Some(self.check.inference.terms.push(term))
+        // immediately decide patterns when possible
+        let source = id.into_global_any(module);
+        let term = self.check.push_term(PatternTerm::node(source, term));
+        if let Some(target) = self.lower_pattern_resolution(module, id, tree) {
+            let selection = PatternResolution { source, target };
+
+            self.check
+                .select_pattern(source, PatternDecision::Resolved(selection));
+        }
+
+        Some(term)
+    }
+
+    /// Return one semantic pattern selection when syntax determines it.
+    ///
+    /// Example:
+    /// ```ds
+    /// { name, age }
+    /// ```
+    fn lower_pattern_resolution(
+        &mut self,
+        module: ModuleId,
+        id: dir::LocalNodeId<dir::Pattern>,
+        tree: &dir::Tree,
+    ) -> Option<PatternTargetResolution> {
+        match tree.get(id) {
+            // _
+            dir::Pattern::Wildcard => Some(PatternTargetResolution::Wildcard),
+            // name, name: pattern
+            dir::Pattern::Binding { pattern, .. } => {
+                let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
+                let pattern = pattern.map(|pattern| pattern.into_global_any(module));
+
+                Some(PatternTargetResolution::Binding(PatternBindingResolution {
+                    symbol,
+                    pattern,
+                }))
+            }
+            // &pattern
+            dir::Pattern::BorrowOf { mutability, right } => {
+                let access = mutability.map(dir::Mutability::access);
+                let pattern = right.into_global_any(module);
+
+                Some(PatternTargetResolution::Borrow(PatternBorrowResolution {
+                    access,
+                    pattern,
+                }))
+            }
+            // ^pattern
+            dir::Pattern::MoveOf { mutability, right } => {
+                let access = mutability.map(dir::Mutability::access);
+                let pattern = right.into_global_any(module);
+
+                Some(PatternTargetResolution::Move(PatternMoveResolution {
+                    access,
+                    pattern,
+                }))
+            }
+            // *pattern
+            dir::Pattern::DereferenceOf { right } => {
+                let pattern = right.into_global_any(module);
+
+                Some(PatternTargetResolution::Dereference(
+                    PatternDereferenceResolution { pattern },
+                ))
+            }
+            // [a, b]
+            dir::Pattern::Tuple { fields } => {
+                let fields = self.lower_indexed_pattern_field_resolutions(module, fields, tree)?;
+
+                Some(PatternTargetResolution::Tuple(PatternTupleResolution {
+                    fields,
+                }))
+            }
+            // { name }
+            dir::Pattern::Object { fields } => {
+                let fields = self.lower_keyed_pattern_field_resolutions(module, fields, tree)?;
+
+                Some(PatternTargetResolution::Shape(PatternShapeResolution {
+                    fields,
+                }))
+            }
+            // a | b
+            dir::Pattern::Union { patterns } => {
+                let alternatives = patterns
+                    .iter()
+                    .map(|pattern| pattern.into_global_any(module))
+                    .collect();
+
+                Some(PatternTargetResolution::Union(PatternUnionResolution {
+                    alternatives,
+                }))
+            }
+            // patterns whose meaning depends on solved type or static values
+            dir::Pattern::Must(_)
+            | dir::Pattern::Assign { .. }
+            | dir::Pattern::Expression { .. }
+            | dir::Pattern::Range { .. }
+            | dir::Pattern::TypeExpression { .. }
+            | dir::Pattern::Newtype { .. }
+            | dir::Pattern::Sequence { .. }
+            | dir::Pattern::NominalObject { .. } => None,
+        }
+    }
+
+    /// Return positional field selections for one tuple pattern.
+    ///
+    /// Example:
+    /// ```ds
+    /// [first, second]
+    /// ```
+    fn lower_indexed_pattern_field_resolutions(
+        &mut self,
+        module: ModuleId,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+        tree: &dir::Tree,
+    ) -> Option<Vec<PatternFieldResolution>> {
+        let mut next_index = 0;
+        let mut selections = Vec::with_capacity(fields.len());
+
+        // preserve tuple field positions
+        for field in fields {
+            let source = field.into_global_any(module);
+            match tree.get(*field) {
+                // [pattern]
+                dir::PatternField::Positional { pattern } => {
+                    let target = PatternFieldTargetResolution::Index(next_index);
+                    let pattern = Some(pattern.into_global_any(module));
+                    selections.push(PatternFieldResolution {
+                        source,
+                        target,
+                        pattern,
+                    });
+                    next_index += 1;
+                }
+                // [,]
+                dir::PatternField::Elision => {
+                    let target = PatternFieldTargetResolution::Index(next_index);
+                    selections.push(PatternFieldResolution {
+                        source,
+                        target,
+                        pattern: None,
+                    });
+                    next_index += 1;
+                }
+                // unsupported tuple field forms need solved pattern logic
+                dir::PatternField::Named { .. }
+                | dir::PatternField::Computed { .. }
+                | dir::PatternField::Spread { .. } => return None,
+            }
+        }
+
+        Some(selections)
+    }
+
+    /// Return keyed field selections for one object pattern.
+    ///
+    /// Example:
+    /// ```ds
+    /// { name: value }
+    /// ```
+    fn lower_keyed_pattern_field_resolutions(
+        &mut self,
+        module: ModuleId,
+        fields: &[dir::LocalNodeId<dir::PatternField>],
+        tree: &dir::Tree,
+    ) -> Option<Vec<PatternFieldResolution>> {
+        let mut selections = Vec::with_capacity(fields.len());
+
+        // preserve statically named object fields
+        for field in fields {
+            let source = field.into_global_any(module);
+            let dir::PatternField::Named { name, pattern, .. } = tree.get(*field) else {
+                return None;
+            };
+            let target = PatternFieldTargetResolution::Key(name.static_key());
+            let pattern = pattern.map(|pattern| pattern.into_global_any(module));
+
+            selections.push(PatternFieldResolution {
+                source,
+                target,
+                pattern,
+            });
+        }
+
+        Some(selections)
     }
 
     /// Return one pattern field term from syntax.
@@ -456,7 +644,7 @@ impl WalkState<'_, '_> {
             },
         };
 
-        Some(self.check.inference.terms.push(term))
+        Some(self.check.push_term(term))
     }
 
     /// Return one assignment pattern field term from syntax.

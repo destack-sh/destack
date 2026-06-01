@@ -1,6 +1,8 @@
 use destack_dir as dir;
 
-use crate::check::{IndexTerm, MemberTerm, Origin, Place, PlaceTarget, TypeTerm, WalkState};
+use crate::check::{
+    IndexKind, IndexTerm, MemberTerm, Origin, Place, PlaceTarget, TypeTerm, WalkState,
+};
 
 impl WalkState<'_, '_> {
     /// Walk one assignment target as a place.
@@ -46,12 +48,13 @@ impl WalkState<'_, '_> {
             }
         }
 
+        // place
         if let Some(place) = self.lower_place(id, tree) {
-            self.output_node_type_operand(tree.module_id, id, place.ty);
+            self.bind_node_type_operand(tree.module_id, id, place.ty);
         }
     }
 
-    /// Lower one writable place from expression syntax.
+    /// Lower one writable place from an expression.
     ///
     /// Example:
     /// ```ds
@@ -97,15 +100,15 @@ impl WalkState<'_, '_> {
             } => {
                 let owner = self.check.require_local_node_type(module, *left);
                 let key = dir::StaticKey::Name(*name);
-                let member = self.check.inference.terms.push(MemberTerm {
+                let member = self.check.push_term(MemberTerm {
                     origin: Origin::Node(source),
                     owner,
                     key,
                     arguments: Vec::new().into(),
                 });
-                let term = self.check.inference.terms.push(TypeTerm::Member(member));
+                let term = self.check.push_term(TypeTerm::Member(member));
 
-                (term.into(), PlaceTarget::MemberTerm { owner, key })
+                (term.into(), PlaceTarget::Member { owner, key })
             }
             // value[index]
             dir::Expression::Index {
@@ -116,15 +119,21 @@ impl WalkState<'_, '_> {
                 let index_node = *index;
                 let receiver = self.check.require_local_node_type(module, *left);
                 let index = self.check.require_local_node_type(module, index_node);
-                let term = self.check.inference.terms.push(IndexTerm {
+                let kind = if matches!(tree.get(index_node), dir::Expression::RangeExpression { .. }) {
+                    IndexKind::Slice
+                } else {
+                    IndexKind::Element
+                };
+                let term = self.check.push_term(IndexTerm {
                     source,
+                    kind,
                     receiver,
                     index,
                     key: tree.get(index_node).static_key(),
                 });
-                let term = self.check.inference.terms.push(TypeTerm::Index(term));
+                let term = self.check.push_term(TypeTerm::Index(term));
 
-                (term.into(), PlaceTarget::IndexTerm { receiver, index })
+                (term.into(), PlaceTarget::Index { receiver, index })
             }
             // *value
             dir::Expression::Unary {

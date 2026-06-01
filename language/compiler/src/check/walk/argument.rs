@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::check::{GenericArgument, GenericSlot, WalkState};
+use crate::check::{GenericArgument, GenericSlot, Origin, VariableId, VariableKind, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one generic argument.
@@ -39,7 +39,7 @@ impl WalkState<'_, '_> {
             | dir::GenericArgument::AssociatedConst { value, .. }
             | dir::GenericArgument::SpreadValue { value } => {
                 // check static argument value in static context
-                let before_value = self.checkpoint_flow();
+                let before_value = self.fork_flow();
 
                 self.walk_expression(tree, *value, tree.get(*value));
                 self.restore_flow(before_value);
@@ -102,7 +102,7 @@ impl WalkState<'_, '_> {
         owner: Option<dir::GlobalSymbolId>,
         arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         tree: &dir::Tree,
-    ) -> SmallVec<[GenericArgument; 4]> {
+    ) -> SmallVec<[GenericArgument; 2]> {
         arguments
             .iter()
             .enumerate()
@@ -110,6 +110,46 @@ impl WalkState<'_, '_> {
                 self.lower_generic_argument_term(*argument, owner, index, tree)
             })
             .collect()
+    }
+
+    /// Lower explicit arguments and create omitted generic argument variables.
+    ///
+    /// Example:
+    /// ```ds
+    /// Logger
+    /// ```
+    pub(in crate::check) fn lower_generic_application_arguments(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        owner: dir::GlobalSymbolId,
+        arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        tree: &dir::Tree,
+    ) -> SmallVec<[GenericArgument; 2]> {
+        let mut lowered = self.lower_generic_arguments(Some(owner), arguments, tree);
+        let explicit_count = lowered.len();
+        let parameters = self
+            .check
+            .generic_slots_for_owner(tree.module_id, owner)
+            .collect::<Vec<_>>();
+
+        // append omitted owner arguments in declaration order
+        for (index, (parameter, generic)) in parameters.into_iter().enumerate() {
+            if index < explicit_count {
+                continue;
+            }
+            if generic.is_variadic() {
+                continue;
+            }
+
+            lowered.push(self.lower_omitted_generic_argument(
+                tree.module_id,
+                source,
+                parameter,
+                &generic,
+            ));
+        }
+
+        lowered
     }
 
     /// Lower one generic argument term.
@@ -266,15 +306,15 @@ impl WalkState<'_, '_> {
         let module = tree.module_id;
         let term = match tree.get(id) {
             // <T>
-            dir::GenericArgument::Type { value } => GenericArgument::TypeOrStatic {
-                ty: self.lower_type_expression_operand(tree, *value).into(),
-                value: self.create_static_argument_variable(*value, tree).into(),
-            },
+            dir::GenericArgument::Type { value } => GenericArgument::type_or_static(
+                self.lower_type_expression_operand(tree, *value).into(),
+                self.create_static_argument_variable(*value, tree).into(),
+            ),
             // <...T>
-            dir::GenericArgument::SpreadType { value } => GenericArgument::SpreadTypeOrStatic {
-                ty: self.lower_type_expression_operand(tree, *value).into(),
-                value: self.create_static_argument_variable(*value, tree).into(),
-            },
+            dir::GenericArgument::SpreadType { value } => GenericArgument::spread_type_or_static(
+                self.lower_type_expression_operand(tree, *value).into(),
+                self.create_static_argument_variable(*value, tree).into(),
+            ),
             // <type Item = T>
             dir::GenericArgument::AssociatedType { name, value } => {
                 GenericArgument::AssociatedType {
@@ -330,5 +370,42 @@ impl WalkState<'_, '_> {
         }
 
         variadic
+    }
+
+    /// Lower one omitted generic argument as an inducible variable.
+    fn lower_omitted_generic_argument(
+        &mut self,
+        module: ModuleId,
+        source: dir::GlobalNodeIdAny,
+        parameter: VariableId,
+        generic: &GenericSlot,
+    ) -> GenericArgument {
+        let kind = self.check.variable(parameter).kind;
+        let variable = self
+            .check
+            .allocate_variable(module, kind, Origin::Node(source));
+
+        match kind {
+            VariableKind::Type => {
+                self.check.induce_type_generic(
+                    variable,
+                    "T",
+                    generic.type_constraint(),
+                    dir::GenericSlotInduction::Application,
+                );
+
+                GenericArgument::Type(variable.into())
+            }
+            VariableKind::Static => {
+                self.check.induce_static_generic(
+                    variable,
+                    "C",
+                    generic.static_constraint(),
+                    dir::GenericSlotInduction::Application,
+                );
+
+                GenericArgument::Static(variable.into())
+            }
+        }
     }
 }

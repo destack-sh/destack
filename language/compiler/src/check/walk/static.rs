@@ -137,7 +137,7 @@ impl WalkState<'_, '_> {
                 }
                 Err(StaticFailure::NotStatic(expression)) => {
                     let condition_guard = this.active_static_guard();
-                    let variable = this.check.output_static_expression_variable(
+                    let variable = this.check.bind_static_expression_variable(
                         tree.module_id,
                         condition,
                         condition_guard,
@@ -149,7 +149,7 @@ impl WalkState<'_, '_> {
                     Condition::When {
                         conditions: smallvec::smallvec![ConditionPredicate {
                             origin: Origin::Node(condition.into_global_any(tree.module_id)),
-                            term: StaticTerm::Variable(variable),
+                            operand: variable.into(),
                         }],
                     }
                 }
@@ -195,7 +195,7 @@ impl WalkState<'_, '_> {
             dir::Expression::This => {
                 let source = expression.into_global_any(tree.module_id);
                 if let Some(term) = self.lower_this_receiver_type_term(source) {
-                    self.output_node_type(tree.module_id, expression, term);
+                    self.bind_node_type(tree.module_id, expression, term);
                 }
             }
             // this.X
@@ -263,7 +263,7 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Lower one static expression operand without publishing a checked node output.
+    /// Lower one static expression operand without committing a checked node operand.
     ///
     /// Example:
     /// ```ds
@@ -275,7 +275,7 @@ impl WalkState<'_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> StaticOperand {
         // walk static leaves without keeping expression flow changes
-        let before_expression = self.checkpoint_flow();
+        let before_expression = self.fork_flow();
 
         self.walk_static_expression(tree, expression);
         self.restore_flow(before_expression);
@@ -307,10 +307,11 @@ impl WalkState<'_, '_> {
             .check
             .allocate_variable(module, VariableKind::Static, origin);
 
-        if let Some(term) = self.lower_direct_static_argument_term(id, tree) {
+        if let Some(operand) = self.lower_direct_static_argument_operand(id, tree) {
             let condition = self.active_static_guard();
 
-            self.check.equate_static(variable, term, condition);
+            self.check
+                .equate_static_operand(variable, operand, condition);
         }
 
         variable
@@ -322,15 +323,15 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// <{ a: 2, b: [1, 2, 3] }>
     /// ```
-    fn lower_direct_static_argument_term(
+    fn lower_direct_static_argument_operand(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         tree: &dir::Tree,
-    ) -> Option<StaticTerm> {
+    ) -> Option<StaticOperand> {
         let term = match tree.get(id) {
             // <(C)>
             dir::TypeExpression::Parenthesized { expression } => {
-                return self.lower_direct_static_argument_term(*expression, tree);
+                return self.lower_direct_static_argument_operand(*expression, tree);
             }
             // <1>
             dir::TypeExpression::ScalarLiteral { value } => {
@@ -368,7 +369,14 @@ impl WalkState<'_, '_> {
             dir::TypeExpression::Reference {
                 path,
                 generic_arguments,
-            } => self.lower_static_reference_argument_term(id, path, generic_arguments, tree)?,
+            } => {
+                return self.lower_static_reference_argument_operand(
+                    id,
+                    path,
+                    generic_arguments,
+                    tree,
+                );
+            }
             // <T.Value>
             dir::TypeExpression::Member {
                 left,
@@ -381,44 +389,44 @@ impl WalkState<'_, '_> {
                     source: id.into_global_any(tree.module_id),
                     owner: self.check.require_local_node_type(tree.module_id, *left),
                     key: dir::StaticKey::Name(*name),
-                    arguments,
+                    arguments: arguments.into_vec(),
                 }
             }
             // not directly representable static argument syntax
             _ => return None,
         };
 
-        Some(term)
+        Some(self.check.push_term(term).into())
     }
 
-    /// Lower one static reference argument term.
+    /// Lower one static reference argument operand.
     ///
     /// Example:
     /// ```ds
     /// <LifetimeOf<T>>
     /// ```
-    fn lower_static_reference_argument_term(
+    fn lower_static_reference_argument_operand(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         tree: &dir::Tree,
-    ) -> Option<StaticTerm> {
+    ) -> Option<StaticOperand> {
         let [name] = path.segments.as_slice() else {
             return None;
         };
 
         // ensure bare static parameter
         let term = if generic_arguments.is_empty()
-            && let Some(term) = self.ensure_static_parameter_argument_term(id, *name, tree)
+            && let Some(operand) = self.ensure_static_parameter_argument_operand(id, *name, tree)
         {
-            term
+            operand
         }
         // lower static memory intrinsic
         else if let Some(term) =
             self.lower_static_intrinsic_argument_term(id, *name, generic_arguments, tree)
         {
-            term
+            self.check.push_term(term).into()
         }
         // not a static reference argument
         else {
@@ -428,18 +436,18 @@ impl WalkState<'_, '_> {
         Some(term)
     }
 
-    /// Ensure one static parameter argument term.
+    /// Ensure one static parameter argument operand.
     ///
     /// Example:
     /// ```ds
     /// <Size>
     /// ```
-    fn ensure_static_parameter_argument_term(
+    fn ensure_static_parameter_argument_operand(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         name: dir::StringId,
         tree: &dir::Tree,
-    ) -> Option<StaticTerm> {
+    ) -> Option<StaticOperand> {
         let symbol = self
             .check
             .lookup_symbol_by_name(tree.module_id, id.into_any(), name, dir::SymbolSpace::Value)
@@ -455,7 +463,7 @@ impl WalkState<'_, '_> {
             .check
             .ensure_symbol_static_variable(tree.module_id, symbol);
 
-        Some(StaticTerm::Variable(variable))
+        Some(variable.into())
     }
 
     /// Lower one static intrinsic argument term.
@@ -485,7 +493,7 @@ impl WalkState<'_, '_> {
 
         Some(StaticTerm::Intrinsic {
             item,
-            arguments: arguments.into(),
+            arguments: arguments.into_vec(),
         })
     }
 
@@ -513,8 +521,9 @@ impl WalkState<'_, '_> {
                     ..
                 } => {
                     let key = key.static_key(tree)?;
-                    let StaticTerm::Literal(value) =
-                        self.lower_direct_static_argument_term(*value, tree)?
+                    let Some(StaticTerm::Literal(value)) = self
+                        .lower_direct_static_argument_operand(*value, tree)?
+                        .known_static_term(self.check)
                     else {
                         return None;
                     };
@@ -550,8 +559,9 @@ impl WalkState<'_, '_> {
                     is_optional: false,
                     ..
                 } => {
-                    let StaticTerm::Literal(value) =
-                        self.lower_direct_static_argument_term(*value, tree)?
+                    let Some(StaticTerm::Literal(value)) = self
+                        .lower_direct_static_argument_operand(*value, tree)?
+                        .known_static_term(self.check)
                     else {
                         return None;
                     };
