@@ -21,7 +21,7 @@ let output: number = if (let Some(value) = maybe) {
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries(),
+        DirRows::binding().with_summaries().with_bind_stats(),
         r#"
 for (let index: number = 0; index < 10; index = index + 1) {
 /// @binding.scope scope=scope2 kind=block parent=<module>@1
@@ -45,11 +45,13 @@ let output: number = if (let Some(value) = maybe) {
 
     0
 };
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=5 scopes=7 declarations=4 node_scopes=37
+/// @bind.stats files=1 roots=2
 "#,
     );
 }
@@ -68,7 +70,10 @@ let x: number = x;
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_binding_nodes().with_summaries(),
+        DirRows::binding()
+            .with_binding_nodes()
+            .with_summaries()
+            .with_bind_stats(),
         r#"
 let x: number = 1;
 /// @binding.node node=expression scope=<module>@1 source="let x: number = 1"
@@ -85,11 +90,13 @@ let x: number = x;
 /// @binding.node node=pattern scope=<module>@3 source=x
 /// @binding.node node=type_expression scope=<module>@2 source=number
 /// @binding.node node=expression scope=<module>@2 source=x
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=3 scopes=2 declarations=2 node_scopes=10
+/// @bind.stats files=1 roots=2
 "#,
     );
 }
@@ -125,6 +132,7 @@ export let result = try {
 
     fallback
 };
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global

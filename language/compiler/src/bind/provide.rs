@@ -1,6 +1,8 @@
-use destack_artifact::{ArtifactPayload, DirBound, DirParsed};
+use std::iter;
+
+use destack_artifact::{ArtifactPayload, ArtifactSidecar, DirParsed};
 use destack_dir as dir;
-use destack_source::{ModuleId, ProfileId};
+use destack_source::{FileContent, ModuleId, ProfileId};
 use destack_workspace::{ConditionSet, Module, ProviderContext};
 use dir::NodeVisitor as _;
 
@@ -23,25 +25,40 @@ impl Compiler {
         let profile = self.profile(context.revision(), profile)?;
 
         // bind parsed dir
-        let dir_bound =
-            self.bind_dir_parsed(module.as_ref(), parsed.as_ref(), profile.conditions())?;
+        let mut state = BindState::new(self, module.id, parsed.as_ref());
+        self.bind_roots(
+            &mut state,
+            module.as_ref(),
+            parsed.as_ref(),
+            profile.conditions(),
+        )?;
+        let stats = state.stats;
+        let dir_bound = state.finish();
+        context.emit_sidecar(ArtifactSidecar::new(
+            "metadata",
+            iter::once(("phase", "bind")),
+            FileContent::Text {
+                content: stats.render_metadata(),
+            },
+        ));
 
         Ok(ArtifactPayload::DirBound(dir_bound))
     }
 
-    /// Bind one parsed DIR module.
-    pub(crate) fn bind_dir_parsed(
+    /// Bind active parsed roots into a state.
+    fn bind_roots(
         &self,
+        state: &mut BindState<'_>,
         module: &Module,
         parsed: &DirParsed,
         conditions: &ConditionSet,
-    ) -> CompilerResult<DirBound> {
-        let mut state = BindState::new(self, module.id, parsed);
-
+    ) -> CompilerResult<()> {
         // visit code roots
         if module.is_code() {
             let tree = &parsed.tree;
             for module_file in module.files_for_conditions(conditions) {
+                state.stats.files += 1;
+
                 let parsed_file =
                     parsed
                         .file(module_file.file_id)
@@ -60,6 +77,6 @@ impl Compiler {
             }
         }
 
-        Ok(state.finish())
+        Ok(())
     }
 }

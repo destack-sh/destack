@@ -32,7 +32,10 @@ type Pick<T> = {
         )
         .build();
 
-    compiler.assert_dir_bound("main.ds", DirRows::binding().with_summaries(), r#"
+    compiler.assert_dir_bound(
+        "main.ds",
+        DirRows::binding().with_summaries().with_bind_stats(),
+        r#"
 import { dep as local, type TypeDep } from "dep";
 /// @binding.symbol symbol=local role=local kind=import scope=<module>@1
 /// @binding.symbol symbol=TypeDep role=local kind=import scope=<module>@2
@@ -89,10 +92,12 @@ type Pick<T> = {
     /// @binding.symbol symbol=K role=local kind=type_alias scope=scope8@0
 
 };
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 
 /// @binding.summary symbols=15 scopes=9 declarations=14 node_scopes=63 owner_scopes=2
+/// @bind.stats files=1 roots=6
 "#,
     );
 }
@@ -114,7 +119,7 @@ let renderer: string = "local";
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries(),
+        DirRows::binding().with_summaries().with_bind_stats(),
         r#"
 module {
 /// @binding.scope scope=scope2 kind=namespace parent=<module>@1
@@ -126,11 +131,13 @@ module {
 
 let renderer: string = "local";
 /// @binding.symbol symbol=renderer#2 role=local kind=variable scope=<module>@1 mutability=mutable
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=3 scopes=3 declarations=2 node_scopes=13
+/// @bind.stats files=1 roots=2
 "#,
     );
 }

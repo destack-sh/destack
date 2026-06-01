@@ -20,7 +20,7 @@ type Anonymous<T> = T extends infer _ ? true : false;
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries(),
+        DirRows::binding().with_summaries().with_bind_stats(),
         r#"
 function wrap<T>(value: T): T {
 /// @binding.symbol symbol=wrap role=item kind=function scope=<module>@1
@@ -55,11 +55,13 @@ type Anonymous<T> = T extends infer _ ? true : false;
 /// @binding.owner_scope owner=Anonymous scope=Anonymous
 /// @binding.symbol symbol=T#3 role=local kind=generic_type_parameter scope=Anonymous@0
 /// @binding.scope scope=scope8 kind=type_conditional parent=Anonymous@1
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=11 scopes=9 declarations=10 node_scopes=38 owner_scopes=4
+/// @bind.stats files=1 roots=4
 "#,
     );
 }

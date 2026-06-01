@@ -17,6 +17,7 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
+        self.stats.expressions += 1;
         self.compiler.bind_expression(self, tree, id, expression);
     }
 
@@ -42,6 +43,7 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) {
+        self.stats.declarations += 1;
         self.bind_node(id.into_any());
 
         // route global blocks into the package global scope
@@ -113,6 +115,7 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::Pattern>,
         pattern: &dir::Pattern,
     ) {
+        self.stats.patterns += 1;
         self.bind_node(id.into_any());
 
         // bind pattern symbol
@@ -212,6 +215,7 @@ impl dir::NodeVisitor for BindState<'_> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         type_expression: &dir::TypeExpression,
     ) {
+        self.stats.type_expressions += 1;
         self.compiler
             .bind_type_expression(self, tree, id, type_expression);
     }

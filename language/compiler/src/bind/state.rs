@@ -5,6 +5,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::Compiler;
+use crate::bind::stats::BindStats;
 
 /// Symbol context applied while binding declaration patterns.
 #[derive(Debug, Clone, Copy, Default)]
@@ -35,6 +36,8 @@ pub(in crate::bind) struct BindState<'a> {
     pub(in crate::bind) types: dir::TypeSegment,
     /// The static table being initialized.
     pub(in crate::bind) statics: dir::StaticSegment,
+    /// The work stats accumulated while binding.
+    pub(in crate::bind) stats: BindStats,
     /// The bound module roots.
     pub(in crate::bind) roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The module namespace scope.
@@ -78,6 +81,7 @@ impl<'a> BindState<'a> {
             bindings,
             types: dir::TypeSegment::new(module),
             statics: dir::StaticSegment::new(module),
+            stats: BindStats::default(),
             roots: Vec::new(),
             namespace_scope,
             global_scope,
@@ -86,6 +90,7 @@ impl<'a> BindState<'a> {
 
     /// Record one bound root expression.
     pub(in crate::bind) fn push_root(&mut self, root: dir::LocalNodeId<dir::Expression>) {
+        self.stats.roots += 1;
         self.roots.push(root);
     }
 
