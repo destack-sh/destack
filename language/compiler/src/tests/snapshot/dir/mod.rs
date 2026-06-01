@@ -12,6 +12,7 @@ mod r#macro;
 mod metadata;
 mod module;
 mod name;
+mod path;
 mod relation;
 mod resolution;
 mod rows;

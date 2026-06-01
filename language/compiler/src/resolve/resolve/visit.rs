@@ -4,7 +4,14 @@ use dir::NodeVisitor as _;
 use crate::resolve::state::ResolveState;
 
 impl ResolveState<'_> {
-    /// Walk active roots and collect module clauses.
+    /// Walk active roots and collect references and syntax language items.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value } from "./dep.ds";
+    ///
+    /// value;
+    /// ```
     pub(in crate::resolve) fn walk(&mut self, roots: &[dir::LocalNodeId<dir::Expression>]) {
         let tree = self.view.tree();
         self.stats.roots += roots.len();
@@ -17,10 +24,17 @@ impl ResolveState<'_> {
 }
 
 impl dir::NodeVisitor for ResolveState<'_> {
+    /// Return resolve visitor options.
     fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }
 
+    /// Visit one expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// dep.value;
+    /// ```
     fn visit_expression(
         &mut self,
         tree: &dir::Tree,
@@ -31,6 +45,12 @@ impl dir::NodeVisitor for ResolveState<'_> {
         self.walk_expression(tree, id, expression);
     }
 
+    /// Visit one type expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// let value: dep.Model;
+    /// ```
     fn visit_type_expression(
         &mut self,
         tree: &dir::Tree,
@@ -41,6 +61,12 @@ impl dir::NodeVisitor for ResolveState<'_> {
         self.walk_type_expression(tree, id, type_expression);
     }
 
+    /// Visit one declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// async function load() {}
+    /// ```
     fn visit_declaration(
         &mut self,
         tree: &dir::Tree,
@@ -59,6 +85,14 @@ impl dir::NodeVisitor for ResolveState<'_> {
         dir::walk_declaration(self, tree, id, declaration);
     }
 
+    /// Visit one object property.
+    ///
+    /// Example:
+    /// ```ds
+    /// const service = {
+    ///     async load() {}
+    /// };
+    /// ```
     fn visit_property(
         &mut self,
         tree: &dir::Tree,
@@ -77,6 +111,14 @@ impl dir::NodeVisitor for ResolveState<'_> {
         dir::walk_property(self, tree, id, property);
     }
 
+    /// Visit one structural type member.
+    ///
+    /// Example:
+    /// ```ds
+    /// type Service = {
+    ///     load(): Promise<void>;
+    /// };
+    /// ```
     fn visit_type_member(
         &mut self,
         tree: &dir::Tree,
@@ -90,6 +132,14 @@ impl dir::NodeVisitor for ResolveState<'_> {
         dir::walk_type_member(self, tree, id, member);
     }
 
+    /// Visit one class or interface member.
+    ///
+    /// Example:
+    /// ```ds
+    /// class Service {
+    ///     async load() {}
+    /// }
+    /// ```
     fn visit_member(
         &mut self,
         tree: &dir::Tree,

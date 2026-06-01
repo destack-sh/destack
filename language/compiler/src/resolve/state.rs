@@ -30,16 +30,20 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) strings: &'a StringPool,
     /// The import table being built.
     pub(in crate::resolve) imports: dir::ImportTable,
+    /// The namespace path table being built.
+    pub(in crate::resolve) paths: dir::PathTable,
     /// The recoverable diagnostics produced while resolving.
     pub(in crate::resolve) diagnostics: Vec<ResolveError>,
     /// The work stats accumulated while resolving.
     pub(in crate::resolve) stats: ResolveStats,
-    /// The module clauses collected from active roots.
-    pub(in crate::resolve) module_clauses: Vec<ModuleClause>,
+    /// Namespace path references collected from active roots.
+    pub(in crate::resolve) path_references: Vec<PathReference>,
+    /// Member path collection depth during the resolve walk.
+    pub(in crate::resolve) member_path_collection_depth: usize,
     /// Bare global keys required by active roots.
-    pub(in crate::resolve) required_global_keys: IndexSet<dir::StaticKey>,
+    pub(in crate::resolve) global_keys: IndexSet<dir::StaticKey>,
     /// Language items required by syntax in active roots.
-    pub(in crate::resolve) syntax_language_items: IndexSet<dir::LanguageItem>,
+    pub(in crate::resolve) language_items: IndexSet<dir::LanguageItem>,
     /// Function contexts visible while walking active roots.
     pub(in crate::resolve) function_stack: Vec<FunctionContext>,
     /// Export lookups already resolved during this provider run.
@@ -60,7 +64,7 @@ pub(in crate::resolve) struct ExportLookupKey {
 }
 
 /// Memoized export lookup state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::resolve) enum ExportLookupState {
     /// The lookup is currently resolving.
     Resolving,
@@ -85,6 +89,15 @@ pub(in crate::resolve) enum ModuleClause {
         /// Re-exported items.
         items: Vec<dir::LocalNodeId<dir::DependencyItem>>,
     },
+}
+
+/// One namespace path reference to resolve after imports are known.
+#[derive(Debug, Clone)]
+pub(in crate::resolve) struct PathReference {
+    /// The source node that owns the path.
+    pub(in crate::resolve) source: dir::GlobalNodeIdAny,
+    /// The source path.
+    pub(in crate::resolve) path: dir::Path,
 }
 
 /// Function context visible to syntax-dependent dependency collection.
@@ -117,11 +130,13 @@ impl<'a> ResolveState<'a> {
             modules,
             strings,
             imports: dir::ImportTable::new(module),
+            paths: dir::PathTable::new(module),
             diagnostics: Vec::new(),
             stats: ResolveStats::default(),
-            module_clauses: Vec::new(),
-            required_global_keys: IndexSet::new(),
-            syntax_language_items: IndexSet::new(),
+            path_references: Vec::new(),
+            member_path_collection_depth: 0,
+            global_keys: IndexSet::new(),
+            language_items: IndexSet::new(),
             function_stack: Vec::new(),
             export_lookups: HashMap::new(),
             exported_modules: HashMap::new(),
@@ -129,19 +144,14 @@ impl<'a> ResolveState<'a> {
         }
     }
 
-    /// Add one module clause for later target lookup.
-    pub(in crate::resolve) fn add_module_clause(&mut self, clause: ModuleClause) {
-        match &clause {
-            ModuleClause::Import { .. } => self.stats.import_clauses += 1,
-            ModuleClause::ReExport { .. } => self.stats.reexport_clauses += 1,
-        }
-
-        self.module_clauses.push(clause);
+    /// Collect one namespace path reference for later target lookup.
+    pub(in crate::resolve) fn collect_path_reference(&mut self, reference: PathReference) {
+        self.path_references.push(reference);
     }
 
     /// Require one syntax-required language item.
     pub(in crate::resolve) fn require_language_item(&mut self, item: dir::LanguageItem) {
-        if self.syntax_language_items.insert(item) {
+        if self.language_items.insert(item) {
             self.stats.required_language_items += 1;
         }
     }
@@ -164,8 +174,8 @@ impl<'a> ResolveState<'a> {
         self.function_stack.last().copied()
     }
 
-    /// Require a global key when one source reference is not locally resolved.
-    pub(in crate::resolve) fn require_global_reference(
+    /// Collect one bare reference for global resolution when no local binding exists.
+    pub(in crate::resolve) fn collect_global_reference(
         &mut self,
         source: dir::LocalNodeIdAny,
         key: dir::StaticKey,
@@ -181,7 +191,7 @@ impl<'a> ResolveState<'a> {
             return;
         }
 
-        if self.required_global_keys.insert(key) {
+        if self.global_keys.insert(key) {
             self.stats.required_globals += 1;
         }
     }
@@ -195,6 +205,7 @@ impl<'a> ResolveState<'a> {
     pub(in crate::resolve) fn finish(self) -> DirResolved {
         DirResolved {
             imports: self.imports,
+            paths: self.paths,
         }
     }
 

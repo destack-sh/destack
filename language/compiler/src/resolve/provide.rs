@@ -46,11 +46,14 @@ impl Compiler {
             self.strings(),
         );
 
-        // collect import and re-export clauses from active roots
+        // resolve explicit module clauses through export tables
+        state.resolve_module_clauses(&expanded.roots)?;
+
+        // collect source references and syntax language items
         state.walk(&expanded.roots);
 
-        // resolve module clauses through export tables
-        state.resolve_module_clauses()?;
+        // resolve namespace path references through imported module surfaces
+        state.resolve_path_references()?;
 
         // resolve profile globals through global tables
         state.resolve_profile_globals(&environment.globals)?;

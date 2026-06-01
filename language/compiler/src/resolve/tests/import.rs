@@ -61,6 +61,87 @@ import * as dep from "./dep.ds";
 }
 
 #[test]
+fn test_resolve_records_namespace_import_path() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+import * as dep from "./dep.ds";
+
+dep.value;
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export let value = 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+import * as dep from "./dep.ds";
+/// @import.namespace symbol=dep module=dep.ds
+
+dep.value;
+/// @path.symbol source=dep.value target=dep.value
+/// @path.namespace source=dep module=dep.ds
+
+/// @import.summary symbols=1
+/// @resolve.stats roots=2 expressions=3 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
+/// @path.summary paths=2
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_records_nested_namespace_import_path() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+import * as dep from "./dep.ds";
+
+dep.api.value;
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export * as api from "./api.ds";
+"#,
+        )
+        .module(
+            "api.ds",
+            r#"
+export let value = 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+import * as dep from "./dep.ds";
+/// @import.namespace symbol=dep module=dep.ds
+
+dep.api.value;
+/// @path.symbol source=dep.api.value target=api.value
+/// @path.namespace source=dep module=dep.ds
+/// @path.namespace source=dep.api module=api.ds
+
+/// @import.summary symbols=1
+/// @resolve.stats roots=2 expressions=4 types=0 clauses=import:1,reexport:0 exports=miss:2,hit:0,cycle:0
+/// @path.summary paths=3
+"#,
+    );
+}
+
+#[test]
 fn test_resolve_records_default_import_target() {
     let compiler = TestSession::new()
         .module(
