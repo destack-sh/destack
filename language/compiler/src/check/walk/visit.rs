@@ -18,11 +18,11 @@ impl CheckState<'_> {
         let expanded = Arc::clone(&input.expanded);
         let tree = &parsed.tree;
 
-        let mut walk = WalkState::new(self);
+        let mut walk = WalkState::new(module, self);
 
-        // reserve hoisted declaration types before bodies can reference them
+        // predeclare hoisted symbol types before bodies can reference them
         for root in &expanded.roots {
-            walk.reserve_hoisted_declaration_types(tree, *root);
+            walk.predeclare_hoisted_symbol_types(tree, *root);
         }
 
         // walk expanded roots in semantic context
@@ -33,37 +33,37 @@ impl CheckState<'_> {
 }
 
 impl WalkState<'_, '_> {
-    /// Reserve declaration type variables visible before source order.
+    /// Predeclare hoisted symbol types visible before source order.
     ///
     /// Example:
     /// ```ds
     /// function later(): number { 1 }
     /// ```
-    fn reserve_hoisted_declaration_types(
+    fn predeclare_hoisted_symbol_types(
         &mut self,
         tree: &dir::Tree,
         expression: dir::LocalNodeId<dir::Expression>,
     ) {
         match tree.get(expression) {
             dir::Expression::Declaration(declaration) => {
-                self.reserve_hoisted_declaration_type(tree, *declaration, tree.get(*declaration));
+                self.predeclare_hoisted_symbol_type(tree, *declaration, tree.get(*declaration));
             }
             dir::Expression::Block(block) => {
                 for expression in tree.get(*block).iter_expressions() {
-                    self.reserve_hoisted_declaration_types(tree, expression);
+                    self.predeclare_hoisted_symbol_types(tree, expression);
                 }
             }
             _ => {}
         }
     }
 
-    /// Reserve one declaration type variable when the declaration is hoisted.
+    /// Predeclare one hoisted symbol type.
     ///
     /// Example:
     /// ```ds
     /// struct Box { value: number }
     /// ```
-    fn reserve_hoisted_declaration_type(
+    fn predeclare_hoisted_symbol_type(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Declaration>,
@@ -72,12 +72,12 @@ impl WalkState<'_, '_> {
         match declaration {
             dir::Declaration::Global(declaration) => {
                 for expression in &declaration.expressions {
-                    self.reserve_hoisted_declaration_types(tree, *expression);
+                    self.predeclare_hoisted_symbol_types(tree, *expression);
                 }
             }
             dir::Declaration::Module(declaration) => {
                 for expression in &declaration.expressions {
-                    self.reserve_hoisted_declaration_types(tree, *expression);
+                    self.predeclare_hoisted_symbol_types(tree, *expression);
                 }
             }
             dir::Declaration::Type(declaration) if !declaration.is_nominal => {}
@@ -97,7 +97,7 @@ impl WalkState<'_, '_> {
                 }
 
                 self.check
-                    .ensure_symbol_type_output_variable(tree.module_id, symbol);
+                    .bind_symbol_type_variable_if_missing(tree.module_id, symbol);
             }
         }
     }

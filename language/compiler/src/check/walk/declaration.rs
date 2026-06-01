@@ -122,8 +122,9 @@ impl WalkState<'_, '_> {
                     .require_local_node_type(tree.module_id, declaration.value);
                 let condition = self.active_static_guard();
 
+                self.check.push_generic_induction_root(symbol, value);
                 self.check
-                    .output_symbol_type_operand(tree.module_id, symbol, value, condition);
+                    .bind_symbol_type_operand(symbol, value, condition);
             }
         }
 
@@ -135,12 +136,11 @@ impl WalkState<'_, '_> {
                     .check
                     .require_local_node_type(tree.module_id, declaration.value);
 
-                self.check
-                    .push_induction_root(symbol, value.to_type_term(self.check));
+                self.check.push_generic_induction_root(symbol, value);
             }
 
             self.check
-                .ensure_symbol_type_output_variable(tree.module_id, symbol);
+                .bind_symbol_type_variable_if_missing(tree.module_id, symbol);
         }
     }
 
@@ -212,7 +212,7 @@ impl WalkState<'_, '_> {
 
         // check superclass expression in declaration context
         if let Some(extends_expression) = declaration.extends_expression {
-            let before_extends = self.checkpoint_flow();
+            let before_extends = self.fork_flow();
 
             self.walk_expression(tree, extends_expression, tree.get(extends_expression));
             self.restore_flow(before_extends);
@@ -278,7 +278,7 @@ impl WalkState<'_, '_> {
     ) {
         if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
             self.check
-                .ensure_symbol_type_output_variable(tree.module_id, symbol);
+                .bind_symbol_type_variable_if_missing(tree.module_id, symbol);
         }
 
         // walk generic header
@@ -291,7 +291,7 @@ impl WalkState<'_, '_> {
 
         // walk inherited contracts
         for heritage in &declaration.extends {
-            let before_heritage = self.checkpoint_flow();
+            let before_heritage = self.fork_flow();
 
             self.walk_expression(tree, heritage.expression, tree.get(heritage.expression));
             self.restore_flow(before_heritage);
@@ -371,7 +371,7 @@ impl WalkState<'_, '_> {
                 declaration.body,
             );
 
-            // publish function symbol type
+            // commit function symbol type
             let term = self.lower_function_signature_term(
                 &declaration.signature,
                 return_type.map(Into::into),
@@ -379,9 +379,10 @@ impl WalkState<'_, '_> {
             );
             let condition = self.active_static_guard();
 
-            self.check
-                .push_induction_root(symbol, TypeTerm::Function(term));
-            self.check.output_symbol_type(
+            let operand = self.check.push_term(TypeTerm::Function(term)).into();
+
+            self.check.push_generic_induction_root(symbol, operand);
+            self.check.bind_symbol_type(
                 tree.module_id,
                 symbol,
                 TypeTerm::Function(term),
@@ -425,7 +426,7 @@ impl WalkState<'_, '_> {
         }
         if let Some(value) = enum_field.value {
             // check enum value in declaration context
-            let before_value = self.checkpoint_flow();
+            let before_value = self.fork_flow();
 
             self.walk_expression(tree, value, tree.get(value));
             self.restore_flow(before_value);
@@ -454,16 +455,16 @@ impl WalkState<'_, '_> {
                 {
                     let value = self.check.require_local_node_type(tree.module_id, tail);
 
-                    self.constrain_return_value(tree.module_id, tail.into_any(), value);
+                    self.constrain_return_value(tail.into_any(), value);
                 } else {
-                    self.constrain_void_return(tree.module_id, body.into_any());
+                    self.constrain_void_return(body.into_any());
                 }
             }
             // expression
             _ => {
                 let value = self.check.require_local_node_type(tree.module_id, body);
 
-                self.constrain_return_value(tree.module_id, body.into_any(), value);
+                self.constrain_return_value(body.into_any(), value);
             }
         };
     }
@@ -532,6 +533,9 @@ impl WalkState<'_, '_> {
 
         // bind the receiver to its parameter type
         let ty = self.ensure_parameter_type(parameter, tree)?;
+        if let Some(owner) = owner {
+            self.check.push_generic_induction_root(owner, ty);
+        }
 
         Some(ReceiverCapture { symbol, owner, ty })
     }
@@ -560,7 +564,7 @@ impl WalkState<'_, '_> {
         // reserve the source node as the inferred return type
         let node = source.into_global(module);
 
-        Some(self.check.output_node_type_variable(module, node).into())
+        Some(self.check.bind_node_type_variable(module, node).into())
     }
 
     /// Ensure one nominal declaration has a member receiver context.
@@ -577,7 +581,7 @@ impl WalkState<'_, '_> {
         let symbol = symbol?;
         let ty = self
             .check
-            .ensure_symbol_type_output_variable(module, symbol)
+            .bind_symbol_type_variable_if_missing(module, symbol)
             .into();
 
         Some(MemberReceiverContext {

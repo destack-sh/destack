@@ -17,7 +17,7 @@ impl WalkState<'_, '_> {
         decorator: &dir::Decorator,
     ) {
         // check decorator operand outside owner flow
-        let before_decorator = self.checkpoint_flow();
+        let before_decorator = self.fork_flow();
 
         self.walk_expression(tree, decorator.expression, tree.get(decorator.expression));
         self.restore_flow(before_decorator);

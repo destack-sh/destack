@@ -56,20 +56,18 @@ impl WalkState<'_, '_> {
         // set binding type from annotation or initializer
         if let Some(ty) = declarator.ty {
             let operand = self.check.require_local_node_type(tree.module_id, ty);
-
             self.check
-                .output_symbol_type_operand(tree.module_id, symbol, operand, condition);
+                .bind_symbol_type_operand(symbol, operand, condition);
         } else if let Some(value) = declarator.value {
             let operand = self.check.require_local_node_type(tree.module_id, value);
-
             if let Some(term) =
                 self.lower_name_declarator_widened_type(symbol, value, operand, tree)
             {
                 self.check
-                    .output_symbol_type(tree.module_id, symbol, term, condition);
+                    .bind_symbol_type(tree.module_id, symbol, term, condition);
             } else {
                 self.check
-                    .output_symbol_type_operand(tree.module_id, symbol, operand, condition);
+                    .bind_symbol_type_operand(symbol, operand, condition);
             }
         }
 
@@ -173,16 +171,13 @@ impl WalkState<'_, '_> {
         if !self.is_declarator_initializer_widened(symbol, value, tree) {
             return None;
         }
-        let source_term = source.to_type_term(self.check);
-        if let TypeTerm::Literal(TypeLiteralTerm::Scalar(literal)) = source_term {
+        if let Some(TypeTerm::Literal(TypeLiteralTerm::Scalar(literal))) =
+            source.known_type_term(self.check)
+        {
             return Some(TypeTerm::Literal(CheckState::widen_scalar_literal(literal)));
         }
 
-        let operation = self
-            .check
-            .inference
-            .terms
-            .push(TypeOperationTerm::Widen { source });
+        let operation = self.check.push_term(TypeOperationTerm::Widen { source });
 
         Some(TypeTerm::Operation(operation))
     }
@@ -340,7 +335,7 @@ impl WalkState<'_, '_> {
     ///
     /// Example:
     /// ```ds
-    /// { name: value is string }
+    /// { name: string }
     /// ```
     fn narrow_pattern_fields_success(
         &mut self,

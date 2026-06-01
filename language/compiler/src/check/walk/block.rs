@@ -32,8 +32,7 @@ impl WalkState<'_, '_> {
             }
             // check unreachable expression in isolated flow
             else {
-                let before = self.checkpoint_flow();
-
+                let before = self.fork_flow();
                 self.walk_expression(tree, *expression, tree.get(*expression));
                 self.restore_flow(before);
             }
@@ -47,8 +46,7 @@ impl WalkState<'_, '_> {
             }
             // check unreachable tail in isolated flow
             else {
-                let before = self.checkpoint_flow();
-
+                let before = self.fork_flow();
                 self.walk_expression(tree, expression, tree.get(expression));
                 self.restore_flow(before);
             }
@@ -60,12 +58,10 @@ impl WalkState<'_, '_> {
                 let tail = self
                     .check
                     .require_local_node_type(tree.module_id, expression);
-
-                self.output_node_type_operand(tree.module_id, id, tail);
+                self.bind_node_type_operand(tree.module_id, id, tail);
             } else {
                 let term = TypeTerm::Literal(TypeLiteralTerm::Void);
-
-                self.output_node_type(tree.module_id, id, term);
+                self.bind_node_type(tree.module_id, id, term);
             }
         }
 

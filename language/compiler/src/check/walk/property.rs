@@ -1,9 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{
-    Origin, ReceiverCapture, StaticTerm, TypeOperand, TypeRelation, TypeTerm, WalkState,
-};
+use crate::check::{Origin, ReceiverCapture, TypeOperand, TypeRelation, TypeTerm, WalkState};
 
 /// Receiver type available to instance members of one declaration.
 #[derive(Debug, Clone, Copy)]
@@ -67,7 +65,7 @@ impl WalkState<'_, '_> {
                     *body,
                 );
 
-                // publish method property symbol type
+                // commit method property symbol type
                 if let Some(symbol) = symbol {
                     let term = self.lower_function_signature_term(
                         signature,
@@ -76,7 +74,7 @@ impl WalkState<'_, '_> {
                     );
                     let condition = self.active_static_guard();
 
-                    self.check.output_symbol_type(
+                    self.check.bind_symbol_type(
                         tree.module_id,
                         symbol,
                         TypeTerm::Function(term),
@@ -151,7 +149,7 @@ impl WalkState<'_, '_> {
                     self.walk_type_expression(tree, *value, tree.get(*value));
                 }
 
-                // publish associated type value
+                // commit associated type value
                 if let Some(value) = value
                     && let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any())
                 {
@@ -159,7 +157,7 @@ impl WalkState<'_, '_> {
                     let condition = self.active_static_guard();
 
                     self.check
-                        .output_symbol_type_operand(tree.module_id, symbol, value, condition);
+                        .bind_symbol_type_operand(symbol, value, condition);
                 }
             }
             // const item: T = value
@@ -189,8 +187,7 @@ impl WalkState<'_, '_> {
                             self.check.require_local_node_type(tree.module_id, *declared_type);
                         let condition = self.active_static_guard();
 
-                        self.check.output_symbol_type_operand(
-                            tree.module_id,
+                        self.check.bind_symbol_type_operand(
                             symbol,
                             declared_type,
                             condition,
@@ -199,15 +196,15 @@ impl WalkState<'_, '_> {
 
                     // associated const value lives in static space
                     if let Some(value) = value {
-                        let variable = self.check.output_symbol_static_variable(tree.module_id, symbol);
+                        let variable = self.check.bind_symbol_static_variable(tree.module_id, symbol);
                         let condition = self.active_static_guard();
-                        let value = self.check.output_static_expression_variable(
+                        let value = self.check.bind_static_expression_variable(
                             tree.module_id,
                             *value,
                             condition.clone(),
                         );
 
-                        self.check.equate_static(variable, StaticTerm::Variable(value), condition);
+                        self.check.equate_static_operand(variable, value.into(), condition);
                     }
                 }
             }
@@ -224,7 +221,7 @@ impl WalkState<'_, '_> {
 
                 // check computed member key in declaration context
                 if let dir::Key::Expression(key) = key {
-                    let before_key = self.checkpoint_flow();
+                    let before_key = self.fork_flow();
 
                     self.walk_expression(tree, *key, tree.get(*key));
                     self.restore_flow(before_key);
@@ -235,7 +232,7 @@ impl WalkState<'_, '_> {
                 }
                 if let Some(default) = default {
                     // check field default in declaration context
-                    let before_default = self.checkpoint_flow();
+                    let before_default = self.fork_flow();
 
                     self.walk_expression(tree, *default, tree.get(*default));
                     self.restore_flow(before_default);
@@ -248,15 +245,17 @@ impl WalkState<'_, '_> {
                 {
                     let declared_type =
                         self.check.require_local_node_type(tree.module_id, *declared_type);
-                    let term = declared_type.to_type_term(self.check);
                     let condition = self.active_static_guard();
+                    let source = id.into_global_any(tree.module_id);
+                    let declared_type =
+                        self.induce_transparent_type_operand(source, declared_type, condition.clone());
 
                     if let Some(owner) = receiver_context.and_then(|receiver| receiver.owner) {
-                        self.check.push_induction_root(owner, term.clone());
+                        self.check.push_generic_induction_root(owner, declared_type);
                     }
 
                     self.check
-                        .output_symbol_type(tree.module_id, symbol, term, condition);
+                        .bind_symbol_type_operand(symbol, declared_type, condition);
                 }
 
                 // defaults must fit the declared field type
@@ -287,7 +286,7 @@ impl WalkState<'_, '_> {
                 if let Some(key) = key {
                     // check computed member key in declaration context
                     if let dir::Key::Expression(key) = key {
-                        let before_key = self.checkpoint_flow();
+                        let before_key = self.fork_flow();
 
                         self.walk_expression(tree, *key, tree.get(*key));
                         self.restore_flow(before_key);
@@ -301,7 +300,7 @@ impl WalkState<'_, '_> {
                 let receiver =
                     self.bind_member_receiver(tree, id, signature, *is_static, receiver_context);
 
-                // publish method symbol type
+                // commit method symbol type
                 if let Some(symbol) = symbol {
                     let return_type =
                         self.ensure_method_return_type(tree.module_id, id, signature, *body, receiver);
@@ -310,15 +309,19 @@ impl WalkState<'_, '_> {
                         return_type.map(Into::into),
                         tree,
                     );
-                    let function = self.check.inference.terms.get_mut(term);
+                    let function = self.check.term_mut(term);
                     if function.this_parameter.is_none() && Self::is_receiver_visible_in_method_type(signature) {
                         function.this_parameter = receiver.map(|receiver| receiver.ty);
                     }
                     let condition = self.active_static_guard();
 
-                    self.check
-                        .push_induction_root(symbol, TypeTerm::Function(term));
-                    self.check.output_symbol_type(
+                    let operand = self.check.push_term(TypeTerm::Function(term)).into();
+
+                    if let Some(receiver) = receiver {
+                        self.check.push_generic_induction_root(symbol, receiver.ty);
+                    }
+                    self.check.push_generic_induction_root(symbol, operand);
+                    self.check.bind_symbol_type(
                         tree.module_id,
                         symbol,
                         TypeTerm::Function(term),
@@ -340,7 +343,7 @@ impl WalkState<'_, '_> {
             // comptime { ... }
             | dir::Member::ComptimeBlock { body } => {
                 // check member block in declaration context
-                let before_body = self.checkpoint_flow();
+                let before_body = self.fork_flow();
 
                 self.walk_expression(tree, *body, tree.get(*body));
                 self.restore_flow(before_body);

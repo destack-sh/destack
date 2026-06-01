@@ -3,12 +3,12 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    GenericArgument, GenericSlotId, Obligation, Origin, ReceiverTerm, TypeOperand,
-    TypeOperationTerm, TypeTerm, WalkState,
+    Condition, ExportLookup, GenericArgument, GenericSlotId, Obligation, Origin, ReceiverTerm,
+    TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableKind, WalkState,
 };
 
 impl WalkState<'_, '_> {
-    /// Bind one identifier value reference and return its type term.
+    /// Bind one identifier value reference and return its type operand.
     ///
     /// Example:
     /// ```ds
@@ -19,7 +19,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         name: dir::StringId,
         tree: &dir::Tree,
-    ) -> Option<TypeTerm> {
+    ) -> Option<TypeOperand> {
         let symbol = self.check.require_symbol_by_name(
             tree.module_id,
             id.into_any(),
@@ -34,7 +34,7 @@ impl WalkState<'_, '_> {
         Some(self.lower_value_reference_term(tree, id, symbol, &[]))
     }
 
-    /// Bind one qualified value reference and return its type term.
+    /// Bind one qualified value reference and return its type operand.
     ///
     /// Example:
     /// ```ds
@@ -46,7 +46,7 @@ impl WalkState<'_, '_> {
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         tree: &dir::Tree,
-    ) -> Option<TypeTerm> {
+    ) -> Option<TypeOperand> {
         let symbol = self.check.require_path_symbol(
             tree.module_id,
             id.into_any(),
@@ -61,7 +61,84 @@ impl WalkState<'_, '_> {
         Some(self.lower_value_reference_term(tree, id, symbol, generic_arguments))
     }
 
-    /// Lower the term for one resolved value reference.
+    /// Bind one type receiver from expression syntax and return its type operand.
+    ///
+    /// Example:
+    /// ```ds
+    /// T.default()
+    /// ```
+    pub(in crate::check) fn bind_type_receiver_operand(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        tree: &dir::Tree,
+    ) -> Option<TypeOperand> {
+        match tree.get(id) {
+            dir::Expression::Identifier { name } => {
+                let path = dir::Path {
+                    segments: smallvec::smallvec![*name],
+                };
+
+                self.bind_type_receiver_path_operand(id, &path, &[], tree)
+            }
+            dir::Expression::QualifiedReference {
+                path,
+                generic_arguments,
+            } => self.bind_type_receiver_path_operand(id, path, generic_arguments, tree),
+            _ => None,
+        }
+    }
+
+    /// Bind one type receiver path from expression syntax.
+    ///
+    /// Example:
+    /// ```ds
+    /// Box<T>.new()
+    /// ```
+    fn bind_type_receiver_path_operand(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        path: &dir::Path,
+        generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
+        tree: &dir::Tree,
+    ) -> Option<TypeOperand> {
+        let source = id.into_global_any(tree.module_id);
+        let lookup = self
+            .check
+            .lookup_path_symbol(tree.module_id, id.into_any(), path, dir::SymbolSpace::Type)
+            .unwrap_or_else(|_| panic!("type receiver lookup failed in checked module"));
+
+        // no type receiver exists
+        let symbol = match lookup {
+            ExportLookup::Found(candidate) => candidate.symbol,
+            ExportLookup::Missing => return None,
+            ExportLookup::Ambiguous(_) => {
+                self.check
+                    .report_ambiguous_reference(tree.module_id, id.into_any(), path);
+
+                return None;
+            }
+        };
+
+        self.check.select_name(source, symbol);
+
+        // lower bare type parameter receiver
+        let term = if generic_arguments.is_empty()
+            && let Some(slot) = self.find_generic_type_parameter_slot(tree.module_id, symbol)
+        {
+            TypeTerm::Parameter(slot)
+        }
+        // lower nominal type receiver
+        else {
+            let arguments =
+                self.lower_generic_application_arguments(source, symbol, generic_arguments, tree);
+
+            self.lower_type_symbol_reference_term(source, symbol, arguments)
+        };
+
+        Some(self.check.bind_node_type(tree.module_id, id, term))
+    }
+
+    /// Lower the operand for one resolved value reference.
     ///
     /// Example:
     /// ```ds
@@ -73,7 +150,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> TypeTerm {
+    ) -> TypeOperand {
         let source = id.into_global_any(tree.module_id);
 
         // return direct symbol type for bare references
@@ -83,18 +160,19 @@ impl WalkState<'_, '_> {
         // instantiate explicit generic references
         else {
             let arguments = self.lower_generic_arguments(Some(symbol), generic_arguments, tree);
-
-            TypeTerm::Reference {
-                origin: Origin::Node(source),
-                symbol,
-                arguments,
-            }
+            self.check
+                .push_term(TypeTerm::Reference {
+                    origin: Origin::Node(source),
+                    symbol,
+                    arguments: arguments.into_vec(),
+                })
+                .into()
         };
 
         term
     }
 
-    /// Lower the term for one bare value reference.
+    /// Lower the operand for one bare value reference.
     ///
     /// Example:
     /// ```ds
@@ -105,19 +183,12 @@ impl WalkState<'_, '_> {
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
-    ) -> TypeTerm {
-        // return narrowed flow type when present
-        let term = if let Some(narrowed) = self.flow_path_narrowing(tree, id) {
-            narrowed.to_type_term(self.check)
+    ) -> TypeOperand {
+        if let Some(narrowed) = self.flow_path_narrowing(tree, id) {
+            return narrowed;
         }
-        // require declarations to publish a checked symbol type
-        else {
-            self.check
-                .require_symbol_type(symbol)
-                .to_type_term(self.check)
-        };
 
-        term
+        self.check.require_symbol_type(symbol)
     }
 
     /// Bind one reference type expression and return its type term.
@@ -151,7 +222,12 @@ impl WalkState<'_, '_> {
             {
                 TypeTerm::Parameter(slot)
             } else {
-                let arguments = self.lower_generic_arguments(Some(symbol), generic_arguments, tree);
+                let arguments = self.lower_generic_application_arguments(
+                    source,
+                    symbol,
+                    generic_arguments,
+                    tree,
+                );
 
                 self.lower_type_symbol_reference_term(source, symbol, arguments)
             }
@@ -170,7 +246,7 @@ impl WalkState<'_, '_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-        arguments: SmallVec<[GenericArgument; 4]>,
+        arguments: SmallVec<[GenericArgument; 2]>,
     ) -> TypeTerm {
         let item = self.check.environment.language.item(symbol);
         if let Some(item) = item {
@@ -188,11 +264,91 @@ impl WalkState<'_, '_> {
             TypeTerm::Reference {
                 origin: Origin::Node(source),
                 symbol,
-                arguments,
+                arguments: arguments.into_vec(),
             }
         };
 
         term
+    }
+
+    /// Return an inducible variable for one transparent storage constraint.
+    ///
+    /// Example:
+    /// ```ds
+    /// writer: Writer
+    /// ```
+    pub(in crate::check) fn induce_transparent_type_operand(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        operand: TypeOperand,
+        condition: Condition,
+    ) -> TypeOperand {
+        if !self.is_transparent_type_operand(operand) {
+            return operand;
+        }
+        let variable = self.check.allocate_variable(
+            source.module_id,
+            VariableKind::Type,
+            Origin::Node(source),
+        );
+
+        self.check.induce_type_generic(
+            variable,
+            "T",
+            Some(operand),
+            dir::GenericSlotInduction::Constraint,
+        );
+        self.check.relate_type(
+            Origin::Node(source),
+            TypeRelation::Assignable,
+            variable,
+            operand,
+            condition,
+        );
+
+        variable.into()
+    }
+
+    /// Return whether one operand is a transparent type constraint.
+    fn is_transparent_type_operand(&self, operand: TypeOperand) -> bool {
+        match operand {
+            TypeOperand::Term(term) => self.is_transparent_type_term(self.check.term(term)),
+            TypeOperand::Variable(_) | TypeOperand::Type(_) => false,
+        }
+    }
+
+    /// Return whether one type term is a transparent type constraint.
+    fn is_transparent_type_term(&self, term: &TypeTerm) -> bool {
+        match term {
+            TypeTerm::Reference {
+                origin: _,
+                symbol,
+                arguments: _,
+            } => self.is_transparent_type_symbol(*symbol),
+            TypeTerm::Shape(_)
+            | TypeTerm::Union { .. }
+            | TypeTerm::Intersection { .. }
+            | TypeTerm::Operation(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Return whether one symbol names a transparent type constraint.
+    fn is_transparent_type_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
+        if let Some(item) = self.check.environment.language.item(symbol) {
+            return Self::is_memory_type_intrinsic(item);
+        }
+        let kind = self.check.symbol_kind(symbol.module_id, symbol);
+
+        matches!(
+            kind,
+            Some(
+                dir::SymbolKind::AssociatedType
+                    | dir::SymbolKind::Interface
+                    | dir::SymbolKind::NewtypeInterface
+                    | dir::SymbolKind::TypeAlias,
+            )
+        )
     }
 
     /// Lower one language item type term.
@@ -208,14 +364,10 @@ impl WalkState<'_, '_> {
     ) -> Option<TypeTerm> {
         // lower memory intrinsic
         if Self::is_memory_type_intrinsic(item) {
-            let operation = self
-                .check
-                .inference
-                .terms
-                .push(TypeOperationTerm::Intrinsic {
-                    item,
-                    arguments: arguments.iter().copied().collect(),
-                });
+            let operation = self.check.push_term(TypeOperationTerm::Intrinsic {
+                item,
+                arguments: arguments.iter().cloned().collect(),
+            });
 
             return Some(TypeTerm::Operation(operation));
         }
@@ -340,7 +492,7 @@ impl WalkState<'_, '_> {
         source: dir::GlobalNodeIdAny,
     ) -> Option<TypeTerm> {
         let receiver = self.resolve_this_receiver(source)?;
-        let receiver = self.check.inference.terms.push(ReceiverTerm {
+        let receiver = self.check.push_term(ReceiverTerm {
             source,
             kind: dir::ReceiverKind::This,
             ty: receiver.ty,
@@ -360,7 +512,7 @@ impl WalkState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) {
-        self.capture_symbol_reference(source.module_id, symbol);
+        self.capture_symbol_reference(symbol);
         self.check.select_name(source, symbol);
     }
 

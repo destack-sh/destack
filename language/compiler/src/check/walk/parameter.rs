@@ -72,7 +72,7 @@ impl WalkState<'_, '_> {
                 }
                 if let Some(default) = default {
                     // check generic default in declaration context
-                    let before_default = self.checkpoint_flow();
+                    let before_default = self.fork_flow();
 
                     self.walk_expression(tree, *default, tree.get(*default));
                     self.restore_flow(before_default);
@@ -97,7 +97,7 @@ impl WalkState<'_, '_> {
                 }
                 if let Some(default) = default {
                     // check generic default in declaration context
-                    let before_default = self.checkpoint_flow();
+                    let before_default = self.fork_flow();
 
                     self.walk_expression(tree, *default, tree.get(*default));
                     self.restore_flow(before_default);
@@ -135,7 +135,7 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.output_symbol_type_variable(module, symbol);
+                let variable = self.check.bind_symbol_type_variable(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
                 let constraint =
@@ -163,7 +163,7 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.output_symbol_type_variable(module, symbol);
+                let variable = self.check.bind_symbol_type_variable(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
                 let constraint =
@@ -190,7 +190,7 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.output_symbol_static_variable(module, symbol);
+                let variable = self.check.bind_symbol_static_variable(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
                 let constraint =
@@ -199,7 +199,7 @@ impl WalkState<'_, '_> {
                     let condition = self.active_static_guard();
 
                     self.check
-                        .output_static_expression_variable(module, id, condition)
+                        .bind_static_expression_variable(module, id, condition)
                         .into()
                 });
                 let generic = GenericSlot::Static {
@@ -222,7 +222,7 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.output_symbol_static_variable(module, symbol);
+                let variable = self.check.bind_symbol_static_variable(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
                 let constraint =
@@ -231,7 +231,7 @@ impl WalkState<'_, '_> {
                     let condition = self.active_static_guard();
 
                     self.check
-                        .output_static_expression_variable(module, id, condition)
+                        .bind_static_expression_variable(module, id, condition)
                         .into()
                 });
                 let generic = GenericSlot::VariadicStatic {
@@ -289,7 +289,7 @@ impl WalkState<'_, '_> {
                     self.walk_type_expression(tree, *declared_type, tree.get(*declared_type));
                 }
                 if let Some(default) = default {
-                    let before_default = self.checkpoint_flow();
+                    let before_default = self.fork_flow();
 
                     self.walk_expression(tree, *default, tree.get(*default));
                     self.restore_flow(before_default);
@@ -312,12 +312,8 @@ impl WalkState<'_, '_> {
                     } else if let Some(parameter_type) = parameter_type {
                         let condition = self.active_static_guard();
 
-                        self.check.output_symbol_type(
-                            tree.module_id,
-                            symbol,
-                            parameter_type.to_type_term(self.check),
-                            condition,
-                        );
+                        self.check
+                            .bind_symbol_type_operand(symbol, parameter_type, condition);
                     }
                 }
 
@@ -360,12 +356,8 @@ impl WalkState<'_, '_> {
                     } else if let Some(parameter_type) = parameter_type {
                         let condition = self.active_static_guard();
 
-                        self.check.output_symbol_type(
-                            tree.module_id,
-                            symbol,
-                            parameter_type.to_type_term(self.check),
-                            condition,
-                        );
+                        self.check
+                            .bind_symbol_type_operand(symbol, parameter_type, condition);
                     }
                 }
             }
@@ -388,7 +380,7 @@ impl WalkState<'_, '_> {
                     self.walk_type_expression(tree, *declared_type, tree.get(*declared_type));
                 }
                 if let Some(default) = default {
-                    let before_default = self.checkpoint_flow();
+                    let before_default = self.fork_flow();
 
                     self.walk_expression(tree, *default, tree.get(*default));
                     self.restore_flow(before_default);
@@ -472,7 +464,7 @@ impl WalkState<'_, '_> {
     ) -> Option<VariableId> {
         let source = id.into_any();
         let owner = self.check.scope_owner_symbol(module, source)?;
-        let variable = self.check.output_symbol_static_variable(module, symbol);
+        let variable = self.check.bind_symbol_static_variable(module, symbol);
         let slot = self
             .check
             .allocate_induced_symbol_generic_slot(owner, symbol);
@@ -481,7 +473,7 @@ impl WalkState<'_, '_> {
             let condition = self.active_static_guard();
 
             self.check
-                .output_static_expression_variable(module, id, condition)
+                .bind_static_expression_variable(module, id, condition)
                 .into()
         });
         let generic = if is_variadic {

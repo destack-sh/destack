@@ -23,7 +23,7 @@ impl WalkState<'_, '_> {
             .generic_parameters
             .iter()
             .filter_map(|parameter| self.require_generic_parameter_variable(*parameter, tree))
-            .collect::<smallvec::SmallVec<[VariableId; 4]>>();
+            .collect::<Vec<_>>();
         generic_parameters.extend(
             signature
                 .parameters
@@ -50,7 +50,7 @@ impl WalkState<'_, '_> {
             is_generator: signature.is_generator,
         };
 
-        self.check.inference.terms.push(function)
+        self.check.push_term(function)
     }
 
     /// Return one function type term from a type-space function declaration.
@@ -70,7 +70,7 @@ impl WalkState<'_, '_> {
             .generic_parameters
             .iter()
             .filter_map(|parameter| self.require_generic_parameter_variable(*parameter, tree))
-            .collect::<smallvec::SmallVec<[VariableId; 4]>>();
+            .collect::<Vec<_>>();
         generic_parameters.extend(
             declaration
                 .parameters
@@ -97,7 +97,7 @@ impl WalkState<'_, '_> {
             is_generator: false,
         };
 
-        self.check.inference.terms.push(function)
+        self.check.push_term(function)
     }
 
     /// Return one function type term from a type-space constructor declaration.
@@ -117,7 +117,7 @@ impl WalkState<'_, '_> {
             .generic_parameters
             .iter()
             .filter_map(|parameter| self.require_generic_parameter_variable(*parameter, tree))
-            .collect::<smallvec::SmallVec<[VariableId; 4]>>();
+            .collect::<Vec<_>>();
         generic_parameters.extend(
             declaration
                 .parameters
@@ -141,7 +141,7 @@ impl WalkState<'_, '_> {
             is_generator: false,
         };
 
-        self.check.inference.terms.push(function)
+        self.check.push_term(function)
     }
 
     /// Walk one function body inside a function flow frame.
@@ -181,7 +181,7 @@ impl WalkState<'_, '_> {
                 symbol,
                 arguments: vec![argument].into(),
             };
-            let promised = self.check.inference.terms.push(promised);
+            let promised = self.check.push_term(promised);
             let condition = self.active_static_guard();
 
             self.check.relate_type(
@@ -223,7 +223,7 @@ impl WalkState<'_, '_> {
                 symbol,
                 arguments: vec![yielded_argument, completed_argument, resumed_argument].into(),
             };
-            let generated = self.check.inference.terms.push(generated);
+            let generated = self.check.push_term(generated);
             let condition = self.active_static_guard();
 
             self.check.relate_type(
@@ -265,7 +265,7 @@ impl WalkState<'_, '_> {
             self.constrain_function_fallthrough_return(tree, body);
         }
 
-        self.leave_function_frame(tree.module_id);
+        self.leave_function_frame();
     }
 
     /// Return whether one signature is a constructor body.
@@ -312,6 +312,16 @@ impl WalkState<'_, '_> {
 
         let parameter = FunctionParameter {
             ty,
+            static_slot: if parameter.is_comptime() {
+                let source = id.into_any();
+                let symbol = self.check.declaration_symbol(tree.module_id, source)?;
+
+                self.check
+                    .generic_static_variable_for_symbol(tree.module_id, symbol)
+                    .map(Box::new)
+            } else {
+                None
+            },
             is_optional,
             is_rest,
         };
@@ -378,14 +388,21 @@ impl WalkState<'_, '_> {
         };
         let Some(declared_type) = declared_type else {
             let node = id.into_global_any(tree.module_id);
-            let variable = self.check.output_node_type_variable(tree.module_id, node);
+            if let Some(ty) = self.check.node_type(node) {
+                return Some(ty);
+            }
+            let variable = self.check.bind_node_type_variable(tree.module_id, node);
 
             return Some(variable.into());
         };
 
-        Some(
-            self.check
-                .require_local_node_type(tree.module_id, declared_type),
-        )
+        let source = id.into_global_any(tree.module_id);
+        let operand = self
+            .check
+            .require_local_node_type(tree.module_id, declared_type);
+        let condition = self.active_static_guard();
+        let operand = self.induce_transparent_type_operand(source, operand, condition);
+
+        Some(operand)
     }
 }
