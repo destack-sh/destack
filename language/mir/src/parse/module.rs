@@ -559,14 +559,13 @@ impl Parser {
         }
 
         // initializer
-        let can_have_initializer =
-            matches!(ty, TypeReference::Type(_)) || self.peek_token(TokenType::Equal);
-
-        let initializer = if !linkage.is_import() && can_have_initializer {
+        let initializer = if linkage.is_import()
+            || (!matches!(ty, TypeReference::Type(_)) && !self.peek_token(TokenType::Equal))
+        {
+            None
+        } else {
             self.eat_token(TokenType::Equal)?;
             Some(self.parse_data_init()?)
-        } else {
-            None
         };
 
         // record global
