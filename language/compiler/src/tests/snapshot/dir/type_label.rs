@@ -38,7 +38,6 @@ impl DirSnapshotBuilder<'_> {
 
                 format!("Dynamic<{constraint}>")
             }
-            dir::Type::Predicate(predicate) => self.predicate_type_label(types, predicate),
             dir::Type::Operation(operation) => self.operation_type_label(types, operation),
             dir::Type::Array(array) => self.array_type_label(types, array),
             dir::Type::FixedArray(array) => self.fixed_array_type_label(types, array),
@@ -172,40 +171,6 @@ impl DirSnapshotBuilder<'_> {
                 format!("Placed<{value}, {place}>")
             }
             dir::Form::Readonly => format!("Readonly<{value}>"),
-        }
-    }
-
-    /// Return one predicate type label.
-    fn predicate_type_label(
-        &self,
-        types: &dir::TypeTable<'_>,
-        predicate: &dir::PredicateType,
-    ) -> String {
-        // render the predicate subject
-        let subject = match predicate.subject {
-            dir::PredicateSubject::Symbol(symbol) => self.symbol_label(symbol),
-            dir::PredicateSubject::This => "this".to_string(),
-        };
-
-        // render assertion predicates
-        if predicate.asserts {
-            if let Some(target) = predicate.target {
-                let target = self.type_id_label(types, target);
-
-                format!("asserts {subject} is {target}")
-            } else {
-                format!("asserts {subject}")
-            }
-        }
-        // render ordinary type predicates
-        else if let Some(target) = predicate.target {
-            let target = self.type_id_label(types, target);
-
-            format!("{subject} is {target}")
-        }
-        // fall back to the subject
-        else {
-            subject
         }
     }
 

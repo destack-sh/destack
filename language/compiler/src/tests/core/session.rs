@@ -445,7 +445,7 @@ impl TestSession {
     }
 
     /// Render one module snapshot.
-    fn render_module_snapshot(&self, entry: &TestModule, selection: DirRows) -> String {
+    fn render_module_snapshot(&self, path: &str, entry: &TestModule, selection: DirRows) -> String {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
         let bindings = bound.binding_table();
@@ -482,6 +482,19 @@ impl TestSession {
         if selection.includes_import() {
             let resolved = self.dir_resolved(entry);
             builder.add_resolved(selection, &resolved);
+        }
+
+        if selection.includes_metadata() {
+            let key = self.dir_resolved_key(path);
+            let metadata_rows = selection.metadata_rows();
+
+            for phase in metadata_phases(metadata_rows) {
+                let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
+                let metadata = self.artifact_text_sidecar(key, "metadata", &labels);
+                let rows = metadata_rows_for_phase(metadata_rows, phase);
+
+                builder.add_metadata(&rows, &metadata);
+            }
         }
 
         builder.render()
@@ -531,7 +544,7 @@ impl TestSession {
                 return self.render_checked_module_snapshot(paths[0], entry, rows);
             }
 
-            return self.render_module_snapshot(entry, rows);
+            return self.render_module_snapshot(paths[0], entry, rows);
         }
 
         paths
@@ -541,7 +554,7 @@ impl TestSession {
                 let body = if is_checked {
                     self.render_checked_module_snapshot(path, entry, rows)
                 } else {
-                    self.render_module_snapshot(entry, rows)
+                    self.render_module_snapshot(path, entry, rows)
                 };
 
                 format!("=== {path} ===\n{body}")
