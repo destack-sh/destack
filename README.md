@@ -7,7 +7,7 @@
 
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
-Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, library, services, and apps.
+Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, and library.
 
 <p>
     <a href="VERSION.txt"><img src="https://img.shields.io/badge/version-0.55.4-2ea44f?style=for-the-badge" alt="Version"></a>
@@ -67,7 +67,7 @@ See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
 
 ## License
 
-Destack is fully open source under the MIT license across the language, library, services, apps, bridges, and platform.
+Destack is fully open source under the MIT license across the full stack.
 See [LICENSE.txt](LICENSE.txt).
 
 Destack also includes components licensed, vendored, and integrated from third parties, which come with their own licenses including but not limited to the Apache-2.0 (with LLVM-exception) license.
