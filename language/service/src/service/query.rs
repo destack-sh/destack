@@ -230,12 +230,8 @@ impl LanguageService {
                     revision,
                     &[params.position.module.profile_id],
                 )?;
-                let mut items = query::completions(
-                    &context,
-                    &workspace,
-                    params.position.offset,
-                    params.trigger,
-                );
+                let mut items =
+                    context.completions(&workspace, params.position.offset, params.trigger);
 
                 if !params.include_imports {
                     items.retain(|item| item.additional_text_edits.is_empty());
@@ -253,7 +249,7 @@ impl LanguageService {
                     revision,
                     params.position.module,
                 )?;
-                let hover = query::hover(&context, params.position.offset);
+                let hover = context.hover(params.position.offset);
 
                 query::QueryResponse::Hover(query::HoverResponse { hover })
             }
@@ -264,14 +260,14 @@ impl LanguageService {
                     revision,
                     params.position.module,
                 )?;
-                let help = query::signature_help(&context, params.position.offset);
+                let help = context.signature_help(params.position.offset);
 
                 query::QueryResponse::SignatureHelp(query::SignatureHelpResponse { help })
             }
             query::QueryRequest::InlayHints(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
-                let hints = query::inlay_hints(&context, params.range.span);
+                let hints = context.inlay_hints(params.range.span);
 
                 query::QueryResponse::InlayHints(query::InlayHintsResponse { hints })
             }
@@ -284,7 +280,7 @@ impl LanguageService {
                     revision,
                     &[params.module.profile_id],
                 )?;
-                let lenses = query::code_lenses(&context, &workspace);
+                let lenses = context.code_lenses(&workspace);
 
                 query::QueryResponse::CodeLenses(query::CodeLensesResponse { lenses })
             }
@@ -295,28 +291,28 @@ impl LanguageService {
             query::QueryRequest::FoldingRanges(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
-                let ranges = query::folding_ranges(&context);
+                let ranges = context.folding_ranges();
 
                 query::QueryResponse::FoldingRanges(query::FoldingRangesResponse { ranges })
             }
             query::QueryRequest::SemanticTokens(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
-                let tokens = query::semantic_tokens(&context);
+                let tokens = context.semantic_tokens();
 
                 query::QueryResponse::SemanticTokens(query::SemanticTokensResponse { tokens })
             }
             query::QueryRequest::SemanticTokensRange(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
-                let tokens = query::semantic_tokens_range(&context, params.range.span);
+                let tokens = context.semantic_tokens_range(params.range.span);
 
                 query::QueryResponse::SemanticTokensRange(query::SemanticTokensResponse { tokens })
             }
             query::QueryRequest::DocumentSymbols(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
-                let symbols = query::document_symbols(&context);
+                let symbols = context.document_symbols();
 
                 query::QueryResponse::DocumentSymbols(query::DocumentSymbolsResponse { symbols })
             }
@@ -327,22 +323,15 @@ impl LanguageService {
                     revision,
                     &params.profile_ids,
                 )?;
-                let symbols =
-                    query::workspace_symbols(&context, &params.query, params.max_results as usize);
+                let symbols = context.workspace_symbols(&params.query, params.max_results as usize);
                 query::QueryResponse::WorkspaceSymbols(query::WorkspaceSymbolsResponse { symbols })
             }
             query::QueryRequest::DocumentLinks(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
-                let links = query::document_links(&context);
+                let links = context.document_links();
 
                 query::QueryResponse::DocumentLinks(query::DocumentLinksResponse { links })
-            }
-            query::QueryRequest::ResolveDocumentLink(params) => {
-                let link = query::resolve_document_link(&params.link);
-                query::QueryResponse::ResolveDocumentLink(query::ResolveDocumentLinkResponse {
-                    link,
-                })
             }
             query::QueryRequest::DocumentHighlight(params) => {
                 let context = self.module_query_context(
@@ -351,7 +340,7 @@ impl LanguageService {
                     revision,
                     params.position.module,
                 )?;
-                let highlights = query::document_highlights(&context, params.position.offset);
+                let highlights = context.document_highlights(params.position.offset);
 
                 query::QueryResponse::DocumentHighlight(query::DocumentHighlightResponse {
                     highlights,
@@ -360,7 +349,7 @@ impl LanguageService {
             query::QueryRequest::SelectionRanges(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.module)?;
-                let ranges = query::selection_ranges(&context, &params.offsets);
+                let ranges = context.selection_ranges(&params.offsets);
 
                 query::QueryResponse::SelectionRanges(query::SelectionRangesResponse { ranges })
             }
@@ -371,7 +360,7 @@ impl LanguageService {
                     revision,
                     params.position.module,
                 )?;
-                let targets = query::goto_definition(&context, params.position.offset);
+                let targets = context.goto_definition(params.position.offset);
 
                 query::QueryResponse::GotoDefinition(query::GotoDefinitionResponse { targets })
             }
@@ -382,7 +371,7 @@ impl LanguageService {
                     revision,
                     params.position.module,
                 )?;
-                let targets = query::goto_declaration(&context, params.position.offset);
+                let targets = context.goto_declaration(params.position.offset);
 
                 query::QueryResponse::GotoDeclaration(query::GotoDeclarationResponse { targets })
             }
@@ -393,7 +382,7 @@ impl LanguageService {
                     revision,
                     params.position.module,
                 )?;
-                let targets = query::goto_type_definition(&context, params.position.offset);
+                let targets = context.goto_type_definition(params.position.offset);
 
                 query::QueryResponse::GotoTypeDefinition(query::GotoTypeDefinitionResponse {
                     targets,
@@ -412,8 +401,7 @@ impl LanguageService {
                     revision,
                     &[params.position.module.profile_id],
                 )?;
-                let targets =
-                    query::goto_implementation(&context, &workspace, params.position.offset);
+                let targets = context.goto_implementation(&workspace, params.position.offset);
 
                 query::QueryResponse::GotoImplementation(query::GotoImplementationResponse {
                     targets,
@@ -432,8 +420,7 @@ impl LanguageService {
                     revision,
                     &[params.position.module.profile_id],
                 )?;
-                let references = query::find_references(
-                    &context,
+                let references = context.find_references(
                     &workspace,
                     params.position.offset,
                     params.include_declaration,
@@ -448,7 +435,7 @@ impl LanguageService {
                     revision,
                     params.position.module,
                 )?;
-                let item = query::call_hierarchy_item(&context, params.position.offset);
+                let item = context.call_hierarchy_item(params.position.offset);
 
                 query::QueryResponse::CallHierarchyItem(query::CallHierarchyItemResponse { item })
             }
@@ -459,7 +446,7 @@ impl LanguageService {
                     revision,
                     &[params.item.target.module.profile_id],
                 )?;
-                let calls = query::incoming_calls(&context, &params.item);
+                let calls = context.incoming_calls(&params.item);
                 query::QueryResponse::CallHierarchyIncoming(query::CallHierarchyIncomingResponse {
                     calls,
                 })
@@ -471,7 +458,7 @@ impl LanguageService {
                     revision,
                     &[params.item.target.module.profile_id],
                 )?;
-                let calls = query::outgoing_calls(&context, &params.item);
+                let calls = context.outgoing_calls(&params.item);
                 query::QueryResponse::CallHierarchyOutgoing(query::CallHierarchyOutgoingResponse {
                     calls,
                 })
@@ -483,7 +470,7 @@ impl LanguageService {
                     revision,
                     params.position.module,
                 )?;
-                let item = query::type_hierarchy_item(&context, params.position.offset);
+                let item = context.type_hierarchy_item(params.position.offset);
 
                 query::QueryResponse::TypeHierarchyItem(query::TypeHierarchyItemResponse { item })
             }
@@ -494,7 +481,7 @@ impl LanguageService {
                     revision,
                     &[params.item.target.module.profile_id],
                 )?;
-                let items = query::supertypes(&context, &params.item);
+                let items = context.supertypes(&params.item);
                 query::QueryResponse::TypeHierarchySupertypes(
                     query::TypeHierarchySupertypesResponse { items },
                 )
@@ -506,7 +493,7 @@ impl LanguageService {
                     revision,
                     &[params.item.target.module.profile_id],
                 )?;
-                let items = query::subtypes(&context, &params.item);
+                let items = context.subtypes(&params.item);
                 query::QueryResponse::TypeHierarchySubtypes(query::TypeHierarchySubtypesResponse {
                     items,
                 })
@@ -518,7 +505,7 @@ impl LanguageService {
                     revision,
                     params.position.module,
                 )?;
-                let result = query::rename_target(&context, params.position.offset);
+                let result = context.rename_target(params.position.offset);
 
                 query::QueryResponse::RenameTarget(query::RenameTargetResponse { result })
             }
@@ -535,12 +522,7 @@ impl LanguageService {
                     revision,
                     &[params.position.module.profile_id],
                 )?;
-                let edit = query::rename(
-                    &context,
-                    &workspace,
-                    params.position.offset,
-                    &params.new_name,
-                );
+                let edit = context.rename(&workspace, params.position.offset, &params.new_name);
 
                 query::QueryResponse::Rename(query::RenameResponse { edit })
             }
@@ -551,20 +533,20 @@ impl LanguageService {
                     revision,
                     &params.profile_ids,
                 )?;
-                let edit = query::rename_files(&context, &params.renames);
+                let edit = context.rename_files(&params.renames);
                 query::QueryResponse::RenameFiles(query::RenameFilesResponse { edit })
             }
             query::QueryRequest::ExtractFunction(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
-                let edit = query::extract_function(&context, params.range.span, &params.new_name);
+                let edit = context.extract_function(params.range.span, &params.new_name);
 
                 query::QueryResponse::ExtractFunction(query::ExtractFunctionResponse { edit })
             }
             query::QueryRequest::ExtractVariable(params) => {
                 let context =
                     self.module_query_context(session, repository, revision, params.range.module)?;
-                let edit = query::extract_variable(&context, params.range.span, &params.new_name);
+                let edit = context.extract_variable(params.range.span, &params.new_name);
 
                 query::QueryResponse::ExtractVariable(query::ExtractVariableResponse { edit })
             }
@@ -581,7 +563,7 @@ impl LanguageService {
                     revision,
                     &[params.position.module.profile_id],
                 )?;
-                let edit = query::inline_symbol(&context, &workspace, params.position.offset);
+                let edit = context.inline_symbol(&workspace, params.position.offset);
 
                 query::QueryResponse::Inline(query::InlineResponse { edit })
             }
@@ -598,8 +580,7 @@ impl LanguageService {
                     revision,
                     &[params.position.module.profile_id],
                 )?;
-                let edit = query::change_signature(
-                    &context,
+                let edit = context.change_signature(
                     &workspace,
                     params.position.offset,
                     &params.new_parameters,
@@ -620,8 +601,7 @@ impl LanguageService {
                 let diagnostics = diagnostics_by_file(repository, revision)?
                     .remove(&params.range.span.file)
                     .unwrap_or_default();
-                let actions = query::code_actions(
-                    &context,
+                let actions = context.code_actions(
                     &workspace,
                     params.range.span,
                     &diagnostics,
@@ -637,8 +617,7 @@ impl LanguageService {
                 };
                 let context =
                     self.workspace_query_context(session, repository, revision, &profile_ids)?;
-                let annotations =
-                    query::annotations(&context, &params.scope, params.name.as_deref());
+                let annotations = context.annotations(&params.scope, params.name.as_deref());
 
                 query::QueryResponse::Annotations(query::AnnotationsResponse { annotations })
             }

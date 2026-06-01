@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_query::SelectionRange;
 use destack_source::{FileId, Span};
 
@@ -30,7 +29,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     };
 
     let ctx = session.module_context(file_id);
-    let ranges = query::selection_ranges(&ctx, &[offset]);
+    let ranges = ctx.selection_ranges(&[offset]);
 
     let content = exp.content.trim();
 

@@ -2,8 +2,8 @@ use destack_source::ProfileId;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
-    QueryModule, QueryTarget, SymbolEntry, SymbolEntryKind, WorkspaceQueryContext,
-    search_workspace_symbol_candidates, symbol_relevance, symbol_sort_key,
+    MemberEntry, QueryModule, QueryTarget, SymbolEntry, WorkspaceQueryContext, match_quality,
+    symbol_relevance, symbol_sort_key,
 };
 use crate::dir::SymbolKind;
 
@@ -38,50 +38,6 @@ pub struct WorkspaceSymbolsResponse {
     pub symbols: Vec<WorkspaceSymbol>,
 }
 
-/// Search for symbols across the workspace.
-///
-/// Returns symbols whose names match the lexical query.
-pub fn workspace_symbols(
-    ctx: &WorkspaceQueryContext<'_>,
-    query: &str,
-    max_results: usize,
-) -> Vec<WorkspaceSymbol> {
-    // prepare the scored symbol buffer
-    let mut scored_symbols = Vec::new();
-
-    // normalize query input
-    let query = query.trim();
-
-    // collect matching entries from the workspace symbol index
-    for (profile_id, entry) in search_workspace_symbol_candidates(ctx, query) {
-        let Some(relevance) = symbol_relevance(&entry, query) else {
-            continue;
-        };
-
-        let sort_key = symbol_sort_key(&relevance, &entry);
-        scored_symbols.push((
-            sort_key,
-            workspace_symbol_from_index_entry(profile_id, entry),
-        ));
-    }
-
-    // sort by lexical relevance, then kind, then location for deterministic results
-    scored_symbols.sort_by(|left, right| left.0.cmp(&right.0));
-
-    let mut symbols: Vec<_> = scored_symbols
-        .into_iter()
-        .map(|(_, symbol)| symbol)
-        .collect();
-
-    // enforce the maximum result limit
-    if symbols.len() > max_results {
-        symbols.truncate(max_results);
-    }
-
-    // return the final symbol list
-    symbols
-}
-
 /// Convert one cached symbol entry to a workspace symbol.
 fn workspace_symbol_from_index_entry(profile_id: ProfileId, entry: SymbolEntry) -> WorkspaceSymbol {
     let module = QueryModule {
@@ -96,27 +52,97 @@ fn workspace_symbol_from_index_entry(profile_id: ProfileId, entry: SymbolEntry) 
     };
 
     WorkspaceSymbol {
-        name: entry.name,
-        kind: symbol_kind_from_index_kind(entry.kind),
+        name: entry.name.text(),
+        kind: entry.kind.into(),
         target,
         container: entry.container_name,
     }
 }
 
-/// Map one symbol index kind to the public workspace symbol kind.
-fn symbol_kind_from_index_kind(kind: SymbolEntryKind) -> SymbolKind {
-    match kind {
-        SymbolEntryKind::Namespace => SymbolKind::Namespace,
-        SymbolEntryKind::Class => SymbolKind::Class,
-        SymbolEntryKind::Method => SymbolKind::Method,
-        SymbolEntryKind::Field => SymbolKind::Field,
-        SymbolEntryKind::Enum => SymbolKind::Enum,
-        SymbolEntryKind::Interface => SymbolKind::Interface,
-        SymbolEntryKind::Function => SymbolKind::Function,
-        SymbolEntryKind::Variable => SymbolKind::Variable,
-        SymbolEntryKind::Constant => SymbolKind::Constant,
-        SymbolEntryKind::EnumMember => SymbolKind::EnumMember,
-        SymbolEntryKind::Struct => SymbolKind::Struct,
-        SymbolEntryKind::TypeParameter => SymbolKind::TypeParameter,
+/// Convert one cached member entry to a workspace symbol.
+fn workspace_symbol_from_member_entry(
+    profile_id: ProfileId,
+    entry: MemberEntry,
+) -> WorkspaceSymbol {
+    let module = QueryModule {
+        module_id: entry.module_id,
+        profile_id,
+    };
+    let target = QueryTarget::span(module, entry.range).with_symbol(entry.member_symbol);
+
+    WorkspaceSymbol {
+        name: entry.name.text(),
+        kind: entry.kind.into(),
+        target,
+        container: entry.container_name,
+    }
+}
+
+impl WorkspaceQueryContext<'_> {
+    /// Search for symbols across the workspace.
+    ///
+    /// Returns symbols whose names match the lexical query.
+    pub fn workspace_symbols(&self, query: &str, max_results: usize) -> Vec<WorkspaceSymbol> {
+        let ctx = self;
+        // prepare the scored symbol buffer
+        let mut scored_symbols = Vec::new();
+
+        // normalize query input
+        let query = query.trim();
+
+        // collect matching entries from the workspace symbol index
+        for (profile_id, entry) in ctx.search_symbol_candidates(query) {
+            let Some(relevance) = symbol_relevance(&entry, query) else {
+                continue;
+            };
+
+            let sort_key = symbol_sort_key(&relevance, &entry);
+            scored_symbols.push((
+                sort_key,
+                workspace_symbol_from_index_entry(profile_id, entry),
+            ));
+        }
+
+        // collect matching entries from the workspace member index
+        for (profile_id, entry) in ctx.search_member_candidates(query) {
+            let name = entry.name.text();
+            let Some(relevance) = match_quality(&name, query) else {
+                continue;
+            };
+
+            let sort_key = (
+                relevance.sort_key(),
+                4,
+                0,
+                1,
+                None,
+                entry.container_name.clone(),
+                name.chars().count(),
+                name.to_lowercase(),
+                entry.file_id.0,
+                entry.range.start,
+                entry.range.end,
+            );
+            scored_symbols.push((
+                sort_key,
+                workspace_symbol_from_member_entry(profile_id, entry),
+            ));
+        }
+
+        // sort by lexical relevance, then kind, then location for deterministic results
+        scored_symbols.sort_by(|left, right| left.0.cmp(&right.0));
+
+        let mut symbols: Vec<_> = scored_symbols
+            .into_iter()
+            .map(|(_, symbol)| symbol)
+            .collect();
+
+        // enforce the maximum result limit
+        if symbols.len() > max_results {
+            symbols.truncate(max_results);
+        }
+
+        // return the final symbol list
+        symbols
     }
 }

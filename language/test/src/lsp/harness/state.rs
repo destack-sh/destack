@@ -711,14 +711,6 @@ impl LspTestState {
         self.driver.document_links(&file_path)
     }
 
-    /// Resolve one previously returned document link.
-    pub fn resolve_document_link(
-        &mut self,
-        link: lsp::DocumentLink,
-    ) -> Result<Option<lsp::DocumentLink>, String> {
-        self.driver.document_link_resolve(link)
-    }
-
     /// Request whole-document formatting edits for the current active file.
     pub fn request_document_formatting(&mut self) -> Result<Option<Vec<lsp::TextEdit>>, String> {
         let file_path = self

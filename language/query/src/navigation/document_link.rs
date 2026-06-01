@@ -1,10 +1,9 @@
 use destack_dir as dir;
-use destack_dir::Expression;
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{ModuleQueryContext, QueryModule};
-use crate::source::{main_or_enclosing_span_for_dir_node, string_literal_span_in_enclosing};
+use crate::source::string_literal_span_in_enclosing;
 
 /// A clickable link in a document.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -74,13 +73,6 @@ pub struct DocumentLinksRequest {
     pub module: QueryModule,
 }
 
-/// Request to resolve a document link.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ResolveDocumentLinkRequest {
-    /// The document link to resolve.
-    pub link: DocumentLink,
-}
-
 /// Response payload for document links queries.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentLinksResponse {
@@ -88,79 +80,71 @@ pub struct DocumentLinksResponse {
     pub links: Vec<DocumentLink>,
 }
 
-/// Response payload for document link resolve queries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ResolveDocumentLinkResponse {
-    /// The resolved document link.
-    pub link: DocumentLink,
-}
+impl ModuleQueryContext<'_> {
+    /// Get document links for a file.
+    pub fn document_links(&self) -> Vec<DocumentLink> {
+        let dir_tree = self.dir().view();
+        let mut links = Vec::new();
 
-/// Get document links for a file.
-pub fn document_links(ctx: &ModuleQueryContext<'_>) -> Vec<DocumentLink> {
-    let dir_tree = ctx.dir().view();
-    let mut links = Vec::new();
+        // collect import and export path links
+        for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
+            let target = match expression {
+                dir::Expression::Import { target, .. } => Some(*target),
+                dir::Expression::Export { target, .. } => *target,
+                _ => None,
+            };
+            let Some(target) = target else {
+                continue;
+            };
 
-    // collect import and export path links
-    for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-        let target = match expression {
-            Expression::Import { target, .. } => Some(*target),
-            Expression::Export { target, .. } => *target,
-            _ => None,
-        };
-        let Some(target) = target else {
-            continue;
-        };
+            let node_id = expression_id.into_global_any(self.module_id());
+            let relation = match expression {
+                dir::Expression::Import { .. } => dir::ModuleRelation::Import,
+                dir::Expression::Export { .. } => dir::ModuleRelation::ReExport,
+                _ => unreachable!(),
+            };
+            let Some(target_module_id) = self.dir().modules().target_for_source(node_id, relation)
+            else {
+                continue;
+            };
+            let Some(target_module) = self
+                .repository()
+                .module(self.revision(), target_module_id)
+                .ok()
+                .flatten()
+            else {
+                continue;
+            };
+            let Some(path) = target_module.path.as_ref() else {
+                continue;
+            };
 
-        let node_id = expression_id.into_global_any(ctx.module_id());
-        let relation = match expression {
-            Expression::Import { .. } => dir::ModuleRelation::Import,
-            Expression::Export { .. } => dir::ModuleRelation::ReExport,
-            _ => unreachable!(),
-        };
-        let Some(target_module_id) = ctx.dir().modules().target_for_source(node_id, relation)
-        else {
-            continue;
-        };
-        let Some(target_module) = ctx
-            .repository()
-            .module(ctx.revision(), target_module_id)
-            .ok()
-            .flatten()
-        else {
-            continue;
-        };
-        let Some(path) = target_module.path.as_ref() else {
-            continue;
-        };
+            let Some(file) = self
+                .repository()
+                .file(self.revision(), self.file_id())
+                .ok()
+                .flatten()
+            else {
+                continue;
+            };
+            let enclosing = self
+                .dir()
+                .main_or_enclosing_span_for_dir_node(dir_tree, expression_id.into());
+            let import_path = self.dir().strings().get(target).to_string();
+            let span = string_literal_span_in_enclosing(
+                &file,
+                self.dir().tokens(),
+                enclosing,
+                &import_path,
+            )
+            .unwrap_or(enclosing);
 
-        let Some(file) = ctx
-            .repository()
-            .file(ctx.revision(), ctx.file_id())
-            .ok()
-            .flatten()
-        else {
-            continue;
-        };
-        let enclosing =
-            main_or_enclosing_span_for_dir_node(ctx.dir(), dir_tree, expression_id.into());
-        let import_path = ctx.dir().strings().get(target).to_string();
-        let span =
-            string_literal_span_in_enclosing(&file, ctx.dir().tokens(), enclosing, &import_path)
-                .unwrap_or(enclosing);
+            links.push(
+                DocumentLink::file(span, path.to_string_lossy().to_string())
+                    .with_tooltip(format!("Go to {import_path}")),
+            );
+        }
 
-        links.push(
-            DocumentLink::file(span, path.to_string_lossy().to_string())
-                .with_tooltip(format!("Go to {import_path}")),
-        );
+        links
     }
-
-    links
-}
-
-/// Resolve a document link (compute its target if deferred).
-///
-/// Some links defer resolution until clicked.
-pub fn resolve_document_link(link: &DocumentLink) -> DocumentLink {
-    // currently all links are resolved immediately
-    link.clone()
 }

@@ -1,96 +1,89 @@
 use std::collections::HashMap;
 
 use destack_dir as dir;
-use destack_dir::normalize_comment_payload;
 
 use crate::core::{DirQueryContext, ModuleQueryContext};
 
-/// Collect documentation strings attached to a node.
-pub(crate) fn doc_strings_for_node(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    node_id: u32,
-) -> Vec<String> {
-    let node_span = ctx.source_index().get_main_or_enclosing(node_id);
+impl DirQueryContext<'_> {
+    /// Collect documentation strings attached to a node.
+    pub(crate) fn doc_strings_for_node(self, source: &str, node_id: u32) -> Vec<String> {
+        let node_span = self.source_index().get_main_or_enclosing(node_id);
 
-    ctx.tree()
-        .comments()
-        .iter()
-        .copied()
-        .filter(|comment| comment.is_leading())
-        .filter(|comment| comment.span.file == node_span.file)
-        .filter(|comment| comment.attached_to == node_span.start)
-        .filter_map(|comment| {
-            let start = usize::try_from(comment.span.start).ok()?;
-            let end = usize::try_from(comment.span.end).ok()?;
-            let raw_comment = source.get(start..end)?;
-            if !is_doc_comment(raw_comment) {
-                return None;
-            }
+        self.tree()
+            .comments()
+            .iter()
+            .copied()
+            .filter(|comment| comment.is_leading())
+            .filter(|comment| comment.span.file == node_span.file)
+            .filter(|comment| comment.attached_to == node_span.start)
+            .filter_map(|comment| {
+                let start = usize::try_from(comment.span.start).ok()?;
+                let end = usize::try_from(comment.span.end).ok()?;
+                let raw_comment = source.get(start..end)?;
+                if !is_doc_comment(raw_comment) {
+                    return None;
+                }
 
-            Some(normalize_comment_payload(raw_comment).into_owned())
-        })
-        .collect()
-}
-
-/// Collect documentation strings attached to a node or adjacent line docs.
-pub(crate) fn doc_strings_for_node_or_line(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    node_id: u32,
-) -> Vec<String> {
-    // collect doc strings from source DIR
-    let mut doc_strings = doc_strings_for_node(ctx, source, node_id);
-
-    // collect adjacent line docs when source docs are missing
-    if doc_strings.is_empty() {
-        let span = ctx.source_index().get_main_or_enclosing(node_id);
-        doc_strings = line_doc_strings_before_span(source, span.start);
+                Some(dir::normalize_comment_payload(raw_comment).into_owned())
+            })
+            .collect()
     }
 
-    // return the collected docs
-    doc_strings
-}
+    /// Collect documentation strings attached to a node or adjacent line docs.
+    pub(crate) fn doc_strings_for_node_or_line(self, source: &str, node_id: u32) -> Vec<String> {
+        // collect doc strings from source DIR
+        let mut doc_strings = self.doc_strings_for_node(source, node_id);
 
-/// Collect documentation strings from a node or enclosing nodes.
-pub(crate) fn doc_strings_for_node_or_enclosing(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    node_id: u32,
-) -> Vec<String> {
-    // gather docs on the node or enclosing nodes
-    let mut doc_strings = doc_strings_for_node(ctx, source, node_id);
+        // collect adjacent line docs when source docs are missing
+        if doc_strings.is_empty() {
+            let span = self.source_index().get_main_or_enclosing(node_id);
+            doc_strings = line_doc_strings_before_span(source, span.start);
+        }
 
-    // collect docs from enclosing nodes when no docs are attached
-    if doc_strings.is_empty() {
-        let span = ctx.source_index().get_main_or_enclosing(node_id);
-        let mut enclosing = ctx.source_index().get_enclosing_spans(
-            ctx.file_id(),
-            span.start,
-            span.end.saturating_sub(1),
-        );
+        // return the collected docs
+        doc_strings
+    }
 
-        // check innermost nodes first
-        enclosing.sort_by_key(|entry| entry.length);
-        for entry in enclosing {
-            if entry.source_id == node_id {
-                continue;
-            }
-            doc_strings = doc_strings_for_node(ctx, source, entry.source_id);
-            if !doc_strings.is_empty() {
-                break;
+    /// Collect documentation strings from a node or enclosing nodes.
+    pub(crate) fn doc_strings_for_node_or_enclosing(
+        self,
+        source: &str,
+        node_id: u32,
+    ) -> Vec<String> {
+        // gather docs on the node or enclosing nodes
+        let mut doc_strings = self.doc_strings_for_node(source, node_id);
+
+        // collect docs from enclosing nodes when no docs are attached
+        if doc_strings.is_empty() {
+            let span = self.source_index().get_main_or_enclosing(node_id);
+            let mut enclosing = self.source_index().get_enclosing_spans(
+                self.file_id(),
+                span.start,
+                span.end.saturating_sub(1),
+            );
+
+            // check innermost nodes first
+            enclosing.sort_by_key(|entry| entry.length);
+            for entry in enclosing {
+                if entry.source_id == node_id {
+                    continue;
+                }
+                doc_strings = self.doc_strings_for_node(source, entry.source_id);
+                if !doc_strings.is_empty() {
+                    break;
+                }
             }
         }
-    }
 
-    // collect adjacent line docs when source docs are missing
-    if doc_strings.is_empty() {
-        let span = ctx.source_index().get_main_or_enclosing(node_id);
-        doc_strings = line_doc_strings_before_span(source, span.start);
-    }
+        // collect adjacent line docs when source docs are missing
+        if doc_strings.is_empty() {
+            let span = self.source_index().get_main_or_enclosing(node_id);
+            doc_strings = line_doc_strings_before_span(source, span.start);
+        }
 
-    // return the collected docs
-    doc_strings
+        // return the collected docs
+        doc_strings
+    }
 }
 
 /// Return whether one raw comment is documentation shaped.
@@ -98,57 +91,60 @@ fn is_doc_comment(raw_comment: &str) -> bool {
     raw_comment.starts_with("///") || raw_comment.starts_with("/**")
 }
 
-/// Join documentation strings for a symbol declaration or enclosing declaration nodes.
-pub(crate) fn doc_text_for_symbol(
-    ctx: &ModuleQueryContext<'_>,
-    symbol_id: dir::GlobalSymbolId,
-) -> Option<String> {
-    // read the module query context
-    let ctx = ctx.module_context(symbol_id.module_id)?;
+impl ModuleQueryContext<'_> {
+    /// Join documentation strings for a symbol declaration or enclosing declaration nodes.
+    pub(crate) fn doc_text_for_symbol(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+        // read the module query context
+        let ctx = self.module_context(symbol_id.module_id)?;
 
-    // read the symbol declaration
-    let declaration = {
-        let symbols = ctx.dir().symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.declaration?
-    };
+        // read the symbol declaration
+        let declaration = {
+            let symbols = ctx.dir().symbols();
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            symbol.declaration?
+        };
 
-    // prefer semantic documentation attached to the dir declaration
-    let dir_tree = ctx.dir().view();
-    if let Some(documentation) = dir_tree.get_documentation_any(declaration.local_id) {
-        return Some(ctx.dir().strings().get(documentation.text).to_string());
+        // prefer semantic documentation attached to the dir declaration
+        let dir_tree = ctx.dir().view();
+        if let Some(documentation) = dir_tree.get_documentation_any(declaration.local_id) {
+            return Some(ctx.dir().strings().get(documentation.text).to_string());
+        }
+
+        // resolve the source node for the declaration
+        let source_node_id = dir_tree.get_source_any(declaration.local_id);
+        let source_file = ctx
+            .repository()
+            .file(ctx.revision(), ctx.file_id())
+            .ok()
+            .flatten()?;
+        let source = source_file.text();
+
+        // collect docs from the declaration or its enclosing wrapper nodes
+        let doc_strings = ctx
+            .dir()
+            .doc_strings_for_node_or_enclosing(source, source_node_id);
+        if doc_strings.is_empty() {
+            return None;
+        }
+
+        Some(doc_strings.join("\n\n"))
     }
-
-    // resolve the source node for the declaration
-    let source_node_id = dir_tree.get_source_any(declaration.local_id);
-    let source_file = ctx
-        .repository()
-        .file(ctx.revision(), ctx.file_id())
-        .ok()
-        .flatten()?;
-    let source = source_file.text();
-
-    // collect docs from the declaration or its enclosing wrapper nodes
-    let doc_strings = doc_strings_for_node_or_enclosing(ctx.dir(), source, source_node_id);
-    if doc_strings.is_empty() {
-        return None;
-    }
-
-    Some(doc_strings.join("\n\n"))
 }
 
-/// Join documentation strings with tag lines removed.
-pub(crate) fn doc_text_for_node_without_tags(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    node_id: u32,
-    tags: &[&str],
-) -> Option<String> {
-    // collect doc strings from node comments or adjacent line docs
-    let doc_strings = doc_strings_for_node_or_line(ctx, source, node_id);
+impl DirQueryContext<'_> {
+    /// Join documentation strings with tag lines removed.
+    pub(crate) fn doc_text_for_node_without_tags(
+        self,
+        source: &str,
+        node_id: u32,
+        tags: &[&str],
+    ) -> Option<String> {
+        // collect doc strings from node comments or adjacent line docs
+        let doc_strings = self.doc_strings_for_node_or_line(source, node_id);
 
-    // return the filtered doc text
-    doc_text_without_tags(doc_strings, tags)
+        // return the filtered doc text
+        doc_text_without_tags(doc_strings, tags)
+    }
 }
 
 /// Collect line doc strings that immediately precede a declaration span.

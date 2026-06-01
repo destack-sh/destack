@@ -60,8 +60,6 @@ pub enum QueryMethodId {
     WorkspaceSymbols,
     /// Document links query.
     DocumentLinks,
-    /// Document link resolve query.
-    ResolveDocumentLink,
     /// Document highlight query.
     DocumentHighlight,
     /// Selection ranges query.
@@ -279,15 +277,6 @@ static QUERY_METHODS: &[QueryMethod] = &[
         summary: "list document links for a document",
         params_type: "DocumentLinksRequest",
         result_type: "DocumentLinksResponse",
-    },
-    QueryMethod {
-        id: QueryMethodId::ResolveDocumentLink,
-        name: "resolve_document_link",
-        aliases: &["documentlink/resolve", "textdocument/documentlink/resolve"],
-        category: QueryCategory::Navigation,
-        summary: "resolve a document link",
-        params_type: "ResolveDocumentLinkRequest",
-        result_type: "ResolveDocumentLinkResponse",
     },
     QueryMethod {
         id: QueryMethodId::DocumentHighlight,
@@ -545,9 +534,6 @@ pub fn parse_query_request(
             QueryRequest::WorkspaceSymbols(parse_params(method, params)?)
         }
         QueryMethodId::DocumentLinks => QueryRequest::DocumentLinks(parse_params(method, params)?),
-        QueryMethodId::ResolveDocumentLink => {
-            QueryRequest::ResolveDocumentLink(parse_params(method, params)?)
-        }
         QueryMethodId::DocumentHighlight => {
             QueryRequest::DocumentHighlight(parse_params(method, params)?)
         }

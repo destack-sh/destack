@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_query::FoldingRange;
 
 use crate::core::CaseResult;
@@ -23,7 +22,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> CaseResult {
     // run the folding range query for the primary file
     let ctx = session.primary_module_context();
-    let ranges = query::folding_ranges(&ctx);
+    let ranges = ctx.folding_ranges();
     let content = exp.content.trim();
 
     // empty expectation is an error: must specify expected count

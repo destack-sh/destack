@@ -3,16 +3,9 @@ use destack_qir::QueryIndex;
 use destack_source::{ModuleId, ProfileId};
 use destack_workspace::{ArtifactReader, ProviderContext, ProviderError, ProviderResult, Revision};
 
-use crate::dir::{
-    build_annotation_candidates_for_module, build_call_candidates_for_module,
-    build_extension_candidates_for_module, build_import_candidates_for_module,
-    build_nominal_relations_for_module, build_reference_targets_for_module,
-    build_specifier_candidates_for_module, build_workspace_symbol_candidates_for_module,
-};
-
 use super::{
-    AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, ModuleQueryContext, NominalIndex,
-    Query, ReferenceEntry, ReferenceIndex, SpecifierIndex, SymbolIndex,
+    AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, MemberIndex, ModuleQueryContext,
+    NominalIndex, Query, ReferenceEntry, ReferenceIndex, SpecifierIndex, SymbolIndex,
     require_module_query_context,
 };
 
@@ -111,11 +104,13 @@ impl Query {
         let module_id = context.module_id();
 
         // visible symbols and importable exports
-        let symbols = SymbolIndex::new(build_workspace_symbol_candidates_for_module(context));
-        let imports = ImportIndex::new(build_import_candidates_for_module(context));
+        let symbols = SymbolIndex::new(context.build_workspace_symbol_candidates());
+        let members = MemberIndex::new(context.build_member_candidates());
+        let imports = ImportIndex::new(context.build_import_candidates());
 
         // reference targets
-        let references = build_reference_targets_for_module(context)
+        let references = context
+            .build_reference_targets()
             .into_iter()
             .map(|target_symbol| ReferenceEntry {
                 target_symbol,
@@ -125,16 +120,17 @@ impl Query {
         let references = ReferenceIndex::new(references);
 
         // navigation relations
-        let calls = CallIndex::new(build_call_candidates_for_module(context));
-        let nominal = NominalIndex::new(build_nominal_relations_for_module(context));
-        let extensions = ExtensionIndex::new(build_extension_candidates_for_module(context));
+        let calls = CallIndex::new(context.build_call_candidates());
+        let nominal = NominalIndex::new(context.build_nominal_relations());
+        let extensions = ExtensionIndex::new(context.build_extension_candidates());
 
         // refactor targets
-        let specifiers = SpecifierIndex::new(build_specifier_candidates_for_module(context));
-        let annotations = AnnotationIndex::new(build_annotation_candidates_for_module(context));
+        let specifiers = SpecifierIndex::new(context.build_specifier_candidates());
+        let annotations = AnnotationIndex::new(context.build_annotation_candidates());
 
         QueryIndex {
             symbols,
+            members,
             imports,
             references,
             calls,

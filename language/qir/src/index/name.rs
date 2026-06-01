@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Name {
     /// Textual name.
-    Text(String),
+    String(String),
     /// Positional name.
     Index(u64),
 }
@@ -13,7 +13,7 @@ impl Name {
     /// Return the searchable display text for this name.
     pub fn text(&self) -> String {
         match self {
-            Self::Text(text) => text.clone(),
+            Self::String(text) => text.clone(),
             Self::Index(index) => index.to_string(),
         }
     }
@@ -29,13 +29,13 @@ impl Name {
 impl From<String> for Name {
     /// Convert one string into a textual name.
     fn from(value: String) -> Self {
-        Self::Text(value)
+        Self::String(value)
     }
 }
 
 impl From<&str> for Name {
     /// Convert one string slice into a textual name.
     fn from(value: &str) -> Self {
-        Self::Text(value.to_string())
+        Self::String(value.to_string())
     }
 }

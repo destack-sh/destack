@@ -13,6 +13,8 @@ pub struct MemberIndex {
     by_name: Vec<usize>,
     /// Member entry indexes ordered by owner symbol.
     by_owner: Vec<usize>,
+    /// Member entry indexes ordered by declaring symbol.
+    by_declaring: Vec<usize>,
     /// Member entry indexes ordered by member symbol.
     by_symbol: Vec<usize>,
 }
@@ -24,6 +26,7 @@ impl MemberIndex {
             entries,
             by_name: Vec::new(),
             by_owner: Vec::new(),
+            by_declaring: Vec::new(),
             by_symbol: Vec::new(),
         };
         index.finish();
@@ -33,7 +36,7 @@ impl MemberIndex {
 
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
-        self.entries.sort_by_key(member_entry_order);
+        self.entries.sort_by(MemberEntry::cmp_source);
         self.entries.dedup();
         self.rebuild_views();
     }
@@ -60,6 +63,16 @@ impl MemberIndex {
             .collect()
     }
 
+    /// Return members contained in one declaring symbol.
+    pub fn for_declaring(&self, declaring_symbol: dir::GlobalSymbolId) -> Vec<MemberEntry> {
+        let range = self.declaring_range(declaring_symbol);
+
+        self.by_declaring[range]
+            .iter()
+            .map(|index| self.entries[*index].clone())
+            .collect()
+    }
+
     /// Return the indexed member for one member symbol.
     pub fn for_symbol(&self, member_symbol: dir::GlobalSymbolId) -> Option<MemberEntry> {
         let start = self
@@ -79,15 +92,20 @@ impl MemberIndex {
     /// Rebuild secondary sorted views.
     fn rebuild_views(&mut self) {
         self.by_name = (0..self.entries.len()).collect();
-        self.by_name.sort_by_key(|index| member_name_order(&self.entries[*index]));
+        self.by_name
+            .sort_by(|left, right| self.entries[*left].cmp_name(&self.entries[*right]));
 
         self.by_owner = (0..self.entries.len()).collect();
         self.by_owner
-            .sort_by_key(|index| member_owner_order(&self.entries[*index]));
+            .sort_by(|left, right| self.entries[*left].cmp_owner(&self.entries[*right]));
+
+        self.by_declaring = (0..self.entries.len()).collect();
+        self.by_declaring
+            .sort_by(|left, right| self.entries[*left].cmp_declaring(&self.entries[*right]));
 
         self.by_symbol = (0..self.entries.len()).collect();
         self.by_symbol
-            .sort_by_key(|index| member_symbol_order(&self.entries[*index]));
+            .sort_by(|left, right| self.entries[*left].cmp_symbol(&self.entries[*right]));
     }
 
     /// Return the stored range for one owner symbol.
@@ -97,6 +115,18 @@ impl MemberIndex {
             .partition_point(|index| self.entries[*index].owner_symbol < owner_symbol);
         let end = self.by_owner[start..]
             .partition_point(|index| self.entries[*index].owner_symbol == owner_symbol)
+            + start;
+
+        start..end
+    }
+
+    /// Return the stored range for one declaring symbol.
+    fn declaring_range(&self, declaring_symbol: dir::GlobalSymbolId) -> std::ops::Range<usize> {
+        let start = self
+            .by_declaring
+            .partition_point(|index| self.entries[*index].declaring_symbol < declaring_symbol);
+        let end = self.by_declaring[start..]
+            .partition_point(|index| self.entries[*index].declaring_symbol == declaring_symbol)
             + start;
 
         start..end
@@ -112,6 +142,8 @@ pub struct MemberEntry {
     pub kind: MemberKind,
     /// The owner symbol.
     pub owner_symbol: dir::GlobalSymbolId,
+    /// The symbol whose declaration contains this member.
+    pub declaring_symbol: dir::GlobalSymbolId,
     /// The member symbol.
     pub member_symbol: dir::GlobalSymbolId,
     /// The source node that declares the member.
@@ -126,8 +158,8 @@ pub struct MemberEntry {
     pub container_name: Option<String>,
     /// The checked type of the member when known.
     pub declared_type: Option<dir::GlobalTypeId>,
-    /// The member origin.
-    pub origin: MemberOrigin,
+    /// The member source family.
+    pub source: MemberSource,
     /// Whether this member belongs to the static surface.
     pub is_static: bool,
 }
@@ -147,9 +179,137 @@ pub enum MemberKind {
     Variant,
 }
 
-/// Searchable source member origin.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum MemberOrigin {
+impl MemberEntry {
+    /// Compare two members in stable source order.
+    pub fn cmp_source(&self, other: &Self) -> std::cmp::Ordering {
+        let left = (
+            self.module_id,
+            self.file_id,
+            self.range.start,
+            self.range.end,
+            self.owner_symbol,
+            self.declaring_symbol,
+            self.member_symbol,
+        );
+        let right = (
+            other.module_id,
+            other.file_id,
+            other.range.start,
+            other.range.end,
+            other.owner_symbol,
+            other.declaring_symbol,
+            other.member_symbol,
+        );
+
+        left.cmp(&right)
+    }
+
+    /// Compare two members in stable name order.
+    fn cmp_name(&self, other: &Self) -> std::cmp::Ordering {
+        let left = (
+            self.name.clone(),
+            self.module_id,
+            self.file_id,
+            self.range.start,
+            self.range.end,
+            self.owner_symbol,
+            self.declaring_symbol,
+            self.member_symbol,
+        );
+        let right = (
+            other.name.clone(),
+            other.module_id,
+            other.file_id,
+            other.range.start,
+            other.range.end,
+            other.owner_symbol,
+            other.declaring_symbol,
+            other.member_symbol,
+        );
+
+        left.cmp(&right)
+    }
+
+    /// Compare two members in stable owner order.
+    fn cmp_owner(&self, other: &Self) -> std::cmp::Ordering {
+        let left = (
+            self.owner_symbol,
+            self.name.clone(),
+            self.module_id,
+            self.file_id,
+            self.range.start,
+            self.range.end,
+            self.declaring_symbol,
+            self.member_symbol,
+        );
+        let right = (
+            other.owner_symbol,
+            other.name.clone(),
+            other.module_id,
+            other.file_id,
+            other.range.start,
+            other.range.end,
+            other.declaring_symbol,
+            other.member_symbol,
+        );
+
+        left.cmp(&right)
+    }
+
+    /// Compare two members in stable declaring-symbol order.
+    fn cmp_declaring(&self, other: &Self) -> std::cmp::Ordering {
+        let left = (
+            self.declaring_symbol,
+            self.name.clone(),
+            self.module_id,
+            self.file_id,
+            self.range.start,
+            self.range.end,
+            self.owner_symbol,
+            self.member_symbol,
+        );
+        let right = (
+            other.declaring_symbol,
+            other.name.clone(),
+            other.module_id,
+            other.file_id,
+            other.range.start,
+            other.range.end,
+            other.owner_symbol,
+            other.member_symbol,
+        );
+
+        left.cmp(&right)
+    }
+
+    /// Compare two members in stable member-symbol order.
+    fn cmp_symbol(&self, other: &Self) -> std::cmp::Ordering {
+        let left = (
+            self.member_symbol,
+            self.declaring_symbol,
+            self.owner_symbol,
+            self.module_id,
+            self.file_id,
+            self.range.start,
+            self.range.end,
+        );
+        let right = (
+            other.member_symbol,
+            other.declaring_symbol,
+            other.owner_symbol,
+            other.module_id,
+            other.file_id,
+            other.range.start,
+            other.range.end,
+        );
+
+        left.cmp(&right)
+    }
+}
+
+/// Searchable source member source family.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum MemberSource {
     /// Nominal declaration member.
     Declaration,
     /// Type declaration member.
@@ -158,92 +318,4 @@ pub enum MemberOrigin {
     EnumVariant,
     /// Extension declaration member.
     Extension,
-}
-
-/// Return the stable entry order for one member.
-fn member_entry_order(
-    entry: &MemberEntry,
-) -> (
-    ModuleId,
-    FileId,
-    u32,
-    u32,
-    dir::GlobalSymbolId,
-    dir::GlobalSymbolId,
-) {
-    (
-        entry.module_id,
-        entry.file_id,
-        entry.range.start,
-        entry.range.end,
-        entry.owner_symbol,
-        entry.member_symbol,
-    )
-}
-
-/// Return the stable name order for one member.
-fn member_name_order(
-    entry: &MemberEntry,
-) -> (
-    Name,
-    ModuleId,
-    FileId,
-    u32,
-    u32,
-    dir::GlobalSymbolId,
-    dir::GlobalSymbolId,
-) {
-    (
-        entry.name.clone(),
-        entry.module_id,
-        entry.file_id,
-        entry.range.start,
-        entry.range.end,
-        entry.owner_symbol,
-        entry.member_symbol,
-    )
-}
-
-/// Return the stable owner order for one member.
-fn member_owner_order(
-    entry: &MemberEntry,
-) -> (
-    dir::GlobalSymbolId,
-    Name,
-    ModuleId,
-    FileId,
-    u32,
-    u32,
-    dir::GlobalSymbolId,
-) {
-    (
-        entry.owner_symbol,
-        entry.name.clone(),
-        entry.module_id,
-        entry.file_id,
-        entry.range.start,
-        entry.range.end,
-        entry.member_symbol,
-    )
-}
-
-/// Return the stable member-symbol order for one member.
-fn member_symbol_order(
-    entry: &MemberEntry,
-) -> (
-    dir::GlobalSymbolId,
-    dir::GlobalSymbolId,
-    ModuleId,
-    FileId,
-    u32,
-    u32,
-) {
-    (
-        entry.member_symbol,
-        entry.owner_symbol,
-        entry.module_id,
-        entry.file_id,
-        entry.range.start,
-        entry.range.end,
-    )
 }

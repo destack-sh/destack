@@ -1,6 +1,4 @@
-use destack_dir::{
-    BindingTable, LocalScopeId, LocalScopeMark, LocalSymbolId, StaticKey, Symbol, SymbolSpace,
-};
+use destack_dir as dir;
 
 use super::matches_symbol_space_filter;
 
@@ -8,11 +6,11 @@ use super::matches_symbol_space_filter;
 #[derive(Debug, Clone)]
 pub(crate) struct VisibleSymbol<'a> {
     /// The symbol id.
-    pub id: LocalSymbolId,
+    pub id: dir::LocalSymbolId,
     /// The symbol.
-    pub symbol: &'a Symbol,
+    pub symbol: &'a dir::Symbol,
     /// The key (name) of the symbol.
-    pub key: StaticKey,
+    pub key: dir::StaticKey,
 }
 
 /// Iterate visible symbols starting from a scope, walking up the scope chain.
@@ -26,10 +24,10 @@ pub(crate) struct VisibleSymbol<'a> {
 /// * `mark` - Scope mark (position within the scope)
 /// * `space_filter` - Optional filter for symbol space.
 pub(crate) fn visible_symbols<'a>(
-    symbols: &'a BindingTable<'a>,
-    scope_id: LocalScopeId,
-    mark: LocalScopeMark,
-    space_filter: Option<SymbolSpace>,
+    symbols: &'a dir::BindingTable<'a>,
+    scope_id: dir::LocalScopeId,
+    mark: dir::LocalScopeMark,
+    space_filter: Option<dir::SymbolSpace>,
 ) -> impl Iterator<Item = VisibleSymbol<'a>> + 'a {
     VisibleSymbolIterator {
         symbols,
@@ -42,10 +40,10 @@ pub(crate) fn visible_symbols<'a>(
 
 /// Iterator for walking visible symbols up the scope chain.
 struct VisibleSymbolIterator<'a> {
-    symbols: &'a BindingTable<'a>,
-    current_scope_id: Option<LocalScopeId>,
-    current_mark: LocalScopeMark,
-    space_filter: Option<SymbolSpace>,
+    symbols: &'a dir::BindingTable<'a>,
+    current_scope_id: Option<dir::LocalScopeId>,
+    current_mark: dir::LocalScopeMark,
+    space_filter: Option<dir::SymbolSpace>,
     seen_index: usize,
 }
 

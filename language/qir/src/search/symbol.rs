@@ -75,7 +75,6 @@ fn symbol_kind_rank(kind: SymbolKind) -> u8 {
         SymbolKind::Class | SymbolKind::Struct | SymbolKind::Interface | SymbolKind::Enum => 1,
         SymbolKind::Function => 2,
         SymbolKind::Constant | SymbolKind::Variable => 3,
-        SymbolKind::Method | SymbolKind::Field | SymbolKind::EnumMember => 4,
         SymbolKind::TypeParameter => 5,
     }
 }

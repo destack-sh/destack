@@ -8,7 +8,7 @@ use crate::config::target::{EsTarget, JsModuleFormat};
 ///
 /// `.ds` semantics are always strict; these options only describe project,
 /// build, interop, and compile-time policy.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
@@ -103,34 +103,6 @@ impl Derive {
             Self::PartialEqual => "PartialEqual",
             Self::Serialize => "Serialize",
             Self::Tagged => "Tagged",
-        }
-    }
-}
-
-impl Default for CompilerOptions {
-    fn default() -> Self {
-        Self {
-            module: JsModuleFormat::default(),
-            es_target: EsTarget::default(),
-            profile: None,
-            modes: Vec::new(),
-            roles: Vec::new(),
-            features: Vec::new(),
-            tags: Vec::new(),
-            comptime_env: None,
-            tree: None,
-            globals: Vec::new(),
-            derive: Vec::new(),
-
-            restrictions: CompilerRestrictions::default(),
-
-            // emit
-            root_dir: None,
-            out_dir: None,
-            declaration_dir: None,
-            declaration_map: false,
-            no_emit: false,
-            emit_checked_types: false,
         }
     }
 }

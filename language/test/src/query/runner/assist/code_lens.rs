@@ -31,7 +31,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     // run the code lens query once for the primary file
     let ctx = session.primary_module_context();
     let workspace = session.workspace_context();
-    let lenses = query::code_lenses(&ctx, &workspace);
+    let lenses = ctx.code_lenses(&workspace);
 
     run_with_expectation(session, exp, &lenses)
 }
@@ -56,7 +56,7 @@ pub fn run_resolve(
 
     let ctx = session.primary_module_context();
     let workspace = session.workspace_context();
-    let lenses = query::code_lenses(&ctx, &workspace);
+    let lenses = ctx.code_lenses(&workspace);
     if lenses.is_empty() {
         return if content == "<none>" {
             CaseResult::Passed

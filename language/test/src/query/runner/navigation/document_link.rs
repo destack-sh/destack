@@ -1,11 +1,9 @@
 use std::path::Path;
 
-use destack_query as query;
 use destack_query::{DocumentLink, DocumentLinkTarget};
 use destack_source::Span;
 
 use crate::core::CaseResult;
-use crate::query::runner::position::resolve_query_position;
 use crate::query::runner::snapshot::{compare_snapshot, looks_like_span_snapshot};
 use crate::query::runner::span::{format_span_for_session, source_for_file};
 use crate::query::{QueryExpectation, QueryTestSession};
@@ -20,7 +18,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // run the query for the current file
     let ctx = session.primary_module_context();
-    let links = query::document_links(&ctx);
+    let links = ctx.document_links();
 
     // require nonempty expectations so failures are explicit
     let expected_content = exp.content.trim();
@@ -57,81 +55,6 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     CaseResult::Failed {
         message: format!(
             "document_link expectation '{expected_content}' is not a valid snapshot or <none>"
-        ),
-    }
-}
-
-/// Run a resolve_document_link test.
-pub fn run_resolve(
-    session: &QueryTestSession,
-    expectation: Option<&QueryExpectation>,
-) -> CaseResult {
-    let Some(exp) = expectation else {
-        return CaseResult::Skipped {
-            reason: "no resolve_document_link expectation provided".to_string(),
-        };
-    };
-
-    let content = exp.content.trim();
-    if content.is_empty() {
-        return CaseResult::Failed {
-            message: "resolve_document_link expectation is empty".to_string(),
-        };
-    }
-
-    let ctx = session.primary_module_context();
-    let links = query::document_links(&ctx);
-    if links.is_empty() {
-        return if content == "<none>" {
-            CaseResult::Passed
-        } else {
-            CaseResult::Failed {
-                message: "resolve_document_link expected a link, but none were returned"
-                    .to_string(),
-            }
-        };
-    }
-
-    let (file_id, offset) = match resolve_query_position(session, &exp.target) {
-        Ok(position) => position,
-        Err(message) => return CaseResult::Failed { message },
-    };
-    if file_id != session.file_id {
-        return CaseResult::Failed {
-            message: "resolve_document_link only supports the primary file".to_string(),
-        };
-    }
-
-    let index = exp.args.first().and_then(|arg| arg.parse::<usize>().ok());
-    let Some(link) = select_link(&links, Some(offset), index) else {
-        return CaseResult::Failed {
-            message: "resolve_document_link could not select a link".to_string(),
-        };
-    };
-
-    let resolved = query::resolve_document_link(link);
-    let actual_line = format_document_link_line(session, &resolved);
-
-    if looks_like_span_snapshot(content, &["target=", "tooltip="]) {
-        return compare_snapshot("resolve_document_link", &actual_line, content);
-    }
-
-    if content == "<same>" {
-        let original_line = format_document_link_line(session, link);
-        return if original_line == actual_line {
-            CaseResult::Passed
-        } else {
-            CaseResult::Failed {
-                message: format!(
-                    "resolve_document_link expected unchanged link\n\nexpected:\n{original_line}\n\nactual:\n{actual_line}"
-                ),
-            }
-        };
-    }
-
-    CaseResult::Failed {
-        message: format!(
-            "resolve_document_link expectation did not match\n\nactual:\n{actual_line}"
         ),
     }
 }
@@ -257,31 +180,6 @@ fn format_document_link_line(session: &QueryTestSession, link: &DocumentLink) ->
         }
         _ => format!("{range} target={target}"),
     }
-}
-
-/// Select a document link by offset or index.
-fn select_link(
-    links: &[DocumentLink],
-    offset: Option<u32>,
-    index: Option<usize>,
-) -> Option<&DocumentLink> {
-    if let Some(index) = index {
-        return links.get(index);
-    }
-
-    if let Some(offset) = offset
-        && let Some(link) = links
-            .iter()
-            .find(|link| link.range.start <= offset && link.range.end >= offset)
-    {
-        return Some(link);
-    }
-
-    if links.len() == 1 {
-        return links.first();
-    }
-
-    None
 }
 
 /// Format a document link target for snapshot output.

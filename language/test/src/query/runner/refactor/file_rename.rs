@@ -62,7 +62,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // execute rename files query
     let workspace = session.workspace_context();
-    let result = query::rename_files(&workspace, &renames);
+    let result = workspace.rename_files(&renames);
 
     // allow explicit failure expectations
     let content = exp.content.trim();

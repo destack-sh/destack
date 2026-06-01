@@ -15,9 +15,10 @@ pub use context::{
 };
 pub(crate) use destack_qir::{
     AnnotationIndex, CallEntry, CallIndex, ExtensionEntry, ExtensionIndex, ImportEntry,
-    ImportIndex, ImportSortKey, MatchKind, MatchQuality, NominalEntry, NominalIndex,
-    NominalRelation, ReferenceEntry, ReferenceIndex, SpecifierEntry, SpecifierIndex, SymbolEntry,
-    SymbolIndex, SymbolKind as SymbolEntryKind, import_sort_key, import_sort_text, match_quality,
+    ImportIndex, ImportSortKey, MatchKind, MatchQuality, MemberEntry, MemberIndex,
+    MemberKind as MemberEntryKind, MemberSource, Name, NominalEntry, NominalIndex, NominalRelation,
+    ReferenceEntry, ReferenceIndex, SpecifierEntry, SpecifierIndex, SymbolEntry, SymbolIndex,
+    SymbolKind as SymbolEntryKind, import_sort_key, import_sort_text, match_quality,
     symbol_relevance, symbol_sort_key,
 };
 pub(crate) use import::repository_import_relevance;
@@ -28,9 +29,3 @@ pub use method::{
 pub use protocol::{QueryRequest, QueryResponse};
 pub use query::Query;
 pub use target::{QueryModule, QueryPosition, QueryRange, QueryTarget, QueryText};
-pub(crate) use workspace::{
-    call_candidates_for_callee, call_candidates_for_caller, extension_candidates_for_target,
-    modules_referencing_symbol, nominal_relations_for_target, search_annotation_candidates,
-    search_import_candidates, search_workspace_symbol_candidates,
-    specifier_candidates_for_rename_paths,
-};

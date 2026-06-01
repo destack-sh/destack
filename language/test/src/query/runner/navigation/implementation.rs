@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_source::Span;
 
 use crate::core::CaseResult;
@@ -24,7 +23,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     // run the query
     let ctx = session.module_context(file_id);
     let workspace = session.workspace_context();
-    let targets = query::goto_implementation(&ctx, &workspace, offset);
+    let targets = ctx.goto_implementation(&workspace, offset);
     let locations = targets
         .iter()
         .map(|target| target.target.span)

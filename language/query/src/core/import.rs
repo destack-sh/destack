@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use destack_dir::SymbolSpace;
+use destack_dir as dir;
 use destack_qir::{
     ImportPathRelevance, ImportRelevance, import_package_rank, import_path_relevance,
     import_relevance, package_import_path_relevance,
@@ -17,8 +17,8 @@ pub(crate) fn repository_import_relevance(
     current_package_id: Option<PackageId>,
     query: &str,
     export_name: &str,
-    expected_space: Option<SymbolSpace>,
-    space: SymbolSpace,
+    expected_space: Option<dir::SymbolSpace>,
+    space: dir::SymbolSpace,
     module_id: ModuleId,
     module_path: &str,
 ) -> Option<ImportRelevance> {

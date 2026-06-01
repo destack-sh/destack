@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, NominalIndex, ReferenceIndex,
-    SpecifierIndex, SymbolIndex, MemberIndex,
+    AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, MemberIndex, NominalIndex,
+    ReferenceIndex, SpecifierIndex, SymbolIndex,
 };
 
 /// Durable query index payload for one artifact scope.

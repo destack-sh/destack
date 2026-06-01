@@ -43,7 +43,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // run goto definition at the resolved position
     let ctx = session.module_context(file_id);
-    let targets = query::goto_definition(&ctx, offset);
+    let targets = ctx.goto_definition(offset);
     let locations = navigation_target_spans(&targets);
 
     // "<none>" means we expect no result
@@ -155,7 +155,7 @@ fn run_declaration_with_expectation(
 
     // run goto declaration at the resolved position
     let ctx = session.module_context(file_id);
-    let targets = query::goto_declaration(&ctx, offset);
+    let targets = ctx.goto_declaration(offset);
     let locations = navigation_target_spans(&targets);
 
     // "<none>" means we expect no result
@@ -240,7 +240,7 @@ fn run_type_definition_with_expectation(
 
     // run goto type definition at the resolved position
     let ctx = session.module_context(file_id);
-    let targets = query::goto_type_definition(&ctx, offset);
+    let targets = ctx.goto_type_definition(offset);
     let locations = navigation_target_spans(&targets);
 
     // "<none>" means we expect no result

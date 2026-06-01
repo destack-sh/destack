@@ -1,11 +1,9 @@
-use destack_dir::{GlobalSymbolId, SymbolKind};
+use destack_dir as dir;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{
     ModuleQueryContext, NominalRelation, QueryPosition, QueryTarget, WorkspaceQueryContext,
-    nominal_relations_for_target,
 };
-use crate::dir::{find_symbol_at_offset, symbol_declaration_span, symbol_definition_span};
 
 /// An item in the type hierarchy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -36,16 +34,16 @@ pub enum TypeHierarchyKind {
 }
 
 impl TypeHierarchyKind {
-    /// Convert from SymbolKind if it's a type kind.
-    fn from_symbol_kind(ty: SymbolKind) -> Option<Self> {
+    /// Convert from dir::SymbolKind if it's a type kind.
+    fn from_symbol_kind(ty: dir::SymbolKind) -> Option<Self> {
         match ty {
-            SymbolKind::Class => Some(Self::Class),
-            SymbolKind::Interface => Some(Self::Interface),
-            SymbolKind::Struct => Some(Self::Struct),
-            SymbolKind::Enum => Some(Self::Enum),
-            SymbolKind::AssociatedType
-            | SymbolKind::TypeAlias
-            | SymbolKind::GenericTypeParameter => Some(Self::TypeAlias),
+            dir::SymbolKind::Class => Some(Self::Class),
+            dir::SymbolKind::Interface => Some(Self::Interface),
+            dir::SymbolKind::Struct => Some(Self::Struct),
+            dir::SymbolKind::Enum => Some(Self::Enum),
+            dir::SymbolKind::AssociatedType
+            | dir::SymbolKind::TypeAlias
+            | dir::SymbolKind::GenericTypeParameter => Some(Self::TypeAlias),
             _ => None,
         }
     }
@@ -93,108 +91,101 @@ pub struct TypeHierarchySubtypesResponse {
     pub items: Vec<TypeHierarchyItem>,
 }
 
-/// Return a type hierarchy item at the given position.
-pub fn type_hierarchy_item(ctx: &ModuleQueryContext<'_>, offset: u32) -> Option<TypeHierarchyItem> {
-    // find the symbol at offset
-    let symbol_at = find_symbol_at_offset(ctx, offset)?;
+impl ModuleQueryContext<'_> {
+    /// Return a type hierarchy item at the given position.
+    pub fn type_hierarchy_item(&self, offset: u32) -> Option<TypeHierarchyItem> {
+        let symbol_at = self.find_symbol_at_offset(offset)?;
 
-    type_hierarchy_item_from_symbol(ctx, symbol_at.symbol_id)
-}
-
-/// Get supertypes of a type hierarchy item.
-///
-/// For classes: base class and implemented interfaces.
-/// For interfaces: extended interfaces.
-/// For structs: implemented interfaces.
-pub fn supertypes(
-    ctx: &WorkspaceQueryContext<'_>,
-    item: &TypeHierarchyItem,
-) -> Vec<TypeHierarchyItem> {
-    let Some(symbol_id) = item.target.symbol_id else {
-        return Vec::new();
-    };
-    let profile_id = item.target.module.profile_id;
-    let Some(module_ctx) = ctx.module_context(symbol_id.module_id, profile_id) else {
-        return Vec::new();
-    };
-    let canonical_id = module_ctx.canonical_symbol(symbol_id);
-
-    let _ = canonical_id;
-
-    Vec::new()
-}
-
-/// Get subtypes of a type hierarchy item.
-///
-/// For classes: subclasses.
-/// For interfaces: implementing types and extending interfaces.
-pub fn subtypes(
-    ctx: &WorkspaceQueryContext<'_>,
-    item: &TypeHierarchyItem,
-) -> Vec<TypeHierarchyItem> {
-    let Some(symbol_id) = item.target.symbol_id else {
-        return Vec::new();
-    };
-    let profile_id = item.target.module.profile_id;
-    let Some(module_ctx) = ctx.module_context(symbol_id.module_id, profile_id) else {
-        return Vec::new();
-    };
-    let canonical_id = module_ctx.canonical_symbol(symbol_id);
-
-    // collect all subtype symbol ids first, then convert
-    let mut subtype_ids: Vec<GlobalSymbolId> = Vec::new();
-
-    // search cached direct nominal edges across the repository
-    let entries = nominal_relations_for_target(ctx, canonical_id);
-
-    for entry in entries {
-        let matches = entry.target_symbol == canonical_id
-            && matches!(
-                entry.relation,
-                NominalRelation::Extends | NominalRelation::Implements
-            );
-
-        if matches {
-            subtype_ids.push(entry.source_symbol);
-        }
+        self.type_hierarchy_item_from_symbol(symbol_at.symbol_id)
     }
 
-    // convert to TypeHierarchyItems
-    subtype_ids
-        .into_iter()
-        .filter_map(|symbol_id| type_hierarchy_item_from_symbol(&module_ctx, symbol_id))
-        .collect()
+    /// Convert one symbol ID to a type hierarchy item.
+    pub(crate) fn type_hierarchy_item_from_symbol(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> Option<TypeHierarchyItem> {
+        let canonical_id = self.canonical_symbol(symbol_id);
+        let canonical_ctx = self.module_context(canonical_id.module_id)?;
+        let (kind, name) = {
+            let symbols = canonical_ctx.dir().symbols();
+            let symbol = symbols.get_symbol(canonical_id.local_id);
+            let kind = TypeHierarchyKind::from_symbol_kind(symbol.kind)?;
+            let name = canonical_ctx.symbol_name(canonical_id)?;
+            Some((kind, name))
+        }?;
+
+        // resolve source ranges around the declaration name
+        let selection_range = canonical_ctx.symbol_definition_span(canonical_id)?;
+        let range = canonical_ctx
+            .symbol_declaration_span(canonical_id)
+            .unwrap_or(selection_range);
+
+        let target = QueryTarget::span(canonical_ctx.query_module(), range)
+            .with_selection_span(selection_range)
+            .with_symbol(canonical_id);
+
+        Some(TypeHierarchyItem {
+            name,
+            kind,
+            detail: None,
+            target,
+        })
+    }
 }
 
-/// Convert a symbol ID to a TypeHierarchyItem.
-fn type_hierarchy_item_from_symbol(
-    ctx: &ModuleQueryContext<'_>,
-    symbol_id: GlobalSymbolId,
-) -> Option<TypeHierarchyItem> {
-    let canonical_id = ctx.canonical_symbol(symbol_id);
-    let canonical_ctx = ctx.module_context(canonical_id.module_id)?;
-    let (kind, name) = {
-        let symbols = canonical_ctx.dir().symbols();
-        let symbol = symbols.get_symbol(canonical_id.local_id);
-        let kind = TypeHierarchyKind::from_symbol_kind(symbol.kind)?;
-        let name = canonical_ctx.symbol_name(canonical_id)?;
-        Some((kind, name))
-    }?;
+impl WorkspaceQueryContext<'_> {
+    /// Get supertypes of a type hierarchy item.
+    ///
+    /// For classes: base class and implemented interfaces.
+    /// For interfaces: extended interfaces.
+    /// For structs: implemented interfaces.
+    pub fn supertypes(&self, item: &TypeHierarchyItem) -> Vec<TypeHierarchyItem> {
+        let Some(symbol_id) = item.target.symbol_id else {
+            return Vec::new();
+        };
+        let profile_id = item.target.module.profile_id;
+        let Some(module_ctx) = self.module_context(symbol_id.module_id, profile_id) else {
+            return Vec::new();
+        };
+        let canonical_id = module_ctx.canonical_symbol(symbol_id);
 
-    // resolve the selection range at the symbol name
-    let selection_range = symbol_definition_span(&canonical_ctx, canonical_id)?;
+        let _ = canonical_id;
 
-    // use the selection range when no declaration range is recorded
-    let range = symbol_declaration_span(&canonical_ctx, canonical_id).unwrap_or(selection_range);
+        Vec::new()
+    }
 
-    let target = QueryTarget::span(canonical_ctx.query_module(), range)
-        .with_selection_span(selection_range)
-        .with_symbol(canonical_id);
+    /// Get subtypes of a type hierarchy item.
+    ///
+    /// For classes: subclasses.
+    /// For interfaces: implementing types and extending interfaces.
+    pub fn subtypes(&self, item: &TypeHierarchyItem) -> Vec<TypeHierarchyItem> {
+        let Some(symbol_id) = item.target.symbol_id else {
+            return Vec::new();
+        };
+        let profile_id = item.target.module.profile_id;
+        let Some(module_ctx) = self.module_context(symbol_id.module_id, profile_id) else {
+            return Vec::new();
+        };
+        let canonical_id = module_ctx.canonical_symbol(symbol_id);
+        let mut subtype_ids: Vec<dir::GlobalSymbolId> = Vec::new();
 
-    Some(TypeHierarchyItem {
-        name,
-        kind,
-        detail: None,
-        target,
-    })
+        // collect direct nominal edges
+        let entries = self.nominal_relations_for_target(canonical_id);
+        for entry in entries {
+            let matches = entry.target_symbol == canonical_id
+                && matches!(
+                    entry.relation,
+                    NominalRelation::Extends | NominalRelation::Implements
+                );
+
+            if matches {
+                subtype_ids.push(entry.source_symbol);
+            }
+        }
+
+        subtype_ids
+            .into_iter()
+            .filter_map(|symbol_id| module_ctx.type_hierarchy_item_from_symbol(symbol_id))
+            .collect()
+    }
 }

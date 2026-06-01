@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_query::SignatureHelp;
 
 use crate::core::CaseResult;
@@ -34,7 +33,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // run the signature help query once
     let ctx = session.module_context(file_id);
-    let result = query::signature_help(&ctx, offset);
+    let result = ctx.signature_help(offset);
 
     let expected_sig = exp.content.trim();
 

@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_query::{DocumentSymbol, SymbolKind};
 use destack_source::Span;
 
@@ -22,7 +21,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     // empty expectation is an error: must specify expected symbols
     if expected.is_empty() {
         let ctx = session.primary_module_context();
-        let symbols = query::document_symbols(&ctx);
+        let symbols = ctx.document_symbols();
         let actual_names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
         return CaseResult::Failed {
             message: format!(
@@ -33,7 +32,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // run the document symbols query once
     let ctx = session.primary_module_context();
-    let symbols = query::document_symbols(&ctx);
+    let symbols = ctx.document_symbols();
 
     // allow explicit empty snapshots
     if expected == "<none>" {

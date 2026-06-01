@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_query::Hover;
 use destack_source::Span;
 
@@ -34,7 +33,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // run the hover query once
     let ctx = session.module_context(file_id);
-    let result = query::hover(&ctx, offset);
+    let result = ctx.hover(offset);
 
     // normalize the expected content
     let expected_text = exp.content.trim();

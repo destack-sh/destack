@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_source::Span;
 
 use crate::core::CaseResult;
@@ -32,7 +31,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
         .unwrap_or("extracted");
 
     let ctx = session.module_context(selection.file);
-    let result = query::extract_function(&ctx, selection, new_name);
+    let result = ctx.extract_function(selection, new_name);
 
     // allow explicit no-edit expectations
     let content = exp.content.trim();

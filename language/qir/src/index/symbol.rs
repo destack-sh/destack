@@ -22,8 +22,7 @@ impl SymbolIndex {
 
     /// Sort and deduplicate this index.
     pub fn finish(&mut self) {
-        self.entries
-            .sort_by(|left, right| left.order().cmp(&right.order()));
+        self.entries.sort_by_key(|entry| entry.order());
         self.entries.dedup();
     }
 
@@ -83,10 +82,6 @@ pub enum SymbolKind {
     Namespace,
     /// Class symbol.
     Class,
-    /// Method symbol.
-    Method,
-    /// Field symbol.
-    Field,
     /// Enum symbol.
     Enum,
     /// Interface symbol.
@@ -97,8 +92,6 @@ pub enum SymbolKind {
     Variable,
     /// Constant symbol.
     Constant,
-    /// Enum member symbol.
-    EnumMember,
     /// Struct symbol.
     Struct,
     /// Type parameter symbol.

@@ -1,5 +1,3 @@
-use destack_query as query;
-
 use crate::core::CaseResult;
 use crate::query::{QueryExpectation, QueryTestSession};
 
@@ -39,7 +37,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     let ctx = session.module_context(file_id);
     let workspace = session.workspace_context();
     if content == "<none>" {
-        let result = query::rename(&ctx, &workspace, offset, new_name);
+        let result = ctx.rename(&workspace, offset, new_name);
         return match result {
             None => CaseResult::Passed,
             Some(rename_result) => CaseResult::Failed {
@@ -54,7 +52,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // first check prepare_rename
-    let prepare_result = query::rename_target(&ctx, offset);
+    let prepare_result = ctx.rename_target(offset);
     if prepare_result.is_none() {
         return CaseResult::Failed {
             message: format!("prepare_rename at '{}' returned None", exp.target),
@@ -62,7 +60,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     }
 
     // then do the actual rename
-    let result = query::rename(&ctx, &workspace, offset, new_name);
+    let result = ctx.rename(&workspace, offset, new_name);
 
     // empty expectation means we just verify the rename works (produces any edits)
     if content.is_empty() {

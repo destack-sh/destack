@@ -2,11 +2,7 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_source::Span;
 
-use super::{
-    DirQueryContext, enclosing_missing_expression, enclosing_spans_at_cursor,
-    previous_significant_token, span_owns_cursor, token_text,
-    tokens_between_offsets_include_statement_boundary,
-};
+use super::{DirQueryContext, span_owns_cursor, token_text};
 
 /// The structural context for one expression slot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,73 +76,67 @@ fn assign_pattern_field_contains_expression(
     }
 }
 
-/// Resolve the structural context for the innermost expression slot at the cursor.
-pub(crate) fn expression_slot_position(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    offset: u32,
-) -> Option<ExpressionSlotPosition> {
-    let owner = expression_slot_owner(ctx, source, offset)?;
+impl DirQueryContext<'_> {
+    /// Resolve the structural context for the innermost expression slot at the cursor.
+    pub(crate) fn expression_slot_position(
+        self,
+        source: &str,
+        offset: u32,
+    ) -> Option<ExpressionSlotPosition> {
+        let owner = self.expression_slot_owner(source, offset)?;
 
-    // collapse the richer slot owner to the public type/value classification
-    match owner {
-        ExpressionSlotOwner::Constructor => Some(ExpressionSlotPosition::Constructor),
-        ExpressionSlotOwner::DeclaratorValue(_) | ExpressionSlotOwner::Value => {
-            Some(ExpressionSlotPosition::Value)
+        // collapse the richer slot owner to the public type/value classification
+        match owner {
+            ExpressionSlotOwner::Constructor => Some(ExpressionSlotPosition::Constructor),
+            ExpressionSlotOwner::DeclaratorValue(_) | ExpressionSlotOwner::Value => {
+                Some(ExpressionSlotPosition::Value)
+            }
+            ExpressionSlotOwner::Type => Some(ExpressionSlotPosition::Type),
         }
-        ExpressionSlotOwner::Type => Some(ExpressionSlotPosition::Type),
     }
-}
 
-/// Collect the binding names excluded from completion inside one initializer.
-pub(crate) fn current_initializer_binding_names(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    offset: u32,
-) -> Vec<StringId> {
-    let parsed_tree = ctx.tree();
+    /// Collect the binding names excluded from completion inside one initializer.
+    pub(crate) fn current_initializer_binding_names(
+        self,
+        source: &str,
+        offset: u32,
+    ) -> Vec<StringId> {
+        let parsed_tree = self.tree();
 
-    // missing initializer slots should resolve through the recovered missing node first
-    if let Some(declarator_id) = current_initializer_declarator(ctx, source, offset) {
+        // missing initializer slots should resolve through the recovered missing node first
+        if let Some(declarator_id) = self.current_initializer_declarator(source, offset) {
+            let declarator = parsed_tree.get(declarator_id);
+            let mut names = Vec::new();
+            collect_pattern_binding_names(parsed_tree, declarator.pattern, &mut names);
+            return names;
+        }
+
+        Vec::new()
+    }
+
+    /// Check whether the cursor sits in a missing declarator initializer slot.
+    pub(crate) fn missing_declarator_value_at_cursor(self, source: &str, offset: u32) -> bool {
+        let parsed_tree = self.tree();
+        let Some(declarator_id) = self.current_initializer_declarator(source, offset) else {
+            return false;
+        };
+
         let declarator = parsed_tree.get(declarator_id);
-        let mut names = Vec::new();
-        collect_pattern_binding_names(parsed_tree, declarator.pattern, &mut names);
-        return names;
+        let Some(value_id) = declarator.value else {
+            return false;
+        };
+
+        matches!(parsed_tree.get(value_id), dir::Expression::Missing)
     }
 
-    Vec::new()
-}
+    /// Resolve the structural owner for the innermost expression slot at the cursor.
+    fn expression_slot_owner(self, source: &str, offset: u32) -> Option<ExpressionSlotOwner> {
+        if let Some(expr_id) = self.enclosing_missing_expression(offset) {
+            return expression_slot_owner_for_missing_node(self.tree(), self.parents(), expr_id);
+        }
 
-/// Check whether the cursor sits in a missing declarator initializer slot.
-pub(crate) fn missing_declarator_value_at_cursor(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    offset: u32,
-) -> bool {
-    let parsed_tree = ctx.tree();
-    let Some(declarator_id) = current_initializer_declarator(ctx, source, offset) else {
-        return false;
-    };
-
-    let declarator = parsed_tree.get(declarator_id);
-    let Some(value_id) = declarator.value else {
-        return false;
-    };
-
-    matches!(parsed_tree.get(value_id), dir::Expression::Missing)
-}
-
-/// Resolve the structural owner for the innermost expression slot at the cursor.
-fn expression_slot_owner(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    offset: u32,
-) -> Option<ExpressionSlotOwner> {
-    if let Some(expr_id) = enclosing_missing_expression(ctx, offset) {
-        return expression_slot_owner_for_missing_node(ctx.tree(), ctx.parents(), expr_id);
+        self.open_expression_slot_owner(source, offset)
     }
-
-    open_expression_slot_owner(ctx, source, offset)
 }
 
 /// Resolve the structural context for one missing expression node.
@@ -197,49 +187,47 @@ fn expression_slot_owner_for_missing_node(
     }
 }
 
-/// Resolve the structural context for an explicit value slot without a missing node.
-fn open_expression_slot_owner(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    offset: u32,
-) -> Option<ExpressionSlotOwner> {
-    let parsed_tree = ctx.tree();
+impl DirQueryContext<'_> {
+    /// Resolve the structural context for an explicit value slot without a missing node.
+    fn open_expression_slot_owner(self, source: &str, offset: u32) -> Option<ExpressionSlotOwner> {
+        let parsed_tree = self.tree();
 
-    // walk enclosing expressions from inner to outer
-    for enclosing in enclosing_spans_at_cursor(ctx, offset) {
-        if parsed_tree.get_node_type(enclosing.source_id) != dir::NodeType::Expression {
-            continue;
+        // walk enclosing expressions from inner to outer
+        for enclosing in self.enclosing_spans_at_cursor(offset) {
+            if parsed_tree.get_node_type(enclosing.source_id) != dir::NodeType::Expression {
+                continue;
+            }
+
+            // unwrap statement wrappers to the actual expression owner
+            let expr_id = dir::LocalNodeId::<dir::Expression>::new(enclosing.source_id);
+            let (expr_id, expr) = unwrap_statement_expression(parsed_tree, expr_id);
+            let expr_span = self.source_index().get(expr_id.id);
+
+            // return without a value still owns a value slot after the keyword
+            if let dir::Expression::Return { value: None } = expr
+                && self.cursor_is_after_expression_keyword(source, offset, expr_span, "return")
+            {
+                return Some(ExpressionSlotOwner::Value);
+            }
+
+            // yield without a value still owns a value slot after the keyword
+            if let dir::Expression::Yield { value: None, .. } = expr
+                && self.cursor_is_after_expression_keyword(source, offset, expr_span, "yield")
+            {
+                return Some(ExpressionSlotOwner::Value);
+            }
+
+            // bare `new` still owns one constructor slot after the keyword
+            if let dir::Expression::New { ty, .. } = expr
+                && matches!(parsed_tree.get(*ty), dir::TypeExpression::Missing)
+                && self.cursor_is_after_expression_keyword(source, offset, expr_span, "new")
+            {
+                return Some(ExpressionSlotOwner::Constructor);
+            }
         }
 
-        // unwrap statement wrappers to the actual expression owner
-        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enclosing.source_id);
-        let (expr_id, expr) = unwrap_statement_expression(parsed_tree, expr_id);
-        let expr_span = ctx.source_index().get(expr_id.id);
-
-        // return without a value still owns a value slot after the keyword
-        if let dir::Expression::Return { value: None } = expr
-            && cursor_is_after_expression_keyword(ctx, source, offset, expr_span, "return")
-        {
-            return Some(ExpressionSlotOwner::Value);
-        }
-
-        // yield without a value still owns a value slot after the keyword
-        if let dir::Expression::Yield { value: None, .. } = expr
-            && cursor_is_after_expression_keyword(ctx, source, offset, expr_span, "yield")
-        {
-            return Some(ExpressionSlotOwner::Value);
-        }
-
-        // bare `new` still owns one constructor slot after the keyword
-        if let dir::Expression::New { ty, .. } = expr
-            && matches!(parsed_tree.get(*ty), dir::TypeExpression::Missing)
-            && cursor_is_after_expression_keyword(ctx, source, offset, expr_span, "new")
-        {
-            return Some(ExpressionSlotOwner::Constructor);
-        }
+        None
     }
-
-    None
 }
 
 /// Unwrap statement expressions to the inner structural owner.
@@ -260,36 +248,38 @@ fn expression_slot_owner_from_position(position: ExpressionSlotPosition) -> Expr
     }
 }
 
-/// Check whether the cursor still belongs to one keyword-owned expression slot.
-fn cursor_is_after_expression_keyword(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    offset: u32,
-    expr_span: Span,
-    keyword: &str,
-) -> bool {
-    let Some(token) = previous_significant_token(ctx, offset) else {
-        return false;
-    };
+impl DirQueryContext<'_> {
+    /// Check whether the cursor still belongs to one keyword-owned expression slot.
+    fn cursor_is_after_expression_keyword(
+        self,
+        source: &str,
+        offset: u32,
+        expr_span: Span,
+        keyword: &str,
+    ) -> bool {
+        let Some(token) = self.previous_significant_token(offset) else {
+            return false;
+        };
 
-    // require the keyword token inside the owning expression span
-    if token.token.ty() != dir::TokenType::Identifier {
-        return false;
+        // require the keyword token inside the owning expression span
+        if token.token.ty() != dir::TokenType::Identifier {
+            return false;
+        }
+
+        let Some(text) = token_text(source, token.span) else {
+            return false;
+        };
+        if text != keyword {
+            return false;
+        }
+
+        if token.span.start < expr_span.start || token.span.end > expr_span.end {
+            return false;
+        }
+
+        // statement boundaries end the keyword-owned slot
+        !self.tokens_between_offsets_include_statement_boundary(token.span.end, offset)
     }
-
-    let Some(text) = token_text(source, token.span) else {
-        return false;
-    };
-    if text != keyword {
-        return false;
-    }
-
-    if token.span.start < expr_span.start || token.span.end > expr_span.end {
-        return false;
-    }
-
-    // statement boundaries end the keyword-owned slot
-    !tokens_between_offsets_include_statement_boundary(ctx, token.span.end, offset)
 }
 
 /// Resolve the structural context for a parameter child.
@@ -490,86 +480,84 @@ fn expression_slot_position_in_expression(
     }
 }
 
-/// Resolve the declarator that owns the initializer slot at one cursor offset.
-fn current_initializer_declarator(
-    ctx: DirQueryContext<'_>,
-    source: &str,
-    offset: u32,
-) -> Option<dir::LocalNodeId<dir::Declarator>> {
-    // prefer direct slot ownership when the cursor is in one declarator value slot
-    if let Some(ExpressionSlotOwner::DeclaratorValue(declarator_id)) =
-        expression_slot_owner(ctx, source, offset)
-    {
-        return Some(declarator_id);
-    }
-
-    // otherwise use initializer spans that still own the cursor
-    initializer_declarator_at_cursor(ctx, offset)
-}
-
-/// Resolve the declarator whose initializer span still owns the cursor.
-fn initializer_declarator_at_cursor(
-    ctx: DirQueryContext<'_>,
-    offset: u32,
-) -> Option<dir::LocalNodeId<dir::Declarator>> {
-    let parsed_tree = ctx.tree();
-    let parents = ctx.parents();
-
-    // walk enclosing nodes and their declarator parents
-    for enclosing in enclosing_spans_at_cursor(ctx, offset) {
-        for parent_id in std::iter::once(enclosing.source_id)
-            .chain(parents.walk_parents_by_id(enclosing.source_id))
+impl DirQueryContext<'_> {
+    /// Resolve the declarator that owns the initializer slot at one cursor offset.
+    fn current_initializer_declarator(
+        self,
+        source: &str,
+        offset: u32,
+    ) -> Option<dir::LocalNodeId<dir::Declarator>> {
+        // prefer direct slot ownership when the cursor is in one declarator value slot
+        if let Some(ExpressionSlotOwner::DeclaratorValue(declarator_id)) =
+            self.expression_slot_owner(source, offset)
         {
-            if parsed_tree.get_node_type(parent_id) != dir::NodeType::Declarator {
-                continue;
-            }
-
-            let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id);
-            let declarator_span = ctx.source_index().get(declarator_id.id);
-            let declarator = parsed_tree.get(declarator_id);
-            let Some(value_id) = declarator.value else {
-                continue;
-            };
-
-            // missing initializer gaps still belong to the declarator after `=`
-            if matches!(parsed_tree.get(value_id), dir::Expression::Missing)
-                && cursor_is_after_initializer_assign(ctx, declarator_span, offset)
-            {
-                return Some(declarator_id);
-            }
-
-            let value_span = ctx.source_index().get(value_id.id);
-            if !span_owns_cursor(value_span, offset) {
-                continue;
-            }
-
             return Some(declarator_id);
         }
+
+        // otherwise use initializer spans that still own the cursor
+        self.initializer_declarator_at_cursor(offset)
     }
 
-    None
-}
+    /// Resolve the declarator whose initializer span still owns the cursor.
+    fn initializer_declarator_at_cursor(
+        self,
+        offset: u32,
+    ) -> Option<dir::LocalNodeId<dir::Declarator>> {
+        let parsed_tree = self.tree();
+        let parents = self.parents();
 
-/// Check whether the cursor still belongs to one declarator initializer gap.
-fn cursor_is_after_initializer_assign(
-    ctx: DirQueryContext<'_>,
-    declarator_span: Span,
-    offset: u32,
-) -> bool {
-    let Some(token) = previous_significant_token(ctx, offset) else {
-        return false;
-    };
+        // walk enclosing nodes and their declarator parents
+        for enclosing in self.enclosing_spans_at_cursor(offset) {
+            for parent_id in std::iter::once(enclosing.source_id)
+                .chain(parents.walk_parents_by_id(enclosing.source_id))
+            {
+                if parsed_tree.get_node_type(parent_id) != dir::NodeType::Declarator {
+                    continue;
+                }
 
-    // the initializer gap starts after the owning `=`
-    if token.token.ty() != dir::TokenType::Assign {
-        return false;
+                let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id);
+                let declarator_span = self.source_index().get(declarator_id.id);
+                let declarator = parsed_tree.get(declarator_id);
+                let Some(value_id) = declarator.value else {
+                    continue;
+                };
+
+                // missing initializer gaps still belong to the declarator after `=`
+                if matches!(parsed_tree.get(value_id), dir::Expression::Missing)
+                    && self.cursor_is_after_initializer_assign(declarator_span, offset)
+                {
+                    return Some(declarator_id);
+                }
+
+                let value_span = self.source_index().get(value_id.id);
+                if !span_owns_cursor(value_span, offset) {
+                    continue;
+                }
+
+                return Some(declarator_id);
+            }
+        }
+
+        None
     }
 
-    if token.span.start < declarator_span.start || token.span.end > declarator_span.end {
-        return false;
-    }
+    /// Check whether the cursor still belongs to one declarator initializer gap.
+    fn cursor_is_after_initializer_assign(self, declarator_span: Span, offset: u32) -> bool {
+        let Some(token) = self.previous_significant_token(offset) else {
+            return false;
+        };
 
-    token.span.end <= offset
+        // the initializer gap starts after the owning `=`
+        if token.token.ty() != dir::TokenType::Assign {
+            return false;
+        }
+
+        if token.span.start < declarator_span.start || token.span.end > declarator_span.end {
+            return false;
+        }
+
+        token.span.end <= offset
+    }
 }
 
 /// Collect simple binding names from one pattern.

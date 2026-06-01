@@ -1,12 +1,10 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_dir::{Argument, Declarator, Expression, GlobalSymbolId, Pattern, TemplateLiteral};
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{ModuleQueryContext, QueryRange};
-use crate::dir::{call_target, parameter_names_for_symbol};
-use crate::format::format_inlay_type;
+use crate::format::format_global_inlay_type;
 
 /// Kind of inlay hint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -72,112 +70,114 @@ pub struct InlayHintsResponse {
     pub hints: Vec<InlayHint>,
 }
 
-/// Get inlay hints for a range in a file.
-pub fn inlay_hints(ctx: &ModuleQueryContext<'_>, range: Span) -> Vec<InlayHint> {
-    let dir_tree = ctx.dir().view();
-    let types = ctx.dir().types();
-    let mut hints = Vec::new();
+impl ModuleQueryContext<'_> {
+    /// Get inlay hints for a range in a file.
+    pub fn inlay_hints(&self, range: Span) -> Vec<InlayHint> {
+        let ctx = self;
+        let dir_tree = ctx.dir().view();
+        let types = ctx.dir().types();
+        let mut hints = Vec::new();
 
-    // collect parameter hints
-    for (expression_id, expression) in dir_tree.iter_nodes_of_type::<Expression>() {
-        let Expression::Call {
-            left, arguments, ..
-        } = expression
-        else {
-            continue;
-        };
-        if arguments.is_empty() {
-            continue;
-        }
-
-        let source_node_id = dir_tree.get_source(expression_id);
-        let call_span = ctx.dir().tree().source_index.get(source_node_id);
-        if call_span.end < range.start || call_span.start > range.end {
-            continue;
-        }
-
-        let call_target = call_target(ctx.dir(), *left);
-        let param_names = get_parameter_names(ctx, call_target.symbol);
-        if param_names.is_empty() {
-            continue;
-        }
-
-        for (index, argument_id) in arguments.iter().enumerate() {
-            let argument = dir_tree.get::<Argument>(*argument_id);
-            let Some(param_name) = param_names.get(index) else {
+        // collect parameter hints
+        for (expression_id, expression) in dir_tree.iter_nodes_of_type::<dir::Expression>() {
+            let dir::Expression::Call {
+                left, arguments, ..
+            } = expression
+            else {
                 continue;
             };
-            let Some(argument_value) = argument.value() else {
-                continue;
-            };
-            let argument_is_literal = argument_is_literal(dir_tree, argument_value);
-            if should_skip_parameter_hint(
-                ctx.dir().strings(),
-                dir_tree,
-                argument,
-                param_name,
-                argument_is_literal,
-            ) {
+            if arguments.is_empty() {
                 continue;
             }
 
-            let argument_source_node_id = dir_tree.get_source(argument_value);
-            let arg_span = ctx.dir().tree().source_index.get(argument_source_node_id);
-            hints.push(InlayHint::parameter_hint(arg_span.start, param_name));
+            let source_node_id = dir_tree.get_source(expression_id);
+            let call_span = ctx.dir().tree().source_index.get(source_node_id);
+            if call_span.end < range.start || call_span.start > range.end {
+                continue;
+            }
+
+            let call_target = ctx.dir().call_target(*left);
+            let param_names = ctx.get_parameter_names(call_target.symbol);
+            if param_names.is_empty() {
+                continue;
+            }
+
+            for (index, argument_id) in arguments.iter().enumerate() {
+                let argument = dir_tree.get::<dir::Argument>(*argument_id);
+                let Some(param_name) = param_names.get(index) else {
+                    continue;
+                };
+                let Some(argument_value) = argument.value() else {
+                    continue;
+                };
+                let argument_is_literal = argument_is_literal(dir_tree, argument_value);
+                if ctx.should_skip_parameter_hint(
+                    ctx.dir().strings(),
+                    dir_tree,
+                    argument,
+                    param_name,
+                    argument_is_literal,
+                ) {
+                    continue;
+                }
+
+                let argument_source_node_id = dir_tree.get_source(argument_value);
+                let arg_span = ctx.dir().tree().source_index.get(argument_source_node_id);
+                hints.push(InlayHint::parameter_hint(arg_span.start, param_name));
+            }
         }
+
+        // collect inferred type hints
+        for (_declarator_id, declarator) in dir_tree.iter_nodes_of_type::<dir::Declarator>() {
+            if declarator.ty.is_some() {
+                continue;
+            }
+
+            let pattern = dir_tree.get::<dir::Pattern>(declarator.pattern);
+            if !matches!(pattern, dir::Pattern::Binding { .. }) {
+                continue;
+            }
+
+            let source_node_id = dir_tree.get_source(declarator.pattern);
+            let Some(name_span) = ctx.dir().tree().source_index.get_main(source_node_id) else {
+                continue;
+            };
+            if name_span.end < range.start || name_span.start > range.end {
+                continue;
+            }
+
+            let Some(local_symbol) = ctx.dir().symbol_for_node(declarator.pattern.into()) else {
+                continue;
+            };
+            let global_symbol_id = dir::GlobalSymbolId::new(ctx.module_id(), local_symbol);
+            let Some(type_id) = types.get_symbol_type_id(global_symbol_id) else {
+                continue;
+            };
+
+            let type_str = format_global_inlay_type(type_id, ctx);
+            hints.push(InlayHint::type_hint(name_span.end, type_str));
+        }
+
+        // order and deduplicate hints
+        hints.sort_by(|left, right| {
+            let left_key = (
+                left.position,
+                hint_kind_rank(left.kind),
+                left.label.as_str(),
+            );
+            let right_key = (
+                right.position,
+                hint_kind_rank(right.kind),
+                right.label.as_str(),
+            );
+            left_key.cmp(&right_key)
+        });
+        hints.dedup_by(|left, right| {
+            left.position == right.position && left.kind == right.kind && left.label == right.label
+        });
+
+        hints
     }
-
-    // collect inferred type hints
-    for (_declarator_id, declarator) in dir_tree.iter_nodes_of_type::<Declarator>() {
-        if declarator.ty.is_some() {
-            continue;
-        }
-
-        let pattern = dir_tree.get::<Pattern>(declarator.pattern);
-        if !matches!(pattern, Pattern::Binding { .. }) {
-            continue;
-        }
-
-        let source_node_id = dir_tree.get_source(declarator.pattern);
-        let Some(name_span) = ctx.dir().tree().source_index.get_main(source_node_id) else {
-            continue;
-        };
-        if name_span.end < range.start || name_span.start > range.end {
-            continue;
-        }
-
-        let Some(local_symbol) = ctx.dir().symbol_for_node(declarator.pattern.into()) else {
-            continue;
-        };
-        let global_symbol_id = GlobalSymbolId::new(ctx.module_id(), local_symbol);
-        let Some(type_id) = types.get_symbol_type_id(global_symbol_id) else {
-            continue;
-        };
-
-        let ty = types.get_type(type_id);
-        let type_str = format_inlay_type(ty, types, ctx);
-        hints.push(InlayHint::type_hint(name_span.end, type_str));
-    }
-
-    // order and deduplicate hints
-    hints.sort_by(|left, right| {
-        let left_key = (
-            left.position,
-            hint_kind_rank(left.kind),
-            left.label.as_str(),
-        );
-        let right_key = (
-            right.position,
-            hint_kind_rank(right.kind),
-            right.label.as_str(),
-        );
-        left_key.cmp(&right_key)
-    });
-    hints.dedup_by(|left, right| {
-        left.position == right.position && left.kind == right.kind && left.label == right.label
-    });
-
-    hints
 }
 
 /// Rank inlay hint kinds for stable sorting.
@@ -189,82 +189,21 @@ fn hint_kind_rank(kind: InlayHintKind) -> u8 {
     }
 }
 
-/// Get parameter names for a function.
-///
-/// If the target symbol points to a function declaration, extracts actual parameter names.
-/// Returns an empty vec if not available (caller will skip parameter hints).
-fn get_parameter_names(
-    ctx: &ModuleQueryContext<'_>,
-    target_symbol: Option<GlobalSymbolId>,
-) -> Vec<String> {
-    // require a resolved target symbol for parameter extraction
-    let Some(symbol_id) = target_symbol else {
-        return Vec::new();
-    };
-
-    // resolve parameter names from the DIR
-    parameter_names_for_symbol(ctx, symbol_id).unwrap_or_default()
-}
-
-/// Decide whether a parameter hint should be skipped for an argument.
-fn should_skip_parameter_hint(
-    strings: &StringPool,
-    dir_tree: dir::View<'_>,
-    argument: &Argument,
-    param_name: &str,
-    argument_is_literal: bool,
-) -> bool {
-    // skip placeholders and empty names
-    if param_name.is_empty() || param_name == "_" {
-        return true;
-    }
-
-    // skip arguments that already carry labels
-    if matches!(argument, Argument::Named { .. } | Argument::Labeled { .. }) {
-        return true;
-    }
-
-    // skip spread arguments
-    if matches!(argument, Argument::Spread { .. }) {
-        return true;
-    }
-
-    // skip when parameter hints are disabled for non literal arguments
-    if !should_emit_parameter_hint(argument_is_literal) {
-        return true;
-    }
-
-    // skip when the argument already repeats the parameter name
-    if let Some(reference) = argument_reference(strings, dir_tree, argument) {
-        match reference {
-            ArgumentReference::Name(argument_name) => {
-                if argument_name == param_name && !parameter_name_hints_when_argument_matches_name()
-                {
-                    return true;
-                }
-            }
-            ArgumentReference::This => return true,
-        }
-    }
-
-    false
-}
-
 /// Extract a simple reference name from an argument value when available.
 fn argument_reference(
     strings: &StringPool,
     dir_tree: dir::View<'_>,
-    argument: &Argument,
+    argument: &dir::Argument,
 ) -> Option<ArgumentReference> {
     // resolve the argument expression
-    let expr = dir_tree.get::<Expression>(argument.value()?);
+    let expr = dir_tree.get::<dir::Expression>(argument.value()?);
 
     // resolve a simple reference name
     match expr {
-        Expression::QualifiedReference { path, .. } => path
+        dir::Expression::QualifiedReference { path, .. } => path
             .last_segment()
             .map(|id| ArgumentReference::Name(strings.get(id).to_string())),
-        Expression::This => Some(ArgumentReference::This),
+        dir::Expression::This => Some(ArgumentReference::This),
         _ => None,
     }
 }
@@ -280,16 +219,16 @@ enum ArgumentReference {
 /// Check whether an argument is a literal value.
 fn argument_is_literal(
     dir_tree: dir::View<'_>,
-    argument_value: dir::LocalNodeId<Expression>,
+    argument_value: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // resolve the argument expression
-    let expr = dir_tree.get::<Expression>(argument_value);
+    let expr = dir_tree.get::<dir::Expression>(argument_value);
 
     // treat scalar literals and static templates as literals
     match expr {
-        Expression::ScalarLiteral(_) => true,
-        Expression::TemplateExpression { value } => {
-            matches!(value, TemplateLiteral::String { .. })
+        dir::Expression::ScalarLiteral(_) => true,
+        dir::Expression::TemplateExpression { value } => {
+            matches!(value, dir::TemplateLiteral::String { .. })
         }
         _ => false,
     }
@@ -305,4 +244,71 @@ fn should_emit_parameter_hint(argument_is_literal: bool) -> bool {
 fn parameter_name_hints_when_argument_matches_name() -> bool {
     // disable redundant hints by default
     false
+}
+
+impl ModuleQueryContext<'_> {
+    /// Get parameter names for a function.
+    ///
+    /// If the target symbol points to a function declaration, extracts actual parameter names.
+    /// Returns an empty vec if not available (caller will skip parameter hints).
+    fn get_parameter_names(&self, target_symbol: Option<dir::GlobalSymbolId>) -> Vec<String> {
+        let ctx = self;
+        // require a resolved target symbol for parameter extraction
+        let Some(symbol_id) = target_symbol else {
+            return Vec::new();
+        };
+
+        // resolve parameter names from the DIR
+        ctx.parameter_names_for_symbol(symbol_id)
+            .unwrap_or_default()
+    }
+
+    /// Decide whether a parameter hint should be skipped for an argument.
+    fn should_skip_parameter_hint(
+        &self,
+        strings: &StringPool,
+        dir_tree: dir::View<'_>,
+        argument: &dir::Argument,
+        param_name: &str,
+        argument_is_literal: bool,
+    ) -> bool {
+        // skip placeholders and empty names
+        if param_name.is_empty() || param_name == "_" {
+            return true;
+        }
+
+        // skip arguments that already carry labels
+        if matches!(
+            argument,
+            dir::Argument::Named { .. } | dir::Argument::Labeled { .. }
+        ) {
+            return true;
+        }
+
+        // skip spread arguments
+        if matches!(argument, dir::Argument::Spread { .. }) {
+            return true;
+        }
+
+        // skip when parameter hints are disabled for non literal arguments
+        if !should_emit_parameter_hint(argument_is_literal) {
+            return true;
+        }
+
+        // skip when the argument already repeats the parameter name
+        if let Some(reference) = argument_reference(strings, dir_tree, argument) {
+            match reference {
+                ArgumentReference::Name(argument_name) => {
+                    if argument_name == param_name
+                        && !parameter_name_hints_when_argument_matches_name()
+                    {
+                        return true;
+                    }
+                }
+                ArgumentReference::This => return true,
+            }
+        }
+
+        false
+    }
 }

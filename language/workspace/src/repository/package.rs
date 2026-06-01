@@ -165,11 +165,10 @@ impl Repository {
 
                 if file_name == "destack.json" {
                     let package_root = path.parent().unwrap_or(self.root.as_path()).to_path_buf();
-
-                    if self.is_workspace_package_root(&package_root, workspace_packages) {
-                        if seen.insert(package_root.clone()) {
-                            package_roots.push((package_root, PackageKind::Declared));
-                        }
+                    if self.is_workspace_package_root(&package_root, workspace_packages)
+                        && seen.insert(package_root.clone())
+                    {
+                        package_roots.push((package_root, PackageKind::Declared));
                     }
                 }
             }

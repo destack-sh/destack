@@ -2,14 +2,8 @@ use destack_dir as dir;
 use destack_source::{EnclosingSpan, Span};
 
 use crate::core::DirQueryContext;
-use crate::dir::{
-    ExpectedParameterHint, ScopeAtOffset, block_scope_at_offset, call_target,
-    expected_parameter_hint_for_symbol, expression_scope_at_offset, scope_at_offset,
-};
-use crate::source::{
-    enclosing_spans_at_cursor, previous_significant_token, sorted_enclosing_spans,
-    span_for_dir_node, span_owns_cursor,
-};
+use crate::dir::{ExpectedParameterHint, ScopeAtOffset};
+use crate::source::span_owns_cursor;
 
 use super::CompletionContext;
 
@@ -21,96 +15,92 @@ struct DirCallExpression<'a> {
     arguments: &'a [dir::LocalNodeId<dir::Argument>],
 }
 
-/// Detect whether the cursor is in a new expression context.
-pub(super) fn detect_new_expression_context(
-    ctx: DirQueryContext<'_>,
-    offset: u32,
-) -> Option<CompletionContext> {
-    // resolve enclosing spans around the cursor boundary
-    let enclosing = enclosing_spans_at_cursor(ctx, offset);
+impl DirQueryContext<'_> {
+    /// Detect whether the cursor is in a new expression context.
+    pub(super) fn detect_new_expression_context(self, offset: u32) -> Option<CompletionContext> {
+        // resolve enclosing spans around the cursor boundary
+        let enclosing = self.enclosing_spans_at_cursor(offset);
 
-    // scan spans for a new expression containing the cursor
-    for enc in &enclosing {
-        if let Some(context) = new_expression_context_for_span(ctx, enc, offset) {
+        // scan spans for a new expression containing the cursor
+        for enc in &enclosing {
+            if let Some(context) = self.new_expression_context_for_span(enc, offset) {
+                return Some(context);
+            }
+        }
+
+        None
+    }
+
+    /// Detect whether the cursor is in a call argument context.
+    pub(super) fn detect_call_argument_context(self, offset: u32) -> Option<CompletionContext> {
+        // resolve enclosing spans at the cursor
+        let enclosing = self.sorted_enclosing_spans(offset, offset);
+
+        // bail out when there are no spans
+        if enclosing.is_empty() {
+            return None;
+        }
+
+        let dir_tree = self.view();
+
+        // scan spans for a call or new expression argument list
+        for enc in &enclosing {
+            if let Some(context) = self.call_argument_context_for_span(dir_tree, enc, offset) {
+                return Some(context);
+            }
+        }
+
+        // recover separator ownership inside a call
+        if let Some(separator) = self.previous_significant_token(offset)
+            && matches!(
+                separator.token.ty(),
+                dir::TokenType::OpenParenthesis | dir::TokenType::Comma
+            )
+            && let Some(context) =
+                self.call_argument_context_after_separator(dir_tree, offset, separator.span.start)
+        {
             return Some(context);
         }
+
+        None
     }
 
-    None
-}
-
-/// Detect whether the cursor is in a call argument context.
-pub(super) fn detect_call_argument_context(
-    ctx: DirQueryContext<'_>,
-    offset: u32,
-) -> Option<CompletionContext> {
-    // resolve enclosing spans at the cursor
-    let enclosing = sorted_enclosing_spans(ctx, offset, offset);
-
-    // bail out when there are no spans
-    if enclosing.is_empty() {
-        return None;
-    }
-
-    let dir_tree = ctx.view();
-
-    // scan spans for a call or new expression argument list
-    for enc in &enclosing {
-        if let Some(context) = call_argument_context_for_span(ctx, dir_tree, enc, offset) {
-            return Some(context);
+    /// Build a new expression context from a single enclosing span.
+    fn new_expression_context_for_span(
+        self,
+        enc: &EnclosingSpan,
+        offset: u32,
+    ) -> Option<CompletionContext> {
+        // only expression spans can own one `new` constructor region
+        if self.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
+            return None;
         }
+
+        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
+        let parsed_tree = self.tree();
+        let (_expr_id, expr) = unwrap_statement_expression(parsed_tree, expr_id);
+        let dir::Expression::New { ty, .. } = expr else {
+            return None;
+        };
+
+        // only explicit constructor text belongs to this path
+        if matches!(parsed_tree.get(*ty), dir::TypeExpression::Missing) {
+            return None;
+        }
+
+        // only the constructor side should classify as one `new` completion position
+        let type_span = parsed_tree.source_index.get(ty.id);
+        if !span_owns_cursor(type_span, offset) {
+            return None;
+        }
+
+        let scope = self.scope_at_offset(offset);
+
+        Some(CompletionContext::NewExpression {
+            scope_id: scope.map(|scope| scope.scope_id),
+            scope_mark: scope.map(|scope| scope.scope_mark),
+        })
     }
-
-    // recover separator ownership inside a call
-    if let Some(separator) = previous_significant_token(ctx, offset)
-        && matches!(
-            separator.token.ty(),
-            dir::TokenType::OpenParenthesis | dir::TokenType::Comma
-        )
-        && let Some(context) =
-            call_argument_context_after_separator(ctx, dir_tree, offset, separator.span.start)
-    {
-        return Some(context);
-    }
-
-    None
-}
-
-/// Build a new expression context from a single enclosing span.
-fn new_expression_context_for_span(
-    ctx: DirQueryContext<'_>,
-    enc: &EnclosingSpan,
-    offset: u32,
-) -> Option<CompletionContext> {
-    // only expression spans can own one `new` constructor region
-    if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
-        return None;
-    }
-
-    let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
-    let parsed_tree = ctx.tree();
-    let (_expr_id, expr) = unwrap_statement_expression(parsed_tree, expr_id);
-    let dir::Expression::New { ty, .. } = expr else {
-        return None;
-    };
-
-    // only explicit constructor text belongs to this path
-    if matches!(parsed_tree.get(*ty), dir::TypeExpression::Missing) {
-        return None;
-    }
-
-    // only the constructor side should classify as one `new` completion position
-    let type_span = parsed_tree.source_index.get(ty.id);
-    if !span_owns_cursor(type_span, offset) {
-        return None;
-    }
-
-    let scope = scope_at_offset(ctx, offset);
-
-    Some(CompletionContext::NewExpression {
-        scope_id: scope.map(|scope| scope.scope_id),
-        scope_mark: scope.map(|scope| scope.scope_mark),
-    })
 }
 
 /// Unwrap statement expressions to the underlying inner expression.
@@ -122,93 +112,96 @@ fn unwrap_statement_expression(
     (expr_id, expr)
 }
 
-/// Build a call argument context from a single enclosing span.
-fn call_argument_context_for_span(
-    ctx: DirQueryContext<'_>,
-    dir_tree: dir::View<'_>,
-    enc: &EnclosingSpan,
-    offset: u32,
-) -> Option<CompletionContext> {
-    let (expr_id, call) = dir_call_expression_for_enclosing_span(dir_tree, enc)?;
-    let left_span = left_expression_span(ctx, dir_tree, call.left);
-    let call_span = ctx.tree().source_index.get(enc.source_id);
+impl DirQueryContext<'_> {
+    /// Build a call argument context from a single enclosing span.
+    fn call_argument_context_for_span(
+        self,
+        dir_tree: dir::View<'_>,
+        enc: &EnclosingSpan,
+        offset: u32,
+    ) -> Option<CompletionContext> {
+        let (expr_id, call) = dir_call_expression_for_enclosing_span(dir_tree, enc)?;
+        let left_span = self.left_expression_span(dir_tree, call.left);
+        let call_span = self.tree().source_index.get(enc.source_id);
 
-    // only the argument list belongs to this path
-    if !cursor_in_argument_list(ctx, dir_tree, call.arguments, left_span, call_span, offset) {
-        return None;
-    }
-
-    let scope = expression_scope_at_offset(ctx, expr_id, offset);
-    let active_parameter = active_argument_index(ctx, dir_tree, call.arguments, offset);
-    let expected_parameter = expected_parameter_hint(ctx, call.left, active_parameter);
-
-    Some(CompletionContext::CallArgument {
-        scope_id: Some(scope.scope_id),
-        scope_mark: Some(scope.scope_mark),
-        expected_parameter,
-    })
-}
-
-/// Build a call argument context from a separator position inside a call.
-fn call_argument_context_after_separator(
-    ctx: DirQueryContext<'_>,
-    dir_tree: dir::View<'_>,
-    offset: u32,
-    separator_position: u32,
-) -> Option<CompletionContext> {
-    let lookup_position = separator_position.saturating_sub(1);
-    let enclosing = sorted_enclosing_spans(ctx, lookup_position, lookup_position);
-
-    // prefer dir backed call shapes first
-    for enc in &enclosing {
-        let Some((expr_id, call)) = dir_call_expression_for_enclosing_span(dir_tree, enc) else {
-            continue;
-        };
-        let left_span = left_expression_span(ctx, dir_tree, call.left);
-
-        if separator_position <= left_span.end {
-            continue;
+        // only the argument list belongs to this path
+        if !self.cursor_in_argument_list(dir_tree, call.arguments, left_span, call_span, offset) {
+            return None;
         }
 
-        let scope = expression_scope_at_offset(ctx, expr_id, offset);
-        let active_parameter = call.arguments.len();
-        let expected_parameter = expected_parameter_hint(ctx, call.left, active_parameter);
+        let scope = self.expression_scope_at_offset(expr_id, offset);
+        let active_parameter = self.active_argument_index(dir_tree, call.arguments, offset);
+        let expected_parameter = self.expected_parameter_hint(call.left, active_parameter);
 
-        return Some(CompletionContext::CallArgument {
+        Some(CompletionContext::CallArgument {
             scope_id: Some(scope.scope_id),
             scope_mark: Some(scope.scope_mark),
             expected_parameter,
-        });
+        })
     }
 
-    // recover source call shapes that are still being edited
-    for enc in &enclosing {
-        if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
-            continue;
+    /// Build a call argument context from a separator position inside a call.
+    fn call_argument_context_after_separator(
+        self,
+        dir_tree: dir::View<'_>,
+        offset: u32,
+        separator_position: u32,
+    ) -> Option<CompletionContext> {
+        let lookup_position = separator_position.saturating_sub(1);
+        let enclosing = self.sorted_enclosing_spans(lookup_position, lookup_position);
+
+        // prefer dir backed call shapes first
+        for enc in &enclosing {
+            let Some((expr_id, call)) = dir_call_expression_for_enclosing_span(dir_tree, enc)
+            else {
+                continue;
+            };
+            let left_span = self.left_expression_span(dir_tree, call.left);
+
+            if separator_position <= left_span.end {
+                continue;
+            }
+
+            let scope = self.expression_scope_at_offset(expr_id, offset);
+            let active_parameter = call.arguments.len();
+            let expected_parameter = self.expected_parameter_hint(call.left, active_parameter);
+
+            return Some(CompletionContext::CallArgument {
+                scope_id: Some(scope.scope_id),
+                scope_mark: Some(scope.scope_mark),
+                expected_parameter,
+            });
         }
 
-        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
-        let expr = ctx.tree().get(expr_id);
+        // recover source call shapes that are still being edited
+        for enc in &enclosing {
+            if self.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
+                continue;
+            }
 
-        let head_end = match expr {
-            dir::Expression::Call { left, .. } => ctx.tree().source_index.get(left.id).end,
-            dir::Expression::New { ty, .. } => ctx.tree().source_index.get(ty.id).end,
-            _ => continue,
-        };
+            let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
+            let expr = self.tree().get(expr_id);
 
-        if separator_position <= head_end {
-            continue;
+            let head_end = match expr {
+                dir::Expression::Call { left, .. } => self.tree().source_index.get(left.id).end,
+                dir::Expression::New { ty, .. } => self.tree().source_index.get(ty.id).end,
+                _ => continue,
+            };
+
+            if separator_position <= head_end {
+                continue;
+            }
+
+            let scope = self.call_argument_scope_from_offsets(&[offset, lookup_position])?;
+            return Some(CompletionContext::CallArgument {
+                scope_id: Some(scope.scope_id),
+                scope_mark: Some(scope.scope_mark),
+                expected_parameter: None,
+            });
         }
 
-        let scope = call_argument_scope_from_offsets(ctx, &[offset, lookup_position])?;
-        return Some(CompletionContext::CallArgument {
-            scope_id: Some(scope.scope_id),
-            scope_mark: Some(scope.scope_mark),
-            expected_parameter: None,
-        });
+        None
     }
-
-    None
 }
 
 /// Resolve one DIR call expression from one enclosing span.
@@ -243,85 +236,81 @@ fn dir_call_expression(expr: &dir::Expression) -> Option<DirCallExpression<'_>> 
     }
 }
 
-/// Resolve the active argument index inside one call.
-fn active_argument_index(
-    ctx: DirQueryContext<'_>,
-    dir_tree: dir::View<'_>,
-    arguments: &[dir::LocalNodeId<dir::Argument>],
-    offset: u32,
-) -> usize {
-    if arguments.is_empty() {
-        return 0;
-    }
-
-    let mut active_index = 0usize;
-    for (index, argument_id) in arguments.iter().enumerate() {
-        let span = dir_node_span(ctx, dir_tree, (*argument_id).into());
-
-        if offset < span.start {
-            break;
+impl DirQueryContext<'_> {
+    /// Resolve the active argument index inside one call.
+    fn active_argument_index(
+        self,
+        dir_tree: dir::View<'_>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        offset: u32,
+    ) -> usize {
+        if arguments.is_empty() {
+            return 0;
         }
 
-        active_index = index;
-        if offset <= span.end {
-            break;
+        let mut active_index = 0usize;
+        for (index, argument_id) in arguments.iter().enumerate() {
+            let span = self.dir_node_span(dir_tree, (*argument_id).into());
+
+            if offset < span.start {
+                break;
+            }
+
+            active_index = index;
+            if offset <= span.end {
+                break;
+            }
         }
+
+        active_index
     }
 
-    active_index
-}
+    /// Resolve one expected-parameter hint for one call target.
+    fn expected_parameter_hint(
+        self,
+        left_expression_id: dir::LocalNodeId<dir::Expression>,
+        parameter_index: usize,
+    ) -> Option<ExpectedParameterHint> {
+        let _ctx = self;
+        let target = self.call_target(left_expression_id);
+        let symbol_id = target.symbol?;
 
-/// Resolve one expected-parameter hint for one call target.
-fn expected_parameter_hint(
-    ctx: DirQueryContext<'_>,
-    left_expression_id: dir::LocalNodeId<dir::Expression>,
-    parameter_index: usize,
-) -> Option<ExpectedParameterHint> {
-    let target = call_target(ctx, left_expression_id);
-    let symbol_id = target.symbol?;
-
-    let ctx = ctx.module_context(ctx.module_id())?;
-    expected_parameter_hint_for_symbol(&ctx, symbol_id, parameter_index)
-}
-
-/// Resolve the source span for one dir node.
-fn dir_node_span(
-    ctx: DirQueryContext<'_>,
-    dir_tree: dir::View<'_>,
-    node_id: dir::LocalNodeIdAny,
-) -> Span {
-    let source_id = dir_tree.get_source_any(node_id);
-    ctx.tree().source_index.get(source_id)
-}
-
-/// Resolve the source span for one call target expression.
-fn left_expression_span(
-    ctx: DirQueryContext<'_>,
-    dir_tree: dir::View<'_>,
-    left: dir::LocalNodeId<dir::Expression>,
-) -> Span {
-    let left_node_id: dir::LocalNodeIdAny = left.into();
-    dir_node_span(ctx, dir_tree, left_node_id)
-}
-
-/// Resolve a call argument scope from a small set of nearby offsets.
-fn call_argument_scope_from_offsets(
-    ctx: DirQueryContext<'_>,
-    offsets: &[u32],
-) -> Option<ScopeAtOffset> {
-    for &offset in offsets {
-        if let Some(scope) = block_scope_at_offset(ctx, offset) {
-            return Some(normalize_call_argument_scope(scope));
-        }
+        let ctx = self.module_context(self.module_id())?;
+        ctx.expected_parameter_hint_for_symbol(symbol_id, parameter_index)
     }
 
-    for &offset in offsets {
-        if let Some(scope) = scope_at_offset(ctx, offset) {
-            return Some(normalize_call_argument_scope(scope));
-        }
+    /// Resolve the source span for one dir node.
+    fn dir_node_span(self, dir_tree: dir::View<'_>, node_id: dir::LocalNodeIdAny) -> Span {
+        let source_id = dir_tree.get_source_any(node_id);
+        self.tree().source_index.get(source_id)
     }
 
-    None
+    /// Resolve the source span for one call target expression.
+    fn left_expression_span(
+        self,
+        dir_tree: dir::View<'_>,
+        left: dir::LocalNodeId<dir::Expression>,
+    ) -> Span {
+        let left_node_id: dir::LocalNodeIdAny = left.into();
+        self.dir_node_span(dir_tree, left_node_id)
+    }
+
+    /// Resolve a call argument scope from a small set of nearby offsets.
+    fn call_argument_scope_from_offsets(self, offsets: &[u32]) -> Option<ScopeAtOffset> {
+        for &offset in offsets {
+            if let Some(scope) = self.block_scope_at_offset(offset) {
+                return Some(normalize_call_argument_scope(scope));
+            }
+        }
+
+        for &offset in offsets {
+            if let Some(scope) = self.scope_at_offset(offset) {
+                return Some(normalize_call_argument_scope(scope));
+            }
+        }
+
+        None
+    }
 }
 
 /// Normalize the scope used for one call argument position.
@@ -338,31 +327,33 @@ fn normalize_call_argument_scope(scope: ScopeAtOffset) -> ScopeAtOffset {
     }
 }
 
-/// Check whether the cursor is inside a call argument list.
-fn cursor_in_argument_list(
-    ctx: DirQueryContext<'_>,
-    dir_tree: dir::View<'_>,
-    arguments: &[dir::LocalNodeId<dir::Argument>],
-    left_span: Span,
-    call_span: Span,
-    offset: u32,
-) -> bool {
-    // check argument spans when arguments are present
-    if !arguments.is_empty() {
-        let mut min_start = u32::MAX;
-        let mut max_end = 0u32;
+impl DirQueryContext<'_> {
+    /// Check whether the cursor is inside a call argument list.
+    fn cursor_in_argument_list(
+        self,
+        dir_tree: dir::View<'_>,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+        left_span: Span,
+        call_span: Span,
+        offset: u32,
+    ) -> bool {
+        // check argument spans when arguments are present
+        if !arguments.is_empty() {
+            let mut min_start = u32::MAX;
+            let mut max_end = 0u32;
 
-        for argument_id in arguments {
-            let arg_node_id: dir::LocalNodeIdAny = (*argument_id).into();
-            let span = span_for_dir_node(ctx, dir_tree, arg_node_id);
-            min_start = min_start.min(span.start);
-            max_end = max_end.max(span.end);
+            for argument_id in arguments {
+                let arg_node_id: dir::LocalNodeIdAny = (*argument_id).into();
+                let span = self.span_for_dir_node(dir_tree, arg_node_id);
+                min_start = min_start.min(span.start);
+                max_end = max_end.max(span.end);
+            }
+
+            if offset >= min_start && offset <= max_end {
+                return true;
+            }
         }
 
-        if offset >= min_start && offset <= max_end {
-            return true;
-        }
+        offset > left_span.end && offset <= call_span.end
     }
-
-    offset > left_span.end && offset <= call_span.end
 }
