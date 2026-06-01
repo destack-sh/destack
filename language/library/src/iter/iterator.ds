@@ -27,10 +27,9 @@ export type IteratorResult<T, TReturn = unknown> = IteratorYield<T> | IteratorRe
 export interface Iterator<T, TReturn = unknown, TNext = unknown> {
     /// Advance the iterator and return the next result.
     next(...value: [] | [TNext]): IteratorResult<T, TReturn>;
+
     /// Finalize the iterator and return the completion value.
     return?(value?: TReturn): IteratorResult<T, TReturn>;
-    /// Signal an error to the iterator.
-    throw?(error?: unknown): IteratorResult<T, TReturn>;
 }
 
 /// A value that can produce an iterator.
