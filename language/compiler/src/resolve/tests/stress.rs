@@ -124,3 +124,84 @@ resolve.stats.loads.globals=0",
 
     assert_eq!(metadata, expected);
 }
+
+#[test]
+fn test_resolve_stats_cache_repeated_namespace_paths() {
+    const ITEMS: usize = 50_000;
+
+    let references = (0..ITEMS)
+        .map(|_| "dep.target;".to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let source = format!(
+        "import * as dep from \"./dep\";\n\
+{references}"
+    );
+    let compiler = TestSession::new()
+        .module("main.ds", &source)
+        .module("dep.ds", "export const target = 1;")
+        .build();
+    let metadata = compiler.artifact_text_sidecar(
+        compiler.dir_resolved_key("main.ds"),
+        "metadata",
+        &BTreeMap::from([("phase".to_string(), "resolve".to_string())]),
+    );
+    let expected = format!(
+        "resolve.stats.roots={}\n\
+resolve.stats.expressions={}\n\
+resolve.stats.types=0\n\
+resolve.stats.clauses=import:1,reexport:0\n\
+resolve.stats.exports=miss:1,hit:{},cycle:0\n\
+resolve.stats.lookups.local={ITEMS}\n\
+resolve.stats.lookups.import_items=1\n\
+resolve.stats.lookups.reexport_items=0\n\
+resolve.stats.loads.exports=1\n\
+resolve.stats.loads.globals=0",
+        ITEMS + 1,
+        ITEMS * 2 + 1,
+        ITEMS - 1
+    );
+
+    assert_eq!(metadata, expected);
+}
+
+#[test]
+fn test_resolve_stats_cache_repeated_nested_namespace_paths() {
+    const ITEMS: usize = 50_000;
+
+    let references = (0..ITEMS)
+        .map(|_| "dep.api.target;".to_string())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let source = format!(
+        "import * as dep from \"./dep\";\n\
+{references}"
+    );
+    let compiler = TestSession::new()
+        .module("main.ds", &source)
+        .module("dep.ds", "export * as api from \"./api\";")
+        .module("api.ds", "export const target = 1;")
+        .build();
+    let metadata = compiler.artifact_text_sidecar(
+        compiler.dir_resolved_key("main.ds"),
+        "metadata",
+        &BTreeMap::from([("phase".to_string(), "resolve".to_string())]),
+    );
+    let expected = format!(
+        "resolve.stats.roots={}\n\
+resolve.stats.expressions={}\n\
+resolve.stats.types=0\n\
+resolve.stats.clauses=import:1,reexport:0\n\
+resolve.stats.exports=miss:2,hit:{},cycle:0\n\
+resolve.stats.lookups.local={ITEMS}\n\
+resolve.stats.lookups.import_items=1\n\
+resolve.stats.lookups.reexport_items=0\n\
+resolve.stats.loads.exports=2\n\
+resolve.stats.loads.globals=0",
+        ITEMS + 1,
+        ITEMS * 3 + 1,
+        (ITEMS - 1) * 2
+    );
+
+    assert_eq!(metadata, expected);
+}

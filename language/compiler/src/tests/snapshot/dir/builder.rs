@@ -42,6 +42,10 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) module_path_by_id: Option<&'a BTreeMap<ModuleId, String>>,
     /// Foreign binding tables keyed by module.
     pub(super) foreign_bindings: BTreeMap<ModuleId, dir::BindingTable<'a>>,
+    /// Foreign type tables keyed by module.
+    pub(super) foreign_types: BTreeMap<ModuleId, dir::TypeTable<'static>>,
+    /// Foreign static tables keyed by module.
+    pub(super) foreign_statics: BTreeMap<ModuleId, dir::StaticTable<'static>>,
     /// Foreign symbol labels keyed by module and local symbol.
     pub(super) foreign_symbol_labels:
         RefCell<BTreeMap<ModuleId, BTreeMap<dir::LocalSymbolId, String>>>,
@@ -77,6 +81,8 @@ impl<'a> DirSnapshotBuilder<'a> {
             statics: None,
             module_path_by_id: None,
             foreign_bindings: BTreeMap::new(),
+            foreign_types: BTreeMap::new(),
+            foreign_statics: BTreeMap::new(),
             foreign_symbol_labels: RefCell::new(BTreeMap::new()),
             language_item_by_symbol: BTreeMap::new(),
             type_labels: BTreeMap::new(),
@@ -97,6 +103,19 @@ impl<'a> DirSnapshotBuilder<'a> {
             Some(self.tree),
             self.strings,
         ));
+
+        self
+    }
+
+    /// Set type and static tables used for foreign semantic labels.
+    pub(crate) fn with_foreign_tables(
+        mut self,
+        foreign_tables: Vec<(dir::TypeTable<'static>, dir::StaticTable<'static>)>,
+    ) -> Self {
+        for (types, statics) in foreign_tables {
+            self.foreign_types.insert(types.module_id, types);
+            self.foreign_statics.insert(statics.module_id, statics);
+        }
 
         self
     }
@@ -169,6 +188,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.import {
             self.add_table(&resolved.imports);
+            self.add_table(&resolved.paths);
         }
     }
 
@@ -342,6 +362,76 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.anchor_node(node_id)
     }
 
+    /// Render one source path prefix.
+    pub(crate) fn source_path_prefix_label(&self, key: dir::PathKey) -> String {
+        assert_eq!(
+            key.source.module_id, self.tree.module_id,
+            "dir snapshot cannot render foreign source paths"
+        );
+        let length = key.length as usize;
+
+        let path = match key.source.local_id.ty {
+            dir::NodeType::Expression => {
+                let node_id = key.source.local_id.into_typed();
+                self.expression_source_path_segments(node_id)
+            }
+            dir::NodeType::TypeExpression => {
+                let node_id = key.source.local_id.into_typed();
+                let dir::TypeExpression::Reference { path, .. } = self.tree.get(node_id) else {
+                    panic!("path table type source is not a reference");
+                };
+
+                path.segments.iter().copied().collect()
+            }
+            _ => panic!("path table source is not a path-bearing node"),
+        };
+        assert!(
+            length <= path.len(),
+            "path table prefix is longer than source path"
+        );
+
+        path.iter()
+            .take(length)
+            .map(|segment| self.strings.get(*segment))
+            .collect::<Vec<_>>()
+            .join(".")
+    }
+
+    /// Return source path segments for one path-bearing expression.
+    fn expression_source_path_segments(
+        &self,
+        node_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Vec<dir::StringId> {
+        let mut segments = Vec::new();
+        self.collect_expression_source_path_segments(node_id, &mut segments);
+
+        segments
+    }
+
+    /// Collect source path segments from one path-bearing expression.
+    fn collect_expression_source_path_segments(
+        &self,
+        node_id: dir::LocalNodeId<dir::Expression>,
+        segments: &mut Vec<dir::StringId>,
+    ) {
+        match self.tree.get(node_id) {
+            dir::Expression::Identifier { name } => {
+                segments.push(*name);
+            }
+            dir::Expression::QualifiedReference { path, .. } => {
+                segments.extend(path.segments.iter().copied());
+            }
+            dir::Expression::Member {
+                left,
+                name: Some(name),
+            } => {
+                self.collect_expression_source_path_segments(*left, segments);
+                segments.push(*name);
+            }
+            _ => panic!("path table expression source is not a path-bearing expression"),
+        }
+    }
+
     /// Return the source anchor for one symbol.
     pub(crate) fn anchor_symbol(&self, symbol_id: dir::GlobalSymbolId) -> SnapshotAnchor {
         let bindings = self.binding_table();
@@ -470,8 +560,11 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if type_id.module_id != self.tree.module_id {
-            let module = self.module_path(type_id.module_id);
+            if let Some(types) = self.foreign_types.get(&type_id.module_id) {
+                return self.type_table_label(types, type_id.local_id);
+            }
 
+            let module = self.module_path(type_id.module_id);
             return format!("{module}.type{}", type_id.local_id.0);
         }
         let types = self
@@ -489,8 +582,13 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if static_id.module_id != self.tree.module_id {
-            let module = self.module_path(static_id.module_id);
+            if let Some(statics) = self.foreign_statics.get(&static_id.module_id) {
+                let term = statics.get_static(static_id.local_id);
 
+                return self.static_term_label(term);
+            }
+
+            let module = self.module_path(static_id.module_id);
             return format!("{module}.static{}", static_id.local_id.0);
         }
         let statics = self

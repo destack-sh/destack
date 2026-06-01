@@ -2,13 +2,25 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::resolve::resolve::ExportLookup;
+use crate::resolve::resolve::{ExportLookup, ExportTarget};
 use crate::resolve::state::{ModuleClause, ResolveState};
 
 impl ResolveState<'_> {
-    /// Resolve recorded import and re-export clauses.
-    pub(in crate::resolve) fn resolve_module_clauses(&mut self) -> CompilerResult<()> {
-        let clauses = std::mem::take(&mut self.module_clauses);
+    /// Resolve import and re-export clauses from active roots.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value } from "./dep.ds";
+    /// export { value } from "./dep.ds";
+    /// ```
+    pub(in crate::resolve) fn resolve_module_clauses(
+        &mut self,
+        roots: &[dir::LocalNodeId<dir::Expression>],
+    ) -> CompilerResult<()> {
+        let clauses = roots
+            .iter()
+            .filter_map(|root| self.module_clause_for_root(*root))
+            .collect::<Vec<_>>();
 
         for clause in clauses {
             match clause {
@@ -30,7 +42,51 @@ impl ResolveState<'_> {
         Ok(())
     }
 
+    /// Return the module clause represented by one active root.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value } from "./dep.ds";
+    /// export { value } from "./dep.ds";
+    /// ```
+    fn module_clause_for_root(
+        &mut self,
+        root: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<ModuleClause> {
+        match self.view.get(root) {
+            dir::Expression::Import { items, .. } => {
+                self.stats.import_clauses += 1;
+
+                Some(ModuleClause::Import {
+                    expression_id: root,
+                    items: items.clone(),
+                })
+            }
+
+            dir::Expression::Export {
+                target: Some(_),
+                items,
+                ..
+            } => {
+                self.stats.reexport_clauses += 1;
+
+                Some(ModuleClause::ReExport {
+                    expression_id: root,
+                    items: items.clone(),
+                })
+            }
+
+            _ => None,
+        }
+    }
+
     /// Resolve targets for one import declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// import * as dep from "./dep.ds";
+    /// import { value } from "./dep.ds";
+    /// ```
     fn resolve_import_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -57,6 +113,11 @@ impl ResolveState<'_> {
     }
 
     /// Resolve targets for named import clause items.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value, type Model } from "./dep.ds";
+    /// ```
     fn resolve_import_items(
         &mut self,
         target: ModuleId,
@@ -72,6 +133,12 @@ impl ResolveState<'_> {
     }
 
     /// Resolve the target for one named import clause item.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value as local } from "./dep.ds";
+    /// // local is bound to the exported value target
+    /// ```
     fn resolve_import_item(
         &mut self,
         target: ModuleId,
@@ -103,21 +170,31 @@ impl ResolveState<'_> {
             return Ok(());
         };
 
-        match self.resolve_export_symbol(target, key)? {
-            ExportLookup::Found(symbol) => {
+        match self.resolve_export_target(target, key)? {
+            ExportLookup::Found(ExportTarget::Symbol(symbol)) => {
                 self.imports
                     .insert_symbol(local_symbol, dir::ImportTarget::Symbol(symbol));
             }
-            ExportLookup::Missing => self.report_missing_export(item_id, key, specifier)?,
-            ExportLookup::Ambiguous => {
+            ExportLookup::Found(ExportTarget::Namespace(module)) => {
+                self.imports
+                    .insert_symbol(local_symbol, dir::ImportTarget::Namespace(module));
+            }
+            ExportLookup::Ambiguous(_) => {
                 self.report_ambiguous_export(item_id, key, specifier)?;
             }
+            ExportLookup::Missing => self.report_missing_export(item_id, key, specifier)?,
         }
 
         Ok(())
     }
 
     /// Resolve targets for one re-export declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// export { value } from "./dep.ds";
+    /// export * as api from "./api.ds";
+    /// ```
     fn resolve_reexport_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
@@ -150,13 +227,13 @@ impl ResolveState<'_> {
                 continue;
             };
 
-            match self.resolve_export_symbol(target, key)? {
+            match self.resolve_export_target(target, key)? {
                 ExportLookup::Found(_) => {}
+                ExportLookup::Ambiguous(_) => {
+                    self.report_ambiguous_export(*item_id, key, specifier)?;
+                }
                 ExportLookup::Missing => {
                     self.report_missing_export(*item_id, key, specifier)?;
-                }
-                ExportLookup::Ambiguous => {
-                    self.report_ambiguous_export(*item_id, key, specifier)?;
                 }
             }
         }

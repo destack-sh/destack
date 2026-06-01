@@ -4,6 +4,13 @@ use crate::resolve::state::ResolveState;
 
 impl ResolveState<'_> {
     /// Require language items implied by one function signature.
+    ///
+    /// Example:
+    /// ```ds
+    /// async function load() {}
+    /// function* ids() {}
+    /// async function* events() {}
+    /// ```
     pub(in crate::resolve) fn require_function_language_items(
         &mut self,
         signature: &dir::FunctionSignature,
@@ -27,12 +34,24 @@ impl ResolveState<'_> {
     }
 
     /// Require language items implied by try propagation syntax.
+    ///
+    /// Example:
+    /// ```ds
+    /// const value = parse()?;
+    /// ```
     pub(in crate::resolve) fn require_try_language_items(&mut self) {
         self.require_language_item(dir::LanguageItem::Try);
         self.require_language_item(dir::LanguageItem::FromFailure);
     }
 
     /// Require the iterable item implied by yield delegation.
+    ///
+    /// Example:
+    /// ```ds
+    /// function* ids() {
+    ///     yield* values;
+    /// }
+    /// ```
     pub(in crate::resolve) fn require_yield_star_language_item(&mut self) {
         let Some(function) = self.current_function() else {
             return;
@@ -51,6 +70,12 @@ impl ResolveState<'_> {
     }
 
     /// Require the range item implied by one range expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// const open = start..end;
+    /// const closed = start..=end;
+    /// ```
     pub(in crate::resolve) fn require_range_language_item(
         &mut self,
         has_start: bool,
@@ -76,6 +101,12 @@ impl ResolveState<'_> {
     }
 
     /// Require language items implied by one unary operator.
+    ///
+    /// Example:
+    /// ```ds
+    /// const negated = -value;
+    /// const dereferenced = *pointer;
+    /// ```
     pub(in crate::resolve) fn require_unary_operator_language_items(
         &mut self,
         operator: dir::UnaryOperator,
@@ -104,6 +135,12 @@ impl ResolveState<'_> {
     }
 
     /// Require language items implied by one binary operator.
+    ///
+    /// Example:
+    /// ```ds
+    /// const total = left + right;
+    /// const is_less = left < right;
+    /// ```
     pub(in crate::resolve) fn require_binary_operator_language_items(
         &mut self,
         operator: dir::BinaryOperator,

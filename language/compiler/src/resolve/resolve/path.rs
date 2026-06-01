@@ -1,0 +1,170 @@
+use destack_dir as dir;
+use destack_source::ModuleId;
+
+use crate::resolve::resolve::{ExportLookup, ExportTarget};
+use crate::resolve::state::{PathReference, ResolveState};
+use crate::{CompilerError, CompilerResult};
+
+impl ResolveState<'_> {
+    /// Resolve namespace path references collected during the resolve walk.
+    ///
+    /// Example:
+    /// ```ds
+    /// import * as dep from "./dep.ds";
+    ///
+    /// dep.api.value;
+    /// // dep and dep.api are namespace prefixes, dep.api.value is the final symbol
+    /// ```
+    pub(in crate::resolve) fn resolve_path_references(&mut self) -> CompilerResult<()> {
+        let references = std::mem::take(&mut self.path_references);
+
+        for reference in references {
+            self.resolve_path_reference(reference)?;
+        }
+
+        Ok(())
+    }
+
+    /// Resolve one namespace path reference.
+    ///
+    /// Example:
+    /// ```ds
+    /// dep.api.value;
+    /// ```
+    fn resolve_path_reference(&mut self, reference: PathReference) -> CompilerResult<()> {
+        // select the root namespace
+        let Some((root, tail)) = reference.path.segments.split_first() else {
+            return Ok(());
+        };
+        let Some(mut module) = self.namespace_root_module(&reference, *root) else {
+            return Ok(());
+        };
+
+        // record the root namespace
+        self.paths.insert(
+            dir::PathKey::new(reference.source, 1),
+            dir::PathResolution::Found(dir::PathTarget::Namespace(module)),
+        );
+
+        // resolve each namespace prefix
+        for (index, segment) in tail.iter().enumerate() {
+            let length = index as u32 + 2;
+            let key = dir::ExportKey::named(dir::StaticKey::Name(*segment));
+            let resolution = self.resolve_export_target(module, key)?;
+
+            match resolution {
+                // record one symbol prefix
+                ExportLookup::Found(ExportTarget::Symbol(symbol)) => {
+                    self.paths.insert(
+                        dir::PathKey::new(reference.source, length),
+                        dir::PathResolution::Found(dir::PathTarget::Symbol(symbol)),
+                    );
+                    let Some(next) = self.namespace_symbol_module(symbol)? else {
+                        return Ok(());
+                    };
+
+                    module = next;
+                }
+
+                // record one namespace prefix
+                ExportLookup::Found(ExportTarget::Namespace(next)) => {
+                    self.paths.insert(
+                        dir::PathKey::new(reference.source, length),
+                        dir::PathResolution::Found(dir::PathTarget::Namespace(next)),
+                    );
+
+                    module = next;
+                }
+
+                // record an ambiguous prefix
+                ExportLookup::Ambiguous(targets) => {
+                    let targets = targets
+                        .into_iter()
+                        .map(|target| target.path_target())
+                        .collect();
+
+                    self.paths.insert(
+                        dir::PathKey::new(reference.source, length),
+                        dir::PathResolution::Ambiguous(targets),
+                    );
+
+                    return Ok(());
+                }
+
+                // record a missing prefix
+                ExportLookup::Missing => {
+                    self.paths.insert(
+                        dir::PathKey::new(reference.source, length),
+                        dir::PathResolution::Missing,
+                    );
+
+                    return Ok(());
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return the namespace module selected by one path root.
+    ///
+    /// Example:
+    /// ```ds
+    /// import * as dep from "./dep.ds";
+    ///
+    /// dep.value;
+    /// // dep selects the namespace module
+    /// ```
+    fn namespace_root_module(
+        &self,
+        reference: &PathReference,
+        root: dir::StringId,
+    ) -> Option<ModuleId> {
+        let key = dir::StaticKey::Name(root);
+        let lookup = self
+            .bindings
+            .lookup_symbol_at(reference.source, key, dir::SymbolSpace::Value);
+        let dir::SymbolLookup::Found(symbol) = lookup else {
+            return None;
+        };
+        let Some(dir::ImportTarget::Namespace(module)) = self.imports.symbol_target(symbol) else {
+            return None;
+        };
+
+        Some(module)
+    }
+
+    /// Return the namespace module selected by one resolved symbol.
+    ///
+    /// Example:
+    /// ```ds
+    /// export * as api from "./api.ds";
+    ///
+    /// dep.api.value;
+    /// // api can be a symbol whose import target is another namespace module
+    /// ```
+    fn namespace_symbol_module(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<ModuleId>> {
+        // read the symbol import target
+        let target = if symbol.module_id == self.module {
+            self.imports.symbol_target(symbol.local_id)
+        } else {
+            let resolved = self
+                .artifacts
+                .dir_resolved(symbol.module_id, self.profile)
+                .map_err(CompilerError::from)?;
+
+            resolved.imports.symbol_target(symbol.local_id)
+        };
+
+        // require a namespace target
+        let module = match target {
+            Some(dir::ImportTarget::Namespace(module)) => Some(module),
+            Some(dir::ImportTarget::Symbol(_)) | None => None,
+        };
+
+        Ok(module)
+    }
+}

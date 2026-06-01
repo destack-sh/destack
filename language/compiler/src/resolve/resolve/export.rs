@@ -7,20 +7,51 @@ use destack_source::ModuleId;
 use crate::resolve::state::{ExportLookupKey, ExportLookupState, ResolveState};
 use crate::{CompilerError, CompilerResult};
 
-/// Result of looking up an exported symbol.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Result of looking up an exported target.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::resolve) enum ExportLookup {
-    /// A single export target was resolved.
-    Found(dir::GlobalSymbolId),
+    /// One export target was resolved.
+    Found(ExportTarget),
+    /// Multiple star exports provide the same key.
+    Ambiguous(Vec<ExportTarget>),
     /// No matching export exists.
     Missing,
-    /// Multiple star exports provide the same key.
-    Ambiguous,
+}
+
+/// One target resolved through an export surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::resolve) enum ExportTarget {
+    /// A symbol export target.
+    Symbol(dir::GlobalSymbolId),
+    /// A namespace export target.
+    Namespace(ModuleId),
+}
+
+impl ExportTarget {
+    /// Return this target as a path table target.
+    ///
+    /// Example:
+    /// ```ds
+    /// dep.api.value
+    /// // dep.api can resolve to a namespace, dep.api.value can resolve to a symbol
+    /// ```
+    pub(in crate::resolve) fn path_target(self) -> dir::PathTarget {
+        match self {
+            Self::Symbol(symbol) => dir::PathTarget::Symbol(symbol),
+            Self::Namespace(module) => dir::PathTarget::Namespace(module),
+        }
+    }
 }
 
 impl ResolveState<'_> {
-    /// Resolve one exported symbol through direct and indirect exports.
-    pub(in crate::resolve) fn resolve_export_symbol(
+    /// Resolve one exported target through direct and indirect exports.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value } from "./dep.ds";
+    /// // value can come from dep.ds directly or through export { value } from "./inner.ds"
+    /// ```
+    pub(in crate::resolve) fn resolve_export_target(
         &mut self,
         module: ModuleId,
         key: dir::ExportKey,
@@ -43,16 +74,23 @@ impl ResolveState<'_> {
         self.export_lookups
             .insert(cache_key, ExportLookupState::Resolving);
 
-        let lookup = self.resolve_export_symbol_uncached(module, key)?;
+        let lookup = self.resolve_export_target_uncached(module, key)?;
         self.export_lookups
-            .insert(cache_key, ExportLookupState::Resolved(lookup));
+            .insert(cache_key, ExportLookupState::Resolved(lookup.clone()));
 
         Ok(lookup)
     }
 
     /// Return the cached export lookup when it is already known.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value } from "./dep.ds";
+    /// import { value as other } from "./dep.ds";
+    /// // the second lookup can reuse the first export result
+    /// ```
     fn cached_export_lookup(&self, key: ExportLookupKey) -> Option<ExportLookup> {
-        match self.export_lookups.get(&key).copied() {
+        match self.export_lookups.get(&key).cloned() {
             Some(ExportLookupState::Resolved(lookup)) => Some(lookup),
 
             // break export cycles without hiding other star branches
@@ -62,8 +100,14 @@ impl ResolveState<'_> {
         }
     }
 
-    /// Resolve one exported symbol without consulting the lookup cache.
-    fn resolve_export_symbol_uncached(
+    /// Resolve one exported target without consulting the lookup cache.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value } from "./dep.ds";
+    /// // dep.ds is loaded and searched directly on the first lookup
+    /// ```
+    fn resolve_export_target_uncached(
         &mut self,
         module: ModuleId,
         key: dir::ExportKey,
@@ -74,10 +118,17 @@ impl ResolveState<'_> {
             return self.resolve_export_entry(module, export);
         }
 
-        self.resolve_star_export_symbol(key, &exported.exports)
+        self.resolve_star_export_target(key, &exported.exports)
     }
 
     /// Return one exported module loaded through this provider run.
+    ///
+    /// Example:
+    /// ```ds
+    /// import { value } from "./dep.ds";
+    /// export { value } from "./dep.ds";
+    /// // both clauses read the same exported module artifact
+    /// ```
     fn exported_module(&mut self, module: ModuleId) -> CompilerResult<Arc<DirExported>> {
         if let Some(exported) = self.exported_modules.get(&module) {
             return Ok(exported.clone());
@@ -95,31 +146,48 @@ impl ResolveState<'_> {
     }
 
     /// Resolve one concrete export entry.
+    ///
+    /// Example:
+    /// ```ds
+    /// export { value };
+    /// export { inner as value } from "./dep.ds";
+    /// export * as api from "./api.ds";
+    /// ```
     fn resolve_export_entry(
         &mut self,
         module: ModuleId,
         export: dir::ExportEntry,
     ) -> CompilerResult<ExportLookup> {
         match export {
-            dir::ExportEntry::Local(export) => {
-                Ok(ExportLookup::Found(export.source.into_global(module)))
-            }
+            dir::ExportEntry::Local(export) => Ok(ExportLookup::Found(ExportTarget::Symbol(
+                export.source.into_global(module),
+            ))),
 
             dir::ExportEntry::Indirect(export) => {
                 let Some(target) = export.target else {
                     return Ok(ExportLookup::Missing);
                 };
+                if export.imported == dir::ExportSelector::Namespace {
+                    return Ok(ExportLookup::Found(ExportTarget::Namespace(target)));
+                }
                 let Some(key) = export.imported.selected_export_key() else {
                     return Ok(ExportLookup::Missing);
                 };
 
-                self.resolve_export_symbol(target, key)
+                self.resolve_export_target(target, key)
             }
         }
     }
 
     /// Resolve one named export through star exports.
-    fn resolve_star_export_symbol(
+    ///
+    /// Example:
+    /// ```ds
+    /// export * from "./a.ds";
+    /// export * from "./b.ds";
+    /// // importing { value } checks every visible star export
+    /// ```
+    fn resolve_star_export_target(
         &mut self,
         key: dir::ExportKey,
         exports: &dir::ExportTable,
@@ -128,27 +196,46 @@ impl ResolveState<'_> {
             return Ok(ExportLookup::Missing);
         }
 
-        let mut resolved = None;
+        let mut targets = Vec::new();
+
+        // collect visible star export targets in declaration order
         for export in exports.star_exports() {
             let Some(target) = export.target else {
                 continue;
             };
 
-            let symbol = match self.resolve_export_symbol(target, key)? {
-                ExportLookup::Found(symbol) => symbol,
-                ExportLookup::Missing => continue,
-                ExportLookup::Ambiguous => return Ok(ExportLookup::Ambiguous),
-            };
-
-            if resolved.is_some_and(|resolved| resolved != symbol) {
-                return Ok(ExportLookup::Ambiguous);
+            match self.resolve_export_target(target, key)? {
+                ExportLookup::Found(target) => {
+                    insert_export_target(&mut targets, target);
+                }
+                ExportLookup::Ambiguous(ambiguous) => {
+                    for target in ambiguous {
+                        insert_export_target(&mut targets, target);
+                    }
+                }
+                ExportLookup::Missing => {}
             }
-            resolved = Some(symbol);
         }
 
-        match resolved {
-            Some(symbol) => Ok(ExportLookup::Found(symbol)),
-            None => Ok(ExportLookup::Missing),
+        // decide the final lookup shape
+        match targets.as_slice() {
+            [target] => Ok(ExportLookup::Found(*target)),
+            [] => Ok(ExportLookup::Missing),
+            _ => Ok(ExportLookup::Ambiguous(targets)),
         }
+    }
+}
+
+/// Insert one export target if it is not already present.
+///
+/// Example:
+/// ```ds
+/// export * from "./a.ds";
+/// export * from "./b.ds";
+/// // duplicate targets from both star exports count once
+/// ```
+fn insert_export_target(targets: &mut Vec<ExportTarget>, target: ExportTarget) {
+    if !targets.contains(&target) {
+        targets.push(target);
     }
 }

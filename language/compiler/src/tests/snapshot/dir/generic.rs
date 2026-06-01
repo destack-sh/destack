@@ -78,44 +78,52 @@ fn generic_template_parameter_label(
             variance,
             constraint,
             default,
+            origin,
             ..
         } => {
             let name = generic_parameter_name(*key, builder);
             let name = generic_variance_label(*variance, name);
+            let label = generic_type_parameter_label(name, *constraint, *default, builder);
 
-            generic_type_parameter_label(name, *constraint, *default, builder)
+            generic_origin_label(label, *origin)
         }
         dir::GenericSlot::VariadicType {
             key,
             variance,
             constraint,
             default,
+            origin,
             ..
         } => {
             let name = format!("...{}", generic_parameter_name(*key, builder));
             let name = generic_variance_label(*variance, name);
+            let label = generic_type_parameter_label(name, *constraint, *default, builder);
 
-            generic_type_parameter_label(name, *constraint, *default, builder)
+            generic_origin_label(label, *origin)
         }
         dir::GenericSlot::Static {
             key,
             constraint,
             default,
+            origin,
             ..
         } => {
             let name = format!("comptime {}", generic_parameter_name(*key, builder));
+            let label = generic_static_parameter_label(name, *constraint, *default, builder);
 
-            generic_static_parameter_label(name, *constraint, *default, builder)
+            generic_origin_label(label, *origin)
         }
         dir::GenericSlot::VariadicStatic {
             key,
             constraint,
             default,
+            origin,
             ..
         } => {
             let name = format!("...comptime {}", generic_parameter_name(*key, builder));
+            let label = generic_static_parameter_label(name, *constraint, *default, builder);
 
-            generic_static_parameter_label(name, *constraint, *default, builder)
+            generic_origin_label(label, *origin)
         }
     }
 }
@@ -135,6 +143,28 @@ fn generic_variance_label(variance: Option<dir::VarianceModifier>, name: String)
     }
 
     name
+}
+
+/// Add one induced origin suffix.
+fn generic_origin_label(name: String, origin: dir::GenericSlotOrigin) -> String {
+    match origin {
+        dir::GenericSlotOrigin::Explicit => name,
+        dir::GenericSlotOrigin::Induced(induction) => {
+            let induction = generic_slot_induction_label(induction);
+
+            format!("{name} origin=induced.{induction}")
+        }
+    }
+}
+
+/// Return one induced generic reason label.
+fn generic_slot_induction_label(induction: dir::GenericSlotInduction) -> &'static str {
+    match induction {
+        dir::GenericSlotInduction::Application => "application",
+        dir::GenericSlotInduction::Constraint => "constraint",
+        dir::GenericSlotInduction::Form => "form",
+        dir::GenericSlotInduction::Comptime => "comptime",
+    }
 }
 
 /// Return one type generic parameter label.
