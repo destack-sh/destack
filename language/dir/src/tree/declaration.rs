@@ -245,6 +245,15 @@ impl Declaration {
         }
     }
 
+    /// Return whether this declaration is abstract.
+    pub fn is_abstract(&self) -> bool {
+        match self {
+            Declaration::Class(declaration) => declaration.is_abstract,
+            Declaration::Function(declaration) => declaration.signature.is_abstract,
+            _ => false,
+        }
+    }
+
     /// Return the symbol kind introduced by this declaration.
     pub fn symbol_kind(&self) -> Option<SymbolKind> {
         match self {
