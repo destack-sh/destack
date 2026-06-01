@@ -5,8 +5,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CallResolution, GlobalNodeIdAny, GlobalSymbolId, LabelResolution, MemberResolution,
-    NameResolution, ReceiverResolution, SegmentView,
+    CallResolution, ConstructResolution, GlobalNodeIdAny, GlobalSymbolId, LabelResolution,
+    MemberResolution, NameResolution, PatternResolution, ReceiverResolution, SegmentView,
 };
 
 /// Cumulative checked resolutions for one DIR module.
@@ -88,10 +88,23 @@ impl<'a> ResolutionTable<'a> {
         self.visible_entries(|segment| &segment.calls)
     }
 
+    /// Iterate visible construct resolutions.
+    pub fn construct_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &ConstructResolution)> + '_ {
+        self.visible_entries(|segment| &segment.constructs)
+    }
+
+    /// Iterate visible pattern resolutions.
+    pub fn pattern_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &PatternResolution)> + '_ {
+        self.visible_entries(|segment| &segment.patterns)
+    }
+
     /// Get the lexical symbol resolution for a node.
     pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
-        self.name_resolution(node_id)
-            .and_then(NameResolution::symbol)
+        self.name_resolution(node_id).map(NameResolution::symbol)
     }
 
     /// Get the name resolution for a node.
@@ -117,6 +130,16 @@ impl<'a> ResolutionTable<'a> {
     /// Get the call resolution for a node.
     pub fn call_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&CallResolution> {
         self.lookup(node_id, |segment| &segment.calls)
+    }
+
+    /// Get the construct resolution for a node.
+    pub fn construct_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&ConstructResolution> {
+        self.lookup(node_id, |segment| &segment.constructs)
+    }
+
+    /// Get the pattern resolution for a node.
+    pub fn pattern_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PatternResolution> {
+        self.lookup(node_id, |segment| &segment.patterns)
     }
 
     /// Return whether this table has no resolutions.
@@ -178,6 +201,10 @@ pub struct ResolutionSegment {
     pub(crate) members: IndexMap<GlobalNodeIdAny, MemberResolution>,
     /// Checked call resolutions keyed by DIR node.
     pub(crate) calls: IndexMap<GlobalNodeIdAny, CallResolution>,
+    /// Checked construct resolutions keyed by DIR node.
+    pub(crate) constructs: IndexMap<GlobalNodeIdAny, ConstructResolution>,
+    /// Checked pattern resolutions keyed by DIR node.
+    pub(crate) patterns: IndexMap<GlobalNodeIdAny, PatternResolution>,
 }
 
 impl ResolutionSegment {
@@ -190,6 +217,8 @@ impl ResolutionSegment {
             receivers: IndexMap::new(),
             members: IndexMap::new(),
             calls: IndexMap::new(),
+            constructs: IndexMap::new(),
+            patterns: IndexMap::new(),
         }
     }
 
@@ -214,6 +243,14 @@ impl ResolutionSegment {
         if let Some(resolution) = self.calls.get(&source).cloned() {
             self.calls.insert(target, resolution);
         }
+
+        if let Some(resolution) = self.constructs.get(&source).cloned() {
+            self.constructs.insert(target, resolution);
+        }
+
+        if let Some(resolution) = self.patterns.get(&source).cloned() {
+            self.patterns.insert(target, resolution);
+        }
     }
 
     /// Set the lexical symbol resolution for a node.
@@ -223,8 +260,7 @@ impl ResolutionSegment {
 
     /// Get the lexical symbol resolution for a node.
     pub fn symbol_resolution(&self, node_id: GlobalNodeIdAny) -> Option<GlobalSymbolId> {
-        self.name_resolution(node_id)
-            .and_then(NameResolution::symbol)
+        self.name_resolution(node_id).map(NameResolution::symbol)
     }
 
     /// Set the name resolution for a node.
@@ -285,6 +321,34 @@ impl ResolutionSegment {
         self.calls.get(&node_id)
     }
 
+    /// Set the construct resolution for a node.
+    pub fn set_construct_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: ConstructResolution,
+    ) {
+        self.constructs.insert(node_id, resolution);
+    }
+
+    /// Get the construct resolution for a node.
+    pub fn construct_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&ConstructResolution> {
+        self.constructs.get(&node_id)
+    }
+
+    /// Set the pattern resolution for a node.
+    pub fn set_pattern_resolution(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        resolution: PatternResolution,
+    ) {
+        self.patterns.insert(node_id, resolution);
+    }
+
+    /// Get the pattern resolution for a node.
+    pub fn pattern_resolution(&self, node_id: GlobalNodeIdAny) -> Option<&PatternResolution> {
+        self.patterns.get(&node_id)
+    }
+
     /// Iterate visible name resolutions.
     pub fn name_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &NameResolution)> + '_ {
         self.names
@@ -324,6 +388,24 @@ impl ResolutionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
+    /// Iterate visible construct resolutions.
+    pub fn construct_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &ConstructResolution)> + '_ {
+        self.constructs
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
+    /// Iterate visible pattern resolutions.
+    pub fn pattern_entries(
+        &self,
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, &PatternResolution)> + '_ {
+        self.patterns
+            .iter()
+            .map(|(node_id, resolution)| (*node_id, resolution))
+    }
+
     /// Return whether this segment has no resolutions.
     pub fn is_empty(&self) -> bool {
         self.names.is_empty()
@@ -331,5 +413,7 @@ impl ResolutionSegment {
             && self.receivers.is_empty()
             && self.members.is_empty()
             && self.calls.is_empty()
+            && self.constructs.is_empty()
+            && self.patterns.is_empty()
     }
 }
