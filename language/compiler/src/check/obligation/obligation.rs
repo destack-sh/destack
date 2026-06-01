@@ -8,11 +8,27 @@ use crate::check::{
 };
 
 /// Selector for one active match case.
+///
+/// Examples:
+/// ```ds
+/// match (value) { _ => value }
+/// match (value) { Some(item) => item }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum MatchCase {
     /// Default selector.
+    ///
+    /// Examples:
+    /// ```ds
+    /// match (value) { _ => value }
+    /// ```
     Default,
     /// Pattern selector.
+    ///
+    /// Examples:
+    /// ```ds
+    /// match (value) { Some(item) => item }
+    /// ```
     PatternTerm {
         /// The pattern checked for this case.
         pattern: TermId<PatternTerm>,
@@ -22,12 +38,20 @@ pub(in crate::check) enum MatchCase {
 }
 
 /// User-facing check that requires solved terms or whole-expression context.
+///
+/// Examples:
+/// ```ds
+/// match (value) { _ => value }
+/// const { name } = user
+/// sizeOf<T>()
+/// Dynamic<T>
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum Obligation {
     /// Match cases must cover every possible selector value.
     ///
-    /// ```ts
-    /// match value {
+    /// ```ds
+    /// match (value) {
     ///     true => 1,
     ///     false => 0,
     /// }
@@ -44,7 +68,7 @@ pub(in crate::check) enum Obligation {
     },
     /// Binding patterns in non-matching positions must always succeed.
     ///
-    /// ```ts
+    /// ```ds
     /// let { name } = user;
     /// ```
     IrrefutablePattern {
@@ -59,7 +83,7 @@ pub(in crate::check) enum Obligation {
     },
     /// Try propagation must fit the enclosing return type.
     ///
-    /// ```ts
+    /// ```ds
     /// value?
     /// ```
     TryPropagation {
@@ -74,7 +98,7 @@ pub(in crate::check) enum Obligation {
     },
     /// A place assignment must target writable storage.
     ///
-    /// ```ts
+    /// ```ds
     /// value = 2;
     /// ```
     WritablePlace {
@@ -83,7 +107,24 @@ pub(in crate::check) enum Obligation {
         /// The static condition under which this obligation exists.
         condition: Condition,
     },
+    /// A type must resolve to one fixed storage representation.
+    ///
+    /// ```ds
+    /// sizeOf<T>()
+    /// ```
+    Concrete {
+        /// The source expression requiring concrete representation.
+        source: dir::GlobalNodeIdAny,
+        /// The type that must have concrete representation.
+        ty: TypeOperand,
+        /// The static condition under which this obligation exists.
+        condition: Condition,
+    },
     /// A `Dynamic<T>` constraint must support runtime dynamic dispatch.
+    ///
+    /// ```ds
+    /// Dynamic<T>
+    /// ```
     DynamicSafe {
         /// The `Dynamic<T>` source expression.
         source: dir::GlobalNodeIdAny,
@@ -97,12 +138,12 @@ pub(in crate::check) enum Obligation {
 impl CheckState<'_> {
     /// Require one solved check after reduction.
     pub(in crate::check) fn require(&mut self, obligation: Obligation) {
-        self.inference.obligations.push(obligation);
+        self.inference.push_obligation(obligation);
     }
 
     /// Check solved obligations for diagnostics.
     pub(in crate::check) fn check_obligations(&mut self) -> CompilerResult<Vec<CheckError>> {
-        let obligations = self.inference.obligations.clone();
+        let obligations = self.inference.obligations_vec();
         let mut diagnostics = Vec::new();
 
         // check obligations in collection order
@@ -169,6 +210,19 @@ impl CheckState<'_> {
                     return self.check_writable_place(place);
                 }
             }
+            Obligation::Concrete {
+                source,
+                ty,
+                condition,
+            } => {
+                let condition = self.reduce_condition_decision(&condition)?;
+                if let Some(diagnostic) = self.obligation_condition_diagnostic(source, condition) {
+                    return Ok(Some(diagnostic));
+                }
+                if condition == Decision::Yes {
+                    return self.check_concrete_type(source, ty);
+                }
+            }
             Obligation::DynamicSafe { .. } => {}
         }
 
@@ -199,5 +253,28 @@ impl CheckState<'_> {
         let anchor = self.diagnostic_anchor(module, source.local_id);
 
         (module, anchor)
+    }
+
+    /// Check that one type has concrete representation.
+    fn check_concrete_type(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        ty: TypeOperand,
+    ) -> CompilerResult<Option<CheckError>> {
+        let concrete = self.type_operand_concrete(source.module_id, ty)?;
+
+        match concrete {
+            Some(true) => Ok(None),
+            Some(false) => {
+                let (module, anchor) = self.source_anchor(source);
+
+                Ok(Some(CheckError::LayoutNotConcrete { anchor, module }))
+            }
+            None => {
+                let (module, anchor) = self.source_anchor(source);
+
+                Ok(Some(CheckError::CannotSolve { anchor, module }))
+            }
+        }
     }
 }
