@@ -9,10 +9,6 @@ extension of ContinuationHandle implements Drop {
     @intrinsic("async.continuation.resume")
     resume<TInput, TYield, TReturn>(value: TInput): ContinuationResult<TYield, TReturn>;
 
-    /// Throw into this suspended execution frame.
-    @intrinsic("async.continuation.throw")
-    throw<TYield, TReturn>(error: unknown): ContinuationResult<TYield, TReturn>;
-
     /// Drop this suspended execution frame.
     @intrinsic("async.continuation.drop")
     drop(): void;
@@ -33,20 +29,10 @@ export struct ContinuationReturn<T> {
     value: T;
 }
 
-/// Failed continuation.
-@languageItem("async.ContinuationThrow")
-export struct ContinuationThrow {
-    kind: "throw" = "throw";
-    error: unknown;
-}
-
 /// Result of resuming a continuation.
 @languageItem("async.ContinuationResult")
 @derive(Tagged)
-export type ContinuationResult<TYield, TReturn> =
-    | ContinuationYield<TYield>
-    | ContinuationReturn<TReturn>
-    | ContinuationThrow;
+export type ContinuationResult<TYield, TReturn> = ContinuationYield<TYield> | ContinuationReturn<TReturn>;
 
 /// Suspend the current continuation and register its handle.
 @languageItem("async.suspendContinuation")

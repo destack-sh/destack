@@ -150,9 +150,7 @@ export class Promise<T> {
                 Promise.resolve(onFinally()).then(() => value)
             },
             (error) => {
-                Promise.resolve(onFinally()).then(() => {
-                    throw error;
-                })
+                Promise.resolve(onFinally()).then(() => Promise.reject<T>(error))
             },
         )
     }

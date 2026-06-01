@@ -30,11 +30,6 @@ export class Generator<TYield = unknown, TReturn = unknown, TNext = unknown>
         todo("Generator.return")
     }
 
-    /// Signal an error to the generator protocol.
-    throw(error?: unknown): IteratorResult<TYield, TReturn> {
-        todo("Generator.throw")
-    }
-
     /// Return this generator.
     iterator(): Generator<TYield, TReturn, TNext> {
         todo("Generator.iterator")
@@ -54,9 +49,6 @@ export interface AsyncIterator<T, TReturn = unknown, TNext = unknown> {
 
     /// Finalize the iterator and return the completion value.
     return?(value?: TReturn): Promise<IteratorResult<T, TReturn>>;
-
-    /// Signal an error to the iterator protocol.
-    throw?(error?: unknown): Promise<IteratorResult<T, TReturn>>;
 }
 
 /// Value that can produce an async iterator.
@@ -92,11 +84,6 @@ export class AsyncGenerator<TYield = unknown, TReturn = unknown, TNext = unknown
     /// Finalize the generator and return the completion value.
     return(value?: TReturn): Promise<IteratorResult<TYield, TReturn>> {
         todo("AsyncGenerator.return")
-    }
-
-    /// Signal an error to the generator protocol.
-    throw(error?: unknown): Promise<IteratorResult<TYield, TReturn>> {
-        todo("AsyncGenerator.throw")
     }
 
     /// Return this async generator.
