@@ -17,13 +17,13 @@
 - Booleans should start with `is_` unless already clear (or otherwise required by context), though enums are usually better anyway.
 - Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
 - The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy.
-- It can be tempting to name things along the lines of "x_for_y" in certain overload situations, however, this is almost always a modeling smell and measn we haven't properly generalised or reified our invariants yet. (Note that this does _not_ mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue.)
+- It can be tempting to name things along the lines of "x_for_y" in certain overload situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does _not_ mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue.)
 
 ### Logic
 
 - Less is more, every line of code is a liability, every bit of state is suspicious. Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
-- When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it alltogether, or phrase the problem differently to avoid this problem in the first place.
-- Long methods are allowed if the logic isn't meaningfully extractable / resuable.
+- When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it altogether, or phrase the problem differently to avoid this problem in the first place.
+- Long methods are allowed if the logic isn't meaningfully extractable / reusable.
 - Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
 - Break larger code blocks into logical chunks with whitespace and/or preamble comments.
 - All logic in functions and outside should be broken into small-ish coherent blocks (2-7 lines or so) with a preceding comment.
@@ -39,7 +39,7 @@ let number = 10 * first_digit + second_digit;
 ```
 - It is usually preferable to "spell out" branches at the same "level" whenever possible, instead of doing repeated continue/return/whatever jumps (which are harder to trace mentally):
 ```
-/// option A
+// option A
 if A {
     Ok(..)
 }
@@ -51,6 +51,7 @@ else if B {
 else {
     Error(..)
 }
+```
 
 ### Factoring
 
@@ -58,24 +59,24 @@ else {
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
-- One of the few things worse than superflous duplication is forced abstraction.
+- One of the few things worse than superfluous duplication is forced abstraction.
 - Often, when properly factored, the real world (and thus the way to model it) is surprisingly symmetrical at varying scales (types, functions, files, modules, sub-systems). Identifying symmetry and generalising it - even if only informally, no "real" language-level interface required - is very valuable (naming, parameter conventions, file names and placement, module layout, .. anything).
 - Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic _and_ state at various pieces of granularity.
 - Conceptually, incremental granularity means not hiding details too much, and assuming (especially internally, within the castle) that the caller is a consenting adult.
 - Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph.
 - That said, it is often beneficial to have strong clear nouns and verbs, and it's usually easier to think about state when it is bundled in nouns (dare I say "objects", but no OOP abstraction nonsense).
 - Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer.
-- More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parameteric mutability. etc. etc., that sort of thing.
-- Usually, in each file, the "top" / most important nouns should go up top (constants at the very top above it), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as neede ofc).
+- More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parametric mutability. etc. etc., that sort of thing.
+- Usually, in each file, the "top" / most important nouns should go up top (constants at the very top above it), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as needed ofc).
 - Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
 - When a method mutates state it should be obvious, and ideally we want to return mutated state / take the mutator instead of mutating internally when possible (e.g. `resolve_x` should return the resolved thing, not mutate an internal resolver cache and return void). This isn't always possible, but it's much preferred.
 
 ### Refactoring
 
-- Just like writing is editing, progrmaming is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
+- Just like writing is editing, programming is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
 - If we do our job right, and have the right level of testing, refactors should be reasonably painless and only touch the parts of the model we actually needed.
 - As with factoring, we should always try to make our work easier as we go: "make the change easy, then make the change".
-- Sometimes it is however easier to just rip out a component alltogether and rewrite it completely, especially if it's say <5k LoC or so.
+- Sometimes it is however easier to just rip out a component altogether and rewrite it completely, especially if it's say <5k LoC or so.
 - We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
 - Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested.
 - As a corollary, failing tests do not _always_ mean that the new code is wrong, the tests might also be wrong. That said, tests and expectations should never be silently changed without explicit prior discussion and agreement.
@@ -94,7 +95,7 @@ else {
 - Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
 - Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
 - Most logic block comments of more than one/two words should be action / verb shaped, e.g.:
-"// build drop plan for each function" is much better than ""// each function gets an independent drop plan" (begin with a verb!)
+"// build drop plan for each function" is much better than "// each function gets an independent drop plan" (begin with a verb!)
 - Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
 - Also, tests don't need quite the same level of comments, especially within obvious test cases.
 - Documentation comments for functions/types/etc. _should_ be proper sentences _with_ punctuation.
@@ -102,7 +103,7 @@ else {
 - Go multiline if there is more than one sentence. Only one sentence should begin per line.
 - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
 - *All* functions, types, variants/fields, etc. should have documentation (one line is fine).
-- Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succint is better).
+- Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succinct is better).
 - When documenting if/else-if/else-_like_ logic, the comments should go *before* each case like so:
 ```text
 // do this
@@ -157,7 +158,7 @@ else {
 - Clean code is usually fast code, if by "clean" we mean properly semantically compressed, stupid simple approaches, and not some arbitrary and silly notion of convoluted, theoretical abstraction ideals.
 - The fastest code is code that doesn't run at all, the best data structures are the ones we don't need. Text book data structures, algorithms and fanciness are rarely required.
 - Most of the time, for most problems, arrays and linear approaches are perfectly fine and even beat out anything "smarter". Maps are okay too, usually.
-- Memory access patterns are the dominating factor in most modern software problems, thus, something "dumber" but tighter (like a dense array) is often faster than something "smarter" but looser (like a map or ) even at high scales.
+- Memory access patterns are the dominating factor in most modern software problems, thus, something "dumber" but tighter (like a dense array) is often faster than something "smarter" but looser (like a map) even at high scales.
 - Have sympathy for the real hardware and underlying machinery that must actually execute whatever we write down, and usually that happens in roughly the same way we wrote it, since compilers can't be that smart.
 
 ### Failures
@@ -166,7 +167,7 @@ else {
 - As a corollary, silent failures of any kind are evil and only ever cause downstream trouble.
 - Outside of tests, errors should almost never be suppressed or somehow fall back to "default values" (especially evil are things like defaulting `unwrap_or(0)`, or other special values like `-1`, `MAX`).
 - On the flipside, in general, and especially internally, we should assume that both sides of an API are consenting adults and we should _not_ check every conceivable failure state in every location - this is usually more noise than it's worth.
-- Specifically, being overly defensive and "scared" in some code path is usually a big small that we haven't really understood and defined the model and its invarianst well enough yet. (e.g., handling usize overflows in a modern allocator is just noise)
+- Specifically, being overly defensive and "scared" in some code path is usually a big smell that we haven't really understood and defined the model and its invariants well enough yet. (e.g., handling usize overflows in a modern allocator is just noise)
 
 ### Boundaries
 
@@ -263,7 +264,7 @@ just test
 - Typically, agents aren't supposed to commit or merge directly without being explicitly instructed to.
 - For commit message format, follow `CONTRIBUTING.md#commit-style`.
 - We typically work with branches and worktrees off a main branch.
-- We try to frequently rebase of main and merge back into main.
+- We try to frequently rebase off main and merge back into main.
 - When merging into main, try to fast-forward or cherry-pick to retain the commit history (except when there are a _lot_ of small commits, feel free to squash then).
 
 ## Working Style
@@ -277,7 +278,7 @@ just test
 - Ideally, for anything we expect to execute halfway frequently, we should think hard about how to use data oriented design and reason through the actual minimal mechanical steps that the target architectures will have to do, both compute and memory (and bandwidth etc.) wise, to do what we're asking. This matters tremendously.
 - Data structures are incredibly important and I usually want to see them first since they clarify so much about the design. Whenever possible, this should be actual code in whichever languages we're using showing the real changes to / additions of data structures (and which values and value ranges we expect them to have).
 - Code and actual logic is always useful to show and illustrate ideas, even in pseudocode form, but ideally in a real form that we actually expect to execute on some level. Think like an API designer here, since really, everything is an API in some sense.
-- When possible, we should first think through what the example use cases would write in code to do the thing that we're trying to implement, where they're coming from, what the limits and expectatinos and environment is, and so on:
+- When possible, we should first think through what the example use cases would write in code to do the thing that we're trying to implement, where they're coming from, what the limits and expectations and environment is, and so on:
 ```
 const user = service.signup(...); // user from API or wherever
 // ... some more illustrative logic ...
@@ -334,7 +335,7 @@ pub(crate) struct SmallSpace {
 
 // ... and so on ...
 ```
-- When possible, we should literally think thorugh example use cases for every main scenario, and then trace it out across real state and call flows in a tree form:
+- When possible, we should literally think through example use cases for every main scenario, and then trace it out across real state and call flows in a tree form:
 ```
 UserService.signup(name: string, email: string, password: string, session, ...)
  -> User.create(..., session)
