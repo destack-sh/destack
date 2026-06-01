@@ -76,10 +76,10 @@ impl Parser {
 
         let next_token_type = self.next_token_type();
 
-        if matches!(next_token_type, TokenType::ArrowWide) {
-            if let Some(expression_id) = self.eat_lambda_expression(start)? {
-                return Ok(expression_id);
-            }
+        if matches!(next_token_type, TokenType::ArrowWide)
+            && let Some(expression_id) = self.eat_lambda_expression(start)?
+        {
+            return Ok(expression_id);
         }
 
         if next_token_type == TokenType::Colon {
@@ -484,14 +484,18 @@ impl Parser {
             return false;
         }
 
-        let next_token_can_start_operand = match self.token_type_at_offset(1) {
-            TokenType::Identifier => true,
-            TokenType::Literal => true,
-            TokenType::OpenParenthesis | TokenType::OpenBracket => true,
-            TokenType::LessThan | TokenType::Not => true,
-            TokenType::Multiply | TokenType::ElementwiseAnd | TokenType::ElementwiseXor => true,
-            _ => false,
-        };
+        let next_token_can_start_operand = matches!(
+            self.token_type_at_offset(1),
+            TokenType::Identifier
+                | TokenType::Literal
+                | TokenType::OpenParenthesis
+                | TokenType::OpenBracket
+                | TokenType::LessThan
+                | TokenType::Not
+                | TokenType::Multiply
+                | TokenType::ElementwiseAnd
+                | TokenType::ElementwiseXor
+        );
 
         !next_token_can_start_operand
     }

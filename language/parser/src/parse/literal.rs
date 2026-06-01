@@ -41,7 +41,7 @@ enum TreeLiteralOpen {
     /// A complete self-closing tree expression.
     Complete(LocalNodeId<Expression>),
     /// An open tree expression.
-    Open(OpenTreeLiteral),
+    Open(Box<OpenTreeLiteral>),
 }
 
 impl Parser {
@@ -987,7 +987,7 @@ impl Parser {
         let scope = ExpressionScope::from_flags(flags);
         let start = self.span_start();
 
-        let expression = if self.flags == flags {
+        if self.flags == flags {
             self.eat_assignment(&start, scope)
                 .and_then(|expression| self.eat_sequence_rest(&start, expression, scope))
         } else {
@@ -998,9 +998,7 @@ impl Parser {
             self.restore_flags(outer_flags);
 
             expression
-        };
-
-        expression
+        }
     }
 
     /// Eat a bracket literal expression including the surrounding brackets.
@@ -1464,7 +1462,7 @@ impl Parser {
                 let Some(tree_literal) = stack.pop() else {
                     return Err(ParserError::unexpected(self.anchor_span_here()));
                 };
-                let expression_id = self.insert_tree_literal_expression(tree_literal, true)?;
+                let expression_id = self.insert_tree_literal_expression(*tree_literal, true)?;
 
                 if let Some(parent) = stack.last_mut() {
                     let element = self.insert_tree_literal_element(expression_id);
@@ -1576,7 +1574,7 @@ impl Parser {
         let opening_span = self.get_span_from(&start);
         self.skip_tree_whitespace_in_child_mode(ContextualLexMode::TreeChild)?;
 
-        Ok(TreeLiteralOpen::Open(OpenTreeLiteral {
+        Ok(TreeLiteralOpen::Open(Box::new(OpenTreeLiteral {
             start,
             path,
             path_segment_spans,
@@ -1585,7 +1583,7 @@ impl Parser {
             elements: Vec::new(),
             opening_span,
             close_follow_mode: follow_mode,
-        }))
+        })))
     }
 
     /// Eat tree literal header arguments.

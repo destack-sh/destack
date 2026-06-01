@@ -171,18 +171,9 @@ impl Parser {
         {
             self.eat_using(start, header, Asynchrony::Sync).map(Some)
         }
-        // async function declarations
-        else if keyword == Keyword::Async
-            && self.next_keyword() == Some(Keyword::Function)
-            && !self.next_token().token.is_on_new_line()
-        {
-            let declaration = self.eat_function(start, header)?;
-
-            Ok(Some(self.declaration_expression(start, declaration)))
-        }
-        // comptime function declarations
-        else if keyword == Keyword::Comptime
-            && self.language.is_destack()
+        // async and comptime function declarations
+        else if (keyword == Keyword::Async
+            || keyword == Keyword::Comptime && self.language.is_destack())
             && self.next_keyword() == Some(Keyword::Function)
             && !self.next_token().token.is_on_new_line()
         {

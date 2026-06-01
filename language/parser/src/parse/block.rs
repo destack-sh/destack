@@ -518,10 +518,11 @@ impl Parser {
         }
 
         // parenthesized lambda heads keep statement mode
-        if token_type == TokenType::OpenParenthesis && self.flags.is_in_statement_position() {
-            if self.parenthesized_statement_head_has_lambda_follow() {
-                return self.eat_expression(self.flags);
-            }
+        if token_type == TokenType::OpenParenthesis
+            && self.flags.is_in_statement_position()
+            && self.parenthesized_statement_head_has_lambda_follow()
+        {
+            return self.eat_expression(self.flags);
         }
 
         // decorator prefixes keep statement mode for declaration dispatch
