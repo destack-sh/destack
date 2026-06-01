@@ -11,12 +11,17 @@ impl Compiler {
         expression_id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) -> CompilerResult<()> {
+        state.stats.expressions += 1;
+
         match expression {
             // scan module declarations inside global blocks
             dir::Expression::Declaration(declaration_id) => {
                 let declaration = state.view.get(*declaration_id);
                 if let dir::Declaration::Global(declaration) = declaration {
-                    self.collect_modules(state, &declaration.expressions)?;
+                    for expression_id in &declaration.expressions {
+                        let expression = state.view.get(*expression_id);
+                        self.collect_expression_modules(state, *expression_id, expression)?;
+                    }
                 }
             }
 
@@ -27,6 +32,8 @@ impl Compiler {
                 attributes,
                 ..
             } => {
+                state.stats.import_clauses += 1;
+
                 let statement_allows = state.static_allows(expression_id.into_any())?;
                 let items_allow = match items {
                     Some(items) => state.static_allows_any_item(items)?,
@@ -41,6 +48,8 @@ impl Compiler {
                         attributes.as_ref(),
                         dir::ModuleRelation::Import,
                     )?;
+                } else {
+                    state.stats.skipped += 1;
                 }
             }
 
@@ -51,6 +60,8 @@ impl Compiler {
                 attributes,
                 ..
             } => {
+                state.stats.reexport_clauses += 1;
+
                 let statement_allows = state.static_allows(expression_id.into_any())?;
                 let items_allow = state.static_allows_any_item(items)?;
 
@@ -62,6 +73,8 @@ impl Compiler {
                         attributes.as_ref(),
                         dir::ModuleRelation::ReExport,
                     )?;
+                } else {
+                    state.stats.skipped += 1;
                 }
             }
 

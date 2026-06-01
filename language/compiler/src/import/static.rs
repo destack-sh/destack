@@ -23,6 +23,8 @@ impl ImportState<'_> {
                     return Ok(false);
                 }
                 StaticGuard::Condition(condition) => {
+                    self.stats.guards += 1;
+
                     let Some(value) = self.evaluate_static_guard(condition)? else {
                         return Ok(false);
                     };

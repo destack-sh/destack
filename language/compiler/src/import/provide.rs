@@ -1,8 +1,9 @@
+use std::iter;
 use std::path::Path;
 
-use destack_artifact::{ArtifactPayload, GlobalEnvironment};
+use destack_artifact::{ArtifactPayload, ArtifactSidecar, GlobalEnvironment};
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{FileContent, ModuleId};
 use destack_workspace::{ProfileId, ProviderContext};
 
 use crate::import::state::ImportState;
@@ -93,7 +94,15 @@ impl Compiler {
             view,
         );
         self.collect_modules(&mut state, &bound.roots)?;
+        let stats = state.stats;
         let (imported, diagnostics) = state.finish();
+        context.emit_sidecar(ArtifactSidecar::new(
+            "metadata",
+            iter::once(("phase", "import")),
+            FileContent::Text {
+                content: stats.render_metadata(),
+            },
+        ));
         for diagnostic in diagnostics {
             self.emit_diagnostic(context, diagnostic)?;
         }

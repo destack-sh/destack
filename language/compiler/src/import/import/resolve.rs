@@ -20,6 +20,8 @@ impl Compiler {
         attributes: Option<&dir::ImportAttributeClause>,
         relation: dir::ModuleRelation,
     ) -> CompilerResult<()> {
+        state.stats.specifiers += 1;
+
         let anchor = state.anchor_node(expression_id.id)?;
         let specifier_text = state.strings().get(specifier).to_string();
 
@@ -170,6 +172,8 @@ impl Compiler {
         target: &str,
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
+        state.stats.package_exports += 1;
+
         // require explicit dependency declarations
         let Some(current_package) = state.index.package(state.module.package_id) else {
             return Err(ImportError::Internal {
@@ -282,10 +286,14 @@ impl Compiler {
         else {
             return Ok(None);
         };
+        state.stats.candidates += candidates.len();
+
         let mut matches = Vec::new();
 
         // collect modules for existing candidate paths
         for path in candidates {
+            state.stats.probes += 1;
+
             let module_id = self.module_id_for_path(state.revision, &path)?;
             if let Some(module_id) = module_id {
                 matches.push((path, module_id));
@@ -501,10 +509,14 @@ impl Compiler {
         else {
             return Ok(None);
         };
+        state.stats.candidates += candidates.len();
+
         let mut matches = Vec::new();
 
         // collect modules for existing candidate paths
         for path in candidates {
+            state.stats.probes += 1;
+
             let module_id = self.module_id_for_path(state.revision, &path)?;
             if let Some(module_id) = module_id {
                 matches.push((path, module_id));
