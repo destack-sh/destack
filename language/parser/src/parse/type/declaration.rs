@@ -106,10 +106,7 @@ impl Parser {
     ) -> ParserResult<LocalNodeId<Declaration>> {
         let (name, name_span) = self.eat_name_with_span()?;
         let generic_parameter_container_start = self.span_start();
-        let generic_parameters = match self.eat_generic_parameters_maybe(true)? {
-            Some(generic_parameters) => generic_parameters,
-            None => Vec::new(),
-        };
+        let generic_parameters = self.eat_generic_parameters_maybe(true)?.unwrap_or_default();
         let generic_parameter_container_span = (!generic_parameters.is_empty())
             .then(|| self.get_span_from(&generic_parameter_container_start));
 

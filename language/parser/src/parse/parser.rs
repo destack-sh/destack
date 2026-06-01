@@ -409,7 +409,7 @@ impl Parser {
         flags: ParserFlags,
         func: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let result = if self.flags == flags {
+        if self.flags == flags {
             func(self)
         } else {
             let old_flags = self.swap_flags(flags);
@@ -417,9 +417,7 @@ impl Parser {
             self.restore_flags(old_flags);
 
             result
-        };
-
-        result
+        }
     }
 
     /// Return the current semantic tokens.
@@ -790,10 +788,10 @@ impl Parser {
             return self.current_token;
         }
 
-        if offset == 1 {
-            if let Some(token) = self.cached_next_token() {
-                return token;
-            }
+        if offset == 1
+            && let Some(token) = self.cached_next_token()
+        {
+            return token;
         }
 
         let lexer_checkpoint = self.lexer.checkpoint();

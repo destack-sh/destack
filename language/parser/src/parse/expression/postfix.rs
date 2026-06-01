@@ -247,9 +247,7 @@ impl Parser {
         start: &ParserSpanStart,
         left: LocalNodeId<Expression>,
     ) -> Option<LocalNodeId<Expression>> {
-        let Some(operator) = UnaryOperator::from_postfix_token(self.peek_token_type()) else {
-            return None;
-        };
+        let operator = UnaryOperator::from_postfix_token(self.peek_token_type())?;
 
         Some(self.eat_unary_postfix(start, left, operator))
     }

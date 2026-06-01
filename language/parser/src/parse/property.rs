@@ -1249,7 +1249,7 @@ impl Parser {
         let start = self.span_start();
         let scope = ExpressionScope::from_flags(flags);
 
-        let expression = if self.flags == flags {
+        if self.flags == flags {
             self.eat_assignment(&start, scope)
         } else {
             let outer_flags = self.swap_flags(flags);
@@ -1257,9 +1257,7 @@ impl Parser {
             self.restore_flags(outer_flags);
 
             expression
-        };
-
-        expression
+        }
     }
 
     /// Eat a property.
