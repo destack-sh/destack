@@ -187,14 +187,11 @@ define_language_items! {
             /// Continuation handle type.
             ContinuationHandle => (Newtype, "async/continuation", "ContinuationHandle"),
 
-            /// Continuation result type.
-            ContinuationResult => (Type, "async/continuation", "ContinuationResult"),
+            /// Continuation result newtype.
+            ContinuationResult => (Newtype, "async/continuation", "ContinuationResult"),
 
             /// Continuation return struct.
             ContinuationReturn => (Struct, "async/continuation", "ContinuationReturn"),
-
-            /// Continuation throw struct.
-            ContinuationThrow => (Struct, "async/continuation", "ContinuationThrow"),
 
             /// Continuation yield struct.
             ContinuationYield => (Struct, "async/continuation", "ContinuationYield"),
@@ -211,8 +208,17 @@ define_language_items! {
             /// Promise class.
             Promise => (Class, "async/promise", "Promise"),
 
+            /// Fulfilled promise settled result.
+            PromiseFulfilledResult => (Struct, "async/promise", "PromiseFulfilledResult"),
+
+            /// Rejected promise settled result.
+            PromiseRejectedResult => (Struct, "async/promise", "PromiseRejectedResult"),
+
             /// Promise resolver pair.
             PromiseResolvers => (Struct, "async/promise", "PromiseResolvers"),
+
+            /// Promise settled result newtype.
+            PromiseSettledResult => (Newtype, "async/promise", "PromiseSettledResult"),
         }
     }
 
@@ -714,14 +720,14 @@ define_language_items! {
             /// Iterator interface.
             Iterator => (Interface, "iter/iterator", "Iterator"),
 
-            /// Iterator result type.
-            IteratorResult => (Type, "iter/iterator", "IteratorResult"),
+            /// Iterator result newtype.
+            IteratorResult => (Newtype, "iter/iterator", "IteratorResult"),
 
-            /// Iterator return type.
-            IteratorReturn => (Type, "iter/iterator", "IteratorReturn"),
+            /// Iterator return struct.
+            IteratorReturn => (Struct, "iter/iterator", "IteratorReturn"),
 
-            /// Iterator yield type.
-            IteratorYield => (Type, "iter/iterator", "IteratorYield"),
+            /// Iterator yield struct.
+            IteratorYield => (Struct, "iter/iterator", "IteratorYield"),
         }
     }
 

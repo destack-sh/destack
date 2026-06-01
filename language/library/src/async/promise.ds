@@ -65,25 +65,29 @@ interface PromiseReaction<T> {
 }
 
 /// Fulfilled `Promise.allSettled` result.
-export interface PromiseFulfilledResult<T> {
+@languageItem("async.PromiseFulfilledResult")
+export struct PromiseFulfilledResult<T> {
     /// The result status.
-    status: "fulfilled";
+    status: "fulfilled" = "fulfilled";
 
     /// The fulfilled value.
     value: T;
 }
 
 /// Rejected `Promise.allSettled` result.
-export interface PromiseRejectedResult {
+@languageItem("async.PromiseRejectedResult")
+export struct PromiseRejectedResult {
     /// The result status.
-    status: "rejected";
+    status: "rejected" = "rejected";
 
     /// The rejection reason.
     reason: unknown;
 }
 
 /// Settled promise result.
-export type PromiseSettledResult<T> = PromiseFulfilledResult<T> | PromiseRejectedResult;
+@languageItem("async.PromiseSettledResult")
+@derive(Tagged)
+export newtype PromiseSettledResult<T> = PromiseFulfilledResult<T> | PromiseRejectedResult;
 
 /// Worker-local async result object.
 @languageItem("async.Promise")
