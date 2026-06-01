@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, LocalTypeId, SegmentView, StaticKey};
+use crate::{Arena, GlobalTypeId, SegmentView, StaticKey};
 
 /// Cumulative layouts for one DIR module.
 #[derive(Debug, Clone)]
@@ -69,7 +69,7 @@ impl<'a> LayoutTable<'a> {
     }
 
     /// Iterate visible type layout bindings.
-    pub fn type_layouts(&self) -> impl Iterator<Item = (LocalTypeId, LocalLayoutId)> + '_ {
+    pub fn type_layouts(&self) -> impl Iterator<Item = (GlobalTypeId, LocalLayoutId)> + '_ {
         self.segments
             .iter()
             .enumerate()
@@ -90,7 +90,7 @@ impl<'a> LayoutTable<'a> {
     }
 
     /// Return the layout id for one type.
-    pub fn layout_id_for_type(&self, type_id: LocalTypeId) -> Option<LocalLayoutId> {
+    pub fn layout_id_for_type(&self, type_id: GlobalTypeId) -> Option<LocalLayoutId> {
         for segment in self.segments.iter().rev() {
             if let Some(layout_id) = segment.layout_id_for_type(type_id) {
                 return Some(layout_id);
@@ -101,7 +101,7 @@ impl<'a> LayoutTable<'a> {
     }
 
     /// Return the layout for one type.
-    pub fn layout_for_type(&self, type_id: LocalTypeId) -> Option<&Layout> {
+    pub fn layout_for_type(&self, type_id: GlobalTypeId) -> Option<&Layout> {
         let layout_id = self.layout_id_for_type(type_id)?;
 
         Some(self.get_layout(layout_id))
@@ -137,7 +137,7 @@ pub struct LayoutSegment {
     /// Concrete layouts.
     pub(crate) layouts: Arena<Layout>,
     /// Layout ids keyed by canonical type id.
-    pub(crate) type_layouts: IndexMap<LocalTypeId, LocalLayoutId>,
+    pub(crate) type_layouts: IndexMap<GlobalTypeId, LocalLayoutId>,
 }
 
 impl LayoutSegment {
@@ -170,17 +170,17 @@ impl LayoutSegment {
     }
 
     /// Bind one type to a layout.
-    pub fn set_type_layout(&mut self, type_id: LocalTypeId, layout_id: LocalLayoutId) {
+    pub fn set_type_layout(&mut self, type_id: GlobalTypeId, layout_id: LocalLayoutId) {
         self.type_layouts.insert(type_id, layout_id);
     }
 
     /// Return the layout id for one type.
-    pub fn layout_id_for_type(&self, type_id: LocalTypeId) -> Option<LocalLayoutId> {
+    pub fn layout_id_for_type(&self, type_id: GlobalTypeId) -> Option<LocalLayoutId> {
         self.type_layouts.get(&type_id).copied()
     }
 
     /// Iterate type layout bindings.
-    pub fn type_layouts(&self) -> impl Iterator<Item = (LocalTypeId, LocalLayoutId)> + '_ {
+    pub fn type_layouts(&self) -> impl Iterator<Item = (GlobalTypeId, LocalLayoutId)> + '_ {
         self.type_layouts
             .iter()
             .map(|(type_id, layout_id)| (*type_id, *layout_id))
@@ -305,7 +305,7 @@ pub struct LayoutField {
     /// The field key.
     pub key: Option<StaticKey>,
     /// The field type.
-    pub ty: LocalTypeId,
+    pub ty: GlobalTypeId,
     /// The field layout.
     pub layout: LocalLayoutId,
     /// The offset in bytes.
@@ -320,7 +320,7 @@ pub struct LayoutField {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VariantCaseLayout {
     /// The logical case type.
-    pub ty: LocalTypeId,
+    pub ty: GlobalTypeId,
     /// The case layout.
     pub layout: LocalLayoutId,
 }

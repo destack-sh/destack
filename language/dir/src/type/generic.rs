@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalSymbolId, LocalStaticId, LocalTypeId, StaticArgument, StringId, VarianceModifier,
+    GlobalStaticId, GlobalSymbolId, GlobalTypeId, StaticArgument, StringId, VarianceModifier,
 };
 
 /// Unique identifier for generic templates.
@@ -160,9 +160,9 @@ pub enum GenericSlot {
         /// The slot variance.
         variance: Option<VarianceModifier>,
         /// The optional type constraint.
-        constraint: Option<LocalTypeId>,
+        constraint: Option<GlobalTypeId>,
         /// The optional type default.
-        default: Option<LocalTypeId>,
+        default: Option<GlobalTypeId>,
         /// The slot origin.
         origin: GenericSlotOrigin,
     },
@@ -177,9 +177,9 @@ pub enum GenericSlot {
         /// The slot variance.
         variance: Option<VarianceModifier>,
         /// The optional type constraint.
-        constraint: Option<LocalTypeId>,
+        constraint: Option<GlobalTypeId>,
         /// The optional type default.
-        default: Option<LocalTypeId>,
+        default: Option<GlobalTypeId>,
         /// The slot origin.
         origin: GenericSlotOrigin,
     },
@@ -192,9 +192,9 @@ pub enum GenericSlot {
         /// The declaration order index.
         index: GenericSlotIndex,
         /// The optional static value type constraint.
-        constraint: Option<LocalTypeId>,
+        constraint: Option<GlobalTypeId>,
         /// The optional static default.
-        default: Option<LocalStaticId>,
+        default: Option<GlobalStaticId>,
         /// The slot origin.
         origin: GenericSlotOrigin,
     },
@@ -207,9 +207,9 @@ pub enum GenericSlot {
         /// The declaration order index.
         index: GenericSlotIndex,
         /// The optional static value type constraint.
-        constraint: Option<LocalTypeId>,
+        constraint: Option<GlobalTypeId>,
         /// The optional static default.
-        default: Option<LocalStaticId>,
+        default: Option<GlobalStaticId>,
         /// The slot origin.
         origin: GenericSlotOrigin,
     },

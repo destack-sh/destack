@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Access, BinaryOperator, GlobalNodeIdAny, GlobalSymbolId, LocalGenericApplicationId,
-    LocalStaticId, LocalTypeId, RangeEnd, StaticKey, UnaryOperator,
+    Access, BinaryOperator, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
+    LocalGenericApplicationId, RangeEnd, StaticKey, UnaryOperator,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -19,7 +19,7 @@ pub struct ReceiverResolution {
     /// The declaration that introduces the receiver.
     pub owner: GlobalSymbolId,
     /// The receiver type after inference.
-    pub ty: LocalTypeId,
+    pub ty: GlobalTypeId,
 }
 
 /// Receiver syntax resolved by contextual lookup.
@@ -133,14 +133,14 @@ pub enum LabelResolution {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MemberResolution {
     /// The receiver type after inference.
-    pub receiver: LocalTypeId,
+    pub receiver: GlobalTypeId,
     /// The selected member target.
     pub target: MemberTarget,
 }
 
 impl MemberResolution {
     /// Create a member resolution.
-    pub fn new(receiver: LocalTypeId, target: MemberTarget) -> Self {
+    pub fn new(receiver: GlobalTypeId, target: MemberTarget) -> Self {
         Self { receiver, target }
     }
 }
@@ -219,7 +219,7 @@ pub enum BuiltinMember {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MemberCandidate {
     /// The receiver type that selects this candidate.
-    pub receiver: LocalTypeId,
+    pub receiver: GlobalTypeId,
     /// The selected member symbol.
     pub symbol: GlobalSymbolId,
     /// The generic application of the member symbol, if statically applied.
@@ -238,14 +238,18 @@ pub struct CallResolution {
     /// The selected callable target.
     pub target: CallTarget,
     /// The dynamic parameter types after static substitutions.
-    pub parameters: Vec<LocalTypeId>,
+    pub parameters: Vec<GlobalTypeId>,
     /// The return type after static substitutions.
-    pub return_type: LocalTypeId,
+    pub return_type: GlobalTypeId,
 }
 
 impl CallResolution {
     /// Create a call resolution.
-    pub fn new(target: CallTarget, parameters: Vec<LocalTypeId>, return_type: LocalTypeId) -> Self {
+    pub fn new(
+        target: CallTarget,
+        parameters: Vec<GlobalTypeId>,
+        return_type: GlobalTypeId,
+    ) -> Self {
         Self {
             target,
             parameters,
@@ -341,7 +345,7 @@ pub enum BuiltinCall {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CallCandidate {
     /// The receiver type that selects this candidate.
-    pub receiver: Option<LocalTypeId>,
+    pub receiver: Option<GlobalTypeId>,
     /// The selected callable symbol.
     pub symbol: GlobalSymbolId,
     /// The generic application of the callable symbol, if statically applied.
@@ -360,17 +364,17 @@ pub struct ConstructResolution {
     /// The selected construct target.
     pub target: ConstructTarget,
     /// The dynamic parameter types after static substitutions.
-    pub parameters: Vec<LocalTypeId>,
+    pub parameters: Vec<GlobalTypeId>,
     /// The return type after static substitutions.
-    pub return_type: LocalTypeId,
+    pub return_type: GlobalTypeId,
 }
 
 impl ConstructResolution {
     /// Create a construct resolution.
     pub fn new(
         target: ConstructTarget,
-        parameters: Vec<LocalTypeId>,
-        return_type: LocalTypeId,
+        parameters: Vec<GlobalTypeId>,
+        return_type: GlobalTypeId,
     ) -> Self {
         Self {
             target,
@@ -493,18 +497,18 @@ pub struct PatternBindingResolution {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PatternLiteralResolution {
     /// The committed static literal value.
-    pub value: LocalStaticId,
+    pub value: GlobalStaticId,
 }
 
 /// Scalar range selected by one pattern.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PatternRangeResolution {
     /// The scalar domain constrained by the range.
-    pub domain: LocalTypeId,
+    pub domain: GlobalTypeId,
     /// The optional committed lower bound.
-    pub start: Option<LocalStaticId>,
+    pub start: Option<GlobalStaticId>,
     /// The optional committed upper bound.
-    pub end: Option<LocalStaticId>,
+    pub end: Option<GlobalStaticId>,
     /// Whether the upper bound is inclusive.
     pub end_bound: RangeEnd,
 }
@@ -538,7 +542,7 @@ pub enum PatternSequenceResolution {
         /// The fixed element fields.
         fields: Vec<PatternFieldResolution>,
         /// The committed array length.
-        length: LocalStaticId,
+        length: GlobalStaticId,
     },
 }
 
@@ -579,7 +583,7 @@ pub struct PatternVariantResolution {
     /// The generic application of the variant symbol, if statically applied.
     pub application: Option<LocalGenericApplicationId>,
     /// The static discriminant value, when one is materialized.
-    pub discriminant: Option<LocalStaticId>,
+    pub discriminant: Option<GlobalStaticId>,
     /// The variant field mapping in source order.
     pub fields: Vec<PatternFieldResolution>,
 }

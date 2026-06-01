@@ -5,8 +5,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GlobalNodeIdAny, GlobalSymbolId, IntersectionType, LocalNodeId, LocalNodeIdAny,
-    LocalTypeId, Node, SegmentView, Type, UnionType,
+    Arena, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntersectionType, LocalNodeId,
+    LocalNodeIdAny, LocalTypeId, Node, SegmentView, Type, UnionType,
 };
 
 /// Cumulative type slots for one DIR module.
@@ -60,7 +60,7 @@ impl<'a> TypeTable<'a> {
     }
 
     /// Iterate effective checked types keyed by DIR node.
-    pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, LocalTypeId)> + '_ {
+    pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalTypeId)> + '_ {
         let mut entries = IndexMap::new();
 
         // apply later segment values over earlier ones
@@ -74,7 +74,7 @@ impl<'a> TypeTable<'a> {
     }
 
     /// Iterate solved symbol types.
-    pub fn symbol_types(&self) -> impl Iterator<Item = (GlobalSymbolId, LocalTypeId)> + '_ {
+    pub fn symbol_types(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalTypeId)> + '_ {
         let mut entries = IndexMap::new();
 
         // apply later segment values over earlier ones
@@ -88,7 +88,7 @@ impl<'a> TypeTable<'a> {
     }
 
     /// Get the effective checked type id for a node.
-    pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+    pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
         for segment in self.segments.iter().rev() {
             if let Some(type_id) = segment.get_node_type_id(node_id) {
                 return Some(type_id);
@@ -99,7 +99,7 @@ impl<'a> TypeTable<'a> {
     }
 
     /// Get the solved type id for a symbol.
-    pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+    pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalTypeId> {
         for segment in self.segments.iter().rev() {
             if let Some(type_id) = segment.get_symbol_type_id(symbol_id) {
                 return Some(type_id);
@@ -127,12 +127,15 @@ impl<'a> TypeTable<'a> {
     }
 
     /// Strip outer form types to reach the payload type id.
-    pub fn unwrap_form_payload_type_id(&self, type_id: LocalTypeId) -> LocalTypeId {
+    pub fn unwrap_form_payload_type_id(&self, type_id: LocalTypeId) -> GlobalTypeId {
         let mut current = type_id;
         loop {
             match self.get_type(current) {
-                Type::Form(form) => current = form.value,
-                _ => return current,
+                Type::Form(form) if form.value.module_id == self.module_id => {
+                    current = form.value.local_id;
+                }
+                Type::Form(form) => return form.value,
+                _ => return current.into_global(self.module_id),
             }
         }
     }
@@ -144,19 +147,9 @@ impl<'a> TypeTable<'a> {
             .flat_map(|segment| segment.iter_type_ids())
     }
 
-    /// Return the origin for a type id.
-    pub fn type_origin(&self, type_id: LocalTypeId) -> TypeOrigin {
-        self.type_source(type_id).origin
-    }
-
     /// Get the source id for a type.
     pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
-        self.type_source(type_id).source_id
-    }
-
-    /// Return true when a type originated from an imported module.
-    pub fn is_imported_type(&self, type_id: LocalTypeId) -> bool {
-        matches!(self.type_origin(type_id), TypeOrigin::Imported)
+        self.type_source(type_id)
     }
 
     /// Get the number of types in the table.
@@ -178,7 +171,7 @@ impl<'a> TypeTable<'a> {
     }
 
     /// Return the source for a type id.
-    fn type_source(&self, type_id: LocalTypeId) -> TypeSource {
+    fn type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
         for segment in self.segments.iter() {
             if segment.contains_type_id(type_id) {
                 return segment.type_source(type_id);
@@ -200,11 +193,11 @@ pub struct TypeSegment {
     pub(crate) types: Arena<Type>,
 
     /// The source for each type id.
-    pub(crate) sources: Arena<TypeSource>,
+    pub(crate) sources: Arena<LocalNodeIdAny>,
     /// Effective checked type keyed by DIR node occurrence.
-    pub(crate) node_types: IndexMap<GlobalNodeIdAny, LocalTypeId>,
+    pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
     /// Checked declaration type keyed by symbol.
-    pub(crate) symbol_types: IndexMap<GlobalSymbolId, LocalTypeId>,
+    pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
 }
 
 impl TypeSegment {
@@ -233,18 +226,13 @@ impl TypeSegment {
     }
 
     /// Allocate one type slot with canonical metadata.
-    fn allocate_type(
-        &mut self,
-        ty: Type,
-        source_id: LocalNodeIdAny,
-        origin: TypeOrigin,
-    ) -> LocalTypeId {
+    fn allocate_type(&mut self, ty: Type, source_id: LocalNodeIdAny) -> LocalTypeId {
         self.assert_type_table_invariants_debug("allocate_type:start");
 
         let type_id = LocalTypeId::new(self.type_count());
 
         self.types.allocate(ty);
-        self.sources.allocate(TypeSource { source_id, origin });
+        self.sources.allocate(source_id);
         self.assert_type_table_invariants_debug("allocate_type:end");
 
         type_id
@@ -252,36 +240,26 @@ impl TypeSegment {
 
     /// Insert a type derived from some source node.
     pub fn insert_type_from<T: Node>(&mut self, ty: Type, node_id: LocalNodeId<T>) -> LocalTypeId {
-        self.allocate_type(ty, node_id.into_any(), TypeOrigin::Local)
+        self.allocate_type(ty, node_id.into_any())
     }
 
     /// Insert a type derived from some source node (any node type).
     pub fn insert_type_from_any(&mut self, ty: Type, node_id: LocalNodeIdAny) -> LocalTypeId {
-        self.allocate_type(ty, node_id, TypeOrigin::Local)
-    }
-
-    /// Insert a type that originates from an imported module.
-    pub fn insert_imported_type_from_any(
-        &mut self,
-        ty: Type,
-        node_id: LocalNodeIdAny,
-    ) -> LocalTypeId {
-        self.allocate_type(ty, node_id, TypeOrigin::Imported)
+        self.allocate_type(ty, node_id)
     }
 
     /// Insert a type derived from another type id.
     pub fn insert_type_from_type(&mut self, ty: Type, source_type_id: LocalTypeId) -> LocalTypeId {
         let source_id = self.get_type_source(source_type_id);
-        let origin = self.type_origin(source_type_id);
 
-        self.allocate_type(ty, source_id, origin)
+        self.allocate_type(ty, source_id)
     }
 
     /// Intern one union type by deterministic structural scan.
     pub fn intern_union_type(
         &mut self,
         source_type_id: LocalTypeId,
-        elements: Vec<LocalTypeId>,
+        elements: Vec<GlobalTypeId>,
     ) -> LocalTypeId {
         for type_id in self.iter_type_ids() {
             if let Type::Union(existing) = self.get_type(type_id)
@@ -298,7 +276,7 @@ impl TypeSegment {
     pub fn intern_intersection_type(
         &mut self,
         source_type_id: LocalTypeId,
-        elements: Vec<LocalTypeId>,
+        elements: Vec<GlobalTypeId>,
     ) -> LocalTypeId {
         for type_id in self.iter_type_ids() {
             if let Type::Intersection(existing) = self.get_type(type_id)
@@ -315,36 +293,36 @@ impl TypeSegment {
     }
 
     /// Iterate effective checked types keyed by DIR node.
-    pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, LocalTypeId)> + '_ {
+    pub fn node_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalTypeId)> + '_ {
         self.node_types
             .iter()
             .map(|(node_id, type_id)| (*node_id, *type_id))
     }
 
     /// Iterate solved symbol types.
-    pub fn symbol_types(&self) -> impl Iterator<Item = (GlobalSymbolId, LocalTypeId)> + '_ {
+    pub fn symbol_types(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalTypeId)> + '_ {
         self.symbol_types
             .iter()
             .map(|(symbol_id, type_id)| (*symbol_id, *type_id))
     }
 
     /// Set the effective checked type for a node.
-    pub fn set_node_type(&mut self, node_id: GlobalNodeIdAny, ty: LocalTypeId) {
+    pub fn set_node_type(&mut self, node_id: GlobalNodeIdAny, ty: GlobalTypeId) {
         self.node_types.insert(node_id, ty);
     }
 
     /// Get the effective checked type id for a node.
-    pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalTypeId> {
+    pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
         self.node_types.get(&node_id).copied()
     }
 
     /// Set the solved type for a symbol.
-    pub fn set_symbol_type(&mut self, symbol_id: GlobalSymbolId, ty: LocalTypeId) {
+    pub fn set_symbol_type(&mut self, symbol_id: GlobalSymbolId, ty: GlobalTypeId) {
         self.symbol_types.insert(symbol_id, ty);
     }
 
     /// Get the solved type id for a symbol.
-    pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<LocalTypeId> {
+    pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalTypeId> {
         self.symbol_types.get(&symbol_id).copied()
     }
 
@@ -361,12 +339,15 @@ impl TypeSegment {
     }
 
     /// Strip outer form types to reach the payload type id.
-    pub fn unwrap_form_payload_type_id(&self, type_id: LocalTypeId) -> LocalTypeId {
+    pub fn unwrap_form_payload_type_id(&self, type_id: LocalTypeId) -> GlobalTypeId {
         let mut current = type_id;
         loop {
             match self.get_type(current) {
-                Type::Form(form) => current = form.value,
-                _ => return current,
+                Type::Form(form) if form.value.module_id == self.module_id => {
+                    current = form.value.local_id;
+                }
+                Type::Form(form) => return form.value,
+                _ => return current.into_global(self.module_id),
             }
         }
     }
@@ -389,7 +370,7 @@ impl TypeSegment {
     }
 
     /// Return the source for a type id.
-    fn type_source(&self, type_id: LocalTypeId) -> TypeSource {
+    fn type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
         if self.contains_type_id(type_id) {
             let slot = type_id.0 - self.first_type_id;
             return *self.sources.get(slot);
@@ -407,17 +388,7 @@ impl TypeSegment {
 
     /// Get the source id for a type.
     pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
-        self.type_source(type_id).source_id
-    }
-
-    /// Return the origin for a type.
-    pub fn type_origin(&self, type_id: LocalTypeId) -> TypeOrigin {
-        self.type_source(type_id).origin
-    }
-
-    /// Return true when a type originated from an imported module.
-    pub fn is_imported_type(&self, type_id: LocalTypeId) -> bool {
-        matches!(self.type_origin(type_id), TypeOrigin::Imported)
+        self.type_source(type_id)
     }
 
     /// Get the number of types in the table.
@@ -457,22 +428,4 @@ impl TypeSegment {
             "type source slot mismatch in {context}: source={source_slot_count}, types={type_slot_count}",
         );
     }
-}
-
-/// The origin of one type slot in the table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum TypeOrigin {
-    /// The type was produced in the local module.
-    Local,
-    /// The type was imported from another module.
-    Imported,
-}
-
-/// The source stored for one type id.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct TypeSource {
-    /// The source node id that produced this type slot.
-    pub source_id: LocalNodeIdAny,
-    /// The origin of this type slot.
-    pub origin: TypeOrigin,
 }

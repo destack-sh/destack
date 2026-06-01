@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_source::ModuleId;
 
 use crate::{
-    Declaration, FunctionSignature, GenericParameterRef, GlobalSymbolId, LocalNodeId, LocalTypeId,
+    Declaration, FunctionSignature, GenericParameterRef, GlobalSymbolId, GlobalTypeId, LocalNodeId,
     ScalarLiteral, StaticKey, StringId, TypeLiteral,
 };
 
@@ -34,7 +34,7 @@ pub enum StaticTerm {
         generic_arguments: Option<Vec<StaticArgument>>,
     },
     /// Type value.
-    Type { ty: LocalTypeId },
+    Type { ty: GlobalTypeId },
     /// Array value.
     Array { elements: Vec<StaticTerm> },
     /// Fixed array value.
@@ -54,12 +54,12 @@ pub enum StaticTerm {
     /// Nominal struct value.
     Struct {
         /// The struct type selected for this value.
-        ty: LocalTypeId,
+        ty: GlobalTypeId,
         /// The struct properties.
         properties: Vec<StaticProperty>,
     },
     /// Union of static values.
-    Union { elements: Vec<LocalStaticId> },
+    Union { elements: Vec<GlobalStaticId> },
 }
 
 /// Normalized memory access value.
@@ -110,12 +110,12 @@ pub struct StaticArgument {
     /// The optional argument name.
     pub name: Option<StringId>,
     /// The static value id.
-    pub value: LocalStaticId,
+    pub value: GlobalStaticId,
 }
 
 impl StaticArgument {
     /// Build a positional static argument.
-    pub fn value(value: LocalStaticId) -> Self {
+    pub fn value(value: GlobalStaticId) -> Self {
         Self { name: None, value }
     }
 }
