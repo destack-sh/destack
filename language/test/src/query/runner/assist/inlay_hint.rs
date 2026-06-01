@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_query::{InlayHint, InlayHintKind};
 use destack_source::{FileId, Span};
 
@@ -32,7 +31,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     if content.is_empty() {
         let range = Span::new(session.file_id, 0, session.source.len() as u32);
         let ctx = session.primary_module_context();
-        let hints = query::inlay_hints(&ctx, range);
+        let hints = ctx.inlay_hints(range);
         return CaseResult::Failed {
             message: format!(
                 "inlay_hints expectation is empty, but query returned {} hints",
@@ -44,7 +43,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // get all hints for the file
     let range = Span::new(session.file_id, 0, session.source.len() as u32);
     let ctx = session.primary_module_context();
-    let hints = query::inlay_hints(&ctx, range);
+    let hints = ctx.inlay_hints(range);
 
     // validate hint invariants before comparisons
     if let Err(message) = validate_inlay_hint_invariants(session, session.file_id, &hints) {

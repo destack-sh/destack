@@ -15,33 +15,18 @@ const DEFAULT_CHARACTER_DISPLAY: &str = "character";
 
 /// Format a global type id as a human-readable string.
 pub fn format_global_type(ty_id: dir::GlobalTypeId, ctx: &ModuleQueryContext<'_>) -> String {
-    let Some(ctx) = ctx.module_context(ty_id.module_id) else {
-        return "<missing>".to_string();
-    };
-    let types = ctx.dir().types();
-    let Some(ty) = types.get_type_maybe(ty_id.local_id) else {
-        return "<missing>".to_string();
-    };
-
-    format_type(ty, types, &ctx)
+    ctx.with_global_type(ty_id, format_type)
+        .unwrap_or_else(|| "<missing>".to_string())
 }
 
-/// Format a type by its id.
-pub fn format_local_type(
-    ty_id: dir::LocalTypeId,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let ty = types.get_type(ty_id);
-    format_type(ty, types, ctx)
+/// Format a global type id for an inlay hint.
+pub fn format_global_inlay_type(ty_id: dir::GlobalTypeId, ctx: &ModuleQueryContext<'_>) -> String {
+    ctx.with_global_type(ty_id, format_inlay_type)
+        .unwrap_or_else(|| "<missing>".to_string())
 }
 
 /// Format a type as a human-readable string.
-pub fn format_type(
-    ty: &dir::Type,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
+pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
     let strings = ctx.dir().strings();
 
     match ty {
@@ -55,14 +40,14 @@ pub fn format_type(
         dir::Type::Object => "object".to_string(),
         dir::Type::Primitive(primitive) => format_primitive_type(primitive),
         dir::Type::Literal(literal) => format_scalar_literal(literal, strings),
-        dir::Type::Operation(operation) => format_type_operation(operation, types, ctx),
+        dir::Type::Operation(operation) => format_type_operation(operation, ctx),
         dir::Type::Parameter(parameter) => format_parameter_type(parameter, ctx),
         dir::Type::This => "this".to_string(),
         dir::Type::Reference(reference) => {
-            format_type_reference(reference.symbol, &reference.arguments, types, ctx)
+            format_type_reference(reference.symbol, &reference.arguments, ctx)
         }
         dir::Type::Member(member) => {
-            let owner = format_local_type(member.owner, types, ctx);
+            let owner = format_global_type(member.owner, ctx);
             let key = format_static_key(&member.key, strings);
             if member.arguments.is_empty() {
                 format!("{owner}.{key}")
@@ -70,26 +55,28 @@ pub fn format_type(
                 let arguments = member
                     .arguments
                     .iter()
-                    .map(|argument| format_static_argument(argument, types, ctx))
+                    .map(|argument| format_static_argument(argument, ctx))
                     .collect::<Vec<_>>();
 
                 format!("{owner}.{key}<{}>", arguments.join(", "))
             }
         }
-        dir::Type::Form(form) => format_form_type(form, types, ctx),
+        dir::Type::Form(form) => format_form_type(form, ctx),
         dir::Type::Dynamic(dynamic) => {
-            let constraint = format_local_type(dynamic.constraint, types, ctx);
+            let constraint = format_global_type(dynamic.constraint, ctx);
             format!("Dynamic<{constraint}>")
         }
         dir::Type::FixedArray(array) => {
-            let element = format_local_type(array.element, types, ctx);
-            let count = format_static_id(array.count, ctx);
+            let element = format_global_type(array.element, ctx);
+            let count = format_global_static(array.count, ctx);
 
             format!("[{element}; {count}]")
         }
         dir::Type::Array(array) => {
-            let element = format_local_type(array.element, types, ctx);
-            let needs_parens = matches!(types.get_type(array.element), dir::Type::Union(_));
+            let element = format_global_type(array.element, ctx);
+            let needs_parens = ctx
+                .with_global_type(array.element, |ty, _| matches!(ty, dir::Type::Union(_)))
+                .unwrap_or(false);
             if needs_parens {
                 format!("({element})[]")
             } else {
@@ -99,8 +86,10 @@ pub fn format_type(
         dir::Type::Range(range) => format_range_type(range, strings),
         dir::Type::Slice(slice) => {
             let element = slice.element;
-            let element = format_local_type(element, types, ctx);
-            let needs_parens = matches!(types.get_type(slice.element), dir::Type::Union(_));
+            let element = format_global_type(element, ctx);
+            let needs_parens = ctx
+                .with_global_type(slice.element, |ty, _| matches!(ty, dir::Type::Union(_)))
+                .unwrap_or(false);
             if needs_parens {
                 format!("({element})[]")
             } else {
@@ -111,7 +100,7 @@ pub fn format_type(
             let elements: Vec<_> = tuple
                 .elements
                 .iter()
-                .map(|element| format_type_tuple_element(element, types, ctx))
+                .map(|element| format_type_tuple_element(element, ctx))
                 .collect();
             format!("({})", elements.join(", "))
         }
@@ -120,26 +109,26 @@ pub fn format_type(
 
             for field in &object.fields {
                 let key = format_static_key(&field.key, strings);
-                let ty = format_local_type(field.ty, types, ctx);
+                let ty = format_global_type(field.ty, ctx);
                 let opt = if field.is_optional { "?" } else { "" };
                 let readonly = if field.is_readonly { "readonly " } else { "" };
                 items.push(format!("{readonly}{key}{opt}: {ty}"));
             }
 
             for signature in &object.call_signatures {
-                let signature = format_local_type(*signature, types, ctx);
+                let signature = format_global_type(*signature, ctx);
                 items.push(signature);
             }
 
             for signature in &object.construct_signatures {
-                let signature = format_local_type(*signature, types, ctx);
+                let signature = format_global_type(*signature, ctx);
                 items.push(format!("new {signature}"));
             }
 
             for signature in &object.index_signatures {
                 let name = strings.get(signature.name).to_string();
-                let key_type = format_local_type(signature.key_type, types, ctx);
-                let value_type = format_local_type(signature.value_type, types, ctx);
+                let key_type = format_global_type(signature.key_type, ctx);
+                let value_type = format_global_type(signature.value_type, ctx);
                 let readonly = if signature.is_readonly {
                     "readonly "
                 } else {
@@ -166,23 +155,23 @@ pub fn format_type(
                 let params: Vec<_> = function
                     .generic_parameters
                     .iter()
-                    .map(|p| format_local_type(*p, types, ctx))
+                    .map(|p| format_global_type(*p, ctx))
                     .collect();
                 format!("<{}>", params.join(", "))
             };
             let mut formatted_parameters: Vec<String> = Vec::new();
             if let Some(this_parameter) = function.this_parameter {
-                let this_type = format_local_type(this_parameter, types, ctx);
+                let this_type = format_global_type(this_parameter, ctx);
                 formatted_parameters.push(format!("this: {this_type}"));
             }
             formatted_parameters.extend(
                 function
                     .parameters
                     .iter()
-                    .map(|parameter| format_function_parameter(parameter, types, ctx)),
+                    .map(|parameter| format_function_parameter(parameter, ctx)),
             );
             let ret = if let Some(ret_ty) = function.return_type {
-                format!(": {}", format_local_type(ret_ty, types, ctx))
+                format!(": {}", format_global_type(ret_ty, ctx))
             } else {
                 String::new()
             };
@@ -192,8 +181,8 @@ pub fn format_type(
             )
         }
         dir::Type::Closure(closure) => {
-            let function = format_local_type(closure.function, types, ctx);
-            let environment = format_local_type(closure.environment, types, ctx);
+            let function = format_global_type(closure.function, ctx);
+            let environment = format_global_type(closure.environment, ctx);
 
             format!("Closure<{function}, {environment}>")
         }
@@ -204,7 +193,7 @@ pub fn format_type(
                 if !seen.insert(*element_id) {
                     continue;
                 }
-                formatted.push(format_local_type(*element_id, types, ctx));
+                formatted.push(format_global_type(*element_id, ctx));
             }
             formatted.join(" | ")
         }
@@ -215,7 +204,7 @@ pub fn format_type(
                 if !seen.insert(*element_id) {
                     continue;
                 }
-                formatted.push(format_local_type(*element_id, types, ctx));
+                formatted.push(format_global_type(*element_id, ctx));
             }
             formatted.join(" & ")
         }
@@ -225,41 +214,40 @@ pub fn format_type(
 /// Format a type-level operation.
 pub fn format_type_operation(
     operation: &dir::TypeOperation,
-    types: &dir::TypeTable<'_>,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
     let strings = ctx.dir().strings();
 
     match operation {
         dir::TypeOperation::StringMapping { mapping, target } => {
-            let target = format_local_type(*target, types, ctx);
+            let target = format_global_type(*target, ctx);
             let mapping = format_string_mapping(mapping);
 
             format!("{mapping}<{target}>")
         }
         dir::TypeOperation::Conditional(conditional) => {
-            let left = format_local_type(conditional.left, types, ctx);
-            let right = format_local_type(conditional.right, types, ctx);
-            let then_type = format_local_type(conditional.then_type, types, ctx);
-            let else_type = format_local_type(conditional.else_type, types, ctx);
+            let left = format_global_type(conditional.left, ctx);
+            let right = format_global_type(conditional.right, ctx);
+            let then_type = format_global_type(conditional.then_type, ctx);
+            let else_type = format_global_type(conditional.else_type, ctx);
             format!("{left} extends {right} ? {then_type} : {else_type}")
         }
         dir::TypeOperation::Mapped(mapped) => {
             let name = strings.get(mapped.parameter.name).to_string();
-            let constraint = format_local_type(mapped.parameter.constraint, types, ctx);
+            let constraint = format_global_type(mapped.parameter.constraint, ctx);
             let key_remap = mapped
                 .parameter
                 .key_remap
-                .map(|key_remap| format!(" as {}", format_local_type(key_remap, types, ctx)))
+                .map(|key_remap| format!(" as {}", format_global_type(key_remap, ctx)))
                 .unwrap_or_default();
             let readonly = format_type_mapped_modifier_prefix(mapped.modifiers.readonly);
             let optional = format_type_mapped_modifier_suffix(mapped.modifiers.optional);
-            let value = format_local_type(mapped.value, types, ctx);
+            let value = format_global_type(mapped.value, ctx);
             format!("{{ {readonly}[{name} in {constraint}{key_remap}]{optional}: {value} }}")
         }
         dir::TypeOperation::Index(index_type) => {
-            let left = format_local_type(index_type.left, types, ctx);
-            let index = format_local_type(index_type.index, types, ctx);
+            let left = format_global_type(index_type.left, ctx);
+            let index = format_global_type(index_type.index, ctx);
             format!("{left}[{index}]")
         }
         dir::TypeOperation::TemplateLiteral(template) => {
@@ -267,7 +255,7 @@ pub fn format_type_operation(
             for (index, string_id) in template.strings.iter().enumerate() {
                 result.push_str(strings.get(*string_id));
                 if let Some(span_id) = template.spans.get(index) {
-                    let span = format_local_type(*span_id, types, ctx);
+                    let span = format_global_type(*span_id, ctx);
                     result.push_str("${");
                     result.push_str(&span);
                     result.push('}');
@@ -279,13 +267,13 @@ pub fn format_type_operation(
         }
         dir::TypeOperation::Infer(infer) => {
             let name = infer.name.map(|name| strings.get(name)).unwrap_or("_");
-            let constraint = infer.constraint.map(|constraint| {
-                format!(" extends {}", format_local_type(constraint, types, ctx))
-            });
+            let constraint = infer
+                .constraint
+                .map(|constraint| format!(" extends {}", format_global_type(constraint, ctx)));
             format!("infer {name}{}", constraint.unwrap_or_default())
         }
         dir::TypeOperation::KeyOf(unary) => {
-            let target_type = format_local_type(unary.target, types, ctx);
+            let target_type = format_global_type(unary.target, ctx);
             format!("keyof {target_type}")
         }
     }
@@ -323,12 +311,8 @@ pub fn format_range_type(range: &dir::RangeType, strings: &StringPool) -> String
 }
 
 /// Format a canonical memory or access form.
-pub fn format_form_type(
-    form: &dir::FormType,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
-    let value = format_local_type(form.value, types, ctx);
+pub fn format_form_type(form: &dir::FormType, ctx: &ModuleQueryContext<'_>) -> String {
+    let value = format_global_type(form.value, ctx);
 
     match &form.form {
         dir::Form::Managed => format!("Managed<{value}>"),
@@ -336,18 +320,18 @@ pub fn format_form_type(
         dir::Form::Raw => format!("Raw<{value}>"),
         dir::Form::Readonly => format!("Readonly<{value}>"),
         dir::Form::Placed { place } => {
-            let place = format_static_id(*place, ctx);
+            let place = format_global_static(*place, ctx);
             format!("Placed<{value}, {place}>")
         }
         dir::Form::Borrowed { lifetime, access } => {
-            let lifetime = format_static_id(*lifetime, ctx);
-            let access = format_static_id(*access, ctx);
+            let lifetime = format_global_static(*lifetime, ctx);
+            let access = format_global_static(*access, ctx);
             format!("Borrowed<{value}, {lifetime}, {access}>")
         }
     }
 }
 
-/// Format a ScalarLiteral.
+/// Format a scalar literal.
 pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) -> String {
     match scalar {
         dir::ScalarLiteral::Null => "null".to_string(),
@@ -381,11 +365,7 @@ pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) 
 }
 
 /// Format a type for inlay hints.
-pub fn format_inlay_type(
-    ty: &dir::Type,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
+pub fn format_inlay_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
     // widen scalar literal types to their default primitive display types
     if let dir::Type::Literal(value) = ty {
         let widened = widened_scalar_literal_name(value);
@@ -393,7 +373,7 @@ pub fn format_inlay_type(
     }
 
     // otherwise, format the type as usual
-    format_type(ty, types, ctx)
+    format_type(ty, ctx)
 }
 
 /// Map a scalar literal type to its default primitive display name.
@@ -415,7 +395,6 @@ pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
 pub fn format_type_reference(
     symbol: dir::GlobalSymbolId,
     generic_arguments: &[dir::StaticArgument],
-    types: &dir::TypeTable<'_>,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
     let name = format_symbol_name(symbol, ctx);
@@ -424,7 +403,7 @@ pub fn format_type_reference(
     } else {
         let argument_strs: Vec<_> = generic_arguments
             .iter()
-            .map(|argument| format_static_argument(argument, types, ctx))
+            .map(|argument| format_static_argument(argument, ctx))
             .collect();
         format!("{name}<{}>", argument_strs.join(", "))
     }
@@ -598,7 +577,7 @@ fn static_key_segment(key: Option<dir::StaticKey>, strings: &StringPool) -> Opti
     }
 }
 
-/// Format a StaticKey.
+/// Format a static key.
 pub fn format_static_key(key: &dir::StaticKey, strings: &StringPool) -> String {
     match key {
         dir::StaticKey::Name(name_id) => strings.get(*name_id).to_string(),
@@ -621,12 +600,11 @@ pub fn format_symbol_key(key: &dir::SymbolKey, strings: &StringPool) -> String {
 /// Format a StaticArgument.
 pub fn format_static_argument(
     argument: &dir::StaticArgument,
-    _types: &dir::TypeTable<'_>,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
     let strings = ctx.dir().strings();
 
-    let value = format_static_id(argument.value, ctx);
+    let value = format_global_static(argument.value, ctx);
     if let Some(name_id) = argument.name {
         let name = strings.get(name_id);
         format!("{name}: {value}")
@@ -635,20 +613,17 @@ pub fn format_static_argument(
     }
 }
 
-/// Format a static value by its id.
-pub fn format_static_id(static_id: dir::LocalStaticId, ctx: &ModuleQueryContext<'_>) -> String {
-    let dir = ctx.dir();
-    let term = dir.statics().get_static(static_id);
-
-    format_static_term(term, dir.types(), ctx)
+/// Format a global static value by its id.
+pub fn format_global_static(
+    static_id: dir::GlobalStaticId,
+    ctx: &ModuleQueryContext<'_>,
+) -> String {
+    ctx.with_global_static(static_id, format_static_term)
+        .unwrap_or_else(|| "<missing>".to_string())
 }
 
 /// Format a StaticTerm.
-pub fn format_static_term(
-    term: &dir::StaticTerm,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
+pub fn format_static_term(term: &dir::StaticTerm, ctx: &ModuleQueryContext<'_>) -> String {
     let strings = ctx.dir().strings();
 
     match term {
@@ -661,41 +636,38 @@ pub fn format_static_term(
         dir::StaticTerm::Lifetime { lifetime } => format_lifetime(lifetime, ctx),
         dir::StaticTerm::Union { elements } => elements
             .iter()
-            .map(|element| format_static_id(*element, ctx))
+            .map(|element| format_global_static(*element, ctx))
             .collect::<Vec<_>>()
             .join(" | "),
         dir::StaticTerm::TypeLiteral { value } => format_source_type_literal(value, strings),
         dir::StaticTerm::Declaration { .. } => "<declaration>".to_string(),
-        dir::StaticTerm::Type { ty } => {
-            let ty = types.get_type(*ty);
-            format_type(ty, types, ctx)
-        }
+        dir::StaticTerm::Type { ty } => format_global_type(*ty, ctx),
         dir::StaticTerm::Array { elements } => {
             let elements: Vec<_> = elements
                 .iter()
-                .map(|e| format_static_term(e, types, ctx))
+                .map(|e| format_static_term(e, ctx))
                 .collect();
             format!("[{}]", elements.join(", "))
         }
         dir::StaticTerm::FixedArray { value, length } => {
-            let value = format_static_term(value, types, ctx);
-            let length = format_static_term(length, types, ctx);
+            let value = format_static_term(value, ctx);
+            let length = format_static_term(length, ctx);
             format!("[{value}; {length}]")
         }
         dir::StaticTerm::Tuple { elements } => {
             let elements: Vec<_> = elements
                 .iter()
-                .map(|e| format_static_term(e, types, ctx))
+                .map(|e| format_static_term(e, ctx))
                 .collect();
             format!("({})", elements.join(", "))
         }
         dir::StaticTerm::Object { properties } => {
-            let properties = format_static_properties(properties, types, ctx);
+            let properties = format_static_properties(properties, ctx);
             format!("{{{properties}}}")
         }
         dir::StaticTerm::Struct { ty, properties } => {
-            let ty = format_local_type(*ty, types, ctx);
-            let properties = format_static_properties(properties, types, ctx);
+            let ty = format_global_type(*ty, ctx);
+            let properties = format_static_properties(properties, ctx);
             format!("{ty} {{{properties}}}")
         }
     }
@@ -720,28 +692,23 @@ fn format_lifetime(lifetime: &dir::Lifetime, ctx: &ModuleQueryContext<'_>) -> St
 /// Format static object properties.
 fn format_static_properties(
     properties: &[dir::StaticProperty],
-    types: &dir::TypeTable<'_>,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
     properties
         .iter()
-        .map(|property| format_static_property(property, types, ctx))
+        .map(|property| format_static_property(property, ctx))
         .collect::<Vec<_>>()
         .join(", ")
 }
 
 /// Format one static object property.
-fn format_static_property(
-    property: &dir::StaticProperty,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
+fn format_static_property(property: &dir::StaticProperty, ctx: &ModuleQueryContext<'_>) -> String {
     let strings = ctx.dir().strings();
 
     match property {
         dir::StaticProperty::Field { key, value } => {
             let key = format_static_key(key, strings);
-            let value = format_static_term(value, types, ctx);
+            let value = format_static_term(value, ctx);
             format!("{key}: {value}")
         }
         dir::StaticProperty::Method { key, .. } => {
@@ -751,7 +718,7 @@ fn format_static_property(
             format!("{key}()")
         }
         dir::StaticProperty::Spread { value } => {
-            let value = format_static_term(value, types, ctx);
+            let value = format_static_term(value, ctx);
             format!("...{value}")
         }
     }
@@ -806,11 +773,7 @@ fn format_source_type_literal(lit: &dir::TypeLiteral, _strings: &StringPool) -> 
     }
 }
 
-fn format_type_tuple_element(
-    element: &dir::TypeElement,
-    types: &dir::TypeTable<'_>,
-    ctx: &ModuleQueryContext<'_>,
-) -> String {
+fn format_type_tuple_element(element: &dir::TypeElement, ctx: &ModuleQueryContext<'_>) -> String {
     let strings = ctx.dir().strings();
 
     let mut result = String::new();
@@ -822,10 +785,10 @@ fn format_type_tuple_element(
     }
     if let Some(label) = element.label {
         let name = strings.get(label);
-        let ty = format_local_type(element.ty, types, ctx);
+        let ty = format_global_type(element.ty, ctx);
         result.push_str(&format!("{name}: {ty}"));
     } else {
-        result.push_str(&format_local_type(element.ty, types, ctx));
+        result.push_str(&format_global_type(element.ty, ctx));
     }
     if element.is_optional {
         result.push('?');
@@ -835,14 +798,13 @@ fn format_type_tuple_element(
 
 fn format_function_parameter(
     parameter: &dir::FunctionParameterType,
-    types: &dir::TypeTable<'_>,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
     let mut result = String::new();
     if parameter.is_rest {
         result.push_str("...");
     }
-    result.push_str(&format_local_type(parameter.ty, types, ctx));
+    result.push_str(&format_global_type(parameter.ty, ctx));
     if parameter.is_optional {
         result.push('?');
     }

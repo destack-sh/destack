@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
-use destack_core::{StringId, StringPool};
-use destack_dir::{DependencyForm, DependencyItem, LocalNodeId, Tree};
+use destack_core::StringPool;
+use destack_dir as dir;
 use destack_workspace::ImportSortOrder;
 
 /// The import group category for declaration ordering.
@@ -43,19 +43,19 @@ impl ImportGroup {
 
 /// Return dependency items sorted by space and configured key order.
 pub fn sort_dependency_items(
-    items: &[LocalNodeId<DependencyItem>],
-    tree: &Tree,
+    items: &[dir::LocalNodeId<dir::DependencyItem>],
+    tree: &dir::Tree,
     strings: &StringPool,
     sort_order: ImportSortOrder,
-) -> Vec<LocalNodeId<DependencyItem>> {
+) -> Vec<dir::LocalNodeId<dir::DependencyItem>> {
     let mut sorted_items: Vec<_> = items.to_vec();
     sorted_items.sort_by(|left_id, right_id| {
         let left_item = tree.get(*left_id);
         let right_item = tree.get(*right_id);
 
         // type imports come before value imports
-        let left_is_type = dependency_item_space(left_item) == Some(DependencyForm::Type);
-        let right_is_type = dependency_item_space(right_item) == Some(DependencyForm::Type);
+        let left_is_type = left_item.form() == Some(dir::DependencyForm::Type);
+        let right_is_type = right_item.form() == Some(dir::DependencyForm::Type);
         match (left_is_type, right_is_type) {
             (true, false) => return Ordering::Less,
             (false, true) => return Ordering::Greater,
@@ -63,10 +63,12 @@ pub fn sort_dependency_items(
         }
 
         // alias key first when present, then item name
-        let left_key = dependency_item_key(left_item)
+        let left_key = left_item
+            .local_string_key()
             .map(|string_id| strings.get(string_id))
             .unwrap_or("");
-        let right_key = dependency_item_key(right_item)
+        let right_key = right_item
+            .local_string_key()
             .map(|string_id| strings.get(string_id))
             .unwrap_or("");
 
@@ -82,22 +84,6 @@ pub fn sort_dependency_items(
 /// Return true when one import path uses a known alias prefix.
 fn is_alias_specifier(specifier: &str) -> bool {
     specifier.starts_with("@/") || specifier.starts_with("~/") || specifier.starts_with('#')
-}
-
-/// Return one dependency item's form when the item is valid.
-fn dependency_item_space(item: &DependencyItem) -> Option<DependencyForm> {
-    match item {
-        DependencyItem::Binding { form, .. } => *form,
-        DependencyItem::Error => None,
-    }
-}
-
-/// Return one dependency item's string key when present.
-fn dependency_item_key(item: &DependencyItem) -> Option<StringId> {
-    match item {
-        DependencyItem::Binding { alias, name, .. } => alias.or(name.map(|name| name.string())),
-        DependencyItem::Error => None,
-    }
 }
 
 /// Compare two strings using natural sort order.

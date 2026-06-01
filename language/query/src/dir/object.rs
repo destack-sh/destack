@@ -1,9 +1,8 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 
-use super::{ScopeAtOffset, expression_scope_at_offset};
+use super::ScopeAtOffset;
 use crate::core::DirQueryContext;
-use crate::source::sorted_enclosing_spans;
 
 /// Describes the cursor position inside one object literal.
 #[derive(Debug, Clone)]
@@ -20,108 +19,115 @@ pub(crate) struct ObjectLiteralKeyContext {
     /// The object expression node id.
     pub object_node: dir::LocalNodeIdAny,
     /// The contextual type when one is available.
-    pub contextual_type: Option<dir::LocalTypeId>,
+    pub contextual_type: Option<dir::GlobalTypeId>,
     /// Field names already present in the literal.
     pub existing_fields: Vec<String>,
     /// The visible scope for the object literal expression.
     pub scope: ScopeAtOffset,
 }
 
-/// Resolve object literal cursor information at one offset.
-pub(crate) fn object_literal_cursor_context(
-    ctx: DirQueryContext<'_>,
-    offset: u32,
-) -> Option<ObjectLiteralCursorContext> {
-    // resolve enclosing spans from innermost to outermost
-    let enclosing = sorted_enclosing_spans(ctx, offset, offset);
+impl DirQueryContext<'_> {
+    /// Resolve object literal cursor information at one offset.
+    pub(crate) fn object_literal_cursor_context(
+        self,
+        offset: u32,
+    ) -> Option<ObjectLiteralCursorContext> {
+        let ctx = self;
 
-    // bail out early when there are no enclosing spans
-    if enclosing.is_empty() {
-        return None;
+        // resolve enclosing spans from innermost to outermost
+        let enclosing = ctx.sorted_enclosing_spans(offset, offset);
+
+        // bail out early when there are no enclosing spans
+        if enclosing.is_empty() {
+            return None;
+        }
+
+        // resolve dir tree and types for object literal analysis
+        let dir_tree = ctx.view();
+        let types = ctx.types();
+        let parsed_tree = ctx.tree();
+
+        // look for an object expression under the cursor
+        for enc in &enclosing {
+            if parsed_tree.get_node_type(enc.source_id) != dir::NodeType::Expression {
+                continue;
+            }
+
+            let parsed_expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
+            let parsed_expr = parsed_tree.get(parsed_expr_id);
+
+            let dir::Expression::ObjectExpression { properties, .. } = parsed_expr else {
+                continue;
+            };
+
+            let is_key_position = is_object_literal_key_position(parsed_tree, properties, offset);
+
+            let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
+                continue;
+            };
+            if dir_node_id.ty != dir::NodeType::Expression {
+                continue;
+            }
+
+            let Ok(dir_expr_id) = dir_node_id.try_into() else {
+                continue;
+            };
+            let dir_expr: &dir::Expression = dir_tree.get(dir_expr_id);
+            let scope = ctx.expression_scope_at_offset(dir_expr_id, offset);
+
+            // property values stay in value position inside the surrounding expression scope
+            if !is_key_position {
+                return Some(ObjectLiteralCursorContext::Value(scope));
+            }
+
+            let properties = match dir_expr {
+                dir::Expression::ObjectExpression { properties, .. } => properties,
+                _ => continue,
+            };
+
+            let existing_fields =
+                extract_object_property_names(dir_tree, properties, ctx.strings());
+            let contextual_type = ctx.contextual_object_type(types, dir_node_id);
+
+            return Some(ObjectLiteralCursorContext::Key(ObjectLiteralKeyContext {
+                object_node: dir_node_id,
+                contextual_type,
+                existing_fields,
+                scope,
+            }));
+        }
+
+        None
     }
 
-    // resolve dir tree and types for object literal analysis
-    let dir_tree = ctx.view();
-    let types = ctx.types();
-    let parsed_tree = ctx.tree();
+    /// Check if the cursor is inside an object literal expression.
+    pub(crate) fn is_inside_object_literal_expression(self, offset: u32) -> bool {
+        let ctx = self;
 
-    // look for an object expression under the cursor
-    for enc in &enclosing {
-        if parsed_tree.get_node_type(enc.source_id) != dir::NodeType::Expression {
-            continue;
+        // resolve enclosing spans from innermost to outermost
+        let enclosing = ctx.sorted_enclosing_spans(offset, offset);
+
+        // bail out early when there are no enclosing spans
+        if enclosing.is_empty() {
+            return false;
         }
 
-        let parsed_expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
-        let parsed_expr = parsed_tree.get(parsed_expr_id);
+        // scan enclosing expressions for object literal nodes
+        for enc in &enclosing {
+            if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
+                continue;
+            }
 
-        let dir::Expression::ObjectExpression { properties, .. } = parsed_expr else {
-            continue;
-        };
+            let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
+            let expr = ctx.tree().get(expr_id);
 
-        let is_key_position = is_object_literal_key_position(parsed_tree, properties, offset);
-
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
-            continue;
-        };
-        if dir_node_id.ty != dir::NodeType::Expression {
-            continue;
+            if matches!(expr, dir::Expression::ObjectExpression { .. }) {
+                return true;
+            }
         }
 
-        let Ok(dir_expr_id) = dir_node_id.try_into() else {
-            continue;
-        };
-        let dir_expr: &dir::Expression = dir_tree.get(dir_expr_id);
-        let scope = expression_scope_at_offset(ctx, dir_expr_id, offset);
-
-        // property values stay in value position inside the surrounding expression scope
-        if !is_key_position {
-            return Some(ObjectLiteralCursorContext::Value(scope));
-        }
-
-        let properties = match dir_expr {
-            dir::Expression::ObjectExpression { properties, .. } => properties,
-            _ => continue,
-        };
-
-        let existing_fields = extract_object_property_names(dir_tree, properties, ctx.strings());
-        let contextual_type = contextual_object_type(ctx, types, dir_node_id);
-
-        return Some(ObjectLiteralCursorContext::Key(ObjectLiteralKeyContext {
-            object_node: dir_node_id,
-            contextual_type,
-            existing_fields,
-            scope,
-        }));
+        false
     }
-
-    None
-}
-
-/// Check if the cursor is inside an object literal expression.
-pub(crate) fn is_inside_object_literal_expression(ctx: DirQueryContext<'_>, offset: u32) -> bool {
-    // resolve enclosing spans from innermost to outermost
-    let enclosing = sorted_enclosing_spans(ctx, offset, offset);
-
-    // bail out early when there are no enclosing spans
-    if enclosing.is_empty() {
-        return false;
-    }
-
-    // scan enclosing expressions for object literal nodes
-    for enc in &enclosing {
-        if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Expression {
-            continue;
-        }
-
-        let expr_id = dir::LocalNodeId::<dir::Expression>::new(enc.source_id);
-        let expr = ctx.tree().get(expr_id);
-
-        if matches!(expr, dir::Expression::ObjectExpression { .. }) {
-            return true;
-        }
-    }
-
-    false
 }
 
 /// Check if the cursor is in a property key position of an object literal.
@@ -153,16 +159,6 @@ pub(crate) fn is_object_literal_key_position(
     }
 
     true
-}
-
-/// Resolve one recorded contextual object type.
-fn contextual_object_type(
-    ctx: DirQueryContext<'_>,
-    types: &dir::TypeTable<'_>,
-    node_id: dir::LocalNodeIdAny,
-) -> Option<dir::LocalTypeId> {
-    let global_node_id = node_id.into_global(ctx.module_id());
-    types.get_node_type_id(global_node_id)
 }
 
 /// Extract property names from object literal properties.
@@ -250,4 +246,17 @@ fn is_object_literal_value_position(
     }
 
     false
+}
+
+impl DirQueryContext<'_> {
+    /// Resolve one recorded contextual object type.
+    fn contextual_object_type(
+        self,
+        types: &dir::TypeTable<'_>,
+        node_id: dir::LocalNodeIdAny,
+    ) -> Option<dir::GlobalTypeId> {
+        let ctx = self;
+        let global_node_id = node_id.into_global(ctx.module_id());
+        types.get_node_type_id(global_node_id)
+    }
 }

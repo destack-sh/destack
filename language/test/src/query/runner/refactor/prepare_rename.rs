@@ -1,5 +1,3 @@
-use destack_query as query;
-
 use crate::core::CaseResult;
 use crate::query::{QueryExpectation, QueryTestSession};
 
@@ -32,7 +30,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // run prepare rename at the resolved position
     let ctx = session.module_context(file_id);
-    let result = query::rename_target(&ctx, offset);
+    let result = ctx.rename_target(offset);
 
     let content = exp.content.trim();
 

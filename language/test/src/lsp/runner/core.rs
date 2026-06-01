@@ -549,24 +549,6 @@ fn execute_step_cases(
                 let actual_links = normalize_document_links(test_state.workspace_root(), &links)?;
 
                 verify_document_links(&actual_links, &expected_links)?;
-
-                if let Some(first_link) = links.into_iter().next() {
-                    let resolved_link =
-                        test_state
-                            .resolve_document_link(first_link)?
-                            .ok_or_else(|| {
-                                format!(
-                                    "expected document link resolve result at step {step_index}"
-                                )
-                            })?;
-                    let actual_resolved =
-                        normalize_document_links(test_state.workspace_root(), &[resolved_link])?;
-                    let expected_resolved = expected_links.first().cloned().ok_or_else(|| {
-                        format!("document link step is missing expected link at step {step_index}")
-                    })?;
-
-                    verify_document_links(&actual_resolved, &[expected_resolved])?;
-                }
             }
             LspStepCase::DocumentSymbols {
                 file_path,

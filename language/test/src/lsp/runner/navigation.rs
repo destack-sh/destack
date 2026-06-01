@@ -147,21 +147,6 @@ pub(crate) fn run_navigation_cases(
         let actual_links = normalize_document_links(test_state.workspace_root(), &links)?;
 
         verify_document_links(&actual_links, &expected_links)?;
-
-        // resolve the first eager link to keep the no-op resolve path covered
-        if let Some(first_link) = links.into_iter().next() {
-            let resolved_link = test_state
-                .resolve_document_link(first_link)?
-                .ok_or_else(|| "expected document link resolve result".to_string())?;
-            let actual_resolved =
-                normalize_document_links(test_state.workspace_root(), &[resolved_link])?;
-            let expected_resolved = expected_links
-                .first()
-                .cloned()
-                .ok_or_else(|| "document link fixture is missing expected link".to_string())?;
-
-            verify_document_links(&actual_resolved, &[expected_resolved])?;
-        }
     }
 
     Ok(())

@@ -1,5 +1,3 @@
-use destack_query as query;
-
 use crate::core::CaseResult;
 use crate::query::runner::position::resolve_query_position;
 use crate::query::{QueryExpectation, QueryTestSession};
@@ -26,7 +24,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     let ctx = session.module_context(file_id);
     let workspace = session.workspace_context();
-    let result = query::inline_symbol(&ctx, &workspace, offset);
+    let result = ctx.inline_symbol(&workspace, offset);
 
     // allow explicit no-edit expectations
     let content = exp.content.trim();

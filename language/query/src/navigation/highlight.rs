@@ -2,9 +2,7 @@ use destack_source::Span;
 use serde::{Deserialize, Serialize};
 
 use crate::core::{ModuleQueryContext, QueryPosition};
-use crate::dir::{
-    SymbolReferenceSearch, find_symbol_at_offset, symbol_definition_span, symbol_references,
-};
+use crate::dir::SymbolReferenceSearch;
 use crate::source::sort_and_dedup_spans;
 
 /// Kind of document highlight.
@@ -68,42 +66,44 @@ pub struct DocumentHighlightResponse {
     pub highlights: Vec<DocumentHighlight>,
 }
 
-/// Highlight all occurrences of the symbol at the given position in the document.
-///
-/// Only highlights within the same file (for cross file, use find_references).
-pub fn document_highlights(ctx: &ModuleQueryContext<'_>, offset: u32) -> Vec<DocumentHighlight> {
-    let Some(symbol_at) = find_symbol_at_offset(ctx, offset) else {
-        return Vec::new();
-    };
+impl ModuleQueryContext<'_> {
+    /// Highlight all occurrences of the symbol at the given position in the document.
+    ///
+    /// Only highlights within the same file (for cross file, use find_references).
+    pub fn document_highlights(&self, offset: u32) -> Vec<DocumentHighlight> {
+        let Some(symbol_at) = self.find_symbol_at_offset(offset) else {
+            return Vec::new();
+        };
 
-    let canonical_id = ctx.canonical_symbol(symbol_at.symbol_id);
-    let mut highlights = Vec::new();
+        let canonical_id = self.canonical_symbol(symbol_at.symbol_id);
+        let mut highlights = Vec::new();
 
-    // add definition highlight when it belongs to this file
-    if let Some(definition_span) = symbol_definition_span(ctx, canonical_id)
-        && definition_span.file == ctx.file_id()
-    {
-        highlights.push(DocumentHighlight::write(definition_span));
+        // add definition highlight when it belongs to this file
+        if let Some(definition_span) = self.symbol_definition_span(canonical_id)
+            && definition_span.file == self.file_id()
+        {
+            highlights.push(DocumentHighlight::write(definition_span));
+        }
+
+        // collect reference highlights inside the current file
+        let reference_search = SymbolReferenceSearch {
+            include_expressions: true,
+            include_members: true,
+            include_dependency_items: true,
+            include_namespace_receivers: false,
+            skip_dependency_aliases: false,
+            use_dependency_name_spans: true,
+            target_name: None,
+            require_target_name_match: false,
+            limit_file: Some(self.file_id()),
+        };
+        let mut reference_spans = self.dir().symbol_references(canonical_id, reference_search);
+        sort_and_dedup_spans(&mut reference_spans);
+
+        for span in reference_spans {
+            highlights.push(DocumentHighlight::read(span));
+        }
+
+        highlights
     }
-
-    // collect reference highlights inside the current file
-    let reference_search = SymbolReferenceSearch {
-        include_expressions: true,
-        include_members: true,
-        include_dependency_items: true,
-        include_namespace_receivers: false,
-        skip_dependency_aliases: false,
-        use_dependency_name_spans: true,
-        target_name: None,
-        require_target_name_match: false,
-        limit_file: Some(ctx.file_id()),
-    };
-    let mut reference_spans = symbol_references(ctx.dir(), canonical_id, reference_search);
-    sort_and_dedup_spans(&mut reference_spans);
-
-    for span in reference_spans {
-        highlights.push(DocumentHighlight::read(span));
-    }
-
-    highlights
 }

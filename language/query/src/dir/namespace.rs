@@ -1,34 +1,34 @@
 use destack_dir as dir;
-use destack_dir::{Expression, GlobalSymbolId};
 
-use super::expression_symbol_target;
 use crate::core::DirQueryContext;
 
-/// Return the recorded namespace receiver symbol for a member access.
-pub(crate) fn namespace_receiver_symbol_target(
-    dir: DirQueryContext<'_>,
-    expression_id: dir::LocalNodeId<Expression>,
-) -> Option<GlobalSymbolId> {
-    let dir_tree = dir.view();
-    let expression = dir_tree.get::<Expression>(expression_id);
+impl DirQueryContext<'_> {
+    /// Return the recorded namespace receiver symbol for a member access.
+    pub(crate) fn namespace_receiver_symbol_target(
+        self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::GlobalSymbolId> {
+        let dir_tree = self.view();
+        let expression = dir_tree.get::<dir::Expression>(expression_id);
 
-    match expression {
-        Expression::Parenthesized { expression } => {
-            namespace_receiver_symbol_target(dir, *expression)
+        match expression {
+            dir::Expression::Parenthesized { expression } => {
+                self.namespace_receiver_symbol_target(*expression)
+            }
+            _ => self.expression_symbol_target(expression_id),
         }
-        _ => expression_symbol_target(dir, expression_id),
-    }
-}
-
-/// Return the recorded symbol target for one plain path segment.
-pub(crate) fn path_segment_symbol_target(
-    dir: DirQueryContext<'_>,
-    expression_id: dir::LocalNodeId<Expression>,
-    segment_index: u16,
-) -> Option<GlobalSymbolId> {
-    if segment_index == 0 {
-        return expression_symbol_target(dir, expression_id);
     }
 
-    None
+    /// Return the recorded symbol target for one plain path segment.
+    pub(crate) fn path_segment_symbol_target(
+        self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        segment_index: u16,
+    ) -> Option<dir::GlobalSymbolId> {
+        if segment_index == 0 {
+            return self.expression_symbol_target(expression_id);
+        }
+
+        None
+    }
 }

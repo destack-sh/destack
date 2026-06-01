@@ -859,18 +859,6 @@ impl LspDriver {
         }))
     }
 
-    /// Resolve one previously returned document link.
-    pub fn document_link_resolve(
-        &mut self,
-        link: lsp::DocumentLink,
-    ) -> Result<Option<lsp::DocumentLink>, String> {
-        Ok(self.runtime.block_on(async {
-            self.harness
-                .request_result("documentLink/resolve", link)
-                .await
-        }))
-    }
-
     /// Resolve code actions for one file range.
     pub fn code_actions(
         &mut self,

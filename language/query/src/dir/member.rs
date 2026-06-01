@@ -1,14 +1,11 @@
+use std::collections::HashSet;
+
 use destack_dir as dir;
-use destack_dir::{
-    BindingTable, Declaration, GlobalSymbolId, LanguageItem, LocalSymbolId, LocalTypeId, Member,
-    ScalarLiteral, StaticKey, SymbolKind, Type, TypeTable,
+use destack_source::Span;
+
+use crate::core::{
+    MemberEntry, MemberEntryKind, MemberSource, ModuleQueryContext, Name, WorkspaceQueryContext,
 };
-
-use super::for_each_visible_extension;
-use crate::core::{ModuleQueryContext, WorkspaceQueryContext};
-
-/// Maximum recursion depth for type member resolution.
-const MAX_TYPE_DEPTH: u32 = 10;
 
 /// Resolved member candidate.
 #[derive(Debug, Clone)]
@@ -16,11 +13,13 @@ pub(crate) struct MemberCandidate {
     /// The name of the member.
     pub name: MemberName,
     /// The type of the member.
-    pub type_id: Option<LocalTypeId>,
+    pub type_id: Option<dir::GlobalTypeId>,
     /// The kind of member (field, method, etc.).
     pub kind: MemberKind,
     /// The symbol id if this member comes from a symbol declaration.
-    pub symbol_id: Option<GlobalSymbolId>,
+    pub symbol_id: Option<dir::GlobalSymbolId>,
+    /// Whether this member comes from an extension declaration.
+    pub is_extension: bool,
 }
 
 /// The name of a member.
@@ -47,398 +46,242 @@ pub(crate) enum MemberKind {
     ConstructSignature,
     /// An enum member/variant.
     EnumMember,
+    /// An associated type member.
+    AssociatedType,
+    /// An associated constant member.
+    AssociatedConst,
 }
 
-/// Get members of a type for completion purposes.
-///
-/// Returns all accessible members of a type.
-/// Handles reference types, object types, union types, intersection types, and extension members
-/// visible from the current module.
-pub(crate) fn resolve_type_members(
-    ctx: &ModuleQueryContext<'_>,
-    workspace: &WorkspaceQueryContext<'_>,
-    type_id: LocalTypeId,
-) -> Vec<MemberCandidate> {
-    // resolve the root type and collect members
-    let types = ctx.dir().types();
-    let ty = types.get_type(type_id);
-    resolve_type_members_inner(ctx, workspace, ty, 0)
-}
-
-/// Internal recursive implementation with depth limit.
-fn resolve_type_members_inner(
-    ctx: &ModuleQueryContext<'_>,
-    workspace: &WorkspaceQueryContext<'_>,
-    ty: &Type,
-    depth: u32,
-) -> Vec<MemberCandidate> {
-    // prevent infinite recursion
-    if depth > MAX_TYPE_DEPTH {
-        return Vec::new();
-    }
-
-    let types = ctx.dir().types();
-    let strings = ctx.dir().strings();
-
-    match ty {
-        // reference to a declared type: look up symbol's owned scope
-        Type::Reference(reference) => resolve_reference_members(ctx, workspace, reference.symbol),
-
-        // object type: return fields directly
-        Type::Shape(object) => {
-            // initialize the member buffer
-            let mut members = Vec::new();
-
-            // add fields
-            for field in &object.fields {
-                let kind = if is_function_type(types, field.ty) {
-                    MemberKind::Method
-                } else {
-                    MemberKind::Field
-                };
-
-                members.push(MemberCandidate {
-                    name: static_key_to_member_name(&field.key, strings),
-                    type_id: Some(field.ty),
-                    kind,
-                    symbol_id: None,
-                });
-            }
-
-            // add call signatures
-            for sig_type_id in &object.call_signatures {
-                members.push(MemberCandidate {
-                    name: MemberName::Computed,
-                    type_id: Some(*sig_type_id),
-                    kind: MemberKind::CallSignature,
-                    symbol_id: None,
-                });
-            }
-
-            // add construct signatures
-            for sig_type_id in &object.construct_signatures {
-                members.push(MemberCandidate {
-                    name: MemberName::Computed,
-                    type_id: Some(*sig_type_id),
-                    kind: MemberKind::ConstructSignature,
-                    symbol_id: None,
-                });
-            }
-
-            members
+impl From<MemberEntryKind> for MemberKind {
+    /// Convert an indexed source member kind into a completion member kind.
+    fn from(kind: MemberEntryKind) -> Self {
+        match kind {
+            MemberEntryKind::Field => Self::Field,
+            MemberEntryKind::Method => Self::Method,
+            MemberEntryKind::AssociatedType => Self::AssociatedType,
+            MemberEntryKind::AssociatedConst => Self::AssociatedConst,
+            MemberEntryKind::Variant => Self::EnumMember,
         }
-
-        // union type: intersect members from all elements
-        Type::Union(union) => {
-            // return no members for empty unions
-            if union.elements.is_empty() {
-                return Vec::new();
-            }
-
-            // get members from first element
-            let first_type = types.get_type(union.elements[0]);
-            let mut common_members =
-                resolve_type_members_inner(ctx, workspace, first_type, depth + 1);
-
-            // intersect with remaining elements
-            for element_id in &union.elements[1..] {
-                // resolve members for the current union element
-                let element_type = types.get_type(*element_id);
-                let element_members =
-                    resolve_type_members_inner(ctx, workspace, element_type, depth + 1);
-
-                // keep only members that exist in both
-                common_members.retain(|member| {
-                    element_members
-                        .iter()
-                        .any(|other| member_names_match(&member.name, &other.name))
-                });
-            }
-
-            common_members
-        }
-
-        // intersection type: union members from all elements
-        Type::Intersection(intersection) => {
-            // check if this intersection represents an enum's static type
-            // by looking for a Value<Reference<Enum>> element
-            let is_enum_static = intersection.elements.iter().any(|element_id| {
-                let element = types.get_type(*element_id);
-                if let Type::Form(value) = element {
-                    let inner = types.get_type(value.value);
-                    if let Type::Reference(reference) = inner {
-                        // load the symbol and check if it's an enum
-                        if let Some(ctx) = ctx.module_context(reference.symbol.module_id) {
-                            let symbols_table = ctx.dir().symbols();
-                            let sym = symbols_table.get_symbol(reference.symbol.local_id);
-                            return sym.kind == SymbolKind::Enum;
-                        }
-                    }
-                }
-                false
-            });
-
-            // initialize member collection and name tracking
-            let mut all_members = Vec::new();
-            let mut seen_names = Vec::new();
-
-            // collect members from each element
-            for element_id in &intersection.elements {
-                // resolve the current element type
-                let element_type = types.get_type(*element_id);
-                let element_members =
-                    resolve_type_members_inner(ctx, workspace, element_type, depth + 1);
-
-                for mut member in element_members {
-                    // avoid duplicates
-                    if !seen_names
-                        .iter()
-                        .any(|name| member_names_match(name, &member.name))
-                    {
-                        // if this is an enum's static type, convert Field members to EnumMember
-                        if is_enum_static && member.kind == MemberKind::Field {
-                            member.kind = MemberKind::EnumMember;
-                        }
-                        seen_names.push(member.name.clone());
-                        all_members.push(member);
-                    }
-                }
-            }
-
-            all_members
-        }
-
-        // tuple type: numeric indices
-        Type::Tuple(tuple) => tuple
-            .elements
-            // map tuple elements to index members
-            .iter()
-            .enumerate()
-            .map(|(i, element)| MemberCandidate {
-                name: MemberName::Index(i),
-                type_id: Some(element.ty),
-                kind: MemberKind::Field,
-                symbol_id: None,
-            })
-            .collect(),
-
-        // array type: resolve members from language item Array type
-        Type::Slice(_) => array_members(ctx, workspace),
-
-        Type::FixedArray(_) => array_members(ctx, workspace),
-
-        // primitive types: resolve members from backing language item types
-        Type::Primitive(primitive) => primitive_members(ctx, workspace, *primitive),
-
-        // scalar literals resolve through their primitive backing type
-        Type::Literal(literal) => literal_members(ctx, workspace, literal),
-
-        // follow value types
-        Type::Form(value) => {
-            let inner = types.get_type(value.value);
-            resolve_type_members_inner(ctx, workspace, inner, depth + 1)
-        }
-
-        // other types have no direct members
-        _ => Vec::new(),
     }
 }
 
-/// Resolve members from a reference type by looking up the symbol.
-pub(crate) fn resolve_reference_members(
-    ctx: &ModuleQueryContext<'_>,
-    workspace: &WorkspaceQueryContext<'_>,
-    symbol_id: GlobalSymbolId,
-) -> Vec<MemberCandidate> {
-    // load the symbol's module
-    let Some(symbol_ctx) = ctx.module_context(symbol_id.module_id) else {
-        return Vec::new();
-    };
-    let symbols = symbol_ctx.dir().symbols();
-    let types = symbol_ctx.dir().types();
-
-    // resolve direct members from the symbol definition
-    let mut members = resolve_local_symbol_members(
-        symbol_id.local_id,
-        types,
-        symbols,
-        symbol_ctx.dir().strings(),
-    );
-
-    // merge extension members for this symbol
-    let extension_members = resolve_extension_members_for_symbol(ctx, workspace, symbol_id);
-
-    // avoid duplicate member names across direct and extension members
-    for member in extension_members {
-        let is_duplicate = members
-            .iter()
-            .any(|existing| member_names_match(&existing.name, &member.name));
-        if is_duplicate {
-            continue;
-        }
-
-        members.push(member);
-    }
-
-    members
+/// Active type ids during member resolution.
+#[derive(Debug, Default)]
+struct MemberResolutionState {
+    /// The global type ids already on the recursion stack.
+    active_type_ids: HashSet<dir::GlobalTypeId>,
 }
 
-/// Resolve members from a local symbol by using its checked type.
-fn resolve_local_symbol_members(
-    symbol_id: LocalSymbolId,
-    types: &TypeTable<'_>,
-    symbols: &BindingTable<'_>,
-    strings: &destack_core::StringPool,
-) -> Vec<MemberCandidate> {
-    // prepare the member buffer
-    let mut members = Vec::new();
-
-    // resolve the global symbol id for type table lookups
-    let module_id = symbols.module_id;
-    let global_symbol_id = GlobalSymbolId {
-        module_id,
-        local_id: symbol_id,
-    };
-
-    // check if this symbol is an enum (for member kind detection)
-    let symbol = symbols.get_symbol(symbol_id);
-    let is_enum = symbol.kind == SymbolKind::Enum;
-
-    // read fields from the symbol type when available
-    if let Some(type_id) = types.get_symbol_type_id(global_symbol_id) {
-        let ty = types.get_type(type_id);
-
-        // add fields from shape types
-        if let Type::Shape(object) = ty {
-            for field in &object.fields {
-                // use EnumMember kind for enum variants
-                let kind = if is_enum {
-                    MemberKind::EnumMember
-                } else if is_function_type(types, field.ty) {
-                    MemberKind::Method
-                } else {
-                    MemberKind::Field
-                };
-
-                members.push(MemberCandidate {
-                    name: static_key_to_member_name(&field.key, strings),
-                    type_id: Some(field.ty),
-                    kind,
-                    symbol_id: None,
-                });
-            }
-
-            // add call signatures
-            for sig_type_id in &object.call_signatures {
-                members.push(MemberCandidate {
-                    name: MemberName::Computed,
-                    type_id: Some(*sig_type_id),
-                    kind: MemberKind::CallSignature,
-                    symbol_id: None,
-                });
-            }
-
-            // add construct signatures
-            for sig_type_id in &object.construct_signatures {
-                members.push(MemberCandidate {
-                    name: MemberName::Computed,
-                    type_id: Some(*sig_type_id),
-                    kind: MemberKind::ConstructSignature,
-                    symbol_id: None,
-                });
-            }
-
-            return members;
-        }
+impl MemberResolutionState {
+    /// Enter one type id.
+    fn enter(&mut self, type_id: dir::GlobalTypeId) -> bool {
+        self.active_type_ids.insert(type_id)
     }
 
-    members
+    /// Leave one type id.
+    fn leave(&mut self, type_id: dir::GlobalTypeId) {
+        self.active_type_ids.remove(&type_id);
+    }
 }
 
-/// Resolve extension members for a target symbol across all modules.
-pub(crate) fn resolve_extension_members_for_symbol(
-    ctx: &ModuleQueryContext<'_>,
-    workspace: &WorkspaceQueryContext<'_>,
-    target_symbol: GlobalSymbolId,
-) -> Vec<MemberCandidate> {
-    // prepare member collection
-    let mut members = Vec::new();
-    for_each_visible_extension(ctx, workspace, target_symbol, |dir, extension| {
-        // load symbol and trees for extension lookup
-        let symbols = dir.symbols();
-        let tree = dir.view();
+impl MemberCandidate {
+    /// Build a completion member candidate from one indexed member entry.
+    fn from_entry(entry: MemberEntry) -> Self {
+        Self {
+            name: member_name_from_query_name(entry.name),
+            type_id: entry.declared_type,
+            kind: entry.kind.into(),
+            symbol_id: Some(entry.member_symbol),
+            is_extension: entry.source == MemberSource::Extension,
+        }
+    }
+}
 
-        // resolve the extension declaration
-        let ext_symbol = symbols.get_symbol(extension.symbol.local_id);
-        let Some(ext_decl_id) = ext_symbol.declaration else {
-            return false;
-        };
-        let Ok(local_decl_id): Result<dir::LocalNodeId<Declaration>, _> = ext_decl_id.try_into()
-        else {
-            return false;
-        };
-        let ext_decl: &Declaration = tree.get(local_decl_id);
+impl ModuleQueryContext<'_> {
+    /// Build source-backed member index entries for this module.
+    pub(crate) fn build_member_candidates(&self) -> Vec<MemberEntry> {
+        let tree = self.dir().view();
+        let mut entries = Vec::new();
 
-        // collect members declared on the extension
-        let Some(member_ids) = ext_decl.member_ids() else {
-            return false;
-        };
-
-        for member_node_id in member_ids {
-            let member_node: &Member = tree.get(*member_node_id);
-
-            // skip members without a simple name
-            let Some(key) = member_node.key() else {
+        // collect members declared below each nominal declaration
+        for (declaration_id, declaration) in tree.iter_nodes_of_type::<dir::Declaration>() {
+            let Some(declaring_symbol) = self.dir().global_symbol_for_node(declaration_id.into())
+            else {
                 continue;
             };
-            let name = match key {
-                dir::Key::Name(name) => dir.strings().get(name.string()).to_string(),
-                _ => continue,
+            let owner_symbol = if declaration_is_extension(declaration) {
+                self.extension_target_symbol(declaring_symbol)
+                    .unwrap_or(declaring_symbol)
+            } else {
+                declaring_symbol
             };
+            let owner_name = super::declaration_display_name(self.dir().strings(), declaration);
 
-            // map to member info kinds we support in completions
-            let kind = match member_node {
-                Member::Method { .. } => MemberKind::Method,
-                Member::Field { .. } => MemberKind::Field,
-                _ => continue,
-            };
+            if let Some(member_ids) = declaration.member_ids() {
+                for member_id in member_ids {
+                    if let Some(entry) = self.member_entry_for_declaration_member(
+                        tree,
+                        owner_symbol,
+                        declaring_symbol,
+                        &owner_name,
+                        *member_id,
+                        declaration_is_extension(declaration),
+                    ) {
+                        entries.push(entry);
+                    }
+                }
+            }
 
-            // record the extension member
-            let member_symbol_id = super::global_symbol_for_node(dir, (*member_node_id).into());
+            if let Some(member_ids) = declaration.type_member_ids() {
+                for member_id in member_ids {
+                    if let Some(entry) = self.member_entry_for_type_member(
+                        tree,
+                        owner_symbol,
+                        &owner_name,
+                        *member_id,
+                    ) {
+                        entries.push(entry);
+                    }
+                }
+            }
 
-            members.push(MemberCandidate {
-                name: MemberName::String(name),
-                type_id: None,
-                kind,
-                symbol_id: member_symbol_id,
-            });
+            if let dir::Declaration::Enum(declaration) = declaration {
+                for field_id in &declaration.fields {
+                    let Some(entry) = self.member_entry_for_enum_variant(
+                        tree,
+                        owner_symbol,
+                        &owner_name,
+                        *field_id,
+                    ) else {
+                        continue;
+                    };
+
+                    entries.push(entry);
+                }
+            }
         }
 
-        false
-    });
+        entries
+    }
 
-    members
+    /// Return the canonical target symbol declared by one extension symbol.
+    pub(crate) fn extension_target_symbol(
+        &self,
+        extension_symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalSymbolId> {
+        let (_, extension) = self
+            .dir()
+            .extensions()
+            .iter_extensions()
+            .find(|(_, extension)| extension.symbol == extension_symbol)?;
+
+        Some(self.canonical_symbol(extension.target_symbol))
+    }
+
+    /// Return the searchable name introduced by one declaration member.
+    fn name_for_member(&self, member: &dir::Member) -> Option<Name> {
+        if let Some(name) = member.name() {
+            return Some(Name::String(self.dir().strings().get(name).to_string()));
+        }
+
+        let key = member.key()?;
+
+        self.name_for_key(key)
+    }
+
+    /// Return the searchable name introduced by one type member.
+    fn name_for_type_member(&self, member: &dir::TypeMember) -> Option<Name> {
+        if let Some(name) = member.name() {
+            return Some(Name::String(self.dir().strings().get(name).to_string()));
+        }
+
+        let key = member.key()?;
+
+        self.name_for_key(key)
+    }
+
+    /// Return a searchable name for one direct key.
+    fn name_for_key(&self, key: &dir::Key) -> Option<Name> {
+        let key = key.direct_static_key()?;
+
+        self.name_for_static_key(&key)
+    }
+
+    /// Return a searchable name for one direct static key.
+    fn name_for_static_key(&self, key: &dir::StaticKey) -> Option<Name> {
+        match key {
+            dir::StaticKey::Name(name) => {
+                Some(Name::String(self.dir().strings().get(*name).to_string()))
+            }
+            dir::StaticKey::Index(index) => Some(Name::Index(*index as u64)),
+            dir::StaticKey::Symbol(_) => None,
+        }
+    }
+}
+
+/// Return the query member kind for one declaration member.
+fn member_entry_kind_for_member(member: &dir::Member) -> Option<MemberEntryKind> {
+    match member {
+        dir::Member::AssociatedType { .. } => Some(MemberEntryKind::AssociatedType),
+        dir::Member::AssociatedConst { .. } => Some(MemberEntryKind::AssociatedConst),
+        dir::Member::Field { .. } => Some(MemberEntryKind::Field),
+        dir::Member::Method { .. } => Some(MemberEntryKind::Method),
+        dir::Member::StaticBlock { .. }
+        | dir::Member::ComptimeBlock { .. }
+        | dir::Member::Error => None,
+    }
+}
+
+/// Return the query member kind for one type member.
+fn member_entry_kind_for_type_member(member: &dir::TypeMember) -> Option<MemberEntryKind> {
+    match member {
+        dir::TypeMember::AssociatedType { .. } => Some(MemberEntryKind::AssociatedType),
+        dir::TypeMember::AssociatedConst { .. } => Some(MemberEntryKind::AssociatedConst),
+        dir::TypeMember::Field { .. } => Some(MemberEntryKind::Field),
+        dir::TypeMember::Method { .. } => Some(MemberEntryKind::Method),
+        dir::TypeMember::CallSignature { .. }
+        | dir::TypeMember::ConstructSignature { .. }
+        | dir::TypeMember::IndexSignature { .. }
+        | dir::TypeMember::Error => None,
+    }
+}
+
+/// Return whether one declaration is an extension declaration.
+fn declaration_is_extension(declaration: &dir::Declaration) -> bool {
+    matches!(declaration, dir::Declaration::Extension { .. })
 }
 
 /// Convert a static key to a member name, resolving the string ID to an actual string.
-fn static_key_to_member_name(key: &StaticKey, strings: &destack_core::StringPool) -> MemberName {
+fn static_key_to_member_name(
+    key: &dir::StaticKey,
+    strings: &destack_core::StringPool,
+) -> MemberName {
     // convert the key into a displayable member name
     match key {
-        StaticKey::Name(string_id) => MemberName::String(strings.get(*string_id).to_string()),
-        StaticKey::Index(index) => MemberName::Index(*index),
-        StaticKey::Symbol(_) => MemberName::Computed,
+        dir::StaticKey::Name(string_id) => MemberName::String(strings.get(*string_id).to_string()),
+        dir::StaticKey::Index(index) => MemberName::Index(*index),
+        dir::StaticKey::Symbol(_) => MemberName::Computed,
     }
 }
 
-/// Check if a type is a function type.
-fn is_function_type(types: &TypeTable<'_>, type_id: LocalTypeId) -> bool {
-    // return true for function types
-    matches!(types.get_type(type_id), Type::Function(_))
+/// Convert one query name to one completion member name.
+fn member_name_from_query_name(name: Name) -> MemberName {
+    match name {
+        Name::String(name) => MemberName::String(name),
+        Name::Index(index) => MemberName::Index(index as usize),
+    }
+}
+
+impl ModuleQueryContext<'_> {
+    /// Check if a type is a function type.
+    fn is_function_type(&self, type_id: dir::GlobalTypeId) -> bool {
+        self.with_global_type(type_id, |ty, _| matches!(ty, dir::Type::Function(_)))
+            .unwrap_or(false)
+    }
 }
 
 /// Check if two member names match.
 fn member_names_match(a: &MemberName, b: &MemberName) -> bool {
-    // compare member names by variant
     match (a, b) {
         (MemberName::String(a), MemberName::String(b)) => a == b,
         (MemberName::Index(a), MemberName::Index(b)) => a == b,
@@ -446,73 +289,511 @@ fn member_names_match(a: &MemberName, b: &MemberName) -> bool {
     }
 }
 
-/// Get members for array types by resolving the language item Array symbol.
-fn array_members(
-    ctx: &ModuleQueryContext<'_>,
-    workspace: &WorkspaceQueryContext<'_>,
-) -> Vec<MemberCandidate> {
-    // resolve members from the Array language item symbol
-    resolve_language_item_members(ctx, workspace, dir::LanguageItem::Array)
-}
+impl ModuleQueryContext<'_> {
+    /// Return completion members visible on one checked type.
+    pub(crate) fn resolve_type_members(
+        &self,
+        workspace: &WorkspaceQueryContext<'_>,
+        type_id: dir::GlobalTypeId,
+    ) -> Vec<MemberCandidate> {
+        let mut state = MemberResolutionState::default();
 
-/// Get members for primitive types by resolving the appropriate language item symbol.
-fn primitive_members(
-    ctx: &ModuleQueryContext<'_>,
-    workspace: &WorkspaceQueryContext<'_>,
-    primitive: dir::PrimitiveType,
-) -> Vec<MemberCandidate> {
-    // map primitive types to their backing language item types
-    let language_item = match primitive {
-        dir::PrimitiveType::String => Some(LanguageItem::String),
-        dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol => Some(LanguageItem::Symbol),
-        dir::PrimitiveType::Integer(_)
-        | dir::PrimitiveType::Float(_)
-        | dir::PrimitiveType::Boolean
-        | dir::PrimitiveType::Bigint
-        | dir::PrimitiveType::Character => None,
-    };
-
-    // return members for the resolved language item symbol
-    language_item
-        .map(|item| resolve_language_item_members(ctx, workspace, item))
+        self.with_global_type(type_id, |ty, type_ctx| {
+            type_ctx.resolve_type_members_inner(workspace, type_id, ty, &mut state)
+        })
         .unwrap_or_default()
-}
+    }
 
-/// Get members for scalar literals by resolving the backing language item symbol.
-fn literal_members(
-    ctx: &ModuleQueryContext<'_>,
-    workspace: &WorkspaceQueryContext<'_>,
-    literal: &ScalarLiteral,
-) -> Vec<MemberCandidate> {
-    // map scalar literals to their backing language item types
-    let language_item = match literal {
-        ScalarLiteral::String(_) => Some(LanguageItem::String),
-        ScalarLiteral::Null
-        | ScalarLiteral::Integer(_)
-        | ScalarLiteral::Float(_)
-        | ScalarLiteral::Boolean(_)
-        | ScalarLiteral::Bigint(_)
-        | ScalarLiteral::Character(_)
-        | ScalarLiteral::RegexString { .. } => None,
-    };
+    /// Resolve members from a reference type by looking up the symbol.
+    pub(crate) fn resolve_reference_members(
+        &self,
+        workspace: &WorkspaceQueryContext<'_>,
+        symbol_id: dir::GlobalSymbolId,
+    ) -> Vec<MemberCandidate> {
+        let symbol_id = self.canonical_symbol(symbol_id);
+        let mut members = workspace
+            .members_for_owner(symbol_id)
+            .into_iter()
+            .filter(|entry| entry.source != MemberSource::Extension)
+            .map(MemberCandidate::from_entry)
+            .collect::<Vec<_>>();
 
-    // return members for the resolved language item symbol
-    language_item
-        .map(|item| resolve_language_item_members(ctx, workspace, item))
-        .unwrap_or_default()
-}
+        // merge extension members for this symbol
+        let extension_members = self.resolve_extension_members_for_symbol(workspace, symbol_id);
 
-/// Resolve members from a language item symbol (Array, String, etc.).
-fn resolve_language_item_members(
-    ctx: &ModuleQueryContext<'_>,
-    workspace: &WorkspaceQueryContext<'_>,
-    item: LanguageItem,
-) -> Vec<MemberCandidate> {
-    // resolve the exact language item symbol from the current profile
-    let environment = ctx.global_environment();
-    let Some(symbol_id) = environment.language.symbol(item) else {
-        return Vec::new();
-    };
+        // avoid duplicate member names across direct and extension members
+        for member in extension_members {
+            let is_duplicate = members
+                .iter()
+                .any(|existing| member_names_match(&existing.name, &member.name));
+            if is_duplicate {
+                continue;
+            }
 
-    resolve_reference_members(ctx, workspace, symbol_id)
+            members.push(member);
+        }
+
+        members
+    }
+
+    /// Build one member entry for a nominal declaration member.
+    fn member_entry_for_declaration_member(
+        &self,
+        tree: dir::View<'_>,
+        owner_symbol: dir::GlobalSymbolId,
+        declaring_symbol: dir::GlobalSymbolId,
+        owner_name: &str,
+        member_id: dir::LocalNodeId<dir::Member>,
+        is_extension: bool,
+    ) -> Option<MemberEntry> {
+        let ctx = self;
+        let member = tree.get::<dir::Member>(member_id);
+        let source_node: dir::LocalNodeIdAny = member_id.into();
+        let range = ctx.member_entry_range(tree, source_node)?;
+
+        // ignore synthetic parser scaffolding for method declarations
+        if let Some(key) = member.key()
+            && let Some(Name::String(name)) = ctx.name_for_key(key)
+            && super::is_synthetic_function_keyword_field(member, &name, range)
+        {
+            return None;
+        }
+
+        let name = ctx.name_for_member(member)?;
+        let kind = member_entry_kind_for_member(member)?;
+        let source = if is_extension {
+            MemberSource::Extension
+        } else {
+            MemberSource::Declaration
+        };
+
+        Some(ctx.member_entry(
+            owner_symbol,
+            declaring_symbol,
+            owner_name,
+            source_node,
+            name,
+            kind,
+            source,
+            member.has_static_modifier(),
+            range,
+        ))
+    }
+
+    /// Build one member entry for a type-surface member.
+    fn member_entry_for_type_member(
+        &self,
+        tree: dir::View<'_>,
+        owner_symbol: dir::GlobalSymbolId,
+        owner_name: &str,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
+    ) -> Option<MemberEntry> {
+        let ctx = self;
+        let member = tree.get::<dir::TypeMember>(member_id);
+        let source_node: dir::LocalNodeIdAny = member_id.into();
+        let range = ctx.member_entry_range(tree, source_node)?;
+        let name = ctx.name_for_type_member(member)?;
+        let kind = member_entry_kind_for_type_member(member)?;
+
+        Some(ctx.member_entry(
+            owner_symbol,
+            owner_symbol,
+            owner_name,
+            source_node,
+            name,
+            kind,
+            MemberSource::TypeMember,
+            member.has_static_modifier(),
+            range,
+        ))
+    }
+
+    /// Build one member entry for an enum variant.
+    fn member_entry_for_enum_variant(
+        &self,
+        tree: dir::View<'_>,
+        owner_symbol: dir::GlobalSymbolId,
+        owner_name: &str,
+        field_id: dir::LocalNodeId<dir::EnumField>,
+    ) -> Option<MemberEntry> {
+        let ctx = self;
+        let field = tree.get::<dir::EnumField>(field_id);
+        let source_node: dir::LocalNodeIdAny = field_id.into();
+        let range = ctx.member_entry_range(tree, source_node)?;
+        let name = Name::String(ctx.dir().strings().get(field.name.string()).to_string());
+
+        Some(ctx.member_entry(
+            owner_symbol,
+            owner_symbol,
+            owner_name,
+            source_node,
+            name,
+            MemberEntryKind::Variant,
+            MemberSource::EnumVariant,
+            true,
+            range,
+        ))
+    }
+
+    /// Build one completed member entry.
+    #[allow(clippy::too_many_arguments)]
+    fn member_entry(
+        &self,
+        owner_symbol: dir::GlobalSymbolId,
+        declaring_symbol: dir::GlobalSymbolId,
+        owner_name: &str,
+        source_node: dir::LocalNodeIdAny,
+        name: Name,
+        kind: MemberEntryKind,
+        source: MemberSource,
+        is_static: bool,
+        range: Span,
+    ) -> MemberEntry {
+        let ctx = self;
+        let module_id = ctx.module_id();
+        let source_node = source_node.into_global(module_id);
+        let member_symbol = ctx
+            .dir()
+            .global_symbol_for_node(source_node.local_id)
+            .unwrap_or_else(|| panic!("searchable member node {source_node:?} has no symbol"));
+        let declared_type = ctx.member_declared_type(source_node, member_symbol);
+
+        MemberEntry {
+            name,
+            kind,
+            owner_symbol,
+            declaring_symbol,
+            member_symbol,
+            source_node,
+            module_id,
+            file_id: ctx.file_id(),
+            range,
+            container_name: Some(owner_name.to_string()),
+            declared_type,
+            source,
+            is_static,
+        }
+    }
+
+    /// Return the checked type attached to one member.
+    fn member_declared_type(
+        &self,
+        source_node: dir::GlobalNodeIdAny,
+        member_symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalTypeId> {
+        let ctx = self;
+        let types = ctx.dir().types();
+
+        types
+            .get_symbol_type_id(member_symbol)
+            .or_else(|| types.get_node_type_id(source_node))
+    }
+
+    /// Resolve one member source range without failing the whole index.
+    fn member_entry_range(
+        &self,
+        tree: dir::View<'_>,
+        node_id: dir::LocalNodeIdAny,
+    ) -> Option<Span> {
+        let ctx = self;
+        ctx.dir().try_span_for_dir_node(tree, node_id)
+    }
+
+    /// Resolve checked type members while tracking active type ids.
+    fn resolve_type_members_inner(
+        &self,
+        workspace: &WorkspaceQueryContext<'_>,
+        type_id: dir::GlobalTypeId,
+        ty: &dir::Type,
+        state: &mut MemberResolutionState,
+    ) -> Vec<MemberCandidate> {
+        let ctx = self;
+        if !state.enter(type_id) {
+            return Vec::new();
+        }
+
+        let strings = ctx.dir().strings();
+
+        let members = match ty {
+            // resolve declaration and extension members
+            dir::Type::Reference(reference) => {
+                ctx.resolve_reference_members(workspace, reference.symbol)
+            }
+
+            // build structural field and signature members
+            dir::Type::Shape(object) => {
+                let mut members = Vec::new();
+
+                for field in &object.fields {
+                    let kind = if ctx.is_function_type(field.ty) {
+                        MemberKind::Method
+                    } else {
+                        MemberKind::Field
+                    };
+
+                    members.push(MemberCandidate {
+                        name: static_key_to_member_name(&field.key, strings),
+                        type_id: Some(field.ty),
+                        kind,
+                        symbol_id: None,
+                        is_extension: false,
+                    });
+                }
+
+                for sig_type_id in &object.call_signatures {
+                    members.push(MemberCandidate {
+                        name: MemberName::Computed,
+                        type_id: Some(*sig_type_id),
+                        kind: MemberKind::CallSignature,
+                        symbol_id: None,
+                        is_extension: false,
+                    });
+                }
+
+                for sig_type_id in &object.construct_signatures {
+                    members.push(MemberCandidate {
+                        name: MemberName::Computed,
+                        type_id: Some(*sig_type_id),
+                        kind: MemberKind::ConstructSignature,
+                        symbol_id: None,
+                        is_extension: false,
+                    });
+                }
+
+                members
+            }
+
+            // keep members common to every union element
+            dir::Type::Union(union) => {
+                if union.elements.is_empty() {
+                    Vec::new()
+                } else {
+                    let mut common_members = ctx
+                        .with_global_type(union.elements[0], |ty, type_ctx| {
+                            type_ctx.resolve_type_members_inner(
+                                workspace,
+                                union.elements[0],
+                                ty,
+                                state,
+                            )
+                        })
+                        .unwrap_or_default();
+
+                    for element_id in &union.elements[1..] {
+                        let Some(element_members) =
+                            ctx.with_global_type(*element_id, |ty, type_ctx| {
+                                type_ctx.resolve_type_members_inner(
+                                    workspace,
+                                    *element_id,
+                                    ty,
+                                    state,
+                                )
+                            })
+                        else {
+                            continue;
+                        };
+
+                        common_members.retain(|member| {
+                            element_members
+                                .iter()
+                                .any(|other| member_names_match(&member.name, &other.name))
+                        });
+                    }
+
+                    common_members
+                }
+            }
+
+            // combine members from every intersection element
+            dir::Type::Intersection(intersection) => {
+                let is_enum_static = intersection.elements.iter().any(|element_id| {
+                    ctx.with_global_type(*element_id, |element, _| {
+                        let dir::Type::Form(value) = element else {
+                            return false;
+                        };
+
+                        ctx.with_global_type(value.value, |inner, _| {
+                            let dir::Type::Reference(reference) = inner else {
+                                return false;
+                            };
+
+                            if let Some(ctx) = ctx.module_context(reference.symbol.module_id) {
+                                let symbols_table = ctx.dir().symbols();
+                                let sym = symbols_table.get_symbol(reference.symbol.local_id);
+                                return sym.kind == dir::SymbolKind::Enum;
+                            }
+                            false
+                        })
+                        .unwrap_or(false)
+                    })
+                    .unwrap_or(false)
+                });
+
+                let mut all_members = Vec::new();
+                let mut seen_names = Vec::new();
+
+                for element_id in &intersection.elements {
+                    let Some(element_members) =
+                        ctx.with_global_type(*element_id, |ty, type_ctx| {
+                            type_ctx.resolve_type_members_inner(workspace, *element_id, ty, state)
+                        })
+                    else {
+                        continue;
+                    };
+
+                    for mut member in element_members {
+                        if !seen_names
+                            .iter()
+                            .any(|name| member_names_match(name, &member.name))
+                        {
+                            if is_enum_static && member.kind == MemberKind::Field {
+                                member.kind = MemberKind::EnumMember;
+                            }
+                            seen_names.push(member.name.clone());
+                            all_members.push(member);
+                        }
+                    }
+                }
+
+                all_members
+            }
+
+            // expose tuple element indexes
+            dir::Type::Tuple(tuple) => tuple
+                .elements
+                .iter()
+                .enumerate()
+                .map(|(i, element)| MemberCandidate {
+                    name: MemberName::Index(i),
+                    type_id: Some(element.ty),
+                    kind: MemberKind::Field,
+                    symbol_id: None,
+                    is_extension: false,
+                })
+                .collect(),
+
+            // use the central array type surface
+            dir::Type::Slice(_) => ctx.array_members(workspace),
+
+            dir::Type::FixedArray(_) => ctx.array_members(workspace),
+
+            // use the primitive backing type surface
+            dir::Type::Primitive(primitive) => ctx.primitive_members(workspace, *primitive),
+
+            // use the literal backing type surface
+            dir::Type::Literal(literal) => ctx.literal_members(workspace, literal),
+
+            // follow form wrappers
+            dir::Type::Form(value) => ctx
+                .with_global_type(value.value, |ty, type_ctx| {
+                    type_ctx.resolve_type_members_inner(workspace, value.value, ty, state)
+                })
+                .unwrap_or_default(),
+
+            // return no members for non member bearing types
+            _ => Vec::new(),
+        };
+
+        state.leave(type_id);
+
+        members
+    }
+
+    /// Resolve extension members for a target symbol across all modules.
+    fn resolve_extension_members_for_symbol(
+        &self,
+        workspace: &WorkspaceQueryContext<'_>,
+        target_symbol: dir::GlobalSymbolId,
+    ) -> Vec<MemberCandidate> {
+        let ctx = self;
+        let mut members = Vec::new();
+
+        // collect members from visible extension declarations
+        ctx.for_each_visible_extension(workspace, target_symbol, |_, extension| {
+            let extension_members = workspace.members_for_declaring(extension.symbol);
+            members.extend(
+                extension_members
+                    .into_iter()
+                    .map(MemberCandidate::from_entry),
+            );
+
+            false
+        });
+
+        members
+    }
+
+    /// Get members for array types by resolving the language item Array symbol.
+    fn array_members(&self, workspace: &WorkspaceQueryContext<'_>) -> Vec<MemberCandidate> {
+        let ctx = self;
+        // resolve members from the Array language item symbol
+        ctx.resolve_language_item_members(workspace, dir::LanguageItem::Array)
+    }
+
+    /// Get members for primitive types by resolving the appropriate language item symbol.
+    fn primitive_members(
+        &self,
+        workspace: &WorkspaceQueryContext<'_>,
+        primitive: dir::PrimitiveType,
+    ) -> Vec<MemberCandidate> {
+        let ctx = self;
+        // map primitive types to their backing language item types
+        let language_item = match primitive {
+            dir::PrimitiveType::String => Some(dir::LanguageItem::String),
+            dir::PrimitiveType::Symbol | dir::PrimitiveType::UniqueSymbol => {
+                Some(dir::LanguageItem::Symbol)
+            }
+            dir::PrimitiveType::Integer(_)
+            | dir::PrimitiveType::Float(_)
+            | dir::PrimitiveType::Boolean
+            | dir::PrimitiveType::Bigint
+            | dir::PrimitiveType::Character => None,
+        };
+
+        // return members for the resolved language item symbol
+        language_item
+            .map(|item| ctx.resolve_language_item_members(workspace, item))
+            .unwrap_or_default()
+    }
+
+    /// Get members for scalar literals by resolving the backing language item symbol.
+    fn literal_members(
+        &self,
+        workspace: &WorkspaceQueryContext<'_>,
+        literal: &dir::ScalarLiteral,
+    ) -> Vec<MemberCandidate> {
+        let ctx = self;
+        // map scalar literals to their backing language item types
+        let language_item = match literal {
+            dir::ScalarLiteral::String(_) => Some(dir::LanguageItem::String),
+            dir::ScalarLiteral::Null
+            | dir::ScalarLiteral::Integer(_)
+            | dir::ScalarLiteral::Float(_)
+            | dir::ScalarLiteral::Boolean(_)
+            | dir::ScalarLiteral::Bigint(_)
+            | dir::ScalarLiteral::Character(_)
+            | dir::ScalarLiteral::RegexString { .. } => None,
+        };
+
+        // return members for the resolved language item symbol
+        language_item
+            .map(|item| ctx.resolve_language_item_members(workspace, item))
+            .unwrap_or_default()
+    }
+
+    /// Resolve members from a language item symbol (Array, String, etc.).
+    fn resolve_language_item_members(
+        &self,
+        workspace: &WorkspaceQueryContext<'_>,
+        item: dir::LanguageItem,
+    ) -> Vec<MemberCandidate> {
+        let ctx = self;
+        // resolve the exact language item symbol from the current profile
+        let environment = ctx.global_environment();
+        let Some(symbol_id) = environment.language.symbol(item) else {
+            return Vec::new();
+        };
+
+        ctx.resolve_reference_members(workspace, symbol_id)
+    }
 }

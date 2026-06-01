@@ -1,19 +1,12 @@
 use std::path::Path;
 
 use destack_core::StringId;
-use destack_dir::{
-    DependencyBinding, DependencyForm, DependencyItem, DependencyItem as DirDependencyItem,
-    Expression, LocalNodeId, LocalSymbolId, NodeType, SymbolKind, SymbolSpace, TokenType,
-};
+use destack_dir as dir;
 use destack_source::{Edit, FileId, PathExt, Span};
 
-use super::dependency_symbol_target;
 use crate::core::path::{normalize_separators, relative_path};
-use crate::core::{
-    DirQueryContext, ModuleQueryContext, WorkspaceQueryContext, modules_referencing_symbol,
-};
+use crate::core::{DirQueryContext, ModuleQueryContext, WorkspaceQueryContext};
 use crate::format::ImportGroup;
-use destack_dir as dir;
 
 /// Information about an existing import in the file.
 #[derive(Debug, Clone)]
@@ -45,46 +38,22 @@ pub(crate) struct ImportClauseBounds {
     pub end_boundary: Span,
 }
 
-/// Return one dependency item's binding when the item is valid.
-fn dependency_item_binding(item: &DependencyItem) -> Option<DependencyBinding> {
-    match item {
-        DependencyItem::Binding { binding, .. } => Some(*binding),
-        DependencyItem::Error => None,
-    }
-}
-
-/// Check whether a symbol type participates in the type namespace.
-pub(crate) fn is_type_symbol(symbol_kind: SymbolKind) -> bool {
-    matches!(
-        symbol_kind,
-        SymbolKind::Class
-            | SymbolKind::Struct
-            | SymbolKind::Interface
-            | SymbolKind::Enum
-            | SymbolKind::AssociatedType
-            | SymbolKind::TypeAlias
-            | SymbolKind::GenericTypeParameter
-            | SymbolKind::Newtype
-    )
-}
-
 /// Check whether a symbol matches a requested symbol space filter.
 pub(crate) fn matches_symbol_space_filter(
-    symbol_kind: SymbolKind,
-    filter: Option<SymbolSpace>,
+    symbol_kind: dir::SymbolKind,
+    filter: Option<dir::SymbolSpace>,
 ) -> bool {
     let Some(filter) = filter else {
         return true;
     };
 
     symbol_kind.is_visible_in(filter)
-        || (filter == SymbolSpace::Type && is_type_symbol(symbol_kind))
 }
 
 /// Check whether an exported lookup space matches a requested symbol space filter.
 pub(crate) fn matches_export_space_filter(
-    export_space: SymbolSpace,
-    filter: Option<SymbolSpace>,
+    export_space: dir::SymbolSpace,
+    filter: Option<dir::SymbolSpace>,
 ) -> bool {
     let Some(filter) = filter else {
         return true;
@@ -95,8 +64,8 @@ pub(crate) fn matches_export_space_filter(
 
 /// Check whether a symbol matches an explicit import-clause space filter.
 pub(crate) fn matches_import_clause_space_filter(
-    symbol_kind: SymbolKind,
-    filter: Option<SymbolSpace>,
+    symbol_kind: dir::SymbolKind,
+    filter: Option<dir::SymbolSpace>,
 ) -> bool {
     let Some(filter) = filter else {
         return true;
@@ -105,264 +74,186 @@ pub(crate) fn matches_import_clause_space_filter(
     matches_symbol_space_filter(symbol_kind, Some(filter))
 }
 
-/// Return one dependency item's string key when present.
-fn dependency_item_key(item: &DependencyItem) -> Option<StringId> {
-    match item {
-        DependencyItem::Binding { alias, name, .. } => alias.or(name.map(|name| name.string())),
-        DependencyItem::Error => None,
-    }
-}
+impl ModuleQueryContext<'_> {
+    /// Resolve the local alias text for one explicit import alias symbol.
+    pub(crate) fn local_import_alias_name(&self, symbol_id: dir::GlobalSymbolId) -> Option<String> {
+        let ctx = self.module_context(symbol_id.module_id)?;
 
-/// Resolve the local alias text for explicit import aliases.
-pub(crate) fn resolve_local_import_alias_name(
-    ctx: &ModuleQueryContext<'_>,
-    symbol_id: dir::GlobalSymbolId,
-) -> Option<String> {
-    // resolve query context for the symbol module
-    let ctx = ctx.module_context(symbol_id.module_id)?;
-
-    // read the symbol declaration
-    let declaration = {
-        let symbols = ctx.dir().symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.declaration?
-    };
-
-    if declaration.local_id.ty != NodeType::DependencyItem {
-        return None;
-    }
-
-    // resolve the local import binding name
-    let item_id: LocalNodeId<DirDependencyItem> = declaration.local_id.try_into().ok()?;
-    let dir_tree = ctx.dir().view();
-    let local_name_id =
-        dependency_item_local_import_alias_name(dir_tree.get::<DirDependencyItem>(item_id))?;
-
-    Some(ctx.dir().strings().get(local_name_id).to_string())
-}
-
-/// Collect default import aliases whose imported default export resolves to one symbol.
-#[allow(dead_code)]
-pub(crate) fn collect_default_import_alias_symbols_for_export(
-    ctx: &ModuleQueryContext<'_>,
-    workspace: &WorkspaceQueryContext<'_>,
-    canonical_id: dir::GlobalSymbolId,
-) -> Vec<dir::GlobalSymbolId> {
-    let mut symbols = Vec::new();
-
-    for module_id in modules_referencing_symbol(workspace, canonical_id) {
-        let Some(ctx) = ctx.module_context(module_id) else {
-            continue;
+        // read the symbol declaration
+        let declaration = {
+            let symbols = ctx.dir().symbols();
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            symbol.declaration?
         };
-        let dir = ctx.dir();
 
-        let symbols_in_module = dir.symbols();
-        for symbol_index in 0..symbols_in_module.symbol_count() {
-            let local_symbol_id = LocalSymbolId::new(symbol_index);
-            let symbol_id = dir::GlobalSymbolId::new(dir.module_id(), local_symbol_id);
-            if symbol_id == canonical_id {
+        if declaration.local_id.ty != dir::NodeType::DependencyItem {
+            return None;
+        }
+
+        let item_id: dir::LocalNodeId<dir::DependencyItem> =
+            declaration.local_id.try_into().ok()?;
+        let dir_tree = ctx.dir().view();
+        let item = dir_tree.get::<dir::DependencyItem>(item_id);
+        let local_name_id = item.local_import_alias_name()?;
+
+        Some(ctx.dir().strings().get(local_name_id).to_string())
+    }
+
+    /// Build a display path for one import.
+    pub(crate) fn import_display_path(&self, module_path: &str) -> String {
+        self.import_display_path_with_options(module_path, true)
+    }
+
+    /// Collect default import aliases whose imported default export resolves to one symbol.
+    pub(crate) fn collect_default_import_alias_symbols_for_export(
+        &self,
+        workspace: &WorkspaceQueryContext<'_>,
+        canonical_id: dir::GlobalSymbolId,
+    ) -> Vec<dir::GlobalSymbolId> {
+        let mut symbols = Vec::new();
+
+        // scan modules that reference the target
+        for module_id in workspace.modules_referencing_symbol(canonical_id) {
+            let Some(ctx) = self.module_context(module_id) else {
                 continue;
-            }
+            };
+            let dir = ctx.dir();
 
-            let local_alias_name = local_default_import_alias_name_in_context(dir, local_symbol_id);
-            if local_alias_name.is_none() {
-                continue;
-            }
+            let symbols_in_module = dir.symbols();
+            for symbol_index in 0..symbols_in_module.symbol_count() {
+                let local_symbol_id = dir::LocalSymbolId::new(symbol_index);
+                let symbol_id = dir::GlobalSymbolId::new(dir.module_id(), local_symbol_id);
+                if symbol_id == canonical_id {
+                    continue;
+                }
 
-            if dir.canonical_symbol(symbol_id) != canonical_id {
-                continue;
-            }
+                let local_alias_name =
+                    dir.local_default_import_alias_name_in_context(local_symbol_id);
+                if local_alias_name.is_none() {
+                    continue;
+                }
 
-            symbols.push(symbol_id);
-        }
-    }
+                if dir.canonical_symbol(symbol_id) != canonical_id {
+                    continue;
+                }
 
-    symbols
-}
-
-/// Check whether a symbol is a local import alias for a canonical target.
-pub(crate) fn is_dependency_alias_for_target(
-    dir: DirQueryContext<'_>,
-    symbol_id: dir::GlobalSymbolId,
-    canonical_target: dir::GlobalSymbolId,
-) -> bool {
-    // read the symbol declaration
-    let declaration = {
-        let symbols = dir.symbols();
-        let symbol = symbols.get_symbol(symbol_id.local_id);
-        symbol.declaration
-    };
-    let Some(declaration) = declaration else {
-        return false;
-    };
-
-    // bail out when the declaration is not a dependency item
-    if declaration.local_id.ty != NodeType::DependencyItem {
-        return false;
-    }
-
-    // resolve the dependency item node
-    let Ok(item_id): Result<LocalNodeId<DirDependencyItem>, _> = declaration.local_id.try_into()
-    else {
-        return false;
-    };
-
-    // check for an alias that targets the canonical symbol
-    let dir_tree = dir.view();
-    let item = dir_tree.get::<DirDependencyItem>(item_id);
-    let (alias, binding) = match item {
-        DirDependencyItem::Binding { alias, binding, .. } => (alias, binding),
-        _ => return false,
-    };
-
-    // require an explicit alias
-    if alias.is_none() {
-        return false;
-    }
-
-    // allow default imports to be renamed with their targets
-    if *binding == DependencyBinding::Default {
-        return false;
-    }
-
-    // compare canonical targets
-    let Some(target_symbol) = dependency_symbol_target(dir, item_id) else {
-        return false;
-    };
-    let target_canonical = dir.canonical_symbol(target_symbol);
-    target_canonical == canonical_target
-}
-
-/// Resolve the local binding name for one default import symbol inside a query context.
-#[allow(dead_code)]
-fn local_default_import_alias_name_in_context(
-    dir: DirQueryContext<'_>,
-    local_symbol_id: LocalSymbolId,
-) -> Option<String> {
-    let declaration = {
-        let symbols = dir.symbols();
-        let symbol = symbols.get_symbol(local_symbol_id);
-        symbol.declaration?
-    };
-
-    if declaration.local_id.ty != NodeType::DependencyItem {
-        return None;
-    }
-
-    let item_id: LocalNodeId<DirDependencyItem> = declaration.local_id.try_into().ok()?;
-    let local_name_id =
-        dependency_item_default_import_alias_name(dir.view().get::<DirDependencyItem>(item_id))?;
-
-    Some(dir.strings().get(local_name_id).to_string())
-}
-
-/// Resolve the local binding name for one dependency import alias.
-fn dependency_item_local_import_alias_name(
-    item: &DirDependencyItem,
-) -> Option<destack_core::StringId> {
-    match item {
-        // default imports: use the local binding name
-        DirDependencyItem::Binding {
-            binding,
-            name,
-            alias,
-            ..
-        } => {
-            if *binding == DependencyBinding::Default {
-                name.as_ref().map(|name| name.string()).or(*alias)
-            } else {
-                *alias
+                symbols.push(symbol_id);
             }
         }
 
-        // local dependency items are not import aliases
-        _ => None,
+        symbols
     }
-}
 
-/// Resolve the local binding name for one default dependency import alias.
-#[allow(dead_code)]
-fn dependency_item_default_import_alias_name(
-    item: &DirDependencyItem,
-) -> Option<destack_core::StringId> {
-    match item {
-        DirDependencyItem::Binding { binding, name, .. } => {
-            if *binding != DependencyBinding::Default {
-                return None;
+    /// Build edit(s) to add an import for a symbol.
+    ///
+    /// If there's an existing import from the same path, merges into it.
+    /// Otherwise, inserts a new import at the appropriate position based on import groups.
+    pub(crate) fn build_import_edits(
+        &self,
+        symbol_name: &str,
+        import_path: &str,
+        import_form: ImportEditSpace,
+    ) -> Vec<Edit> {
+        // collect existing imports for the file
+        let file_id = self.file_id();
+        let existing_imports = self.dir().collect_existing_imports();
+
+        // check if there's already an import from this path
+        if let Some(existing) = existing_imports.iter().find(|i| i.path == import_path) {
+            // skip if already imported
+            if existing.specifiers.contains(&symbol_name.to_string()) {
+                return Vec::new();
             }
 
-            name.as_ref().map(|name| name.string())
-        }
-        _ => None,
-    }
-}
-
-/// Resolve the brace span for an import clause.
-pub(crate) fn import_clause_brace_span(
-    source: DirQueryContext<'_>,
-    import_span: Span,
-    target_span: Option<Span>,
-) -> Option<(Span, Span)> {
-    let bounds = import_clause_bounds(source, import_span, target_span)?;
-    let close_brace = bounds.close_brace?;
-
-    Some((bounds.open_brace, close_brace))
-}
-
-/// Resolve the bounds for an import clause, even when the closing brace is missing.
-pub(crate) fn import_clause_bounds(
-    source: DirQueryContext<'_>,
-    import_span: Span,
-    target_span: Option<Span>,
-) -> Option<ImportClauseBounds> {
-    // resolve the limit before the target string
-    let target_limit = target_span
-        .map(|span| span.start)
-        .unwrap_or(import_span.end);
-
-    // track the last brace pair before the target
-    let mut open_brace = None;
-    let mut close_brace = None;
-
-    // scan tokens inside the import span
-    for token in source.tokens() {
-        if token.span.file != source.file_id() {
-            continue;
-        }
-        if token.span.start < import_span.start {
-            continue;
-        }
-        if token.span.start >= target_limit {
-            break;
-        }
-
-        match token.token.ty() {
-            TokenType::OpenBrace => {
-                open_brace = Some(token.span);
-                close_brace = None;
+            // can't merge into namespace imports
+            if existing.is_namespace {
+                return build_new_import_edit(
+                    file_id,
+                    symbol_name,
+                    import_path,
+                    &existing_imports,
+                    import_form,
+                );
             }
-            TokenType::CloseBrace => {
-                if open_brace.is_some() {
-                    close_brace = Some(token.span);
+
+            // decide whether to merge into the existing import
+            let can_merge = match import_form {
+                ImportEditSpace::Value => !existing.is_type_only,
+                ImportEditSpace::Type => true,
+            };
+
+            if can_merge {
+                let brace_pos = existing.closing_brace_pos;
+                if let Some(brace_pos) = brace_pos {
+                    // insert before closing brace, `{ a }` becomes `{ a, b }`
+                    let insert_text = if existing.specifiers.is_empty() {
+                        format!(" {symbol_name} ")
+                    } else {
+                        format!(", {symbol_name}")
+                    };
+
+                    return vec![Edit::insert(file_id, brace_pos, insert_text)];
                 }
             }
-            _ => {}
         }
+
+        // no existing import, add new one
+        build_new_import_edit(
+            file_id,
+            symbol_name,
+            import_path,
+            &existing_imports,
+            import_form,
+        )
     }
 
-    let open_brace = open_brace?;
-    let end_boundary =
-        close_brace.unwrap_or_else(|| Span::new(open_brace.file, target_limit, target_limit));
+    /// Build a display path for one import with optional extension stripping.
+    pub(crate) fn import_display_path_with_options(
+        &self,
+        module_path: &str,
+        strip_extension: bool,
+    ) -> String {
+        let repository = self.repository();
+        let revision = self.revision();
 
-    if open_brace.start >= end_boundary.start {
-        return None;
+        // resolve the source file path
+        let Some(source_file) = repository.file(revision, self.file_id()).ok().flatten() else {
+            return module_path.to_string();
+        };
+        let Some(source_path) = source_file.path.as_ref() else {
+            return module_path.to_string();
+        };
+
+        // resolve the source directory
+        let Some(source_dir) = source_path.parent() else {
+            return module_path.to_string();
+        };
+
+        // prefer package-name specifiers for external package targets
+        let target_path = std::path::Path::new(module_path);
+        if let Some(display_path) =
+            self.build_external_package_display_path(source_path, target_path, strip_extension)
+        {
+            return display_path;
+        }
+
+        // compute a relative path to the target module
+        let relative =
+            relative_path(source_dir, target_path).unwrap_or_else(|| target_path.normalize());
+        let mut display_path = normalize_separators(&relative.to_string_lossy());
+
+        // ensure a relative prefix for local imports
+        if !display_path.starts_with("./") && !display_path.starts_with("../") {
+            display_path = format!("./{display_path}");
+        }
+
+        // strip common source extensions when requested
+        if strip_extension {
+            display_path = strip_module_extension(&display_path);
+        }
+
+        display_path
     }
-
-    Some(ImportClauseBounds {
-        open_brace,
-        close_brace,
-        end_boundary,
-    })
 }
 
 /// The import space for a new import edit.
@@ -377,14 +268,14 @@ pub(crate) enum ImportEditSpace {
 impl ImportEditSpace {
     /// Resolve the auto import edit space for one requested space and exported symbol space.
     pub(crate) fn for_auto_import(
-        requested_space: Option<destack_dir::SymbolSpace>,
-        symbol_space: destack_dir::SymbolSpace,
+        requested_space: Option<dir::SymbolSpace>,
+        symbol_space: dir::SymbolSpace,
     ) -> Self {
-        if requested_space != Some(destack_dir::SymbolSpace::Type) {
+        if requested_space != Some(dir::SymbolSpace::Type) {
             return Self::Value;
         }
 
-        if symbol_space == destack_dir::SymbolSpace::Type {
+        if symbol_space == dir::SymbolSpace::Type {
             return Self::Type;
         }
 
@@ -394,261 +285,13 @@ impl ImportEditSpace {
 
 /// Resolve a module specifier and dependency form for a source expression.
 pub(crate) fn module_specifier_in_expression(
-    expression: &Expression,
-) -> Option<(StringId, DependencyForm)> {
+    expression: &dir::Expression,
+) -> Option<(StringId, dir::DependencyForm)> {
     match expression {
-        Expression::Import { target, form, .. } => Some((*target, *form)),
-        Expression::Export { target, form, .. } => target.map(|target| (target, *form)),
+        dir::Expression::Import { target, form, .. } => Some((*target, *form)),
+        dir::Expression::Export { target, form, .. } => target.map(|target| (target, *form)),
         _ => None,
     }
-}
-
-/// Collect existing imports from one source query surface.
-fn collect_existing_imports_from_source(source: DirQueryContext<'_>) -> Vec<ExistingImport> {
-    // prepare the import collection
-    let mut imports = Vec::new();
-
-    // iterate over import expressions in the source DIR
-    for node_id in source.tree().iter_nodes::<Expression>() {
-        let expr = source.tree().get(node_id);
-
-        if let Expression::Import {
-            target,
-            items,
-            form,
-            ..
-        } = expr
-        {
-            // resolve import path, span, and form
-            let path = source.strings().get(*target).to_string();
-            let span = source.tree().source_index.get(node_id.id);
-            let is_type_only = *form == DependencyForm::Type;
-            let items = items.as_deref().unwrap_or(&[]);
-
-            // check if it's a namespace import
-            let is_namespace = items.iter().any(|item_id| {
-                let item = source.tree().get(*item_id);
-                dependency_item_binding(item) == Some(DependencyBinding::Namespace)
-            });
-
-            // collect specifier names
-            let specifiers: Vec<String> = items
-                .iter()
-                .filter_map(|item_id| {
-                    let item = source.tree().get(*item_id);
-                    if dependency_item_binding(item) == Some(DependencyBinding::Namespace) {
-                        return None;
-                    }
-
-                    dependency_item_key(item).map(|id| source.strings().get(id).to_string())
-                })
-                .collect();
-
-            // find closing brace position by scanning tokens
-            let target_span = source.tree().source_index.get_main(node_id.id);
-            let closing_brace_pos = if is_namespace {
-                None
-            } else {
-                import_clause_brace_span(source, span, target_span).map(|(_, close)| close.start)
-            };
-
-            imports.push(ExistingImport {
-                path,
-                is_type_only,
-                start: span.start,
-                end: span.end,
-                closing_brace_pos,
-                is_namespace,
-                specifiers,
-            });
-        }
-    }
-
-    // sort by position
-    imports.sort_by_key(|i| i.start);
-
-    // return collected imports
-    imports
-}
-
-/// Build edit(s) to add an import for a symbol.
-///
-/// If there's an existing import from the same path, merges into it.
-/// Otherwise, inserts a new import at the appropriate position based on import groups.
-pub(crate) fn build_import_edits(
-    ctx: &ModuleQueryContext<'_>,
-    symbol_name: &str,
-    import_path: &str,
-    import_form: ImportEditSpace,
-) -> Vec<Edit> {
-    // collect existing imports for the file
-    let file_id = ctx.file_id();
-    let existing_imports = collect_existing_imports_from_source(ctx.dir());
-
-    // check if there's already an import from this path
-    if let Some(existing) = existing_imports.iter().find(|i| i.path == import_path) {
-        // skip if already imported
-        if existing.specifiers.contains(&symbol_name.to_string()) {
-            return Vec::new();
-        }
-
-        // can't merge into namespace imports
-        if existing.is_namespace {
-            return build_new_import_edit(
-                file_id,
-                symbol_name,
-                import_path,
-                &existing_imports,
-                import_form,
-            );
-        }
-
-        // decide whether to merge into the existing import
-        let can_merge = match import_form {
-            ImportEditSpace::Value => !existing.is_type_only,
-            ImportEditSpace::Type => true,
-        };
-
-        if can_merge {
-            let brace_pos = existing.closing_brace_pos;
-            if let Some(brace_pos) = brace_pos {
-                // insert before closing brace, `{ a }` becomes `{ a, b }`
-                let insert_text = if existing.specifiers.is_empty() {
-                    format!(" {symbol_name} ")
-                } else {
-                    format!(", {symbol_name}")
-                };
-
-                return vec![Edit::insert(file_id, brace_pos, insert_text)];
-            }
-        }
-    }
-
-    // no existing import, add new one
-    build_new_import_edit(
-        file_id,
-        symbol_name,
-        import_path,
-        &existing_imports,
-        import_form,
-    )
-}
-
-/// Build a display path for an import.
-///
-/// Tries to compute a relative path from the current file to the target module.
-pub(crate) fn build_import_display_path(ctx: &ModuleQueryContext<'_>, module_path: &str) -> String {
-    build_import_display_path_with_options(ctx, module_path, true)
-}
-
-/// Build a display path for an import with optional extension stripping.
-///
-/// Tries to compute a relative path from the current file to the target module.
-pub(crate) fn build_import_display_path_with_options(
-    ctx: &ModuleQueryContext<'_>,
-    module_path: &str,
-    strip_extension: bool,
-) -> String {
-    let repository = ctx.repository();
-    let revision = ctx.revision();
-
-    // resolve the source file path
-    let Some(source_file) = repository.file(revision, ctx.file_id()).ok().flatten() else {
-        return module_path.to_string();
-    };
-    let Some(source_path) = source_file.path.as_ref() else {
-        return module_path.to_string();
-    };
-
-    // resolve the source directory
-    let Some(source_dir) = source_path.parent() else {
-        return module_path.to_string();
-    };
-
-    // prefer package-name specifiers for external package targets
-    let target_path = std::path::Path::new(module_path);
-    if let Some(display_path) =
-        build_external_package_display_path(ctx, source_path, target_path, strip_extension)
-    {
-        return display_path;
-    }
-
-    // compute a relative path to the target module
-    let relative =
-        relative_path(source_dir, target_path).unwrap_or_else(|| target_path.normalize());
-    let mut display_path = normalize_separators(&relative.to_string_lossy());
-
-    // ensure a relative prefix for local imports
-    if !display_path.starts_with("./") && !display_path.starts_with("../") {
-        display_path = format!("./{display_path}");
-    }
-
-    // strip common source extensions when requested
-    if strip_extension {
-        display_path = strip_module_extension(&display_path);
-    }
-
-    // return the normalized display path
-    display_path
-}
-
-/// Build one package-name display path for an external package target.
-fn build_external_package_display_path(
-    ctx: &ModuleQueryContext<'_>,
-    source_path: &Path,
-    target_path: &Path,
-    strip_extension: bool,
-) -> Option<String> {
-    let repository = ctx.repository();
-    let revision = ctx.revision();
-
-    // resolve the owning package for the target path
-    let target_package = repository
-        .module_ids(revision)
-        .ok()?
-        .into_iter()
-        .filter_map(|module_id| {
-            let module = repository.module(revision, module_id).ok()??;
-            let package = repository.package(revision, module.package_id).ok()??;
-            let package_path = package.path.as_ref()?;
-            if !target_path.starts_with(package_path) {
-                return None;
-            }
-
-            Some((package_path.as_os_str().len(), package))
-        })
-        .max_by_key(|(package_length, _)| *package_length)
-        .map(|(_, package)| package)?;
-    let target_package_path = target_package.path.as_ref()?;
-    let target_package_name = target_package.name.as_ref()?;
-
-    // keep relative imports inside the same package
-    if source_path.starts_with(target_package_path) {
-        return None;
-    }
-
-    // only rewrite dependency packages into bare package specifiers
-    if !target_package_path
-        .components()
-        .any(|component| component.as_os_str() == "node_modules")
-    {
-        return None;
-    }
-
-    // build the package subpath from the package root
-    let package_relative = target_path.strip_prefix(target_package_path).ok()?;
-    let package_relative = normalize_separators(&package_relative.to_string_lossy());
-    let package_relative = if strip_extension {
-        strip_module_extension(&package_relative)
-    } else {
-        package_relative
-    };
-
-    if package_relative.is_empty() {
-        return Some(target_package_name.to_string());
-    }
-
-    Some(format!("{target_package_name}/{package_relative}"))
 }
 
 /// Resolve a module name from a file path.
@@ -728,4 +371,293 @@ fn find_import_insert_position(
 
     // append after last import
     existing_imports.last().map(|i| i.end).unwrap_or(0)
+}
+
+impl DirQueryContext<'_> {
+    /// Collect existing imports from one source query surface.
+    fn collect_existing_imports(self) -> Vec<ExistingImport> {
+        let source = self;
+
+        // prepare the import collection
+        let mut imports = Vec::new();
+
+        // iterate over import expressions in the source DIR
+        for node_id in source.tree().iter_nodes::<dir::Expression>() {
+            let expr = source.tree().get(node_id);
+
+            if let dir::Expression::Import {
+                target,
+                items,
+                form,
+                ..
+            } = expr
+            {
+                // resolve import path, span, and form
+                let path = source.strings().get(*target).to_string();
+                let span = source.tree().source_index.get(node_id.id);
+                let is_type_only = *form == dir::DependencyForm::Type;
+                let items = items.as_deref().unwrap_or(&[]);
+
+                // check if it's a namespace import
+                let is_namespace = items.iter().any(|item_id| {
+                    let item = source.tree().get(*item_id);
+                    item.binding() == Some(dir::DependencyBinding::Namespace)
+                });
+
+                // collect specifier names
+                let specifiers: Vec<String> = items
+                    .iter()
+                    .filter_map(|item_id| {
+                        let item = source.tree().get(*item_id);
+                        if item.binding() == Some(dir::DependencyBinding::Namespace) {
+                            return None;
+                        }
+
+                        item.local_string_key()
+                            .map(|id| source.strings().get(id).to_string())
+                    })
+                    .collect();
+
+                // find closing brace position by scanning tokens
+                let target_span = source.tree().source_index.get_main(node_id.id);
+                let closing_brace_pos = if is_namespace {
+                    None
+                } else {
+                    source
+                        .import_clause_brace_span(span, target_span)
+                        .map(|(_, close)| close.start)
+                };
+
+                imports.push(ExistingImport {
+                    path,
+                    is_type_only,
+                    start: span.start,
+                    end: span.end,
+                    closing_brace_pos,
+                    is_namespace,
+                    specifiers,
+                });
+            }
+        }
+
+        imports.sort_by_key(|import| import.start);
+
+        imports
+    }
+
+    /// Check whether a symbol is a local import alias for a canonical target.
+    pub(crate) fn is_dependency_alias_for_target(
+        self,
+        symbol_id: dir::GlobalSymbolId,
+        canonical_target: dir::GlobalSymbolId,
+    ) -> bool {
+        let dir = self;
+
+        // read the symbol declaration
+        let declaration = {
+            let symbols = dir.symbols();
+            let symbol = symbols.get_symbol(symbol_id.local_id);
+            symbol.declaration
+        };
+        let Some(declaration) = declaration else {
+            return false;
+        };
+
+        // bail out when the declaration is not a dependency item
+        if declaration.local_id.ty != dir::NodeType::DependencyItem {
+            return false;
+        }
+
+        // resolve the dependency item node
+        let Ok(item_id): Result<dir::LocalNodeId<dir::DependencyItem>, _> =
+            declaration.local_id.try_into()
+        else {
+            return false;
+        };
+
+        // check for an alias that targets the canonical symbol
+        let dir_tree = dir.view();
+        let item = dir_tree.get::<dir::DependencyItem>(item_id);
+        let (alias, binding) = match item {
+            dir::DependencyItem::Binding { alias, binding, .. } => (alias, binding),
+            _ => return false,
+        };
+
+        // require an explicit alias
+        if alias.is_none() {
+            return false;
+        }
+
+        // allow default imports to be renamed with their targets
+        if *binding == dir::DependencyBinding::Default {
+            return false;
+        }
+
+        // compare canonical targets
+        let Some(target_symbol) = dir.dependency_symbol_target(item_id) else {
+            return false;
+        };
+        let target_canonical = dir.canonical_symbol(target_symbol);
+        target_canonical == canonical_target
+    }
+
+    /// Resolve the bounds for an import clause, even when the closing brace is missing.
+    pub(crate) fn import_clause_bounds(
+        self,
+        import_span: Span,
+        target_span: Option<Span>,
+    ) -> Option<ImportClauseBounds> {
+        let source = self;
+
+        // resolve the limit before the target string
+        let target_limit = target_span
+            .map(|span| span.start)
+            .unwrap_or(import_span.end);
+
+        // track the last brace pair before the target
+        let mut open_brace = None;
+        let mut close_brace = None;
+
+        // scan tokens inside the import span
+        for token in source.tokens() {
+            if token.span.file != source.file_id() {
+                continue;
+            }
+            if token.span.start < import_span.start {
+                continue;
+            }
+            if token.span.start >= target_limit {
+                break;
+            }
+
+            match token.token.ty() {
+                dir::TokenType::OpenBrace => {
+                    open_brace = Some(token.span);
+                    close_brace = None;
+                }
+                dir::TokenType::CloseBrace => {
+                    if open_brace.is_some() {
+                        close_brace = Some(token.span);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let open_brace = open_brace?;
+        let end_boundary =
+            close_brace.unwrap_or_else(|| Span::new(open_brace.file, target_limit, target_limit));
+
+        if open_brace.start >= end_boundary.start {
+            return None;
+        }
+
+        Some(ImportClauseBounds {
+            open_brace,
+            close_brace,
+            end_boundary,
+        })
+    }
+
+    /// Resolve the local binding name for one default import symbol inside a query context.
+    fn local_default_import_alias_name_in_context(
+        self,
+        local_symbol_id: dir::LocalSymbolId,
+    ) -> Option<String> {
+        let dir = self;
+
+        let declaration = {
+            let symbols = dir.symbols();
+            let symbol = symbols.get_symbol(local_symbol_id);
+            symbol.declaration?
+        };
+
+        if declaration.local_id.ty != dir::NodeType::DependencyItem {
+            return None;
+        }
+
+        let item_id: dir::LocalNodeId<dir::DependencyItem> =
+            declaration.local_id.try_into().ok()?;
+        let local_name_id = dir
+            .view()
+            .get::<dir::DependencyItem>(item_id)
+            .default_import_alias_name()?;
+
+        Some(dir.strings().get(local_name_id).to_string())
+    }
+
+    /// Resolve the brace span for an import clause.
+    pub(crate) fn import_clause_brace_span(
+        self,
+        import_span: Span,
+        target_span: Option<Span>,
+    ) -> Option<(Span, Span)> {
+        let source = self;
+        let bounds = source.import_clause_bounds(import_span, target_span)?;
+        let close_brace = bounds.close_brace?;
+
+        Some((bounds.open_brace, close_brace))
+    }
+}
+
+impl ModuleQueryContext<'_> {
+    /// Build one package-name display path for an external package target.
+    fn build_external_package_display_path(
+        &self,
+        source_path: &Path,
+        target_path: &Path,
+        strip_extension: bool,
+    ) -> Option<String> {
+        let ctx = self;
+        let repository = ctx.repository();
+        let revision = ctx.revision();
+
+        // resolve the owning package for the target path
+        let target_package = repository
+            .module_ids(revision)
+            .ok()?
+            .into_iter()
+            .filter_map(|module_id| {
+                let module = repository.module(revision, module_id).ok()??;
+                let package = repository.package(revision, module.package_id).ok()??;
+                let package_path = package.path.as_ref()?;
+                if !target_path.starts_with(package_path) {
+                    return None;
+                }
+
+                Some((package_path.as_os_str().len(), package))
+            })
+            .max_by_key(|(package_length, _)| *package_length)
+            .map(|(_, package)| package)?;
+        let target_package_path = target_package.path.as_ref()?;
+        let target_package_name = target_package.name.as_ref()?;
+
+        // keep relative imports inside the same package
+        if source_path.starts_with(target_package_path) {
+            return None;
+        }
+
+        // only rewrite dependency packages into bare package specifiers
+        if !target_package_path
+            .components()
+            .any(|component| component.as_os_str() == "node_modules")
+        {
+            return None;
+        }
+
+        // build the package subpath from the package root
+        let package_relative = target_path.strip_prefix(target_package_path).ok()?;
+        let package_relative = normalize_separators(&package_relative.to_string_lossy());
+        let package_relative = if strip_extension {
+            strip_module_extension(&package_relative)
+        } else {
+            package_relative
+        };
+
+        if package_relative.is_empty() {
+            return Some(target_package_name.to_string());
+        }
+
+        Some(format!("{target_package_name}/{package_relative}"))
+    }
 }

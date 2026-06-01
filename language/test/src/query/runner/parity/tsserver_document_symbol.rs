@@ -3,7 +3,6 @@ use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use destack_query as query;
 use destack_query::{DocumentSymbol, SymbolKind};
 use destack_source::Span;
 use serde::{Deserialize, Serialize};
@@ -29,7 +28,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
 
     // compute the destack snapshot for the primary file
     let ctx = session.primary_module_context();
-    let symbols = query::document_symbols(&ctx);
+    let symbols = ctx.document_symbols();
     let source = source_for_file(session, session.file_id);
     let snapshot = format_symbols_snapshot(&symbols, source, 0).join("\n");
 

@@ -32,8 +32,6 @@ pub enum QueryRequest {
     WorkspaceSymbols(navigation::WorkspaceSymbolsRequest),
     /// Document links request payload.
     DocumentLinks(navigation::DocumentLinksRequest),
-    /// Document link resolve request payload.
-    ResolveDocumentLink(navigation::ResolveDocumentLinkRequest),
     /// Document highlight request payload.
     DocumentHighlight(navigation::DocumentHighlightRequest),
     /// Selection ranges request payload.
@@ -97,7 +95,6 @@ impl QueryRequest {
             Self::DocumentSymbols(_) => QueryMethodId::DocumentSymbols,
             Self::WorkspaceSymbols(_) => QueryMethodId::WorkspaceSymbols,
             Self::DocumentLinks(_) => QueryMethodId::DocumentLinks,
-            Self::ResolveDocumentLink(_) => QueryMethodId::ResolveDocumentLink,
             Self::DocumentHighlight(_) => QueryMethodId::DocumentHighlight,
             Self::SelectionRanges(_) => QueryMethodId::SelectionRanges,
             Self::GotoDefinition(_) => QueryMethodId::GotoDefinition,
@@ -153,8 +150,6 @@ pub enum QueryResponse {
     WorkspaceSymbols(navigation::WorkspaceSymbolsResponse),
     /// Document links response payload.
     DocumentLinks(navigation::DocumentLinksResponse),
-    /// Document link resolve response payload.
-    ResolveDocumentLink(navigation::ResolveDocumentLinkResponse),
     /// Document highlight response payload.
     DocumentHighlight(navigation::DocumentHighlightResponse),
     /// Selection ranges response payload.
@@ -218,7 +213,6 @@ impl QueryResponse {
             Self::DocumentSymbols(_) => QueryMethodId::DocumentSymbols,
             Self::WorkspaceSymbols(_) => QueryMethodId::WorkspaceSymbols,
             Self::DocumentLinks(_) => QueryMethodId::DocumentLinks,
-            Self::ResolveDocumentLink(_) => QueryMethodId::ResolveDocumentLink,
             Self::DocumentHighlight(_) => QueryMethodId::DocumentHighlight,
             Self::SelectionRanges(_) => QueryMethodId::SelectionRanges,
             Self::GotoDefinition(_) => QueryMethodId::GotoDefinition,

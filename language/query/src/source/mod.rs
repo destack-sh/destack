@@ -11,4 +11,3 @@ pub(crate) use identifier::*;
 pub(crate) use lexical::*;
 pub(crate) use slot::*;
 pub(crate) use span::*;
-pub(crate) use statement::*;

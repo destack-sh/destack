@@ -52,7 +52,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // prepare call hierarchy item
     let ctx = session.module_context(file_id);
     let workspace = session.workspace_context();
-    let item = query::call_hierarchy_item(&ctx, offset);
+    let item = ctx.call_hierarchy_item(offset);
 
     // allow "<none>" to assert that no hierarchy item exists at all
     if expected == "<none>" && item.is_none() {
@@ -92,7 +92,7 @@ fn run_incoming_expectation(
     target: &str,
 ) -> CaseResult {
     // run the incoming calls query
-    let calls = query::incoming_calls(workspace, item);
+    let calls = workspace.incoming_calls(item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_incoming_invariants(session, &calls) {
@@ -169,7 +169,7 @@ fn run_outgoing_expectation(
     target: &str,
 ) -> CaseResult {
     // run the outgoing calls query
-    let calls = query::outgoing_calls(workspace, item);
+    let calls = workspace.outgoing_calls(item);
 
     // validate invariants before comparisons
     if let Err(message) = validate_outgoing_invariants(session, item, &calls) {

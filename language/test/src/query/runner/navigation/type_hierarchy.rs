@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_query::{TypeHierarchyItem, TypeHierarchyKind};
 use destack_source::Span;
 
@@ -37,7 +36,7 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
     // prepare type hierarchy item
     let ctx = session.module_context(file_id);
     let workspace = session.workspace_context();
-    let Some(item) = query::type_hierarchy_item(&ctx, offset) else {
+    let Some(item) = ctx.type_hierarchy_item(offset) else {
         return CaseResult::Failed {
             message: format!("type_hierarchy at '{}' returned None", exp.target),
         };
@@ -50,8 +49,8 @@ fn run_with_expectation(session: &QueryTestSession, exp: &QueryExpectation) -> C
 
     // compute hierarchy items for the requested direction
     let (items, label) = match direction {
-        "supertypes" | "super" => (query::supertypes(&workspace, &item), "supertypes"),
-        "subtypes" | "sub" => (query::subtypes(&workspace, &item), "subtypes"),
+        "supertypes" | "super" => (workspace.supertypes(&item), "supertypes"),
+        "subtypes" | "sub" => (workspace.subtypes(&item), "subtypes"),
         _ => {
             return CaseResult::Failed {
                 message: format!(

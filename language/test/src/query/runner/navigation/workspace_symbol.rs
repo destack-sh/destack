@@ -1,4 +1,3 @@
-use destack_query as query;
 use destack_query::{SymbolKind, WorkspaceSymbol};
 use destack_source::Span;
 
@@ -27,7 +26,7 @@ pub fn run(session: &QueryTestSession, expectation: Option<&QueryExpectation>) -
     let query_str = query_str.trim_matches('"');
 
     let workspace = session.workspace_context();
-    let symbols = query::workspace_symbols(&workspace, query_str, 1000);
+    let symbols = workspace.workspace_symbols(query_str, 1000);
     let source_symbols = symbols.as_slice();
 
     let expected = exp.content.trim();

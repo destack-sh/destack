@@ -2,7 +2,6 @@ use destack_dir as dir;
 use destack_source::{EnclosingSpan, NodeSpanType};
 
 use crate::core::DirQueryContext;
-use crate::source::enclosing_spans_with_previous;
 
 /// A scope and mark resolved for one cursor position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,267 +12,185 @@ pub(crate) struct ScopeAtOffset {
     pub scope_mark: dir::LocalScopeMark,
 }
 
-/// Resolve the best visible scope at one offset.
-pub(crate) fn scope_at_offset(ctx: DirQueryContext<'_>, offset: u32) -> Option<ScopeAtOffset> {
-    let enclosing = enclosing_spans_with_previous(ctx, offset);
+impl DirQueryContext<'_> {
+    /// Resolve the best visible scope at one offset.
+    pub(crate) fn scope_at_offset(self, offset: u32) -> Option<ScopeAtOffset> {
+        let enclosing = self.enclosing_spans_with_previous(offset);
 
-    // prefer block scopes because statement and argument positions usually live there
-    if let Some(scope) = scope_from_enclosing_dir_nodes(ctx, &enclosing, offset, true) {
-        return Some(scope);
-    }
-
-    // otherwise accept expression and owned declaration scopes
-    if let Some(scope) = scope_from_enclosing_dir_nodes(ctx, &enclosing, offset, false) {
-        return Some(scope);
-    }
-
-    // damaged span stacks may still recover through parsed parents
-    source_parent_scope_at_offset(ctx, &enclosing, offset)
-}
-
-/// Resolve the nearest enclosing block or owned declaration scope at one offset.
-pub(crate) fn block_scope_at_offset(
-    ctx: DirQueryContext<'_>,
-    offset: u32,
-) -> Option<ScopeAtOffset> {
-    let enclosing = enclosing_spans_with_previous(ctx, offset);
-
-    // prefer the nearest enclosing block scope
-    if let Some(scope) = scope_from_enclosing_dir_blocks(ctx, &enclosing, offset) {
-        return Some(scope);
-    }
-
-    // otherwise use owned declaration scopes from mapped dir nodes
-    if let Some(scope) = scope_from_enclosing_owned_declarations(ctx, &enclosing, offset) {
-        return Some(scope);
-    }
-
-    // damaged span stacks may still recover through parsed parents
-    source_parent_block_scope_at_offset(ctx, &enclosing, offset)
-}
-
-/// Resolve the scope owned by one block span.
-pub(crate) fn scope_from_block_span(
-    ctx: DirQueryContext<'_>,
-    source_block_id: u32,
-    offset: u32,
-) -> Option<ScopeAtOffset> {
-    let dir_tree = ctx.view();
-    let symbols = ctx.symbols();
-    let dir_node_id = dir_tree.get_node_id_by_source_id(source_block_id)?;
-
-    // only dir blocks own statement scopes
-    if dir_node_id.ty != dir::NodeType::Block {
-        return None;
-    }
-
-    let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
-        return None;
-    };
-
-    let scope = ctx.scope_for_node(block_id.into_any())?;
-    let scope_mark = scope_mark_at_offset(ctx, scope.id, offset, dir_tree, symbols);
-
-    Some(ScopeAtOffset {
-        scope_id: scope.id,
-        scope_mark,
-    })
-}
-
-/// Resolve the visible scope for one expression at an offset.
-pub(crate) fn expression_scope_at_offset(
-    ctx: DirQueryContext<'_>,
-    expr_id: dir::LocalNodeId<dir::Expression>,
-    offset: u32,
-) -> ScopeAtOffset {
-    let Some(scope) = ctx.scope_for_node(expr_id.into_any()) else {
-        return ScopeAtOffset {
-            scope_id: ctx.namespace_scope(),
-            scope_mark: dir::LocalScopeMark::end(),
-        };
-    };
-
-    scope_at_offset(ctx, offset).unwrap_or(ScopeAtOffset {
-        scope_id: scope.id,
-        scope_mark: dir::LocalScopeMark(0),
-    })
-}
-
-/// Resolve the best mapped dir scope from enclosing spans.
-fn scope_from_enclosing_dir_nodes(
-    ctx: DirQueryContext<'_>,
-    enclosing: &[EnclosingSpan],
-    offset: u32,
-    block_only: bool,
-) -> Option<ScopeAtOffset> {
-    let dir_tree = ctx.view();
-    let symbols = ctx.symbols();
-
-    for enc in enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
-            continue;
-        };
-
-        // blocks define the local statement scope
-        if dir_node_id.ty == dir::NodeType::Block {
-            let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
-                continue;
-            };
-
-            let Some(scope) = ctx.scope_for_node(block_id.into_any()) else {
-                continue;
-            };
-            let scope_mark = scope_mark_at_offset(ctx, scope.id, offset, dir_tree, symbols);
-
-            return Some(ScopeAtOffset {
-                scope_id: scope.id,
-                scope_mark,
-            });
+        // prefer block scopes because statement and argument positions usually live there
+        if let Some(scope) = self.scope_from_enclosing_dir_nodes(&enclosing, offset, true) {
+            return Some(scope);
         }
 
-        if block_only {
-            continue;
+        // otherwise accept expression and owned declaration scopes
+        if let Some(scope) = self.scope_from_enclosing_dir_nodes(&enclosing, offset, false) {
+            return Some(scope);
         }
 
-        // expressions reuse the surrounding lexical scope with an offset aware mark
-        if dir_node_id.ty == dir::NodeType::Expression {
-            let Ok(expr_id) = dir_node_id.try_into_typed::<dir::Expression>() else {
-                continue;
-            };
-
-            let Some(scope) = ctx.scope_for_node(expr_id.into_any()) else {
-                continue;
-            };
-            let scope_mark = scope_mark_at_offset(ctx, scope.id, offset, dir_tree, symbols);
-
-            return Some(ScopeAtOffset {
-                scope_id: scope.id,
-                scope_mark,
-            });
-        }
-
-        // owned declarations such as functions and classes expose their inner scope
-        if dir_node_id.ty == dir::NodeType::Declaration
-            && let Some(scope_id) = owned_scope_for_declaration_id(symbols, dir_node_id.id)
-        {
-            let scope_mark = scope_mark_at_offset(ctx, scope_id, offset, dir_tree, symbols);
-
-            return Some(ScopeAtOffset {
-                scope_id,
-                scope_mark,
-            });
-        }
+        // damaged span stacks may still recover through parsed parents
+        self.source_parent_scope_at_offset(&enclosing, offset)
     }
 
-    None
-}
+    /// Resolve the nearest enclosing block or owned declaration scope at one offset.
+    pub(crate) fn block_scope_at_offset(self, offset: u32) -> Option<ScopeAtOffset> {
+        let enclosing = self.enclosing_spans_with_previous(offset);
 
-/// Resolve the nearest mapped dir block scope from enclosing spans.
-fn scope_from_enclosing_dir_blocks(
-    ctx: DirQueryContext<'_>,
-    enclosing: &[EnclosingSpan],
-    offset: u32,
-) -> Option<ScopeAtOffset> {
-    let dir_tree = ctx.view();
-    let symbols = ctx.symbols();
+        // prefer the nearest enclosing block scope
+        if let Some(scope) = self.scope_from_enclosing_dir_blocks(&enclosing, offset) {
+            return Some(scope);
+        }
 
-    for enc in enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
-            continue;
-        };
+        // otherwise use owned declaration scopes from mapped dir nodes
+        if let Some(scope) = self.scope_from_enclosing_owned_declarations(&enclosing, offset) {
+            return Some(scope);
+        }
 
+        // damaged span stacks may still recover through parsed parents
+        self.source_parent_block_scope_at_offset(&enclosing, offset)
+    }
+
+    /// Resolve the scope owned by one block span.
+    pub(crate) fn scope_from_block_span(
+        self,
+        source_block_id: u32,
+        offset: u32,
+    ) -> Option<ScopeAtOffset> {
+        let dir_tree = self.view();
+        let symbols = self.symbols();
+        let dir_node_id = dir_tree.get_node_id_by_source_id(source_block_id)?;
+
+        // only dir blocks own statement scopes
         if dir_node_id.ty != dir::NodeType::Block {
-            continue;
+            return None;
         }
 
         let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
-            continue;
+            return None;
         };
 
-        let Some(scope) = ctx.scope_for_node(block_id.into_any()) else {
-            continue;
-        };
-        let scope_mark = scope_mark_at_offset(ctx, scope.id, offset, dir_tree, symbols);
+        let scope = self.scope_for_node(block_id.into_any())?;
+        let scope_mark = self.scope_mark_at_offset(scope.id, offset, dir_tree, symbols);
 
-        return Some(ScopeAtOffset {
+        Some(ScopeAtOffset {
             scope_id: scope.id,
             scope_mark,
-        });
+        })
     }
 
-    None
-}
-
-/// Resolve the nearest mapped owned declaration scope from enclosing spans.
-fn scope_from_enclosing_owned_declarations(
-    ctx: DirQueryContext<'_>,
-    enclosing: &[EnclosingSpan],
-    offset: u32,
-) -> Option<ScopeAtOffset> {
-    let dir_tree = ctx.view();
-    let symbols = ctx.symbols();
-
-    for enc in enclosing {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
-            continue;
+    /// Resolve the visible scope for one expression at an offset.
+    pub(crate) fn expression_scope_at_offset(
+        self,
+        expr_id: dir::LocalNodeId<dir::Expression>,
+        offset: u32,
+    ) -> ScopeAtOffset {
+        let Some(scope) = self.scope_for_node(expr_id.into_any()) else {
+            return ScopeAtOffset {
+                scope_id: self.namespace_scope(),
+                scope_mark: dir::LocalScopeMark::end(),
+            };
         };
 
-        if dir_node_id.ty != dir::NodeType::Declaration {
-            continue;
-        }
-
-        let Some(scope_id) = owned_scope_for_declaration_id(symbols, dir_node_id.id) else {
-            continue;
-        };
-        let scope_mark = scope_mark_at_offset(ctx, scope_id, offset, dir_tree, symbols);
-
-        return Some(ScopeAtOffset {
-            scope_id,
-            scope_mark,
-        });
+        self.scope_at_offset(offset).unwrap_or(ScopeAtOffset {
+            scope_id: scope.id,
+            scope_mark: dir::LocalScopeMark(0),
+        })
     }
 
-    None
-}
+    /// Resolve the best mapped dir scope from enclosing spans.
+    fn scope_from_enclosing_dir_nodes(
+        self,
+        enclosing: &[EnclosingSpan],
+        offset: u32,
+        block_only: bool,
+    ) -> Option<ScopeAtOffset> {
+        let dir_tree = self.view();
+        let symbols = self.symbols();
 
-/// Resolve one scope through parsed parent recovery when direct span mapping failed.
-fn source_parent_scope_at_offset(
-    ctx: DirQueryContext<'_>,
-    enclosing: &[EnclosingSpan],
-    offset: u32,
-) -> Option<ScopeAtOffset> {
-    let start_id = enclosing.first().map(|enc| enc.source_id)?;
+        for enc in enclosing {
+            let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
+                continue;
+            };
 
-    let dir_tree = ctx.view();
-    let symbols = ctx.symbols();
+            // blocks define the local statement scope
+            if dir_node_id.ty == dir::NodeType::Block {
+                let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
+                    continue;
+                };
 
-    for parent_id in ctx.parents().walk_parents_by_id(start_id) {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(parent_id) else {
-            if ctx.tree().get_node_type(parent_id) == dir::NodeType::Declaration
-                && let Some(scope_id) =
-                    owned_scope_for_source_declaration_id(symbols, dir_tree, parent_id)
+                let Some(scope) = self.scope_for_node(block_id.into_any()) else {
+                    continue;
+                };
+                let scope_mark = self.scope_mark_at_offset(scope.id, offset, dir_tree, symbols);
+
+                return Some(ScopeAtOffset {
+                    scope_id: scope.id,
+                    scope_mark,
+                });
+            }
+
+            if block_only {
+                continue;
+            }
+
+            // expressions reuse the surrounding lexical scope with an offset aware mark
+            if dir_node_id.ty == dir::NodeType::Expression {
+                let Ok(expr_id) = dir_node_id.try_into_typed::<dir::Expression>() else {
+                    continue;
+                };
+
+                let Some(scope) = self.scope_for_node(expr_id.into_any()) else {
+                    continue;
+                };
+                let scope_mark = self.scope_mark_at_offset(scope.id, offset, dir_tree, symbols);
+
+                return Some(ScopeAtOffset {
+                    scope_id: scope.id,
+                    scope_mark,
+                });
+            }
+
+            // owned declarations such as functions and classes expose their inner scope
+            if dir_node_id.ty == dir::NodeType::Declaration
+                && let Some(scope_id) = owned_scope_for_declaration_id(symbols, dir_node_id.id)
             {
-                let scope_mark = scope_mark_at_offset(ctx, scope_id, offset, dir_tree, symbols);
+                let scope_mark = self.scope_mark_at_offset(scope_id, offset, dir_tree, symbols);
 
                 return Some(ScopeAtOffset {
                     scope_id,
                     scope_mark,
                 });
             }
+        }
 
-            continue;
-        };
+        None
+    }
 
-        // blocks still win inside damaged syntax
-        if dir_node_id.ty == dir::NodeType::Block {
+    /// Resolve the nearest mapped dir block scope from enclosing spans.
+    fn scope_from_enclosing_dir_blocks(
+        self,
+        enclosing: &[EnclosingSpan],
+        offset: u32,
+    ) -> Option<ScopeAtOffset> {
+        let dir_tree = self.view();
+        let symbols = self.symbols();
+
+        for enc in enclosing {
+            let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
+                continue;
+            };
+
+            if dir_node_id.ty != dir::NodeType::Block {
+                continue;
+            }
+
             let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
                 continue;
             };
 
-            let Some(scope) = ctx.scope_for_node(block_id.into_any()) else {
+            let Some(scope) = self.scope_for_node(block_id.into_any()) else {
                 continue;
             };
-            let scope_mark = scope_mark_at_offset(ctx, scope.id, offset, dir_tree, symbols);
+            let scope_mark = self.scope_mark_at_offset(scope.id, offset, dir_tree, symbols);
 
             return Some(ScopeAtOffset {
                 scope_id: scope.id,
@@ -281,135 +198,216 @@ fn source_parent_scope_at_offset(
             });
         }
 
-        // expressions carry the surrounding lexical scope
-        if dir_node_id.ty == dir::NodeType::Expression {
-            let Ok(expr_id) = dir_node_id.try_into_typed::<dir::Expression>() else {
+        None
+    }
+
+    /// Resolve the nearest mapped owned declaration scope from enclosing spans.
+    fn scope_from_enclosing_owned_declarations(
+        self,
+        enclosing: &[EnclosingSpan],
+        offset: u32,
+    ) -> Option<ScopeAtOffset> {
+        let dir_tree = self.view();
+        let symbols = self.symbols();
+
+        for enc in enclosing {
+            let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(enc.source_id) else {
                 continue;
             };
 
-            let Some(scope) = ctx.scope_for_node(expr_id.into_any()) else {
+            if dir_node_id.ty != dir::NodeType::Declaration {
+                continue;
+            }
+
+            let Some(scope_id) = owned_scope_for_declaration_id(symbols, dir_node_id.id) else {
                 continue;
             };
-            let scope_mark = scope_mark_at_offset(ctx, scope.id, offset, dir_tree, symbols);
-
-            return Some(ScopeAtOffset {
-                scope_id: scope.id,
-                scope_mark,
-            });
-        }
-
-        // owned declarations expose an inner scope
-        if dir_node_id.ty == dir::NodeType::Declaration
-            && let Some(scope_id) = owned_scope_for_declaration_id(symbols, dir_node_id.id)
-        {
-            let scope_mark = scope_mark_at_offset(ctx, scope_id, offset, dir_tree, symbols);
+            let scope_mark = self.scope_mark_at_offset(scope_id, offset, dir_tree, symbols);
 
             return Some(ScopeAtOffset {
                 scope_id,
                 scope_mark,
             });
         }
+
+        None
     }
 
-    None
-}
+    /// Resolve one scope through parsed parent recovery when direct span mapping failed.
+    fn source_parent_scope_at_offset(
+        self,
+        enclosing: &[EnclosingSpan],
+        offset: u32,
+    ) -> Option<ScopeAtOffset> {
+        let start_id = enclosing.first().map(|enc| enc.source_id)?;
 
-/// Resolve one block or owned declaration scope through parsed parent recovery.
-fn source_parent_block_scope_at_offset(
-    ctx: DirQueryContext<'_>,
-    enclosing: &[EnclosingSpan],
-    offset: u32,
-) -> Option<ScopeAtOffset> {
-    let start_id = enclosing.first().map(|enc| enc.source_id)?;
+        let dir_tree = self.view();
+        let symbols = self.symbols();
 
-    let dir_tree = ctx.view();
-    let symbols = ctx.symbols();
+        for parent_id in self.parents().walk_parents_by_id(start_id) {
+            let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(parent_id) else {
+                if self.tree().get_node_type(parent_id) == dir::NodeType::Declaration
+                    && let Some(scope_id) =
+                        owned_scope_for_source_declaration_id(symbols, dir_tree, parent_id)
+                {
+                    let scope_mark = self.scope_mark_at_offset(scope_id, offset, dir_tree, symbols);
 
-    for parent_id in ctx.parents().walk_parents_by_id(start_id) {
-        let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(parent_id) else {
-            if ctx.tree().get_node_type(parent_id) == dir::NodeType::Declaration
-                && let Some(scope_id) =
-                    owned_scope_for_source_declaration_id(symbols, dir_tree, parent_id)
+                    return Some(ScopeAtOffset {
+                        scope_id,
+                        scope_mark,
+                    });
+                }
+
+                continue;
+            };
+
+            // blocks still win inside damaged syntax
+            if dir_node_id.ty == dir::NodeType::Block {
+                let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
+                    continue;
+                };
+
+                let Some(scope) = self.scope_for_node(block_id.into_any()) else {
+                    continue;
+                };
+                let scope_mark = self.scope_mark_at_offset(scope.id, offset, dir_tree, symbols);
+
+                return Some(ScopeAtOffset {
+                    scope_id: scope.id,
+                    scope_mark,
+                });
+            }
+
+            // expressions carry the surrounding lexical scope
+            if dir_node_id.ty == dir::NodeType::Expression {
+                let Ok(expr_id) = dir_node_id.try_into_typed::<dir::Expression>() else {
+                    continue;
+                };
+
+                let Some(scope) = self.scope_for_node(expr_id.into_any()) else {
+                    continue;
+                };
+                let scope_mark = self.scope_mark_at_offset(scope.id, offset, dir_tree, symbols);
+
+                return Some(ScopeAtOffset {
+                    scope_id: scope.id,
+                    scope_mark,
+                });
+            }
+
+            // owned declarations expose an inner scope
+            if dir_node_id.ty == dir::NodeType::Declaration
+                && let Some(scope_id) = owned_scope_for_declaration_id(symbols, dir_node_id.id)
             {
-                let scope_mark = scope_mark_at_offset(ctx, scope_id, offset, dir_tree, symbols);
+                let scope_mark = self.scope_mark_at_offset(scope_id, offset, dir_tree, symbols);
 
                 return Some(ScopeAtOffset {
                     scope_id,
                     scope_mark,
                 });
             }
+        }
 
-            continue;
-        };
+        None
+    }
 
-        // prefer the nearest enclosing block
-        if dir_node_id.ty == dir::NodeType::Block {
-            let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
+    /// Resolve one block or owned declaration scope through parsed parent recovery.
+    fn source_parent_block_scope_at_offset(
+        self,
+        enclosing: &[EnclosingSpan],
+        offset: u32,
+    ) -> Option<ScopeAtOffset> {
+        let start_id = enclosing.first().map(|enc| enc.source_id)?;
+
+        let dir_tree = self.view();
+        let symbols = self.symbols();
+
+        for parent_id in self.parents().walk_parents_by_id(start_id) {
+            let Some(dir_node_id) = dir_tree.get_node_id_by_source_id(parent_id) else {
+                if self.tree().get_node_type(parent_id) == dir::NodeType::Declaration
+                    && let Some(scope_id) =
+                        owned_scope_for_source_declaration_id(symbols, dir_tree, parent_id)
+                {
+                    let scope_mark = self.scope_mark_at_offset(scope_id, offset, dir_tree, symbols);
+
+                    return Some(ScopeAtOffset {
+                        scope_id,
+                        scope_mark,
+                    });
+                }
+
                 continue;
             };
 
-            let Some(scope) = ctx.scope_for_node(block_id.into_any()) else {
+            // prefer the nearest enclosing block
+            if dir_node_id.ty == dir::NodeType::Block {
+                let Ok(block_id) = dir_node_id.try_into_typed::<dir::Block>() else {
+                    continue;
+                };
+
+                let Some(scope) = self.scope_for_node(block_id.into_any()) else {
+                    continue;
+                };
+                let scope_mark = self.scope_mark_at_offset(scope.id, offset, dir_tree, symbols);
+
+                return Some(ScopeAtOffset {
+                    scope_id: scope.id,
+                    scope_mark,
+                });
+            }
+
+            // otherwise accept owned declaration scopes
+            if dir_node_id.ty == dir::NodeType::Declaration
+                && let Some(scope_id) = owned_scope_for_declaration_id(symbols, dir_node_id.id)
+            {
+                let scope_mark = self.scope_mark_at_offset(scope_id, offset, dir_tree, symbols);
+
+                return Some(ScopeAtOffset {
+                    scope_id,
+                    scope_mark,
+                });
+            }
+        }
+
+        None
+    }
+
+    /// Resolve the current scope mark at one offset.
+    fn scope_mark_at_offset(
+        self,
+        scope_id: dir::LocalScopeId,
+        offset: u32,
+        dir_tree: dir::View<'_>,
+        symbols: &dir::BindingTable<'_>,
+    ) -> dir::LocalScopeMark {
+        let scope = symbols.get_scope_by_id(scope_id);
+        if scope.bindings.is_empty() {
+            return dir::LocalScopeMark(0);
+        }
+
+        // count symbols whose declaration begins before the cursor
+        let mut mark_index = 0u32;
+
+        for (index, binding) in scope.bindings.iter().enumerate() {
+            let symbol = symbols.get_symbol(binding.symbol);
+            let Some(declaration) = symbol.declaration else {
+                mark_index = (index + 1) as u32;
                 continue;
             };
-            let scope_mark = scope_mark_at_offset(ctx, scope.id, offset, dir_tree, symbols);
 
-            return Some(ScopeAtOffset {
-                scope_id: scope.id,
-                scope_mark,
-            });
+            let source_id = dir_tree.get_source_any(declaration.local_id);
+            let span = self
+                .tree()
+                .source_index
+                .get_side_or_main_or_enclosing(source_id, NodeSpanType::Main);
+
+            if span.start <= offset {
+                mark_index = (index + 1) as u32;
+            }
         }
 
-        // otherwise accept owned declaration scopes
-        if dir_node_id.ty == dir::NodeType::Declaration
-            && let Some(scope_id) = owned_scope_for_declaration_id(symbols, dir_node_id.id)
-        {
-            let scope_mark = scope_mark_at_offset(ctx, scope_id, offset, dir_tree, symbols);
-
-            return Some(ScopeAtOffset {
-                scope_id,
-                scope_mark,
-            });
-        }
+        dir::LocalScopeMark(mark_index)
     }
-
-    None
-}
-
-/// Resolve the current scope mark at one offset.
-fn scope_mark_at_offset(
-    ctx: DirQueryContext<'_>,
-    scope_id: dir::LocalScopeId,
-    offset: u32,
-    dir_tree: dir::View<'_>,
-    symbols: &dir::BindingTable<'_>,
-) -> dir::LocalScopeMark {
-    let scope = symbols.get_scope_by_id(scope_id);
-    if scope.bindings.is_empty() {
-        return dir::LocalScopeMark(0);
-    }
-
-    // count symbols whose declaration begins before the cursor
-    let mut mark_index = 0u32;
-
-    for (index, binding) in scope.bindings.iter().enumerate() {
-        let symbol = symbols.get_symbol(binding.symbol);
-        let Some(declaration) = symbol.declaration else {
-            mark_index = (index + 1) as u32;
-            continue;
-        };
-
-        let source_id = dir_tree.get_source_any(declaration.local_id);
-        let span = ctx
-            .tree()
-            .source_index
-            .get_side_or_main_or_enclosing(source_id, NodeSpanType::Main);
-
-        if span.start <= offset {
-            mark_index = (index + 1) as u32;
-        }
-    }
-
-    dir::LocalScopeMark(mark_index)
 }
 
 /// Resolve the owned scope for one declaration id.

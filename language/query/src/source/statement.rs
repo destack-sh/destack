@@ -69,58 +69,60 @@ fn cursor_is_on_statement_main_span(
     span_owns_cursor(main_span, offset)
 }
 
-/// Resolve the cursor's statement position inside one block.
-pub(crate) fn block_statement_position(
-    ctx: DirQueryContext<'_>,
-    enc: &EnclosingSpan,
-    offset: u32,
-) -> Option<BlockStatementPosition> {
-    // only block spans can expose statement positions
-    if ctx.tree().get_node_type(enc.source_id) != dir::NodeType::Block {
-        return None;
-    }
-
-    let parsed_tree = ctx.tree();
-    let block_id = dir::LocalNodeId::<dir::Block>::new(enc.source_id);
-    let block = parsed_tree.get(block_id);
-
-    // empty blocks always expose one statement gap
-    if block.is_empty() {
-        return Some(BlockStatementPosition::StatementGap);
-    }
-
-    // track the last completed expression before the cursor
-    let mut last_expression_before_cursor = None;
-
-    for expr_id in block.iter_expressions() {
-        let span = parsed_tree.source_index.get(expr_id.id);
-
-        // statement heads only count when the cursor is on the owning statement span
-        if span_owns_cursor(span, offset) {
-            if !cursor_is_on_statement_main_span(parsed_tree, expr_id, span, offset) {
-                return None;
-            }
-
-            let expr = parsed_tree.get(expr_id);
-            if expression_is_statement_head_candidate(parsed_tree, expr) {
-                return Some(BlockStatementPosition::StatementHead);
-            }
-
+impl DirQueryContext<'_> {
+    /// Resolve the cursor's statement position inside one block.
+    pub(crate) fn block_statement_position(
+        self,
+        enc: &EnclosingSpan,
+        offset: u32,
+    ) -> Option<BlockStatementPosition> {
+        // only block spans can expose statement positions
+        if self.tree().get_node_type(enc.source_id) != dir::NodeType::Block {
             return None;
         }
 
-        // remember the last expression before the cursor
-        if span.end <= offset {
-            last_expression_before_cursor = Some(expr_id);
+        let parsed_tree = self.tree();
+        let block_id = dir::LocalNodeId::<dir::Block>::new(enc.source_id);
+        let block = parsed_tree.get(block_id);
+
+        // empty blocks always expose one statement gap
+        if block.is_empty() {
+            return Some(BlockStatementPosition::StatementGap);
         }
-    }
 
-    // trailing missing slots still belong to the current statement
-    if let Some(expr_id) = last_expression_before_cursor
-        && expression_has_trailing_missing_slot(parsed_tree, expr_id)
-    {
-        return None;
-    }
+        // track the last completed expression before the cursor
+        let mut last_expression_before_cursor = None;
 
-    Some(BlockStatementPosition::StatementGap)
+        for expr_id in block.iter_expressions() {
+            let span = parsed_tree.source_index.get(expr_id.id);
+
+            // statement heads only count when the cursor is on the owning statement span
+            if span_owns_cursor(span, offset) {
+                if !cursor_is_on_statement_main_span(parsed_tree, expr_id, span, offset) {
+                    return None;
+                }
+
+                let expr = parsed_tree.get(expr_id);
+                if expression_is_statement_head_candidate(parsed_tree, expr) {
+                    return Some(BlockStatementPosition::StatementHead);
+                }
+
+                return None;
+            }
+
+            // remember the last expression before the cursor
+            if span.end <= offset {
+                last_expression_before_cursor = Some(expr_id);
+            }
+        }
+
+        // trailing missing slots still belong to the current statement
+        if let Some(expr_id) = last_expression_before_cursor
+            && expression_has_trailing_missing_slot(parsed_tree, expr_id)
+        {
+            return None;
+        }
+
+        Some(BlockStatementPosition::StatementGap)
+    }
 }

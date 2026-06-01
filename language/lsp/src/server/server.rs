@@ -1090,7 +1090,7 @@ impl LanguageServer for DestackLanguageServer {
             folding_range_provider: Some(lsp::FoldingRangeProviderCapability::Simple(true)),
             selection_range_provider: Some(lsp::SelectionRangeProviderCapability::Simple(true)),
             document_link_provider: Some(lsp::DocumentLinkOptions {
-                resolve_provider: Some(true),
+                resolve_provider: None,
                 work_done_progress_options: Default::default(),
             }),
             rename_provider: Some(lsp::OneOf::Right(lsp::RenameOptions {
@@ -3365,7 +3365,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentLink,
     ) -> jsonrpc::Result<lsp::DocumentLink> {
-        // links are already resolved in document_link
+        // return eager links unchanged for clients that call despite capabilities
         Ok(params)
     }
 

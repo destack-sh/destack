@@ -283,12 +283,12 @@ pub enum ConditionRef {
     /// Named condition alias or `axis:name` reference.
     Name(String),
     /// Inline condition gate.
-    Predicate(ConditionPredicate),
+    Predicate(Box<ConditionPredicate>),
 }
 
 impl Default for ConditionRef {
     fn default() -> Self {
-        Self::Predicate(ConditionPredicate::default())
+        Self::Predicate(Box::default())
     }
 }
 

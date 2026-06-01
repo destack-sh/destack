@@ -5,7 +5,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use super::signature::format_call_signature;
-use super::types::format_local_type;
+use super::types::format_global_type;
 use crate::core::ModuleQueryContext;
 
 /// Format hover information as markdown for display.
@@ -78,7 +78,7 @@ pub fn format_member_hover(
     };
     let type_str = types
         .get_node_type_id(node_id)
-        .map(|type_id| format_local_type(type_id, types, ctx));
+        .map(|type_id| format_global_type(type_id, ctx));
 
     // build the qualified name
     let qualified_name = match container {
@@ -88,8 +88,8 @@ pub fn format_member_hover(
 
     // format the hover text by member kind
     match member {
-        dir::Member::AssociatedType { .. } => {
-            let member_name = strings.get(member.name().unwrap()).to_string();
+        dir::Member::AssociatedType { name, .. } => {
+            let member_name = strings.get(*name).to_string();
             let qualified_name = match container {
                 Some(container_name) => format!("{container_name}.{member_name}"),
                 None => member_name,
@@ -101,8 +101,8 @@ pub fn format_member_hover(
                 format!("(type member) {qualified_name}")
             }
         }
-        dir::Member::AssociatedConst { .. } => {
-            let member_name = strings.get(member.name().unwrap()).to_string();
+        dir::Member::AssociatedConst { name, .. } => {
+            let member_name = strings.get(*name).to_string();
             let qualified_name = match container {
                 Some(container_name) => format!("{container_name}.{member_name}"),
                 None => member_name,
@@ -121,14 +121,9 @@ pub fn format_member_hover(
                 format!("(property) {qualified_name}")
             }
         }
-        dir::Member::Method { .. } => format_method_hover(
-            &qualified_name,
-            member.signature().unwrap(),
-            module_id,
-            dir_tree,
-            types,
-            ctx,
-        ),
+        dir::Member::Method { signature, .. } => {
+            format_method_hover(&qualified_name, signature, module_id, dir_tree, types, ctx)
+        }
         dir::Member::StaticBlock { .. } => "(static block)".to_string(),
         dir::Member::ComptimeBlock { .. } => "(comptime block)".to_string(),
         dir::Member::Error => "(error member)".to_string(),
@@ -160,7 +155,7 @@ pub fn format_enum_field_hover(
         local_id: field_id.into(),
     };
     if let Some(type_id) = types.get_node_type_id(node_id) {
-        let type_text = format_local_type(type_id, types, ctx);
+        let type_text = format_global_type(type_id, ctx);
         format!("(enum member) {qualified_name} = {type_text}")
     } else {
         format!("(enum member) {qualified_name}")
@@ -198,7 +193,7 @@ pub fn format_parameter_hover(
         local_id: param_id.into(),
     };
     if let Some(type_id) = types.get_node_type_id(node_id) {
-        let type_text = format_local_type(type_id, types, ctx);
+        let type_text = format_global_type(type_id, ctx);
         format!("(parameter) {name}: {type_text}")
     } else {
         format!("(parameter) {name}")
@@ -226,7 +221,7 @@ pub fn format_local_variable_hover(
 
     // resolve the local type when available
     if let Some(type_id) = types.get_symbol_type_id(symbol_id) {
-        let type_text = format_local_type(type_id, types, ctx);
+        let type_text = format_global_type(type_id, ctx);
         format!("let {name}: {type_text}")
     } else {
         format!("let {name}")

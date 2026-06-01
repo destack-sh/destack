@@ -24,29 +24,6 @@ main.ds:1:21-1:31 target=file:foo.ds tooltip=Go to ./foo.ds
 main.ds:2:21-2:31 target=file:bar.ds tooltip=Go to ./bar.ds
 ```
 
-## Resolve Links
-
-### Resolving links keeps the same target
-
-Resolved document links should keep their target when already resolved.
-
-```ds:main.ds
-import { foo } from "./foo.ds";
-import { bar } from "./b$0ar.ds";
-```
-
-```ds:foo.ds
-export const foo = 1;
-```
-
-```ds:bar.ds
-export const bar = 2;
-```
-
-```query resolve_document_link $0
-<same>
-```
-
 ## Re-Exports
 
 ### Re-export specifiers should produce links

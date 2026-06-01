@@ -10,7 +10,6 @@ use crate::mdtest::{
     MdTestCase, MdTestFile, MdTestLibs, parse_mdtest_libs, run_with_timeout, slug,
 };
 use crate::query::{QueryTestSession, runner};
-use destack_query as query;
 use destack_source::{BatchEdit, Edit};
 
 /// A query expectation block parsed from markdown.
@@ -334,7 +333,7 @@ fn run_rename_expected_files(
     // run rename
     let ctx = session.module_context(file_id);
     let workspace = session.workspace_context();
-    let result = query::rename(&ctx, &workspace, offset, new_name);
+    let result = ctx.rename(&workspace, offset, new_name);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: format!("rename at '{}' returned None", expectation.target),
@@ -368,7 +367,7 @@ fn run_file_rename_expected_files(
 
     // run file rename edits
     let workspace = session.workspace_context();
-    let result = query::rename_files(&workspace, &renames);
+    let result = workspace.rename_files(&renames);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "file_rename returned no edits".to_string(),
@@ -408,7 +407,7 @@ fn run_extract_function_expected_files(
 
     // run extract function edits
     let ctx = session.module_context(selection.file);
-    let result = query::extract_function(&ctx, selection, new_name);
+    let result = ctx.extract_function(selection, new_name);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "extract_function returned no edits".to_string(),
@@ -448,7 +447,7 @@ fn run_extract_variable_expected_files(
 
     // run extract variable edits
     let ctx = session.module_context(selection.file);
-    let result = query::extract_variable(&ctx, selection, new_name);
+    let result = ctx.extract_variable(selection, new_name);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "extract_variable returned no edits".to_string(),
@@ -484,7 +483,7 @@ fn run_inline_expected_files(
     // run inline edits
     let ctx = session.module_context(file_id);
     let workspace = session.workspace_context();
-    let result = query::inline_symbol(&ctx, &workspace, offset);
+    let result = ctx.inline_symbol(&workspace, offset);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "inline returned no edits".to_string(),
@@ -531,7 +530,7 @@ fn run_change_signature_expected_files(
     // run change signature edits
     let ctx = session.module_context(file_id);
     let workspace = session.workspace_context();
-    let result = query::change_signature(&ctx, &workspace, offset, new_parameters, new_arguments);
+    let result = ctx.change_signature(&workspace, offset, new_parameters, new_arguments);
     let Some(result) = result else {
         return CaseResult::Failed {
             message: "change_signature returned no edits".to_string(),
@@ -761,9 +760,6 @@ fn dispatch_query(
         "call_hierarchy" => runner::navigation::call_hierarchy::run(session, expectation),
         "type_hierarchy" => runner::navigation::type_hierarchy::run(session, expectation),
         "document_link" => runner::navigation::document_link::run(session, expectation),
-        "resolve_document_link" => {
-            runner::navigation::document_link::run_resolve(session, expectation)
-        }
 
         // refactor
         "rename" => runner::refactor::rename::run(session, expectation),

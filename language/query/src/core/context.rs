@@ -121,8 +121,6 @@ pub(crate) struct DirQueryContext<'a> {
     exports: &'a dir::ExportTable,
     /// The checked type table.
     types: &'a dir::TypeTable<'static>,
-    /// The checked static table.
-    statics: &'a dir::StaticTable<'static>,
     /// The checked extension table.
     extensions: &'a dir::ExtensionTable<'static>,
     /// The checked resolution table.
@@ -228,11 +226,6 @@ impl<'a> DirQueryContext<'a> {
         self.types
     }
 
-    /// Return the DIR static table.
-    pub(crate) fn statics(self) -> &'a dir::StaticTable<'static> {
-        self.statics
-    }
-
     /// Return the DIR extension table.
     pub(crate) fn extensions(self) -> &'a dir::ExtensionTable<'static> {
         self.extensions
@@ -272,13 +265,13 @@ impl<'a> DirQueryContext<'a> {
     pub(crate) fn expression_type_id(
         &self,
         node_id: dir::LocalNodeIdAny,
-    ) -> Option<dir::LocalTypeId> {
+    ) -> Option<dir::GlobalTypeId> {
         let global_node_id = node_id.into_global(self.module_id);
         self.types().get_node_type_id(global_node_id)
     }
 
     /// Get the declared or inferred type id for a node.
-    pub(crate) fn node_type_id(&self, node_id: dir::LocalNodeIdAny) -> Option<dir::LocalTypeId> {
+    pub(crate) fn node_type_id(&self, node_id: dir::LocalNodeIdAny) -> Option<dir::GlobalTypeId> {
         let global_node_id = node_id.into_global(self.module_id);
         self.types().get_node_type_id(global_node_id)
     }
@@ -323,6 +316,62 @@ impl<'a> ModuleQueryContext<'a> {
         read_module_query_context(self.repository, self.revision, module_id, self.profile_id)
     }
 
+    /// Read one checked global type through its owning module context.
+    pub(crate) fn with_global_type<R>(
+        &self,
+        type_id: dir::GlobalTypeId,
+        read: impl FnOnce(&dir::Type, &ModuleQueryContext<'_>) -> R,
+    ) -> Option<R> {
+        if type_id.module_id == self.module_id {
+            let ty = self.dir_types.get_type_maybe(type_id.local_id)?;
+
+            return Some(read(ty, self));
+        }
+
+        let context = self.module_context(type_id.module_id)?;
+        let ty = context.dir_types.get_type_maybe(type_id.local_id)?;
+
+        Some(read(ty, &context))
+    }
+
+    /// Read one checked global static value through its owning module context.
+    pub(crate) fn with_global_static<R>(
+        &self,
+        static_id: dir::GlobalStaticId,
+        read: impl FnOnce(&dir::StaticTerm, &ModuleQueryContext<'_>) -> R,
+    ) -> Option<R> {
+        if static_id.module_id == self.module_id {
+            let value = self.dir_statics.get_static_maybe(static_id.local_id)?;
+
+            return Some(read(value, self));
+        }
+
+        let context = self.module_context(static_id.module_id)?;
+        let value = context.dir_statics.get_static_maybe(static_id.local_id)?;
+
+        Some(read(value, &context))
+    }
+
+    /// Strip local form wrappers from one checked global type id.
+    pub(crate) fn unwrap_global_form_payload_type_id(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Option<dir::GlobalTypeId> {
+        let mut current = type_id;
+
+        loop {
+            let next = self.with_global_type(current, |ty, _| match ty {
+                dir::Type::Form(form) => Some(form.value),
+                _ => None,
+            })?;
+            let Some(next) = next else {
+                return Some(current);
+            };
+
+            current = next;
+        }
+    }
+
     /// Return the dir query surface.
     pub(crate) fn dir(&self) -> DirQueryContext<'_> {
         let roots = self
@@ -347,7 +396,6 @@ impl<'a> ModuleQueryContext<'a> {
             modules: &self.dir_modules,
             exports: &self.dir_exported.exports,
             types: &self.dir_types,
-            statics: &self.dir_statics,
             extensions: &self.dir_extensions,
             resolutions: &self.dir_resolutions,
             strings: self.strings,

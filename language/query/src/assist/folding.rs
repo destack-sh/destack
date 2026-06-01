@@ -1,6 +1,5 @@
 use crate::core::QueryModule;
 use destack_dir as dir;
-use destack_dir::{Declaration, TokenType};
 use serde::{Deserialize, Serialize};
 
 use crate::core::ModuleQueryContext;
@@ -73,59 +72,61 @@ pub struct FoldingRangesResponse {
     pub ranges: Vec<FoldingRange>,
 }
 
-/// Get folding ranges for a file.
-pub fn folding_ranges(ctx: &ModuleQueryContext<'_>) -> Vec<FoldingRange> {
-    let Some(source_file) = ctx
-        .repository()
-        .file(ctx.revision(), ctx.file_id())
-        .ok()
-        .flatten()
-    else {
-        return Vec::new();
-    };
-    let dir_tree = ctx.dir().view();
-    let mut ranges = Vec::new();
+impl ModuleQueryContext<'_> {
+    /// Get folding ranges for a file.
+    pub fn folding_ranges(&self) -> Vec<FoldingRange> {
+        let Some(source_file) = self
+            .repository()
+            .file(self.revision(), self.file_id())
+            .ok()
+            .flatten()
+        else {
+            return Vec::new();
+        };
+        let dir_tree = self.dir().view();
+        let mut ranges = Vec::new();
 
-    // collect declaration body ranges
-    for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<Declaration>() {
-        let should_fold = matches!(
-            declaration,
-            Declaration::Function { .. }
-                | Declaration::Class { .. }
-                | Declaration::Struct { .. }
-                | Declaration::Interface { .. }
-                | Declaration::Enum { .. }
-                | Declaration::Global { .. }
-                | Declaration::Extension { .. }
-        );
-        if !should_fold {
-            continue;
+        // collect declaration body ranges
+        for (declaration_id, declaration) in dir_tree.iter_nodes_of_type::<dir::Declaration>() {
+            let should_fold = matches!(
+                declaration,
+                dir::Declaration::Function { .. }
+                    | dir::Declaration::Class { .. }
+                    | dir::Declaration::Struct { .. }
+                    | dir::Declaration::Interface { .. }
+                    | dir::Declaration::Enum { .. }
+                    | dir::Declaration::Global { .. }
+                    | dir::Declaration::Extension { .. }
+            );
+            if !should_fold {
+                continue;
+            }
+
+            let source_node_id = dir_tree.get_source(declaration_id);
+            let span = self.dir().tree().source_index.get(source_node_id);
+            let Some((start_line, _)) = source_file.get_position(span.start) else {
+                continue;
+            };
+            let Some((end_line, _)) = source_file.get_position(span.end) else {
+                continue;
+            };
+
+            if end_line > start_line {
+                ranges.push(FoldingRange::new(start_line, end_line));
+            }
         }
 
-        let source_node_id = dir_tree.get_source(declaration_id);
-        let span = ctx.dir().tree().source_index.get(source_node_id);
-        let Some((start_line, _)) = source_file.get_position(span.start) else {
-            continue;
-        };
-        let Some((end_line, _)) = source_file.get_position(span.end) else {
-            continue;
-        };
+        // collect comment block ranges
+        add_comment_folding_ranges(&mut ranges, self.dir().side_tokens(), &source_file);
 
-        if end_line > start_line {
-            ranges.push(FoldingRange::new(start_line, end_line));
-        }
+        // order and deduplicate ranges
+        ranges.sort_by_key(|range| (range.start_line, range.end_line));
+        ranges.dedup_by(|left, right| {
+            left.start_line == right.start_line && left.end_line == right.end_line
+        });
+
+        ranges
     }
-
-    // collect comment block ranges
-    add_comment_folding_ranges(&mut ranges, ctx.dir().side_tokens(), &source_file);
-
-    // order and deduplicate ranges
-    ranges.sort_by_key(|range| (range.start_line, range.end_line));
-    ranges.dedup_by(|left, right| {
-        left.start_line == right.start_line && left.end_line == right.end_line
-    });
-
-    ranges
 }
 
 /// Add comment folding ranges for the given token stream.
@@ -143,7 +144,7 @@ fn add_comment_folding_ranges(
         }
 
         match token.token.ty() {
-            TokenType::LineComment | TokenType::DocLineComment => {
+            dir::TokenType::LineComment | dir::TokenType::DocLineComment => {
                 let Some((start_line, _)) = source_file.get_position(span.start) else {
                     continue;
                 };
@@ -166,7 +167,7 @@ fn add_comment_folding_ranges(
                     }
                 }
             }
-            TokenType::BlockComment | TokenType::DocBlockComment => {
+            dir::TokenType::BlockComment | dir::TokenType::DocBlockComment => {
                 if let Some((block_start, block_end)) =
                     line_comment_block.take().filter(|(start, end)| end > start)
                 {
@@ -188,7 +189,7 @@ fn add_comment_folding_ranges(
                     );
                 }
             }
-            TokenType::Whitespace | TokenType::Newline => {}
+            dir::TokenType::Whitespace | dir::TokenType::Newline => {}
             _ => {
                 if let Some((block_start, block_end)) =
                     line_comment_block.take().filter(|(start, end)| end > start)
