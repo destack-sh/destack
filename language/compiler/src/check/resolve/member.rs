@@ -249,7 +249,7 @@ impl CheckState<'_> {
             {
                 return Ok(None);
             }
-            let operand = self.member_type_operand(member);
+            let operand = self.member_type_operand(module, member);
             if substitution.is_empty() {
                 let Some(term) = self.type_operand_term(operand)? else {
                     return Ok(None);
@@ -288,7 +288,7 @@ impl CheckState<'_> {
         {
             return Ok(None);
         }
-        let variable = self.require_symbol_type(member);
+        let variable = self.require_symbol_type(module, member);
         if substitution.is_empty() {
             let Some(term) = self.type_operand_term(variable)? else {
                 return Ok(None);
@@ -693,12 +693,12 @@ impl CheckState<'_> {
                 .view()
                 .get(where_clause)
                 .clone();
-            let left = self.import_dependency_require_node_type(
+            let left = self.require_dependency_node_type(
                 module,
                 symbol.module_id,
                 where_clause.left.into_global_any(symbol.module_id),
             );
-            let right = self.import_dependency_require_node_type(
+            let right = self.require_dependency_node_type(
                 module,
                 symbol.module_id,
                 where_clause.right.into_global_any(symbol.module_id),

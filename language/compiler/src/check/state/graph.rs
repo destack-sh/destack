@@ -145,7 +145,7 @@ impl Compiler {
                 .map_err(CompilerError::from)?;
             let dependencies = resolved.imports.dependencies.clone();
 
-            // schedule dependencies before publishing this node
+            // schedule dependencies before committing this node
             for dependency in dependencies.iter().rev() {
                 if !graph.contains_key(dependency) {
                     pending.push(*dependency);

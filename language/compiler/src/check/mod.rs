@@ -6,8 +6,9 @@ mod error;
 mod flow;
 mod language;
 mod obligation;
-mod prepare;
 mod provide;
+mod resolution;
+mod resolve;
 mod solve;
 mod state;
 mod term;
@@ -23,9 +24,12 @@ pub(in crate::check) use dispatch::*;
 pub(in crate::check) use flow::*;
 pub(in crate::check) use language::*;
 pub(in crate::check) use obligation::*;
+pub(in crate::check) use resolution::*;
+pub(in crate::check) use resolve::*;
 pub(in crate::check) use solve::{Decision, Progress, Reduction};
 pub(in crate::check) use state::*;
 pub(in crate::check) use term::*;
+pub(in crate::check) use walk::*;
 
 #[cfg(test)]
 mod tests;

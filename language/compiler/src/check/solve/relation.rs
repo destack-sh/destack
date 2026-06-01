@@ -190,6 +190,7 @@ impl CheckState<'_> {
         let term = match operand {
             TypeOperand::Variable(variable) => self.type_solution(variable)?,
             TypeOperand::Term(term) => Some(self.term(term).clone()),
+            TypeOperand::Type(ty) => Some(TypeTerm::Type(ty)),
         };
 
         Ok(term)
@@ -203,6 +204,7 @@ impl CheckState<'_> {
         let term = match operand {
             StaticOperand::Variable(variable) => self.static_solution(variable)?,
             StaticOperand::Term(term) => Some(self.term(term).clone()),
+            StaticOperand::Static(value) => Some(StaticTerm::Static(value)),
         };
 
         Ok(term)

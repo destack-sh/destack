@@ -8,7 +8,7 @@ pub(in crate::check) enum Progress {
     /// The reduction did not change any variable.
     Unchanged,
     /// The solver task changed these variables.
-    Changed(SmallVec<[VariableId; 4]>),
+    Changed(SmallVec<[VariableId; 2]>),
 }
 
 impl Progress {

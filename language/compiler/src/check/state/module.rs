@@ -7,7 +7,7 @@ use destack_source::ModuleId;
 use destack_workspace::Module;
 use indexmap::{IndexMap, IndexSet};
 
-use crate::check::{Capture, CheckError, CheckState, Condition, GenericSlotId, VariableId};
+use crate::check::{Capture, CheckError, CheckState, Condition};
 
 /// State owned by one module inside a checked component.
 pub(in crate::check) struct CheckModuleState {
@@ -32,12 +32,6 @@ pub(in crate::check) struct CheckModuleState {
     // working state
     /// Out-of-component modules visible from this module.
     pub(in crate::check) dependencies: IndexSet<ModuleId>,
-    /// Imported generic variables keyed by owning source symbol.
-    pub(in crate::check) imported_generics: IndexMap<dir::GlobalSymbolId, Vec<VariableId>>,
-    /// Imported generic variables keyed by generic slot.
-    pub(in crate::check) imported_generic_by_slot: IndexMap<GenericSlotId, VariableId>,
-    /// Imported generic variables keyed by parameter symbol.
-    pub(in crate::check) imported_generic_by_symbol: IndexMap<dir::GlobalSymbolId, VariableId>,
     /// Captures discovered while walking this module.
     pub(in crate::check) captures: Vec<Capture>,
     /// Static availability of declarations in this module.
@@ -47,7 +41,7 @@ pub(in crate::check) struct CheckModuleState {
 }
 
 impl CheckModuleState {
-    /// Create module state from loaded inputs and empty output tables.
+    /// Create module state from loaded inputs and empty working state.
     pub(in crate::check) fn new(
         module_id: ModuleId,
         module: Arc<Module>,
@@ -68,9 +62,6 @@ impl CheckModuleState {
             resolved,
             expanded,
             dependencies: IndexSet::new(),
-            imported_generics: IndexMap::new(),
-            imported_generic_by_slot: IndexMap::new(),
-            imported_generic_by_symbol: IndexMap::new(),
             captures: Vec::new(),
             availability: IndexMap::new(),
             diagnostics: Vec::new(),
@@ -99,6 +90,24 @@ impl CheckModuleState {
     pub(in crate::check) fn static_table(&self) -> dir::StaticTable<'static> {
         self.expanded.static_table(&self.bound)
     }
+
+    /// Return one input type visible to check.
+    pub(in crate::check) fn type_value(&self, type_id: dir::LocalTypeId) -> &dir::Type {
+        if let Some(ty) = self.expanded.types.get_type_maybe(type_id) {
+            return ty;
+        }
+
+        self.bound.types.get_type(type_id)
+    }
+
+    /// Return one input static value visible to check.
+    pub(in crate::check) fn static_value(&self, static_id: dir::LocalStaticId) -> &dir::StaticTerm {
+        if let Some(value) = self.expanded.statics.get_static_maybe(static_id) {
+            return value;
+        }
+
+        self.bound.statics.get_static(static_id)
+    }
 }
 
 impl CheckState<'_> {
@@ -115,6 +124,29 @@ impl CheckState<'_> {
         match self.modules.get_mut(&module) {
             Some(state) => state,
             None => panic!("check module {module:?} was not loaded"),
+        }
+    }
+
+    /// Return one checked type visible from the active component.
+    pub(in crate::check) fn global_type_value(&self, ty: dir::GlobalTypeId) -> &dir::Type {
+        if let Some(module) = self.modules.get(&ty.module_id) {
+            module.type_value(ty.local_id)
+        } else {
+            self.dependency(ty.module_id).types.get_type(ty.local_id)
+        }
+    }
+
+    /// Return one checked static visible from the active component.
+    pub(in crate::check) fn global_static_value(
+        &self,
+        value: dir::GlobalStaticId,
+    ) -> &dir::StaticTerm {
+        if let Some(module) = self.modules.get(&value.module_id) {
+            module.static_value(value.local_id)
+        } else {
+            self.dependency(value.module_id)
+                .statics
+                .get_static(value.local_id)
         }
     }
 

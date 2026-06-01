@@ -135,7 +135,7 @@ pub(in crate::check) enum CommitEvent {
         /// The variable that was committed.
         variable: VariableId,
         /// The resulting type id when one was emitted.
-        ty: Option<dir::LocalTypeId>,
+        ty: Option<dir::GlobalTypeId>,
     },
     /// Commit reached a type variable already active on the stack.
     CircularTypeVariable {

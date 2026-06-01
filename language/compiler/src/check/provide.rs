@@ -32,7 +32,7 @@ impl Compiler {
         let discovered_component_id =
             ComponentId::from_modules(profile, component_modules.iter().copied());
 
-        // validate the artifact key against the current dependency graph
+        // validate the component entry
         if entry != discovered_entry {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -40,6 +40,8 @@ impl Compiler {
                 ),
             });
         }
+
+        // validate the component identity
         if component_id != discovered_component_id {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -66,7 +68,6 @@ impl Compiler {
         let mut check = CheckState::new(self, context, profile, environment);
         check.load(component_modules.as_slice())?;
         check.walk()?;
-        check.prepare()?;
         check.solve()?;
         let stats = check.stats();
         context.emit_sidecar(ArtifactSidecar::new(

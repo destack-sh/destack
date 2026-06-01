@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_artifact::GlobalEnvironment;
@@ -8,8 +7,8 @@ use destack_workspace::ProviderContext;
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckDependencyState, CheckEvent, CheckModuleState, CheckTrace, ExportLookupKey,
-    ExportLookupState, GenericTable, InferenceTable, OperandTable, OutputTable, VariableId,
+    CheckDependencyState, CheckEvent, CheckModuleState, CheckTrace, InferenceTable, OperandTable,
+    StaticOperand, VariableId,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -31,14 +30,8 @@ pub(in crate::check) struct CheckState<'a> {
 
     /// Source operands discovered during checking.
     pub(in crate::check) operands: OperandTable,
-    /// Generic slots and applications discovered during checking.
-    pub(in crate::check) generics: GenericTable,
-    /// Checked source identities that should be committed.
-    pub(in crate::check) outputs: OutputTable,
     /// Component-wide inference graph.
     pub(in crate::check) inference: InferenceTable,
-    /// Export lookups already computed during this check component.
-    pub(in crate::check) exports: HashMap<ExportLookupKey, ExportLookupState>,
     /// Trace events emitted during checking.
     pub(in crate::check) trace: CheckTrace,
 }
@@ -59,10 +52,7 @@ impl<'a> CheckState<'a> {
             modules: IndexMap::new(),
             dependencies: IndexMap::new(),
             operands: OperandTable::new(),
-            generics: GenericTable::new(),
-            outputs: OutputTable::new(),
             inference: InferenceTable::new(),
-            exports: HashMap::new(),
             trace: CheckTrace::new(),
         }
     }
@@ -86,30 +76,15 @@ impl<'a> CheckState<'a> {
     pub(in crate::check) fn walk(&mut self) -> CompilerResult<()> {
         let modules = self.modules.keys().copied().collect::<Vec<_>>();
 
-        // import checked dependency values before walk classifies references
-        self.import_module_dependencies()?;
+        // load checked dependency artifacts before walk classifies references
+        self.load_module_dependencies()?;
 
         // walk modules in stable component order
-        for module in modules {
+        for module in modules.iter().copied() {
             self.walk_module(module);
         }
 
-        Ok(())
-    }
-
-    /// Prepare fixed generic and variable state before solve.
-    pub(in crate::check) fn prepare(&mut self) -> CompilerResult<()> {
-        let modules = self.modules.keys().copied().collect::<Vec<_>>();
-
-        // induce concrete owner generics from transparent type leaves
-        self.prepare_generics()?;
-
-        // define declaration references after all induced slots are known
-        for module in modules {
-            self.equate_declaration_self_types(module);
-        }
-
-        Ok(())
+        self.propagate_walk_state(modules.as_slice())
     }
 
     /// Load one module.
@@ -186,6 +161,24 @@ impl<'a> CheckState<'a> {
         symbol: dir::GlobalSymbolId,
     ) -> VariableId {
         if self.modules.contains_key(&symbol.module_id) {
+            if let Some(operand) = self.operands.symbol_statics.get(&symbol).copied() {
+                return match operand {
+                    StaticOperand::Variable(variable) => variable,
+                    StaticOperand::Term(_) | StaticOperand::Static(_) => {
+                        panic!("check symbol {symbol:?} has a static operand, not a solver slot")
+                    }
+                };
+            }
+
+            if let Some(target) = self.import_alias_target(symbol) {
+                let variable = self.ensure_symbol_static_variable(module, target);
+                let operand = variable.into();
+
+                self.bind_symbol_static_operand(symbol, operand);
+
+                return variable;
+            }
+
             return self.require_local_symbol_static_variable(symbol);
         }
 
