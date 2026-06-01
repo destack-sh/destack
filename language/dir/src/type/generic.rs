@@ -93,7 +93,20 @@ pub enum GenericSlotOrigin {
     /// The slot was written in source.
     Explicit,
     /// The slot was induced by check.
-    Induced,
+    Induced(GenericSlotInduction),
+}
+
+/// Reason one generic slot was induced.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum GenericSlotInduction {
+    /// An omitted generic application argument escaped.
+    Application,
+    /// A transparent type constraint escaped.
+    Constraint,
+    /// A type form parameter escaped.
+    Form,
+    /// A comptime runtime parameter was lifted.
+    Comptime,
 }
 
 /// User-visible key of one generic slot.
