@@ -34,3 +34,31 @@ export.stats.static.cache_hits={}",
 
     assert_eq!(metadata, expected);
 }
+
+#[test]
+fn test_export_stats_scale_with_many_static_guards() {
+    const ITEMS: usize = 50_000;
+
+    let source = (0..ITEMS)
+        .map(|index| format!("@if(false)\nexport let value{index} = {index};"))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    let compiler = TestSession::single(&source);
+    let metadata = compiler.artifact_text_sidecar(
+        compiler.dir_exported_key("main.ds"),
+        "metadata",
+        &BTreeMap::from([("phase".to_string(), "export".to_string())]),
+    );
+    let expected = format!(
+        "export.stats.roots={ITEMS}\n\
+export.stats.expressions=visibility:{ITEMS},export:{ITEMS}\n\
+export.stats.symbols=scanned:{}\n\
+export.stats.guards=evaluated:{ITEMS},skipped:{ITEMS}\n\
+export.stats.static.checks={}\n\
+export.stats.static.cache_hits={ITEMS}",
+        ITEMS + 1,
+        ITEMS * 2,
+    );
+
+    assert_eq!(metadata, expected);
+}
