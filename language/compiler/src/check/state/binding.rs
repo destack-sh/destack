@@ -4,6 +4,28 @@ use destack_source::ModuleId;
 use super::CheckState;
 
 impl CheckState<'_> {
+    /// Return the imported target behind one local import alias.
+    pub(in crate::check) fn resolve_import_alias(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> dir::GlobalSymbolId {
+        self.import_alias_target(symbol).unwrap_or(symbol)
+    }
+
+    /// Return the imported symbol target behind one local import alias.
+    pub(in crate::check::state) fn import_alias_target(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalSymbolId> {
+        let module = self.modules.get(&symbol.module_id)?;
+        let target = module.resolved.imports.symbol_target(symbol.local_id)?;
+
+        match target {
+            dir::ImportTarget::Symbol(target) => Some(target),
+            dir::ImportTarget::Namespace(_) => None,
+        }
+    }
+
     /// Return the symbol introduced by a source declaration node.
     pub(in crate::check) fn declaration_symbol(
         &self,
@@ -39,6 +61,10 @@ impl CheckState<'_> {
         owner: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> Option<dir::GlobalSymbolId> {
+        let owner = self.resolve_import_alias(owner);
+        if owner.module_id != module {
+            return None;
+        }
         let binding_table = self.module(module).binding_table();
         let lookup = binding_table.lookup_key_member(owner.local_id, key);
         if let dir::SymbolLookup::Found(symbol) = lookup {
@@ -124,6 +150,8 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::SymbolKind> {
+        let symbol = self.resolve_import_alias(symbol);
+
         if let Some(state) = self.modules.get(&symbol.module_id) {
             let binding_table = state.binding_table();
             let symbol = binding_table.get_symbol(symbol.local_id);

@@ -1,14 +1,10 @@
-use crate::check::{CheckState, VariableKind};
+use crate::check::CheckState;
 
 /// Derived size counters for one check component.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) struct CheckStats {
     /// The number of allocated solver variables.
     pub(in crate::check) variables: usize,
-    /// The number of allocated type variables.
-    pub(in crate::check) type_variables: usize,
-    /// The number of allocated static variables.
-    pub(in crate::check) static_variables: usize,
     /// The number of collected constraints.
     pub(in crate::check) constraints: usize,
     /// The number of collected obligations.
@@ -19,24 +15,6 @@ pub(in crate::check) struct CheckStats {
     pub(in crate::check) solutions: usize,
     /// The total number of bounds.
     pub(in crate::check) bounds: usize,
-    /// The number of lower type bounds.
-    pub(in crate::check) type_lower_bounds: usize,
-    /// The number of upper type bounds.
-    pub(in crate::check) type_upper_bounds: usize,
-    /// The number of lower static bounds.
-    pub(in crate::check) static_lower_bounds: usize,
-    /// The number of upper static bounds.
-    pub(in crate::check) static_upper_bounds: usize,
-    /// The total number of source outputs.
-    pub(in crate::check) outputs: usize,
-    /// The number of checked type operands attached to nodes.
-    pub(in crate::check) node_types: usize,
-    /// The number of checked type operands attached to symbols.
-    pub(in crate::check) symbol_types: usize,
-    /// The number of checked static operands attached to nodes.
-    pub(in crate::check) node_statics: usize,
-    /// The number of checked static operands attached to symbols.
-    pub(in crate::check) symbol_statics: usize,
     /// The number of solver decisions.
     pub(in crate::check) decisions: usize,
 }
@@ -52,12 +30,7 @@ check.stats.solve.constraints={}
 check.stats.solve.obligations={}
 check.stats.solve.solutions={}
 check.stats.solve.bounds={}
-check.stats.solve.decisions={}
-check.stats.output.total={}
-check.stats.output.node_types={}
-check.stats.output.symbol_types={}
-check.stats.output.node_statics={}
-check.stats.output.symbol_statics={}",
+check.stats.solve.decisions={}",
             self.variables,
             self.terms,
             self.constraints,
@@ -65,11 +38,6 @@ check.stats.output.symbol_statics={}",
             self.solutions,
             self.bounds,
             self.decisions,
-            self.outputs,
-            self.node_types,
-            self.symbol_types,
-            self.node_statics,
-            self.symbol_statics,
         )
     }
 }
@@ -77,42 +45,21 @@ check.stats.output.symbol_statics={}",
 impl CheckState<'_> {
     /// Return derived size counters for this component.
     pub(in crate::check) fn stats(&self) -> CheckStats {
-        let type_variables = (0..self.variable_count())
-            .map(|index| self.variable_at(index))
-            .filter(|variable| variable.kind == VariableKind::Type)
-            .count();
-        let static_variables = self.variable_count() - type_variables;
         let type_lower_bounds = self.inference.lower_type_bound_count();
         let type_upper_bounds = self.inference.upper_type_bound_count();
         let static_lower_bounds = self.inference.lower_static_bound_count();
         let static_upper_bounds = self.inference.upper_static_bound_count();
         let bounds =
             type_lower_bounds + type_upper_bounds + static_lower_bounds + static_upper_bounds;
-        let node_types = self.outputs.node_types.len();
-        let symbol_types = self.outputs.symbol_types.len();
-        let node_statics = self.outputs.node_statics.len();
-        let symbol_statics = self.outputs.symbol_statics.len();
-        let outputs = node_types + symbol_types + node_statics + symbol_statics;
         let decisions = self.inference.decision_count();
 
         CheckStats {
             variables: self.variable_count(),
-            type_variables,
-            static_variables,
             constraints: self.inference.constraint_count(),
             obligations: self.inference.obligation_count(),
             terms: self.inference.term_count_total(),
             solutions: self.inference.solution_count(),
             bounds,
-            type_lower_bounds,
-            type_upper_bounds,
-            static_lower_bounds,
-            static_upper_bounds,
-            outputs,
-            node_types,
-            symbol_types,
-            node_statics,
-            symbol_statics,
             decisions,
         }
     }

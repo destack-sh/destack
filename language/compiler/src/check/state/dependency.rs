@@ -10,8 +10,6 @@ use super::CheckState;
 
 /// Checked tables loaded for one out-of-component dependency module.
 pub(in crate::check) struct CheckDependencyState {
-    /// The dependency module node.
-    pub(in crate::check) module_node: dir::LocalNodeIdAny,
     /// The parsed dependency module.
     pub(in crate::check) parsed: Arc<DirParsed>,
     /// The expanded dependency module.
@@ -97,7 +95,6 @@ impl CheckState<'_> {
         let extensions = checked.extension_table();
 
         Ok(CheckDependencyState {
-            module_node: bound.module_node,
             parsed,
             expanded,
             bindings,

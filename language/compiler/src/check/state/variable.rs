@@ -1,12 +1,9 @@
 use destack_source::ModuleId;
 
 use destack_dir as dir;
-use indexmap::IndexMap;
 
 use crate::CompilerResult;
-use crate::check::{
-    CheckState, Condition, Origin, StaticOperand, StaticTerm, TypeOperand, TypeTerm,
-};
+use crate::check::{CheckState, Condition, Origin, StaticOperand, StaticTerm, TypeOperand};
 
 /// Component-valid id for one check variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -35,30 +32,6 @@ pub(in crate::check) struct Variable {
     pub(in crate::check) source: Origin,
 }
 
-/// Variables and variable indexes for one checked component.
-#[derive(Debug)]
-pub(in crate::check) struct VariableTable {
-    /// Check variables in allocation order.
-    pub(in crate::check) variables: Vec<Variable>,
-
-    /// Materialized type variables keyed by visible checked type id.
-    pub(in crate::check) type_by_id: IndexMap<dir::GlobalTypeId, VariableId>,
-    /// Materialized static variables keyed by visible checked static id.
-    pub(in crate::check) static_by_id: IndexMap<dir::GlobalStaticId, VariableId>,
-}
-
-impl VariableTable {
-    /// Create empty variable state.
-    pub(in crate::check) fn new() -> Self {
-        Self {
-            variables: Vec::new(),
-
-            type_by_id: IndexMap::new(),
-            static_by_id: IndexMap::new(),
-        }
-    }
-}
-
 impl Variable {
     /// Create one unsolved variable.
     pub(in crate::check) fn new(id: VariableId, kind: VariableKind, source: Origin) -> Self {
@@ -75,30 +48,7 @@ pub(in crate::check) enum VariableKind {
     Static,
 }
 
-/// Solved value for one check variable.
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum Solution {
-    /// Solved type operand.
-    Type(TypeOperand),
-    /// Solved static operand.
-    Static(StaticOperand),
-}
-
 impl CheckState<'_> {
-    /// Insert one solution known before ordinary solver reduction.
-    pub(in crate::check) fn insert_known_solution(
-        &mut self,
-        variable: VariableId,
-        solution: Solution,
-    ) {
-        let previous = self.inference.insert_variable_solution(variable, solution);
-
-        assert!(
-            previous.is_none(),
-            "check variable {variable:?} already has a known solution"
-        );
-    }
-
     /// Allocate one solver variable.
     pub(in crate::check) fn allocate_variable(
         &mut self,
@@ -119,7 +69,7 @@ impl CheckState<'_> {
         id
     }
 
-    /// Allocate one static expression variable without publishing a checked node output.
+    /// Allocate one static expression variable without committing a checked node operand.
     pub(in crate::check) fn allocate_static_expression_variable(
         &mut self,
         module: ModuleId,
@@ -245,28 +195,6 @@ impl CheckState<'_> {
 
                 self.symbol_source_node(symbol)
             }
-        }
-    }
-
-    /// Return the solved type for one variable.
-    pub(in crate::check) fn variable_type_solution(&self, id: VariableId) -> Option<TypeTerm> {
-        match self.inference.variable_solution(id) {
-            Some(Solution::Type(TypeOperand::Variable(variable))) => {
-                Some(TypeTerm::Variable(variable))
-            }
-            Some(Solution::Type(TypeOperand::Term(term))) => Some(self.term(term).clone()),
-            _ => None,
-        }
-    }
-
-    /// Return the solved static value for one variable.
-    pub(in crate::check) fn variable_static_solution(&self, id: VariableId) -> Option<StaticTerm> {
-        match self.inference.variable_solution(id) {
-            Some(Solution::Static(StaticOperand::Variable(variable))) => {
-                Some(StaticTerm::Variable(variable))
-            }
-            Some(Solution::Static(StaticOperand::Term(term))) => Some(self.term(term).clone()),
-            _ => None,
         }
     }
 }

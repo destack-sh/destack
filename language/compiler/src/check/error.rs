@@ -27,15 +27,6 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// Type construction exceeded the checker complexity limit.
-    #[diagnostic(code = "EC102", message = "type is too complex")]
-    TypeTooComplex {
-        /// Report the type or expression that caused the expansion.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
     /// Transparent type expansion reached the same type again.
     #[diagnostic(code = "EC103", message = "type is circular")]
     CircularType {
@@ -393,6 +384,15 @@ pub enum CheckError {
     #[diagnostic(code = "EC602", message = "abstract type cannot be constructed")]
     CannotConstructAbstractType {
         /// Report the constructor call.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// Method uses an implicit receiver while implicit receivers are disabled.
+    #[diagnostic(code = "EC603", message = "method receiver is implicit")]
+    ImplicitReceiver {
+        /// Report the method declaration.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,
