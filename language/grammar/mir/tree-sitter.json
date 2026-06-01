@@ -8,6 +8,9 @@
       "file-types": [
         "mir"
       ],
+      "highlights": [
+        "queries/highlights.scm"
+      ],
       "injection-regex": "^(mir|dsmir)$"
     }
   ],
