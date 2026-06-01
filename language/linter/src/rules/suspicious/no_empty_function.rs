@@ -62,7 +62,7 @@ fn report_empty_function_body(
     // honor allowed empty function kinds
     let function_kind = empty_function_kind(owner_id, signature);
     if ctx
-        .options
+        .options()
         .correctness
         .no_empty_function_allow
         .contains(&function_kind)

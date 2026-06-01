@@ -122,19 +122,9 @@ impl<'a, 'b> DeprecatedUsageVisitor<'a, 'b> {
     ) -> Option<Option<String>> {
         let deprecated_symbol = self.ctx.get_language_item(dir::LanguageItem::Deprecated)?;
 
-        expression_symbol_decorator_map(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            self.ctx.dir.tree(),
-            self.ctx.strings,
-            &self.ctx.symbols,
-            self.ctx.types,
-            self.ctx.resolutions,
-            expression_id,
-            deprecated_symbol,
-            |decorator| Some(decorator.arguments.first().cloned().flatten()),
-        )
+        expression_symbol_decorator_map(self.ctx, expression_id, deprecated_symbol, |decorator| {
+            Some(decorator.arguments.first().cloned().flatten())
+        })
     }
 }
 
@@ -183,11 +173,8 @@ fn should_skip_expression(
     if parent.ty == dir::NodeType::Expression {
         let parent_id = parent.into_typed::<dir::Expression>();
         let parent_expression = tree.get(parent_id);
-        match parent_expression {
-            dir::Expression::Call { left, .. } => {
-                return *left == expression_id;
-            }
-            _ => {}
+        if let dir::Expression::Call { left, .. } = parent_expression {
+            return *left == expression_id;
         }
     }
 

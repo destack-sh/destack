@@ -32,7 +32,7 @@ impl LintRule for MaxTypeVariants {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_type_variants = ctx.options.complexity.max_type_variants;
+        let max_type_variants = ctx.options().complexity.max_type_variants;
 
         // check top level union type expressions only
         for type_expression_id in ctx.dir.iter_nodes::<dir::TypeExpression>() {

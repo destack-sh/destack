@@ -381,7 +381,7 @@ impl<'a, 'b> PreferStringStartsWithVisitor<'a, 'b> {
             return false;
         };
 
-        is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
+        is_string_type(self.ctx, type_id, Some(self.string_symbol))
     }
 
     /// Return one simple prefix string from a regex literal expression.

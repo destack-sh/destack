@@ -115,7 +115,7 @@ impl<'a, 'b> NoNestedArrayIncludesVisitor<'a, 'b> {
         let Some(type_id) = self.ctx.expression_type_id(method_call.receiver_id) else {
             return;
         };
-        if !is_array_type(self.ctx.types, type_id, Some(self.array_symbol)) {
+        if !is_array_type(self.ctx, type_id, Some(self.array_symbol)) {
             return;
         }
 

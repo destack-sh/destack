@@ -33,9 +33,9 @@ impl LintRule for MaxLines {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata, threshold, and active options
         let meta = self.meta();
-        let max_lines = ctx.options.complexity.max_lines;
-        let skip_comments = ctx.options.complexity.max_lines_skip_comments;
-        let skip_blank_lines = ctx.options.complexity.max_lines_skip_blank_lines;
+        let max_lines = ctx.options().complexity.max_lines;
+        let skip_comments = ctx.options().complexity.max_lines_skip_comments;
+        let skip_blank_lines = ctx.options().complexity.max_lines_skip_blank_lines;
 
         // count file lines with option aware filtering
         let file = ctx.file.as_ref();

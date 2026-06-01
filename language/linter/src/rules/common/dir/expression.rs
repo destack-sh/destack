@@ -1,13 +1,10 @@
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
-use destack_source::{ModuleId, Span};
-use destack_workspace::{ArtifactCache, ProfileId};
+use destack_source::Span;
 
-use crate::ConstValue;
+use crate::{ConstValue, LintModuleContext};
 
-use super::{
-    function_return_type, is_any_type, is_async_function_type, is_promise_type, symbol_type_map_for,
-};
+use super::{function_return_type, is_any_type, is_async_function_type, is_promise_type};
 
 /// Return true when one expression is a numeric scalar literal.
 pub fn expression_is_numeric_literal(
@@ -566,112 +563,90 @@ pub fn expression_discarded_call_like_value(
 
 /// Return true when an expression is typed as `any` or references a declaration typed as `any`.
 pub fn expression_is_any_typed(
-    module_id: ModuleId,
-    tree: &dir::Tree,
-    symbols: &dir::BindingTable<'_>,
-    types: &dir::TypeTable<'_>,
-    resolutions: &dir::ResolutionTable<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // unwrap parenthesized expressions
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
 
     // check inferred or declared expression type first
-    if let Some(type_id) = expression_type_id(module_id, tree, types, expression_id)
-        && is_any_type(types, type_id)
+    if let Some(type_id) = ctx.expression_type_id(expression_id)
+        && is_any_type(ctx, type_id)
     {
         return true;
     }
 
     // check declaration type for symbol backed references
-    let Some(target_symbol) =
-        resolutions.symbol_resolution(expression_id.into_global_any(module_id))
+    let Some(target_symbol) = ctx
+        .resolutions
+        .symbol_resolution(expression_id.into_global_any(ctx.module_id()))
     else {
         return false;
     };
-    if target_symbol.module_id != module_id {
+    if target_symbol.module_id != ctx.module_id() {
         return false;
     }
 
-    let symbol_entry = symbols.get_symbol(target_symbol.local_id);
+    let symbol_entry = ctx.symbols.get_symbol(target_symbol.local_id);
     let Some(declaration) = symbol_entry.declaration else {
         return false;
     };
-    if declaration_marks_symbol_as_any(tree, symbols, declaration, target_symbol.local_id) {
+    if declaration_marks_symbol_as_any(
+        ctx.dir.tree(),
+        &ctx.symbols,
+        declaration,
+        target_symbol.local_id,
+    ) {
         return true;
     }
 
     false
 }
 
-/// Resolve the effective checked type for an expression.
-pub fn expression_type_id(
-    module_id: ModuleId,
-    tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<dir::LocalTypeId> {
-    // unwrap parenthesized expressions
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
-
-    // resolve expression type from type tables
-    let global_expression_id = dir::GlobalNodeIdAny::new(module_id, expression_id.into_any());
-    types.get_node_type_id(global_expression_id)
-}
-
 /// Map one expression type from node or symbol type tables.
 pub fn expression_type_map<T>(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    module_id: ModuleId,
-    tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
-    resolutions: &dir::ResolutionTable<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    map: impl FnOnce(&dir::TypeTable<'_>, dir::LocalTypeId) -> T,
+    map: impl FnOnce(&LintModuleContext<'_>, dir::GlobalTypeId) -> T,
 ) -> Option<T> {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
 
-    if let Some(type_id) = expression_type_id(module_id, tree, types, expression_id) {
-        return Some(map(types, type_id));
+    // resolve expression type from node outputs first
+    if let Some(type_id) = ctx.expression_type_id(expression_id) {
+        return Some(map(ctx, type_id));
     }
 
-    let symbol_id = resolutions.symbol_resolution(expression_id.into_global_any(module_id))?;
-    symbol_type_map_for(artifacts, profile_id, module_id, types, symbol_id, map)
+    // resolve symbol backed references
+    let symbol_id = ctx
+        .resolutions
+        .symbol_resolution(expression_id.into_global_any(ctx.module_id()))?;
+    let type_id = ctx.symbol_type_id(symbol_id)?;
+
+    Some(map(ctx, type_id))
 }
 
 /// Map one expression type from node types, symbol types, or call returns.
 pub fn expression_type_or_call_return_type_map<T>(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    module_id: ModuleId,
-    tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
-    resolutions: &dir::ResolutionTable<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
-    mut map: impl FnMut(&dir::TypeTable<'_>, dir::LocalTypeId) -> T,
+    mut map: impl FnMut(&LintModuleContext<'_>, dir::GlobalTypeId) -> T,
 ) -> Option<T> {
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
+    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
 
     // resolve direct expression types first
-    if let Some(type_id) = expression_type_id(module_id, tree, types, expression_id) {
-        return Some(map(types, type_id));
+    if let Some(type_id) = ctx.expression_type_id(expression_id) {
+        return Some(map(ctx, type_id));
     }
 
-    let expression = tree.get(expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // resolve symbol backed types
-    if let Some(symbol_id) = resolutions.symbol_resolution(expression_id.into_global_any(module_id))
-        && let Some(mapped_value) = symbol_type_map_for(
-            artifacts,
-            profile_id,
-            module_id,
-            types,
-            symbol_id,
-            |types, type_id| map(types, type_id),
-        )
+    if let Some(symbol_id) = ctx
+        .resolutions
+        .symbol_resolution(expression_id.into_global_any(ctx.module_id()))
+        && let Some(type_id) = ctx.symbol_type_id(symbol_id)
     {
-        return Some(mapped_value);
+        return Some(map(ctx, type_id));
     }
 
     // resolve return types for call expressions
@@ -679,35 +654,24 @@ pub fn expression_type_or_call_return_type_map<T>(
         dir::Expression::Call { left, .. } => *left,
         _ => return None,
     };
-    let return_type_id = expression_type_map(
-        artifacts,
-        profile_id,
-        module_id,
-        tree,
-        types,
-        resolutions,
-        callee_id,
-        function_return_type,
-    )??;
+    let return_type_id = expression_type_map(ctx, callee_id, function_return_type)??;
 
-    Some(map(types, return_type_id))
+    Some(map(ctx, return_type_id))
 }
 
 /// Return true when an expression evaluates to a Promise like value.
 pub fn expression_is_promise_like(
-    module_id: ModuleId,
-    tree: &dir::Tree,
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     promise_symbol: dir::GlobalSymbolId,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // unwrap parenthesized expressions
-    let expression_id = expression_unwrap_parenthesized(tree, expression_id);
-    let expression = tree.get(expression_id);
+    let expression_id = expression_unwrap_parenthesized(ctx.dir.tree(), expression_id);
+    let expression = ctx.dir.get(expression_id);
 
     // prefer expression node types
-    if let Some(type_id) = expression_type_id(module_id, tree, types, expression_id)
-        && is_promise_type(types, type_id, Some(promise_symbol))
+    if let Some(type_id) = ctx.expression_type_id(expression_id)
+        && is_promise_type(ctx, type_id, Some(promise_symbol))
     {
         return true;
     }
@@ -721,16 +685,16 @@ pub fn expression_is_promise_like(
         return false;
     };
 
-    let Some(callee_type_id) = expression_type_id(module_id, tree, types, callee_id) else {
+    let Some(callee_type_id) = ctx.expression_type_id(callee_id) else {
         return false;
     };
 
-    if is_async_function_type(types, callee_type_id) {
+    if is_async_function_type(ctx, callee_type_id) {
         return true;
     }
 
-    function_return_type(types, callee_type_id)
-        .is_some_and(|return_type| is_promise_type(types, return_type, Some(promise_symbol)))
+    function_return_type(ctx, callee_type_id)
+        .is_some_and(|return_type| is_promise_type(ctx, return_type, Some(promise_symbol)))
 }
 
 /// Return true when a declaration marks a symbol as `any`.

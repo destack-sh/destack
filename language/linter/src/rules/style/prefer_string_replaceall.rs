@@ -253,7 +253,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             return false;
         };
 
-        is_string_type(self.ctx.types, type_id, Some(self.string_symbol))
+        is_string_type(self.ctx, type_id, Some(self.string_symbol))
     }
 
     /// Return true when the expression is a global regex literal.
@@ -290,14 +290,8 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
                 return false;
             }
 
-            let Some(initializer_id) = symbol_initializer_expression(
-                self.ctx.artifacts.as_ref(),
-                self.ctx.profile_id,
-                self.ctx.module_id(),
-                &self.ctx.symbols,
-                self.ctx.dir.tree(),
-                target_symbol,
-            ) else {
+            let Some(initializer_id) = symbol_initializer_expression(self.ctx, target_symbol)
+            else {
                 return false;
             };
 
@@ -384,14 +378,7 @@ impl<'a, 'b> PreferStringReplaceAllVisitor<'a, 'b> {
             return None;
         }
 
-        let initializer_id = symbol_initializer_expression(
-            self.ctx.artifacts.as_ref(),
-            self.ctx.profile_id,
-            self.ctx.module_id(),
-            &self.ctx.symbols,
-            self.ctx.dir.tree(),
-            target_symbol,
-        )?;
+        let initializer_id = symbol_initializer_expression(self.ctx, target_symbol)?;
 
         self.static_string_from_expression(initializer_id, visited_symbols)
     }

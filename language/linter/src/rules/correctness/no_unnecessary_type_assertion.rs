@@ -1,10 +1,7 @@
 use destack_dir as dir;
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{
-    expression_target_symbol, expression_type_id, is_any_type, symbol_type_id_for,
-    unwrap_form_payload_type_id,
-};
+use crate::rules::common::{expression_target_symbol, is_any_type, unwrap_form_payload_type_id};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -90,7 +87,7 @@ fn source_expression_matches_target_type(
     ctx: &LintModuleContext<'_>,
     source_expression_id: dir::LocalNodeId<dir::Expression>,
     target_type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
-    target_type_id: dir::LocalTypeId,
+    target_type_id: dir::GlobalTypeId,
 ) -> bool {
     // direct type equality
     if let Some(source_type_id) = source_expression_type_id(ctx, source_expression_id)
@@ -100,7 +97,7 @@ fn source_expression_matches_target_type(
     }
 
     // redundant `any as any`
-    let target_is_any = is_any_type(ctx.types, target_type_id)
+    let target_is_any = is_any_type(ctx, target_type_id)
         || assertion_target_is_explicit_any(ctx.dir.tree(), target_type_expression_id);
     target_is_any && source_expression_is_declared_any(ctx, source_expression_id)
 }
@@ -109,11 +106,11 @@ fn source_expression_matches_target_type(
 fn source_expression_type_id(
     ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<dir::LocalTypeId> {
+) -> Option<dir::GlobalTypeId> {
     // keep this rule aligned with explicit expression types only
-    let type_id = expression_type_id(ctx.module_id(), ctx.dir.tree(), ctx.types, expression_id)?;
+    let type_id = ctx.expression_type_id(expression_id)?;
 
-    Some(unwrap_form_payload_type_id(ctx.types, type_id))
+    Some(unwrap_form_payload_type_id(ctx, type_id))
 }
 
 /// Return true when one source expression is explicitly declared as `any`.
@@ -122,39 +119,21 @@ fn source_expression_is_declared_any(
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> bool {
     // local expression types are enough when present
-    if let Some(type_id) =
-        expression_type_id(ctx.module_id(), ctx.dir.tree(), ctx.types, expression_id)
-    {
-        let type_id = unwrap_form_payload_type_id(ctx.types, type_id);
-        return is_any_type(ctx.types, type_id);
+    if let Some(type_id) = ctx.expression_type_id(expression_id) {
+        let type_id = unwrap_form_payload_type_id(ctx, type_id);
+        return is_any_type(ctx, type_id);
     }
 
     // symbol backed references can still expose a declared `any` across modules
     let Some(source_symbol_id) = expression_target_symbol(ctx, expression_id) else {
         return false;
     };
-    let Some(source_value_type_id) = symbol_type_id_for(
-        ctx.artifacts.as_ref(),
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.types,
-        source_symbol_id,
-    ) else {
+    let Some(source_value_type_id) = ctx.symbol_type_id(source_symbol_id) else {
         return false;
     };
 
-    // same module
-    if source_value_type_id.module_id == ctx.module_id() {
-        let source_type_id = unwrap_form_payload_type_id(ctx.types, source_value_type_id.type_id);
-        return is_any_type(ctx.types, source_type_id);
-    }
-
-    // cross module
-    let Some(types) = ctx.dir_type_table(source_value_type_id.module_id) else {
-        return false;
-    };
-    let source_type_id = unwrap_form_payload_type_id(&types, source_value_type_id.type_id);
-    is_any_type(&types, source_type_id)
+    let source_type_id = unwrap_form_payload_type_id(ctx, source_value_type_id);
+    is_any_type(ctx, source_type_id)
 }
 
 /// Return true when the target expression is an explicit `any` type literal.
@@ -237,7 +216,7 @@ fn assertion_expression_operands(
 fn assertion_target_type_id(
     ctx: &LintModuleContext<'_>,
     type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
-) -> Option<dir::LocalTypeId> {
+) -> Option<dir::GlobalTypeId> {
     let global_type_expression_id = type_expression_id.into_global_any(ctx.module_id());
     ctx.types.get_node_type_id(global_type_expression_id)
 }

@@ -68,7 +68,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
     /// Build a visitor for floating Promise checks.
     fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let promise_symbol = ctx.language_item(LanguageItem::Promise);
-        let ignore_void = ctx.options.correctness.no_floating_promises_ignore_void;
+        let ignore_void = ctx.options().correctness.no_floating_promises_ignore_void;
         let then_name = ctx.string_id("then");
         let catch_name = ctx.string_id("catch");
         let finally_name = ctx.string_id("finally");
@@ -128,13 +128,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             }
         }
 
-        expression_is_promise_like(
-            self.ctx.module_id(),
-            self.ctx.dir.tree(),
-            self.ctx.types,
-            self.promise_symbol,
-            expression_id,
-        )
+        expression_is_promise_like(self.ctx, self.promise_symbol, expression_id)
     }
 
     /// Return true when an expression produces an array or tuple of Promises.
@@ -158,7 +152,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             return false;
         };
 
-        supports_promise_spread_elements(self.ctx.types, type_id, Some(self.promise_symbol))
+        supports_promise_spread_elements(self.ctx, type_id, Some(self.promise_symbol))
     }
 
     /// Return true when a call is a Promise handler chain.
@@ -201,7 +195,7 @@ impl<'a, 'b> FloatingPromiseVisitor<'a, 'b> {
             return false;
         };
 
-        is_function_type(self.ctx.types, handler_type_id)
+        is_function_type(self.ctx, handler_type_id)
     }
 
     /// Return true when the Promise expression is handled.

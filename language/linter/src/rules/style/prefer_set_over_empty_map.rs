@@ -55,12 +55,7 @@ impl LintRule for PreferSetOverEmptyMap {
             let Some(alias_target_type_id) = ctx.types.get_symbol_type_id(type_symbol) else {
                 continue;
             };
-            if !contains_map_with_empty_value_type(
-                ctx.types,
-                ctx.statics,
-                alias_target_type_id,
-                map_symbol,
-            ) {
+            if !contains_map_with_empty_value_type(ctx, alias_target_type_id, map_symbol) {
                 continue;
             }
             let source_id = ctx.dir.get_source(declaration.value);
@@ -83,12 +78,7 @@ impl LintRule for PreferSetOverEmptyMap {
                     .types
                     .get_node_type_id(value.into_global_any(ctx.module_id()))
                     .is_some_and(|type_id| {
-                        contains_map_with_empty_value_type(
-                            ctx.types,
-                            ctx.statics,
-                            type_id,
-                            map_symbol,
-                        )
+                        contains_map_with_empty_value_type(ctx, type_id, map_symbol)
                     }),
                 // type references can carry map generic arguments directly
                 dir::Expression::QualifiedReference {
@@ -234,17 +224,7 @@ fn expression_is_void_or_never_type(
         return true;
     }
 
-    expression_type_map(
-        ctx.artifacts.as_ref(),
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.dir.tree(),
-        ctx.types,
-        ctx.resolutions,
-        expression_id,
-        is_void_or_never_type,
-    )
-    .unwrap_or(false)
+    expression_type_map(ctx, expression_id, is_void_or_never_type).unwrap_or(false)
 }
 
 #[cfg(test)]

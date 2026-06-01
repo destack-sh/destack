@@ -88,7 +88,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
             let Some(type_id) = self.ctx.expression_type_id(*right) else {
                 return;
             };
-            let truthiness = type_truthiness(self.ctx.types, self.ctx.strings, type_id);
+            let truthiness = type_truthiness(self.ctx, self.ctx.strings, type_id);
             let truthiness = match truthiness {
                 TypeTruthiness::AlwaysTruthy => TypeTruthiness::AlwaysFalsy,
                 TypeTruthiness::AlwaysFalsy => TypeTruthiness::AlwaysTruthy,
@@ -99,7 +99,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
             let Some(type_id) = self.ctx.expression_type_id(expression_id) else {
                 return;
             };
-            let truthiness = type_truthiness(self.ctx.types, self.ctx.strings, type_id);
+            let truthiness = type_truthiness(self.ctx, self.ctx.strings, type_id);
             (expression_id, truthiness)
         };
 
@@ -146,7 +146,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         let Some(type_id) = self.ctx.expression_type_id(left_id) else {
             return;
         };
-        let nullishness = type_nullishness(self.ctx.types, type_id);
+        let nullishness = type_nullishness(self.ctx, type_id);
 
         // resolve values for this check
         let (message, label) = match nullishness {
@@ -192,7 +192,7 @@ impl<'a, 'b> UnnecessaryConditionVisitor<'a, 'b> {
         let Some(type_id) = self.ctx.expression_type_id(left_id) else {
             return;
         };
-        let truthiness = type_truthiness(self.ctx.types, self.ctx.strings, type_id);
+        let truthiness = type_truthiness(self.ctx, self.ctx.strings, type_id);
 
         // map operator and truthiness to one unreachable or redundant branch message
         let (message, label) = match (operator, truthiness) {

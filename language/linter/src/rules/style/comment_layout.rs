@@ -123,8 +123,8 @@ impl LintRule for CommentLayout {
             // require uppercase keyword and valid tags
             if let Some(keyword_info) = parse_keyword_comment_with_options(
                 text,
-                &ctx.options.style.comment_keywords,
-                &ctx.options.style.comment_keyword_tags,
+                &ctx.options().style.comment_keywords,
+                &ctx.options().style.comment_keyword_tags,
             ) {
                 let severity = ctx.get_severity(meta);
                 if !severity.is_enabled() {
@@ -141,7 +141,9 @@ impl LintRule for CommentLayout {
                         "keyword comments should use uppercase keywords",
                         comment.span,
                     )
-                    .label(known_comment_tag_label(&ctx.options.style.comment_keywords));
+                    .label(known_comment_tag_label(
+                        &ctx.options().style.comment_keywords,
+                    ));
 
                     // compute fixes only when requested by the runner
                     if ctx.compute_fixes
@@ -166,7 +168,7 @@ impl LintRule for CommentLayout {
                             comment.span,
                         )
                         .label(known_comment_tag_label(
-                            &ctx.options.style.comment_keyword_tags,
+                            &ctx.options().style.comment_keyword_tags,
                         )),
                     );
                 }

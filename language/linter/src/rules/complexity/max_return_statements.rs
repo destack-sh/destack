@@ -39,7 +39,7 @@ impl LintRule for MaxReturnStatements {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_return_statements = ctx.options.complexity.max_return_statements;
+        let max_return_statements = ctx.options().complexity.max_return_statements;
 
         // check callable bodies across declarations and methods
         for_each_callable_signature(ctx.dir.tree(), |owner_id, _signature, body_id| {

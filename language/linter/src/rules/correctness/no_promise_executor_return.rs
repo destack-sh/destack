@@ -59,7 +59,7 @@ impl<'a, 'b> PromiseExecutorReturnVisitor<'a, 'b> {
     fn new(ctx: &'a mut LintModuleContext<'b>, meta: &'a LintMeta) -> Self {
         let promise_symbol = ctx.language_item(LanguageItem::Promise);
         let allow_void = ctx
-            .options
+            .options()
             .correctness
             .no_promise_executor_return_allow_void;
         Self {

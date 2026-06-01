@@ -36,13 +36,16 @@ impl LintRule for MaxLinesPerFunction {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata, threshold, and source file
         let meta = self.meta();
-        let max_lines = ctx.options.complexity.max_lines_per_function;
-        let skip_comments = ctx.options.complexity.max_lines_per_function_skip_comments;
+        let max_lines = ctx.options().complexity.max_lines_per_function;
+        let skip_comments = ctx
+            .options()
+            .complexity
+            .max_lines_per_function_skip_comments;
         let skip_blank_lines = ctx
-            .options
+            .options()
             .complexity
             .max_lines_per_function_skip_blank_lines;
-        let include_iifes = ctx.options.complexity.max_lines_per_function_iifes;
+        let include_iifes = ctx.options().complexity.max_lines_per_function_iifes;
         let file = ctx.file.clone();
 
         // check all callable owners that have a body expression

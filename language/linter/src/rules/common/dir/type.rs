@@ -3,11 +3,13 @@ use std::collections::{HashMap, HashSet};
 use destack_core::StringPool;
 use destack_dir as dir;
 
+use crate::LintModuleContext;
+
 /// Return the type id used for flow queries.
 pub fn normalized_flow_type_id(
-    _types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
-) -> dir::LocalTypeId {
+    _ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
+) -> dir::GlobalTypeId {
     type_id
 }
 
@@ -15,24 +17,24 @@ pub fn normalized_flow_type_id(
 ///
 /// This also treats `any` and `unknown` as compatible escape hatches.
 pub fn types_are_equivalent_or_any(
-    types: &dir::TypeTable<'_>,
-    left_type_id: dir::LocalTypeId,
-    right_type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    left_type_id: dir::GlobalTypeId,
+    right_type_id: dir::GlobalTypeId,
 ) -> bool {
-    let left_normalized = normalized_flow_type_id(types, left_type_id);
-    let right_normalized = normalized_flow_type_id(types, right_type_id);
+    let left_normalized = normalized_flow_type_id(ctx, left_type_id);
+    let right_normalized = normalized_flow_type_id(ctx, right_type_id);
 
     if left_normalized == right_normalized {
         return true;
     }
 
-    is_any_type(types, left_normalized) || is_any_type(types, right_normalized)
+    is_any_type(ctx, left_normalized) || is_any_type(ctx, right_normalized)
 }
 
 /// Shared traversal state for recursive type queries.
 struct TypeQueryState {
     /// Type ids in the active recursion stack.
-    active_type_ids: HashSet<dir::LocalTypeId>,
+    active_type_ids: HashSet<dir::GlobalTypeId>,
 }
 
 impl TypeQueryState {
@@ -44,19 +46,19 @@ impl TypeQueryState {
     }
 
     /// Enter one type id and return false on recursive cycles.
-    fn enter_type_id(&mut self, type_id: dir::LocalTypeId) -> bool {
+    fn enter_type_id(&mut self, type_id: dir::GlobalTypeId) -> bool {
         self.active_type_ids.insert(type_id)
     }
 
     /// Leave one type id after query evaluation.
-    fn leave_type_id(&mut self, type_id: dir::LocalTypeId) {
+    fn leave_type_id(&mut self, type_id: dir::GlobalTypeId) {
         let did_remove = self.active_type_ids.remove(&type_id);
         debug_assert!(did_remove);
     }
 }
 
 /// Resolve the next type id for value-like wrappers.
-fn value_like_type_id(ty: &dir::Type) -> Option<dir::LocalTypeId> {
+fn value_like_type_id(ty: &dir::Type) -> Option<dir::GlobalTypeId> {
     match ty {
         dir::Type::Form(value) => Some(value.value),
         _ => None,
@@ -64,7 +66,7 @@ fn value_like_type_id(ty: &dir::Type) -> Option<dir::LocalTypeId> {
 }
 
 /// Resolve union or intersection element type ids.
-fn union_or_intersection_elements(ty: &dir::Type) -> Option<&[dir::LocalTypeId]> {
+fn union_or_intersection_elements(ty: &dir::Type) -> Option<&[dir::GlobalTypeId]> {
     match ty {
         dir::Type::Union(union) => Some(union.elements.as_slice()),
         dir::Type::Intersection(intersection) => Some(intersection.elements.as_slice()),
@@ -74,19 +76,19 @@ fn union_or_intersection_elements(ty: &dir::Type) -> Option<&[dir::LocalTypeId]>
 
 /// Resolve the effective type id for one reference symbol.
 fn reference_symbol_type_id(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol: dir::GlobalSymbolId,
-) -> Option<dir::LocalTypeId> {
-    types.get_symbol_type_id(symbol)
+) -> Option<dir::GlobalTypeId> {
+    ctx.symbol_type_id(symbol)
 }
 
 /// Visit the effective type id for one reference symbol.
 fn for_each_reference_symbol_type_id(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol: dir::GlobalSymbolId,
-    mut visitor: impl FnMut(dir::LocalTypeId),
+    mut visitor: impl FnMut(dir::GlobalTypeId),
 ) {
-    if let Some(type_id) = types.get_symbol_type_id(symbol) {
+    if let Some(type_id) = ctx.symbol_type_id(symbol) {
         visitor(type_id);
     }
 }
@@ -212,9 +214,9 @@ enum TypeBooleanQuery<'a> {
 /// Shared traversal state for memoized boolean type queries.
 struct TypeBooleanQueryState {
     /// Type ids in the active recursion stack.
-    active_type_ids: HashSet<dir::LocalTypeId>,
+    active_type_ids: HashSet<dir::GlobalTypeId>,
     /// Cached query results by local type id.
-    cached_results: HashMap<u32, bool>,
+    cached_results: HashMap<dir::GlobalTypeId, bool>,
 }
 
 impl TypeBooleanQueryState {
@@ -227,57 +229,57 @@ impl TypeBooleanQueryState {
     }
 
     /// Return one cached result for a type id.
-    fn cached_result(&self, type_id: dir::LocalTypeId) -> Option<bool> {
-        self.cached_results.get(&type_id.0).copied()
+    fn cached_result(&self, type_id: dir::GlobalTypeId) -> Option<bool> {
+        self.cached_results.get(&type_id).copied()
     }
 
     /// Enter one type id and return false on recursive cycles.
-    fn enter_type_id(&mut self, type_id: dir::LocalTypeId) -> bool {
+    fn enter_type_id(&mut self, type_id: dir::GlobalTypeId) -> bool {
         self.active_type_ids.insert(type_id)
     }
 
     /// Leave one type id after query evaluation.
-    fn leave_type_id(&mut self, type_id: dir::LocalTypeId) {
+    fn leave_type_id(&mut self, type_id: dir::GlobalTypeId) {
         let did_remove = self.active_type_ids.remove(&type_id);
         debug_assert!(did_remove);
     }
 
     /// Cache one query result for a type id.
-    fn cache_result(&mut self, type_id: dir::LocalTypeId, result: bool) {
-        self.cached_results.insert(type_id.0, result);
+    fn cache_result(&mut self, type_id: dir::GlobalTypeId, result: bool) {
+        self.cached_results.insert(type_id, result);
     }
 }
 
 /// Evaluate one boolean type query from one source type id.
 fn evaluate_boolean_type_query(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     query: TypeBooleanQuery<'_>,
 ) -> bool {
-    evaluate_boolean_type_query_with_statics(types, None, type_id, query)
+    evaluate_boolean_type_query_with_statics(ctx, None, type_id, query)
 }
 
 /// Evaluate one boolean type query with static values available.
 fn evaluate_boolean_type_query_with_statics(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     statics: Option<&dir::StaticTable<'_>>,
-    type_id: dir::LocalTypeId,
+    type_id: dir::GlobalTypeId,
     query: TypeBooleanQuery<'_>,
 ) -> bool {
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
     let mut state = TypeBooleanQueryState::new();
-    evaluate_boolean_type_query_inner(types, statics, normalized_type_id, query, &mut state)
+    evaluate_boolean_type_query_inner(ctx, statics, normalized_type_id, query, &mut state)
 }
 
 /// Evaluate one boolean type query for one normalized type id.
 fn evaluate_boolean_type_query_inner(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     statics: Option<&dir::StaticTable<'_>>,
-    type_id: dir::LocalTypeId,
+    type_id: dir::GlobalTypeId,
     query: TypeBooleanQuery<'_>,
     state: &mut TypeBooleanQueryState,
 ) -> bool {
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
 
     if let Some(cached_result) = state.cached_result(normalized_type_id) {
         return cached_result;
@@ -287,22 +289,24 @@ fn evaluate_boolean_type_query_inner(
         return false;
     }
 
-    let ty = types.get_type(normalized_type_id);
-    let result = if let Some(next_type_id) = value_like_type_id(ty) {
-        evaluate_boolean_type_query_inner(types, statics, next_type_id, query, state)
+    let ty = ctx
+        .checked_type(normalized_type_id)
+        .unwrap_or(dir::Type::Error);
+    let result = if let Some(next_type_id) = value_like_type_id(&ty) {
+        evaluate_boolean_type_query_inner(ctx, statics, next_type_id, query, state)
     } else if let dir::Type::Reference(reference) = ty {
         evaluate_reference_boolean_type_query(
-            types,
+            ctx,
             statics,
             reference.symbol,
             Some(reference.arguments.as_slice()),
             query,
             state,
         )
-    } else if let Some(element_type_ids) = union_or_intersection_elements(ty) {
-        let composition_policy = type_query_composition_policy(query, ty);
+    } else if let Some(element_type_ids) = union_or_intersection_elements(&ty) {
+        let composition_policy = type_query_composition_policy(query, &ty);
         aggregate_boolean_query_results(
-            types,
+            ctx,
             statics,
             element_type_ids,
             query,
@@ -310,7 +314,7 @@ fn evaluate_boolean_type_query_inner(
             state,
         )
     } else {
-        evaluate_terminal_boolean_type_query(types, statics, ty, query, state)
+        evaluate_terminal_boolean_type_query(ctx, statics, &ty, query, state)
     };
 
     state.leave_type_id(normalized_type_id);
@@ -355,26 +359,26 @@ fn type_query_composition_policy(
 
 /// Aggregate boolean query results across one list of element types.
 fn aggregate_boolean_query_results(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     statics: Option<&dir::StaticTable<'_>>,
-    element_type_ids: &[dir::LocalTypeId],
+    element_type_ids: &[dir::GlobalTypeId],
     query: TypeBooleanQuery<'_>,
     composition_policy: TypeCompositionPolicy,
     state: &mut TypeBooleanQueryState,
 ) -> bool {
     match composition_policy {
-        TypeCompositionPolicy::All => element_type_ids.iter().all(|type_id| {
-            evaluate_boolean_type_query_inner(types, statics, *type_id, query, state)
-        }),
-        TypeCompositionPolicy::Any => element_type_ids.iter().any(|type_id| {
-            evaluate_boolean_type_query_inner(types, statics, *type_id, query, state)
-        }),
+        TypeCompositionPolicy::All => element_type_ids
+            .iter()
+            .all(|type_id| evaluate_boolean_type_query_inner(ctx, statics, *type_id, query, state)),
+        TypeCompositionPolicy::Any => element_type_ids
+            .iter()
+            .any(|type_id| evaluate_boolean_type_query_inner(ctx, statics, *type_id, query, state)),
     }
 }
 
 /// Evaluate one boolean type query for one reference symbol.
 fn evaluate_reference_boolean_type_query(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     statics: Option<&dir::StaticTable<'_>>,
     symbol: dir::GlobalSymbolId,
     generic_arguments: Option<&[dir::StaticArgument]>,
@@ -420,13 +424,13 @@ fn evaluate_reference_boolean_type_query(
         }
         TypeBooleanQuery::MapWithEmptyValue { map_symbol } => {
             if symbol == map_symbol
-                && generic_arguments_contain_empty_map_value(types, statics, generic_arguments)
+                && generic_arguments_contain_empty_map_value(ctx, statics, generic_arguments)
             {
                 return true;
             }
         }
         TypeBooleanQuery::HasUsefulToString => {
-            if symbol.module_id == types.module_id {
+            if symbol.module_id == ctx.module_id() {
                 return true;
             }
         }
@@ -435,13 +439,13 @@ fn evaluate_reference_boolean_type_query(
             result_symbol,
         } => {
             if error_symbol.is_some_and(|error_symbol| {
-                symbol_matches_relation_target(types, symbol, error_symbol)
+                symbol_matches_relation_target(ctx, symbol, error_symbol)
             }) {
                 return false;
             }
 
             if result_symbol.is_some_and(|result_symbol| {
-                symbol_matches_relation_target(types, symbol, result_symbol)
+                symbol_matches_relation_target(ctx, symbol, result_symbol)
             }) {
                 return true;
             }
@@ -449,8 +453,8 @@ fn evaluate_reference_boolean_type_query(
         _ => {}
     }
 
-    if let Some(next_type_id) = reference_symbol_type_id(types, symbol) {
-        return evaluate_boolean_type_query_inner(types, statics, next_type_id, query, state);
+    if let Some(next_type_id) = reference_symbol_type_id(ctx, symbol) {
+        return evaluate_boolean_type_query_inner(ctx, statics, next_type_id, query, state);
     }
 
     matches!(query, TypeBooleanQuery::HasNonNullishFalsy { .. })
@@ -458,7 +462,7 @@ fn evaluate_reference_boolean_type_query(
 
 /// Evaluate one boolean type query for one terminal type node.
 fn evaluate_terminal_boolean_type_query(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     statics: Option<&dir::StaticTable<'_>>,
     ty: &dir::Type,
     query: TypeBooleanQuery<'_>,
@@ -491,14 +495,14 @@ fn evaluate_terminal_boolean_type_query(
         TypeBooleanQuery::PromiseSpreadElementCompatible { promise_symbol } => match ty {
             dir::Type::Any | dir::Type::Unknown => true,
             dir::Type::Slice(slice) => evaluate_boolean_type_query_inner(
-                types,
+                ctx,
                 statics,
                 slice.element,
                 TypeBooleanQuery::PromiseOrAny { promise_symbol },
                 state,
             ),
             dir::Type::FixedArray(array) => evaluate_boolean_type_query_inner(
-                types,
+                ctx,
                 statics,
                 array.element,
                 TypeBooleanQuery::PromiseOrAny { promise_symbol },
@@ -506,7 +510,7 @@ fn evaluate_terminal_boolean_type_query(
             ),
             dir::Type::Tuple(tuple) => tuple.elements.iter().any(|element| {
                 evaluate_boolean_type_query_inner(
-                    types,
+                    ctx,
                     statics,
                     element.ty,
                     TypeBooleanQuery::PromiseOrAny { promise_symbol },
@@ -526,14 +530,14 @@ fn evaluate_terminal_boolean_type_query(
             )
             | dir::Type::Literal(_) => true,
             dir::Type::Slice(slice) => evaluate_boolean_type_query_inner(
-                types,
+                ctx,
                 statics,
                 slice.element,
                 TypeBooleanQuery::HasUsefulToString,
                 state,
             ),
             dir::Type::FixedArray(array) => evaluate_boolean_type_query_inner(
-                types,
+                ctx,
                 statics,
                 array.element,
                 TypeBooleanQuery::HasUsefulToString,
@@ -541,7 +545,7 @@ fn evaluate_terminal_boolean_type_query(
             ),
             dir::Type::Tuple(tuple) => tuple.elements.iter().all(|element| {
                 evaluate_boolean_type_query_inner(
-                    types,
+                    ctx,
                     statics,
                     element.ty,
                     TypeBooleanQuery::HasUsefulToString,
@@ -557,7 +561,7 @@ fn evaluate_terminal_boolean_type_query(
             dir::Type::Function(function) => function.asynchrony == dir::Asynchrony::Async,
             dir::Type::Shape(object) => object.call_signatures.iter().any(|type_id| {
                 evaluate_boolean_type_query_inner(
-                    types,
+                    ctx,
                     statics,
                     *type_id,
                     TypeBooleanQuery::AsyncFunction,
@@ -654,8 +658,8 @@ fn evaluate_terminal_boolean_type_query(
 
 /// Return true when static arguments contain an empty map value argument.
 fn generic_arguments_contain_empty_map_value(
-    types: &dir::TypeTable<'_>,
-    statics: Option<&dir::StaticTable<'_>>,
+    ctx: &LintModuleContext<'_>,
+    _statics: Option<&dir::StaticTable<'_>>,
     generic_arguments: Option<&[dir::StaticArgument]>,
 ) -> bool {
     let Some(generic_arguments) = generic_arguments else {
@@ -665,22 +669,20 @@ fn generic_arguments_contain_empty_map_value(
         return false;
     }
 
-    generic_argument_is_void_or_never_type(types, statics, &generic_arguments[1])
+    generic_argument_is_void_or_never_type(ctx, &generic_arguments[1])
 }
 
 /// Return true when one static argument resolves to `void` or `never`.
 fn generic_argument_is_void_or_never_type(
-    types: &dir::TypeTable<'_>,
-    statics: Option<&dir::StaticTable<'_>>,
+    ctx: &LintModuleContext<'_>,
     generic_argument: &dir::StaticArgument,
 ) -> bool {
-    let Some(term) = statics.and_then(|statics| statics.get_static_maybe(generic_argument.value))
-    else {
+    let Some(term) = ctx.checked_static(generic_argument.value) else {
         return false;
     };
 
-    match term {
-        dir::StaticTerm::Type { ty } => is_void_or_never_type(types, *ty),
+    match &term {
+        dir::StaticTerm::Type { ty } => is_void_or_never_type(ctx, *ty),
         dir::StaticTerm::TypeLiteral {
             value: dir::TypeLiteral::Void | dir::TypeLiteral::Never,
         } => true,
@@ -741,22 +743,22 @@ fn type_is_symbol_like_property_key(ty: &dir::Type) -> bool {
 }
 
 /// Return true when the type is strictly boolean.
-pub fn is_strict_boolean_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::StrictBoolean)
+pub fn is_strict_boolean_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::StrictBoolean)
 }
 
 /// Return true when the type is an array type.
 pub fn is_array_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Array { array_symbol })
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::Array { array_symbol })
 }
 
 /// Return the fixed arity when one type resolves to a tuple.
-pub fn tuple_type_arity(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> Option<usize> {
-    let mut current_type_id = normalized_flow_type_id(types, type_id);
+pub fn tuple_type_arity(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> Option<usize> {
+    let mut current_type_id = normalized_flow_type_id(ctx, type_id);
     let mut visited_type_ids = HashSet::new();
 
     loop {
@@ -764,14 +766,16 @@ pub fn tuple_type_arity(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -
             return None;
         }
 
-        let current_type = types.get_type(current_type_id);
+        let current_type = ctx
+            .checked_type(current_type_id)
+            .unwrap_or(dir::Type::Error);
         match current_type {
             dir::Type::Tuple(tuple) => return Some(tuple.elements.len()),
             dir::Type::Form(value) => {
                 current_type_id = value.value;
             }
             dir::Type::Reference(reference) => {
-                current_type_id = reference_symbol_type_id(types, reference.symbol)?;
+                current_type_id = reference_symbol_type_id(ctx, reference.symbol)?;
             }
             _ => return None,
         }
@@ -780,71 +784,56 @@ pub fn tuple_type_arity(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -
 
 /// Return true when the type is an array or tuple whose elements are strings.
 pub fn is_string_array_type(
-    types: &dir::TypeTable<'_>,
-    statics: &dir::StaticTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
     string_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     let mut state = TypeQueryState::new();
-    is_string_array_type_inner(
-        types,
-        statics,
-        type_id,
-        array_symbol,
-        string_symbol,
-        &mut state,
-    )
+    is_string_array_type_inner(ctx, type_id, array_symbol, string_symbol, &mut state)
 }
 
 /// Evaluate string-array compatibility recursively.
 fn is_string_array_type_inner(
-    types: &dir::TypeTable<'_>,
-    statics: &dir::StaticTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
     string_symbol: Option<dir::GlobalSymbolId>,
     state: &mut TypeQueryState,
 ) -> bool {
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
     if !state.enter_type_id(normalized_type_id) {
         return false;
     }
 
-    let ty = types.get_type(normalized_type_id);
+    let ty = ctx
+        .checked_type(normalized_type_id)
+        .unwrap_or(dir::Type::Error);
     let result = match ty {
-        dir::Type::Slice(slice) => is_string_type(types, slice.element, string_symbol),
-        dir::Type::FixedArray(array) => is_string_type(types, array.element, string_symbol),
+        dir::Type::Slice(slice) => is_string_type(ctx, slice.element, string_symbol),
+        dir::Type::FixedArray(array) => is_string_type(ctx, array.element, string_symbol),
         dir::Type::Tuple(tuple) => tuple
             .elements
             .iter()
-            .all(|element| is_string_type(types, element.ty, string_symbol)),
+            .all(|element| is_string_type(ctx, element.ty, string_symbol)),
         dir::Type::Reference(reference) => {
             if array_symbol.is_none_or(|array_symbol| reference.symbol != array_symbol) {
                 false
             } else {
                 reference.arguments.first().is_some_and(|generic_argument| {
-                    generic_argument_type_id(statics, generic_argument).is_some_and(
-                        |element_type_id| is_string_type(types, element_type_id, string_symbol),
-                    )
+                    generic_argument_type_id(ctx, generic_argument).is_some_and(|element_type_id| {
+                        is_string_type(ctx, element_type_id, string_symbol)
+                    })
                 })
             }
         }
         dir::Type::Union(union) => union.elements.iter().all(|element_type_id| {
-            is_string_array_type_inner(
-                types,
-                statics,
-                *element_type_id,
-                array_symbol,
-                string_symbol,
-                state,
-            )
+            is_string_array_type_inner(ctx, *element_type_id, array_symbol, string_symbol, state)
         }),
         dir::Type::Intersection(intersection) => {
             intersection.elements.iter().any(|element_type_id| {
                 is_string_array_type_inner(
-                    types,
-                    statics,
+                    ctx,
                     *element_type_id,
                     array_symbol,
                     string_symbol,
@@ -852,14 +841,9 @@ fn is_string_array_type_inner(
                 )
             })
         }
-        dir::Type::Form(value) => is_string_array_type_inner(
-            types,
-            statics,
-            value.value,
-            array_symbol,
-            string_symbol,
-            state,
-        ),
+        dir::Type::Form(value) => {
+            is_string_array_type_inner(ctx, value.value, array_symbol, string_symbol, state)
+        }
         _ => false,
     };
 
@@ -869,11 +853,11 @@ fn is_string_array_type_inner(
 
 /// Resolve one static argument into a concrete type id when available.
 fn generic_argument_type_id(
-    statics: &dir::StaticTable<'_>,
+    ctx: &LintModuleContext<'_>,
     generic_argument: &dir::StaticArgument,
-) -> Option<dir::LocalTypeId> {
-    match statics.get_static(generic_argument.value) {
-        dir::StaticTerm::Type { ty } => Some(*ty),
+) -> Option<dir::GlobalTypeId> {
+    match ctx.checked_static(generic_argument.value)? {
+        dir::StaticTerm::Type { ty } => Some(ty),
         _ => None,
     }
 }
@@ -883,36 +867,36 @@ fn generic_argument_type_id(
 /// This returns true for direct arrays, tuples, and any union or intersection
 /// branch that resolves to an array-like structure.
 pub fn is_array_like_iteration_type(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     strings: &StringPool,
-    type_id: dir::LocalTypeId,
+    type_id: dir::GlobalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     let mut visited_type_ids = HashSet::new();
-    is_array_like_iteration_type_inner(types, strings, type_id, array_symbol, &mut visited_type_ids)
+    is_array_like_iteration_type_inner(ctx, strings, type_id, array_symbol, &mut visited_type_ids)
 }
 
 /// Evaluate array-like iteration compatibility recursively.
 fn is_array_like_iteration_type_inner(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     strings: &StringPool,
-    type_id: dir::LocalTypeId,
+    type_id: dir::GlobalTypeId,
     array_symbol: Option<dir::GlobalSymbolId>,
-    visited_type_ids: &mut HashSet<dir::LocalTypeId>,
+    visited_type_ids: &mut HashSet<dir::GlobalTypeId>,
 ) -> bool {
     if !visited_type_ids.insert(type_id) {
         return false;
     }
 
-    if is_array_type(types, type_id, array_symbol) {
+    if is_array_type(ctx, type_id, array_symbol) {
         return true;
     }
 
-    let type_node = types.get_type(type_id);
+    let type_node = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
     match type_node {
         dir::Type::Union(union) => union.elements.iter().any(|element_type_id| {
             is_array_like_iteration_type_inner(
-                types,
+                ctx,
                 strings,
                 *element_type_id,
                 array_symbol,
@@ -922,7 +906,7 @@ fn is_array_like_iteration_type_inner(
         dir::Type::Intersection(intersection) => {
             intersection.elements.iter().any(|element_type_id| {
                 is_array_like_iteration_type_inner(
-                    types,
+                    ctx,
                     strings,
                     *element_type_id,
                     array_symbol,
@@ -931,15 +915,15 @@ fn is_array_like_iteration_type_inner(
             })
         }
         dir::Type::Form(value) => is_array_like_iteration_type_inner(
-            types,
+            ctx,
             strings,
             value.value,
             array_symbol,
             visited_type_ids,
         ),
         dir::Type::Shape(object) => {
-            object_has_numeric_index_signature(types, &object.index_signatures)
-                && object_has_array_like_length_field(types, strings, &object.fields)
+            object_has_numeric_index_signature(ctx, &object.index_signatures)
+                && object_has_array_like_length_field(ctx, strings, &object.fields)
         }
         _ => false,
     }
@@ -947,17 +931,17 @@ fn is_array_like_iteration_type_inner(
 
 /// Return true when one object declares a numeric index signature.
 fn object_has_numeric_index_signature(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     index_signatures: &[dir::TypeIndexSignature],
 ) -> bool {
     index_signatures
         .iter()
-        .any(|signature| is_numeric_property_key_type(types, signature.key_type))
+        .any(|signature| is_numeric_property_key_type(ctx, signature.key_type))
 }
 
 /// Return true when one object has a numeric `length` field.
 fn object_has_array_like_length_field(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     strings: &StringPool,
     fields: &[dir::TypeField],
 ) -> bool {
@@ -969,38 +953,38 @@ fn object_has_array_like_length_field(
             return false;
         }
 
-        is_numeric_property_key_type(types, field.ty)
+        is_numeric_property_key_type(ctx, field.ty)
     })
 }
 
 /// Return true when the type is a string type.
 pub fn is_string_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     string_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::String { string_symbol })
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::String { string_symbol })
 }
 
 /// Return true when the type is a floating point type.
-pub fn is_float_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Float)
+pub fn is_float_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::Float)
 }
 
 /// Return true when the type is a function type.
-pub fn is_function_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Function)
+pub fn is_function_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::Function)
 }
 
 /// Return true when one type may resolve to one symbol type.
 pub fn is_reference_symbol_kind(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     symbols: &dir::BindingTable<'_>,
-    type_id: dir::LocalTypeId,
+    type_id: dir::GlobalTypeId,
     symbol_kind: dir::SymbolKind,
 ) -> bool {
     evaluate_boolean_type_query(
-        types,
+        ctx,
         type_id,
         TypeBooleanQuery::ReferenceSymbolKind {
             symbols,
@@ -1010,106 +994,109 @@ pub fn is_reference_symbol_kind(
 }
 
 /// Return true when one type declares a `this` parameter.
-pub fn has_this_parameter_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::HasThisParameter)
+pub fn has_this_parameter_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::HasThisParameter)
 }
 
 /// Return true when one type declares a non-void `this` parameter.
 pub fn has_non_void_this_parameter_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
 ) -> bool {
     let mut visited_type_ids = HashSet::new();
-    has_non_void_this_parameter_type_inner(types, type_id, &mut visited_type_ids)
+    has_non_void_this_parameter_type_inner(ctx, type_id, &mut visited_type_ids)
 }
 
 /// Evaluate non-void `this` parameter compatibility recursively.
 fn has_non_void_this_parameter_type_inner(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
-    visited_type_ids: &mut HashSet<dir::LocalTypeId>,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
+    visited_type_ids: &mut HashSet<dir::GlobalTypeId>,
 ) -> bool {
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
     if !visited_type_ids.insert(normalized_type_id) {
         return false;
     }
 
-    let ty = types.get_type(normalized_type_id);
+    let ty = ctx
+        .checked_type(normalized_type_id)
+        .unwrap_or(dir::Type::Error);
     match ty {
         dir::Type::Function(function) => {
             function
                 .this_parameter
                 .is_some_and(|this_parameter_type_id| {
-                    !is_void_or_never_type(types, this_parameter_type_id)
+                    !is_void_or_never_type(ctx, this_parameter_type_id)
                 })
         }
         dir::Type::Shape(object) => object.call_signatures.iter().any(|signature_type_id| {
-            has_non_void_this_parameter_type_inner(types, *signature_type_id, visited_type_ids)
+            has_non_void_this_parameter_type_inner(ctx, *signature_type_id, visited_type_ids)
         }),
         dir::Type::Union(union) => union.elements.iter().any(|element_type_id| {
-            has_non_void_this_parameter_type_inner(types, *element_type_id, visited_type_ids)
+            has_non_void_this_parameter_type_inner(ctx, *element_type_id, visited_type_ids)
         }),
         dir::Type::Intersection(intersection) => {
             intersection.elements.iter().any(|element_type_id| {
-                has_non_void_this_parameter_type_inner(types, *element_type_id, visited_type_ids)
+                has_non_void_this_parameter_type_inner(ctx, *element_type_id, visited_type_ids)
             })
         }
         dir::Type::Form(value) => {
-            has_non_void_this_parameter_type_inner(types, value.value, visited_type_ids)
+            has_non_void_this_parameter_type_inner(ctx, value.value, visited_type_ids)
         }
-        dir::Type::Reference(reference) => reference_symbol_type_id(types, reference.symbol)
+        dir::Type::Reference(reference) => reference_symbol_type_id(ctx, reference.symbol)
             .is_some_and(|target_type_id| {
-                has_non_void_this_parameter_type_inner(types, target_type_id, visited_type_ids)
+                has_non_void_this_parameter_type_inner(ctx, target_type_id, visited_type_ids)
             }),
         _ => false,
     }
 }
 
 /// Return true when one type has a useful `toString` representation.
-pub fn has_useful_to_string_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::HasUsefulToString)
+pub fn has_useful_to_string_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::HasUsefulToString)
 }
 
 /// Return true when the type is an async function.
-pub fn is_async_function_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::AsyncFunction)
+pub fn is_async_function_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::AsyncFunction)
 }
 
 /// Return true when the type is `any`.
-pub fn is_any_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Any)
+pub fn is_any_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::Any)
 }
 
 /// Return true when the type is `Error`.
-pub fn is_error_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
+pub fn is_error_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
     matches!(
-        types.get_type(normalized_flow_type_id(types, type_id)),
+        ctx.checked_type(normalized_flow_type_id(ctx, type_id))
+            .unwrap_or(dir::Type::Error),
         dir::Type::Error
     )
 }
 
 /// Return true when the type tree contains explicit `any` (but not `unknown`).
-pub fn is_explicit_any_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::ExplicitAny)
+pub fn is_explicit_any_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::ExplicitAny)
 }
 
 /// Return true when the type is a Promise.
 pub fn is_promise_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     promise_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     let Some(promise_symbol) = promise_symbol else {
         return false;
     };
 
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::Promise { promise_symbol })
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::Promise { promise_symbol })
 }
 
 /// Return true when the type is Promise or any-like.
 pub fn is_promise_or_any_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     promise_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     let Some(promise_symbol) = promise_symbol else {
@@ -1117,7 +1104,7 @@ pub fn is_promise_or_any_type(
     };
 
     evaluate_boolean_type_query(
-        types,
+        ctx,
         type_id,
         TypeBooleanQuery::PromiseOrAny { promise_symbol },
     )
@@ -1125,8 +1112,8 @@ pub fn is_promise_or_any_type(
 
 /// Return true when one type supports Promise spread elements.
 pub fn supports_promise_spread_elements(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     promise_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     let Some(promise_symbol) = promise_symbol else {
@@ -1134,7 +1121,7 @@ pub fn supports_promise_spread_elements(
     };
 
     evaluate_boolean_type_query(
-        types,
+        ctx,
         type_id,
         TypeBooleanQuery::PromiseSpreadElementCompatible { promise_symbol },
     )
@@ -1142,32 +1129,31 @@ pub fn supports_promise_spread_elements(
 
 /// Return true when one type contains `Map<_, void | never>`.
 pub fn contains_map_with_empty_value_type(
-    types: &dir::TypeTable<'_>,
-    statics: &dir::StaticTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     map_symbol: dir::GlobalSymbolId,
 ) -> bool {
     evaluate_boolean_type_query_with_statics(
-        types,
-        Some(statics),
+        ctx,
+        Some(ctx.statics),
         type_id,
         TypeBooleanQuery::MapWithEmptyValue { map_symbol },
     )
 }
 
 /// Return true when the type is `void` or `never`.
-pub fn is_void_or_never_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::VoidOrNever)
+pub fn is_void_or_never_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::VoidOrNever)
 }
 
 /// Return true when the type can be interpolated into a template string.
 pub fn is_template_interpolation_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     string_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     evaluate_boolean_type_query(
-        types,
+        ctx,
         type_id,
         TypeBooleanQuery::TemplateInterpolation { string_symbol },
     )
@@ -1175,38 +1161,41 @@ pub fn is_template_interpolation_type(
 
 /// Return true when the type is string-like for object property keys.
 pub fn is_string_like_property_key_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
 ) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::StringLikePropertyKey)
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::StringLikePropertyKey)
 }
 
 /// Return true when the type is numeric for object property keys.
-pub fn is_numeric_property_key_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::NumericPropertyKey)
+pub fn is_numeric_property_key_type(
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
+) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::NumericPropertyKey)
 }
 
 /// Return true when the type is symbol-like for object property keys.
 pub fn is_symbol_like_property_key_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
 ) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::SymbolLikePropertyKey)
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::SymbolLikePropertyKey)
 }
 
 /// Return true when the type is definitely a non error runtime value.
 pub fn is_definitely_non_error_value_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     error_symbol: Option<dir::GlobalSymbolId>,
     result_symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
-    if type_may_be_nominal_symbol(types, type_id, error_symbol) {
+    if type_may_be_nominal_symbol(ctx, type_id, error_symbol) {
         return false;
     }
 
     evaluate_boolean_type_query(
-        types,
+        ctx,
         type_id,
         TypeBooleanQuery::DefinitelyNonErrorValue {
             error_symbol,
@@ -1216,18 +1205,18 @@ pub fn is_definitely_non_error_value_type(
 }
 
 /// Return true when the type can evaluate to a nullish value.
-pub fn is_maybe_nullish_type(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> bool {
-    evaluate_boolean_type_query(types, type_id, TypeBooleanQuery::MaybeNullish)
+pub fn is_maybe_nullish_type(ctx: &LintModuleContext<'_>, type_id: dir::GlobalTypeId) -> bool {
+    evaluate_boolean_type_query(ctx, type_id, TypeBooleanQuery::MaybeNullish)
 }
 
 /// Return true when the type can evaluate to a non nullish falsy value.
 pub fn has_non_nullish_falsy_type(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     strings: &StringPool,
-    type_id: dir::LocalTypeId,
+    type_id: dir::GlobalTypeId,
 ) -> bool {
     evaluate_boolean_type_query(
-        types,
+        ctx,
         type_id,
         TypeBooleanQuery::HasNonNullishFalsy { strings },
     )
@@ -1258,9 +1247,9 @@ pub enum TypeNullishness {
 /// Shared traversal state for truthiness queries.
 struct TypeTruthinessState {
     /// Type ids in the active recursion stack.
-    active_type_ids: HashSet<dir::LocalTypeId>,
+    active_type_ids: HashSet<dir::GlobalTypeId>,
     /// Cached truthiness values by local type id.
-    cached_values: HashMap<u32, TypeTruthiness>,
+    cached_values: HashMap<dir::GlobalTypeId, TypeTruthiness>,
 }
 
 impl TypeTruthinessState {
@@ -1276,9 +1265,9 @@ impl TypeTruthinessState {
 /// Shared traversal state for nullishness queries.
 struct TypeNullishnessState {
     /// Type ids in the active recursion stack.
-    active_type_ids: HashSet<dir::LocalTypeId>,
+    active_type_ids: HashSet<dir::GlobalTypeId>,
     /// Cached nullishness values by local type id.
-    cached_values: HashMap<u32, TypeNullishness>,
+    cached_values: HashMap<dir::GlobalTypeId, TypeNullishness>,
 }
 
 impl TypeNullishnessState {
@@ -1293,25 +1282,28 @@ impl TypeNullishnessState {
 
 /// Return truthiness certainty for one type.
 pub fn type_truthiness(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     strings: &StringPool,
-    type_id: dir::LocalTypeId,
+    type_id: dir::GlobalTypeId,
 ) -> TypeTruthiness {
     let mut state = TypeTruthinessState::new();
-    type_truthiness_inner(types, strings, type_id, &mut state)
+    type_truthiness_inner(ctx, strings, type_id, &mut state)
 }
 
 /// Return nullishness certainty for one type.
-pub fn type_nullishness(types: &dir::TypeTable<'_>, type_id: dir::LocalTypeId) -> TypeNullishness {
+pub fn type_nullishness(
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
+) -> TypeNullishness {
     let mut state = TypeNullishnessState::new();
-    type_nullishness_inner(types, type_id, &mut state)
+    type_nullishness_inner(ctx, type_id, &mut state)
 }
 
 /// Unwrap nested `Type::Form` wrappers to one underlying type.
 pub fn unwrap_form_payload_type_id(
-    types: &dir::TypeTable<'_>,
-    mut type_id: dir::LocalTypeId,
-) -> dir::LocalTypeId {
+    ctx: &LintModuleContext<'_>,
+    mut type_id: dir::GlobalTypeId,
+) -> dir::GlobalTypeId {
     let mut active_type_ids = HashSet::new();
 
     loop {
@@ -1319,7 +1311,7 @@ pub fn unwrap_form_payload_type_id(
             return type_id;
         }
 
-        let ty = types.get_type(type_id);
+        let ty = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
         let dir::Type::Form(value) = ty else {
             return type_id;
         };
@@ -1329,13 +1321,13 @@ pub fn unwrap_form_payload_type_id(
 
 /// Return truthiness certainty for one type with recursion protection and caching.
 fn type_truthiness_inner(
-    types: &dir::TypeTable<'_>,
+    ctx: &LintModuleContext<'_>,
     strings: &StringPool,
-    type_id: dir::LocalTypeId,
+    type_id: dir::GlobalTypeId,
     state: &mut TypeTruthinessState,
 ) -> TypeTruthiness {
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
-    if let Some(cached_value) = state.cached_values.get(&normalized_type_id.0).copied() {
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
+    if let Some(cached_value) = state.cached_values.get(&normalized_type_id).copied() {
         return cached_value;
     }
 
@@ -1343,20 +1335,22 @@ fn type_truthiness_inner(
         return TypeTruthiness::Unknown;
     }
 
-    let ty = types.get_type(normalized_type_id);
-    let truthiness = if let Some(next_type_id) = value_like_type_id(ty) {
-        type_truthiness_inner(types, strings, next_type_id, state)
+    let ty = ctx
+        .checked_type(normalized_type_id)
+        .unwrap_or(dir::Type::Error);
+    let truthiness = if let Some(next_type_id) = value_like_type_id(&ty) {
+        type_truthiness_inner(ctx, strings, next_type_id, state)
     } else if let dir::Type::Reference(reference) = ty {
-        if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
-            type_truthiness_inner(types, strings, next_type_id, state)
+        if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
+            type_truthiness_inner(ctx, strings, next_type_id, state)
         } else {
             TypeTruthiness::AlwaysTruthy
         }
-    } else if let Some(element_type_ids) = union_or_intersection_elements(ty) {
+    } else if let Some(element_type_ids) = union_or_intersection_elements(&ty) {
         combine_truthiness(
             element_type_ids
                 .iter()
-                .map(|type_id| type_truthiness_inner(types, strings, *type_id, state)),
+                .map(|type_id| type_truthiness_inner(ctx, strings, *type_id, state)),
         )
     } else {
         match ty {
@@ -1372,35 +1366,35 @@ fn type_truthiness_inner(
             dir::Type::Literal(literal) => match literal {
                 dir::ScalarLiteral::Null => TypeTruthiness::AlwaysFalsy,
                 dir::ScalarLiteral::Boolean(value) => {
-                    if *value {
+                    if value {
                         TypeTruthiness::AlwaysTruthy
                     } else {
                         TypeTruthiness::AlwaysFalsy
                     }
                 }
                 dir::ScalarLiteral::Integer(value) => {
-                    if *value == 0 {
+                    if value == 0 {
                         TypeTruthiness::AlwaysFalsy
                     } else {
                         TypeTruthiness::AlwaysTruthy
                     }
                 }
                 dir::ScalarLiteral::Bigint(value) => {
-                    if *value == 0 {
+                    if value == 0 {
                         TypeTruthiness::AlwaysFalsy
                     } else {
                         TypeTruthiness::AlwaysTruthy
                     }
                 }
                 dir::ScalarLiteral::Float(value) => {
-                    if *value == 0.0 {
+                    if value == 0.0 {
                         TypeTruthiness::AlwaysFalsy
                     } else {
                         TypeTruthiness::AlwaysTruthy
                     }
                 }
                 dir::ScalarLiteral::String(value) => {
-                    if strings.get(*value).is_empty() {
+                    if strings.get(value).is_empty() {
                         TypeTruthiness::AlwaysFalsy
                     } else {
                         TypeTruthiness::AlwaysTruthy
@@ -1432,18 +1426,18 @@ fn type_truthiness_inner(
     };
 
     state.active_type_ids.remove(&normalized_type_id);
-    state.cached_values.insert(normalized_type_id.0, truthiness);
+    state.cached_values.insert(normalized_type_id, truthiness);
     truthiness
 }
 
 /// Return nullishness certainty for one type with recursion protection and caching.
 fn type_nullishness_inner(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     state: &mut TypeNullishnessState,
 ) -> TypeNullishness {
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
-    if let Some(cached_value) = state.cached_values.get(&normalized_type_id.0).copied() {
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
+    if let Some(cached_value) = state.cached_values.get(&normalized_type_id).copied() {
         return cached_value;
     }
 
@@ -1451,20 +1445,22 @@ fn type_nullishness_inner(
         return TypeNullishness::Maybe;
     }
 
-    let ty = types.get_type(normalized_type_id);
-    let nullishness = if let Some(next_type_id) = value_like_type_id(ty) {
-        type_nullishness_inner(types, next_type_id, state)
+    let ty = ctx
+        .checked_type(normalized_type_id)
+        .unwrap_or(dir::Type::Error);
+    let nullishness = if let Some(next_type_id) = value_like_type_id(&ty) {
+        type_nullishness_inner(ctx, next_type_id, state)
     } else if let dir::Type::Reference(reference) = ty {
-        if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
-            type_nullishness_inner(types, next_type_id, state)
+        if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
+            type_nullishness_inner(ctx, next_type_id, state)
         } else {
             TypeNullishness::Never
         }
-    } else if let Some(element_type_ids) = union_or_intersection_elements(ty) {
+    } else if let Some(element_type_ids) = union_or_intersection_elements(&ty) {
         combine_nullishness(
             element_type_ids
                 .iter()
-                .map(|type_id| type_nullishness_inner(types, *type_id, state)),
+                .map(|type_id| type_nullishness_inner(ctx, *type_id, state)),
         )
     } else {
         match ty {
@@ -1495,9 +1491,7 @@ fn type_nullishness_inner(
     };
 
     state.active_type_ids.remove(&normalized_type_id);
-    state
-        .cached_values
-        .insert(normalized_type_id.0, nullishness);
+    state.cached_values.insert(normalized_type_id, nullishness);
     nullishness
 }
 
@@ -1543,45 +1537,45 @@ fn combine_nullishness(values: impl Iterator<Item = TypeNullishness>) -> TypeNul
 
 /// Resolve the parameter type at an index for a function-like type.
 pub fn function_parameter_type_at(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     index: usize,
-) -> Option<dir::LocalTypeId> {
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
+) -> Option<dir::GlobalTypeId> {
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
     let mut state = TypeQueryState::new();
-    function_parameter_type_at_inner(types, normalized_type_id, index, &mut state)
+    function_parameter_type_at_inner(ctx, normalized_type_id, index, &mut state)
 }
 
 /// Resolve all parameter types at an index for a function-like type.
 pub fn function_parameter_types_at(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     index: usize,
-) -> Vec<dir::LocalTypeId> {
+) -> Vec<dir::GlobalTypeId> {
     // prefer flow normalized types when available
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
 
     let mut state = TypeQueryState::new();
     let mut results = Vec::new();
-    function_parameter_types_at_inner(types, normalized_type_id, index, &mut state, &mut results);
+    function_parameter_types_at_inner(ctx, normalized_type_id, index, &mut state, &mut results);
 
     results
 }
 
 /// Resolve the return type for a function-like type.
 pub fn function_return_type(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
-) -> Option<dir::LocalTypeId> {
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
+) -> Option<dir::GlobalTypeId> {
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
     let mut state = TypeQueryState::new();
-    function_return_type_inner(types, normalized_type_id, &mut state)
+    function_return_type_inner(ctx, normalized_type_id, &mut state)
 }
 
 /// Return true when the type may include one nominal symbol.
 fn type_may_be_nominal_symbol(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     symbol: Option<dir::GlobalSymbolId>,
 ) -> bool {
     let Some(symbol) = symbol else {
@@ -1589,19 +1583,19 @@ fn type_may_be_nominal_symbol(
     };
 
     // prefer flow normalized types when available
-    let normalized_type_id = normalized_flow_type_id(types, type_id);
+    let normalized_type_id = normalized_flow_type_id(ctx, type_id);
 
     // track visited type ids to avoid recursion cycles
     let mut state = TypeQueryState::new();
 
     // resolve whether the type may include the symbol
-    type_may_be_nominal_symbol_inner(types, normalized_type_id, symbol, &mut state)
+    type_may_be_nominal_symbol_inner(ctx, normalized_type_id, symbol, &mut state)
 }
 
 /// Return true when the type may include one nominal symbol with cycle protection.
 fn type_may_be_nominal_symbol_inner(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     symbol: dir::GlobalSymbolId,
     state: &mut TypeQueryState,
 ) -> bool {
@@ -1611,30 +1605,28 @@ fn type_may_be_nominal_symbol_inner(
     }
 
     // inspect the type node
-    let ty = types.get_type(type_id);
+    let ty = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
     let result = match ty {
         dir::Type::Reference(reference) => {
             if reference.symbol == symbol
-                || symbol_matches_relation_target(types, reference.symbol, symbol)
+                || symbol_matches_relation_target(ctx, reference.symbol, symbol)
             {
                 true
-            } else if let Some(type_id) = types.get_symbol_type_id(reference.symbol) {
-                type_may_be_nominal_symbol_inner(types, type_id, symbol, state)
+            } else if let Some(type_id) = ctx.symbol_type_id(reference.symbol) {
+                type_may_be_nominal_symbol_inner(ctx, type_id, symbol, state)
             } else {
                 false
             }
         }
-        dir::Type::Form(value) => {
-            type_may_be_nominal_symbol_inner(types, value.value, symbol, state)
-        }
+        dir::Type::Form(value) => type_may_be_nominal_symbol_inner(ctx, value.value, symbol, state),
         dir::Type::Union(union) => union
             .elements
             .iter()
-            .any(|element| type_may_be_nominal_symbol_inner(types, *element, symbol, state)),
+            .any(|element| type_may_be_nominal_symbol_inner(ctx, *element, symbol, state)),
         dir::Type::Intersection(intersection) => intersection
             .elements
             .iter()
-            .any(|element| type_may_be_nominal_symbol_inner(types, *element, symbol, state)),
+            .any(|element| type_may_be_nominal_symbol_inner(ctx, *element, symbol, state)),
         _ => false,
     };
 
@@ -1644,7 +1636,7 @@ fn type_may_be_nominal_symbol_inner(
 
 /// Return true when one symbol matches a relation target symbol.
 fn symbol_matches_relation_target(
-    _types: &dir::TypeTable<'_>,
+    _ctx: &LintModuleContext<'_>,
     symbol: dir::GlobalSymbolId,
     target_symbol: dir::GlobalSymbolId,
 ) -> bool {
@@ -1653,18 +1645,18 @@ fn symbol_matches_relation_target(
 
 /// Resolve a parameter type for a function type with cycle protection.
 fn function_parameter_type_at_inner(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     index: usize,
     state: &mut TypeQueryState,
-) -> Option<dir::LocalTypeId> {
+) -> Option<dir::GlobalTypeId> {
     // stop recursive cycles
     if !state.enter_type_id(type_id) {
         return None;
     }
 
     // inspect the type node
-    let ty = types.get_type(type_id);
+    let ty = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
     let result = match ty {
         dir::Type::Function(function) => {
             function.parameters.get(index).map(|parameter| parameter.ty)
@@ -1675,15 +1667,13 @@ fn function_parameter_type_at_inner(
                 .first()
                 .copied()
                 .and_then(|first_signature| {
-                    function_parameter_type_at_inner(types, first_signature, index, state)
+                    function_parameter_type_at_inner(ctx, first_signature, index, state)
                 })
         }
-        dir::Type::Form(value) => {
-            function_parameter_type_at_inner(types, value.value, index, state)
-        }
+        dir::Type::Form(value) => function_parameter_type_at_inner(ctx, value.value, index, state),
         dir::Type::Reference(reference) => {
-            if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
-                function_parameter_type_at_inner(types, next_type_id, index, state)
+            if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
+                function_parameter_type_at_inner(ctx, next_type_id, index, state)
             } else {
                 None
             }
@@ -1697,11 +1687,11 @@ fn function_parameter_type_at_inner(
 
 /// Resolve all parameter types for a function type with cycle protection.
 fn function_parameter_types_at_inner(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     index: usize,
     state: &mut TypeQueryState,
-    results: &mut Vec<dir::LocalTypeId>,
+    results: &mut Vec<dir::GlobalTypeId>,
 ) {
     // stop recursive cycles
     if !state.enter_type_id(type_id) {
@@ -1709,7 +1699,7 @@ fn function_parameter_types_at_inner(
     }
 
     // inspect the type node
-    let ty = types.get_type(type_id);
+    let ty = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
     match ty {
         dir::Type::Function(function) => {
             if let Some(parameter_type_id) =
@@ -1721,25 +1711,25 @@ fn function_parameter_types_at_inner(
         }
         dir::Type::Shape(object) => {
             for signature_id in &object.call_signatures {
-                function_parameter_types_at_inner(types, *signature_id, index, state, results);
+                function_parameter_types_at_inner(ctx, *signature_id, index, state, results);
             }
         }
         dir::Type::Union(union) => {
             for element_type_id in &union.elements {
-                function_parameter_types_at_inner(types, *element_type_id, index, state, results);
+                function_parameter_types_at_inner(ctx, *element_type_id, index, state, results);
             }
         }
         dir::Type::Intersection(intersection) => {
             for element_type_id in &intersection.elements {
-                function_parameter_types_at_inner(types, *element_type_id, index, state, results);
+                function_parameter_types_at_inner(ctx, *element_type_id, index, state, results);
             }
         }
         dir::Type::Form(value) => {
-            function_parameter_types_at_inner(types, value.value, index, state, results);
+            function_parameter_types_at_inner(ctx, value.value, index, state, results);
         }
         dir::Type::Reference(reference) => {
-            for_each_reference_symbol_type_id(types, reference.symbol, |next_type_id| {
-                function_parameter_types_at_inner(types, next_type_id, index, state, results);
+            for_each_reference_symbol_type_id(ctx, reference.symbol, |next_type_id| {
+                function_parameter_types_at_inner(ctx, next_type_id, index, state, results);
             });
         }
         _ => {}
@@ -1750,28 +1740,28 @@ fn function_parameter_types_at_inner(
 
 /// Resolve a return type for a function type with cycle protection.
 fn function_return_type_inner(
-    types: &dir::TypeTable<'_>,
-    type_id: dir::LocalTypeId,
+    ctx: &LintModuleContext<'_>,
+    type_id: dir::GlobalTypeId,
     state: &mut TypeQueryState,
-) -> Option<dir::LocalTypeId> {
+) -> Option<dir::GlobalTypeId> {
     // stop recursive cycles
     if !state.enter_type_id(type_id) {
         return None;
     }
 
     // inspect the type node
-    let ty = types.get_type(type_id);
+    let ty = ctx.checked_type(type_id).unwrap_or(dir::Type::Error);
     let result = match ty {
         dir::Type::Function(function) => function.return_type,
         dir::Type::Shape(object) => object
             .call_signatures
             .first()
             .copied()
-            .and_then(|first_signature| function_return_type_inner(types, first_signature, state)),
-        dir::Type::Form(value) => function_return_type_inner(types, value.value, state),
+            .and_then(|first_signature| function_return_type_inner(ctx, first_signature, state)),
+        dir::Type::Form(value) => function_return_type_inner(ctx, value.value, state),
         dir::Type::Reference(reference) => {
-            if let Some(next_type_id) = reference_symbol_type_id(types, reference.symbol) {
-                function_return_type_inner(types, next_type_id, state)
+            if let Some(next_type_id) = reference_symbol_type_id(ctx, reference.symbol) {
+                function_return_type_inner(ctx, next_type_id, state)
             } else {
                 None
             }

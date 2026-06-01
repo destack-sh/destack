@@ -1,32 +1,18 @@
 use std::sync::Arc;
 
-use destack_artifact::{
-    DirBound, DirExpanded, DirExported, DirImported, DirParsed, GlobalEnvironment,
-};
 use destack_dir::{self as dir, LanguageItem, StringId};
-use destack_source::{File, FileId, ModuleId, PackageId};
-use destack_workspace::{
-    ArtifactCache, LintSeverity, LinterOptions, Module, Package, ProfileId, Repository, Revision,
-    Workspace,
-};
+use destack_source::{ModuleId, PackageId};
+use destack_workspace::{LintSeverity, LinterOptions, Repository, Revision, Workspace};
 
 use crate::linter::library::is_library_module;
-use crate::{LintMeta, LintReport, LintRequirement};
+use crate::{LintMeta, LintReport, LintRequirement, LintSession};
 
 /// Context for workspace linting.
 pub struct LintWorkspaceContext {
-    /// The repository backing this lint pass.
-    pub repository: Arc<Repository>,
-    /// Revision artifact cache for this lint pass.
-    pub artifacts: Arc<ArtifactCache>,
+    /// Shared lint pass state.
+    pub session: LintSession,
     /// The workspace being linted.
     pub workspace: Arc<Workspace>,
-    /// The source revision for this lint pass.
-    pub revision: Revision,
-    /// The active profile for this workspace pass.
-    pub profile_id: ProfileId,
-    /// Linter configuration.
-    options: LinterOptions,
     /// Collected diagnostics.
     diagnostics: Vec<LintReport>,
 }
@@ -35,103 +21,42 @@ impl std::fmt::Debug for LintWorkspaceContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LintWorkspaceContext")
             .field("root", &self.workspace.root)
-            .field("profile_id", &self.profile_id)
+            .field("profile_id", &self.session.profile_id)
             .finish()
     }
 }
 
 impl LintWorkspaceContext {
     /// Create a new workspace lint context.
-    pub fn new(
-        repository: Arc<Repository>,
-        artifacts: Arc<ArtifactCache>,
-        workspace: Arc<Workspace>,
-        revision: Revision,
-        profile_id: ProfileId,
-        options: LinterOptions,
-    ) -> Self {
+    pub fn new(session: LintSession, workspace: Arc<Workspace>) -> Self {
         Self {
-            repository,
-            artifacts,
+            session,
             workspace,
-            revision,
-            profile_id,
-            options,
             diagnostics: Vec::new(),
         }
     }
 
     /// Get the linter options.
     pub fn options(&self) -> &LinterOptions {
-        &self.options
-    }
-
-    /// Return one module for the active revision when present.
-    pub fn repository_module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
-        self.repository
-            .module(self.revision, module_id)
-            .ok()
-            .flatten()
-    }
-
-    /// Return one package for the active revision when present.
-    pub fn repository_package(&self, package_id: PackageId) -> Option<Arc<Package>> {
-        self.repository
-            .package(self.revision, package_id)
-            .ok()
-            .flatten()
-    }
-
-    /// Return one source file for the active revision when present.
-    pub fn repository_file(&self, file_id: FileId) -> Option<Arc<File>> {
-        self.repository.file(self.revision, file_id).ok().flatten()
-    }
-
-    /// Return one imported DIR artifact for one revision-scoped module.
-    pub fn dir_imported(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
-        self.artifacts.dir_imported(module_id, self.profile_id)
-    }
-
-    /// Return one bound DIR artifact for one revision-scoped module.
-    pub fn dir_bound(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
-        self.artifacts.dir_bound(module_id, self.profile_id)
-    }
-
-    /// Return one parsed DIR artifact for one revision-scoped module.
-    pub fn dir_parsed(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
-        self.artifacts.dir_parsed(module_id)
-    }
-
-    /// Return one expanded DIR artifact for one revision-scoped module.
-    pub fn dir_expanded(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
-        self.artifacts.dir_expanded(module_id, self.profile_id)
-    }
-
-    /// Return one exported DIR artifact for one revision-scoped module.
-    pub fn dir_exported(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
-        self.artifacts.dir_exported(module_id, self.profile_id)
-    }
-
-    /// Return the global environment for the active revision and profile.
-    pub fn global_environment(&self) -> Option<Arc<GlobalEnvironment>> {
-        self.artifacts.global_environment(self.profile_id)
+        &self.session.options
     }
 
     /// Return the package ids in the active workspace.
     pub fn workspace_package_ids(&self) -> Vec<PackageId> {
-        self.repository
-            .package_ids(self.revision)
+        self.session
+            .repository
+            .package_ids(self.session.revision)
             .unwrap_or_else(|_| Vec::new())
     }
 
     /// Return all visible module ids in the active workspace.
     pub fn workspace_module_ids(&self) -> Vec<ModuleId> {
-        collect_workspace_module_ids(&self.repository, self.revision)
+        collect_workspace_module_ids(&self.session.repository, self.session.revision)
     }
 
     /// Resolve severity for a rule.
     pub fn get_severity(&self, meta: &LintMeta) -> LintSeverity {
-        self.options.resolve_severity(
+        self.session.options.resolve_severity(
             meta.id,
             meta.category,
             meta.category.default_severity(),
@@ -142,14 +67,14 @@ impl LintWorkspaceContext {
 
     /// Get a cached declared library symbol for the active profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self.global_environment()?;
+        let environment = self.session.global_environment()?;
 
         environment.language.symbols.get(&name).copied()
     }
 
     /// Get a specific language item for the active profile.
     pub fn get_language_item(&self, symbol: LanguageItem) -> Option<dir::GlobalSymbolId> {
-        let environment = self.global_environment()?;
+        let environment = self.session.global_environment()?;
 
         environment.language.symbol(symbol)
     }
@@ -243,13 +168,13 @@ fn is_lib_available(ctx: &LintWorkspaceContext, libs: &[&str]) -> bool {
         return true;
     }
 
-    let Some(environment) = ctx.global_environment() else {
+    let Some(environment) = ctx.session.global_environment() else {
         return false;
     };
 
     environment
         .globals
         .iter()
-        .filter_map(|module_id| ctx.repository_module(*module_id))
+        .filter_map(|module_id| ctx.session.repository_module(*module_id))
         .any(|module| is_library_module(module.as_ref(), libs))
 }

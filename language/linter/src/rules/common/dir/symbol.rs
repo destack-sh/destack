@@ -1,16 +1,8 @@
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{ArtifactCache, ProfileId};
 
-/// Symbol type id tied to the module that owns its type table.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct SymbolTypeId {
-    /// The module id that owns the type table.
-    pub module_id: ModuleId,
-    /// The local type id in that module type table.
-    pub type_id: dir::LocalTypeId,
-}
+use crate::LintModuleContext;
 
 /// A matched decorator attached to a symbol declaration.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,35 +34,16 @@ pub fn expression_candidate_symbols(
 }
 
 /// Map decorators found on expression candidate symbols.
-#[allow(clippy::too_many_arguments)]
 pub fn expression_symbol_decorator_map<T>(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_tree: &dir::Tree,
-    local_strings: &StringPool,
-    local_symbols: &dir::BindingTable<'_>,
-    local_types: &dir::TypeTable<'_>,
-    local_resolutions: &dir::ResolutionTable<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
     mut map: impl FnMut(&SymbolDecorator) -> Option<T>,
 ) -> Option<T> {
-    let symbols = expression_candidate_symbols(local_module_id, local_resolutions, expression_id);
+    let symbols = expression_candidate_symbols(ctx.module_id(), ctx.resolutions, expression_id);
 
     for symbol_id in symbols {
-        let decorators = symbol_decorators_for(
-            artifacts,
-            profile_id,
-            local_module_id,
-            local_tree,
-            local_strings,
-            local_symbols,
-            local_types,
-            local_resolutions,
-            symbol_id,
-            decorator_symbol,
-        );
+        let decorators = symbol_decorators_for(ctx, symbol_id, decorator_symbol);
 
         for decorator in decorators {
             if let Some(value) = map(&decorator) {
@@ -83,33 +56,12 @@ pub fn expression_symbol_decorator_map<T>(
 }
 
 /// Return true when an expression candidate symbol has a matching decorator.
-#[allow(clippy::too_many_arguments)]
 pub fn expression_has_symbol_decorator(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_tree: &dir::Tree,
-    local_strings: &StringPool,
-    local_symbols: &dir::BindingTable<'_>,
-    local_types: &dir::TypeTable<'_>,
-    local_resolutions: &dir::ResolutionTable<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> bool {
-    expression_symbol_decorator_map(
-        artifacts,
-        profile_id,
-        local_module_id,
-        local_tree,
-        local_strings,
-        local_symbols,
-        local_types,
-        local_resolutions,
-        expression_id,
-        decorator_symbol,
-        |_| Some(()),
-    )
-    .is_some()
+    expression_symbol_decorator_map(ctx, expression_id, decorator_symbol, |_| Some(())).is_some()
 }
 
 /// Collect member, call, and construct target symbols for one resolved node.
@@ -170,7 +122,6 @@ fn symbol_decorators_in_module(
     tree: &dir::Tree,
     strings: &StringPool,
     symbols: &dir::BindingTable<'_>,
-    _types: &dir::TypeTable<'_>,
     resolutions: &dir::ResolutionTable<'_>,
     symbol_id: dir::LocalSymbolId,
     decorator_symbol: dir::GlobalSymbolId,
@@ -308,69 +259,46 @@ fn decorator_string_arguments(
 
 /// Read one symbol entry from local or remote module tables.
 pub fn symbol_for(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_symbols: &dir::BindingTable<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::Symbol> {
-    if symbol_id.module_id == local_module_id {
-        return Some(local_symbols.get_symbol(symbol_id.local_id).clone());
+    if symbol_id.module_id == ctx.module_id() {
+        return Some(ctx.symbols.get_symbol(symbol_id.local_id).clone());
     }
 
-    let dir = artifacts.dir_bound(symbol_id.module_id, profile_id)?;
-    let symbols = dir.binding_table();
+    let module = ctx.session.checked_module(symbol_id.module_id)?;
 
-    Some(symbols.get_symbol(symbol_id.local_id).clone())
+    Some(module.symbols.get_symbol(symbol_id.local_id).clone())
 }
 
 /// Read matching decorators for a symbol.
-#[allow(clippy::too_many_arguments)]
 pub fn symbol_decorators_for(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_tree: &dir::Tree,
-    local_strings: &StringPool,
-    local_symbols: &dir::BindingTable<'_>,
-    local_types: &dir::TypeTable<'_>,
-    local_resolutions: &dir::ResolutionTable<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
     decorator_symbol: dir::GlobalSymbolId,
 ) -> Vec<SymbolDecorator> {
-    if symbol_id.module_id == local_module_id {
+    if symbol_id.module_id == ctx.module_id() {
         return symbol_decorators_in_module(
-            local_module_id,
-            local_tree,
-            local_strings,
-            local_symbols,
-            local_types,
-            local_resolutions,
+            ctx.module_id(),
+            ctx.dir.tree(),
+            ctx.strings,
+            &ctx.symbols,
+            ctx.resolutions,
             symbol_id.local_id,
             decorator_symbol,
         );
     }
 
-    let Some(dir) = artifacts.dir_bound(symbol_id.module_id, profile_id) else {
+    let Some(module) = ctx.session.checked_module(symbol_id.module_id) else {
         return Vec::new();
     };
-    let Some(parsed) = artifacts.dir_parsed(symbol_id.module_id) else {
-        return Vec::new();
-    };
-    let Some(checked) = artifacts.dir_checked(symbol_id.module_id, profile_id) else {
-        return Vec::new();
-    };
-    let symbols = dir.binding_table();
-    let types = dir.type_table();
-    let resolutions = checked.resolution_table();
 
     symbol_decorators_in_module(
         symbol_id.module_id,
-        &parsed.tree,
-        local_strings,
-        &symbols,
-        &types,
-        &resolutions,
+        &module.parsed.tree,
+        &module.strings,
+        &module.symbols,
+        &module.resolutions,
         symbol_id.local_id,
         decorator_symbol,
     )
@@ -378,45 +306,31 @@ pub fn symbol_decorators_for(
 
 /// Read the declaration id for a symbol.
 pub fn symbol_declaration_for(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_symbols: &dir::BindingTable<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::GlobalNodeIdAny> {
-    let symbol = symbol_for(
-        artifacts,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        symbol_id,
-    )?;
+    let symbol = symbol_for(ctx, symbol_id)?;
     symbol.declaration
 }
 
 /// Resolve one local initializer expression for a symbol when available.
 pub fn symbol_initializer_expression(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_symbols: &dir::BindingTable<'_>,
-    tree: &dir::Tree,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> Option<dir::LocalNodeId<dir::Expression>> {
     // resolve the declaration for this symbol
-    let declaration_id = symbol_declaration_for(
-        artifacts,
-        profile_id,
-        local_module_id,
-        local_symbols,
-        symbol_id,
-    )?;
-    if declaration_id.module_id != local_module_id {
+    let declaration_id = symbol_declaration_for(ctx, symbol_id)?;
+    if declaration_id.module_id != ctx.module_id() {
         return None;
     }
 
     // resolve the declaration initializer in the local tree
-    declaration_initializer_expression(local_symbols, tree, declaration_id, symbol_id.local_id)
+    declaration_initializer_expression(
+        &ctx.symbols,
+        ctx.dir.tree(),
+        declaration_id,
+        symbol_id.local_id,
+    )
 }
 
 /// Resolve one initializer expression from a symbol declaration node.
@@ -512,66 +426,4 @@ fn enclosing_declarator(
 
         node_id = parent.id;
     }
-}
-
-/// Read the checked type id for a symbol.
-pub fn symbol_type_id_for(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_types: &dir::TypeTable<'_>,
-    symbol_id: dir::GlobalSymbolId,
-) -> Option<SymbolTypeId> {
-    if symbol_id.module_id == local_module_id {
-        let type_id = local_types.get_symbol_type_id(symbol_id)?;
-        return Some(SymbolTypeId {
-            module_id: local_module_id,
-            type_id,
-        });
-    }
-
-    let types = checked_type_table_for(artifacts, symbol_id.module_id, profile_id)?;
-    let type_id = types.get_symbol_type_id(symbol_id)?;
-    Some(SymbolTypeId {
-        module_id: symbol_id.module_id,
-        type_id,
-    })
-}
-
-/// Map one symbol type from local or remote type tables.
-pub fn symbol_type_map_for<T>(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    local_module_id: ModuleId,
-    local_types: &dir::TypeTable<'_>,
-    symbol_id: dir::GlobalSymbolId,
-    map: impl FnOnce(&dir::TypeTable<'_>, dir::LocalTypeId) -> T,
-) -> Option<T> {
-    let symbol_type_id = symbol_type_id_for(
-        artifacts,
-        profile_id,
-        local_module_id,
-        local_types,
-        symbol_id,
-    )?;
-
-    if symbol_type_id.module_id == local_module_id {
-        return Some(map(local_types, symbol_type_id.type_id));
-    }
-
-    let types = checked_type_table_for(artifacts, symbol_type_id.module_id, profile_id)?;
-    Some(map(&types, symbol_type_id.type_id))
-}
-
-/// Read checked type state for one module.
-fn checked_type_table_for(
-    artifacts: &ArtifactCache,
-    module_id: ModuleId,
-    profile_id: ProfileId,
-) -> Option<dir::TypeTable<'static>> {
-    let bound = artifacts.dir_bound(module_id, profile_id)?;
-    let expanded = artifacts.dir_expanded(module_id, profile_id)?;
-    let checked = artifacts.dir_checked(module_id, profile_id)?;
-
-    Some(checked.type_table(&bound, &expanded))
 }

@@ -48,8 +48,8 @@ impl LintRule for CyclomaticComplexity {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve one shared max-threshold and lint meta
         let meta = self.meta();
-        let max_complexity = ctx.options.complexity.max_cyclomatic_complexity;
-        let variant = ctx.options.complexity.cyclomatic_complexity_variant;
+        let max_complexity = ctx.options().complexity.max_cyclomatic_complexity;
+        let variant = ctx.options().complexity.cyclomatic_complexity_variant;
 
         // check function declarations
         for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {

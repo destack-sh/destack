@@ -36,7 +36,7 @@ impl LintRule for MaxDepth {
 
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let max_depth = ctx.options.complexity.max_depth;
+        let max_depth = ctx.options().complexity.max_depth;
 
         // collect violations
         let mut visitor = DepthNodeVisitor {

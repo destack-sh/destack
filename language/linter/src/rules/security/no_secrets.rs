@@ -549,7 +549,7 @@ impl LintRule for NoSecrets {
         let meta = self.meta();
         let mut secret_match_cache: HashMap<StringId, Option<SecretMatch>> = HashMap::new();
         let entropy_threshold =
-            no_secrets_entropy_threshold(ctx.options.security.no_secrets_entropy_threshold);
+            no_secrets_entropy_threshold(ctx.options().security.no_secrets_entropy_threshold);
 
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             let expression = ctx.dir.get(node_id);

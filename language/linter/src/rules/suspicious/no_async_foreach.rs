@@ -118,7 +118,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
         };
 
         // check if the receiver is an array type
-        if !is_array_type(self.ctx.types, receiver_type_id, Some(self.array_symbol)) {
+        if !is_array_type(self.ctx, receiver_type_id, Some(self.array_symbol)) {
             return;
         }
 
@@ -134,7 +134,7 @@ impl<'a, 'b> AsyncForeachVisitor<'a, 'b> {
             return;
         };
 
-        if !is_async_function_type(self.ctx.types, callback_type_id) {
+        if !is_async_function_type(self.ctx, callback_type_id) {
             return;
         }
 

@@ -48,7 +48,7 @@ impl LintRule for UseIsnan {
             }
 
             // check indexOf and lastIndexOf calls when enabled
-            if ctx.options.correctness.use_isnan_enforce_for_index_of
+            if ctx.options().correctness.use_isnan_enforce_for_index_of
                 && let Expression::Call {
                     left, arguments, ..
                 } = expression
@@ -64,7 +64,7 @@ impl LintRule for UseIsnan {
             if *form != dir::MatchForm::Switch {
                 continue;
             }
-            if !ctx.options.correctness.use_isnan_enforce_for_switch_case {
+            if !ctx.options().correctness.use_isnan_enforce_for_switch_case {
                 continue;
             }
 

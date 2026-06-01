@@ -193,7 +193,7 @@ impl<'a, 'b> PreferFlatMapVisitor<'a, 'b> {
             return false;
         };
 
-        is_array_type(self.ctx.types, type_id, Some(self.array_symbol))
+        is_array_type(self.ctx, type_id, Some(self.array_symbol))
     }
 
     /// Return true when the receiver is one ignored React children helper.

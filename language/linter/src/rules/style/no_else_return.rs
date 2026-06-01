@@ -47,14 +47,14 @@ impl LintRule for NoElseReturn {
             };
 
             // skip else if chain members when the option allows them
-            if ctx.options.style.no_else_return_allow_else_if
+            if ctx.options().style.no_else_return_allow_else_if
                 && expression_is_else_if_branch(ctx.dir.tree(), node_id)
             {
                 continue;
             }
 
             // skip else if alternates when the option allows them
-            if ctx.options.style.no_else_return_allow_else_if
+            if ctx.options().style.no_else_return_allow_else_if
                 && expression_is_else_if(ctx, *else_id)
             {
                 continue;

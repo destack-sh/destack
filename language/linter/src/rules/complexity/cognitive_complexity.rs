@@ -39,7 +39,7 @@ impl LintRule for CognitiveComplexity {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_complexity = ctx.options.complexity.max_cognitive_complexity;
+        let max_complexity = ctx.options().complexity.max_cognitive_complexity;
 
         // check all callable bodies
         for_each_callable_signature(ctx.dir.tree(), |owner_id, _signature, body_id| {

@@ -54,8 +54,8 @@ impl LintRule for CommentPunctuation {
                 || is_separator_comment(text)
                 || parse_keyword_comment_with_options(
                     text,
-                    &ctx.options.style.comment_keywords,
-                    &ctx.options.style.comment_keyword_tags,
+                    &ctx.options().style.comment_keywords,
+                    &ctx.options().style.comment_keyword_tags,
                 )
                 .is_some()
             {

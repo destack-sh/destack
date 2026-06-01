@@ -35,7 +35,7 @@ impl LintRule for NoUselessRename {
 
         // check destructuring pattern fields
         if !ctx
-            .options
+            .options()
             .correctness
             .no_useless_rename_ignore_destructuring
         {
@@ -102,9 +102,9 @@ impl LintRule for NoUselessRename {
 
             // honor per-kind ignore options
             if (rename_kind == RenameKind::Import
-                && ctx.options.correctness.no_useless_rename_ignore_import)
+                && ctx.options().correctness.no_useless_rename_ignore_import)
                 || (rename_kind == RenameKind::Export
-                    && ctx.options.correctness.no_useless_rename_ignore_export)
+                    && ctx.options().correctness.no_useless_rename_ignore_export)
             {
                 continue;
             }

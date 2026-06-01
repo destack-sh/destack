@@ -32,7 +32,7 @@ impl LintRule for MaxTypeFields {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_type_fields = ctx.options.complexity.max_type_fields;
+        let max_type_fields = ctx.options().complexity.max_type_fields;
 
         // check declaration field counts
         for declaration_id in ctx.dir.iter_nodes::<dir::Declaration>() {

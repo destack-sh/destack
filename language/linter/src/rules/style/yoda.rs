@@ -37,7 +37,7 @@ impl LintRule for Yoda {
 
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let mode = ctx.options.style.yoda_mode;
+        let mode = ctx.options().style.yoda_mode;
 
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             let expression = ctx.dir.get(node_id);
@@ -56,12 +56,13 @@ impl LintRule for Yoda {
             }
 
             // honor the equality-only option
-            if ctx.options.style.yoda_only_equality && !is_equality_operator(operator) {
+            if ctx.options().style.yoda_only_equality && !is_equality_operator(operator) {
                 continue;
             }
 
             // honor the range exception option
-            if ctx.options.style.yoda_except_range && expression_is_part_of_range_test(ctx, node_id)
+            if ctx.options().style.yoda_except_range
+                && expression_is_part_of_range_test(ctx, node_id)
             {
                 continue;
             }

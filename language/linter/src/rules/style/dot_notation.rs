@@ -36,15 +36,15 @@ impl LintRule for DotNotation {
 
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let allow_pattern =
-            ctx.options
-                .style
-                .dot_notation_allow_pattern
-                .as_deref()
-                .map(|pattern| {
-                    Regex::new(pattern)
-                        .expect("validated config invariant: dot-notation allow pattern compiles")
-                });
+        let allow_pattern = ctx
+            .options()
+            .style
+            .dot_notation_allow_pattern
+            .as_deref()
+            .map(|pattern| {
+                Regex::new(pattern)
+                    .expect("validated config invariant: dot-notation allow pattern compiles")
+            });
 
         for node_id in ctx.dir.iter_nodes::<dir::Expression>() {
             let expr = ctx.dir.get(node_id);
@@ -121,7 +121,7 @@ fn property_name_prefers_dot_notation(
         return false;
     }
 
-    if ctx.options.style.dot_notation_allow_keywords && dir::Keyword::from_str(name).is_ok() {
+    if ctx.options().style.dot_notation_allow_keywords && dir::Keyword::from_str(name).is_ok() {
         return false;
     }
 

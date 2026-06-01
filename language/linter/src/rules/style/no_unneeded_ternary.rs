@@ -118,7 +118,7 @@ impl LintRule for NoUnneededTernary {
                 ctx.report(diagnostic);
             }
             // check for x ? x : y -> x || y when default-assignment simplification is enabled
-            else if !ctx.options.style.no_unneeded_ternary_default_assignment
+            else if !ctx.options().style.no_unneeded_ternary_default_assignment
                 && expression_is_equal(ctx, condition_id, *then_expression)
             {
                 let severity = ctx.get_effective_severity(meta, node_id);

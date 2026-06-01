@@ -67,10 +67,10 @@ struct PreferArrowCallbackOptions {
 fn prefer_arrow_callback_options(ctx: &LintModuleContext<'_>) -> PreferArrowCallbackOptions {
     PreferArrowCallbackOptions {
         allow_named_functions: ctx
-            .options
+            .options()
             .style
             .prefer_arrow_callback_allow_named_functions,
-        allow_unbound_this: ctx.options.style.prefer_arrow_callback_allow_unbound_this,
+        allow_unbound_this: ctx.options().style.prefer_arrow_callback_allow_unbound_this,
     }
 }
 
@@ -555,10 +555,9 @@ fn callback_fix(ctx: &LintModuleContext<'_>, candidate: &CallbackCandidate) -> O
     // rewrite `function` form to arrow form while preserving return annotations
     let (async_prefix, rest) = if let Some(rest) = prefix_text.strip_prefix("async function") {
         ("async ", rest)
-    } else if let Some(rest) = prefix_text.strip_prefix("function") {
-        ("", rest)
     } else {
-        return None;
+        let rest = prefix_text.strip_prefix("function")?;
+        ("", rest)
     };
 
     let parameter_start_index = rest.find('(')?;

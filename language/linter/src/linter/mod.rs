@@ -4,6 +4,7 @@ mod module;
 mod package;
 mod rule;
 mod runner;
+mod session;
 mod workspace;
 
 pub use destack_workspace::LintCategory;
@@ -12,6 +13,7 @@ pub use module::*;
 pub use package::*;
 pub use rule::*;
 pub use runner::*;
+pub use session::*;
 pub use workspace::*;
 
 #[cfg(test)]

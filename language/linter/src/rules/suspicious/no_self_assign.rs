@@ -55,7 +55,7 @@ impl LintRule for NoSelfAssign {
             }
 
             // keep property assignments behind the upstream option
-            let checks_properties = ctx.options.correctness.no_self_assign_check_properties;
+            let checks_properties = ctx.options().correctness.no_self_assign_check_properties;
             if !checks_properties
                 && assign_pattern_is_property_assignment_target(ctx.dir.tree(), *left)
             {

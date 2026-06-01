@@ -1,21 +1,16 @@
 use std::sync::Arc;
 
-use destack_artifact::{
-    DirBound, DirCheckedModule, DirExpanded, DirExported, DirImported, DirParsed, GlobalEnvironment,
-};
+use destack_artifact::{DirExpanded, DirParsed};
 use destack_dir as dir;
 use destack_dir::{LanguageItem, StringId, StringPool};
-use destack_source::{EditBuilder, File, FileId, ModuleId, PackageId, Span};
-use destack_workspace::{
-    ArtifactCache, LintSeverity, LinterOptions, Module, Package, Profile, ProfileId, Repository,
-    Revision,
-};
+use destack_source::{EditBuilder, File, FileId, ModuleId, Span};
+use destack_workspace::{LintSeverity, LinterOptions, Module, Profile};
 
 use crate::linter::library::is_library_module;
 use crate::rules::common::expression_path_segments;
 use crate::{
     ConstValue, LintDirAnalysisCache, LintMeta, LintRegexParse, LintReport, LintRequirement,
-    find_control_character, find_control_characters, find_misleading_character_class,
+    LintSession, find_control_character, find_control_characters, find_misleading_character_class,
     find_useless_backreference,
 };
 
@@ -80,18 +75,12 @@ pub(crate) struct DecoratorCall<'a> {
 
 /// Context for DIR-level linting of a single module.
 pub struct LintModuleContext<'a> {
-    /// The repository containing this module.
-    pub repository: Arc<Repository>,
-    /// Revision artifact cache for this lint pass.
-    pub artifacts: Arc<ArtifactCache>,
+    /// Shared lint pass state.
+    pub session: LintSession,
     /// The module being linted.
     pub module: &'a Module,
-    /// The source revision for this lint pass.
-    pub revision: Revision,
     /// The semantic profile for this module.
     pub profile: Profile,
-    /// The profile id for this module.
-    pub profile_id: ProfileId,
     /// The source file.
     pub file: Arc<File>,
 
@@ -115,9 +104,6 @@ pub struct LintModuleContext<'a> {
     /// The scope of the Module.
     pub namespace_scope: dir::LocalScopeId,
 
-    /// Linter configuration.
-    pub options: &'a LinterOptions,
-
     /// Whether to compute fixes for diagnostics.
     pub compute_fixes: bool,
 
@@ -140,10 +126,8 @@ impl<'a> std::fmt::Debug for LintModuleContext<'a> {
 impl<'a> LintModuleContext<'a> {
     /// Create a new DIR lint context for a module.
     pub fn new(
-        repository: Arc<Repository>,
-        artifacts: Arc<ArtifactCache>,
+        session: LintSession,
         module: &'a Module,
-        revision: Revision,
         profile: Profile,
         file: Arc<File>,
         parsed: &'a DirParsed,
@@ -155,18 +139,12 @@ impl<'a> LintModuleContext<'a> {
         statics: &'a dir::StaticTable<'static>,
         resolutions: &'a dir::ResolutionTable<'static>,
         namespace_scope: dir::LocalScopeId,
-        options: &'a LinterOptions,
         compute_fixes: bool,
     ) -> Self {
-        let profile_id = profile.id();
-
         Self {
-            repository,
-            artifacts,
+            session,
             module,
-            revision,
             profile,
-            profile_id,
             file,
             dir: dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch)),
             strings,
@@ -177,7 +155,6 @@ impl<'a> LintModuleContext<'a> {
             resolutions,
             roots: expanded.roots.clone(),
             namespace_scope,
-            options,
             compute_fixes,
             dir_analysis: LintDirAnalysisCache::default(),
             diagnostics: Vec::new(),
@@ -199,54 +176,9 @@ impl<'a> LintModuleContext<'a> {
         StringId::for_text(text)
     }
 
-    /// Return one module for the active revision when present.
-    pub fn repository_module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
-        self.repository
-            .module(self.revision, module_id)
-            .ok()
-            .flatten()
-    }
-
-    /// Return one package for the active revision when present.
-    pub fn repository_package(&self, package_id: PackageId) -> Option<Arc<Package>> {
-        self.repository
-            .package(self.revision, package_id)
-            .ok()
-            .flatten()
-    }
-
-    /// Return one source file for the active revision when present.
-    pub fn repository_file(&self, file_id: FileId) -> Option<Arc<File>> {
-        self.repository.file(self.revision, file_id).ok().flatten()
-    }
-
-    /// Return one checked DIR artifact for one revision-scoped module.
-    pub fn dir_checked(&self, module_id: ModuleId) -> Option<Arc<DirCheckedModule>> {
-        self.artifacts.dir_checked(module_id, self.profile_id)
-    }
-
-    /// Return one checked type table for one revision-scoped module.
-    pub fn dir_type_table(&self, module_id: ModuleId) -> Option<dir::TypeTable<'static>> {
-        let bound = self.dir_bound(module_id)?;
-        let expanded = self.dir_expanded(module_id)?;
-        let checked = self.dir_checked(module_id)?;
-
-        Some(checked.type_table(&bound, &expanded))
-    }
-
-    /// Return one parsed DIR artifact for one revision-scoped module.
-    pub fn dir_parsed(&self, module_id: ModuleId) -> Option<Arc<DirParsed>> {
-        self.artifacts.dir_parsed(module_id)
-    }
-
-    /// Return one bound DIR artifact for one revision-scoped module.
-    pub fn dir_bound(&self, module_id: ModuleId) -> Option<Arc<DirBound>> {
-        self.artifacts.dir_bound(module_id, self.profile_id)
-    }
-
-    /// Return one expanded DIR artifact for one revision-scoped module.
-    pub fn dir_expanded(&self, module_id: ModuleId) -> Option<Arc<DirExpanded>> {
-        self.artifacts.dir_expanded(module_id, self.profile_id)
+    /// Return the active linter options.
+    pub fn options(&self) -> &LinterOptions {
+        &self.session.options
     }
 
     /// Return the local symbol declared by one DIR node.
@@ -276,33 +208,46 @@ impl<'a> LintModuleContext<'a> {
             .scope_for_node(node_id.into_global_any(self.module.id))
     }
 
-    /// Return one imported DIR artifact for one revision-scoped module.
-    pub fn dir_imported(&self, module_id: ModuleId) -> Option<Arc<DirImported>> {
-        self.artifacts.dir_imported(module_id, self.profile_id)
-    }
-
-    /// Return one exported DIR artifact for one revision-scoped module.
-    pub fn dir_exported(&self, module_id: ModuleId) -> Option<Arc<DirExported>> {
-        self.artifacts.dir_exported(module_id, self.profile_id)
-    }
-
-    /// Return the global environment for the active revision and profile.
-    pub fn global_environment(&self) -> Option<Arc<GlobalEnvironment>> {
-        self.artifacts.global_environment(self.profile_id)
-    }
-
     /// Return all visible module ids for the active revision.
     pub fn workspace_module_ids(&self) -> Vec<ModuleId> {
-        self.repository
-            .module_ids(self.revision)
+        self.session
+            .repository
+            .module_ids(self.session.revision)
             .unwrap_or_default()
+    }
+
+    /// Read one checked DIR type through its owning module.
+    pub fn checked_type(&self, type_id: dir::GlobalTypeId) -> Option<dir::Type> {
+        if type_id.module_id == self.module.id {
+            return self.types.get_type_maybe(type_id.local_id).cloned();
+        }
+
+        self.session.with_type(type_id, |ty, _| ty.clone())
+    }
+
+    /// Read one checked DIR static through its owning module.
+    pub fn checked_static(&self, static_id: dir::GlobalStaticId) -> Option<dir::StaticTerm> {
+        if static_id.module_id == self.module.id {
+            return self.statics.get_static_maybe(static_id.local_id).cloned();
+        }
+
+        self.session.with_static(static_id, |term, _| term.clone())
+    }
+
+    /// Resolve the checked type id for one symbol.
+    pub fn symbol_type_id(&self, symbol_id: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
+        if symbol_id.module_id == self.module.id {
+            return self.types.get_symbol_type_id(symbol_id);
+        }
+
+        self.session.symbol_type_id(symbol_id)
     }
 
     /// Resolve the checked type id for a DIR expression.
     pub fn expression_type_id(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::LocalTypeId> {
+    ) -> Option<dir::GlobalTypeId> {
         // unwrap parenthesized expressions first
         let expression = self.dir.get(expression_id);
         if let dir::Expression::Parenthesized { expression } = expression {
@@ -319,7 +264,7 @@ impl<'a> LintModuleContext<'a> {
 
         // then use symbol types for direct references
         self.expression_target_symbol(expression_id)
-            .and_then(|symbol| self.types.get_symbol_type_id(symbol))
+            .and_then(|symbol| self.symbol_type_id(symbol))
     }
 
     /// Resolve the lexical target symbol for one expression.
@@ -392,7 +337,7 @@ impl<'a> LintModuleContext<'a> {
 
     /// Get a language item from the cache, returning None if not found.
     pub fn get_language_item(&self, item: LanguageItem) -> Option<dir::GlobalSymbolId> {
-        let environment = self.global_environment()?;
+        let environment = self.session.global_environment()?;
         environment.language.symbol(item)
     }
 
@@ -404,7 +349,7 @@ impl<'a> LintModuleContext<'a> {
 
     /// Get a cached declared library symbol for the module profile and name.
     pub fn get_declared_library_symbol(&self, name: StringId) -> Option<dir::GlobalSymbolId> {
-        let environment = self.global_environment()?;
+        let environment = self.session.global_environment()?;
 
         environment.language.symbols.get(&name).copied()
     }
@@ -417,7 +362,7 @@ impl<'a> LintModuleContext<'a> {
 
     /// Resolve severity for a rule.
     pub fn get_severity(&self, meta: &LintMeta) -> LintSeverity {
-        self.options.resolve_severity(
+        self.session.options.resolve_severity(
             meta.id,
             meta.category,
             meta.category.default_severity(),
@@ -447,20 +392,21 @@ impl<'a> LintModuleContext<'a> {
         if libs.is_empty() {
             return true;
         }
-        let Some(environment) = self.global_environment() else {
+        let Some(environment) = self.session.global_environment() else {
             return false;
         };
 
         environment
             .globals
             .iter()
-            .filter_map(|module_id| self.repository_module(*module_id))
+            .filter_map(|module_id| self.session.repository_module(*module_id))
             .any(|module| is_library_module(module.as_ref(), libs))
     }
 
     /// Check if a rule is supported.
     pub fn is_rule_supported(&self, meta: &LintMeta) -> bool {
-        if !self.options.include_declaration_files && !meta.supports_file_type(self.file.ty) {
+        if !self.session.options.include_declaration_files && !meta.supports_file_type(self.file.ty)
+        {
             return false;
         }
 
@@ -638,7 +584,7 @@ impl<'a> LintModuleContext<'a> {
 
     /// Return the lint directive represented by one language item symbol.
     fn lint_directive_for_symbol(&self, symbol_id: dir::GlobalSymbolId) -> Option<LintDirective> {
-        let environment = self.global_environment()?;
+        let environment = self.session.global_environment()?;
 
         if environment.language.symbol(LanguageItem::Allow) == Some(symbol_id) {
             return Some(LintDirective::Allow);

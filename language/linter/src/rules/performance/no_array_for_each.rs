@@ -98,7 +98,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         let Some(type_id) = self.ctx.expression_type_id(method_call.receiver_id) else {
             return;
         };
-        if !is_array_type(self.ctx.types, type_id, Some(self.array_symbol)) {
+        if !is_array_type(self.ctx, type_id, Some(self.array_symbol)) {
             return;
         }
 
@@ -270,7 +270,7 @@ impl<'a, 'b> NoArrayForEachVisitor<'a, 'b> {
         .map(|expression_id| self.ctx.get_span(expression_id))
         .filter(|span| span.start >= body_span.start && span.end <= body_span.end)
         .collect::<Vec<_>>();
-        spans.sort_by(|left, right| right.start.cmp(&left.start));
+        spans.sort_by_key(|span| std::cmp::Reverse(span.start));
 
         for span in spans {
             let start = (span.start - body_span.start) as usize;

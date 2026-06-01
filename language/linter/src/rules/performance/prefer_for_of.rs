@@ -227,7 +227,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
 
         // verify it's an array type
         let type_id = self.ctx.expression_type_id(*left)?;
-        if !is_array_type(self.ctx.types, type_id, Some(self.array_symbol)) {
+        if !is_array_type(self.ctx, type_id, Some(self.array_symbol)) {
             return None;
         }
 
@@ -350,7 +350,7 @@ impl<'a, 'b> PreferForOfVisitor<'a, 'b> {
             .iter()
             .map(|expression_id| self.ctx.get_span(*expression_id))
             .collect::<Vec<_>>();
-        spans.sort_by(|left, right| right.start.cmp(&left.start));
+        spans.sort_by_key(|span| std::cmp::Reverse(span.start));
         for span in spans {
             if span.start < body_span.start || span.end > body_span.end {
                 return None;

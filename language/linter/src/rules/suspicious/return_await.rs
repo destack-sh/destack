@@ -38,7 +38,7 @@ impl LintRule for ReturnAwait {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
         let promise_symbol = ctx.get_language_item(LanguageItem::Promise);
-        let configuration = return_await_configuration(ctx.options.correctness.return_await_mode);
+        let configuration = return_await_configuration(ctx.options().correctness.return_await_mode);
 
         // inspect return expressions
         for return_expression_id in ctx.dir.iter_node_ids_of_type::<dir::Expression>() {
@@ -443,40 +443,19 @@ fn expression_thenable_certainty(
 
     // keep known promise-like expressions at highest certainty
     if promise_symbol.is_some_and(|promise_symbol| {
-        expression_is_promise_like(
-            ctx.module_id(),
-            ctx.dir.tree(),
-            ctx.types,
-            promise_symbol,
-            expression_id,
-        )
+        expression_is_promise_like(ctx, promise_symbol, expression_id)
     }) {
         return ThenableCertainty::Always;
     }
 
     // keep unresolved and any-typed values as maybe
-    let has_type = expression_type_or_call_return_type_map(
-        ctx.artifacts.as_ref(),
-        ctx.profile_id,
-        ctx.module_id(),
-        ctx.dir.tree(),
-        ctx.types,
-        ctx.resolutions,
-        expression_id,
-        |_types, _type_id| true,
-    )
-    .unwrap_or(false);
+    let has_type =
+        expression_type_or_call_return_type_map(ctx, expression_id, |_ctx, _type_id| true)
+            .unwrap_or(false);
     if !has_type {
         return ThenableCertainty::Maybe;
     }
-    if expression_is_any_typed(
-        ctx.module_id(),
-        ctx.dir.tree(),
-        &ctx.symbols,
-        ctx.types,
-        ctx.resolutions,
-        expression_id,
-    ) {
+    if expression_is_any_typed(ctx, expression_id) {
         return ThenableCertainty::Maybe;
     }
 

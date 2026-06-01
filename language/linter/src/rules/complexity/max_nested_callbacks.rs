@@ -37,7 +37,7 @@ impl LintRule for MaxNestedCallbacks {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_callbacks = ctx.options.complexity.max_nested_callbacks;
+        let max_callbacks = ctx.options().complexity.max_nested_callbacks;
 
         // traverse module roots and collect callback-depth violations
         let mut visitor = CallbackVisitor {

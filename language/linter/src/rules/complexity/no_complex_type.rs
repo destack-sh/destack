@@ -30,7 +30,7 @@ impl LintRule for NoComplexType {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_type_complexity = ctx.options.complexity.max_type_complexity;
+        let max_type_complexity = ctx.options().complexity.max_type_complexity;
 
         // check only top level type annotation roots
         for type_expression_id in ctx.dir.iter_nodes::<dir::TypeExpression>() {

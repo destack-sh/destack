@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 
-use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::ModuleId;
-use destack_workspace::{ArtifactCache, ProfileId};
 
+use crate::LintModuleContext;
 use crate::rules::common::glob_matches;
 
 use super::{
@@ -113,20 +111,10 @@ pub struct TaintCache {
 /// One taint analysis session over a DIR module.
 #[derive(Debug)]
 pub struct TaintAnalysis<'a> {
-    /// Cached artifact reader for this revision.
-    artifacts: &'a ArtifactCache,
-    /// Active profile id.
-    profile_id: ProfileId,
-    /// Active module id.
-    module_id: ModuleId,
+    /// Active module lint context.
+    ctx: &'a LintModuleContext<'a>,
     /// Active module tree.
     tree: &'a dir::Tree,
-    /// Active module strings.
-    strings: &'a StringPool,
-    /// Active module symbols.
-    symbols: &'a dir::BindingTable<'a>,
-    /// Active module types.
-    types: &'a dir::TypeTable<'a>,
     /// Active module resolutions.
     resolutions: &'a dir::ResolutionTable<'a>,
     /// Mutable cache reused across checks.
@@ -137,28 +125,15 @@ pub struct TaintAnalysis<'a> {
 
 impl<'a> TaintAnalysis<'a> {
     /// Build a taint analysis session.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        artifacts: &'a ArtifactCache,
-        profile_id: ProfileId,
-        module_id: ModuleId,
-        tree: &'a dir::Tree,
-        strings: &'a StringPool,
-        symbols: &'a dir::BindingTable<'a>,
-        types: &'a dir::TypeTable<'a>,
-        resolutions: &'a dir::ResolutionTable<'a>,
+        ctx: &'a LintModuleContext<'a>,
         cache: &'a mut TaintCache,
         include_heuristic_sources: bool,
     ) -> Self {
         Self {
-            artifacts,
-            profile_id,
-            module_id,
-            tree,
-            strings,
-            symbols,
-            types,
-            resolutions,
+            ctx,
+            tree: ctx.dir.tree(),
+            resolutions: ctx.resolutions,
             cache,
             include_heuristic_sources,
         }
@@ -413,17 +388,7 @@ impl<'a> TaintAnalysis<'a> {
                 }
 
                 // apply opt-in sanitizer tags on the callee
-                let sanitizer_labels = expression_sanitizer_taint_labels(
-                    self.artifacts,
-                    self.profile_id,
-                    self.module_id,
-                    self.tree,
-                    self.strings,
-                    self.symbols,
-                    self.types,
-                    self.resolutions,
-                    *left,
-                );
+                let sanitizer_labels = expression_sanitizer_taint_labels(self.ctx, *left);
                 labels.apply_sanitizer(&sanitizer_labels);
             }
             dir::Expression::New { arguments, .. } => {
@@ -640,7 +605,7 @@ impl<'a> TaintAnalysis<'a> {
         }
 
         let candidate_symbols =
-            expression_candidate_symbols(self.module_id, self.resolutions, expression_id);
+            expression_candidate_symbols(self.ctx.module_id(), self.resolutions, expression_id);
         for symbol_id in candidate_symbols {
             let symbol_labels =
                 self.symbol_taint_labels_inner(symbol_id, expression_stack, symbol_stack);
@@ -669,17 +634,7 @@ impl<'a> TaintAnalysis<'a> {
         }
         symbol_stack.push(symbol_id);
 
-        let mut labels = symbol_taint_labels_from_decorators(
-            self.artifacts,
-            self.profile_id,
-            self.module_id,
-            self.tree,
-            self.strings,
-            self.symbols,
-            self.types,
-            self.resolutions,
-            symbol_id,
-        );
+        let mut labels = symbol_taint_labels_from_decorators(self.ctx, symbol_id);
 
         if let Some(initializer) =
             self.symbol_initializer_expression(symbol_id, expression_stack, symbol_stack)
@@ -699,21 +654,11 @@ impl<'a> TaintAnalysis<'a> {
         _expression: &dir::Expression,
     ) -> TaintLabels {
         let candidate_symbols =
-            expression_candidate_symbols(self.module_id, self.resolutions, expression_id);
+            expression_candidate_symbols(self.ctx.module_id(), self.resolutions, expression_id);
 
         let mut labels = TaintLabels::default();
         for symbol_id in candidate_symbols {
-            let symbol_labels = symbol_taint_labels_from_decorators(
-                self.artifacts,
-                self.profile_id,
-                self.module_id,
-                self.tree,
-                self.strings,
-                self.symbols,
-                self.types,
-                self.resolutions,
-                symbol_id,
-            );
+            let symbol_labels = symbol_taint_labels_from_decorators(self.ctx, symbol_id);
             labels.merge(&symbol_labels);
         }
 
@@ -752,14 +697,7 @@ impl<'a> TaintAnalysis<'a> {
         expression_stack: &mut Vec<dir::LocalNodeId<dir::Expression>>,
         symbol_stack: &mut Vec<dir::GlobalSymbolId>,
     ) -> Option<TaintLabels> {
-        let value_expression_id = resolve_symbol_initializer_expression(
-            self.artifacts,
-            self.profile_id,
-            self.module_id,
-            self.symbols,
-            self.tree,
-            symbol_id,
-        )?;
+        let value_expression_id = resolve_symbol_initializer_expression(self.ctx, symbol_id)?;
         Some(self.expression_taint_labels_inner(
             value_expression_id,
             expression_stack,
@@ -770,37 +708,19 @@ impl<'a> TaintAnalysis<'a> {
 
 /// Return sink taint labels declared on expression target symbols.
 pub fn expression_sink_taint_labels(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    module_id: ModuleId,
-    tree: &dir::Tree,
-    strings: &StringPool,
-    symbols: &dir::BindingTable<'_>,
-    types: &dir::TypeTable<'_>,
-    resolutions: &dir::ResolutionTable<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
-    let Some(sink_symbol) = language_item_symbol(artifacts, profile_id, dir::LanguageItem::Sink)
-    else {
+    let Some(sink_symbol) = language_item_symbol(ctx, dir::LanguageItem::Sink) else {
         return TaintLabels::default();
     };
 
-    let candidate_symbols = expression_candidate_symbols(module_id, resolutions, expression_id);
+    let candidate_symbols =
+        expression_candidate_symbols(ctx.module_id(), ctx.resolutions, expression_id);
 
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
-        let decorators = symbol_decorators_for(
-            artifacts,
-            profile_id,
-            module_id,
-            tree,
-            strings,
-            symbols,
-            types,
-            resolutions,
-            symbol_id,
-            sink_symbol,
-        );
+        let decorators = symbol_decorators_for(ctx, symbol_id, sink_symbol);
         let sink_labels = decorator_taint_labels(decorators);
         labels.merge(&sink_labels);
     }
@@ -810,38 +730,19 @@ pub fn expression_sink_taint_labels(
 
 /// Return sanitizer taint labels declared on expression target symbols.
 pub fn expression_sanitizer_taint_labels(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    module_id: ModuleId,
-    tree: &dir::Tree,
-    strings: &StringPool,
-    symbols: &dir::BindingTable<'_>,
-    types: &dir::TypeTable<'_>,
-    resolutions: &dir::ResolutionTable<'_>,
+    ctx: &LintModuleContext<'_>,
     expression_id: dir::LocalNodeId<dir::Expression>,
 ) -> TaintLabels {
-    let Some(sanitizer_symbol) =
-        language_item_symbol(artifacts, profile_id, dir::LanguageItem::Untaint)
-    else {
+    let Some(sanitizer_symbol) = language_item_symbol(ctx, dir::LanguageItem::Untaint) else {
         return TaintLabels::default();
     };
 
-    let candidate_symbols = expression_candidate_symbols(module_id, resolutions, expression_id);
+    let candidate_symbols =
+        expression_candidate_symbols(ctx.module_id(), ctx.resolutions, expression_id);
 
     let mut labels = TaintLabels::default();
     for symbol_id in candidate_symbols {
-        let decorators = symbol_decorators_for(
-            artifacts,
-            profile_id,
-            module_id,
-            tree,
-            strings,
-            symbols,
-            types,
-            resolutions,
-            symbol_id,
-            sanitizer_symbol,
-        );
+        let decorators = symbol_decorators_for(ctx, symbol_id, sanitizer_symbol);
         let sanitizer_labels = decorator_taint_labels(decorators);
         labels.merge(&sanitizer_labels);
     }
@@ -874,33 +775,14 @@ fn expression_is_heuristically_tainted(
 
 /// Resolve taint labels from symbol decorators.
 fn symbol_taint_labels_from_decorators(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
-    module_id: ModuleId,
-    tree: &dir::Tree,
-    strings: &StringPool,
-    symbols: &dir::BindingTable<'_>,
-    types: &dir::TypeTable<'_>,
-    resolutions: &dir::ResolutionTable<'_>,
+    ctx: &LintModuleContext<'_>,
     symbol_id: dir::GlobalSymbolId,
 ) -> TaintLabels {
-    let Some(taint_symbol) = language_item_symbol(artifacts, profile_id, dir::LanguageItem::Taint)
-    else {
+    let Some(taint_symbol) = language_item_symbol(ctx, dir::LanguageItem::Taint) else {
         return TaintLabels::default();
     };
 
-    let decorators = symbol_decorators_for(
-        artifacts,
-        profile_id,
-        module_id,
-        tree,
-        strings,
-        symbols,
-        types,
-        resolutions,
-        symbol_id,
-        taint_symbol,
-    );
+    let decorators = symbol_decorators_for(ctx, symbol_id, taint_symbol);
 
     decorator_taint_labels(decorators)
 }
@@ -922,13 +804,12 @@ fn decorator_taint_labels(decorators: Vec<SymbolDecorator>) -> TaintLabels {
     labels
 }
 
-/// Resolve a language item from the artifact cache.
+/// Resolve a language item from the lint session.
 fn language_item_symbol(
-    artifacts: &ArtifactCache,
-    profile_id: ProfileId,
+    ctx: &LintModuleContext<'_>,
     item: dir::LanguageItem,
 ) -> Option<dir::GlobalSymbolId> {
-    let environment = artifacts.global_environment(profile_id)?;
+    let environment = ctx.session.global_environment()?;
 
     environment.language.symbol(item)
 }

@@ -32,9 +32,9 @@ impl LintRule for NoWarningComments {
 
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         let meta = self.meta();
-        let warning_terms = &ctx.options.restriction.warning_comment_terms;
-        let warning_location = ctx.options.restriction.warning_comment_location;
-        let warning_decoration = &ctx.options.restriction.warning_comment_decoration;
+        let warning_terms = ctx.options().restriction.warning_comment_terms.clone();
+        let warning_location = ctx.options().restriction.warning_comment_location;
+        let warning_decoration = ctx.options().restriction.warning_comment_decoration.clone();
 
         // iterate over all raw comments
         for comment in ctx.dir.comments().iter().copied() {
@@ -56,9 +56,9 @@ impl LintRule for NoWarningComments {
                 meta,
                 comment.span,
                 &comment_text,
-                warning_terms,
+                &warning_terms,
                 warning_location,
-                warning_decoration,
+                &warning_decoration,
             );
         }
     }

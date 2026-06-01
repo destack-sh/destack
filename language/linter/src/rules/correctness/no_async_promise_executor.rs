@@ -108,7 +108,7 @@ impl<'a, 'b> AsyncPromiseExecutorVisitor<'a, 'b> {
         let Some(type_id) = self.ctx.expression_type_id(value_id) else {
             return;
         };
-        if !is_async_function_type(self.ctx.types, type_id) {
+        if !is_async_function_type(self.ctx, type_id) {
             return;
         }
 

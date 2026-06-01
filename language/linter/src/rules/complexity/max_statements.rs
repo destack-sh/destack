@@ -40,7 +40,7 @@ impl LintRule for MaxStatements {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_statements = ctx.options.complexity.max_statements;
+        let max_statements = ctx.options().complexity.max_statements;
         let mut pending_top_level_violations = Vec::new();
 
         // check all callable owners that have a body expression
@@ -58,7 +58,7 @@ impl LintRule for MaxStatements {
 
             // defer a single top-level function violation
             if ctx
-                .options
+                .options()
                 .complexity
                 .max_statements_ignore_top_level_functions
                 && callable_owner_is_top_level_function(ctx.dir.tree(), owner_id)

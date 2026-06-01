@@ -38,7 +38,7 @@ impl LintRule for NoMultiAssign {
         // resolve lint metadata and option policy
         let meta = self.meta();
         let ignore_non_declaration = ctx
-            .options
+            .options()
             .complexity
             .no_multi_assign_ignore_non_declaration;
 

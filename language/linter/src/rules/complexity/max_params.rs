@@ -36,8 +36,8 @@ impl LintRule for MaxParams {
     fn check_module<'a>(&self, _severity: LintSeverity, ctx: &mut LintModuleContext<'a>) {
         // resolve lint metadata and threshold
         let meta = self.meta();
-        let max_params = ctx.options.complexity.max_params;
-        let this_parameter_count = match ctx.options.complexity.max_params_count_this {
+        let max_params = ctx.options().complexity.max_params;
+        let this_parameter_count = match ctx.options().complexity.max_params_count_this {
             MaxParamsCountThis::Never => ThisParameterCount::Never,
             MaxParamsCountThis::ExceptVoid => ThisParameterCount::ExceptVoid,
             MaxParamsCountThis::Always => ThisParameterCount::Always,
