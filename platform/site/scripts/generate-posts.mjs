@@ -1,8 +1,3 @@
-import hljs from "highlight.js/lib/core";
-import bash from "highlight.js/lib/languages/bash";
-import javascript from "highlight.js/lib/languages/javascript";
-import typescript from "highlight.js/lib/languages/typescript";
-import xml from "highlight.js/lib/languages/xml";
 import { marked } from "marked";
 import {
     existsSync,
@@ -16,6 +11,8 @@ import {
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { highlightCode } from "./highlight.mjs";
+
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const siteDirectory = join(repositoryDirectory, "platform/site");
 const contentDirectory = join(siteDirectory, "src/content/blog");
@@ -23,48 +20,6 @@ const generatedDirectory = join(siteDirectory, "src/generated");
 const generatedPostFile = join(generatedDirectory, "posts.ts");
 const generatedRouteFile = join(generatedDirectory, "prerender-routes.ts");
 const isCheck = process.argv.includes("--check");
-
-const destackKeywords = new Set([
-    "const",
-    "declare",
-    "enum",
-    "extension",
-    "function",
-    "import",
-    "let",
-    "match",
-    "module",
-    "newtype",
-    "readonly",
-    "return",
-    "satisfies",
-    "static",
-    "struct",
-    "type",
-    "using",
-]);
-const destackTypes = new Set([
-    "boolean",
-    "float32",
-    "float64",
-    "int32",
-    "int64",
-    "never",
-    "string",
-    "uint8",
-    "uint64",
-    "unknown",
-    "usize",
-]);
-
-hljs.registerLanguage("bash", bash);
-hljs.registerLanguage("javascript", javascript);
-hljs.registerLanguage("js", javascript);
-hljs.registerLanguage("typescript", typescript);
-hljs.registerLanguage("ts", typescript);
-hljs.registerLanguage("tsx", typescript);
-hljs.registerLanguage("xml", xml);
-hljs.registerLanguage("svg", xml);
 
 const posts = readPosts();
 const postSource = renderPostModule(posts);
@@ -374,19 +329,22 @@ function requireAttribute(attributes, attribute, slug, directive) {
 }
 
 function renderCode(token, counters) {
-    const language = (token.lang ?? "").trim().split(/\s+/)[0];
+    const fence = parseCodeFence(token.lang ?? "");
+    const language = fence.language;
 
     if (language === "diagram") {
         const label = nextFigureLabel(counters, "figure");
+        const caption = fence.caption ?? fence.title ?? "diagram";
 
-        return `<figure class="blog-diagram"><figcaption><span>${label}</span>diagram</figcaption><pre><code>${escapeHtml(token.text)}</code></pre></figure>`;
+        return `<figure class="blog-diagram"><figcaption><span>${label}</span>${escapeHtml(caption)}</figcaption><pre><code>${escapeHtml(token.text)}</code></pre></figure>`;
     }
 
     const highlighted = highlightCode(token.text, language);
-    const label = language === "" ? "text" : language;
+    const caption = fence.caption ?? fence.title ?? (language === "" ? "text" : language);
     const number = nextFigureLabel(counters, "listing");
+    const code = renderCodeBody(token.text, highlighted);
 
-    return `<figure class="blog-code"><figcaption><span>${number}</span>${escapeHtml(label)}</figcaption><pre><code>${highlighted}</code></pre></figure>`;
+    return `<figure class="blog-code"><figcaption><span>${number}</span>${escapeHtml(caption)}</figcaption><pre>${code}</pre></figure>`;
 }
 
 function nextFigureLabel(counters, kind) {
@@ -395,65 +353,32 @@ function nextFigureLabel(counters, kind) {
     return `${kind} ${counters.figure}`;
 }
 
-function highlightCode(source, language) {
-    if (language === "ds" || language === "destack") {
-        return highlightDestack(source);
-    }
+function parseCodeFence(language) {
+    const [head, ...tail] = language.trim().split(/\s+/);
+    const attributes = parseAttributes(tail.join(" "));
 
-    if (language !== "" && hljs.getLanguage(language) != undefined) {
-        return hljs.highlight(source, { language }).value;
-    }
-
-    return hljs.highlightAuto(source).value;
+    return {
+        caption: attributes.caption,
+        language: head ?? "",
+        title: attributes.title,
+    };
 }
 
-function highlightDestack(source) {
-    const pattern =
-        /\/\/[^\n]*|`(?:\\.|[^`\\])*`|"(?:\\.|[^"\\])*"|\b\d+(?:\.\d+)?\b|\b[A-Za-z_][A-Za-z0-9_]*\b|[{}()[\]<>:;,.|?=!&%*+-]/g;
-    let html = "";
-    let cursor = 0;
-
-    for (const match of source.matchAll(pattern)) {
-        const value = match[0];
-        const start = match.index;
-        const kind = destackKind(value);
-
-        html += escapeHtml(source.slice(cursor, start));
-        if (kind == undefined) {
-            html += escapeHtml(value);
-        } else {
-            html += `<span class="${kind}">${escapeHtml(value)}</span>`;
-        }
-        cursor = start + value.length;
+function renderCodeBody(source, highlighted) {
+    const lines = highlighted.split("\n");
+    if (source.split("\n").length <= 1) {
+        return `<code>${highlighted}</code>`;
     }
 
-    html += escapeHtml(source.slice(cursor));
+    const rows = lines
+        .map((line, index) => {
+            const text = line === "" ? " " : line;
 
-    return html;
-}
+            return `<span class="blog-code-line"><span class="blog-code-gutter">${index + 1}</span><span class="blog-code-text">${text}</span></span>`;
+        })
+        .join("");
 
-function destackKind(value) {
-    if (value.startsWith("//")) {
-        return "hljs-comment";
-    }
-
-    if (value.startsWith("`") || value.startsWith("\"")) {
-        return "hljs-string";
-    }
-
-    if (/^\d/.test(value)) {
-        return "hljs-number";
-    }
-
-    if (destackKeywords.has(value)) {
-        return "hljs-keyword";
-    }
-
-    if (destackTypes.has(value)) {
-        return "hljs-built_in";
-    }
-
-    return undefined;
+    return `<code class="blog-code-lines">${rows}</code>`;
 }
 
 function resolveLink(href, context) {
