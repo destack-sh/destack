@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, NominalIndex, ReferenceIndex,
-    SpecifierIndex, SymbolIndex,
+    SpecifierIndex, SymbolIndex, MemberIndex,
 };
 
 /// Durable query index payload for one artifact scope.
@@ -10,6 +10,8 @@ use super::{
 pub struct QueryIndex {
     /// Searchable symbol declarations.
     pub symbols: SymbolIndex,
+    /// Searchable source members.
+    pub members: MemberIndex,
     /// Importable module exports.
     pub imports: ImportIndex,
     /// Reference target membership by module.
@@ -30,6 +32,7 @@ impl QueryIndex {
     /// Sort and deduplicate all index sections.
     pub fn finish(&mut self) {
         self.symbols.finish();
+        self.members.finish();
         self.imports.finish();
         self.references.finish();
         self.calls.finish();

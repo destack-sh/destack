@@ -2,6 +2,8 @@ use destack_dir as dir;
 use destack_source::{FileId, ModuleId, Span};
 use serde::{Deserialize, Serialize};
 
+use super::Name;
+
 /// Searchable symbol declaration index.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SymbolIndex {
@@ -31,7 +33,7 @@ impl SymbolIndex {
 
         self.entries
             .iter()
-            .filter(|entry| query.is_empty() || entry.name.to_lowercase().contains(&query))
+            .filter(|entry| entry.name.matches_lowercase_query(&query))
             .cloned()
             .collect()
     }
@@ -46,7 +48,7 @@ impl SymbolIndex {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SymbolEntry {
     /// The display name.
-    pub name: String,
+    pub name: Name,
     /// The symbol kind.
     pub kind: SymbolKind,
     /// The owning module.
@@ -63,9 +65,9 @@ pub struct SymbolEntry {
 
 impl SymbolEntry {
     /// Return the stable index order for this symbol.
-    fn order(&self) -> (&str, ModuleId, FileId, u32, u32) {
+    fn order(&self) -> (Name, ModuleId, FileId, u32, u32) {
         (
-            self.name.as_str(),
+            self.name.clone(),
             self.module_id,
             self.file_id,
             self.range.start,

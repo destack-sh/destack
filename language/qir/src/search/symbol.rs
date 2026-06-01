@@ -15,7 +15,8 @@ pub struct SymbolRelevance {
 
 /// Compute symbol relevance for one indexed entry.
 pub fn symbol_relevance(entry: &SymbolEntry, query: &str) -> Option<SymbolRelevance> {
-    let lexical = match_quality(&entry.name, query)?;
+    let name = entry.name.text();
+    let lexical = match_quality(&name, query)?;
     let kind_rank = symbol_kind_rank(entry.kind);
     let container_lexical = entry
         .container_name
@@ -59,8 +60,8 @@ pub fn symbol_sort_key(
             .as_ref()
             .map(MatchQuality::sort_key),
         entry.container_name.clone(),
-        entry.name.chars().count(),
-        entry.name.to_lowercase(),
+        entry.name.text().chars().count(),
+        entry.name.text().to_lowercase(),
         entry.file_id.0,
         entry.range.start,
         entry.range.end,
