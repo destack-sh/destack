@@ -582,8 +582,7 @@ impl<'a> FunctionLowerer<'a> {
                             message: "closure.environment used without environment parameter"
                                 .to_string(),
                         })?;
-                let destination =
-                    self.value_id(*destination, "closure environment destination")?;
+                let destination = self.value_id(*destination, "closure environment destination")?;
                 let destination_type =
                     self.value_type_or_error(destination, instruction_id.into_any())?;
                 let destination_ty = lower_type(self.tree, destination_type, self.pointer_bytes)?;
