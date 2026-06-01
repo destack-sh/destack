@@ -1,6 +1,7 @@
 import { A } from "@solidjs/router";
 import { For, Show } from "solid-js";
 
+import { BlogArticle } from "../component/blog-article";
 import { Panel } from "../component/panel";
 import { Seo } from "../component/seo";
 import { Shell } from "../component/shell";
@@ -17,13 +18,13 @@ export function BlogPage() {
                 path="/blog/"
                 title="Blog"
             />
-            <section class="mx-auto grid w-full max-w-[52rem] gap-10 px-4 py-8 md:px-10 md:py-12">
-                <Show when={latestPost}>
-                    {(post) => <LatestPost post={post()} posts={orderedPosts} />}
-                </Show>
-
-                <Archive posts={orderedPosts} />
-            </section>
+            <Show when={latestPost}>
+                {(post) => (
+                    <BlogArticle post={post()} posts={orderedPosts}>
+                        <Archive posts={orderedPosts} />
+                    </BlogArticle>
+                )}
+            </Show>
         </Shell>
     );
 }
@@ -31,38 +32,6 @@ export function BlogPage() {
 type PostRowProps = {
     post: Post;
 };
-
-type LatestPostProps = {
-    post: Post;
-    posts: readonly Post[];
-};
-
-function LatestPost(props: LatestPostProps) {
-    return (
-        <article class="grid w-full gap-8">
-            <header class="grid w-full gap-5">
-                <A
-                    class="w-max border-b-4 border-neutral-300 text-sm font-extrabold lowercase hover:border-destack-accent"
-                    href={props.post.route}
-                >
-                    latest
-                </A>
-
-                <PostMeta post={props.post} />
-
-                <h1 class="page-title mb-1">{props.post.title}</h1>
-                <p class="text-xl leading-8 font-black text-neutral-700">
-                    {props.post.subtitle}
-                </p>
-                <PostTags post={props.post} />
-            </header>
-
-            <div class="blog-prose min-w-0" innerHTML={props.post.html} />
-
-            <PostNavigation post={props.post} posts={props.posts} />
-        </article>
-    );
-}
 
 type ArchiveProps = {
     posts: readonly Post[];
@@ -101,52 +70,6 @@ function PostRow(props: PostRowProps) {
                 </time>
             </A>
         </li>
-    );
-}
-
-type PostNavigationProps = {
-    post: Post;
-    posts: readonly Post[];
-};
-
-function PostNavigation(props: PostNavigationProps) {
-    const index = () => props.posts.findIndex((post) => post.slug === props.post.slug);
-    const older = () => props.posts[index() + 1];
-
-    return (
-        <Show when={older()}>
-            {(post) => (
-                <A
-                    class="grid gap-1 border-t-2 border-neutral-950 pt-5 hover:text-destack-accent"
-                    href={post().route}
-                >
-                    <span class="text-sm font-extrabold text-neutral-500 lowercase">older</span>
-                    <span class="text-base font-black">{post().title}</span>
-                </A>
-            )}
-        </Show>
-    );
-}
-
-function PostMeta(props: PostRowProps) {
-    return (
-        <p class="flex flex-wrap gap-x-3 gap-y-1 text-sm font-extrabold text-neutral-500 lowercase">
-            <time>{props.post.date}</time>
-            <span>·</span>
-            <span>{props.post.author}</span>
-        </p>
-    );
-}
-
-function PostTags(props: PostRowProps) {
-    return (
-        <span class="flex flex-wrap gap-2">
-            <For each={props.post.tags}>
-                {(tag) => (
-                    <span class="text-xs font-extrabold text-neutral-500 lowercase">#{tag}</span>
-                )}
-            </For>
-        </span>
     );
 }
 
