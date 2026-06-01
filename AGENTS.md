@@ -5,71 +5,6 @@
 - We have README.md for most substantial crate/package/module.
 - We don't like writing information that is redundant and easily out of date into the READMEs or specifications (so, avoid folder structures, paths, or "current status").
 
-### Comments
-
-- Inline comments should be short and begin with a lowercase letter.
-- (This extends to comments in *any* code file, even scripts. I just like lowercase better.)
-- Place comments above a related code block (usually 2-10 lines).
-- Most comments are <1 sentence and should not include a period at the end (again, lowercase).
-- Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
-- Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
-- Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
-- Most logic block comments of more than one/two words should be action / verb shaped, e.g.:
-"// build drop plan for each function" is much better than ""// each function gets an independent drop plan" (begin with a verb!)
-- Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
-- Also, tests don't need quite the same level of comments, especially within obvious test cases.
-- Documentation comments for functions/types/etc. _should_ be proper sentences _with_ punctuation.
-- Files should NOT have a top-level documentation comments. They always get stale.
-- Go multiline if there is more than one sentence. Only one sentence should begin per line.
-- For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
-- *All* functions, types, variants/fields, etc. should have documentation (one line is fine).
-- Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succint is better).
-- When documenting if/else-if/else-_like_ logic, the comments should go *before* each case like so:
-```text
-// do this
-if (...) {
-  ...
-}
-// otherwise do this
-else if (...) {
-  ...
-}
-// fall back to this
-else {
-  ...
-}
-```
-- The logic block treatment also applies just as well to TSX and tree-like structures, so for example:
-```tsx
-<div>
-    {/* Top button */}
-    <button /> ... </button>
-
-    {/* Side panel */}
-    <div> ... </div>
-</div>
-```
-- For ===-like separators for large comment blocks, you may use upper case sentences:
-```text
-// ================================================================================
-// Binary operator precedence
-// ================================================================================
-```
-- Though try to minimize the number of these, they're quite noisy.
-- Comments MAY start with keywords:
-    - `NOTE`: call out something important
-    - `TODO`: something to address eventually
-    - `FUGU`: temporary, f-ed up, should be addressed before going upstream
-- Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seems wrong?"):
-    - `#Performance`: could be faster or more efficient
-    - `#Robustness`: might be flaky in some cases
-    - `#Broken`: doesn't work in likely cases
-    - `#Cleanup`: could be simpler or better structured
-    - `#Incomplete`: obvious feature is missing
-    - `#Suspicious`: something that looks wrong or weird
-    - `#Security`: may allow more access than intended
-    - `#Architecture`: larger design issue to reconsider
-
 ### Naming
 
 - Names should be obvious, clear, and idiomatic to the language and topic.
@@ -148,6 +83,71 @@ else {
 - Bloat is deadly, and often we only realise something was bloated as we get further along and the true shape of the problem reveals itself (hence, refactor as we go)
 - Almost never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between.
 - It is quite often better to break / change the source directly and then let the compiler guide us to all usage sites.
+
+### Comments
+
+- Inline comments should be short and begin with a lowercase letter.
+- (This extends to comments in *any* code file, even scripts. I just like lowercase better.)
+- Place comments above a related code block (usually 2-10 lines).
+- Most comments are <1 sentence and should not include a period at the end (again, lowercase).
+- Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
+- Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
+- Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
+- Most logic block comments of more than one/two words should be action / verb shaped, e.g.:
+"// build drop plan for each function" is much better than ""// each function gets an independent drop plan" (begin with a verb!)
+- Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
+- Also, tests don't need quite the same level of comments, especially within obvious test cases.
+- Documentation comments for functions/types/etc. _should_ be proper sentences _with_ punctuation.
+- Files should NOT have a top-level documentation comments. They always get stale.
+- Go multiline if there is more than one sentence. Only one sentence should begin per line.
+- For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
+- *All* functions, types, variants/fields, etc. should have documentation (one line is fine).
+- Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succint is better).
+- When documenting if/else-if/else-_like_ logic, the comments should go *before* each case like so:
+```text
+// do this
+if (...) {
+  ...
+}
+// otherwise do this
+else if (...) {
+  ...
+}
+// fall back to this
+else {
+  ...
+}
+```
+- The logic block treatment also applies just as well to TSX and tree-like structures, so for example:
+```tsx
+<div>
+    {/* Top button */}
+    <button /> ... </button>
+
+    {/* Side panel */}
+    <div> ... </div>
+</div>
+```
+- For ===-like separators for large comment blocks, you may use upper case sentences:
+```text
+// ================================================================================
+// Binary operator precedence
+// ================================================================================
+```
+- Though try to minimize the number of these, they're quite noisy.
+- Comments MAY start with keywords:
+    - `NOTE`: call out something important
+    - `TODO`: something to address eventually
+    - `FUGU`: temporary, f-ed up, should be addressed before going upstream
+- Keywords should include tags (like "NOTE #Suspicious: allocating in runtime seems wrong?"):
+    - `#Performance`: could be faster or more efficient
+    - `#Robustness`: might be flaky in some cases
+    - `#Broken`: doesn't work in likely cases
+    - `#Cleanup`: could be simpler or better structured
+    - `#Incomplete`: obvious feature is missing
+    - `#Suspicious`: something that looks wrong or weird
+    - `#Security`: may allow more access than intended
+    - `#Architecture`: larger design issue to reconsider
 
 ### Performance
 
@@ -268,11 +268,13 @@ just test
 
 ## Working Style
 
-- When communicating anything about design, you should _always_ try to behave in accordance with this and proactively work these principles, and suggest the right tools, media forms, representation, and questions to nail down proactively the final design before we get started.
-- Always try to include some or all of the below noun / state / verb / code sample diagrams to ground the discussion in reality and ensure alignment.
-- In general, there are two good ways of shaping out what some software should look like: big boxes with lines, and tracer bullets.
-- We like to use both, and we like to use both in tandem, they are very complementary. The whole point of writing software is to model and solve some real world problem (in a way that is machine-emphatic and actually executable efficiently.)
-- Usually, we should try to figure out the main nouns and verbs (data structures, fields, and methods) first, and the main call flows between them. Who owns what state, who reads / writes what where and in what order. 
+- You should always try hard to behave in accordance with this and proactively work this way, and suggest the right tools, media forms, representation, and questions to nail down the final design _before_ we get started and keep at it as we keep going.
+- Always try to illustrate any point or decision with concrete data shapes, interfaces, code snippets, sample data, noun / state / verb diagrams, or whatever other concrete artifact helps nail down the exact workstream and tradeoffs.
+- In general, there are two good ways of shaping out what some software should look like: big boxes with lines (and concrete data structures, interfaces and methods), and tracer bullets (that actually run and connect it all for some vertical slice).
+- We like to use both, and we like to use both in tandem, they are very complementary. Usually we begin with the first to center the discussion, then sketch out and implement the second, then fill in and feel out the rest in bursts to lock in the shape.
+- The whole point of writing software is to model and solve some real world problem (in a way that is machine-emphatic and actually executable efficiently.)
+- Usually, we should try to figure out the main nouns and verbs (data structures, fields, and methods) first, and the main call flows between them. Who owns what state, who reads / writes what where and in what order.
+- Ideally, for anything we expect to execute halfway frequently, we should think hard about how to use data oriented design and reason through the actual minimal mechanical steps that the target architectures will have to do, both compute and memory (and bandwidth etc.) wise, to do what we're asking. This matters tremendously.
 - Data structures are incredibly important and I usually want to see them first since they clarify so much about the design. Whenever possible, this should be actual code in whichever languages we're using showing the real changes to / additions of data structures (and which values and value ranges we expect them to have).
 - Code and actual logic is always useful to show and illustrate ideas, even in pseudocode form, but ideally in a real form that we actually expect to execute on some level. Think like an API designer here, since really, everything is an API in some sense.
 - When possible, we should first think through what the example use cases would write in code to do the thing that we're trying to implement, where they're coming from, what the limits and expectatinos and environment is, and so on:
