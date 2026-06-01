@@ -7,28 +7,80 @@ use crate::check::{
 };
 
 /// Relation between two type operands.
+///
+/// Examples:
+/// ```ds
+/// const value: int32 = 1
+/// value as string
+/// type Box<T extends Item> = T
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum TypeRelation {
     /// Types must be equal.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const value: int32 = 1
+    /// ```
     Equal,
     /// Source must be assignable to target.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const value: string | null = name
+    /// ```
     Assignable,
     /// Source must be explicitly castable to target.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value as string
+    /// ```
     Castable,
     /// Value must satisfy a constraint.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const value = input satisfies Named
+    /// ```
     Satisfies,
     /// Subtype must extend supertype.
+    ///
+    /// Examples:
+    /// ```ds
+    /// type Box<T extends Item> = T
+    /// ```
     Extends,
     /// Implementor must implement contract.
+    ///
+    /// Examples:
+    /// ```ds
+    /// impl Iterator for Items
+    /// ```
     Implements,
 }
 
 /// Relation between two static operands.
+///
+/// Examples:
+/// ```ds
+/// [int32; 4]
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum StaticRelation {
     /// Static values must be equal.
+    ///
+    /// Examples:
+    /// ```ds
+    /// [int32; 4]
+    /// ```
     Equal,
     /// Source must be assignable to target.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const length: usize = 4
+    /// ```
     Assignable,
 }
 
@@ -41,7 +93,7 @@ impl CheckState<'_> {
         condition: Condition,
     ) {
         let origin = self.variable(variable).source;
-        let term = self.inference.terms.push(term);
+        let term = self.push_term(term);
 
         self.relate_type(origin, TypeRelation::Equal, variable, term, condition);
     }
@@ -54,7 +106,7 @@ impl CheckState<'_> {
         condition: Condition,
     ) {
         let origin = self.variable(variable).source;
-        let term = self.inference.terms.push(term);
+        let term = self.push_term(term);
         let constraint = Constraint::Static {
             relation: StaticRelation::Equal,
             left: variable.into(),
@@ -95,10 +147,7 @@ impl CheckState<'_> {
         static_condition: Condition,
     ) {
         let origin = Origin::Node(source.into_global(module));
-        let expected = self
-            .inference
-            .terms
-            .push(TypeTerm::Literal(TypeLiteralTerm::boolean()));
+        let expected = self.push_term(TypeTerm::Literal(TypeLiteralTerm::boolean()));
 
         self.relate_type(
             origin,

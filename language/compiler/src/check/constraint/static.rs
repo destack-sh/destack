@@ -6,6 +6,11 @@ use crate::CompilerResult;
 use crate::check::{CheckState, Decision, GenericSubstitution, Origin, StaticTerm};
 
 /// One static boolean predicate with its reduction context.
+///
+/// Examples:
+/// ```ds
+/// if (comptime N == 4) { value }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct ConditionPredicate {
     /// The source that produced this predicate.
@@ -15,13 +20,35 @@ pub(in crate::check) struct ConditionPredicate {
 }
 
 /// Static condition under which one checked item exists.
+///
+/// Examples:
+/// ```ds
+/// if (comptime N == 4) { value }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum Condition {
     /// The item is always present.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const value = 1
+    /// ```
     Always,
     /// The item is never present.
+    ///
+    /// Examples:
+    /// ```ds
+    /// @if(false)
+    /// const value = 1
+    /// ```
     Never,
     /// The item is present when all condition predicates are true.
+    ///
+    /// Examples:
+    /// ```ds
+    /// @if(T >= 4)
+    /// const value = 1
+    /// ```
     When {
         /// Static boolean predicates that guard this item.
         conditions: SmallVec<[ConditionPredicate; 2]>,
