@@ -6,11 +6,27 @@ use crate::check::{
 };
 
 /// Relation between a value type and a pattern.
+///
+/// Examples:
+/// ```ds
+/// match (value) { Some(item) => item }
+/// const { name } = user
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum PatternRelation {
     /// Match pattern checks a value.
+    ///
+    /// Examples:
+    /// ```ds
+    /// match (value) { Some(item) => item }
+    /// ```
     Match(TermId<PatternTerm>),
     /// Assignment pattern accepts an assigned value.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const { name } = user
+    /// ```
     Assign(TermId<AssignPatternTerm>),
 }
 

@@ -7,7 +7,7 @@ use crate::check::{CheckState, Condition, Origin, StaticOperand, TypeOperand, Ty
 pub(in crate::check) enum Constraint {
     /// Constrain two type operands.
     ///
-    /// ```ts
+    /// ```ds
     /// const value: int32 = 1;
     /// ```
     Type {
@@ -24,7 +24,7 @@ pub(in crate::check) enum Constraint {
     },
     /// Constrain two static operands.
     ///
-    /// ```ts
+    /// ```ds
     /// const value: [int32; _] = [1, 2];
     /// ```
     Static {
@@ -41,7 +41,7 @@ pub(in crate::check) enum Constraint {
     },
     /// Constrain one pattern against a value type.
     ///
-    /// ```ts
+    /// ```ds
     /// const Some(value) = result;
     /// ```
     Pattern {
@@ -70,6 +70,6 @@ impl Constraint {
 impl CheckState<'_> {
     /// Store one solver constraint.
     pub(super) fn push_constraint(&mut self, constraint: Constraint) {
-        self.inference.constraints.push(constraint);
+        self.inference.push_constraint(constraint);
     }
 }
