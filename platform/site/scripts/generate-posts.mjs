@@ -157,14 +157,9 @@ function parseMetadata(source, file) {
     }
 
     requireString(metadata, "title", file);
-    requireString(metadata, "summary", file);
+    requireString(metadata, "subtitle", file);
     requireString(metadata, "date", file);
     requireString(metadata, "author", file);
-    requireString(metadata, "status", file);
-
-    if (metadata.status !== "draft" && metadata.status !== "published") {
-        throw new Error(`invalid status in ${file}: ${metadata.status}`);
-    }
 
     if (!Array.isArray(metadata.tags) || !metadata.tags.every((tag) => typeof tag === "string")) {
         throw new Error(`invalid tags in ${file}`);
@@ -570,16 +565,13 @@ function renderPostModule(posts) {
     );
     const records = posts.map((post) => renderPostRecord(post)).join(",\n");
 
-    return `${imports.join("\n")}${imports.length === 0 ? "" : "\n\n"}export type PostStatus = "draft" | "published";
-
-export type Post = {
+    return `${imports.join("\n")}${imports.length === 0 ? "" : "\n\n"}export type Post = {
     author: string;
     date: string;
     html: string;
     route: string;
     slug: string;
-    status: PostStatus;
-    summary: string;
+    subtitle: string;
     tableOfContents: readonly TableOfContentsEntry[];
     tags: readonly string[];
     title: string;
@@ -628,8 +620,7 @@ function renderPostRecord(post) {
         html: resolveAssets(${JSON.stringify(post.html)}, { ${assets} }),
         route: ${JSON.stringify(post.route)},
         slug: ${JSON.stringify(post.slug)},
-        status: ${JSON.stringify(post.status)},
-        summary: ${JSON.stringify(post.summary)},
+        subtitle: ${JSON.stringify(post.subtitle)},
         tableOfContents: ${JSON.stringify(post.tableOfContents)},
         tags: ${JSON.stringify(post.tags)},
         title: ${JSON.stringify(post.title)},

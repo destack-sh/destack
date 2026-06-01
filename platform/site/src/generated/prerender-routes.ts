@@ -1,5 +1,5 @@
 export const prerenderRoutes = [
     "/",
     "/blog/",
-    "/blog/engineer-great-software/"
+    "/blog/introducing-destack/"
 ] as const;
