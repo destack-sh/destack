@@ -23,7 +23,16 @@ impl ResolveState<'_> {
         key: dir::ExportKey,
     ) -> CompilerResult<ExportLookup> {
         let cache_key = ExportLookupKey { module, key };
+        let is_cycle = matches!(
+            self.export_lookups.get(&cache_key),
+            Some(ExportLookupState::Resolving)
+        );
         if let Some(lookup) = self.cached_export_lookup(cache_key) {
+            self.export_cache_hits += 1;
+            if is_cycle {
+                self.export_cycle_hits += 1;
+            }
+
             return Ok(lookup);
         }
 

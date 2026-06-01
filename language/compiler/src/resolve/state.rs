@@ -30,16 +30,32 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) imports: dir::ImportTable,
     /// The recoverable diagnostics produced while resolving.
     pub(in crate::resolve) diagnostics: Vec<ResolveError>,
+    /// The number of active expression roots walked.
+    pub(in crate::resolve) roots: usize,
+    /// The number of expression nodes visited.
+    pub(in crate::resolve) expressions: usize,
+    /// The number of type expression nodes visited.
+    pub(in crate::resolve) type_expressions: usize,
     /// The module clauses collected from active roots.
     pub(in crate::resolve) module_clauses: Vec<ModuleClause>,
+    /// The number of import clauses collected.
+    pub(in crate::resolve) import_clauses: usize,
+    /// The number of re-export clauses collected.
+    pub(in crate::resolve) reexport_clauses: usize,
     /// Bare global keys required by active roots.
     pub(in crate::resolve) required_global_keys: IndexSet<dir::StaticKey>,
+    /// The number of profile global modules read.
+    pub(in crate::resolve) global_modules: usize,
     /// Language items required by syntax in active roots.
     pub(in crate::resolve) syntax_language_items: IndexSet<dir::LanguageItem>,
     /// Function contexts visible while walking active roots.
     pub(in crate::resolve) function_stack: Vec<FunctionContext>,
     /// Export lookups already computed during this provider run.
     pub(in crate::resolve) export_lookups: HashMap<ExportLookupKey, ExportLookupState>,
+    /// The number of export lookup cache hits.
+    pub(in crate::resolve) export_cache_hits: usize,
+    /// The number of export lookup cycle hits.
+    pub(in crate::resolve) export_cycle_hits: usize,
     /// The DIR visitor options.
     pub(in crate::resolve) options: dir::NodeVisitorOptions,
 }
@@ -112,17 +128,30 @@ impl<'a> ResolveState<'a> {
             strings,
             imports: dir::ImportTable::new(module),
             diagnostics: Vec::new(),
+            roots: 0,
+            expressions: 0,
+            type_expressions: 0,
             module_clauses: Vec::new(),
+            import_clauses: 0,
+            reexport_clauses: 0,
             required_global_keys: IndexSet::new(),
+            global_modules: 0,
             syntax_language_items: IndexSet::new(),
             function_stack: Vec::new(),
             export_lookups: HashMap::new(),
+            export_cache_hits: 0,
+            export_cycle_hits: 0,
             options: dir::NodeVisitorOptions::default(),
         }
     }
 
     /// Add one module clause for later target lookup.
     pub(in crate::resolve) fn add_module_clause(&mut self, clause: ModuleClause) {
+        match &clause {
+            ModuleClause::Import { .. } => self.import_clauses += 1,
+            ModuleClause::ReExport { .. } => self.reexport_clauses += 1,
+        }
+
         self.module_clauses.push(clause);
     }
 
