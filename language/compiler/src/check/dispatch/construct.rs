@@ -4,17 +4,15 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallFailure, CallTarget, CallableSelection, CallableSignature, CheckState, ConstructSelection,
-    ConstructTerm, FunctionParameter, FunctionTerm, GenericArgument, GenericInstance, Origin,
-    Progress, ShapeMember, TypeTerm, VariableId,
+    CallableDispatch, CallableSignature, CallableTarget, CheckState, ConstructDecision,
+    ConstructFailure, ConstructTargetResolution, ConstructTerm, FunctionParameter, FunctionTerm,
+    GenericApplication, GenericArgument, Origin, Progress, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Construct signature candidate selected from a callee type.
 pub(in crate::check) struct ConstructCandidate {
-    /// The constructor symbol when the candidate is symbol backed.
-    pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
-    /// The owner generic instance when the candidate comes from an applied nominal type.
-    pub(in crate::check) instance: Option<GenericInstance>,
+    /// The selected construct target.
+    pub(in crate::check) target: ConstructTargetResolution,
     /// The constructor function signature.
     pub(in crate::check) function: FunctionTerm,
 }
@@ -37,18 +35,20 @@ impl CheckState<'_> {
         module: ModuleId,
         construct: &ConstructTerm,
         expected: Option<VariableId>,
-    ) -> CompilerResult<CallableSelection> {
+    ) -> CompilerResult<CallableDispatch> {
         if let Some(selection) = self.selected_construct(construct)? {
             return Ok(selection);
         }
 
-        let Some(callee) = self.solved_type_term(construct.callee)? else {
-            return Ok(CallableSelection::pending());
+        let Some(callee) = self.type_operand_term(construct.callee)? else {
+            return Ok(CallableDispatch::pending());
         };
         let candidates = match self.construct_candidates(module, construct.callee, &callee)? {
-            ConstructCandidates::Pending => return Ok(CallableSelection::pending()),
+            ConstructCandidates::Pending => return Ok(CallableDispatch::pending()),
             ConstructCandidates::Absent => {
-                return Ok(CallableSelection::rejected(CallFailure::NotCallable));
+                return Ok(CallableDispatch::construct_rejected(
+                    ConstructFailure::NotConstructible,
+                ));
             }
             ConstructCandidates::Present(candidates) => candidates,
         };
@@ -56,33 +56,48 @@ impl CheckState<'_> {
 
         // choose the first compatible declaration-order candidate
         for candidate in candidates {
-            let target = match candidate.symbol {
-                Some(symbol) => CallTarget::Constructor { symbol },
-                None => CallTarget::Value,
-            };
+            let probe = self.begin_inference_probe();
+            let owner = Some(candidate.target.symbol());
+            let application = candidate.target.application().cloned();
+            let target = CallableTarget::Construct(candidate.target);
             let result = self.select_call_signature(
                 origin,
                 module,
                 construct.source,
-                candidate.symbol,
-                candidate.instance,
+                owner,
+                application,
                 candidate.function,
                 &construct.generic_arguments,
                 &construct.arguments,
+                &[],
                 expected,
                 target,
             )?;
             match result {
-                CallableSelection::Resolved { .. } => return Ok(result),
-                CallableSelection::Pending { .. } => saw_pending = true,
-                CallableSelection::Rejected(_) => {}
+                CallableDispatch::ConstructSelected { .. } => {
+                    self.commit_inference_probe(probe);
+
+                    return Ok(result);
+                }
+                CallableDispatch::CallSelected { .. } => {
+                    panic!("construct dispatch produced a call selection");
+                }
+                CallableDispatch::Pending { .. } => {
+                    self.drop_inference_probe(probe);
+                    saw_pending = true;
+                }
+                CallableDispatch::CallRejected(_) | CallableDispatch::ConstructRejected(_) => {
+                    self.drop_inference_probe(probe);
+                }
             }
         }
 
         if saw_pending {
-            Ok(CallableSelection::pending())
+            Ok(CallableDispatch::pending())
         } else {
-            Ok(CallableSelection::rejected(CallFailure::NoMatch))
+            Ok(CallableDispatch::construct_rejected(
+                ConstructFailure::NoMatch,
+            ))
         }
     }
 
@@ -90,23 +105,23 @@ impl CheckState<'_> {
     pub(in crate::check) fn construct_candidates(
         &mut self,
         module: ModuleId,
-        callee: VariableId,
+        callee: TypeOperand,
         term: &TypeTerm,
     ) -> CompilerResult<ConstructCandidates> {
         let candidates = match term {
             TypeTerm::Variable(variable) => {
-                let Some(term) = self.solved_type_term(*variable)? else {
+                let Some(term) = self.type_solution(*variable)? else {
                     return Ok(ConstructCandidates::Pending);
                 };
 
-                return self.construct_candidates(module, *variable, &term);
+                return self.construct_candidates(module, (*variable).into(), &term);
             }
             TypeTerm::Reference {
                 origin: _,
                 symbol,
                 arguments,
             } => self.nominal_construct_candidates(module, callee, *symbol, arguments)?,
-            TypeTerm::Shape { members } => self.shape_construct_candidates(module, members)?,
+            TypeTerm::Shape { .. } => ConstructCandidates::Absent,
             _ => ConstructCandidates::Absent,
         };
 
@@ -117,7 +132,7 @@ impl CheckState<'_> {
     fn nominal_construct_candidates(
         &mut self,
         module: ModuleId,
-        callee: VariableId,
+        callee: TypeOperand,
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
     ) -> CompilerResult<ConstructCandidates> {
@@ -129,21 +144,19 @@ impl CheckState<'_> {
             return self.implicit_construct_candidates(callee, symbol, arguments);
         }
         let substitution = self.generic_substitution(module, symbol, arguments)?;
-        let instance = (!arguments.is_empty()).then(|| GenericInstance {
-            symbol,
+        let instance = (!arguments.is_empty()).then(|| GenericApplication {
+            owner: symbol,
             arguments: arguments.to_vec().into(),
         });
         let mut candidates = Vec::with_capacity(constructors.len());
 
         // lower constructor symbol types to construct signatures
         for constructor in constructors {
-            let variable = self.member_type_variable(module, constructor);
-            let Some(term) = self.solved_type_term(variable)? else {
+            let operand = self.member_type_operand(constructor);
+            let Some(term) = self.type_operand_term(operand)? else {
                 return Ok(ConstructCandidates::Pending);
             };
-            let CallableSignature::Present(function) =
-                self.call_signature(variable.module, &term)?
-            else {
+            let CallableSignature::Present(function) = self.call_signature(module, &term)? else {
                 continue;
             };
             let function = if substitution.is_empty() {
@@ -153,8 +166,11 @@ impl CheckState<'_> {
             };
 
             candidates.push(ConstructCandidate {
-                symbol: Some(constructor),
-                instance: instance.clone(),
+                target: ConstructTargetResolution::Class {
+                    symbol,
+                    constructor: Some(constructor),
+                    application: instance.clone(),
+                },
                 function,
             });
         }
@@ -165,16 +181,20 @@ impl CheckState<'_> {
     /// Return implicit constructor candidates for a nominal type.
     fn implicit_construct_candidates(
         &mut self,
-        callee: VariableId,
+        callee: TypeOperand,
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
     ) -> CompilerResult<ConstructCandidates> {
-        if self.construct_symbol_kind(symbol) == dir::SymbolKind::Newtype {
+        let kind = self.construct_symbol_kind(symbol);
+        if kind == dir::SymbolKind::Newtype {
             return self.newtype_constructor_candidate(callee, symbol, arguments);
         }
+        if kind != dir::SymbolKind::Class {
+            return Ok(ConstructCandidates::Absent);
+        }
 
-        let instance = (!arguments.is_empty()).then(|| GenericInstance {
-            symbol,
+        let instance = (!arguments.is_empty()).then(|| GenericApplication {
+            owner: symbol,
             arguments: arguments.to_vec().into(),
         });
         let function = FunctionTerm {
@@ -186,8 +206,11 @@ impl CheckState<'_> {
             is_generator: false,
         };
         let candidate = ConstructCandidate {
-            symbol: None,
-            instance,
+            target: ConstructTargetResolution::Class {
+                symbol,
+                constructor: None,
+                application: instance,
+            },
             function,
         };
 
@@ -197,7 +220,7 @@ impl CheckState<'_> {
     /// Return an implicit constructor candidate for a newtype backing type.
     fn newtype_constructor_candidate(
         &mut self,
-        callee: VariableId,
+        callee: TypeOperand,
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
     ) -> CompilerResult<ConstructCandidates> {
@@ -205,8 +228,8 @@ impl CheckState<'_> {
             return Ok(ConstructCandidates::Pending);
         };
         let parameters = self.newtype_constructor_parameters(backing)?;
-        let instance = (!arguments.is_empty()).then(|| GenericInstance {
-            symbol,
+        let instance = (!arguments.is_empty()).then(|| GenericApplication {
+            owner: symbol,
             arguments: arguments.to_vec().into(),
         });
         let function = FunctionTerm {
@@ -218,8 +241,10 @@ impl CheckState<'_> {
             is_generator: false,
         };
         let candidate = ConstructCandidate {
-            symbol: None,
-            instance,
+            target: ConstructTargetResolution::Newtype {
+                symbol,
+                application: instance,
+            },
             function,
         };
 
@@ -229,9 +254,9 @@ impl CheckState<'_> {
     /// Return the constructor parameters implied by a newtype backing type.
     fn newtype_constructor_parameters(
         &mut self,
-        backing: VariableId,
+        backing: TypeOperand,
     ) -> CompilerResult<SmallVec<[FunctionParameter; 4]>> {
-        let Some(term) = self.solved_type_term(backing)? else {
+        let Some(term) = self.type_operand_term(backing)? else {
             let parameter = FunctionParameter::required(backing);
 
             return Ok(vec![parameter].into());
@@ -241,6 +266,7 @@ impl CheckState<'_> {
                 .iter()
                 .map(|element| FunctionParameter {
                     ty: element.ty,
+                    static_slot: None,
                     is_optional: element.is_optional,
                     is_rest: element.is_rest,
                 })
@@ -255,7 +281,7 @@ impl CheckState<'_> {
     fn newtype_backing_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<VariableId>> {
+    ) -> CompilerResult<Option<TypeOperand>> {
         if !self.modules.contains_key(&symbol.module_id) {
             return Ok(None);
         };
@@ -273,7 +299,7 @@ impl CheckState<'_> {
             .clone();
         let backing = match declaration {
             dir::Declaration::Type(declaration) if declaration.is_nominal => {
-                Some(self.intern_local_node_type_variable(symbol.module_id, declaration.value))
+                Some(self.require_local_node_type(symbol.module_id, declaration.value))
             }
             _ => None,
         };
@@ -290,54 +316,22 @@ impl CheckState<'_> {
         symbol.kind
     }
 
-    /// Return construct candidates from one shape term.
-    fn shape_construct_candidates(
-        &mut self,
-        module: ModuleId,
-        members: &[ShapeMember],
-    ) -> CompilerResult<ConstructCandidates> {
-        for member in members {
-            let ShapeMember::ConstructSignature { ty } = member else {
-                continue;
-            };
-            let Some(term) = self.type_operand_term(*ty)? else {
-                return Ok(ConstructCandidates::Pending);
-            };
-            let CallableSignature::Present(function) = self.call_signature(module, &term)? else {
-                return Ok(ConstructCandidates::Absent);
-            };
-            let candidate = ConstructCandidate {
-                symbol: None,
-                instance: None,
-                function,
-            };
-
-            return Ok(ConstructCandidates::Present(vec![candidate].into()));
-        }
-
-        Ok(ConstructCandidates::Absent)
-    }
-
     /// Return the already chosen decision for one construct expression.
     fn selected_construct(
         &self,
         construct: &ConstructTerm,
-    ) -> CompilerResult<Option<CallableSelection>> {
-        let Some(decision) = self.solutions.construct.get(&construct.source).cloned() else {
+    ) -> CompilerResult<Option<CallableDispatch>> {
+        let Some(decision) = self.inference.construct(construct.source) else {
             return Ok(None);
         };
 
         let selection = match decision {
-            ConstructSelection::Resolved(resolution) => {
-                let target = match resolution.symbol {
-                    Some(symbol) => CallTarget::Constructor { symbol }
-                        .into_resolution_target(resolution.instance),
-                    None => CallTarget::Value.into_resolution_target(None),
-                };
-
-                CallableSelection::resolved(target, resolution.function, Progress::Unchanged)
-            }
-            ConstructSelection::Rejected(failure) => CallableSelection::rejected(failure.into()),
+            ConstructDecision::Resolved(resolution) => CallableDispatch::construct_selected(
+                resolution.target,
+                resolution.function,
+                Progress::Unchanged,
+            ),
+            ConstructDecision::Rejected(failure) => CallableDispatch::construct_rejected(failure),
         };
 
         Ok(Some(selection))

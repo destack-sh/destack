@@ -10,7 +10,7 @@ use crate::check::{CallFailure, CheckState, FunctionTerm, GenericApplication};
 /// UserId(raw)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum ConstructTargetSelection {
+pub(in crate::check) enum ConstructTargetResolution {
     /// Class construction selected at compile time.
     ///
     /// Examples:
@@ -48,11 +48,11 @@ pub(in crate::check) enum ConstructTargetSelection {
 /// UserId(raw)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct ConstructSelection {
+pub(in crate::check) struct ConstructResolution {
     /// The source construct expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The resolved construct target.
-    pub(in crate::check) target: ConstructTargetSelection,
+    pub(in crate::check) target: ConstructTargetResolution,
     /// The resolved constructor signature.
     pub(in crate::check) function: FunctionTerm,
 }
@@ -92,7 +92,7 @@ impl From<CallFailure> for ConstructFailure {
     }
 }
 
-impl ConstructTargetSelection {
+impl ConstructTargetResolution {
     /// Return the symbol selected by this construct target.
     pub(in crate::check) fn symbol(&self) -> dir::GlobalSymbolId {
         match self {
@@ -147,7 +147,7 @@ pub(in crate::check) enum ConstructDecision {
     /// ```ds
     /// new User(name)
     /// ```
-    Resolved(ConstructSelection),
+    Resolved(ConstructResolution),
     /// Construct resolution failed.
     ///
     /// Examples:

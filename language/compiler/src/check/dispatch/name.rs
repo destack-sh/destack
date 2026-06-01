@@ -79,13 +79,26 @@ impl CheckState<'_> {
         module: ModuleId,
         symbol: dir::LocalSymbolId,
     ) -> dir::GlobalSymbolId {
+        let imports = &self.module(module).resolved.imports;
         match self.module(module).resolved.imports.symbol_target(symbol) {
             // imported aliases use their resolved target
-            Some(dir::ImportTarget::Symbol(symbol)) => symbol,
+            Some(dir::ImportTarget::Symbol(symbol)) => return symbol,
 
             // local and namespace bindings keep their local symbol
-            Some(dir::ImportTarget::Namespace(_)) | None => symbol.into_global(module),
+            Some(dir::ImportTarget::Namespace(_)) => return symbol.into_global(module),
+            None => {}
         }
+
+        let bindings = self.module(module).binding_table();
+        let binding = bindings.get_symbol(symbol);
+        if binding.kind == dir::SymbolKind::Import
+            && let Some(key) = binding.key
+            && let Some([target]) = imports.global_symbols(key)
+        {
+            return *target;
+        }
+
+        symbol.into_global(module)
     }
 
     /// Require one source name in the requested symbol space.

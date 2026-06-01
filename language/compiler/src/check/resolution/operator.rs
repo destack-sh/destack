@@ -10,7 +10,7 @@ use crate::check::{CheckState, FunctionTerm, OperatorTermKind, TypeOperand, Vari
 /// left + right
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum OperatorSelection {
+pub(in crate::check) enum OperatorResolution {
     /// Builtin operator behavior.
     ///
     /// Examples:
@@ -103,7 +103,7 @@ pub(in crate::check) enum OperatorDecision {
     /// ```ds
     /// left + right
     /// ```
-    Resolved(OperatorSelection),
+    Resolved(OperatorResolution),
     /// Operator resolution failed.
     ///
     /// Examples:
@@ -118,8 +118,8 @@ impl CheckState<'_> {
     pub(in crate::check) fn select_operator(&mut self, decision: OperatorDecision) {
         let source = match &decision {
             OperatorDecision::Resolved(operator) => match operator {
-                OperatorSelection::Builtin { source, .. }
-                | OperatorSelection::Method { source, .. } => *source,
+                OperatorResolution::Builtin { source, .. }
+                | OperatorResolution::Method { source, .. } => *source,
             },
             OperatorDecision::Rejected(failure) => failure.source,
         };
