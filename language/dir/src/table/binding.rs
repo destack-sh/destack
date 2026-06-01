@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, ExportKind, GlobalNodeIdAny, LocalNodeId, LocalNodeIdAny, LocalScope, LocalScopeId,
-    LocalScopeMark, LocalSymbolId, Node, Scope, ScopeKind, SegmentView, StaticKey, Symbol,
-    SymbolKind, SymbolLookup, SymbolOrigin, SymbolRole, SymbolSpace,
+    LocalScopeMark, LocalSymbolId, Node, Scope, ScopeIndex, ScopeKind, SegmentView, StaticKey,
+    Symbol, SymbolKind, SymbolLookup, SymbolOrigin, SymbolRole, SymbolSpace,
 };
 
 /// Cumulative lexical scopes and symbols for one DIR module.
@@ -256,11 +256,7 @@ impl<'a> BindingTable<'a> {
         let mut lookup = SymbolLookup::Missing;
 
         // collect matching owner members
-        for (binding_key, symbol) in scope.named_symbols() {
-            if binding_key == key {
-                lookup.push(symbol);
-            }
-        }
+        scope.for_symbols_by_key(key, |symbol| lookup.push(symbol));
 
         lookup
     }
@@ -297,13 +293,11 @@ impl<'a> BindingTable<'a> {
         let mut lookup = SymbolLookup::Missing;
 
         // collect matching symbols in the current scope
-        for (binding_key, symbol) in scope.named_symbols_up_to(mark) {
-            if binding_key != key || !self.get_symbol(symbol).kind.is_visible_in(space) {
-                continue;
+        scope.for_symbols_by_key_up_to(key, mark, |symbol| {
+            if self.get_symbol(symbol).kind.is_visible_in(space) {
+                lookup.push(symbol);
             }
-
-            lookup.push(symbol);
-        }
+        });
 
         lookup
     }
@@ -532,6 +526,7 @@ impl BindingSegment {
             owner,
             parent,
             bindings: Vec::new(),
+            index: ScopeIndex::default(),
             children: Vec::new(),
         };
         self.scopes.allocate(scope);

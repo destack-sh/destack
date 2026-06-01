@@ -1,9 +1,13 @@
 use std::fmt::Display;
 
 use destack_source::ModuleId;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 use crate::{LocalSymbolId, StaticKey};
+
+const SMALL_SCOPE_LOOKUP_KEYS: usize = 8;
 
 /// A lexical container for symbols.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -17,6 +21,9 @@ pub struct Scope {
 
     /// The bindings in lexical order.
     pub bindings: Vec<ScopeBinding>,
+
+    /// Index for named bindings.
+    pub index: ScopeIndex,
 
     /// The children scopes.
     pub children: Vec<LocalScopeId>,
@@ -41,6 +48,10 @@ impl Scope {
             key,
             symbol: symbol_id,
         });
+        if let Some(key) = key {
+            self.index.insert(key, mark.0);
+        }
+
         mark
     }
 
@@ -69,6 +80,29 @@ impl Scope {
             .filter_map(|binding| binding.key.map(|key| (key, binding.symbol)))
     }
 
+    /// Visit symbols bound by one key in lexical order.
+    pub fn for_symbols_by_key(&self, key: StaticKey, mut visit: impl FnMut(LocalSymbolId)) {
+        self.index.for_indices(key, LocalScopeMark::end(), |index| {
+            let symbol = self.bindings[index as usize].symbol;
+
+            visit(symbol);
+        });
+    }
+
+    /// Visit symbols bound by one key in lexical order up to a mark.
+    pub fn for_symbols_by_key_up_to(
+        &self,
+        key: StaticKey,
+        mark: LocalScopeMark,
+        mut visit: impl FnMut(LocalSymbolId),
+    ) {
+        self.index.for_indices(key, mark, |index| {
+            let symbol = self.bindings[index as usize].symbol;
+
+            visit(symbol);
+        });
+    }
+
     /// Iterate anonymous symbols in lexical order.
     pub fn anonymous_symbols(&self) -> impl Iterator<Item = LocalSymbolId> + '_ {
         self.bindings
@@ -78,29 +112,134 @@ impl Scope {
 
     /// Find the latest symbol with one key.
     pub fn find_symbol(&self, key: StaticKey) -> Option<LocalSymbolId> {
-        for binding in self.bindings.iter().rev() {
-            if binding.key != Some(key) {
-                continue;
-            }
+        let index = self.index.last_index(key, LocalScopeMark::end())?;
 
-            return Some(binding.symbol);
-        }
-
-        None
+        Some(self.bindings[index as usize].symbol)
     }
 
     /// Find the latest symbol with one key up to a mark.
     pub fn find_symbol_up_to(&self, key: StaticKey, mark: LocalScopeMark) -> Option<LocalSymbolId> {
-        let limit = mark.0 as usize;
-        for binding in self.bindings.iter().take(limit).rev() {
-            if binding.key != Some(key) {
-                continue;
+        let index = self.index.last_index(key, mark)?;
+
+        Some(self.bindings[index as usize].symbol)
+    }
+}
+
+/// A compact name index for one lexical scope.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ScopeIndex {
+    /// No named bindings.
+    Empty,
+    /// A small inline table for common tiny scopes.
+    Small {
+        /// Binding indices grouped by key.
+        entries: Vec<ScopeIndexEntry>,
+    },
+    /// A keyed table for larger scopes.
+    Large {
+        /// Binding indices grouped by key.
+        table: Box<IndexMap<StaticKey, SmallVec<[u32; 1]>>>,
+    },
+}
+
+impl Default for ScopeIndex {
+    fn default() -> Self {
+        Self::Empty
+    }
+}
+
+impl ScopeIndex {
+    /// Insert one binding index.
+    fn insert(&mut self, key: StaticKey, index: u32) {
+        match self {
+            ScopeIndex::Empty => {
+                let mut entries = Vec::with_capacity(SMALL_SCOPE_LOOKUP_KEYS);
+                entries.push(ScopeIndexEntry::new(key, index));
+
+                *self = ScopeIndex::Small { entries };
+            }
+            ScopeIndex::Small { entries } => {
+                if let Some(entry) = entries.iter_mut().find(|entry| entry.key == key) {
+                    entry.indices.push(index);
+
+                    return;
+                }
+
+                if entries.len() < SMALL_SCOPE_LOOKUP_KEYS {
+                    entries.push(ScopeIndexEntry::new(key, index));
+
+                    return;
+                }
+
+                // promote large scopes to keyed lookup
+                let mut table = IndexMap::with_capacity(entries.len() + 1);
+                for entry in entries.drain(..) {
+                    table.insert(entry.key, entry.indices);
+                }
+                table.insert(key, SmallVec::from_buf([index]));
+
+                *self = ScopeIndex::Large {
+                    table: Box::new(table),
+                };
+            }
+            ScopeIndex::Large { table } => {
+                table.entry(key).or_default().push(index);
+            }
+        }
+    }
+
+    /// Visit indices bound by one key in lexical order up to a mark.
+    fn for_indices(&self, key: StaticKey, mark: LocalScopeMark, mut visit: impl FnMut(u32)) {
+        let Some(indices) = self.indices(key) else {
+            return;
+        };
+
+        for index in indices {
+            if *index >= mark.0 {
+                break;
             }
 
-            return Some(binding.symbol);
+            visit(*index);
         }
+    }
 
-        None
+    /// Return the latest index for one key before a mark.
+    fn last_index(&self, key: StaticKey, mark: LocalScopeMark) -> Option<u32> {
+        let indices = self.indices(key)?;
+        let index = indices.iter().rev().find(|index| **index < mark.0)?;
+
+        Some(*index)
+    }
+
+    /// Return indices for one key.
+    fn indices(&self, key: StaticKey) -> Option<&SmallVec<[u32; 1]>> {
+        match self {
+            ScopeIndex::Empty => None,
+            ScopeIndex::Small { entries } => entries
+                .iter()
+                .find(|entry| entry.key == key)
+                .map(|entry| &entry.indices),
+            ScopeIndex::Large { table } => table.get(&key),
+        }
+    }
+}
+
+/// Binding indices for one key in a small scope lookup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ScopeIndexEntry {
+    /// The binding key.
+    pub key: StaticKey,
+    /// Binding indices in lexical order.
+    pub indices: SmallVec<[u32; 1]>,
+}
+
+impl ScopeIndexEntry {
+    /// Create one small lookup entry.
+    fn new(key: StaticKey, index: u32) -> Self {
+        Self {
+            key,
+            indices: SmallVec::from_buf([index]),
+        }
     }
 }
 
