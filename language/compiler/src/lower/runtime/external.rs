@@ -9,25 +9,25 @@ use crate::{CompilerResult, LowerError};
 
 use crate::lower::ModuleLowerer;
 
-/// Visitor that collects call expressions from a subtree.
-struct ExternalCallCollector {
-    /// Call expressions found in the subtree.
-    calls: Vec<dir::LocalNodeId<dir::Expression>>,
+/// Visitor that collects expressions with callable external targets.
+struct ExternalTargetCollector {
+    /// Expressions found in the subtree.
+    expressions: Vec<dir::LocalNodeId<dir::Expression>>,
     /// Options for the node visitor.
     options: dir::NodeVisitorOptions,
 }
 
-impl ExternalCallCollector {
+impl ExternalTargetCollector {
     /// Create a new collector.
     fn new() -> Self {
         Self {
-            calls: Vec::new(),
+            expressions: Vec::new(),
             options: dir::NodeVisitorOptions::default(),
         }
     }
 }
 
-impl dir::NodeVisitor for ExternalCallCollector {
+impl dir::NodeVisitor for ExternalTargetCollector {
     fn options(&self) -> &dir::NodeVisitorOptions {
         &self.options
     }
@@ -38,9 +38,14 @@ impl dir::NodeVisitor for ExternalCallCollector {
         id: dir::LocalNodeId<dir::Expression>,
         expression: &dir::Expression,
     ) {
-        // record direct call expressions
-        if matches!(expression, dir::Expression::Call { .. }) {
-            self.calls.push(id);
+        // record direct callable target expressions
+        if matches!(
+            expression,
+            dir::Expression::Call { .. }
+                | dir::Expression::New { .. }
+                | dir::Expression::NewMaybe { .. }
+        ) {
+            self.expressions.push(id);
         }
 
         // continue walking the subtree
@@ -54,13 +59,13 @@ pub(crate) struct BindingResolution {
 }
 
 impl ModuleLowerer<'_> {
-    /// Declare call targets referenced by an expression subtree.
+    /// Declare callable external targets referenced by an expression subtree.
     pub(crate) fn declare_call_targets_for_expression(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // collect call expressions from the subtree
-        let mut collector = ExternalCallCollector::new();
+        // collect target expressions from the subtree
+        let mut collector = ExternalTargetCollector::new();
         let expression = self.dir_tree.get(expression_id);
         dir::NodeVisitor::visit_expression(
             &mut collector,
@@ -69,33 +74,56 @@ impl ModuleLowerer<'_> {
             expression,
         );
 
-        // declare each required call target lazily for this subtree
-        for call_id in collector.calls {
-            self.declare_call_target(call_id)?;
+        // declare each required target lazily for this subtree
+        for expression_id in collector.expressions {
+            self.declare_expression_target(expression_id)?;
         }
 
         Ok(())
     }
 
-    /// Declare the function referenced by a call, when needed.
-    fn declare_call_target(
+    /// Declare the function referenced by a call-like expression, when needed.
+    fn declare_expression_target(
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         // resolve the static call candidate
         let node_id = expression_id.into_global_any(self.module_id);
-        let Some(resolution) = self.resolutions.call_resolution(node_id) else {
+        if let Some(resolution) = self.resolutions.call_resolution(node_id) {
+            let dir::CallTarget::Symbol(candidate) = &resolution.target else {
+                return Ok(());
+            };
+
+            return self.declare_expression_symbol_target(
+                expression_id,
+                candidate.symbol,
+                &resolution.parameters,
+                resolution.return_type,
+            );
+        }
+
+        let Some(resolution) = self.resolutions.construct_resolution(node_id) else {
             return Ok(());
         };
-        let candidate = match &resolution.target {
-            dir::CallTarget::Construct(candidate) | dir::CallTarget::Symbol(candidate) => candidate,
-            _ => {
-                return Ok(());
-            }
-        };
+        let target_symbol = resolution.target.symbol();
 
+        self.declare_expression_symbol_target(
+            expression_id,
+            target_symbol,
+            &resolution.parameters,
+            resolution.return_type,
+        )
+    }
+
+    /// Declare one symbol-backed external target, when needed.
+    fn declare_expression_symbol_target(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target_symbol: dir::GlobalSymbolId,
+        parameters: &[dir::LocalTypeId],
+        return_type: dir::LocalTypeId,
+    ) -> CompilerResult<()> {
         // skip local targets and already declared symbols
-        let target_symbol = candidate.symbol;
         if target_symbol.module_id == self.module_id {
             return Ok(());
         }
@@ -113,7 +141,7 @@ impl ModuleLowerer<'_> {
 
         // require a resolved signature
         // declare the call target on demand
-        self.declare_external_function(expression_id, target_symbol, resolution)?;
+        self.declare_external_function(expression_id, target_symbol, parameters, return_type)?;
 
         Ok(())
     }
@@ -123,7 +151,8 @@ impl ModuleLowerer<'_> {
         &mut self,
         expression_id: dir::LocalNodeId<dir::Expression>,
         target_symbol: dir::GlobalSymbolId,
-        signature: &dir::CallResolution,
+        parameters: &[dir::LocalTypeId],
+        return_type: dir::LocalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Function>> {
         // return the existing declaration when present
         if let Some(function_id) = self.function_for_symbol(target_symbol) {
@@ -149,21 +178,20 @@ impl ModuleLowerer<'_> {
             .into_anchored(Some(self.profile));
 
         // lower parameter types
-        let mut parameter_types = Vec::with_capacity(signature.parameters.len());
-        for type_id in &signature.parameters {
+        let mut parameter_types = Vec::with_capacity(parameters.len());
+        for type_id in parameters {
             // lower the parameter type
             let parameter_type = self.lower_type(*type_id, anchor)?;
             parameter_types.push(parameter_type);
         }
 
         // lower the return type
-        let return_type = match signature.return_type {
-            Some(return_type) => self.lower_type(return_type, anchor)?,
-            None => self.type_lowerer.ty_void,
-        };
+        let return_type_id = return_type;
+        let return_type = self.lower_type(return_type_id, anchor)?;
 
         if binding.is_binding && self.binding_abi_lowering {
-            let binding_info = self.binding_result_info(signature, expression_id, target_symbol)?;
+            let binding_info =
+                self.binding_result_info(return_type_id, expression_id, target_symbol)?;
             let abi_info = self.runtime_status_layout(expression_id)?;
             let mut abi_parameters = Vec::with_capacity(parameter_types.len() + 1);
 

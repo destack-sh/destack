@@ -94,6 +94,12 @@ impl FunctionLowerer<'_> {
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         kind: CallKind,
     ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
+        if let Some(resolution) = self.get_construct_resolution(expression_id) {
+            let target = resolution.target.clone();
+
+            return self.lower_construct_call(expression_id, &target, arguments);
+        }
+
         // resolve call operation
         let resolution = self
             .get_call_resolution(expression_id)
@@ -107,7 +113,7 @@ impl FunctionLowerer<'_> {
             })
             .map_err(CompilerError::from)?;
         let target = match &resolution.target {
-            dir::CallTarget::Construct(target) | dir::CallTarget::Symbol(target) => target,
+            dir::CallTarget::Symbol(target) => target,
             _ => {
                 return Err(LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(
@@ -440,6 +446,30 @@ impl FunctionLowerer<'_> {
         }
 
         Ok((value, result_type))
+    }
+
+    /// Lower a construct target exposed through call syntax.
+    fn lower_construct_call(
+        &mut self,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+        target: &dir::ConstructTarget,
+        arguments: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<(Option<mir::Value>, mir::LocalNodeId<mir::Type>)> {
+        let dir::ConstructTarget::Newtype(candidate) = target else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "call syntax construct resolution must be a newtype".to_string(),
+            }
+            .into());
+        };
+        let (value, result_type) =
+            self.lower_newtype_constructor_call(expression_id, candidate.symbol, arguments)?;
+
+        Ok((Some(value), result_type))
     }
 
     /// Lower a nominal type constructor call.

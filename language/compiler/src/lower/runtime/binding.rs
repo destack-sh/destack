@@ -33,22 +33,10 @@ impl ModuleLowerer<'_> {
     /// Resolve the binding result metadata for ABI lowering.
     pub(crate) fn binding_result_info(
         &mut self,
-        signature: &dir::CallResolution,
+        return_type_id: dir::LocalTypeId,
         expression_id: dir::LocalNodeId<dir::Expression>,
         _target_symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<BindingResultInfo> {
-        let Some(return_type_id) = signature.return_type else {
-            return Err(LowerError::UnsupportedConstruct {
-                anchor: self.diagnostic_anchor(
-                    expression_id
-                        .into_global_any(self.module_id)
-                        .into_anchored(Some(self.profile)),
-                ),
-                message: "binding return type must be Result<T, PlatformError>".to_string(),
-            }
-            .into());
-        };
-
         let result =
             resolve_result_union(self.types, &self.strings, return_type_id).ok_or_else(|| {
                 LowerError::UnsupportedConstruct {

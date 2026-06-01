@@ -267,31 +267,15 @@ impl FunctionLowerer<'_> {
         expression_id: dir::LocalNodeId<dir::Expression>,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
-        // call explicit constructors when present
-        if let Some(constructor_id) =
-            self.explicit_constructor_member_for_expression(expression_id)?
-        {
-            // load the constructor member
-            let constructor = self.context.dir_tree.get(constructor_id);
-            // require a constructor method member
-            let dir::Member::Method { .. } = constructor else {
-                return Err(LowerError::UnsupportedConstruct {
-                    anchor: self.diagnostic_anchor(
-                        constructor_id
-                            .into_global_any(self.context.module_id)
-                            .into_anchored(Some(self.context.profile)),
-                    ),
-                    message: "unsupported constructor member".to_string(),
-                }
-                .into());
-            };
+        let construct_target = self.class_construct_target_for_new_expression(expression_id)?;
 
-            let constructor_symbol = self.context.require_symbol_for_node(constructor_id)?;
+        // call explicit constructors when present
+        if let Some(constructor_symbol) = construct_target.constructor {
             let function_id = self
                 .function_for_symbol(constructor_symbol)
                 .ok_or_else(|| LowerError::UnsupportedConstruct {
                     anchor: self.diagnostic_anchor(
-                        constructor_id
+                        expression_id
                             .into_global_any(self.context.module_id)
                             .into_anchored(Some(self.context.profile)),
                     ),
@@ -358,11 +342,9 @@ impl FunctionLowerer<'_> {
             return Ok((value, constructor_return_type));
         }
 
-        // get the result type from the constructor target when syntax is nominal
-        let constructor_target = self.constructor_target_symbol_for_expression(expression_id)?;
-        let result_type = if let Some(symbol) = constructor_target
-            && self.context.symbol_kind_matches(symbol, dir::SymbolKind::Class)
-            && let Some(reference_type_id) = self.nominal_reference_type_id_for_symbol(symbol)
+        // get the result type from the checked constructor target
+        let result_type = if let Some(reference_type_id) =
+            self.nominal_reference_type_id_for_symbol(construct_target.symbol)
         {
             let node = expression_id.into_global_any(self.context.module_id);
             self.lower_type_id_for_node(reference_type_id, node)?
@@ -637,54 +619,35 @@ impl FunctionLowerer<'_> {
         }
     }
 
-    /// Find an explicit constructor member for the expression type when present.
-    fn explicit_constructor_member_for_expression(
+    /// Return the checked class construct target for a new expression.
+    fn class_construct_target_for_new_expression(
         &self,
         expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Option<dir::LocalNodeId<dir::Member>>> {
-        // prefer the constructor symbol from the new expression target
-        if let Some(target_symbol) = self.constructor_target_symbol_for_expression(expression_id)?
-            && target_symbol.module_id == self.context.module_id
-            && let Some(constructor) = self.explicit_constructor_member_for_symbol(target_symbol)
-        {
-            return Ok(Some(constructor));
-        }
-
-        // resolve the nominal symbol for constructor lookup
-        let Some(type_id) = self.type_for_expression(expression_id) else {
-            return Ok(None);
+    ) -> CompilerResult<dir::ClassConstructCandidate> {
+        let Some(resolution) = self.get_construct_resolution(expression_id) else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "new expression missing DIR construct resolution".to_string(),
+            }
+            .into());
         };
-        let type_id = self.unwrap_form_payload_type_id(type_id);
-
-        // require a nominal reference type
-        let symbol = match self.context.types.get_type(type_id) {
-            dir::Type::Reference(reference) => reference.symbol,
-            _ => return Ok(None),
-        };
-
-        // skip remote symbols
-        if symbol.module_id != self.context.module_id {
-            return Ok(None);
-        }
-
-        Ok(self.explicit_constructor_member_for_symbol(symbol))
-    }
-
-    /// Resolve the target symbol for a new expression when it is a simple reference.
-    pub(crate) fn constructor_target_symbol_for_expression(
-        &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        let ty = match self.context.dir_tree.get(expression_id) {
-            dir::Expression::New { ty, .. } | dir::Expression::NewMaybe { ty, .. } => *ty,
-            _ => return Ok(None),
+        let dir::ConstructTarget::Class(candidate) = &resolution.target else {
+            return Err(LowerError::UnsupportedConstruct {
+                anchor: self.diagnostic_anchor(
+                    expression_id
+                        .into_global_any(self.context.module_id)
+                        .into_anchored(Some(self.context.profile)),
+                ),
+                message: "new expression construct resolution must be a class".to_string(),
+            }
+            .into());
         };
 
-        let Some(type_id) = self.type_id_for_type_expression(ty) else {
-            return Ok(None);
-        };
-
-        Ok(self.concrete_symbol_for_type(type_id))
+        Ok(candidate.clone())
     }
 
     /// Find a nominal reference type id for a symbol in checked type state.
@@ -707,60 +670,4 @@ impl FunctionLowerer<'_> {
         None
     }
 
-    /// Find explicit constructor members for a nominal symbol.
-    fn explicit_constructor_member_for_symbol(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::LocalNodeId<dir::Member>> {
-        // scan declarations for explicit constructors
-        let declaration_ids = self.declaration_ids_for_symbol(symbol);
-        for declaration_id in declaration_ids {
-            let declaration = self.context.dir_tree.get(declaration_id);
-            // select struct or class members
-            let members = match declaration {
-                dir::Declaration::Struct(declaration) => &declaration.members,
-                dir::Declaration::Class(declaration) => &declaration.members,
-                _ => continue,
-            };
-
-            for member_id in members {
-                let member = self.context.dir_tree.get(*member_id);
-                let dir::Member::Method { key, signature, .. } = member else {
-                    continue;
-                };
-
-                // constructors are nameless methods with constructor or new mode
-                if key.is_none()
-                    && matches!(
-                        signature.role,
-                        Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
-                    )
-                {
-                    return Some(*member_id);
-                }
-            }
-        }
-
-        None
-    }
-
-    /// Collect declaration ids that belong to a symbol in this module.
-    fn declaration_ids_for_symbol(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> Vec<dir::LocalNodeId<dir::Declaration>> {
-        // read the symbol entry for declaration lists
-        let symbol_entry = self.context.symbols.get_symbol(symbol.local_id);
-        let mut declaration_ids = Vec::new();
-
-        // add the declaration first
-        if let Some(primary) = symbol_entry.declaration
-            && primary.module_id == self.context.module_id
-            && let Ok(local_id) = primary.local_id.try_into_typed::<dir::Declaration>()
-        {
-            declaration_ids.push(local_id);
-        }
-
-        declaration_ids
-    }
 }

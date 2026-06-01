@@ -159,7 +159,7 @@ impl FunctionLowerer<'_> {
             dir::MemberTarget::Symbol(candidate) => Some(candidate.symbol),
             dir::MemberTarget::Builtin(_)
             | dir::MemberTarget::Field(_)
-            | dir::MemberTarget::Select(_) => None,
+            | dir::MemberTarget::Union(_) => None,
         }
     }
 
