@@ -1,6 +1,8 @@
-use destack_artifact::ArtifactPayload;
+use std::iter;
+
+use destack_artifact::{ArtifactPayload, ArtifactSidecar};
 use destack_dir as dir;
-use destack_source::{ModuleId, ProfileId};
+use destack_source::{FileContent, ModuleId, ProfileId};
 use destack_workspace::ProviderContext;
 
 use crate::resolve::state::ResolveState;
@@ -58,6 +60,16 @@ impl Compiler {
 
         // resolve syntax-required language item modules
         state.resolve_syntax_language_items(&environment.language)?;
+
+        // emit resolve stats before diagnostics are drained
+        let stats = state.stats();
+        context.emit_sidecar(ArtifactSidecar::new(
+            "metadata",
+            iter::once(("phase", "resolve")),
+            FileContent::Text {
+                content: stats.render_metadata(),
+            },
+        ));
 
         // emit recoverable resolve diagnostics
         for diagnostic in state.take_diagnostics() {

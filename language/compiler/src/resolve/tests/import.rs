@@ -19,12 +19,13 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { value } from "./dep.ds";
 /// @import.symbol symbol=value target=dep.value
 
 /// @import.summary symbols=1
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 imports=dep:1,symbol:1 exports=miss:1,hit:0,cycle:0
 "#,
     );
 }
@@ -48,12 +49,13 @@ export let value = 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import * as dep from "./dep.ds";
 /// @import.namespace symbol=dep module=dep.ds
 
 /// @import.summary symbols=1
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 imports=dep:1,symbol:1
 "#,
     );
 }
@@ -78,12 +80,13 @@ export { value as default };
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import value from "./dep.ds";
 /// @import.symbol symbol=value target=dep.value
 
 /// @import.summary symbols=1
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 imports=dep:1,symbol:1 exports=miss:1,hit:0,cycle:0
 "#,
     );
 }
@@ -107,12 +110,13 @@ export type Foo = string;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import type { Foo } from "./dep.ds";
 /// @import.symbol symbol=Foo target=dep.Foo
 
 /// @import.summary symbols=1
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 imports=dep:1,symbol:1 exports=miss:1,hit:0,cycle:0
 "#,
     );
 }
@@ -130,12 +134,13 @@ import { todo } from "destack:error";
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { todo } from "destack:error";
 /// @import.symbol symbol=todo target=error.panic.todo
 
 /// @import.summary symbols=1
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 imports=dep:1,symbol:1 exports=miss:10,hit:0,cycle:0
 "#,
     );
 }

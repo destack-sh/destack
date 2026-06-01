@@ -31,11 +31,12 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let local = 1;
 
 /// @import.summary
+/// @resolve.stats roots=1 expressions=2 types=0
 "#,
     );
 }
@@ -71,12 +72,14 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const value = answer;
+
 /// @import.global key=answer symbols=[globals.answer]
 
 /// @import.summary globals=1
+/// @resolve.stats roots=1 expressions=2 types=0 imports=dep:1,symbol:0 globals=required:1,module:1,loaded:1
 "#,
     );
 }
@@ -119,12 +122,14 @@ export type Option = string;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let local = Function;
+
 /// @import.global key=Function symbols=[types.Function]
 
 /// @import.summary globals=1
+/// @resolve.stats roots=1 expressions=2 types=0 imports=dep:1,symbol:0 globals=required:1,module:1,loaded:1 exports=miss:1,hit:0,cycle:0
 "#,
     );
 }
@@ -166,12 +171,14 @@ export class Promise<T> {}
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let promise: Promise<string>;
+
 /// @import.global key=Promise symbols=[async.Promise]
 
 /// @import.summary globals=1
+/// @resolve.stats roots=1 expressions=1 types=2 imports=dep:1,symbol:0 globals=required:1,module:1,loaded:1 exports=miss:1,hit:0,cycle:0
 "#,
     );
 }
@@ -189,12 +196,14 @@ let promise: Promise<string>;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 let promise: Promise<string>;
+
 /// @import.global key=Promise symbols=[async.promise.Promise]
 
 /// @import.summary globals=1
+/// @resolve.stats roots=1 expressions=1 types=2 imports=dep:1,symbol:0 globals=required:1,module:0,loaded:1
 "#,
     );
 }
@@ -212,12 +221,14 @@ const load = async () => 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const load = async () => 1;
+
 /// @import.language item=async.Promise symbol=async.promise.Promise
 
 /// @import.summary language=1
+/// @resolve.stats roots=1 expressions=3 types=0 imports=dep:1,symbol:0 language=required:1,loaded:1
 "#,
     );
 }
@@ -236,13 +247,15 @@ const load = async () => 1;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 class Promise {}
 const load = async () => 1;
+
 /// @import.language item=async.Promise symbol=async.promise.Promise
 
 /// @import.summary language=1
+/// @resolve.stats roots=2 expressions=4 types=0 imports=dep:1,symbol:0 language=required:1,loaded:1
 "#,
     );
 }
@@ -260,12 +273,14 @@ const runtime = import.meta.runtime;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const runtime = import.meta.runtime;
+
 /// @import.language item=module.ImportMeta symbol=module.meta.ImportMeta
 
 /// @import.summary language=1
+/// @resolve.stats roots=1 expressions=3 types=0 imports=dep:1,symbol:0 language=required:1,loaded:1
 "#,
     );
 }
@@ -285,14 +300,16 @@ const value = left + right;
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const left = 1;
 const right = 2;
 const value = left + right;
+
 /// @import.language item=ops.Add symbol=ops.plus.Add
 
 /// @import.summary language=1
+/// @resolve.stats roots=3 expressions=8 types=0 imports=dep:1,symbol:0 language=required:1,loaded:1
 "#,
     );
 }
@@ -329,12 +346,13 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 const answer = 1;
 const value = answer;
 
 /// @import.summary
+/// @resolve.stats roots=2 expressions=4 types=0
 "#,
     );
 }
@@ -373,7 +391,7 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 function read() {
     const answer = 1;
@@ -381,6 +399,7 @@ function read() {
 }
 
 /// @import.summary
+/// @resolve.stats roots=1 expressions=6 types=0
 "#,
     );
 }
@@ -406,11 +425,12 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import "./dep.ds";
 
 /// @import.summary
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 imports=dep:1,symbol:0
 "#,
     );
 }
@@ -438,12 +458,13 @@ global {
 
     compiler.assert_dir_resolved(
         "main.ds",
-        DirRows::imports().with_summaries(),
+        DirRows::imports().with_summaries().with_resolve_stats(),
         r#"
 import { value } from "./dep.ds";
 /// @import.symbol symbol=value target=dep.value
 
 /// @import.summary symbols=1
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 imports=dep:1,symbol:1 exports=miss:1,hit:0,cycle:0
 "#,
     );
 }
