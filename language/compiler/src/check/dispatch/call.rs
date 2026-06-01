@@ -3,12 +3,12 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallCallee, CallFailure, CallInstantiation, CallInstantiationArgumentKey, CallInstantiationKey,
-    CallResolutionTarget, CallSelection, CallTerm, CheckState, ConstructCandidates, Decision,
-    FunctionParameter, FunctionTerm, GenericArgument, GenericInstance, GenericParameter,
-    GenericSlot, GenericSubstitution, GenericSubstitutionEntry, MemberCallCallee, Origin, Progress,
-    ShapeMember, StaticTerm, SymbolCandidate, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm,
-    VariableId, VariableKind, VariableOutput,
+    CallCallee, CallDecision, CallFailure, CallTargetResolution, CallTerm, CandidateResolution,
+    CheckState, Condition, ConstructCandidates, ConstructDecision, ConstructFailure,
+    ConstructTargetResolution, Decision, FunctionParameter, FunctionTerm, GenericApplication,
+    GenericArgument, GenericSlot, GenericSlotHeader, GenericSubstitution, GenericSubstitutionEntry,
+    MemberCallCallee, Origin, Progress, ShapeMember, StaticRelation, StaticTerm, TypeLiteralTerm,
+    TypeOperand, TypeRelation, TypeTerm, VariableId, VariableKind,
 };
 use smallvec::SmallVec;
 
@@ -20,10 +20,23 @@ pub(in crate::check) struct CallableCandidate {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The callable type term to inspect.
     pub(in crate::check) ty: TypeTerm,
-    /// The already resolved generic instance.
-    pub(in crate::check) instance: Option<GenericInstance>,
-    /// The final call target if this candidate is selected.
-    pub(in crate::check) target: CallTarget,
+    /// The already resolved generic application.
+    pub(in crate::check) application: Option<GenericApplication>,
+    /// The final callable target if this candidate is selected.
+    pub(in crate::check) target: CallableTarget,
+}
+
+/// Function signature after applying generic arguments.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct FunctionApplication {
+    /// The instantiated function signature.
+    pub(in crate::check) function: FunctionTerm,
+    /// The resolved generic application.
+    pub(in crate::check) application: Option<GenericApplication>,
+    /// The substitution used for this application.
+    pub(in crate::check) substitution: GenericSubstitution,
+    /// The original generic parameters.
+    pub(in crate::check) generic_parameters: Vec<VariableId>,
 }
 
 /// Callable function signature extracted from a type term.
@@ -36,116 +49,163 @@ pub(in crate::check) enum CallableSignature {
     Present(FunctionTerm),
 }
 
-/// Transient callable selection while reducing call-like syntax.
-pub(in crate::check) enum CallableSelection {
-    /// Call resolution is waiting for solver input.
+/// Transient callable dispatch while reducing call-like syntax.
+pub(in crate::check) enum CallableDispatch {
+    /// Dispatch is waiting for solver input.
     Pending {
-        /// The variable changes made before resolution became pending.
+        /// The variable changes made before dispatch became pending.
         progress: Progress,
     },
-    /// Call resolution failed.
-    Rejected(CallFailure),
-    /// One callable candidate resolved.
-    Resolved {
+    /// Call dispatch failed.
+    CallRejected(CallFailure),
+    /// Construct dispatch failed.
+    ConstructRejected(ConstructFailure),
+    /// One call candidate resolved.
+    CallSelected {
         /// The resolved call target.
-        target: CallResolutionTarget,
+        target: CallTargetResolution,
         /// The resolved function signature.
+        function: FunctionTerm,
+        /// The variable changes made while resolving.
+        progress: Progress,
+    },
+    /// One construct candidate resolved.
+    ConstructSelected {
+        /// The resolved construct target.
+        target: ConstructTargetResolution,
+        /// The resolved constructor signature.
         function: FunctionTerm,
         /// The variable changes made while resolving.
         progress: Progress,
     },
 }
 
-impl CallableSelection {
-    /// Return a pending selection with no side progress.
+impl CallableDispatch {
+    /// Return a pending dispatch with no side progress.
     pub(in crate::check) fn pending() -> Self {
         Self::Pending {
             progress: Progress::Unchanged,
         }
     }
 
-    /// Return a resolved selection with side progress.
-    pub(in crate::check) fn resolved(
-        target: CallResolutionTarget,
+    /// Return a selected call dispatch with side progress.
+    pub(in crate::check) fn call_selected(
+        target: CallTargetResolution,
         function: FunctionTerm,
         progress: Progress,
     ) -> Self {
-        Self::Resolved {
+        Self::CallSelected {
             target,
             function,
             progress,
         }
     }
 
-    /// Return a rejected selection.
-    pub(in crate::check) fn rejected(failure: CallFailure) -> Self {
-        Self::Rejected(failure)
+    /// Return a selected construct dispatch with side progress.
+    pub(in crate::check) fn construct_selected(
+        target: ConstructTargetResolution,
+        function: FunctionTerm,
+        progress: Progress,
+    ) -> Self {
+        Self::ConstructSelected {
+            target,
+            function,
+            progress,
+        }
     }
 
-    /// Return progress made while selecting.
+    /// Return a rejected call dispatch.
+    pub(in crate::check) fn call_rejected(failure: CallFailure) -> Self {
+        Self::CallRejected(failure)
+    }
+
+    /// Return a rejected construct dispatch.
+    pub(in crate::check) fn construct_rejected(failure: ConstructFailure) -> Self {
+        Self::ConstructRejected(failure)
+    }
+
+    /// Return progress made while dispatching.
     pub(in crate::check) fn progress(&self) -> Progress {
         match self {
-            Self::Pending { progress } | Self::Resolved { progress, .. } => progress.clone(),
-            Self::Rejected(_) => Progress::Unchanged,
+            Self::Pending { progress }
+            | Self::CallSelected { progress, .. }
+            | Self::ConstructSelected { progress, .. } => progress.clone(),
+            Self::CallRejected(_) | Self::ConstructRejected(_) => Progress::Unchanged,
         }
     }
 }
 
 /// Callable target selected before generic instantiation.
 #[derive(Clone)]
-pub(in crate::check) enum CallTarget {
-    /// Callable value without a declaration symbol.
-    Value,
+pub(in crate::check) enum CallableTarget {
+    /// Callable expression without a declaration symbol.
+    Expression,
     /// Symbol-backed callable selected at compile time.
     Symbol {
         /// The resolved callable symbol.
         symbol: dir::GlobalSymbolId,
         /// The resolved receiver type for method calls.
-        receiver: Option<VariableId>,
+        receiver: Option<TypeOperand>,
     },
     /// Symbol-backed callable variants selected from a union receiver.
-    Select {
+    Union {
         /// The resolved callable candidates.
-        candidates: Vec<SymbolCandidate>,
+        candidates: Vec<CandidateResolution>,
         /// The resolved receiver type for method calls.
-        receiver: Option<VariableId>,
+        receiver: Option<TypeOperand>,
     },
-    /// Constructor selected through call syntax.
-    Constructor {
-        /// The resolved constructor symbol.
-        symbol: dir::GlobalSymbolId,
-    },
+    /// Construct target exposed through call-like syntax.
+    Construct(ConstructTargetResolution),
 }
 
-impl CallTarget {
+impl CallableTarget {
     /// Return the concrete target symbol when this target has one.
     fn symbol(&self) -> Option<dir::GlobalSymbolId> {
         match self {
-            Self::Symbol { symbol, .. } | Self::Constructor { symbol } => Some(*symbol),
-            Self::Value | Self::Select { .. } => None,
+            Self::Symbol { symbol, .. } => Some(*symbol),
+            Self::Construct(target) => Some(target.symbol()),
+            Self::Expression | Self::Union { .. } => None,
         }
     }
 
-    /// Convert this selected target into a resolved call target.
-    pub(in crate::check) fn into_resolution_target(
+    /// Return this selected target as a callable dispatch.
+    pub(in crate::check) fn into_dispatch(
         self,
-        instance: Option<GenericInstance>,
-    ) -> CallResolutionTarget {
+        application: Option<GenericApplication>,
+        function: FunctionTerm,
+        progress: Progress,
+    ) -> CallableDispatch {
         match self {
-            Self::Value => CallResolutionTarget::Value,
-            Self::Symbol { symbol, receiver } => CallResolutionTarget::Symbol {
-                symbol,
-                instance,
-                receiver,
-            },
-            Self::Select {
+            Self::Expression => {
+                let target = CallTargetResolution::Expression { application };
+
+                CallableDispatch::call_selected(target, function, progress)
+            }
+            Self::Symbol { symbol, receiver } => {
+                let target = CallTargetResolution::Symbol {
+                    symbol,
+                    application,
+                    receiver,
+                };
+
+                CallableDispatch::call_selected(target, function, progress)
+            }
+            Self::Union {
                 candidates,
                 receiver,
-            } => CallResolutionTarget::Select {
-                candidates,
-                receiver,
-            },
-            Self::Constructor { symbol } => CallResolutionTarget::Constructor { symbol, instance },
+            } => {
+                let target = CallTargetResolution::Union {
+                    candidates,
+                    receiver,
+                };
+
+                CallableDispatch::call_selected(target, function, progress)
+            }
+            Self::Construct(target) => {
+                let target = target.with_application(application);
+
+                CallableDispatch::construct_selected(target, function, progress)
+            }
         }
     }
 }
@@ -238,7 +298,7 @@ impl CheckState<'_> {
         origin: Origin,
         call: &CallTerm,
         expected: Option<VariableId>,
-    ) -> CompilerResult<CallableSelection> {
+    ) -> CompilerResult<CallableDispatch> {
         if let Some(selection) = self.selected_call(call)? {
             return Ok(selection);
         }
@@ -249,59 +309,76 @@ impl CheckState<'_> {
             return Ok(result);
         }
 
-        self.select_value_call(origin, call, expected)
+        self.select_expression_call(origin, call, expected)
     }
 
     /// Return the already chosen decision for one call.
-    fn selected_call(&self, call: &CallTerm) -> CompilerResult<Option<CallableSelection>> {
-        let Some(decision) = self.solutions.call.get(&call.source).cloned() else {
+    fn selected_call(&self, call: &CallTerm) -> CompilerResult<Option<CallableDispatch>> {
+        if let Some(decision) = self.inference.construct(call.source) {
+            let selection = match decision {
+                ConstructDecision::Resolved(selection) => CallableDispatch::construct_selected(
+                    selection.target,
+                    selection.function,
+                    Progress::Unchanged,
+                ),
+                ConstructDecision::Rejected(failure) => {
+                    CallableDispatch::construct_rejected(failure)
+                }
+            };
+
+            return Ok(Some(selection));
+        }
+
+        let Some(decision) = self.inference.call(call.source) else {
             return Ok(None);
         };
 
         let selection = match decision {
-            CallSelection::Resolved(resolution) => CallableSelection::resolved(
-                resolution.target,
-                resolution.function,
+            CallDecision::Resolved(selection) => CallableDispatch::call_selected(
+                selection.target,
+                selection.function,
                 Progress::Unchanged,
             ),
-            CallSelection::Rejected(failure) => CallableSelection::rejected(failure),
+            CallDecision::Rejected(failure) => CallableDispatch::call_rejected(failure),
         };
 
         Ok(Some(selection))
     }
 
-    /// Select a call whose callee is an arbitrary value expression.
-    fn select_value_call(
+    /// Select a call whose callee is an arbitrary callable expression.
+    fn select_expression_call(
         &mut self,
         origin: Origin,
         call: &CallTerm,
         expected: Option<VariableId>,
-    ) -> CompilerResult<CallableSelection> {
-        let CallCallee::Value(callee) = call.callee else {
-            panic!("member call reached value dispatch");
+    ) -> CompilerResult<CallableDispatch> {
+        let CallCallee::Expression(callee) = call.callee else {
+            panic!("non-expression call reached expression dispatch");
         };
-        let Some(term) = self.solved_type_term(callee)? else {
-            return Ok(CallableSelection::pending());
+        let Some(term) = self.type_operand_term(callee)? else {
+            return Ok(CallableDispatch::pending());
         };
-        let function = match self.call_signature(callee.module, &term)? {
-            CallableSignature::Pending => return Ok(CallableSelection::pending()),
+        let module = call.source.module_id;
+        let function = match self.call_signature(module, &term)? {
+            CallableSignature::Pending => return Ok(CallableDispatch::pending()),
             CallableSignature::Absent => {
-                return Ok(CallableSelection::rejected(CallFailure::NotCallable));
+                return Ok(CallableDispatch::call_rejected(CallFailure::NotCallable));
             }
             CallableSignature::Present(function) => function,
         };
 
         self.select_call_signature(
             origin,
-            callee.module,
+            module,
             call.source,
             None,
             None,
             function,
             &call.generic_arguments,
             &call.arguments,
+            &call.argument_values,
             expected,
-            CallTarget::Value,
+            CallableTarget::Expression,
         )
     }
 
@@ -311,19 +388,8 @@ impl CheckState<'_> {
         origin: Origin,
         call: &CallTerm,
         expected: Option<VariableId>,
-    ) -> CompilerResult<Option<CallableSelection>> {
-        let CallCallee::Value(callee) = call.callee else {
-            return Ok(None);
-        };
-        let Some(term) = self.solved_type_term(callee)? else {
-            return Ok(Some(CallableSelection::pending()));
-        };
-        let TypeTerm::Reference {
-            origin: _,
-            symbol,
-            arguments,
-        } = term
-        else {
+    ) -> CompilerResult<Option<CallableDispatch>> {
+        let CallCallee::Reference { value: _, symbol } = call.callee else {
             return Ok(None);
         };
 
@@ -333,30 +399,32 @@ impl CheckState<'_> {
             return Ok(Some(result));
         }
 
-        if self.symbol_kind(callee.module, symbol) == Some(dir::SymbolKind::Newtype) {
-            return self.select_newtype_call(origin, call, expected, symbol, &arguments);
+        let module = call.source.module_id;
+        if self.symbol_kind(module, symbol) == Some(dir::SymbolKind::Newtype) {
+            return self.select_newtype_call(origin, call, expected, symbol, &[]);
         }
 
-        let ty = self.symbol_type_variable(callee.module, symbol);
-        let Some(term) = self.solved_type_term(ty)? else {
-            return Ok(Some(CallableSelection::pending()));
+        let ty = self.require_symbol_type(symbol);
+        let Some(term) = self.type_operand_term(ty)? else {
+            return Ok(Some(CallableDispatch::pending()));
         };
-        let function = match self.call_signature(ty.module, &term)? {
-            CallableSignature::Pending => return Ok(Some(CallableSelection::pending())),
+        let function = match self.call_signature(module, &term)? {
+            CallableSignature::Pending => return Ok(Some(CallableDispatch::pending())),
             CallableSignature::Absent => return Ok(None),
             CallableSignature::Present(function) => function,
         };
         let result = self.select_call_signature(
             origin,
-            callee.module,
+            module,
             call.source,
             Some(symbol),
             None,
             function,
             &call.generic_arguments,
             &call.arguments,
+            &call.argument_values,
             expected,
-            CallTarget::Symbol {
+            CallableTarget::Symbol {
                 symbol,
                 receiver: None,
             },
@@ -372,31 +440,26 @@ impl CheckState<'_> {
         call: &CallTerm,
         expected: Option<VariableId>,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<CallableSelection> {
-        let string = self
-            .terms
-            .push(TypeTerm::Literal(TypeLiteralTerm::Primitive(
-                dir::PrimitiveType::String,
-            )));
-        let number = self
-            .terms
-            .push(TypeTerm::Literal(TypeLiteralTerm::Primitive(
-                dir::PrimitiveType::Float(dir::FloatType::Float64),
-            )));
-        let description = self.terms.push(TypeTerm::Union {
+    ) -> CompilerResult<CallableDispatch> {
+        let string = self.push_term(TypeTerm::Literal(TypeLiteralTerm::Primitive(
+            dir::PrimitiveType::String,
+        )));
+        let number = self.push_term(TypeTerm::Literal(TypeLiteralTerm::Primitive(
+            dir::PrimitiveType::Float(dir::FloatType::Float64),
+        )));
+        let description = self.push_term(TypeTerm::Union {
             elements: vec![string.into(), number.into()],
         });
-        let result = self
-            .terms
-            .push(TypeTerm::Literal(TypeLiteralTerm::Primitive(
-                dir::PrimitiveType::Symbol,
-            )));
+        let result = self.push_term(TypeTerm::Literal(TypeLiteralTerm::Primitive(
+            dir::PrimitiveType::Symbol,
+        )));
         let function = FunctionTerm {
             asynchrony: dir::Asynchrony::Sync,
             generic_parameters: SmallVec::new(),
             this_parameter: None,
             parameters: SmallVec::from_vec(vec![FunctionParameter {
                 ty: description.into(),
+                static_slot: None,
                 is_optional: true,
                 is_rest: false,
             }]),
@@ -413,8 +476,9 @@ impl CheckState<'_> {
             function,
             &call.generic_arguments,
             &call.arguments,
+            &call.argument_values,
             expected,
-            CallTarget::Symbol {
+            CallableTarget::Symbol {
                 symbol,
                 receiver: None,
             },
@@ -431,55 +495,61 @@ impl CheckState<'_> {
         expected: Option<VariableId>,
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
-    ) -> CompilerResult<Option<CallableSelection>> {
+    ) -> CompilerResult<Option<CallableDispatch>> {
         let module = call.source.module_id;
-        let callee = self.symbol_type_variable(module, symbol);
+        let callee = self.require_symbol_type(symbol);
         let term = TypeTerm::Reference {
             origin: Origin::Node(call.source),
             symbol,
             arguments: arguments.to_vec().into(),
         };
         let candidates = match self.construct_candidates(module, callee, &term)? {
-            ConstructCandidates::Pending => return Ok(Some(CallableSelection::pending())),
+            ConstructCandidates::Pending => return Ok(Some(CallableDispatch::pending())),
             ConstructCandidates::Absent => return Ok(None),
             ConstructCandidates::Present(candidates) => candidates,
         };
-        let mut saw_pending = false;
 
         // choose the first compatible declaration-order newtype candidate
         for candidate in candidates {
-            let target_symbol = match candidate.symbol {
-                Some(symbol) => symbol,
-                None => symbol,
-            };
+            let probe = self.begin_inference_probe();
+            let application = candidate.target.application().cloned();
+            let target = CallableTarget::Construct(candidate.target);
             let result = self.select_call_signature(
                 origin,
                 module,
                 call.source,
                 Some(symbol),
-                candidate.instance,
+                application,
                 candidate.function,
                 &call.generic_arguments,
                 &call.arguments,
+                &call.argument_values,
                 expected,
-                CallTarget::Constructor {
-                    symbol: target_symbol,
-                },
+                target,
             )?;
             match result {
-                CallableSelection::Resolved { .. } => return Ok(Some(result)),
-                CallableSelection::Pending { .. } => saw_pending = true,
-                CallableSelection::Rejected(_) => {}
+                CallableDispatch::ConstructSelected { .. } => {
+                    self.commit_inference_probe(probe);
+
+                    return Ok(Some(result));
+                }
+                CallableDispatch::CallSelected { .. } => {
+                    panic!("newtype dispatch produced a call selection");
+                }
+                CallableDispatch::Pending { .. } => {
+                    self.drop_inference_probe(probe);
+
+                    return Ok(Some(CallableDispatch::pending()));
+                }
+                CallableDispatch::CallRejected(_) | CallableDispatch::ConstructRejected(_) => {
+                    self.drop_inference_probe(probe);
+                }
             }
         }
 
-        let result = if saw_pending {
-            CallableSelection::pending()
-        } else {
-            CallableSelection::rejected(CallFailure::NoMatch)
-        };
-
-        Ok(Some(result))
+        Ok(Some(CallableDispatch::construct_rejected(
+            ConstructFailure::NoMatch,
+        )))
     }
 
     /// Select a call whose callee is a member projection.
@@ -488,57 +558,58 @@ impl CheckState<'_> {
         origin: Origin,
         call: &CallTerm,
         expected: Option<VariableId>,
-    ) -> CompilerResult<Option<CallableSelection>> {
+    ) -> CompilerResult<Option<CallableDispatch>> {
         let CallCallee::Member(member) = call.callee else {
             return Ok(None);
         };
-        let member = self.terms.get(member).clone();
-        let Some(receiver) = self.solved_type_term(member.receiver)? else {
-            return Ok(Some(CallableSelection::pending()));
+        let member = self.term(member).clone();
+        let Some(receiver) = self.type_operand_term(member.receiver)? else {
+            return Ok(Some(CallableDispatch::pending()));
         };
+        let module = call.source.module_id;
         let member_match = match &member.callee {
             MemberCallCallee::Source { .. } => {
-                self.member_type_candidates(origin, member.receiver.module, &receiver, &member.key)?
+                self.member_type_candidates(origin, module, &receiver, &member.key)?
             }
             MemberCallCallee::Protocol { protocol } => self.member_type_candidates_for_protocol(
                 origin,
-                member.receiver.module,
+                module,
                 &receiver,
                 &member.key,
                 protocol,
             )?,
         };
         let Some(member_matches) = member_match else {
-            return Ok(Some(CallableSelection::pending()));
+            return Ok(Some(CallableDispatch::pending()));
         };
         let dispatch_candidates = member_matches
             .iter()
             .map(|member_match| {
                 let target = if member_matches.len() == 1 {
-                    CallTarget::Symbol {
+                    CallableTarget::Symbol {
                         symbol: member_match.symbol,
                         receiver: Some(member.receiver),
                     }
                 } else {
                     let candidates = member_matches
                         .iter()
-                        .map(|candidate| SymbolCandidate {
+                        .map(|candidate| CandidateResolution {
                             symbol: candidate.symbol,
-                            instance: candidate.instance.clone(),
+                            application: candidate.application.clone(),
                         })
                         .collect();
 
-                    CallTarget::Select {
+                    CallableTarget::Union {
                         candidates,
                         receiver: Some(member.receiver),
                     }
                 };
 
                 CallableCandidate {
-                    module: member.receiver.module,
+                    module,
                     symbol: member_match.symbol,
                     ty: member_match.ty.clone(),
-                    instance: member_match.instance.clone(),
+                    application: member_match.application.clone(),
                     target,
                 }
             })
@@ -549,6 +620,7 @@ impl CheckState<'_> {
             &dispatch_candidates,
             &call.generic_arguments,
             &call.arguments,
+            &call.argument_values,
             expected,
         )?;
 
@@ -562,15 +634,17 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         owner: Option<dir::GlobalSymbolId>,
-        instance: Option<GenericInstance>,
+        application: Option<GenericApplication>,
         function: FunctionTerm,
         generic_arguments: &[GenericArgument],
         arguments: &[TypeOperand],
+        argument_values: &[dir::GlobalNodeId<dir::Expression>],
         expected: Option<VariableId>,
-        target: CallTarget,
-    ) -> CompilerResult<CallableSelection> {
+        target: CallableTarget,
+    ) -> CompilerResult<CallableDispatch> {
         let decision = self.decide_call_signature(
-            instance.as_ref(),
+            module,
+            application.as_ref(),
             &function,
             generic_arguments,
             arguments,
@@ -578,9 +652,9 @@ impl CheckState<'_> {
         )?;
         match decision {
             CallCandidateDecision::Applicable => {}
-            CallCandidateDecision::Pending => return Ok(CallableSelection::pending()),
+            CallCandidateDecision::Pending => return Ok(CallableDispatch::pending()),
             CallCandidateDecision::Rejected(failure) => {
-                return Ok(CallableSelection::rejected(failure));
+                return Ok(CallableDispatch::call_rejected(failure));
             }
         }
 
@@ -589,10 +663,11 @@ impl CheckState<'_> {
             module,
             source,
             owner,
-            instance,
+            application,
             function,
             generic_arguments,
             arguments,
+            argument_values,
             expected,
             target,
         )
@@ -605,27 +680,29 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         owner: Option<dir::GlobalSymbolId>,
-        instance: Option<GenericInstance>,
+        application: Option<GenericApplication>,
         function: FunctionTerm,
         generic_arguments: &[GenericArgument],
         arguments: &[TypeOperand],
+        argument_values: &[dir::GlobalNodeId<dir::Expression>],
         expected: Option<VariableId>,
-        target: CallTarget,
-    ) -> CompilerResult<CallableSelection> {
+        target: CallableTarget,
+    ) -> CompilerResult<CallableDispatch> {
         let is_generic = !function.generic_parameters.is_empty();
         if generic_arguments.len() > function.generic_parameters.len()
             || (!is_generic && !generic_arguments.is_empty())
         {
-            return Ok(CallableSelection::rejected(CallFailure::NoMatch));
+            return Ok(CallableDispatch::call_rejected(CallFailure::NoMatch));
         }
-        let instantiation = self.instantiate_call_signature(
+        let instantiation = self.instantiate_function_signature(
             module,
             source,
             owner,
             target.symbol(),
-            instance,
+            application,
             function,
             generic_arguments,
+            argument_values,
         )?;
         let function = instantiation.function;
         let mut progress = Progress::Unchanged;
@@ -638,12 +715,12 @@ impl CheckState<'_> {
                 &function.parameters,
             )?);
             progress = progress.merge(self.expect_call_return(origin, &function, expected)?);
-            self.solve_defaulted_generic_arguments(
+            progress = progress.merge(self.solve_omitted_generic_defaults(
                 module,
                 &instantiation.substitution,
                 &instantiation.generic_parameters,
                 generic_arguments.len(),
-            )?;
+            )?);
             progress = progress.merge(self.expect_call_generic_constraints(
                 origin,
                 module,
@@ -667,22 +744,21 @@ impl CheckState<'_> {
                     &function.parameters,
                 )?);
                 progress = progress.merge(self.expect_call_return(origin, &function, expected)?);
-                let target = target.into_resolution_target(instantiation.instance);
 
-                Ok(CallableSelection::resolved(target, function, progress))
+                Ok(target.into_dispatch(instantiation.application, function, progress))
             }
-            Decision::Undecidable => Ok(CallableSelection::Pending { progress }),
-            Decision::No if !progress.is_unchanged() => Ok(CallableSelection::Pending { progress }),
+            Decision::Undecidable => Ok(CallableDispatch::Pending { progress }),
+            Decision::No if !progress.is_unchanged() => Ok(CallableDispatch::Pending { progress }),
             Decision::No => {
                 if let Some((argument, parameter)) =
                     self.call_argument_type_failure(arguments, &function.parameters)?
                 {
-                    Ok(CallableSelection::rejected(CallFailure::ArgumentType {
+                    Ok(CallableDispatch::call_rejected(CallFailure::ArgumentType {
                         argument,
                         parameter,
                     }))
                 } else {
-                    Ok(CallableSelection::rejected(CallFailure::NoMatch))
+                    Ok(CallableDispatch::call_rejected(CallFailure::NoMatch))
                 }
             }
         }
@@ -691,7 +767,8 @@ impl CheckState<'_> {
     /// Decide whether one callable signature can accept a call.
     fn decide_call_signature(
         &self,
-        instance: Option<&GenericInstance>,
+        module: ModuleId,
+        application: Option<&GenericApplication>,
         function: &FunctionTerm,
         generic_arguments: &[GenericArgument],
         arguments: &[TypeOperand],
@@ -704,16 +781,17 @@ impl CheckState<'_> {
             return Ok(CallCandidateDecision::Rejected(CallFailure::NoMatch));
         }
 
-        let substitution = self.candidate_substitution(instance, function, generic_arguments)?;
+        let substitution = self.candidate_substitution(application, function, generic_arguments)?;
         let mut inference = CallCandidateInference::empty();
         let arguments_decision = self.decide_candidate_arguments(
+            module,
             arguments,
             &function.parameters,
             &substitution,
             &mut inference,
         )?;
         let return_decision =
-            self.decide_candidate_return(function, expected, &substitution, &inference)?;
+            self.decide_candidate_return(module, function, expected, &substitution, &inference)?;
         let decision = arguments_decision.and(return_decision);
 
         match decision {
@@ -721,6 +799,7 @@ impl CheckState<'_> {
             Decision::Undecidable => Ok(CallCandidateDecision::Pending),
             Decision::No => {
                 if let Some((argument, parameter)) = self.candidate_argument_type_failure(
+                    module,
                     arguments,
                     &function.parameters,
                     &substitution,
@@ -744,25 +823,33 @@ impl CheckState<'_> {
         candidates: &[CallableCandidate],
         generic_arguments: &[GenericArgument],
         arguments: &[TypeOperand],
+        argument_values: &[dir::GlobalNodeId<dir::Expression>],
         expected: Option<VariableId>,
-    ) -> CompilerResult<CallableSelection> {
+    ) -> CompilerResult<CallableDispatch> {
         let mut callable_count = 0;
         let mut saw_pending = false;
         let mut argument_failure = None;
 
         // choose the first compatible declaration-order candidate
         for candidate in candidates {
+            let probe = self.begin_inference_probe();
             let reduction = self.reduce_type_term(origin, &candidate.ty)?;
             let Some(term) = reduction.value else {
+                self.drop_inference_probe(probe);
                 saw_pending = true;
                 continue;
             };
             let function = match self.call_signature(candidate.module, &term)? {
                 CallableSignature::Pending => {
+                    self.drop_inference_probe(probe);
                     saw_pending = true;
                     continue;
                 }
-                CallableSignature::Absent => continue,
+                CallableSignature::Absent => {
+                    self.drop_inference_probe(probe);
+
+                    continue;
+                }
                 CallableSignature::Present(function) => function,
             };
             callable_count += 1;
@@ -771,38 +858,58 @@ impl CheckState<'_> {
                 candidate.module,
                 source,
                 Some(candidate.symbol),
-                candidate.instance.clone(),
+                candidate.application.clone(),
                 function,
                 generic_arguments,
                 arguments,
+                argument_values,
                 expected,
                 candidate.target.clone(),
             )?;
 
             match result {
-                CallableSelection::Resolved { .. } => return Ok(result),
-                CallableSelection::Pending { .. } => saw_pending = true,
-                CallableSelection::Rejected(CallFailure::ArgumentType {
+                CallableDispatch::CallSelected { .. } => {
+                    self.commit_inference_probe(probe);
+
+                    return Ok(result);
+                }
+                CallableDispatch::ConstructSelected { .. } => {
+                    panic!("callable candidate dispatch produced a construct selection");
+                }
+                CallableDispatch::Pending { .. } => {
+                    self.drop_inference_probe(probe);
+
+                    return Ok(CallableDispatch::pending());
+                }
+                CallableDispatch::CallRejected(CallFailure::ArgumentType {
                     argument,
                     parameter,
                 }) => {
+                    self.drop_inference_probe(probe);
                     argument_failure.get_or_insert((argument, parameter));
                 }
-                CallableSelection::Rejected(CallFailure::NoMatch) => {}
-                CallableSelection::Rejected(CallFailure::NotCallable) => {}
+                CallableDispatch::CallRejected(CallFailure::NoMatch) => {
+                    self.drop_inference_probe(probe);
+                }
+                CallableDispatch::CallRejected(CallFailure::NotCallable) => {
+                    self.drop_inference_probe(probe);
+                }
+                CallableDispatch::ConstructRejected(_) => {
+                    self.drop_inference_probe(probe);
+                }
             }
         }
 
         // wait for unresolved candidate type input
         if saw_pending {
-            return Ok(CallableSelection::pending());
+            return Ok(CallableDispatch::pending());
         }
 
         // preserve the precise single-candidate argument error
         if callable_count == 1
             && let Some((argument, parameter)) = argument_failure
         {
-            return Ok(CallableSelection::rejected(CallFailure::ArgumentType {
+            return Ok(CallableDispatch::call_rejected(CallFailure::ArgumentType {
                 argument,
                 parameter,
             }));
@@ -810,9 +917,9 @@ impl CheckState<'_> {
 
         // distinguish rejected callable overloads from non-callable values
         if callable_count > 0 {
-            Ok(CallableSelection::rejected(CallFailure::NoMatch))
+            Ok(CallableDispatch::call_rejected(CallFailure::NoMatch))
         } else {
-            Ok(CallableSelection::rejected(CallFailure::NotCallable))
+            Ok(CallableDispatch::call_rejected(CallFailure::NotCallable))
         }
     }
 
@@ -824,14 +931,14 @@ impl CheckState<'_> {
     ) -> CompilerResult<CallableSignature> {
         let callable = match term {
             TypeTerm::Variable(variable) => {
-                let Some(term) = self.solved_type_term(*variable)? else {
+                let Some(term) = self.type_solution(*variable)? else {
                     return Ok(CallableSignature::Pending);
                 };
 
                 return self.call_signature(variable.module, &term);
             }
             TypeTerm::Function(function) => {
-                CallableSignature::Present(self.terms.get(*function).clone())
+                CallableSignature::Present(self.term(*function).clone())
             }
             TypeTerm::Reference {
                 origin: _,
@@ -911,7 +1018,7 @@ impl CheckState<'_> {
         &mut self,
         variable: VariableId,
     ) -> CompilerResult<Option<SmallVec<[FunctionParameter; 4]>>> {
-        let Some(term) = self.solved_type_term(variable)? else {
+        let Some(term) = self.type_solution(variable)? else {
             return Ok(None);
         };
         let parameters = match term {
@@ -919,6 +1026,7 @@ impl CheckState<'_> {
                 .iter()
                 .map(|element| FunctionParameter {
                     ty: element.ty,
+                    static_slot: None,
                     is_optional: element.is_optional,
                     is_rest: element.is_rest,
                 })
@@ -933,7 +1041,7 @@ impl CheckState<'_> {
     /// Return generic arguments known before candidate probing.
     fn candidate_substitution(
         &self,
-        instance: Option<&GenericInstance>,
+        application: Option<&GenericApplication>,
         function: &FunctionTerm,
         generic_arguments: &[GenericArgument],
     ) -> CompilerResult<CallCandidateSubstitution> {
@@ -946,9 +1054,9 @@ impl CheckState<'_> {
             let argument = if let Some(argument) = generic_arguments.get(index) {
                 Some(self.select_argument_for_static_slot(argument, is_static))
             } else {
-                instance
-                    .filter(|instance| instance.symbol == slot.owner)
-                    .and_then(|instance| instance.arguments.get(slot.index.0 as usize))
+                application
+                    .filter(|application| application.owner == slot.owner)
+                    .and_then(|application| application.arguments.get(slot.index.0 as usize))
                     .map(|argument| self.select_argument_for_static_slot(argument, is_static))
             };
             let Some(argument) = argument else {
@@ -967,6 +1075,7 @@ impl CheckState<'_> {
     /// Decide whether call arguments are assignable under candidate-local inference.
     fn decide_candidate_arguments(
         &self,
+        module: ModuleId,
         arguments: &[TypeOperand],
         parameters: &[FunctionParameter],
         substitution: &CallCandidateSubstitution,
@@ -980,6 +1089,7 @@ impl CheckState<'_> {
         // every argument must be assignable to the corresponding parameter
         for (argument, parameter) in arguments.iter().zip(parameters) {
             decision = decision.and(self.decide_candidate_argument(
+                module,
                 *argument,
                 parameter.ty,
                 substitution,
@@ -996,17 +1106,33 @@ impl CheckState<'_> {
     /// Decide one argument against one candidate parameter.
     fn decide_candidate_argument(
         &self,
+        module: ModuleId,
         argument: TypeOperand,
         parameter: TypeOperand,
         substitution: &CallCandidateSubstitution,
         inference: &mut CallCandidateInference,
     ) -> CompilerResult<Decision> {
-        if let Some(target) = self.candidate_type_argument(parameter, substitution)? {
-            return self.decide_type_relation(TypeRelation::Assignable, argument, target);
+        self.decide_candidate_assignability(module, argument, parameter, substitution, inference)
+    }
+
+    /// Decide assignability while collecting local generic inference facts.
+    fn decide_candidate_assignability(
+        &self,
+        module: ModuleId,
+        source: TypeOperand,
+        target: TypeOperand,
+        substitution: &CallCandidateSubstitution,
+        inference: &mut CallCandidateInference,
+    ) -> CompilerResult<Decision> {
+        if let Some(target) = self.candidate_type_argument(module, target, substitution)? {
+            return self.decide_type_relation(TypeRelation::Assignable, source, target);
         }
-        if let Some(parameter) = self.candidate_type_parameter(parameter)? {
-            if self.type_operand_term(argument)?.is_some() {
-                inference.add_type_lower(parameter, argument);
+        if let Some(parameter) = self.candidate_type_parameter(module, target)? {
+            if let Some(inferred) = inference.type_lower(parameter) {
+                return self.decide_type_relation(TypeRelation::Assignable, source, inferred);
+            }
+            if self.type_operand_term(source)?.is_some() {
+                inference.add_type_lower(parameter, source);
 
                 return Ok(Decision::Yes);
             }
@@ -1014,16 +1140,172 @@ impl CheckState<'_> {
             return Ok(Decision::Undecidable);
         }
 
-        self.decide_type_relation(TypeRelation::Assignable, argument, parameter)
+        let Some(source_term) = self.type_operand_term(source)? else {
+            return Ok(Decision::Undecidable);
+        };
+        let Some(target_term) = self.type_operand_term(target)? else {
+            return Ok(Decision::Undecidable);
+        };
+
+        self.decide_candidate_term_assignability(
+            module,
+            source,
+            target,
+            &source_term,
+            &target_term,
+            substitution,
+            inference,
+        )
+    }
+
+    /// Decide solved candidate terms while collecting local generic inference facts.
+    fn decide_candidate_term_assignability(
+        &self,
+        module: ModuleId,
+        source: TypeOperand,
+        target: TypeOperand,
+        source_term: &TypeTerm,
+        target_term: &TypeTerm,
+        substitution: &CallCandidateSubstitution,
+        inference: &mut CallCandidateInference,
+    ) -> CompilerResult<Decision> {
+        let decision = match (source_term, target_term) {
+            (
+                TypeTerm::Array { element: source },
+                TypeTerm::Array { element: target }
+                | TypeTerm::Slice {
+                    element: target, ..
+                },
+            )
+            | (
+                TypeTerm::Slice {
+                    element: source, ..
+                },
+                TypeTerm::Slice {
+                    element: target, ..
+                },
+            )
+            | (
+                TypeTerm::FixedArray {
+                    element: source, ..
+                },
+                TypeTerm::Slice {
+                    element: target, ..
+                },
+            ) => self.decide_candidate_assignability(
+                module,
+                *source,
+                *target,
+                substitution,
+                inference,
+            )?,
+            (
+                TypeTerm::FixedArray {
+                    element: source_element,
+                    length: source_length,
+                    ..
+                },
+                TypeTerm::FixedArray {
+                    element: target_element,
+                    length: target_length,
+                    ..
+                },
+            ) => {
+                let element = self.decide_candidate_assignability(
+                    module,
+                    *source_element,
+                    *target_element,
+                    substitution,
+                    inference,
+                )?;
+                let length = self.decide_static_relation(
+                    StaticRelation::Equal,
+                    *source_length,
+                    *target_length,
+                )?;
+
+                element.and(length)
+            }
+            (
+                TypeTerm::Tuple {
+                    elements: source_elements,
+                    ..
+                },
+                TypeTerm::Tuple {
+                    elements: target_elements,
+                    ..
+                },
+            ) if source_elements.len() == target_elements.len() => {
+                let mut decision = Decision::Yes;
+
+                // compare tuple elements by position
+                for (source, target) in source_elements.iter().zip(target_elements) {
+                    decision = decision.and(self.decide_candidate_assignability(
+                        module,
+                        source.ty,
+                        target.ty,
+                        substitution,
+                        inference,
+                    )?);
+                    if decision == Decision::No {
+                        return Ok(Decision::No);
+                    }
+                }
+
+                decision
+            }
+            (TypeTerm::Union { elements }, _) => {
+                let mut decision = Decision::Yes;
+
+                // every source union member must fit the target
+                for element in elements {
+                    decision = decision.and(self.decide_candidate_assignability(
+                        module,
+                        *element,
+                        target,
+                        substitution,
+                        inference,
+                    )?);
+                    if decision == Decision::No {
+                        return Ok(Decision::No);
+                    }
+                }
+
+                decision
+            }
+            (_, TypeTerm::Union { elements }) => {
+                let mut decision = Decision::No;
+
+                // at least one target union member must accept the source
+                for element in elements {
+                    decision = decision.or(self.decide_candidate_assignability(
+                        module,
+                        source,
+                        *element,
+                        substitution,
+                        inference,
+                    )?);
+                    if decision == Decision::Yes {
+                        return Ok(Decision::Yes);
+                    }
+                }
+
+                decision
+            }
+            _ => self.decide_type_relation(TypeRelation::Assignable, source, target)?,
+        };
+
+        Ok(decision)
     }
 
     /// Return the substituted type argument for one direct generic parameter.
     fn candidate_type_argument(
         &self,
+        module: ModuleId,
         parameter: TypeOperand,
         substitution: &CallCandidateSubstitution,
     ) -> CompilerResult<Option<TypeOperand>> {
-        let Some(parameter) = parameter.variable() else {
+        let Some(parameter) = self.candidate_type_parameter(module, parameter)? else {
             return Ok(None);
         };
         let Some(argument) = substitution.type_argument(parameter) else {
@@ -1033,28 +1315,61 @@ impl CheckState<'_> {
         Ok(Some(argument))
     }
 
-    /// Return the generic parameter represented by one direct type operand.
+    /// Return the generic parameter represented by one type operand.
     fn candidate_type_parameter(
         &self,
+        module: ModuleId,
         parameter: TypeOperand,
     ) -> CompilerResult<Option<VariableId>> {
-        let Some(parameter) = parameter.variable() else {
-            return Ok(None);
-        };
-        let variable = self.variable(parameter);
-        let Some(VariableOutput::Generic(generic)) = &variable.output else {
-            return Ok(None);
-        };
-        if !generic.is_type() {
-            return Ok(None);
+        if let Some(parameter) = parameter.variable()
+            && let Some(parameter) = self.candidate_type_parameter_variable(parameter)?
+        {
+            return Ok(Some(parameter));
         }
 
-        Ok(Some(parameter))
+        let Some(term) = self.type_operand_term(parameter)? else {
+            return Ok(None);
+        };
+
+        self.candidate_type_parameter_term(module, &term)
+    }
+
+    /// Return the generic parameter represented by one variable.
+    fn candidate_type_parameter_variable(
+        &self,
+        parameter: VariableId,
+    ) -> CompilerResult<Option<VariableId>> {
+        let Some(generic) = self.generic_slot(parameter) else {
+            let Some(term) = self.type_solution(parameter)? else {
+                return Ok(None);
+            };
+
+            return self.candidate_type_parameter_term(parameter.module, &term);
+        };
+        if generic.is_type() {
+            Ok(Some(parameter))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Return the generic parameter represented by one type term.
+    fn candidate_type_parameter_term(
+        &self,
+        module: ModuleId,
+        term: &TypeTerm,
+    ) -> CompilerResult<Option<VariableId>> {
+        match term {
+            TypeTerm::Variable(parameter) => self.candidate_type_parameter_variable(*parameter),
+            TypeTerm::Parameter(slot) => Ok(self.resolve_type_generic_slot(module, *slot)),
+            _ => Ok(None),
+        }
     }
 
     /// Decide whether a candidate return type can flow into the expected result.
     fn decide_candidate_return(
         &self,
+        module: ModuleId,
         function: &FunctionTerm,
         expected: Option<VariableId>,
         substitution: &CallCandidateSubstitution,
@@ -1064,17 +1379,19 @@ impl CheckState<'_> {
             return Ok(Decision::Yes);
         };
         let Some(return_type) = function.return_type else {
-            let Some(expected) = self.solved_type_term(expected)? else {
+            let Some(expected) = self.type_solution(expected)? else {
                 return Ok(Decision::Undecidable);
             };
             let void = TypeTerm::Literal(TypeLiteralTerm::Void);
 
             return self.decide_type_term_relation(TypeRelation::Assignable, &void, &expected);
         };
-        if let Some(return_type) = self.candidate_type_argument(return_type, substitution)? {
+        if let Some(return_type) =
+            self.candidate_type_argument(module, return_type, substitution)?
+        {
             return self.decide_type_relation(TypeRelation::Assignable, return_type, expected);
         }
-        if let Some(parameter) = self.candidate_type_parameter(return_type)?
+        if let Some(parameter) = self.candidate_type_parameter(module, return_type)?
             && let Some(inferred) = inference.type_lower(parameter)
         {
             return self.decide_type_relation(TypeRelation::Assignable, inferred, expected);
@@ -1086,6 +1403,7 @@ impl CheckState<'_> {
     /// Return the first solved candidate argument type failure.
     fn candidate_argument_type_failure(
         &self,
+        module: ModuleId,
         arguments: &[TypeOperand],
         parameters: &[FunctionParameter],
         substitution: &CallCandidateSubstitution,
@@ -1096,7 +1414,7 @@ impl CheckState<'_> {
 
         for (argument, parameter) in arguments.iter().zip(parameters) {
             let parameter = self
-                .candidate_type_argument(parameter.ty, substitution)?
+                .candidate_type_argument(module, parameter.ty, substitution)?
                 .unwrap_or(parameter.ty);
             let decision =
                 self.decide_type_relation(TypeRelation::Assignable, *argument, parameter)?;
@@ -1109,53 +1427,70 @@ impl CheckState<'_> {
     }
 
     /// Instantiate function generics as call-local inference variables.
-    pub(in crate::check) fn instantiate_call_signature(
+    pub(in crate::check) fn instantiate_function_signature(
         &mut self,
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         owner: Option<dir::GlobalSymbolId>,
-        target: Option<dir::GlobalSymbolId>,
-        instance: Option<GenericInstance>,
+        _target: Option<dir::GlobalSymbolId>,
+        application: Option<GenericApplication>,
         function: FunctionTerm,
         generic_arguments: &[GenericArgument],
-    ) -> CompilerResult<CallInstantiation> {
+        argument_values: &[dir::GlobalNodeId<dir::Expression>],
+    ) -> CompilerResult<FunctionApplication> {
         if function.generic_parameters.is_empty() {
-            return Ok(CallInstantiation {
+            return Ok(FunctionApplication {
                 function,
-                instance,
+                application,
                 substitution: GenericSubstitution::empty(),
                 generic_parameters: Vec::new(),
             });
         }
-        let key = CallInstantiationKey {
-            source,
-            owner,
-            target,
-        };
-        if let Some(instantiation) = self.solutions.call_instantiation.get(&key) {
-            return Ok(instantiation.clone());
-        }
         let mut substitution = GenericSubstitution::empty();
         let mut arguments = SmallVec::with_capacity(function.generic_parameters.len());
         let generic_parameters = function.generic_parameters.clone();
+        let application_owner = function.generic_parameters.first().map(|parameter| {
+            let slot = self.generic_parameter_slot(*parameter);
+
+            slot.owner
+        });
 
         // use explicit arguments first, then infer the remaining call generics
         for (index, parameter) in function.generic_parameters.iter().enumerate() {
             let slot = self.generic_parameter_slot(*parameter);
+            if let Some(owner) = application_owner
+                && slot.owner != owner
+            {
+                panic!(
+                    "function signature {source:?} mixes generic owners {owner:?} and {:?}",
+                    slot.owner
+                );
+            }
             let argument = if let Some(argument) = generic_arguments.get(index) {
                 self.select_argument_for_static_slot(
                     argument,
                     self.generic_parameter_is_static(*parameter),
                 )
-            } else if let Some(argument) = instance
+            } else if let Some(argument) = application
                 .as_ref()
-                .filter(|instance| instance.symbol == slot.owner)
-                .and_then(|instance| instance.arguments.get(slot.index.0 as usize))
+                .filter(|application| application.owner == slot.owner)
+                .and_then(|application| application.arguments.get(slot.index.0 as usize))
             {
                 self.select_argument_for_static_slot(
                     argument,
                     self.generic_parameter_is_static(*parameter),
                 )
+            } else if let Some(argument) =
+                self.generic_application_argument(source, slot.owner, slot.index)
+            {
+                argument
+            } else if let Some(argument) = self.static_parameter_argument(
+                module,
+                *parameter,
+                &function.parameters,
+                argument_values,
+            )? {
+                argument
             } else {
                 self.instantiation_argument(module, source, *parameter)?
             };
@@ -1171,27 +1506,27 @@ impl CheckState<'_> {
 
         let mut function = function.substitute(module, &substitution, self)?;
         function.generic_parameters.clear();
-        let instance =
-            instance.or_else(|| owner.map(|symbol| GenericInstance { symbol, arguments }));
+        let owner = owner.or(application_owner);
+        let application = application.or_else(|| {
+            owner.map(|owner| self.attach_generic_application(source, owner, arguments))
+        });
 
-        let instantiation = CallInstantiation {
+        let instantiation = FunctionApplication {
             function,
-            instance,
+            application,
             substitution,
             generic_parameters: generic_parameters.to_vec(),
         };
-
-        self.solutions
-            .call_instantiation
-            .insert(key, instantiation.clone());
 
         Ok(instantiation)
     }
 
     /// Return the generic slot for one generic parameter.
-    pub(in crate::check) fn generic_parameter_slot(&self, parameter: VariableId) -> GenericSlot {
-        let variable = self.variable(parameter);
-        let Some(VariableOutput::Generic(generic)) = &variable.output else {
+    pub(in crate::check) fn generic_parameter_slot(
+        &self,
+        parameter: VariableId,
+    ) -> GenericSlotHeader {
+        let Some(generic) = self.generic_slot(parameter) else {
             panic!("generic parameter {parameter:?} is not a generic slot");
         };
 
@@ -1200,8 +1535,7 @@ impl CheckState<'_> {
 
     /// Return whether one generic parameter expects a static argument.
     fn generic_parameter_is_static(&self, parameter: VariableId) -> bool {
-        let variable = self.variable(parameter);
-        let Some(VariableOutput::Generic(generic)) = &variable.output else {
+        let Some(generic) = self.generic_slot(parameter) else {
             panic!("generic parameter {parameter:?} is not a generic slot");
         };
 
@@ -1225,6 +1559,32 @@ impl CheckState<'_> {
         Ok(argument)
     }
 
+    /// Return the runtime argument supplied to one static parameter slot.
+    fn static_parameter_argument(
+        &mut self,
+        module: ModuleId,
+        parameter: VariableId,
+        parameters: &[FunctionParameter],
+        argument_values: &[dir::GlobalNodeId<dir::Expression>],
+    ) -> CompilerResult<Option<GenericArgument>> {
+        let Some(index) = parameters
+            .iter()
+            .position(|candidate| candidate.static_slot == Some(parameter))
+        else {
+            return Ok(None);
+        };
+        let Some(value) = argument_values.get(index).cloned() else {
+            return Ok(None);
+        };
+        let origin = Origin::Node(value.clone().into_any());
+        let variable = self.allocate_variable(module, VariableKind::Static, origin);
+        let term = StaticTerm::Expression(value);
+
+        self.equate_static(variable, term, Condition::Always);
+
+        Ok(Some(GenericArgument::Static(variable.into())))
+    }
+
     /// Return one stable omitted call instantiation argument variable.
     fn instantiation_variable(
         &mut self,
@@ -1232,30 +1592,10 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         parameter: VariableId,
     ) -> CompilerResult<VariableId> {
-        let slot = self.generic_parameter_slot(parameter);
-        let key = CallInstantiationArgumentKey {
-            source,
-            owner: slot.owner,
-            index: slot.index,
-        };
         let kind = self.variable(parameter).kind;
-
-        if let Some(variable) = self
-            .variables
-            .call_instantiation_argument
-            .get(&key)
-            .copied()
-        {
-            return Ok(variable);
-        }
         let origin = Origin::Node(source);
-        let variable = self.allocate_inference_variable(module, kind, origin);
 
-        self.variables
-            .call_instantiation_argument
-            .insert(key, variable);
-
-        Ok(variable)
+        Ok(self.allocate_variable(module, kind, origin))
     }
 
     /// Expect call instantiation arguments to satisfy declared constraints.
@@ -1270,8 +1610,7 @@ impl CheckState<'_> {
 
         // constrain each substituted generic argument by its declared slot
         for parameter in parameters {
-            let Some(VariableOutput::Generic(generic)) = self.variable(*parameter).output.clone()
-            else {
+            let Some(generic) = self.generic_slot(*parameter).cloned() else {
                 panic!("generic parameter {parameter:?} is not a generic slot");
             };
 
@@ -1294,14 +1633,14 @@ impl CheckState<'_> {
         module: ModuleId,
         substitution: &GenericSubstitution,
         parameter: VariableId,
-        generic: &GenericParameter,
+        generic: &GenericSlot,
     ) -> CompilerResult<Progress> {
         match generic {
-            GenericParameter::Type {
+            GenericSlot::Type {
                 constraint: Some(constraint),
                 ..
             }
-            | GenericParameter::VariadicType {
+            | GenericSlot::VariadicType {
                 constraint: Some(constraint),
                 ..
             } => {
@@ -1310,13 +1649,13 @@ impl CheckState<'_> {
                 };
                 let constraint = self.substitute_type_operand(module, substitution, *constraint)?;
 
-                self.solve_contextual_type_assignability(origin, argument, constraint)
+                self.relate_contextual_type_assignability(origin, argument, constraint)
             }
-            GenericParameter::Static {
+            GenericSlot::Static {
                 constraint: Some(constraint),
                 ..
             }
-            | GenericParameter::VariadicStatic {
+            | GenericSlot::VariadicStatic {
                 constraint: Some(constraint),
                 ..
             } => {
@@ -1324,21 +1663,21 @@ impl CheckState<'_> {
                 else {
                     return Ok(Progress::Unchanged);
                 };
-                let source = self.terms.push(TypeTerm::StaticValue { value: argument });
+                let source = self.push_term(TypeTerm::StaticValue { value: argument });
                 let constraint = self.substitute_type_operand(module, substitution, *constraint)?;
 
-                self.solve_contextual_type_assignability(origin, source, constraint)
+                self.relate_contextual_type_assignability(origin, source, constraint)
             }
-            GenericParameter::Type {
+            GenericSlot::Type {
                 constraint: None, ..
             }
-            | GenericParameter::VariadicType {
+            | GenericSlot::VariadicType {
                 constraint: None, ..
             }
-            | GenericParameter::Static {
+            | GenericSlot::Static {
                 constraint: None, ..
             }
-            | GenericParameter::VariadicStatic {
+            | GenericSlot::VariadicStatic {
                 constraint: None, ..
             } => Ok(Progress::Unchanged),
         }
@@ -1355,8 +1694,7 @@ impl CheckState<'_> {
 
         // combine each generic slot constraint
         for parameter in parameters {
-            let Some(VariableOutput::Generic(generic)) = self.variable(*parameter).output.clone()
-            else {
+            let Some(generic) = self.generic_slot(*parameter).cloned() else {
                 panic!("generic parameter {parameter:?} is not a generic slot");
             };
 
@@ -1377,14 +1715,14 @@ impl CheckState<'_> {
         module: ModuleId,
         substitution: &GenericSubstitution,
         parameter: VariableId,
-        generic: &GenericParameter,
+        generic: &GenericSlot,
     ) -> CompilerResult<Decision> {
         match generic {
-            GenericParameter::Type {
+            GenericSlot::Type {
                 constraint: Some(constraint),
                 ..
             }
-            | GenericParameter::VariadicType {
+            | GenericSlot::VariadicType {
                 constraint: Some(constraint),
                 ..
             } => {
@@ -1395,11 +1733,11 @@ impl CheckState<'_> {
 
                 self.decide_type_relation(TypeRelation::Assignable, argument, constraint)
             }
-            GenericParameter::Static {
+            GenericSlot::Static {
                 constraint: Some(constraint),
                 ..
             }
-            | GenericParameter::VariadicStatic {
+            | GenericSlot::VariadicStatic {
                 constraint: Some(constraint),
                 ..
             } => {
@@ -1407,105 +1745,98 @@ impl CheckState<'_> {
                 else {
                     return Ok(Decision::Undecidable);
                 };
-                let source = self.terms.push(TypeTerm::StaticValue { value: argument });
+                let source = self.push_term(TypeTerm::StaticValue { value: argument });
                 let constraint = self.substitute_type_operand(module, substitution, *constraint)?;
 
                 self.decide_type_relation(TypeRelation::Assignable, source, constraint)
             }
-            GenericParameter::Type {
+            GenericSlot::Type {
                 constraint: None, ..
             }
-            | GenericParameter::VariadicType {
+            | GenericSlot::VariadicType {
                 constraint: None, ..
             }
-            | GenericParameter::Static {
+            | GenericSlot::Static {
                 constraint: None, ..
             }
-            | GenericParameter::VariadicStatic {
+            | GenericSlot::VariadicStatic {
                 constraint: None, ..
             } => Ok(Decision::Yes),
         }
     }
 
     /// Solve omitted generic arguments from their defaults when inference has no input.
-    fn solve_defaulted_generic_arguments(
+    fn solve_omitted_generic_defaults(
         &mut self,
         module: ModuleId,
         substitution: &GenericSubstitution,
         parameters: &[VariableId],
         explicit_count: usize,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Progress> {
+        let mut progress = Progress::Unchanged;
+
         for parameter in parameters.iter().skip(explicit_count) {
-            self.solve_defaulted_generic_argument(module, substitution, *parameter)?;
+            progress = progress.merge(self.solve_omitted_generic_default(
+                module,
+                substitution,
+                *parameter,
+            )?);
         }
 
-        Ok(())
+        Ok(progress)
     }
 
     /// Solve one omitted generic argument from its default.
-    fn solve_defaulted_generic_argument(
+    fn solve_omitted_generic_default(
         &mut self,
         module: ModuleId,
         substitution: &GenericSubstitution,
         parameter: VariableId,
-    ) -> CompilerResult<()> {
-        let variable = self.variable(parameter);
-        let Some(VariableOutput::Generic(generic)) = &variable.output else {
+    ) -> CompilerResult<Progress> {
+        let Some(generic) = self.generic_slot(parameter).cloned() else {
             panic!("generic parameter {parameter:?} is not a generic slot");
         };
 
-        match generic {
-            GenericParameter::Type {
+        let progress = match generic {
+            GenericSlot::Type {
                 default: Some(default),
                 ..
             }
-            | GenericParameter::VariadicType {
+            | GenericSlot::VariadicType {
                 default: Some(default),
                 ..
             } => {
                 let Some(argument) = self.substitution_type_variable(substitution, parameter)
                 else {
-                    return Ok(());
+                    return Ok(Progress::Unchanged);
                 };
-                if !self.lower_type_bounds(argument).is_empty()
-                    || self.variable_solution(argument).is_some()
-                {
-                    return Ok(());
-                }
-                let default = self.substitute_type_variable(module, substitution, *default)?;
-                let term = TypeTerm::Variable(default);
+                let default = self.substitute_type_operand(module, substitution, default)?;
 
-                self.solve_type_variable(argument, term)?;
+                self.solve_default_type_variable(argument, default)?
             }
-            GenericParameter::Static {
+            GenericSlot::Static {
                 default: Some(default),
                 ..
             }
-            | GenericParameter::VariadicStatic {
+            | GenericSlot::VariadicStatic {
                 default: Some(default),
                 ..
             } => {
                 let Some(argument) = self.substitution_static_variable(substitution, parameter)
                 else {
-                    return Ok(());
+                    return Ok(Progress::Unchanged);
                 };
-                if !self.lower_type_bounds(argument).is_empty()
-                    || self.variable_solution(argument).is_some()
-                {
-                    return Ok(());
-                }
-                let default = self.substitute_static_variable(module, substitution, *default)?;
-                let term = StaticTerm::Variable(default);
+                let default = self.substitute_static_operand(module, substitution, default)?;
 
-                self.solve_static_variable(argument, term)?;
+                self.solve_default_static_variable(argument, default)?
             }
-            GenericParameter::Type { .. }
-            | GenericParameter::VariadicType { .. }
-            | GenericParameter::Static { .. }
-            | GenericParameter::VariadicStatic { .. } => {}
+            GenericSlot::Type { .. }
+            | GenericSlot::VariadicType { .. }
+            | GenericSlot::Static { .. }
+            | GenericSlot::VariadicStatic { .. } => Progress::Unchanged,
         };
 
-        Ok(())
+        Ok(progress)
     }
 
     /// Decide whether arguments are assignable to parameters.
@@ -1569,7 +1900,7 @@ impl CheckState<'_> {
             return Ok(Decision::Yes);
         };
         let Some(return_type) = function.return_type else {
-            let Some(expected) = self.solved_type_term(expected)? else {
+            let Some(expected) = self.type_solution(expected)? else {
                 return Ok(Decision::Undecidable);
             };
             let void = TypeTerm::Literal(TypeLiteralTerm::Void);
@@ -1593,7 +1924,7 @@ impl CheckState<'_> {
             let parameter = parameter.ty;
 
             progress = progress
-                .merge(self.solve_contextual_type_assignability(origin, *argument, parameter)?);
+                .merge(self.relate_contextual_type_assignability(origin, *argument, parameter)?);
         }
 
         Ok(progress)
@@ -1626,11 +1957,11 @@ impl CheckState<'_> {
         };
         let Some(return_type) = function.return_type else {
             let void = TypeTerm::Literal(TypeLiteralTerm::Void);
-            let void = self.terms.push(void);
+            let void = self.push_term(void);
 
-            return self.solve_contextual_type_assignability(origin, void, expected);
+            return self.relate_contextual_type_assignability(origin, void, expected);
         };
 
-        self.solve_contextual_type_assignability(origin, return_type, expected)
+        self.relate_contextual_type_assignability(origin, return_type, expected)
     }
 }

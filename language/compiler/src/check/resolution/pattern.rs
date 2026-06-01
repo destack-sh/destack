@@ -17,7 +17,7 @@ pub(in crate::check) enum PatternDecision {
     /// ```ds
     /// Some(item)
     /// ```
-    Resolved(PatternSelection),
+    Resolved(PatternResolution),
     /// Pattern resolution failed.
     ///
     /// Examples:
@@ -52,11 +52,11 @@ pub(in crate::check) enum PatternFailure {
 /// { name }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct PatternSelection {
+pub(in crate::check) struct PatternResolution {
     /// The source pattern node.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The selected pattern target.
-    pub(in crate::check) target: PatternTargetSelection,
+    pub(in crate::check) target: PatternTargetResolution,
 }
 
 /// Pattern target selected by check before commit.
@@ -68,7 +68,7 @@ pub(in crate::check) struct PatternSelection {
 /// { name }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum PatternTargetSelection {
+pub(in crate::check) enum PatternTargetResolution {
     /// Pattern that accepts the input without binding.
     ///
     /// Examples:
@@ -83,7 +83,7 @@ pub(in crate::check) enum PatternTargetSelection {
     /// name
     /// name: Some(item)
     /// ```
-    Binding(PatternBindingSelection),
+    Binding(PatternBindingResolution),
     /// Pattern that accepts one static literal value.
     ///
     /// Examples:
@@ -91,7 +91,7 @@ pub(in crate::check) enum PatternTargetSelection {
     /// 1
     /// "ready"
     /// ```
-    Literal(PatternLiteralSelection),
+    Literal(PatternLiteralResolution),
     /// Pattern that accepts one scalar interval.
     ///
     /// Examples:
@@ -99,77 +99,77 @@ pub(in crate::check) enum PatternTargetSelection {
     /// 0..10
     /// 0..=10
     /// ```
-    Range(PatternRangeSelection),
+    Range(PatternRangeResolution),
     /// Pattern that destructures a tuple-shaped input.
     ///
     /// Examples:
     /// ```ds
     /// [left, right]
     /// ```
-    Tuple(PatternTupleSelection),
+    Tuple(PatternTupleResolution),
     /// Pattern that destructures an ordered collection.
     ///
     /// Examples:
     /// ```ds
     /// [head, ...tail]
     /// ```
-    Sequence(PatternSequenceSelection),
+    Sequence(PatternSequenceResolution),
     /// Pattern that destructures a structural input.
     ///
     /// Examples:
     /// ```ds
     /// { name }
     /// ```
-    Shape(PatternShapeSelection),
+    Shape(PatternShapeResolution),
     /// Pattern that destructures a symbol-backed nominal input.
     ///
     /// Examples:
     /// ```ds
     /// Point { x, y }
     /// ```
-    Nominal(PatternNominalSelection),
+    Nominal(PatternNominalResolution),
     /// Pattern that unwraps a symbol-backed newtype input.
     ///
     /// Examples:
     /// ```ds
     /// UserId(raw)
     /// ```
-    Newtype(PatternNewtypeSelection),
+    Newtype(PatternNewtypeResolution),
     /// Pattern that selects a symbol-backed variant input.
     ///
     /// Examples:
     /// ```ds
     /// Result.Ok(value)
     /// ```
-    Variant(PatternVariantSelection),
+    Variant(PatternVariantResolution),
     /// Pattern that accepts one of several alternatives.
     ///
     /// Examples:
     /// ```ds
     /// Ok(value) | Error(value)
     /// ```
-    Union(PatternUnionSelection),
+    Union(PatternUnionResolution),
     /// Pattern that borrows the input before matching.
     ///
     /// Examples:
     /// ```ds
     /// &value
     /// ```
-    Borrow(PatternBorrowSelection),
+    Borrow(PatternBorrowResolution),
     /// Pattern that moves the input before matching.
     ///
     /// Examples:
     /// ```ds
     /// ^value
     /// ```
-    Move(PatternMoveSelection),
+    Move(PatternMoveResolution),
     /// Pattern that dereferences the input before matching.
     ///
     /// Examples:
     /// ```ds
     /// *value
     /// ```
-    Dereference(PatternDereferenceSelection),
+    Dereference(PatternDereferenceResolution),
 }
 
 /// Symbol binding selected by one pattern.
@@ -180,7 +180,7 @@ pub(in crate::check) enum PatternTargetSelection {
 /// name: Some(item)
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct PatternBindingSelection {
+pub(in crate::check) struct PatternBindingResolution {
     /// The bound symbol, when the binding has a user-visible name.
     pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
     /// The nested pattern matched after binding.
@@ -195,7 +195,7 @@ pub(in crate::check) struct PatternBindingSelection {
 /// "ready"
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct PatternLiteralSelection {
+pub(in crate::check) struct PatternLiteralResolution {
     /// The selected literal value.
     pub(in crate::check) value: StaticOperand,
 }
@@ -208,7 +208,7 @@ pub(in crate::check) struct PatternLiteralSelection {
 /// 0..=10
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct PatternRangeSelection {
+pub(in crate::check) struct PatternRangeResolution {
     /// The scalar domain constrained by the range.
     pub(in crate::check) domain: TypeOperand,
     /// The selected lower bound.
@@ -226,9 +226,9 @@ pub(in crate::check) struct PatternRangeSelection {
 /// [left, right]
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct PatternTupleSelection {
+pub(in crate::check) struct PatternTupleResolution {
     /// The tuple field mapping in source order.
-    pub(in crate::check) fields: Vec<PatternFieldSelection>,
+    pub(in crate::check) fields: Vec<PatternFieldResolution>,
 }
 
 /// Ordered collection selected by one pattern.
@@ -238,7 +238,7 @@ pub(in crate::check) struct PatternTupleSelection {
 /// [head, ...tail]
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) enum PatternSequenceSelection {
+pub(in crate::check) enum PatternSequenceResolution {
     /// Dynamically sized array pattern.
     ///
     /// Examples:
@@ -247,9 +247,9 @@ pub(in crate::check) enum PatternSequenceSelection {
     /// ```
     Array {
         /// The fixed prefix and suffix fields.
-        fields: Vec<PatternFieldSelection>,
+        fields: Vec<PatternFieldResolution>,
         /// The rest field, when present.
-        rest: Option<PatternRestSelection>,
+        rest: Option<PatternRestResolution>,
     },
     /// Borrowed slice pattern.
     ///
@@ -259,9 +259,9 @@ pub(in crate::check) enum PatternSequenceSelection {
     /// ```
     Slice {
         /// The fixed prefix and suffix fields.
-        fields: Vec<PatternFieldSelection>,
+        fields: Vec<PatternFieldResolution>,
         /// The rest field, when present.
-        rest: Option<PatternRestSelection>,
+        rest: Option<PatternRestResolution>,
     },
     /// Fixed-size array pattern.
     ///
@@ -271,7 +271,7 @@ pub(in crate::check) enum PatternSequenceSelection {
     /// ```
     FixedArray {
         /// The fixed element fields.
-        fields: Vec<PatternFieldSelection>,
+        fields: Vec<PatternFieldResolution>,
         /// The selected array length.
         length: StaticOperand,
     },
@@ -284,9 +284,9 @@ pub(in crate::check) enum PatternSequenceSelection {
 /// { name }
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct PatternShapeSelection {
+pub(in crate::check) struct PatternShapeResolution {
     /// The structural field mapping in source order.
-    pub(in crate::check) fields: Vec<PatternFieldSelection>,
+    pub(in crate::check) fields: Vec<PatternFieldResolution>,
 }
 
 /// Symbol-backed nominal pattern selected by check.
@@ -296,13 +296,13 @@ pub(in crate::check) struct PatternShapeSelection {
 /// Point { x, y }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct PatternNominalSelection {
+pub(in crate::check) struct PatternNominalResolution {
     /// The selected nominal symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The selected generic application.
     pub(in crate::check) application: Option<GenericApplication>,
     /// The nominal field mapping in source order.
-    pub(in crate::check) fields: Vec<PatternFieldSelection>,
+    pub(in crate::check) fields: Vec<PatternFieldResolution>,
 }
 
 /// Symbol-backed newtype pattern selected by check.
@@ -312,7 +312,7 @@ pub(in crate::check) struct PatternNominalSelection {
 /// UserId(raw)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct PatternNewtypeSelection {
+pub(in crate::check) struct PatternNewtypeResolution {
     /// The selected newtype symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The selected generic application.
@@ -328,7 +328,7 @@ pub(in crate::check) struct PatternNewtypeSelection {
 /// Result.Ok(value)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct PatternVariantSelection {
+pub(in crate::check) struct PatternVariantResolution {
     /// The selected variant symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The selected generic application.
@@ -336,7 +336,7 @@ pub(in crate::check) struct PatternVariantSelection {
     /// The selected static discriminant value.
     pub(in crate::check) discriminant: Option<StaticOperand>,
     /// The variant field mapping in source order.
-    pub(in crate::check) fields: Vec<PatternFieldSelection>,
+    pub(in crate::check) fields: Vec<PatternFieldResolution>,
 }
 
 /// Alternative patterns selected by check.
@@ -346,7 +346,7 @@ pub(in crate::check) struct PatternVariantSelection {
 /// Ok(value) | Error(value)
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct PatternUnionSelection {
+pub(in crate::check) struct PatternUnionResolution {
     /// The alternative pattern nodes.
     pub(in crate::check) alternatives: Vec<dir::GlobalNodeIdAny>,
 }
@@ -358,7 +358,7 @@ pub(in crate::check) struct PatternUnionSelection {
 /// &value
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct PatternBorrowSelection {
+pub(in crate::check) struct PatternBorrowResolution {
     /// The requested borrow access, if source explicit.
     pub(in crate::check) access: Option<dir::Access>,
     /// The pattern matched through the borrow.
@@ -372,7 +372,7 @@ pub(in crate::check) struct PatternBorrowSelection {
 /// ^value
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct PatternMoveSelection {
+pub(in crate::check) struct PatternMoveResolution {
     /// The requested move access, if source explicit.
     pub(in crate::check) access: Option<dir::Access>,
     /// The pattern matched after moving.
@@ -386,7 +386,7 @@ pub(in crate::check) struct PatternMoveSelection {
 /// *value
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct PatternDereferenceSelection {
+pub(in crate::check) struct PatternDereferenceResolution {
     /// The pattern matched through the dereference.
     pub(in crate::check) pattern: dir::GlobalNodeIdAny,
 }
@@ -399,11 +399,11 @@ pub(in crate::check) struct PatternDereferenceSelection {
 /// [head]
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct PatternFieldSelection {
+pub(in crate::check) struct PatternFieldResolution {
     /// The source node that introduces the field.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The selected field target.
-    pub(in crate::check) target: PatternFieldTargetSelection,
+    pub(in crate::check) target: PatternFieldTargetResolution,
     /// The nested pattern matched for the field.
     pub(in crate::check) pattern: Option<dir::GlobalNodeIdAny>,
 }
@@ -416,7 +416,7 @@ pub(in crate::check) struct PatternFieldSelection {
 /// [head]
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum PatternFieldTargetSelection {
+pub(in crate::check) enum PatternFieldTargetResolution {
     /// Named or symbolic field target.
     ///
     /// Examples:
@@ -440,7 +440,7 @@ pub(in crate::check) enum PatternFieldTargetSelection {
 /// [...rest]
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct PatternRestSelection {
+pub(in crate::check) struct PatternRestResolution {
     /// The source node that introduces the rest field.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The nested pattern matched for the rest field.

@@ -33,7 +33,7 @@ pub(in crate::check) enum IdentityDecision {
     /// ```ds
     /// left === right
     /// ```
-    Resolved(IdentitySelection),
+    Resolved(IdentityResolution),
     /// Identity comparison resolution failed.
     ///
     /// Examples:
@@ -50,7 +50,7 @@ pub(in crate::check) enum IdentityDecision {
 /// left === right
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) struct IdentitySelection {
+pub(in crate::check) struct IdentityResolution {
     /// The source identity expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The left operand type.

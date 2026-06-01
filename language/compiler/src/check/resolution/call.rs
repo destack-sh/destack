@@ -11,14 +11,17 @@ use crate::check::{CheckState, FunctionTerm, GenericApplication, TypeOperand};
 /// receiver.method()
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum CallTargetSelection {
+pub(in crate::check) enum CallTargetResolution {
     /// Callable expression without a declaration symbol.
     ///
     /// Examples:
     /// ```ds
     /// callback()
     /// ```
-    Expression,
+    Expression {
+        /// The resolved generic application.
+        application: Option<GenericApplication>,
+    },
     /// Symbol-backed callable selected at compile time.
     ///
     /// Examples:
@@ -42,7 +45,7 @@ pub(in crate::check) enum CallTargetSelection {
     /// ```
     Union {
         /// The resolved callable candidates.
-        candidates: Vec<CandidateSelection>,
+        candidates: Vec<CandidateResolution>,
         /// The resolved receiver type for method calls.
         receiver: Option<TypeOperand>,
     },
@@ -55,7 +58,7 @@ pub(in crate::check) enum CallTargetSelection {
 /// value.method()
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct CandidateSelection {
+pub(in crate::check) struct CandidateResolution {
     /// The selected declaration symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The selected generic application.
@@ -70,11 +73,11 @@ pub(in crate::check) struct CandidateSelection {
 /// receiver.method(value)
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct CallSelection {
+pub(in crate::check) struct CallResolution {
     /// The source call expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The resolved call target.
-    pub(in crate::check) target: CallTargetSelection,
+    pub(in crate::check) target: CallTargetResolution,
     /// The resolved function signature.
     pub(in crate::check) function: FunctionTerm,
 }
@@ -130,7 +133,7 @@ pub(in crate::check) enum CallDecision {
     /// ```ds
     /// fn(value)
     /// ```
-    Resolved(CallSelection),
+    Resolved(CallResolution),
     /// Call resolution failed.
     ///
     /// Examples:

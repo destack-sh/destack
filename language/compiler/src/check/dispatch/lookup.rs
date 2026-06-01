@@ -4,9 +4,8 @@ use indexmap::IndexSet;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckDependencyState, CheckState, Decision, GenericArgument, GenericInstance, GenericSlotId,
-    GenericSubstitution, MemberProtocol, Origin, ShapeMember, TypeRelation, TypeTerm, VariableId,
-    VariableOutput,
+    CheckDependencyState, CheckState, Decision, GenericApplication, GenericArgument, GenericSlotId,
+    GenericSubstitution, MemberProtocol, Origin, ShapeMember, TypeOperand, TypeRelation, TypeTerm,
 };
 
 /// A symbol-backed member candidate found by lookup.
@@ -15,8 +14,8 @@ pub(in crate::check) struct MemberCandidate {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The resolved member type.
     pub(in crate::check) ty: TypeTerm,
-    /// The resolved generic instance, when lookup instantiated an owner.
-    pub(in crate::check) instance: Option<GenericInstance>,
+    /// The resolved generic application, when lookup instantiated an owner.
+    pub(in crate::check) application: Option<GenericApplication>,
 }
 
 /// Extension member candidate visible to component checking.
@@ -25,7 +24,7 @@ struct ExtensionCandidate {
     /// The extension declaration symbol.
     symbol: dir::GlobalSymbolId,
     /// The extension target type.
-    target: VariableId,
+    target: TypeOperand,
     /// The extension where clauses.
     where_clauses: Vec<ExtensionWhereClause>,
     /// The resolved member symbol.
@@ -38,9 +37,9 @@ struct ExtensionWhereClause {
     /// The source where clause node.
     source: dir::GlobalNodeIdAny,
     /// The constrained type.
-    left: VariableId,
+    left: TypeOperand,
     /// The required constraint type.
-    right: VariableId,
+    right: TypeOperand,
 }
 
 impl CheckState<'_> {
@@ -123,7 +122,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
         match term {
             TypeTerm::Variable(variable) => {
-                let Some(term) = self.solved_type_term(*variable)? else {
+                let Some(term) = self.type_solution(*variable)? else {
                     return Ok(None);
                 };
 
@@ -216,14 +215,14 @@ impl CheckState<'_> {
             let Some(variable) = ty.variable() else {
                 return Ok(None);
             };
-            let Some(VariableOutput::Symbol(symbol)) = self.variable(variable).output else {
+            let Origin::Symbol(symbol) = self.variable(variable).source else {
                 return Ok(None);
             };
 
             return Ok(Some(MemberCandidate {
                 symbol,
                 ty: TypeTerm::Variable(variable),
-                instance: None,
+                application: None,
             }));
         }
 
@@ -249,27 +248,27 @@ impl CheckState<'_> {
             {
                 return Ok(None);
             }
-            let variable = self.member_type_variable(module, member);
+            let operand = self.member_type_operand(member);
             if substitution.is_empty() {
                 return Ok(Some(MemberCandidate {
                     symbol: member,
-                    ty: TypeTerm::Variable(variable),
-                    instance: None,
+                    ty: operand.to_type_term(self),
+                    application: None,
                 }));
             }
-            let term = TypeTerm::Variable(variable);
+            let term = operand.to_type_term(self);
             let Some(term) = term.substitute(module, &substitution, self)? else {
                 return Ok(None);
             };
-            let instance = Some(GenericInstance {
-                symbol,
+            let instance = Some(GenericApplication {
+                owner: symbol,
                 arguments: arguments.to_vec().into(),
             });
 
             return Ok(Some(MemberCandidate {
                 symbol: member,
                 ty: term,
-                instance,
+                application: instance,
             }));
         }
 
@@ -281,24 +280,24 @@ impl CheckState<'_> {
         if self.reduce_symbol_availability(module, member, &substitution)? != Decision::Yes {
             return Ok(None);
         }
-        let variable = self.symbol_type_variable(module, member);
+        let variable = self.require_symbol_type(member);
         if substitution.is_empty() {
             return Ok(Some(MemberCandidate {
                 symbol: member,
-                ty: TypeTerm::Variable(variable),
-                instance: None,
+                ty: variable.to_type_term(self),
+                application: None,
             }));
         }
-        let term = TypeTerm::Variable(variable);
+        let term = variable.to_type_term(self);
         let Some(term) = term.substitute(module, &substitution, self)? else {
             return Ok(None);
         };
-        let instance = self.substitution_instance(module, extension, &substitution)?;
+        let application = self.substitution_application(module, extension, &substitution)?;
 
         Ok(Some(MemberCandidate {
             symbol: member,
             ty: term,
-            instance,
+            application,
         }))
     }
 
@@ -601,7 +600,7 @@ impl CheckState<'_> {
         let Some(member) = self.member_symbol(symbol.module_id, symbol, key) else {
             return Ok(None);
         };
-        let target = self.intern_local_node_type_variable(symbol.module_id, extension.target_type);
+        let target = self.require_local_node_type(symbol.module_id, extension.target_type);
         let where_clauses = extension
             .where_clauses
             .into_iter()
@@ -612,10 +611,8 @@ impl CheckState<'_> {
                     .view()
                     .get(where_clause)
                     .clone();
-                let left =
-                    self.intern_local_node_type_variable(symbol.module_id, where_clause.left);
-                let right =
-                    self.intern_local_node_type_variable(symbol.module_id, where_clause.right);
+                let left = self.require_local_node_type(symbol.module_id, where_clause.left);
+                let right = self.require_local_node_type(symbol.module_id, where_clause.right);
 
                 ExtensionWhereClause {
                     source,
@@ -668,7 +665,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let target =
-            self.import_dependency_type_variable(module, symbol.module_id, extension.target_type);
+            self.import_dependency_type_operand(module, symbol.module_id, extension.target_type);
         let mut where_clauses = Vec::with_capacity(declaration.where_clauses.len());
 
         for where_clause in declaration.where_clauses {
@@ -678,12 +675,12 @@ impl CheckState<'_> {
                 .view()
                 .get(where_clause)
                 .clone();
-            let left = self.import_dependency_node_type_variable(
+            let left = self.import_dependency_require_node_type(
                 module,
                 symbol.module_id,
                 where_clause.left.into_global_any(symbol.module_id),
             );
-            let right = self.import_dependency_node_type_variable(
+            let right = self.import_dependency_require_node_type(
                 module,
                 symbol.module_id,
                 where_clause.right.into_global_any(symbol.module_id),
@@ -691,14 +688,14 @@ impl CheckState<'_> {
 
             where_clauses.push(ExtensionWhereClause {
                 source,
-                left,
-                right,
+                left: left.into(),
+                right: right.into(),
             });
         }
 
         Ok(Some(ExtensionCandidate {
             symbol,
-            target,
+            target: target.into(),
             where_clauses,
             member,
         }))
@@ -745,11 +742,11 @@ impl CheckState<'_> {
     fn extension_substitution(
         &mut self,
         extension: dir::GlobalSymbolId,
-        target_variable: VariableId,
+        target_variable: TypeOperand,
         receiver: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
     ) -> CompilerResult<Option<GenericSubstitution>> {
-        let Some(pattern) = self.solved_type_term(target_variable)? else {
+        let Some(pattern) = self.type_operand_term(target_variable)? else {
             return Ok(None);
         };
         let actual = TypeTerm::Reference {
@@ -759,7 +756,7 @@ impl CheckState<'_> {
         };
         let mut substitution = GenericSubstitution::empty();
         let is_match = self.match_type_pattern(
-            target_variable.module,
+            receiver.module_id,
             extension,
             &pattern,
             &actual,
@@ -776,16 +773,18 @@ impl CheckState<'_> {
         substitution: &GenericSubstitution,
     ) -> CompilerResult<bool> {
         for where_clause in where_clauses {
-            let Some(left) = self.solved_type_term(where_clause.left)? else {
+            let Some(left) = self.type_operand_term(where_clause.left)? else {
                 return Ok(false);
             };
-            let Some(right) = self.solved_type_term(where_clause.right)? else {
+            let Some(right) = self.type_operand_term(where_clause.right)? else {
                 return Ok(false);
             };
-            let Some(left) = left.substitute(where_clause.left.module, substitution, self)? else {
+            let Some(left) = left.substitute(where_clause.source.module_id, substitution, self)?
+            else {
                 return Ok(false);
             };
-            let Some(right) = right.substitute(where_clause.right.module, substitution, self)?
+            let Some(right) =
+                right.substitute(where_clause.source.module_id, substitution, self)?
             else {
                 return Ok(false);
             };

@@ -34,7 +34,7 @@ pub(in crate::check) enum LayoutDecision {
     /// ```ds
     /// sizeOf<int32>()
     /// ```
-    Resolved(LayoutSelection),
+    Resolved(LayoutResolution),
     /// Layout resolution failed.
     ///
     /// Examples:
@@ -52,7 +52,7 @@ pub(in crate::check) enum LayoutDecision {
 /// alignOf<int32>()
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct LayoutSelection {
+pub(in crate::check) struct LayoutResolution {
     /// The source layout query expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The queried type.

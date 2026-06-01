@@ -11,7 +11,7 @@ use crate::check::{
 };
 
 /// Transient operator selection while reducing operator syntax.
-pub(in crate::check) enum OperatorCandidateSelection {
+pub(in crate::check) enum OperatorCandidateDispatch {
     /// OperatorTerm resolution is waiting for solver input.
     Pending,
     /// No operator candidate accepts the operands.
@@ -53,33 +53,27 @@ struct NumericOperand {
     primitive: Option<dir::PrimitiveType>,
 }
 
-/// Selected builtin numeric binary operation.
+/// Matched builtin numeric binary operation.
 #[derive(Debug, Clone, PartialEq)]
-struct NumericBinarySelection {
-    /// The operand type applied to exact numeric literals.
-    operand_type: TypeTerm,
+struct NumericBinaryMatch {
     /// The operator result type.
     return_type: TypeTerm,
 }
 
-/// Builtin operator candidate selected before committing operand expectations.
-struct BuiltinOperatorSelection {
+/// Builtin operator candidate.
+struct BuiltinOperatorMatch {
     /// The operator result type.
     return_type: TypeTerm,
-    /// The expected receiver type, when the operator constrains it.
-    receiver_type: Option<TypeTerm>,
-    /// The expected argument type, when the operator constrains it.
-    argument_type: Option<TypeTerm>,
 }
 
 /// Builtin operator decision before committing operand expectations.
 enum BuiltinOperatorDecision {
-    /// Builtin operator selection is waiting for solver input.
+    /// Builtin operator match is waiting for solver input.
     Pending,
-    /// Builtin operator selection rejected the operands.
+    /// Builtin operator match rejected the operands.
     Rejected(OperatorFailureReason),
-    /// Builtin operator selection accepted the operands.
-    Accepted(BuiltinOperatorSelection),
+    /// Builtin operator match accepted the operands.
+    Accepted(BuiltinOperatorMatch),
 }
 
 impl CheckState<'_> {
@@ -89,9 +83,9 @@ impl CheckState<'_> {
         origin: Origin,
         operator: &OperatorTerm,
         expected: Option<VariableId>,
-    ) -> CompilerResult<OperatorCandidateSelection> {
-        let Some(receiver) = self.solved_type_term(operator.receiver)? else {
-            return Ok(OperatorCandidateSelection::Pending);
+    ) -> CompilerResult<OperatorCandidateDispatch> {
+        let Some(receiver) = self.type_operand_term(operator.receiver)? else {
+            return Ok(OperatorCandidateDispatch::Pending);
         };
 
         // choose primitive operators
@@ -112,8 +106,8 @@ impl CheckState<'_> {
     }
 
     /// Return the generic no-match operator result.
-    fn operator_no_match() -> OperatorCandidateSelection {
-        OperatorCandidateSelection::NoMatch {
+    fn operator_no_match() -> OperatorCandidateDispatch {
+        OperatorCandidateDispatch::NoMatch {
             reason: OperatorFailureReason::NoMatch,
         }
     }
@@ -124,7 +118,7 @@ impl CheckState<'_> {
         operator: &OperatorTerm,
         receiver: &TypeTerm,
         expected: Option<VariableId>,
-    ) -> CompilerResult<Option<OperatorCandidateSelection>> {
+    ) -> CompilerResult<Option<OperatorCandidateDispatch>> {
         let decision = match operator.kind {
             OperatorTermKind::Unary(kind) => self.decide_builtin_unary(kind, receiver, expected)?,
             OperatorTermKind::Binary(kind) => {
@@ -138,10 +132,10 @@ impl CheckState<'_> {
         // preserve pending and rejection decisions without side effects
         let selection = match decision {
             BuiltinOperatorDecision::Pending => {
-                return Ok(Some(OperatorCandidateSelection::Pending));
+                return Ok(Some(OperatorCandidateDispatch::Pending));
             }
             BuiltinOperatorDecision::Rejected(reason) => {
-                return Ok(Some(OperatorCandidateSelection::NoMatch { reason }));
+                return Ok(Some(OperatorCandidateDispatch::NoMatch { reason }));
             }
             BuiltinOperatorDecision::Accepted(selection) => selection,
         };
@@ -150,9 +144,7 @@ impl CheckState<'_> {
         if self.decide_expected_type(&selection.return_type, expected)? == Decision::No {
             return Ok(Some(Self::operator_no_match()));
         }
-        self.expect_builtin_operator_operands(operator, receiver, &selection)?;
-
-        Ok(Some(OperatorCandidateSelection::Builtin {
+        Ok(Some(OperatorCandidateDispatch::Builtin {
             return_type: selection.return_type,
         }))
     }
@@ -168,10 +160,8 @@ impl CheckState<'_> {
             dir::UnaryOperator::Not => {
                 let target = Self::boolean_type_term();
 
-                BuiltinOperatorSelection {
-                    return_type: target.clone(),
-                    receiver_type: Some(target),
-                    argument_type: None,
+                BuiltinOperatorMatch {
+                    return_type: target,
                 }
             }
             dir::UnaryOperator::PostIncrement
@@ -191,49 +181,22 @@ impl CheckState<'_> {
                 }
                 let target = self.unary_numeric_result_type(kind, &numeric, expected)?;
 
-                BuiltinOperatorSelection {
-                    return_type: target.clone(),
-                    receiver_type: Some(target),
-                    argument_type: None,
+                BuiltinOperatorMatch {
+                    return_type: target,
                 }
             }
-            dir::UnaryOperator::Void => BuiltinOperatorSelection {
+            dir::UnaryOperator::Void => BuiltinOperatorMatch {
                 return_type: TypeTerm::Literal(TypeLiteralTerm::Void),
-                receiver_type: None,
-                argument_type: None,
             },
-            dir::UnaryOperator::Typeof => BuiltinOperatorSelection {
+            dir::UnaryOperator::Typeof => BuiltinOperatorMatch {
                 return_type: TypeTerm::Literal(TypeLiteralTerm::Primitive(
                     dir::PrimitiveType::String,
                 )),
-                receiver_type: None,
-                argument_type: None,
             },
             _ => return Ok(None),
         };
 
         Ok(Some(BuiltinOperatorDecision::Accepted(selection)))
-    }
-
-    /// Commit operand expectations for one accepted builtin operator.
-    fn expect_builtin_operator_operands(
-        &mut self,
-        operator: &OperatorTerm,
-        receiver: &TypeTerm,
-        selection: &BuiltinOperatorSelection,
-    ) -> CompilerResult<()> {
-        if let Some(target) = &selection.receiver_type {
-            self.expect_literal_term(operator.receiver, receiver, target)?;
-        }
-
-        if let Some(target) = &selection.argument_type
-            && let Some(argument) = operator.argument
-            && let Some(argument_type) = self.solved_type_term(argument)?
-        {
-            self.expect_literal_term(argument, &argument_type, target)?;
-        }
-
-        Ok(())
     }
 
     /// Decide one builtin binary operator case.
@@ -249,7 +212,7 @@ impl CheckState<'_> {
                 OperatorFailureReason::NoMatch,
             )));
         };
-        let Some(argument_type) = self.solved_type_term(argument)? else {
+        let Some(argument_type) = self.type_operand_term(argument)? else {
             return Ok(Some(BuiltinOperatorDecision::Pending));
         };
 
@@ -259,10 +222,8 @@ impl CheckState<'_> {
             let target = Self::boolean_type_term();
 
             if is_compatible && self.decide_expected_type(&target, expected)? != Decision::No {
-                let selection = BuiltinOperatorSelection {
+                let selection = BuiltinOperatorMatch {
                     return_type: target,
-                    receiver_type: None,
-                    argument_type: None,
                 };
 
                 return Ok(Some(BuiltinOperatorDecision::Accepted(selection)));
@@ -278,10 +239,8 @@ impl CheckState<'_> {
             && let Some(right) = self.numeric_operand(&argument_type)?
             && let Some(selection) = self.select_numeric_binary(kind, &left, &right, expected)?
         {
-            let selection = BuiltinOperatorSelection {
+            let selection = BuiltinOperatorMatch {
                 return_type: selection.return_type,
-                receiver_type: Some(selection.operand_type.clone()),
-                argument_type: Some(selection.operand_type),
             };
 
             return Ok(Some(BuiltinOperatorDecision::Accepted(selection)));
@@ -293,10 +252,8 @@ impl CheckState<'_> {
             && self.is_boolean_assignable(&argument_type)?
         {
             let target = Self::boolean_type_term();
-            let selection = BuiltinOperatorSelection {
-                return_type: target.clone(),
-                receiver_type: Some(target.clone()),
-                argument_type: Some(target),
+            let selection = BuiltinOperatorMatch {
+                return_type: target,
             };
 
             return Ok(Some(BuiltinOperatorDecision::Accepted(selection)));
@@ -363,7 +320,7 @@ impl CheckState<'_> {
         operator: &OperatorTerm,
         receiver: &TypeTerm,
         expected: Option<VariableId>,
-    ) -> CompilerResult<Option<OperatorCandidateSelection>> {
+    ) -> CompilerResult<Option<OperatorCandidateDispatch>> {
         let protocols = operator.protocols();
         if protocols.is_empty() {
             return Ok(None);
@@ -372,19 +329,29 @@ impl CheckState<'_> {
 
         // choose the first protocol candidate that resolves
         for protocol in protocols {
+            let probe = self.begin_inference_probe();
             let result = self.select_operator_protocol_method_candidate(
                 origin, operator, receiver, expected, protocol,
             )?;
             match result {
-                OperatorCandidateSelection::Method { .. } => return Ok(Some(result)),
-                OperatorCandidateSelection::Pending => is_pending = true,
-                OperatorCandidateSelection::NoMatch { reason: _ } => {}
-                OperatorCandidateSelection::Builtin { .. } => return Ok(Some(result)),
+                OperatorCandidateDispatch::Method { .. }
+                | OperatorCandidateDispatch::Builtin { .. } => {
+                    self.commit_inference_probe(probe);
+
+                    return Ok(Some(result));
+                }
+                OperatorCandidateDispatch::Pending => {
+                    self.drop_inference_probe(probe);
+                    is_pending = true;
+                }
+                OperatorCandidateDispatch::NoMatch { reason: _ } => {
+                    self.drop_inference_probe(probe);
+                }
             }
         }
 
         if is_pending {
-            Ok(Some(OperatorCandidateSelection::Pending))
+            Ok(Some(OperatorCandidateDispatch::Pending))
         } else {
             Ok(Some(Self::operator_no_match()))
         }
@@ -398,14 +365,13 @@ impl CheckState<'_> {
         receiver: &TypeTerm,
         expected: Option<VariableId>,
         protocol: OperatorProtocol,
-    ) -> CompilerResult<OperatorCandidateSelection> {
-        let key = protocol
-            .method
-            .key(&self.module(operator.receiver.module).strings);
+    ) -> CompilerResult<OperatorCandidateDispatch> {
+        let module = operator.source.module_id;
+        let key = protocol.method.key(&self.module(module).strings);
         let member_protocol = self.operator_member_protocol(&protocol)?;
         let Some(member) = self.member_type_candidate_for_protocol(
             origin,
-            operator.receiver.module,
+            module,
             receiver,
             &key,
             &member_protocol,
@@ -415,40 +381,30 @@ impl CheckState<'_> {
         };
         let reduction = self.reduce_type_term(origin, &member.ty)?;
         let Some(term) = reduction.value else {
-            return Ok(OperatorCandidateSelection::Pending);
+            return Ok(OperatorCandidateDispatch::Pending);
         };
-        let function = match self.call_signature(operator.receiver.module, &term)? {
-            CallableSignature::Pending => return Ok(OperatorCandidateSelection::Pending),
+        let function = match self.call_signature(module, &term)? {
+            CallableSignature::Pending => return Ok(OperatorCandidateDispatch::Pending),
             CallableSignature::Absent => return Ok(Self::operator_no_match()),
             CallableSignature::Present(function) => function,
         };
 
         let arguments = self.decide_operator_method_arguments(operator, &function)?;
-        let method_return =
-            self.reduce_operator_type(operator.receiver.module, &function, protocol.method_return)?;
-        let expression_type = self.operator_type_term(
-            operator.receiver.module,
-            &function,
-            protocol.expression_type,
-        )?;
+        let method_return = self.reduce_operator_type(module, &function, protocol.method_return)?;
+        let expression_type =
+            self.operator_type_term(module, &function, protocol.expression_type)?;
         let expected = self.decide_expected_type(&expression_type, expected)?;
         match arguments.and(method_return).and(expected) {
             Decision::Yes => {
-                self.expect_operator_method_arguments(operator, &function)?;
-                self.expect_operator_type(
-                    origin,
-                    operator.receiver.module,
-                    &function,
-                    protocol.method_return,
-                )?;
+                self.expect_operator_type(origin, module, &function, protocol.method_return)?;
 
-                Ok(OperatorCandidateSelection::Method {
+                Ok(OperatorCandidateDispatch::Method {
                     symbol: member.symbol,
                     function,
                     return_type: expression_type,
                 })
             }
-            Decision::Undecidable => Ok(OperatorCandidateSelection::Pending),
+            Decision::Undecidable => Ok(OperatorCandidateDispatch::Pending),
             Decision::No => Ok(Self::operator_no_match()),
         }
     }
@@ -498,7 +454,7 @@ impl CheckState<'_> {
         let Some(expected) = expected else {
             return Ok(Decision::Yes);
         };
-        let Some(expected) = self.solved_type_term(expected)? else {
+        let Some(expected) = self.type_solution(expected)? else {
             return Ok(Decision::Undecidable);
         };
 
@@ -528,7 +484,7 @@ impl CheckState<'_> {
         let term = match operator_type {
             OperatorType::MethodReturn => match function.return_type {
                 Some(TypeOperand::Variable(return_type)) => TypeTerm::Variable(return_type),
-                Some(TypeOperand::Term(return_type)) => self.terms.get(return_type).clone(),
+                Some(TypeOperand::Term(return_type)) => self.term(return_type).clone(),
                 None => TypeTerm::Literal(TypeLiteralTerm::Void),
             },
             OperatorType::Boolean => TypeTerm::Literal(TypeLiteralTerm::boolean()),
@@ -558,35 +514,9 @@ impl CheckState<'_> {
             return Ok(Progress::Unchanged);
         };
         let target = self.operator_type_term(module, function, operator_type)?;
-        let target = self.terms.push(target);
+        let target = self.push_term(target);
 
-        self.solve_contextual_type_assignability(origin, return_type, target)
-    }
-
-    /// Expect accepted operands to satisfy operator method types.
-    fn expect_operator_method_arguments(
-        &mut self,
-        operator: &OperatorTerm,
-        function: &FunctionTerm,
-    ) -> CompilerResult<()> {
-        if let Some(this_parameter) = function.this_parameter
-            && let Some(source) = self.solved_type_term(operator.receiver)?
-            && let Some(target) = self.solved_type_operand(this_parameter)?
-        {
-            self.expect_literal_term(operator.receiver, &source, &target)?;
-        }
-        if let Some(argument) = operator.argument
-            && let Some(source) = self.solved_type_term(argument)?
-        {
-            let parameter = &function.parameters[0];
-            let Some(target) = self.type_operand_term(parameter.ty)? else {
-                return Ok(());
-            };
-
-            self.expect_literal_term(argument, &source, &target)?;
-        }
-
-        Ok(())
+        self.relate_contextual_type_assignability(origin, return_type, target)
     }
 
     /// Return whether one type can flow into boolean.
@@ -603,7 +533,7 @@ impl CheckState<'_> {
     fn numeric_operand(&self, term: &TypeTerm) -> CompilerResult<Option<NumericOperand>> {
         let operand = match term {
             TypeTerm::Variable(variable) => {
-                let Some(term) = self.solved_type_term(*variable)? else {
+                let Some(term) = self.type_solution(*variable)? else {
                     return Ok(None);
                 };
 
@@ -682,7 +612,7 @@ impl CheckState<'_> {
         left: &NumericOperand,
         right: &NumericOperand,
         expected: Option<VariableId>,
-    ) -> CompilerResult<Option<NumericBinarySelection>> {
+    ) -> CompilerResult<Option<NumericBinaryMatch>> {
         if !Self::primitive_numeric_operator(operator) {
             return Ok(None);
         }
@@ -702,10 +632,7 @@ impl CheckState<'_> {
             operand_type.clone()
         };
 
-        Ok(Some(NumericBinarySelection {
-            operand_type,
-            return_type,
-        }))
+        Ok(Some(NumericBinaryMatch { return_type }))
     }
 
     /// Return the operand type for one numeric binary operator.
@@ -746,7 +673,7 @@ impl CheckState<'_> {
         let Some(expected) = expected else {
             return Ok(None);
         };
-        let Some(term) = self.solved_type_term(expected)? else {
+        let Some(term) = self.type_solution(expected)? else {
             return Ok(None);
         };
         if self.numeric_operand(&term)?.is_none() {
@@ -798,7 +725,7 @@ impl CheckState<'_> {
     fn supports_strict_identity(&self, term: &TypeTerm) -> CompilerResult<bool> {
         let is_supported = match term {
             TypeTerm::Variable(variable) => {
-                let Some(term) = self.solved_type_term(*variable)? else {
+                let Some(term) = self.type_solution(*variable)? else {
                     return Ok(false);
                 };
 
@@ -877,8 +804,8 @@ impl CheckState<'_> {
 
     /// Return a nullable protocol return type.
     fn nullable_operator_type_term(&mut self, value: TypeTerm) -> CompilerResult<TypeTerm> {
-        let value = self.terms.push(value);
-        let null = self.terms.push(TypeTerm::Literal(TypeLiteralTerm::Null));
+        let value = self.push_term(value);
+        let null = self.push_term(TypeTerm::Literal(TypeLiteralTerm::Null));
 
         Ok(TypeTerm::Union {
             elements: vec![value.into(), null.into()],
@@ -896,7 +823,7 @@ impl CheckState<'_> {
             let argument = match argument {
                 OperatorProtocolArgument::Access(access) => {
                     let value = dir::StaticTerm::Access { access: *access };
-                    let value = self.terms.push(StaticTerm::Literal(value));
+                    let value = self.push_term(StaticTerm::Literal(value));
 
                     GenericArgument::Static(value.into())
                 }

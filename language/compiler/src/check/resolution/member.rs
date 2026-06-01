@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{CandidateSelection, CheckState, GenericApplication, TypeOperand};
+use crate::check::{CandidateResolution, CheckState, GenericApplication, TypeOperand};
 
 /// Runtime member failure resolved by the solver.
 ///
@@ -33,7 +33,7 @@ pub(in crate::check) enum MemberDecision {
     /// ```ds
     /// value.member
     /// ```
-    Resolved(MemberSelection),
+    Resolved(MemberResolution),
     /// Member resolution failed.
     ///
     /// Examples:
@@ -51,13 +51,13 @@ pub(in crate::check) enum MemberDecision {
 /// value["member"]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct MemberSelection {
+pub(in crate::check) struct MemberResolution {
     /// The source member expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The receiver type.
     pub(in crate::check) receiver: TypeOperand,
     /// The resolved member target.
-    pub(in crate::check) target: MemberTargetSelection,
+    pub(in crate::check) target: MemberTargetResolution,
 }
 
 /// Solved member target resolved by the solver.
@@ -68,7 +68,7 @@ pub(in crate::check) struct MemberSelection {
 /// value[index]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum MemberTargetSelection {
+pub(in crate::check) enum MemberTargetResolution {
     /// Compiler builtin member behavior.
     ///
     /// Examples:
@@ -102,7 +102,7 @@ pub(in crate::check) enum MemberTargetSelection {
     /// ```ds
     /// value.method
     /// ```
-    Union(Vec<CandidateSelection>),
+    Union(Vec<CandidateResolution>),
 }
 
 impl CheckState<'_> {
