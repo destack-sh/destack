@@ -236,44 +236,6 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower one type predicate subject from DIR into JS AST.
-    fn lower_type_predicate_subject(
-        &mut self,
-        source_id: dir::LocalNodeIdAny,
-        subject: dir::PredicateSubject,
-    ) -> CodegenJsResult<js::TypePredicateSubject> {
-        let subject = match subject {
-            dir::PredicateSubject::Symbol(symbol_id) => {
-                if symbol_id.module_id != self.module.id {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: source_id.into_global(self.module.id),
-                        message: Some(
-                            "remote type predicate subjects need source-backed lowering in JS output"
-                                .to_string(),
-                        ),
-                    });
-                }
-
-                let symbol = self.symbols.get_symbol(dir::LocalSymbolId::from(symbol_id));
-                let Some(dir::StaticKey::Name(name)) = symbol.key else {
-                    return Err(CodegenJsError::UnsupportedConstruct {
-                        node: source_id.into_global(self.module.id),
-                        message: Some(
-                            "type predicate subjects need path-like symbols in JS output"
-                                .to_string(),
-                        ),
-                    });
-                };
-
-                let name = name;
-                js::TypePredicateSubject::Identifier(name)
-            }
-            dir::PredicateSubject::This => js::TypePredicateSubject::This,
-        };
-
-        Ok(subject)
-    }
-
     /// Lower one string mapping reference into a JS path type.
     fn lower_string_mapping(
         &mut self,
@@ -753,6 +715,7 @@ impl ModuleLowerer<'_> {
                     "this".to_string(),
                     dir::FunctionParameterType {
                         ty: this_type_id,
+                        static_slot: None,
                         is_optional: false,
                         is_rest: false,
                     },
@@ -977,22 +940,6 @@ impl ModuleLowerer<'_> {
                 type_id
             }
             dir::Type::Dynamic(dynamic) => self.lower_type(dynamic.constraint)?,
-            dir::Type::Predicate(predicate) => {
-                let subject = self.lower_type_predicate_subject(source_id, predicate.subject)?;
-                let target = predicate
-                    .target
-                    .map(|target| self.lower_type(target))
-                    .transpose()?;
-                let ty = js::TypeExpression::Predicate {
-                    asserts: predicate.asserts,
-                    subject,
-                    target,
-                };
-
-                self.tree
-                    .insert_from_source_any(ty, self.module.id, source_id)
-            }
-
             dir::Type::Form(form) => {
                 let value = self.lower_type(form.value)?;
                 match form.form {

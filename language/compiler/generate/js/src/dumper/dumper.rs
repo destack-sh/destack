@@ -1530,13 +1530,6 @@ impl<'a> js::NodeVisitor for Dumper<'a> {
             } => {
                 self.node("js::TypeExpression::Infer", id.id).end();
             }
-            js::TypeExpression::Predicate {
-                asserts: _,
-                subject: _,
-                target: _,
-            } => {
-                self.node("js::TypeExpression::Predicate", id.id).end();
-            }
             js::TypeExpression::Array { .. } => {
                 self.node("js::TypeExpression::Array", id.id).end();
             }
