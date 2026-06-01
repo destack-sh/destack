@@ -147,6 +147,35 @@ impl<'a> TypeTable<'a> {
             .flat_map(|segment| segment.iter_type_ids())
     }
 
+    /// Find one exact type by shape.
+    pub fn find_type(&self, expected: &Type) -> Option<LocalTypeId> {
+        self.iter_type_ids()
+            .find(|&type_id| self.get_type(type_id) == expected)
+    }
+
+    /// Intern one type into a mutable tail segment.
+    pub fn intern_type(
+        &self,
+        tail: &mut TypeSegment,
+        ty: Type,
+        source_id: LocalNodeIdAny,
+    ) -> LocalTypeId {
+        assert_eq!(
+            self.module_id, tail.module_id,
+            "type table tail belongs to a different module"
+        );
+
+        if let Some(type_id) = self.find_type(&ty) {
+            return type_id;
+        }
+
+        if let Some(type_id) = tail.find_type(&ty) {
+            return type_id;
+        }
+
+        tail.insert_type_from_any(ty, source_id)
+    }
+
     /// Get the source id for a type.
     pub fn get_type_source(&self, type_id: LocalTypeId) -> LocalNodeIdAny {
         self.type_source(type_id)
@@ -357,6 +386,12 @@ impl TypeSegment {
         let end = self.type_count();
 
         (self.first_type_id..end).map(LocalTypeId::new)
+    }
+
+    /// Find one exact type by shape.
+    pub fn find_type(&self, expected: &Type) -> Option<LocalTypeId> {
+        self.iter_type_ids()
+            .find(|&type_id| self.get_type(type_id) == expected)
     }
 
     /// Get a mutable type by its id.
