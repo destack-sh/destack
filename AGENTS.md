@@ -17,7 +17,7 @@
 - Booleans should start with `is_` unless already clear (or otherwise required by context), though enums are usually better anyway.
 - Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
 - The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy.
-- It can be tempting to name things along the lines of "x_for_y" in certain overload situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does _not_ mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue.)
+- It can be tempting to name things along the lines of "x*for_y" in certain overload situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does \_not* mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue.)
 
 ### Logic
 
@@ -32,12 +32,15 @@
 - Every logic block should have a comment (returns may omit the comment), and every logic block (except the first) should have a blank line before it. See commenting for how to comment properly.
 - The return value implicit or explicit should also have a blank line before it, even if it's uncommented (which is, again, fine).
 - Use temporary variables for non-trivial operations (yes, it's deliberately verbose):
+
 ```rust
 let first_digit = (dt_bytes[0] - b'0') as i64;
 let second_digit = (dt_bytes[1] - b'0') as i64;
 let number = 10 * first_digit + second_digit;
 ```
+
 - It is usually preferable to "spell out" branches at the same "level" whenever possible, instead of doing repeated continue/return/whatever jumps (which are harder to trace mentally):
+
 ```
 // option A
 if A {
@@ -53,23 +56,27 @@ else {
 }
 ```
 
+- As a corollary, it is good practice to try and keep the flow and depth of branching predictable and consistent.
+- There are really two main kinds of branching: unexpected / early exit guards, and "main" if-else-if-else chains (however they may manifest). Early exist can use the if-jump/return style, but anything that is a serious of if-jump-if-jump-if-jump should usually be turned into a coherent logic blocked legible chain as above, and/or use match statements.
+
 ### Factoring
 
 - The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware.
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
+- Most code on the internet, on StackOverflow, or on open source libraries, and even in their documentation, is not very good. Anything external we take in should be treated with great suspicion.
 - Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
 - Sometimes the right answer is "no", and the right response to a change is "no, not here, not now".
 - One of the few things worse than superfluous duplication is forced abstraction.
-- Often, when properly factored, the real world (and thus the way to model it) is surprisingly symmetrical at varying scales (types, functions, files, modules, sub-systems). Identifying symmetry and generalising it - even if only informally, no "real" language-level interface required - is very valuable (naming, parameter conventions, file names and placement, module layout, .. anything).
-- Try to make logic "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic _and_ state at various pieces of granularity.
+- Often, when properly factored, the real world (and thus the way to model it) is surprisingly symmetrical at varying scales (types, functions, files, modules, sub-systems). Identifying symmetry and generalising it - even if only informally, no "real" language-level interface required - is extremely valuable (naming, parameter conventions, file names and placement, module layout, .. anything).
+- Logic should be "incrementally granular" (as per Casey Muratori), i.e., ideally we should be able to reuse logic _and_ state at various pieces of granularity.
 - Conceptually, incremental granularity means not hiding details too much, and assuming (especially internally, within the castle) that the caller is a consenting adult.
-- Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph.
+- Relatedly, try hard to _avoid_ "banana and the jungle" shaped model solutions where pulling in one component requires pulling in a whole deep object graph (except in situations where there really are obvious god objects, like a current `World` in a game or whatever).
 - That said, it is often beneficial to have strong clear nouns and verbs, and it's usually easier to think about state when it is bundled in nouns (dare I say "objects", but no OOP abstraction nonsense).
 - Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer.
 - More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parametric mutability. etc. etc., that sort of thing.
 - Usually, in each file, the "top" / most important nouns should go up top (constants at the very top above it), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as needed ofc).
 - Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
-- When a method mutates state it should be obvious, and ideally we want to return mutated state / take the mutator instead of mutating internally when possible (e.g. `resolve_x` should return the resolved thing, not mutate an internal resolver cache and return void). This isn't always possible, but it's much preferred.
+- When a method mutates state it should be obvious by name and signature, and ideally we want to return mutated state / take the mutator instead of mutating internally when possible (e.g. `resolve_x` should return the resolved thing, not mutate an internal resolver cache and return void). This isn't always possible, and performance matters a lot, but when we can have both it's much preferred.
 
 ### Refactoring
 
@@ -88,23 +95,24 @@ else {
 ### Comments
 
 - Inline comments should be short and begin with a lowercase letter.
-- (This extends to comments in *any* code file, even scripts. I just like lowercase better.)
+- (This extends to comments in _any_ code file, even scripts. I just like lowercase better.)
 - Place comments above a related code block (usually 2-10 lines).
 - Most comments are <1 sentence and should not include a period at the end (again, lowercase).
 - Avoid using hyphens inside comments, instead prefer colons or commas (except for proper compound words)
 - Inline comments may also just be single words or sequences of words if the "scoping" is clear; i.e., not every inline comment needs to be a sentence.
 - Comments serve to organize the reader's mental model of the code, so they can be just anything from a one-word summary, a three word phrase, or a short explanatory note.
 - Most logic block comments of more than one/two words should be action / verb shaped, e.g.:
-"// build drop plan for each function" is much better than "// each function gets an independent drop plan" (begin with a verb!)
+  "// build drop plan for each function" is much better than "// each function gets an independent drop plan" (begin with a verb!)
 - Trivial functions (<3-4 lines) do not _need_ comments / blank lines, especially when the comments just repeat the documentation above.
 - Also, tests don't need quite the same level of comments, especially within obvious test cases.
 - Documentation comments for functions/types/etc. _should_ be proper sentences _with_ punctuation.
 - Files should NOT have a top-level documentation comments. They always get stale.
 - Go multiline if there is more than one sentence. Only one sentence should begin per line.
 - For methods, documentation should be imperative, usually starting with a verb (e.g., "Send a message").
-- *All* functions, types, variants/fields, etc. should have documentation (one line is fine).
+- _All_ functions, types, variants/fields, etc. should have documentation (one line is fine).
 - Documentation comments do not need to start with a verb, they should just plainly state what the thing is (e.g., for a field, "The blocks built so far." is better than "Represents the blocks built up to this point."; more succinct is better).
-- When documenting if/else-if/else-_like_ logic, the comments should go *before* each case like so:
+- When documenting if/else-if/else-_like_ logic, the comments should go _before_ each case like so:
+
 ```text
 // do this
 if (...) {
@@ -119,7 +127,9 @@ else {
   ...
 }
 ```
+
 - The logic block treatment also applies just as well to TSX and tree-like structures, so for example:
+
 ```tsx
 <div>
     {/* Top button */}
@@ -129,12 +139,15 @@ else {
     <div> ... </div>
 </div>
 ```
+
 - For ===-like separators for large comment blocks, you may use upper case sentences:
+
 ```text
 // ================================================================================
 // Binary operator precedence
 // ================================================================================
 ```
+
 - Though try to minimize the number of these, they're quite noisy.
 - Comments MAY start with keywords:
     - `NOTE`: call out something important
@@ -194,14 +207,14 @@ else {
 - The first line or docstring should describe desired behavior (don't mention "test").
 - Prefer property-based testing and roundtrip testing where possible.
 - If there is an opportunity to test "the entire thing" vs "part of it", prefer complete exercises and assertions (e.g., if we're generating string output, compare the entire output, not just "contains").
-- More generally, we should always test *specific outcomes* like "these two errors with that message" rather than "expect failed" or "any two errors".
+- More generally, we should always test _specific outcomes_ like "these two errors with that message" rather than "expect failed" or "any two errors".
 - Even better, where possible, we should assert the entire expected output (snapshot style) rather than just "contains" or "doesn't contain".
-- For any non-trivial assertions you should comment the logic block like we do with any other logic block, though you don't need to comment *every* logic block as with regular/main logic.
+- For any non-trivial assertions you should comment the logic block like we do with any other logic block, though you don't need to comment _every_ logic block as with regular/main logic.
 
 ### Formatting
 
 You should always format code before you're "done" with a change.
-Ideally, you should format code *before* running it (via tests or otherwise), so we don't compile twice.
+Ideally, you should format code _before_ running it (via tests or otherwise), so we don't compile twice.
 (Most directories have a `just fmt` or equivalent command, see the context.)
 
 ## Rust
@@ -209,7 +222,7 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
 ### Development
 
 - If you encounter an ICE, just do `cargo clean` (same if you run out of disk space)
-- Comments/documentation goes before *all* attributes (like `#[inline]`, `#[derive]`, etc.)
+- Comments/documentation goes before _all_ attributes (like `#[inline]`, `#[derive]`, etc.)
 - No `crate::X` within functions, prefer relative references (again, imports at the top)
 - Place imports at the top, prefer `use std::time::Instant` patterns
 - Just use `pub use submodule::*` for public exports, we use `pub` properly
@@ -234,39 +247,6 @@ Ideally, you should format code *before* running it (via tests or otherwise), so
   (e.g., `let module = modules.get(); let module = module.read();` is fine)
 - Avoid nesting items inside of functions (like other functions, lambdas, types, etc.)
 
-### Checks
-
-- Fix all the lints from `cargo check -p <crate>` and `cargo clippy -p <crate>`
-- Most clippy allow stuff should go on top of the `impl`, not individual functions (like too many arguments is almost always fine at a broad scope)
-- In general, ignore too many arguments and type complexity warnings
-- Put lint suppression at the top of the impl block, not individual functions
-
-## Markdown
-
-- One sentence per line. Always (in prose, tables and such are different).
-- Use proper rich formatting: sections, sub-sections, highlighting, code examples, tables, etc.
-- Non-prose items (lists, code blocks, tables) in a subsection should be preceded by a prose line
-
-## Commands
-
-We use `justfile`s for commands. See `just --list` for all commands.
-Be careful not to pull in unrelated fmts / checks for local edits, that might make the diff noisy.
-
-```sh
-just check
-just fmt
-just build
-just test
-```
-
-### Commits
-
-- Typically, agents aren't supposed to commit or merge directly without being explicitly instructed to.
-- For commit message format, follow `CONTRIBUTING.md#commit-style`.
-- We typically work with branches and worktrees off a main branch.
-- We try to frequently rebase off main and merge back into main.
-- When merging into main, try to fast-forward or cherry-pick to retain the commit history (except when there are a _lot_ of small commits, feel free to squash then).
-
 ## Working Style
 
 - You should always try hard to behave in accordance with this and proactively work this way, and suggest the right tools, media forms, representation, and questions to nail down the final design _before_ we get started and keep at it as we keep going.
@@ -279,11 +259,14 @@ just test
 - Data structures are incredibly important and I usually want to see them first since they clarify so much about the design. Whenever possible, this should be actual code in whichever languages we're using showing the real changes to / additions of data structures (and which values and value ranges we expect them to have).
 - Code and actual logic is always useful to show and illustrate ideas, even in pseudocode form, but ideally in a real form that we actually expect to execute on some level. Think like an API designer here, since really, everything is an API in some sense.
 - When possible, we should first think through what the example use cases would write in code to do the thing that we're trying to implement, where they're coming from, what the limits and expectations and environment is, and so on:
+
 ```
 const user = service.signup(...); // user from API or wherever
 // ... some more illustrative logic ...
 ```
+
 - When possible, we should model the noun trees and the main boxes and lines in ASCII form, either as literal ASCII art with boxes and lines and/or with nice noun trees and schemas. Ideally we should annotate exact field names and types, though both can be complementary
+
 ```
 Heap // per owner
 ├── HeapOptions
@@ -335,7 +318,9 @@ pub(crate) struct SmallSpace {
 
 // ... and so on ...
 ```
+
 - When possible, we should literally think through example use cases for every main scenario, and then trace it out across real state and call flows in a tree form:
+
 ```
 UserService.signup(name: string, email: string, password: string, session, ...)
  -> User.create(..., session)
@@ -345,3 +330,36 @@ UserService.signup(name: string, email: string, password: string, session, ...)
     -> Workflow::trigger()
    -> Session.commit(...)
 ```
+
+### Checks
+
+- Fix all the lints from `cargo check -p <crate>` and `cargo clippy -p <crate>`
+- Most clippy allow stuff should go on top of the `impl`, not individual functions (like too many arguments is almost always fine at a broad scope)
+- In general, ignore too many arguments and type complexity warnings
+- Put lint suppression at the top of the impl block, not individual functions
+
+## Markdown
+
+- One sentence per line. Always (in prose, tables and such are different).
+- Use proper rich formatting: sections, sub-sections, highlighting, code examples, tables, etc.
+- Non-prose items (lists, code blocks, tables) in a subsection should be preceded by a prose line
+
+## Commands
+
+We use `justfile`s for commands. See `just --list` for all commands.
+Be careful not to pull in unrelated fmts / checks for local edits, that might make the diff noisy.
+
+```sh
+just check
+just fmt
+just build
+just test
+```
+
+### Commits
+
+- Typically, agents aren't supposed to commit or merge directly without being explicitly instructed to.
+- For commit message format, follow `CONTRIBUTING.md#commit-style`.
+- We typically work with branches and worktrees off a main branch.
+- We try to frequently rebase off main and merge back into main.
+- When merging into main, try to fast-forward or cherry-pick to retain the commit history (except when there are a _lot_ of small commits, feel free to squash then).
