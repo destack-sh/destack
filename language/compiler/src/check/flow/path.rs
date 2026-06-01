@@ -26,6 +26,7 @@ impl FlowPath {
 
     /// Return whether this path is under another path.
     pub(in crate::check) fn starts_with(&self, prefix: &FlowPath) -> bool {
+        // compare root before member path
         self.root == prefix.root && self.segments.starts_with(&prefix.segments)
     }
 }

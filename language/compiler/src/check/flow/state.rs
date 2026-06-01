@@ -11,8 +11,8 @@ use crate::check::{
 pub(in crate::check) struct FlowState {
     /// Function bodies currently being walked.
     pub(in crate::check) functions: Vec<FunctionFrame>,
-    /// Static conditions currently guarding walked work.
-    pub(in crate::check) conditions: Vec<Condition>,
+    /// Static guards currently guarding walked work.
+    pub(in crate::check) guards: Vec<Condition>,
     /// Contextual receivers currently visible outside function bodies.
     pub(in crate::check) receivers: Vec<ReceiverCapture>,
     /// Control targets currently visible to `break` and `continue`.
@@ -33,7 +33,7 @@ impl Default for FlowState {
     fn default() -> Self {
         Self {
             functions: Vec::new(),
-            conditions: Vec::new(),
+            guards: Vec::new(),
             receivers: Vec::new(),
             targets: Vec::new(),
             tries: Vec::new(),
@@ -80,23 +80,25 @@ enum FlowMutation {
 }
 
 impl FlowState {
-    /// Push one static condition while walking.
-    pub(in crate::check) fn push_static_condition(&mut self, condition: Condition) {
-        let condition = self.current_static_condition().and(condition);
+    /// Push one static guard while walking.
+    pub(in crate::check) fn push_static_guard(&mut self, condition: Condition) {
+        // combine nested guards eagerly
+        let condition = self.active_static_guard().and(condition);
 
-        self.conditions.push(condition);
+        self.guards.push(condition);
     }
 
-    /// Pop the current static condition.
-    pub(in crate::check) fn pop_static_condition(&mut self) {
-        if self.conditions.pop().is_none() {
-            panic!("static condition stack underflow");
+    /// Pop the current static guard.
+    pub(in crate::check) fn pop_static_guard(&mut self) {
+        // require balanced guard pushes
+        if self.guards.pop().is_none() {
+            panic!("static guard stack underflow");
         }
     }
 
-    /// Return the current static condition.
-    pub(in crate::check) fn current_static_condition(&self) -> Condition {
-        self.conditions.last().cloned().unwrap_or(Condition::Always)
+    /// Return the active static guard.
+    pub(in crate::check) fn active_static_guard(&self) -> Condition {
+        self.guards.last().cloned().unwrap_or(Condition::Always)
     }
 
     /// Enter one function body while walking.
@@ -106,15 +108,22 @@ impl FlowState {
 
     /// Leave the current function body.
     pub(in crate::check) fn pop_function(&mut self) -> Capture {
+        // require an active function frame
         let Some(function) = self.functions.pop() else {
             panic!("function stack underflow");
         };
+
+        // require balanced control targets
         if self.targets.len() != function.target_start {
             panic!("control target stack leaked out of function");
         }
+
+        // require balanced try targets
         if self.tries.len() != function.try_start {
             panic!("try target stack leaked out of function");
         }
+
+        // collect frame capture output
         let symbols = function.captured_symbols.iter().copied().collect();
         let capture = Capture {
             symbol: function.symbol,
@@ -123,6 +132,7 @@ impl FlowState {
             directive: None,
         };
 
+        // restore outer definite assignment and narrowing state
         self.restore(function.checkpoint);
 
         capture
@@ -171,6 +181,7 @@ impl FlowState {
 
     /// Leave the current try failure target.
     pub(in crate::check) fn pop_try(&mut self) -> TryTarget {
+        // require an active try target
         let Some(target) = self.tries.pop() else {
             panic!("try target stack underflow");
         };
@@ -180,6 +191,7 @@ impl FlowState {
 
     /// Return the current try failure target.
     pub(in crate::check) fn current_try_mut(&mut self) -> Option<&mut TryTarget> {
+        // hide try targets from outer functions
         let start = self.current_try_start();
         if self.tries.len() == start {
             return None;
@@ -194,7 +206,6 @@ impl FlowState {
         label: Option<dir::StringId>,
     ) -> Option<usize> {
         let start = self.current_target_start();
-
         self.targets
             .iter()
             .enumerate()
@@ -204,7 +215,7 @@ impl FlowState {
                 if let Some(label) = label {
                     (target.label == Some(label)).then_some(index)
                 } else {
-                    target.allows_continue.then_some(index)
+                    Some(index)
                 }
             })
     }
@@ -215,7 +226,6 @@ impl FlowState {
         label: Option<dir::StringId>,
     ) -> Option<usize> {
         let start = self.current_target_start();
-
         self.targets
             .iter()
             .enumerate()
@@ -232,16 +242,20 @@ impl FlowState {
 
     /// Capture one symbol in the current function body.
     pub(in crate::check) fn capture_symbol(&mut self, symbol: dir::GlobalSymbolId) {
-        if let Some(function) = self.functions.last_mut() {
-            function.captured_symbols.insert(symbol);
-        }
+        let Some(function) = self.functions.last_mut() else {
+            panic!("symbol capture requires an active function");
+        };
+
+        function.captured_symbols.insert(symbol);
     }
 
     /// Capture one receiver in the current function body.
     pub(in crate::check) fn capture_receiver(&mut self, receiver: ReceiverCapture) {
-        if let Some(function) = self.functions.last_mut() {
-            function.captured_receiver = Some(receiver);
-        }
+        let Some(function) = self.functions.last_mut() else {
+            panic!("receiver capture requires an active function");
+        };
+
+        function.captured_receiver = Some(receiver);
     }
 
     /// Return the lexical receiver visible to the current function.
@@ -276,6 +290,7 @@ impl FlowState {
 
     /// Mark one local symbol as definitely assigned.
     pub(in crate::check) fn mark_assigned(&mut self, symbol: dir::GlobalSymbolId) {
+        // record previous assignment state for rollback
         let was_assigned = self.assigned.contains(&symbol);
 
         self.mutations.push(FlowMutation::Assign {
@@ -292,6 +307,7 @@ impl FlowState {
 
     /// Narrow one path at the current walk point.
     pub(in crate::check) fn narrow(&mut self, path: FlowPath, ty: TypeOperand) {
+        // record previous narrowing for rollback
         let previous = self.narrowings.get(&path).copied();
 
         self.mutations.push(FlowMutation::Narrow {
@@ -327,6 +343,7 @@ impl FlowState {
             }
         }
 
+        // snapshot final narrowing values for touched paths
         let narrowings = narrowing_paths
             .into_iter()
             .map(|path| {
@@ -344,9 +361,10 @@ impl FlowState {
 
     /// Restore the flow state to one checkpoint.
     pub(in crate::check) fn restore(&mut self, checkpoint: FlowCheckpoint) {
+        // roll back mutations in reverse order
         while self.mutations.len() > checkpoint.mutation_count {
             let Some(change) = self.mutations.pop() else {
-                break;
+                panic!("flow mutation log changed during restore");
             };
 
             // undo the latest mutation
@@ -355,6 +373,7 @@ impl FlowState {
                     symbol,
                     was_assigned,
                 } => {
+                    // restore previous assignment state
                     if was_assigned {
                         self.assigned.insert(symbol);
                     } else {
@@ -362,6 +381,7 @@ impl FlowState {
                     }
                 }
                 FlowMutation::Narrow { path, previous } => {
+                    // restore previous narrowing state
                     if let Some(previous) = previous {
                         self.narrowings.insert(path, previous);
                     } else {
@@ -372,24 +392,27 @@ impl FlowState {
         }
     }
 
-    /// Apply one branch after restoring its checkpoint.
-    pub(in crate::check) fn apply_branch(
+    /// Restore one branch from its checkpoint.
+    pub(in crate::check) fn restore_branch(
         &mut self,
         checkpoint: FlowCheckpoint,
         branch: &FlowBranch,
     ) {
         self.restore(checkpoint);
 
-        // replay assigned symbols
+        // replay assigned symbols from the branch
         for symbol in &branch.assigned_symbols {
             self.mark_assigned(*symbol);
         }
 
-        // replay narrowings
+        // replay narrowings from the branch
         for (path, narrowing) in &branch.narrowings {
+            // restore present narrowing
             if let Some(narrowing) = narrowing {
                 self.narrow(path.clone(), *narrowing);
-            } else {
+            }
+            // restore cleared narrowing
+            else {
                 self.clear_narrowing(path.clone());
             }
         }
@@ -409,12 +432,14 @@ impl FlowState {
             self.mark_assigned(*symbol);
         }
 
+        // collect all touched narrowing paths
         let mut paths = IndexSet::new();
         paths.extend(left.narrowings.keys().cloned());
         paths.extend(right.narrowings.keys().cloned());
 
         // keep narrowings with equal final values in both branches
         for path in paths {
+            // recover final value from each branch
             let left = left
                 .narrowings
                 .get(&path)
@@ -425,13 +450,19 @@ impl FlowState {
                 .get(&path)
                 .copied()
                 .unwrap_or_else(|| self.narrowings.get(&path).copied());
+
+            // preserve equal branch results
             if left == right {
                 if let Some(narrowing) = left {
                     self.narrow(path, narrowing);
-                } else {
+                }
+                // preserve equally cleared result
+                else {
                     self.clear_narrowing(path);
                 }
-            } else {
+            }
+            // clear diverging branch results
+            else {
                 self.clear_narrowing(path);
             }
         }
@@ -439,6 +470,7 @@ impl FlowState {
 
     /// Clear one current narrowing.
     fn clear_narrowing(&mut self, path: FlowPath) {
+        // record previous narrowing for rollback
         let previous = self.narrowings.get(&path).copied();
 
         self.mutations.push(FlowMutation::Narrow {
@@ -450,6 +482,7 @@ impl FlowState {
 
     /// Clear narrowings below one mutated path.
     pub(in crate::check) fn clear_narrowings_under(&mut self, path: &FlowPath) {
+        // collect invalidated paths before mutating the map
         let paths: Vec<_> = self
             .narrowings
             .keys()
@@ -457,6 +490,7 @@ impl FlowState {
             .cloned()
             .collect();
 
+        // clear each affected narrowing
         for path in paths {
             self.clear_narrowing(path);
         }

@@ -1,28 +1,32 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, ReceiverCapture, ReceiverResolution};
+use crate::check::{ReceiverCapture, ReceiverResolution, WalkState};
 
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Resolve `this` at the current walk point.
     pub(in crate::check) fn resolve_this_receiver(
         &mut self,
         source: dir::GlobalNodeIdAny,
     ) -> Option<ReceiverCapture> {
-        let module = source.module_id;
-        if let Some((index, receiver)) = self.flow(module).lexical_receiver() {
-            let is_current = self.flow(module).is_current_function(index);
+        // prefer receiver from an active function frame
+        if let Some((index, receiver)) = self.flow().lexical_receiver() {
+            let is_current = self.flow().is_current_function(index);
 
+            // select local receiver directly
             if is_current {
                 self.select_this_receiver(source, receiver);
-            } else {
-                self.flow_mut(module).capture_receiver(receiver);
-                self.select_name(source, receiver.symbol);
+            }
+            // capture receiver from an outer function
+            else {
+                self.flow_mut().capture_receiver(receiver);
+                self.check.select_name(source, receiver.symbol);
             }
 
             return Some(receiver);
         }
 
-        if let Some(receiver) = self.flow(module).current_receiver() {
+        // fall back to contextual receiver outside function bodies
+        if let Some(receiver) = self.flow().current_receiver() {
             self.select_this_receiver(source, receiver);
 
             return Some(receiver);
@@ -32,43 +36,38 @@ impl CheckState<'_> {
     }
 
     /// Capture one lexical value reference when required.
-    pub(in crate::check) fn capture_symbol_reference(
-        &mut self,
-        module: destack_source::ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) {
-        if symbol.module_id != module {
-            return;
-        }
-        if !self.modules.contains_key(&module) {
-            return;
-        }
-        if self.is_import_symbol(module, symbol) {
-            return;
-        }
-        let Some(function) = self.flow(module).current_function() else {
+    pub(in crate::check) fn capture_symbol_reference(&mut self, symbol: dir::GlobalSymbolId) {
+        // ignore references outside function bodies
+        let Some(function) = self.flow().current_function() else {
             return;
         };
-        if symbol == function.symbol {
-            return;
-        }
-        if self.symbol_is_module_scoped(module, symbol) {
-            return;
-        }
-        if self.symbol_is_owned_by_function(module, symbol, function.symbol) {
+
+        // ignore references that do not cross a boundary
+        if !self.is_captured_symbol_reference(symbol, function.symbol) {
             return;
         }
 
-        self.flow_mut(module).capture_symbol(symbol);
+        // capture the outer symbol
+        self.flow_mut().capture_symbol(symbol);
+    }
+
+    /// Return whether one value reference crosses a function boundary.
+    fn is_captured_symbol_reference(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        function: dir::GlobalSymbolId,
+    ) -> bool {
+        symbol.module_id == self.module
+            && !self.check.is_import_symbol(self.module, symbol)
+            && symbol != function
+            && !self.is_module_scoped_symbol(symbol)
+            && !self.is_symbol_owned_by_function(symbol, function)
     }
 
     /// Return whether one symbol is declared in the module scope.
-    fn symbol_is_module_scoped(
-        &self,
-        module: destack_source::ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> bool {
-        let bindings = self.module(module).binding_table();
+    fn is_module_scoped_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
+        // read lexical scope for the symbol
+        let bindings = self.check.module(self.module).binding_table();
         let symbol = bindings.get_symbol(symbol.local_id);
         let scope = bindings.get_scope(symbol.scope);
 
@@ -76,16 +75,19 @@ impl CheckState<'_> {
     }
 
     /// Return whether one symbol is declared under one function source node.
-    fn symbol_is_owned_by_function(
+    fn is_symbol_owned_by_function(
         &self,
-        module: destack_source::ModuleId,
         symbol: dir::GlobalSymbolId,
         function: dir::GlobalSymbolId,
     ) -> bool {
-        if symbol.module_id != module || function.module_id != module {
-            return false;
-        }
-        let bindings = self.module(module).binding_table();
+        assert_eq!(
+            function.module_id, self.module,
+            "flow function {function:?} must belong to active module {:?}",
+            self.module
+        );
+
+        // start from the symbol scope
+        let bindings = self.check.module(self.module).binding_table();
         let symbol = bindings.get_symbol(symbol.local_id);
         let mut scope = Some(symbol.scope.id);
 
@@ -104,18 +106,21 @@ impl CheckState<'_> {
 
     /// Select the contextual receiver for one `this` expression.
     fn select_this_receiver(&mut self, source: dir::GlobalNodeIdAny, receiver: ReceiverCapture) {
+        // select bare receiver symbols directly
         let Some(owner) = receiver.owner else {
-            self.select_name(source, receiver.symbol);
+            self.check.select_name(source, receiver.symbol);
 
             return;
         };
+
+        // select receiver with owner metadata
         let resolution = ReceiverResolution {
             source,
             kind: dir::ReceiverKind::This,
-            owner: Some(owner),
+            owner,
             ty: receiver.ty,
         };
 
-        self.select_receiver(resolution);
+        self.check.select_receiver(resolution);
     }
 }

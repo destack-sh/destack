@@ -1,68 +1,61 @@
-use destack_source::ModuleId;
+use crate::check::{FlowBranch, FlowCheckpoint, WalkState};
 
-use crate::check::{CheckState, FlowBranch, FlowCheckpoint};
-
-impl CheckState<'_> {
+impl WalkState<'_, '_> {
     /// Mark the current flow position for branch rollback.
-    pub(in crate::check) fn checkpoint_flow(&self, module: ModuleId) -> FlowCheckpoint {
-        self.flow(module).checkpoint()
+    pub(in crate::check) fn checkpoint_flow(&self) -> FlowCheckpoint {
+        self.flow().checkpoint()
     }
 
     /// Collect the flow changes since one checkpoint.
-    pub(in crate::check) fn collect_flow_branch(
-        &self,
-        module: ModuleId,
-        checkpoint: FlowCheckpoint,
-    ) -> FlowBranch {
-        self.flow(module).branch(checkpoint)
+    pub(in crate::check) fn collect_flow_branch(&self, checkpoint: FlowCheckpoint) -> FlowBranch {
+        self.flow().branch(checkpoint)
     }
 
     /// Restore current flow state to one checkpoint.
-    pub(in crate::check) fn restore_flow(&mut self, module: ModuleId, checkpoint: FlowCheckpoint) {
-        self.flow_mut(module).restore(checkpoint);
+    pub(in crate::check) fn restore_flow(&mut self, checkpoint: FlowCheckpoint) {
+        self.flow_mut().restore(checkpoint);
     }
 
-    /// Apply one completed branch.
-    pub(in crate::check) fn apply_flow_branch(
+    /// Restore one completed branch.
+    pub(in crate::check) fn restore_flow_branch(
         &mut self,
-        module: ModuleId,
         checkpoint: FlowCheckpoint,
         branch: &FlowBranch,
     ) {
-        self.flow_mut(module).apply_branch(checkpoint, branch);
+        self.flow_mut().restore_branch(checkpoint, branch);
     }
 
     /// Merge two completed flow branches.
     pub(in crate::check) fn merge_flow_branches(
         &mut self,
-        module: ModuleId,
         checkpoint: FlowCheckpoint,
         left: &FlowBranch,
         right: &FlowBranch,
     ) {
-        self.flow_mut(module)
-            .merge_branches(checkpoint, left, right);
+        self.flow_mut().merge_branches(checkpoint, left, right);
     }
 
     /// Merge the state common to all completed flow branches.
     pub(in crate::check) fn merge_flow_branches_from(
         &mut self,
-        module: ModuleId,
         checkpoint: FlowCheckpoint,
         branches: &[FlowBranch],
     ) {
+        // restore to base state when there are no branches
         let Some(first) = branches.first() else {
-            self.restore_flow(module, checkpoint);
+            self.restore_flow(checkpoint);
 
             return;
         };
 
-        self.apply_flow_branch(module, checkpoint, first);
+        // seed merge with the first branch
+        self.restore_flow_branch(checkpoint, first);
 
+        // intersect each remaining branch into the current flow
         for branch in &branches[1..] {
-            let current = self.collect_flow_branch(module, checkpoint);
+            let current = self.collect_flow_branch(checkpoint);
 
-            self.merge_flow_branches(module, checkpoint, &current, branch);
+            self.merge_flow_branches(checkpoint, &current, branch);
         }
     }
 }
