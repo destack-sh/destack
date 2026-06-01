@@ -20,7 +20,7 @@ outer: for (let index = 0; index < 3; index = index + 1) {
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries(),
+        DirRows::binding().with_summaries().with_bind_stats(),
         r#"
 let done: boolean = false;
 /// @binding.symbol symbol=done role=local kind=variable scope=<module>@1 mutability=mutable
@@ -43,11 +43,13 @@ outer: for (let index = 0; index < 3; index = index + 1) {
         break inner;
     }
 }
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=5 scopes=7 declarations=4 node_scopes=26 owner_scopes=2
+/// @bind.stats files=1 roots=2
 "#,
     );
 }

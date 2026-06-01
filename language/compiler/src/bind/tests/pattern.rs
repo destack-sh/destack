@@ -19,7 +19,7 @@ function visit({ id }: User, [first]: Items) {
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries(),
+        DirRows::binding().with_summaries().with_bind_stats(),
         r#"
 let { id, name: displayName }: User = user;
 /// @binding.symbol symbol=id#1 role=local kind=variable scope=<module>@1 mutability=mutable
@@ -40,11 +40,13 @@ function visit({ id }: User, [first]: Items) {
     id;
     first;
 }
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=8 scopes=4 declarations=7 node_scopes=31 owner_scopes=1
+/// @bind.stats files=1 roots=3
 "#,
     );
 }

@@ -26,7 +26,7 @@ interface Reader<T> {
 
     compiler.assert_dir_bound(
         "main.ds",
-        DirRows::binding().with_summaries(),
+        DirRows::binding().with_summaries().with_bind_stats(),
         r#"
 struct User<T> {
 /// @binding.symbol symbol=User role=namespace kind=struct scope=<module>@1
@@ -84,11 +84,13 @@ interface Reader<T> {
     /// @binding.owner_scope owner=Item scope=Item
 
 }
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
 
 /// @binding.summary symbols=18 scopes=9 declarations=12 receivers=5 node_scopes=30 owner_scopes=6
+/// @bind.stats files=1 roots=2
 "#,
     );
 }
@@ -137,6 +139,7 @@ enum Priority {
         "priority";
     }
 }
+
 /// @binding.symbol symbol=<module> role=namespace kind=variable scope=<module>@end
 /// @binding.scope scope=<module> kind=module owner=<module>
 /// @binding.scope scope=scope1 kind=global
