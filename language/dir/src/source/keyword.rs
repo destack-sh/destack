@@ -88,8 +88,6 @@ pub enum Keyword {
     // ------------------------------------------------------------
     // Typing
     // ------------------------------------------------------------
-    /// Asserts expression.
-    Asserts,
     /// Extends.
     Extends,
     /// Implements.
@@ -276,7 +274,6 @@ impl Keyword {
             Keyword::Satisfies => "satisfies",
             Keyword::Abstract => "abstract",
             Keyword::Override => "override",
-            Keyword::Asserts => "asserts",
             Keyword::InstanceOf => "instanceof",
             Keyword::Where => "where",
             Keyword::Typeof => "typeof",
@@ -381,7 +378,6 @@ impl FromStr for Keyword {
             "satisfies" => Ok(Keyword::Satisfies),
             "abstract" => Ok(Keyword::Abstract),
             "override" => Ok(Keyword::Override),
-            "asserts" => Ok(Keyword::Asserts),
             "instanceof" => Ok(Keyword::InstanceOf),
             "where" => Ok(Keyword::Where),
             "typeof" => Ok(Keyword::Typeof),

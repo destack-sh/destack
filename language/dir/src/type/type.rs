@@ -154,15 +154,6 @@ pub enum Form {
     Readonly,
 }
 
-/// A predicate subject in semantic type space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum PredicateSubject {
-    /// Symbol subject like `x` in `x is T`.
-    Symbol(GlobalSymbolId),
-    /// `this` subject.
-    This,
-}
-
 /// An index signature in an object type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeIndexSignature {
@@ -227,17 +218,6 @@ pub struct InferType {
     pub name: Option<StringId>,
     /// The optional inferred constraint.
     pub constraint: Option<LocalTypeId>,
-}
-
-/// A type predicate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PredicateType {
-    /// Whether this is an assertion predicate.
-    pub asserts: bool,
-    /// The predicate subject.
-    pub subject: PredicateSubject,
-    /// The predicate target type.
-    pub target: Option<LocalTypeId>,
 }
 
 /// A unary type operator.
@@ -417,7 +397,7 @@ pub enum Type {
     Parameter(GenericParameterRef),
     /// Type declaration reference.
     Reference(ReferenceType),
-    /// This type in a type predicate or method signature.
+    /// This type in a method signature.
     This,
     /// Member type selected from an owner type.
     Member(MemberType),
@@ -427,8 +407,6 @@ pub enum Type {
     /// Explicit runtime `Dynamic<T>` representation.
     Dynamic(DynamicType),
 
-    /// Type predicate expression.
-    Predicate(PredicateType),
     /// Type-level operation preserved by check.
     Operation(TypeOperation),
 
