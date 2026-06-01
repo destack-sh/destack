@@ -19,13 +19,13 @@ export function PostPage(props: PostPageProps) {
                 {(post) => (
                     <article class="mx-auto grid w-full max-w-[52rem] gap-10 px-4 py-8 md:px-10 md:py-12">
                         <Seo
-                            description={post.summary}
+                            description={post.subtitle}
                             path={post.route}
                             title={post.title}
                             type="article"
                         />
 
-                        <header class="grid w-full gap-4">
+                        <header class="grid w-full gap-5">
                             <A
                                 class="w-max border-b-4 border-neutral-300 text-sm font-extrabold lowercase hover:border-destack-accent"
                                 href="/blog/"
@@ -37,14 +37,11 @@ export function PostPage(props: PostPageProps) {
                                 <time>{post.date}</time>
                                 <span>·</span>
                                 <span>{post.author}</span>
-                                <span>·</span>
-                                <span>{post.status}</span>
                             </div>
 
-                            <h1 class="page-title">{post.title}</h1>
-
-                            <p class="text-base leading-7 font-bold text-neutral-700">
-                                {post.summary}
+                            <h1 class="page-title mb-1">{post.title}</h1>
+                            <p class="text-xl leading-8 font-black text-neutral-700">
+                                {post.subtitle}
                             </p>
                         </header>
 

@@ -40,7 +40,7 @@ type LatestPostProps = {
 function LatestPost(props: LatestPostProps) {
     return (
         <article class="grid w-full gap-8">
-            <header class="grid w-full gap-4">
+            <header class="grid w-full gap-5">
                 <A
                     class="w-max border-b-4 border-neutral-300 text-sm font-extrabold lowercase hover:border-destack-accent"
                     href={props.post.route}
@@ -50,9 +50,9 @@ function LatestPost(props: LatestPostProps) {
 
                 <PostMeta post={props.post} />
 
-                <h1 class="page-title">{props.post.title}</h1>
-                <p class="text-base leading-7 font-bold text-neutral-700">
-                    {props.post.summary}
+                <h1 class="page-title mb-1">{props.post.title}</h1>
+                <p class="text-xl leading-8 font-black text-neutral-700">
+                    {props.post.subtitle}
                 </p>
                 <PostTags post={props.post} />
             </header>
@@ -91,10 +91,8 @@ function PostRow(props: PostRowProps) {
                     <span class="text-base leading-6 font-black md:text-lg">
                         {props.post.title}
                     </span>
-                    <span class="flex flex-wrap gap-x-3 gap-y-1 text-sm font-extrabold text-neutral-500 lowercase">
-                        <span>{props.post.author}</span>
-                        <span>·</span>
-                        <span>{props.post.status}</span>
+                    <span class="max-w-2xl text-sm leading-5 font-extrabold text-neutral-500 lowercase">
+                        {props.post.subtitle}
                     </span>
                 </span>
 
@@ -136,8 +134,6 @@ function PostMeta(props: PostRowProps) {
             <time>{props.post.date}</time>
             <span>·</span>
             <span>{props.post.author}</span>
-            <span>·</span>
-            <span>{props.post.status}</span>
         </p>
     );
 }
