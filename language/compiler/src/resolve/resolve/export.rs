@@ -28,18 +28,19 @@ impl ResolveState<'_> {
             Some(ExportLookupState::Resolving)
         );
         if let Some(lookup) = self.cached_export_lookup(cache_key) {
-            self.export_cache_hits += 1;
+            self.stats.export_cache_hits += 1;
             if is_cycle {
-                self.export_cycle_hits += 1;
+                self.stats.export_cycle_hits += 1;
             }
 
             return Ok(lookup);
         }
 
+        self.stats.export_cache_misses += 1;
         self.export_lookups
             .insert(cache_key, ExportLookupState::Resolving);
 
-        let lookup = self.compute_export_symbol(module, key)?;
+        let lookup = self.resolve_export_symbol_uncached(module, key)?;
         self.export_lookups
             .insert(cache_key, ExportLookupState::Resolved(lookup));
 
@@ -59,11 +60,13 @@ impl ResolveState<'_> {
     }
 
     /// Resolve one exported symbol without consulting the lookup cache.
-    fn compute_export_symbol(
+    fn resolve_export_symbol_uncached(
         &mut self,
         module: ModuleId,
         key: dir::ExportKey,
     ) -> CompilerResult<ExportLookup> {
+        self.stats.export_table_loads += 1;
+
         let exported = self
             .artifacts
             .dir_exported(module, self.profile)

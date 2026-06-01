@@ -79,7 +79,7 @@ const value = answer;
 /// @import.global key=answer symbols=[globals.answer]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=2 types=0 imports=dep:1,symbol:0 globals=required:1,module:1,loaded:1
+/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1,modules:1
 "#,
     );
 }
@@ -129,7 +129,7 @@ let local = Function;
 /// @import.global key=Function symbols=[types.Function]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=2 types=0 imports=dep:1,symbol:0 globals=required:1,module:1,loaded:1 exports=miss:1,hit:0,cycle:0
+/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1,modules:1 exports=miss:1,hit:0,cycle:0
 "#,
     );
 }
@@ -178,7 +178,7 @@ let promise: Promise<string>;
 /// @import.global key=Promise symbols=[async.Promise]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=1 types=2 imports=dep:1,symbol:0 globals=required:1,module:1,loaded:1 exports=miss:1,hit:0,cycle:0
+/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1,modules:1 exports=miss:1,hit:0,cycle:0
 "#,
     );
 }
@@ -203,7 +203,7 @@ let promise: Promise<string>;
 /// @import.global key=Promise symbols=[async.promise.Promise]
 
 /// @import.summary globals=1
-/// @resolve.stats roots=1 expressions=1 types=2 imports=dep:1,symbol:0 globals=required:1,module:0,loaded:1
+/// @resolve.stats roots=1 expressions=1 types=2 globals=required:1,modules:0
 "#,
     );
 }
@@ -228,7 +228,7 @@ const load = async () => 1;
 /// @import.language item=async.Promise symbol=async.promise.Promise
 
 /// @import.summary language=1
-/// @resolve.stats roots=1 expressions=3 types=0 imports=dep:1,symbol:0 language=required:1,loaded:1
+/// @resolve.stats roots=1 expressions=3 types=0 language=required:1
 "#,
     );
 }
@@ -255,7 +255,7 @@ const load = async () => 1;
 /// @import.language item=async.Promise symbol=async.promise.Promise
 
 /// @import.summary language=1
-/// @resolve.stats roots=2 expressions=4 types=0 imports=dep:1,symbol:0 language=required:1,loaded:1
+/// @resolve.stats roots=2 expressions=4 types=0 language=required:1
 "#,
     );
 }
@@ -280,7 +280,7 @@ const runtime = import.meta.runtime;
 /// @import.language item=module.ImportMeta symbol=module.meta.ImportMeta
 
 /// @import.summary language=1
-/// @resolve.stats roots=1 expressions=3 types=0 imports=dep:1,symbol:0 language=required:1,loaded:1
+/// @resolve.stats roots=1 expressions=3 types=0 language=required:1
 "#,
     );
 }
@@ -309,7 +309,7 @@ const value = left + right;
 /// @import.language item=ops.Add symbol=ops.plus.Add
 
 /// @import.summary language=1
-/// @resolve.stats roots=3 expressions=8 types=0 imports=dep:1,symbol:0 language=required:1,loaded:1
+/// @resolve.stats roots=3 expressions=8 types=0 language=required:1
 "#,
     );
 }
@@ -430,7 +430,7 @@ global {
 import "./dep.ds";
 
 /// @import.summary
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 imports=dep:1,symbol:0
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0
 "#,
     );
 }
@@ -464,7 +464,7 @@ import { value } from "./dep.ds";
 /// @import.symbol symbol=value target=dep.value
 
 /// @import.summary symbols=1
-/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 imports=dep:1,symbol:1 exports=miss:1,hit:0,cycle:0
+/// @resolve.stats roots=1 expressions=1 types=0 clauses=import:1,reexport:0 exports=miss:1,hit:0,cycle:0
 "#,
     );
 }

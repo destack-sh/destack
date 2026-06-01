@@ -64,6 +64,7 @@ impl ResolveState<'_> {
         items: &[dir::LocalNodeId<dir::DependencyItem>],
     ) -> CompilerResult<()> {
         for item_id in items {
+            self.stats.import_items += 1;
             self.resolve_import_item(target, specifier, *item_id)?;
         }
 
@@ -137,6 +138,8 @@ impl ResolveState<'_> {
         self.imports.push_dependency(target);
 
         for item_id in items {
+            self.stats.reexport_items += 1;
+
             let item = self.view.get(*item_id);
 
             let Some(selector) = item.export_selector() else {
