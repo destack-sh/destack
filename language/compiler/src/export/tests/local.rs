@@ -13,12 +13,13 @@ export let value: number = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries(),
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
 export let value: number = 1;
 /// @export.local key=value source=value
 
 /// @export.summary exports=1
+/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:2
 "#,
     );
 }
@@ -37,13 +38,14 @@ export { value as renamed };
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries(),
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
 let value = 1;
 export { value as renamed };
 /// @export.local key=renamed source=value
 
 /// @export.summary exports=1
+/// @export.stats roots=2 expressions=visibility:2,export:2 symbols=scanned:2
 "#,
     );
 }
@@ -63,7 +65,7 @@ export { value };
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries(),
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
 let value = 1;
 let value = 2;
@@ -71,6 +73,7 @@ export { value };
 /// @export.local key=value source=value#2
 
 /// @export.summary exports=1
+/// @export.stats roots=3 expressions=visibility:3,export:3 symbols=scanned:3
 "#,
     );
 }
@@ -91,7 +94,7 @@ global {
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries(),
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
 global {
     let process: string;
@@ -103,6 +106,7 @@ global {
 }
 
 /// @export.summary
+/// @export.stats roots=1 expressions=visibility:3,export:3 symbols=scanned:3
 /// @global.summary keys=2 entries=2
 "#,
     );
@@ -130,7 +134,7 @@ export type Option = string;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::exports().with_summaries(),
+        DirRows::exports().with_summaries().with_export_stats(),
         r#"
 global {
     export { Function, Option as Maybe } from "./types.ds";
@@ -140,6 +144,7 @@ global {
 }
 
 /// @export.summary
+/// @export.stats roots=1 expressions=visibility:2,export:2 symbols=scanned:1
 /// @global.summary keys=2 entries=2
 "#,
     );

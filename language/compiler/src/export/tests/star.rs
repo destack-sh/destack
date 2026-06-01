@@ -19,7 +19,10 @@ export let value = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::modules().with_export().with_summaries(),
+        DirRows::modules()
+            .with_export()
+            .with_summaries()
+            .with_export_stats(),
         r#"
 export * from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
@@ -27,6 +30,7 @@ export * from "./dep.ds";
 
 /// @module.summary edges=1
 /// @export.summary stars=1
+/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:1
 "#,
     );
 }
@@ -50,7 +54,10 @@ export let value = 1;
 
     compiler.assert_dir_exported(
         "main.ds",
-        DirRows::modules().with_export().with_summaries(),
+        DirRows::modules()
+            .with_export()
+            .with_summaries()
+            .with_export_stats(),
         r#"
 export * as dep from "./dep.ds";
 /// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
@@ -58,6 +65,7 @@ export * as dep from "./dep.ds";
 
 /// @module.summary edges=1
 /// @export.summary exports=1
+/// @export.stats roots=1 expressions=visibility:1,export:1 symbols=scanned:1
 "#,
     );
 }

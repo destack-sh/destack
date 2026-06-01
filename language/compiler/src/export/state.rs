@@ -3,8 +3,9 @@ use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use destack_workspace::Module;
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 
+use crate::export::stats::ExportStats;
 use crate::{ExportError, ExportResult};
 
 /// Export phase state for one module.
@@ -31,8 +32,14 @@ pub(crate) struct ExportState<'a> {
     pub(in crate::export) globals: dir::GlobalTable,
     /// Declarations hidden by static guards.
     pub(in crate::export) static_hidden_declarations: IndexSet<dir::LocalNodeIdAny>,
+    /// Static visibility decisions by checked node.
+    pub(in crate::export) static_visibility_by_node: IndexMap<dir::LocalNodeIdAny, bool>,
+    /// Nodes skipped by static guards.
+    pub(in crate::export) static_skipped_nodes: IndexSet<dir::LocalNodeIdAny>,
     /// The recoverable diagnostics produced while exporting.
     pub(in crate::export) diagnostics: Vec<ExportError>,
+    /// The work stats accumulated while exporting.
+    pub(in crate::export) stats: ExportStats,
 }
 
 impl<'a> ExportState<'a> {
@@ -59,7 +66,10 @@ impl<'a> ExportState<'a> {
             exports: dir::ExportTable::new(view.tree().module_id),
             globals: dir::GlobalTable::new(view.tree().module_id),
             static_hidden_declarations: IndexSet::new(),
+            static_visibility_by_node: IndexMap::new(),
+            static_skipped_nodes: IndexSet::new(),
             diagnostics: Vec::new(),
+            stats: ExportStats::default(),
         }
     }
 
@@ -97,6 +107,13 @@ impl<'a> ExportState<'a> {
     /// Report one recoverable export diagnostic.
     pub(in crate::export) fn report_diagnostic(&mut self, diagnostic: ExportError) {
         self.diagnostics.push(diagnostic);
+    }
+
+    /// Mark one node as skipped by a static guard.
+    pub(in crate::export) fn skip_static_node(&mut self, node: dir::LocalNodeIdAny) {
+        if self.static_skipped_nodes.insert(node) {
+            self.stats.skipped += 1;
+        }
     }
 
     /// Resolve the target for one re-export expression.

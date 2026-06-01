@@ -12,6 +12,14 @@ impl ExportState<'_> {
         &mut self,
         owner: dir::LocalNodeIdAny,
     ) -> ExportResult<bool> {
+        self.stats.static_checks += 1;
+
+        if let Some(value) = self.static_visibility_by_node.get(&owner).copied() {
+            self.stats.static_cache_hits += 1;
+
+            return Ok(value);
+        }
+
         let decorators = self.view.get_decorators_any(owner);
 
         for decorator in decorators {
@@ -19,20 +27,29 @@ impl ExportState<'_> {
                 StaticGuard::Ordinary => {}
                 StaticGuard::Rejected(error) => {
                     self.report_static_guard_error(error)?;
+                    self.static_visibility_by_node.insert(owner, false);
 
                     return Ok(false);
                 }
                 StaticGuard::Condition(condition) => {
+                    self.stats.guards += 1;
+
                     let Some(value) = self.evaluate_static_guard(condition)? else {
+                        self.static_visibility_by_node.insert(owner, false);
+
                         return Ok(false);
                     };
 
                     if !value {
+                        self.static_visibility_by_node.insert(owner, false);
+
                         return Ok(false);
                     }
                 }
             }
         }
+
+        self.static_visibility_by_node.insert(owner, true);
 
         Ok(true)
     }

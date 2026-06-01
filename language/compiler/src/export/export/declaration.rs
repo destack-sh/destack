@@ -11,6 +11,8 @@ impl Compiler {
     ) -> ExportResult<()> {
         // scan bound symbols
         for symbol_id in state.symbol_ids() {
+            state.stats.scanned_symbols += 1;
+
             self.collect_declaration_global(state, symbol_id)?;
 
             if let Some(export) = self.declaration_export_entry(state, symbol_id)? {
