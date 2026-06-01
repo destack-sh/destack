@@ -229,6 +229,7 @@ Ideally, you should format code _before_ running it (via tests or otherwise), so
 - Relatedly, we like to just use `use crate::x` directly at the top level (when possible)
 - `mod.rs` and `main.rs` are intended strictly for re-exports (and submodule declarations like `mod submodule;`)
 - Modules should either be `module.rs` or have `module/mod.rs` + real `module/whatever.rs`, never both
+- `Into/From` is great (and sometimes `TryFrom`) and self contained to/from style conversions should usually use them for clarity
 - Avoid `include!` or convoluted `#[path]` to bypass
 - Avoid nesting `mod x { }` inside a file (except for `tests`)
 - Avoid `Cell` and `RefCell`, they almost always imply a bad ownership model
