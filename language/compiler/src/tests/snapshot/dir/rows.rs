@@ -1,4 +1,5 @@
 const CHECK_STATS_ROWS: &[&str] = &["check.stats.solve", "check.stats.output"];
+const RESOLVE_STATS_ROWS: &[&str] = &["resolve.stats"];
 
 /// Rows to render into a DIR snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -172,6 +173,12 @@ impl DirRows {
     /// Include check stats rows.
     pub(crate) const fn with_check_stats(mut self) -> Self {
         self.metadata_rows = CHECK_STATS_ROWS;
+        self
+    }
+
+    /// Include resolve stats rows.
+    pub(crate) const fn with_resolve_stats(mut self) -> Self {
+        self.metadata_rows = RESOLVE_STATS_ROWS;
         self
     }
 

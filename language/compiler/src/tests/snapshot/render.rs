@@ -44,7 +44,7 @@ impl<'a> SnapshotRenderer<'a> {
         let rendered_ranges = self.rendered_line_ranges(&line_ranges);
         let rows_by_line = self.rows_by_line(&rendered_ranges);
         let end_rows = self.end_rows();
-        let summary_rows = self.summary_rows();
+        let footer_rows = self.footer_rows();
         let mut lines = Vec::new();
 
         // overlay rows after their source line
@@ -65,17 +65,21 @@ impl<'a> SnapshotRenderer<'a> {
         }
 
         // append rows without a source anchor
+        if !end_rows.is_empty() && lines.last().is_some_and(|line| !line.is_empty()) {
+            lines.push(String::new());
+        }
+
         for row in end_rows {
             lines.push(Self::render_row(row));
         }
 
-        // render table summaries as a footer
-        if !summary_rows.is_empty() {
+        // render summaries and stats as a footer
+        if !footer_rows.is_empty() {
             if lines.last().is_some_and(|line| !line.is_empty()) {
                 lines.push(String::new());
             }
 
-            for row in summary_rows {
+            for row in footer_rows {
                 lines.push(Self::render_row(row));
             }
         }
@@ -96,21 +100,21 @@ impl<'a> SnapshotRenderer<'a> {
     fn end_rows(&self) -> Vec<&SnapshotRow> {
         self.rows
             .iter()
-            .filter(|row| matches!(row.anchor, SnapshotAnchor::End) && !Self::is_summary_row(row))
+            .filter(|row| matches!(row.anchor, SnapshotAnchor::End) && !Self::is_footer_row(row))
             .collect()
     }
 
-    /// Collect summary rows rendered in the footer.
-    fn summary_rows(&self) -> Vec<&SnapshotRow> {
+    /// Collect summary and stats rows rendered in the footer.
+    fn footer_rows(&self) -> Vec<&SnapshotRow> {
         self.rows
             .iter()
-            .filter(|row| Self::is_summary_row(row))
+            .filter(|row| Self::is_footer_row(row))
             .collect()
     }
 
-    /// Check whether one row belongs to the summary footer.
-    fn is_summary_row(row: &SnapshotRow) -> bool {
-        row.tag.entry == "summary"
+    /// Check whether one row belongs to the footer.
+    fn is_footer_row(row: &SnapshotRow) -> bool {
+        row.tag.entry == "summary" || row.tag.entry.starts_with("stats")
     }
 
     /// Check whether to insert a blank line after an annotation group.
@@ -232,12 +236,14 @@ impl<'a> SnapshotRenderer<'a> {
             "coercion" => 8,
             "module" => 9,
             "dependency" => 10,
-            "export" => 11,
-            "global" => 12,
-            "capture" => 13,
-            "macro" => 14,
-            "layout" => 15,
-            "check" => 16,
+            "import" => 11,
+            "export" => 12,
+            "global" => 13,
+            "capture" => 14,
+            "macro" => 15,
+            "layout" => 16,
+            "resolve" => 17,
+            "check" => 18,
             _ => u8::MAX,
         }
     }
@@ -276,8 +282,9 @@ impl<'a> SnapshotRenderer<'a> {
             "variant" => 28,
             "newtype" => 29,
             "replaced_symbol" => 30,
-            "stats.solve" => 31,
-            "stats.output" => 32,
+            "stats" => 31,
+            "stats.solve" => 32,
+            "stats.output" => 33,
             "summary" => u8::MAX,
             _ => 128,
         }
