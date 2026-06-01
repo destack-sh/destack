@@ -7,7 +7,7 @@ use crate::check::{
 };
 
 impl CheckState<'_> {
-    /// Require one match expression to cover every known value.
+    /// Require one match expression to cover every kn^value.
     pub(in crate::check) fn require_exhaustive_match(
         &mut self,
         module: ModuleId,
