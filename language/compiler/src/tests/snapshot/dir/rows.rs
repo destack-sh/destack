@@ -1,16 +1,8 @@
 const CHECK_STATS_ROWS: &[&str] = &["check.stats.solve"];
 const BIND_STATS_ROWS: &[&str] = &["bind.stats"];
-const BIND_STRESS_STATS_ROWS: &[&str] = &["bind.stats", "bind.stats.visited"];
 const IMPORT_STATS_ROWS: &[&str] = &["import.stats"];
-const IMPORT_STRESS_STATS_ROWS: &[&str] = &["import.stats", "import.stats.resolve"];
 const EXPORT_STATS_ROWS: &[&str] = &["export.stats"];
-const EXPORT_STRESS_STATS_ROWS: &[&str] = &["export.stats", "export.stats.static"];
 const RESOLVE_STATS_ROWS: &[&str] = &["resolve.stats"];
-const RESOLVE_STRESS_STATS_ROWS: &[&str] = &[
-    "resolve.stats",
-    "resolve.stats.lookups",
-    "resolve.stats.loads",
-];
 
 /// Rows to render into a DIR snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -193,21 +185,9 @@ impl DirRows {
         self
     }
 
-    /// Include bind stress stats rows.
-    pub(crate) const fn with_bind_stress_stats(mut self) -> Self {
-        self.metadata_rows = BIND_STRESS_STATS_ROWS;
-        self
-    }
-
     /// Include import stats rows.
     pub(crate) const fn with_import_stats(mut self) -> Self {
         self.metadata_rows = IMPORT_STATS_ROWS;
-        self
-    }
-
-    /// Include import stress stats rows.
-    pub(crate) const fn with_import_stress_stats(mut self) -> Self {
-        self.metadata_rows = IMPORT_STRESS_STATS_ROWS;
         self
     }
 
@@ -217,21 +197,9 @@ impl DirRows {
         self
     }
 
-    /// Include export stress stats rows.
-    pub(crate) const fn with_export_stress_stats(mut self) -> Self {
-        self.metadata_rows = EXPORT_STRESS_STATS_ROWS;
-        self
-    }
-
     /// Include resolve stats rows.
     pub(crate) const fn with_resolve_stats(mut self) -> Self {
         self.metadata_rows = RESOLVE_STATS_ROWS;
-        self
-    }
-
-    /// Include resolve stress stats rows.
-    pub(crate) const fn with_resolve_stress_stats(mut self) -> Self {
-        self.metadata_rows = RESOLVE_STRESS_STATS_ROWS;
         self
     }
 
