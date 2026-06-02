@@ -411,6 +411,28 @@ Structs also support the `_` placeholder for type inference:
 let x: Point = _ { x, y };  // OK
 ```
 
+Struct expressions can update an existing struct value with the familiar "spread" operator `...expr`, keeping the nominal struct type:
+
+```ds
+const moved = Point { ...x, y: 10.0 };
+moved satisfies Point;
+```
+
+Plain object spreads can also read the fields of a struct value, but they produce a structural object rather than the nominal struct.
+
+```ds
+const object = { ...x, label: "origin" }; // x: Point
+object satisfies { x: float32; y: float32; label: string };
+```
+
+Conversely, struct expressions can also spread from object literals (when the final field set satisfies the struct):
+
+```ds
+const base = { x: 1.0, y: 2.0 };
+const point: Point = _ { ...base };
+```
+
+Classes don't get to participate in spreads because they carry identity, behavior, and constructors, and that would just be a confusing mess.
 
 ### Classes
 
