@@ -242,7 +242,7 @@ fn try_accumulator_transform_exported(
     };
 
     // create the impl function name: "func" -> "func$impl"
-    let impl_name_str = format!("{}$impl", &*strings.get(function.name));
+    let impl_name_str = format!("{}$impl", strings.get(function.name));
     let impl_name = strings.intern(&impl_name_str);
 
     // clone the function to create the impl version
@@ -386,10 +386,9 @@ fn clone_function_as_impl(
     let mut impl_function = mir::Function::local(
         impl_name,
         original.parameters.clone(),
-        original.return_type,
+        original.return_type.clone(),
         impl_entry,
     );
-    impl_function.return_lifetime = original.return_lifetime.clone();
     impl_function.linkage = mir::Linkage::Local;
     impl_function.allocation = original.allocation;
     impl_function.suspension = original.suspension;
@@ -493,7 +492,7 @@ fn remap_terminator_blocks(
             success,
             failure,
         } => mir::Terminator::NewZeroedTry {
-            layout: *layout,
+            layout: layout.clone(),
             success: clone_target(success),
             failure: clone_target(failure),
         },
@@ -502,7 +501,7 @@ fn remap_terminator_blocks(
             success,
             failure,
         } => mir::Terminator::NewUninitTry {
-            layout: *layout,
+            layout: layout.clone(),
             success: clone_target(success),
             failure: clone_target(failure),
         },
@@ -512,7 +511,7 @@ fn remap_terminator_blocks(
             success,
             failure,
         } => mir::Terminator::NewSliceZeroedTry {
-            element: *element,
+            element: element.clone(),
             length: *length,
             success: clone_target(success),
             failure: clone_target(failure),
@@ -523,7 +522,7 @@ fn remap_terminator_blocks(
             success,
             failure,
         } => mir::Terminator::NewSliceUninitTry {
-            element: *element,
+            element: element.clone(),
             length: *length,
             success: clone_target(success),
             failure: clone_target(failure),
@@ -569,7 +568,7 @@ fn remap_terminator_blocks(
             function: *function,
             call: call.clone(),
             target: clone_target(target),
-            unwind: unwind.as_ref().map(|target| clone_target(target)),
+            unwind: unwind.as_ref().map(&clone_target),
         },
         mir::Terminator::CallIndirect {
             callee,
@@ -580,7 +579,7 @@ fn remap_terminator_blocks(
             callee: *callee,
             call: call.clone(),
             target: clone_target(target),
-            unwind: unwind.as_ref().map(|target| clone_target(target)),
+            unwind: unwind.as_ref().map(&clone_target),
         },
         mir::Terminator::CallVirtual {
             receiver,
@@ -592,10 +591,10 @@ fn remap_terminator_blocks(
         } => mir::Terminator::CallVirtual {
             receiver: *receiver,
             call: call.clone(),
-            class: *class,
+            class: class.clone(),
             slot: *slot,
             target: clone_target(target),
-            unwind: unwind.as_ref().map(|target| clone_target(target)),
+            unwind: unwind.as_ref().map(&clone_target),
         },
         mir::Terminator::CallDynamic {
             receiver,
@@ -607,10 +606,10 @@ fn remap_terminator_blocks(
         } => mir::Terminator::CallDynamic {
             receiver: *receiver,
             call: call.clone(),
-            constraint: *constraint,
+            constraint: constraint.clone(),
             slot: *slot,
             target: clone_target(target),
-            unwind: unwind.as_ref().map(|target| clone_target(target)),
+            unwind: unwind.as_ref().map(clone_target),
         },
         // return, unreachable, tailcall don't reference blocks that need remapping
         mir::Terminator::Return { .. }
@@ -1166,7 +1165,7 @@ fn transform_accumulator_block(
         destination: new_acc.into(),
         operator: pattern.operator,
         left: acc_value.into(),
-        right: pattern.other_operand.into(),
+        right: pattern.other_operand,
     };
 
     // build new instructions list: keep everything except call and old binary
@@ -1405,7 +1404,7 @@ fn transform_sibling_tail_call(
 
             let new_terminator = mir::Terminator::TailCall {
                 function: *called_function,
-                call: mir::Call::new(call_args, call.signature),
+                call: mir::Call::new(call_args, call.signature.clone()),
             };
 
             let mut new_block = block.clone();
@@ -1443,7 +1442,7 @@ fn transform_sibling_tail_call(
 
             let new_terminator = mir::Terminator::TailCallIndirect {
                 callee: callee_value,
-                call: mir::Call::new(call_args, call.signature),
+                call: mir::Call::new(call_args, call.signature.clone()),
             };
 
             let mut new_block = block.clone();

@@ -762,7 +762,7 @@ fn update_terminator_arguments(
                 },
                 mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
                     value: remap_value_reference(*value, substitutions),
-                    expected: *expected,
+                    expected: expected.clone(),
                 },
                 mir::CheckConstraint::Variant { value, expected } => {
                     mir::CheckConstraint::Variant {
@@ -773,13 +773,13 @@ fn update_terminator_arguments(
                 mir::CheckConstraint::ReceiverType { receiver, expected } => {
                     mir::CheckConstraint::ReceiverType {
                         receiver: remap_value_reference(*receiver, substitutions),
-                        expected: *expected,
+                        expected: expected.clone(),
                     }
                 }
                 mir::CheckConstraint::Implements { receiver, expected } => {
                     mir::CheckConstraint::Implements {
                         receiver: remap_value_reference(*receiver, substitutions),
-                        expected: *expected,
+                        expected: expected.clone(),
                     }
                 }
             };
@@ -800,7 +800,7 @@ fn update_terminator_arguments(
             success,
             failure,
         } => mir::Terminator::NewZeroedTry {
-            layout: *layout,
+            layout: layout.clone(),
             success: mir::BlockTarget {
                 block: success.block,
                 arguments: extend_arguments(
@@ -818,7 +818,7 @@ fn update_terminator_arguments(
             success,
             failure,
         } => mir::Terminator::NewUninitTry {
-            layout: *layout,
+            layout: layout.clone(),
             success: mir::BlockTarget {
                 block: success.block,
                 arguments: extend_arguments(
@@ -837,7 +837,7 @@ fn update_terminator_arguments(
             success,
             failure,
         } => mir::Terminator::NewSliceZeroedTry {
-            element: *element,
+            element: element.clone(),
             length: remap_value_reference(*length, substitutions),
             success: mir::BlockTarget {
                 block: success.block,
@@ -857,7 +857,7 @@ fn update_terminator_arguments(
             success,
             failure,
         } => mir::Terminator::NewSliceUninitTry {
-            element: *element,
+            element: element.clone(),
             length: remap_value_reference(*length, substitutions),
             success: mir::BlockTarget {
                 block: success.block,
@@ -949,7 +949,7 @@ fn update_terminator_arguments(
                     substitutions,
                 ),
             },
-            unwind: unwind.as_ref().map(|target| extend_target(target)),
+            unwind: unwind.as_ref().map(&extend_target),
         },
         mir::Terminator::CallIndirect {
             callee,
@@ -976,7 +976,7 @@ fn update_terminator_arguments(
                     substitutions,
                 ),
             },
-            unwind: unwind.as_ref().map(|target| extend_target(target)),
+            unwind: unwind.as_ref().map(&extend_target),
         },
         mir::Terminator::CallVirtual {
             receiver,
@@ -995,7 +995,7 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            class: *class,
+            class: class.clone(),
             slot: *slot,
             target: mir::BlockTarget {
                 block: target.block,
@@ -1007,7 +1007,7 @@ fn update_terminator_arguments(
                     substitutions,
                 ),
             },
-            unwind: unwind.as_ref().map(|target| extend_target(target)),
+            unwind: unwind.as_ref().map(&extend_target),
         },
         mir::Terminator::CallDynamic {
             receiver,
@@ -1026,7 +1026,7 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            constraint: *constraint,
+            constraint: constraint.clone(),
             slot: *slot,
             target: mir::BlockTarget {
                 block: target.block,
@@ -1038,7 +1038,7 @@ fn update_terminator_arguments(
                     substitutions,
                 ),
             },
-            unwind: unwind.as_ref().map(|target| extend_target(target)),
+            unwind: unwind.as_ref().map(extend_target),
         },
         mir::Terminator::Return { value } => mir::Terminator::Return {
             value: value.map(|value| remap_value_reference(value, substitutions)),
@@ -1078,7 +1078,7 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            class: *class,
+            class: class.clone(),
             slot: *slot,
         },
         mir::Terminator::TailCallDynamic {
@@ -1096,7 +1096,7 @@ fn update_terminator_arguments(
                     .collect(),
                 ..call.clone()
             },
-            constraint: *constraint,
+            constraint: constraint.clone(),
             slot: *slot,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {

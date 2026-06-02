@@ -699,7 +699,7 @@ fn effects_for_instruction(
         | mir::Instruction::NewUninit { result_type, .. }
         | mir::Instruction::NewSliceZeroed { result_type, .. }
         | mir::Instruction::NewSliceUninit { result_type, .. } => {
-            let spaces = space_set_for_type(tree, *result_type);
+            let spaces = space_set_for_type(tree, result_type);
             let effect = mir::MemoryEffect::write_only(spaces);
             let behavior = alloc_behavior();
             (effect, behavior)
@@ -715,7 +715,7 @@ fn effects_for_instruction(
             (effect, mir::FunctionBehavior::none())
         }
         mir::Instruction::NewComplete { result_type, .. } => {
-            let spaces = space_set_for_type(tree, *result_type);
+            let spaces = space_set_for_type(tree, result_type);
             let effect = mir::MemoryEffect::read_write(spaces);
             (effect, mir::FunctionBehavior::none())
         }
@@ -822,17 +822,19 @@ fn space_set_for_value(
         return mir::SpaceSet::ANY;
     };
 
-    space_set_for_type(tree, ty.into())
+    let ty = mir::TypeReference::from(ty);
+
+    space_set_for_type(tree, &ty)
 }
 
 /// Resolve the backing space for one reference-like type.
-fn space_set_for_type(tree: &mir::Tree, ty: mir::TypeReference) -> mir::SpaceSet {
+fn space_set_for_type(tree: &mir::Tree, ty: &mir::TypeReference) -> mir::SpaceSet {
     let Some(ty) = ty.ty() else {
         return mir::SpaceSet::ANY;
     };
 
     match tree.get(ty) {
-        mir::Type::Uninit { value } => space_set_for_type(tree, *value),
+        mir::Type::Uninit { value } => space_set_for_type(tree, value),
         mir::Type::Reference { space, .. } | mir::Type::TensorView { space, .. } => {
             space_set_for_space(space.clone())
         }

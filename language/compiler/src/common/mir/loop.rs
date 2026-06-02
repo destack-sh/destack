@@ -379,7 +379,7 @@ fn clone_loop_blocks_internal(
                         ty: ty.into(),
                     }
                 }
-                _ => *param,
+                _ => param.clone(),
             })
             .collect();
 

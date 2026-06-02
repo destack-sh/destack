@@ -565,7 +565,7 @@ fn replace_constant_calls(
         }
 
         // skip return constants that do not match the return type
-        let return_type = tree.get(function).return_type;
+        let return_type = tree.get(function).return_type.clone();
         let constant_type = constant_type_of(constant);
         if !constant_matches_type(
             constant_type,
@@ -638,8 +638,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
                     if let Some(signature) = instruction
                         .call_signature()
-                        .and_then(|signature| signature.ty())
-                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, &signature))
                     {
                         data.indirect_signatures.insert(signature);
                     }
@@ -669,10 +668,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                 mir::Terminator::CallIndirect { call, .. }
                 | mir::Terminator::CallVirtual { call, .. }
                 | mir::Terminator::CallDynamic { call, .. } => {
-                    if let Some(signature) = call
-                        .signature
-                        .ty()
-                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
+                    if let Some(signature) =
+                        SignatureKey::from_signature_type(tree, &call.signature)
                     {
                         data.indirect_signatures.insert(signature);
                     }
@@ -698,10 +695,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                 mir::Terminator::TailCallIndirect { call, .. }
                 | mir::Terminator::TailCallVirtual { call, .. }
                 | mir::Terminator::TailCallDynamic { call, .. } => {
-                    if let Some(signature) = call
-                        .signature
-                        .ty()
-                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
+                    if let Some(signature) =
+                        SignatureKey::from_signature_type(tree, &call.signature)
                     {
                         data.indirect_signatures.insert(signature);
                     }

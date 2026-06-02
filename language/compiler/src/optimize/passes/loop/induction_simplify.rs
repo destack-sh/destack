@@ -1093,8 +1093,8 @@ b2(v8: int32):
         let forwarding = BlockParamForwarding::build(function, &test.tree, &cfg);
         let header = function.blocks[1];
         let header_block = test.tree.get(header);
-        let param_left = header_block.parameters[0];
-        let param_right = header_block.parameters[1];
+        let param_left = &header_block.parameters[0];
+        let param_right = &header_block.parameters[1];
         let signature_left = param_signature(header, 0, &test.tree, &cfg, &forwarding);
         let signature_right = param_signature(header, 1, &test.tree, &cfg, &forwarding);
 

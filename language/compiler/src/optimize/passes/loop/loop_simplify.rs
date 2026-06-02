@@ -214,7 +214,7 @@ fn fresh_parameters_like(
                     value: function.next_typed_value(ty).into(),
                     ty: ty.into(),
                 },
-                _ => *parameter,
+                _ => parameter.clone(),
             },
         )
         .collect()

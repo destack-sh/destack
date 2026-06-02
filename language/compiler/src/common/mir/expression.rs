@@ -253,8 +253,8 @@ impl<'a> ValueEquivalence<'a> {
                 }
 
                 let (Some(left_key), Some(right_key), Some(left_arg), Some(right_arg)) = (
-                    self.type_key(*left_type),
-                    self.type_key(*right_type),
+                    self.type_key(left_type.clone()),
+                    self.type_key(right_type.clone()),
                     left_arg.value(),
                     right_arg.value(),
                 ) else {
@@ -387,9 +387,10 @@ impl<'a> ValueEquivalence<'a> {
                     ..
                 },
             ) => {
-                let (Some(left_key), Some(right_key)) =
-                    (self.type_key(*left_type), self.type_key(*right_type))
-                else {
+                let (Some(left_key), Some(right_key)) = (
+                    self.type_key(left_type.clone()),
+                    self.type_key(right_type.clone()),
+                ) else {
                     return false;
                 };
 
@@ -419,9 +420,10 @@ impl<'a> ValueEquivalence<'a> {
                     ..
                 },
             ) => {
-                let (Some(left_key), Some(right_key)) =
-                    (self.type_key(*left_type), self.type_key(*right_type))
-                else {
+                let (Some(left_key), Some(right_key)) = (
+                    self.type_key(left_type.clone()),
+                    self.type_key(right_type.clone()),
+                ) else {
                     return false;
                 };
 

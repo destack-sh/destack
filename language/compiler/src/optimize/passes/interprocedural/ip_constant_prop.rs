@@ -200,8 +200,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
                     if let Some(signature) = instruction
                         .call_signature()
-                        .and_then(|signature| signature.ty())
-                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, &signature))
                     {
                         data.indirect_signatures.insert(signature);
                     }
@@ -233,10 +232,9 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                 mir::Terminator::CallIndirect { call, .. }
                 | mir::Terminator::CallVirtual { call, .. }
                 | mir::Terminator::CallDynamic { call, .. } => {
-                    let Some(signature) = call.signature.ty() else {
-                        continue;
-                    };
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, signature) {
+                    if let Some(signature) =
+                        SignatureKey::from_signature_type(tree, &call.signature)
+                    {
                         data.indirect_signatures.insert(signature);
                     }
                 }
@@ -264,10 +262,9 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                 mir::Terminator::TailCallIndirect { call, .. }
                 | mir::Terminator::TailCallVirtual { call, .. }
                 | mir::Terminator::TailCallDynamic { call, .. } => {
-                    let Some(signature) = call.signature.ty() else {
-                        continue;
-                    };
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, signature) {
+                    if let Some(signature) =
+                        SignatureKey::from_signature_type(tree, &call.signature)
+                    {
                         data.indirect_signatures.insert(signature);
                     }
                 }
