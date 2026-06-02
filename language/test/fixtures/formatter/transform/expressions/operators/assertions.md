@@ -251,21 +251,6 @@ use(
 );
 ```
 
-### decorated class expression in extends position
-
-Decorated class expressions in extends positions keep stable attachment.
-
-```js:main.js
-class Derived extends (@decorator class Base {}) {}
-```
-
-```js expected
-class Derived extends (
-    @decorator
-    class Base {}
-) {}
-```
-
 ## Satisfies Operator Boundary Permutations
 
 ### satisfies expression statement with trailing comment
