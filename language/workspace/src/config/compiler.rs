@@ -52,6 +52,10 @@ pub struct CompilerOptions {
     pub declaration_map: bool,
     /// Do not emit output files.
     pub no_emit: bool,
+    /// Emit phase stats sidecars.
+    pub emit_stats: bool,
+    /// Emit phase event sidecars.
+    pub emit_events: bool,
     /// Emit checked type annotation sidecars.
     pub emit_checked_types: bool,
 }
