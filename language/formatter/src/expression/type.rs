@@ -24,10 +24,10 @@ use crate::operator::{
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     Comment, ConstructorType, Declaration, Expression, FunctionForm, FunctionSignature,
-    FunctionType, GenericArgument, GenericParameter, InferForm, Key, Keyword, LocalNodeId,
-    MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property, RangeEnd,
-    TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral, TypeMappedParameter,
-    TypeMember, VarianceBound, WhereClause,
+    FunctionTypeExpression, GenericArgument, GenericParameter, InferForm, Key, Keyword,
+    LocalNodeId, MappedTypeModifier, Member, Mutability, Node, NodeType, Parameter, Property,
+    RangeEnd, TokenType, Tree, TreeStore, TupleElement, TypeExpression, TypeLiteral,
+    TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token, *};
@@ -703,7 +703,7 @@ fn signature_should_hug_parameter_type(
 /// Return whether one type callable should hug a parameter-owned object type.
 fn function_type_should_hug_parameter_type(
     context: &DestackFormatContext<'_>,
-    function: &FunctionType,
+    function: &FunctionTypeExpression,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     let mut parameters = Vec::with_capacity(function.parameters.len() + 1);
@@ -1985,7 +1985,7 @@ fn write_type_callable_where_clauses<'ast>(
 fn write_function_type<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _node_id: LocalNodeId<TypeExpression>,
-    function: &FunctionType,
+    function: &FunctionTypeExpression,
 ) -> FormatResult<()> {
     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
@@ -2155,7 +2155,7 @@ fn write_type_signature<'ast>(
 fn write_call_signature<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
-    signature: &FunctionType,
+    signature: &FunctionTypeExpression,
 ) -> FormatResult<()> {
     let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
         let format_generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {

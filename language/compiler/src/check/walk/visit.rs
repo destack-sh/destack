@@ -97,7 +97,7 @@ impl WalkState<'_, '_> {
                 }
 
                 self.check
-                    .bind_symbol_type_variable_if_missing(tree.module_id, symbol);
+                    .reserve_symbol_type_if_missing(tree.module_id, symbol);
             }
         }
     }

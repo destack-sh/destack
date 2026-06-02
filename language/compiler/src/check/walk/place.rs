@@ -50,7 +50,7 @@ impl WalkState<'_, '_> {
 
         // place
         if let Some(place) = self.lower_place(id, tree) {
-            self.bind_node_type_operand(tree.module_id, id, place.ty);
+            self.publish_node_type_operand(tree.module_id, id, place.ty);
         }
     }
 
@@ -70,21 +70,33 @@ impl WalkState<'_, '_> {
         let (ty, target) = match tree.get(id) {
             // x
             dir::Expression::Identifier { name } => {
-                let symbol =
-                    self.check.require_symbol_by_name(module, id.into_any(), *name, dir::SymbolSpace::Value)?;
+                let guard = self.active_static_guard();
+                let symbol = self.check.require_symbol_by_name_under(
+                    module,
+                    id.into_any(),
+                    *name,
+                    dir::SymbolSpace::Value,
+                    &guard,
+                )?;
 
                 self.select_value_reference(source, symbol);
-                let ty = self.check.require_symbol_type(symbol);
+                let ty = self.check.require_symbol_type(tree.module_id, symbol);
 
                 (ty, PlaceTarget::Binding { symbol })
             }
             // namespace.x
             dir::Expression::QualifiedReference { path, .. } => {
-                let symbol =
-                    self.check.require_path_symbol(module, id.into_any(), path, dir::SymbolSpace::Value)?;
+                let guard = self.active_static_guard();
+                let symbol = self.check.require_symbol_by_path_under(
+                    module,
+                    id.into_any(),
+                    path,
+                    dir::SymbolSpace::Value,
+                    &guard,
+                )?;
 
                 self.select_value_reference(source, symbol);
-                let ty = self.check.require_symbol_type(symbol);
+                let ty = self.check.require_symbol_type(tree.module_id, symbol);
 
                 (ty, PlaceTarget::Binding { symbol })
             }

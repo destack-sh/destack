@@ -97,7 +97,7 @@ impl Compiler {
         state: &mut BindState<'_>,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::TypeExpression>,
-        function: &dir::FunctionType,
+        function: &dir::FunctionTypeExpression,
     ) {
         // create callable type scope
         state.bind_node(id.into_any());

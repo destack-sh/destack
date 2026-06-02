@@ -28,7 +28,7 @@ impl WalkState<'_, '_> {
             // update flow through reachable expressions
             if is_reachable {
                 self.walk_expression(tree, *expression, tree.get(*expression));
-                is_reachable = self.can_expression_fall_through(tree, *expression);
+                is_reachable = self.expression_can_complete_normally(tree, *expression);
             }
             // check unreachable expression in isolated flow
             else {
@@ -58,10 +58,10 @@ impl WalkState<'_, '_> {
                 let tail = self
                     .check
                     .require_local_node_type(tree.module_id, expression);
-                self.bind_node_type_operand(tree.module_id, id, tail);
+                self.publish_node_type_operand(tree.module_id, id, tail);
             } else {
                 let term = TypeTerm::Literal(TypeLiteralTerm::Void);
-                self.bind_node_type(tree.module_id, id, term);
+                self.publish_node_type(tree.module_id, id, term);
             }
         }
 

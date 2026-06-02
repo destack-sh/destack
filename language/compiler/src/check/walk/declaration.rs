@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use super::property::MemberReceiverContext;
 
-use crate::check::{ReceiverCapture, TypeOperand, TypeTerm, WalkState};
+use crate::check::{NewtypeRepresentation, ReceiverCapture, TypeOperand, TypeTerm, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one declaration.
@@ -108,50 +108,51 @@ impl WalkState<'_, '_> {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
         }
 
+        // walk type expression itself
         self.walk_type_expression(tree, declaration.value, tree.get(declaration.value));
 
-        if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
-            if !declaration.is_nominal
-                && !self.is_intrinsic_language_item_type_declaration(
-                    symbol,
-                    tree.get(declaration.value),
-                )
-            {
-                let value = self
-                    .check
-                    .require_local_node_type(tree.module_id, declaration.value);
-                let condition = self.active_static_guard();
+        let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) else {
+            return;
+        };
+        let value_expression = tree.get(declaration.value);
+        let is_intrinsic = matches!(value_expression, dir::TypeExpression::Intrinsic);
+        let is_language_item =
+            is_intrinsic && self.check.environment.language.item(symbol).is_some();
 
-                self.check.push_generic_induction_root(symbol, value);
-                self.check
-                    .bind_symbol_type_operand(symbol, value, condition);
-            }
-        }
-
-        if declaration.is_nominal
-            && let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any())
-        {
-            if !matches!(tree.get(declaration.value), dir::TypeExpression::Intrinsic) {
-                let value = self
-                    .check
-                    .require_local_node_type(tree.module_id, declaration.value);
-
-                self.check.push_generic_induction_root(symbol, value);
+        // transparent aliases publish their right-hand side as the symbol type
+        if !declaration.is_nominal {
+            if is_language_item {
+                return;
             }
 
+            let value = self
+                .check
+                .require_local_node_type(tree.module_id, declaration.value);
+            let condition = self.active_static_guard();
+
+            self.check.push_generic_induction_root(symbol, value);
             self.check
-                .bind_symbol_type_variable_if_missing(tree.module_id, symbol);
+                .publish_symbol_type_operand(symbol, value, condition);
         }
-    }
+        // nominal declarations reserve a fresh symbol type and optionally back it
+        else {
+            if is_intrinsic {
+                self.check
+                    .reserve_symbol_type_if_missing(tree.module_id, symbol);
+                return;
+            }
 
-    /// Return whether one type declaration defines an opaque language item.
-    pub(in crate::check) fn is_intrinsic_language_item_type_declaration(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        value: &dir::TypeExpression,
-    ) -> bool {
-        matches!(value, dir::TypeExpression::Intrinsic)
-            && self.check.environment.language.item(symbol).is_some()
+            let backing = self
+                .check
+                .require_local_node_type(tree.module_id, declaration.value);
+
+            self.check.push_generic_induction_root(symbol, backing);
+            self.check
+                .reserve_symbol_type_if_missing(tree.module_id, symbol);
+            self.check
+                .representations
+                .insert_newtype(NewtypeRepresentation { symbol, backing });
+        }
     }
 
     /// Walk one struct declaration.
@@ -213,7 +214,6 @@ impl WalkState<'_, '_> {
         // check superclass expression in declaration context
         if let Some(extends_expression) = declaration.extends_expression {
             let before_extends = self.fork_flow();
-
             self.walk_expression(tree, extends_expression, tree.get(extends_expression));
             self.restore_flow(before_extends);
         }
@@ -278,7 +278,7 @@ impl WalkState<'_, '_> {
     ) {
         if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
             self.check
-                .bind_symbol_type_variable_if_missing(tree.module_id, symbol);
+                .reserve_symbol_type_if_missing(tree.module_id, symbol);
         }
 
         // walk generic header
@@ -382,7 +382,7 @@ impl WalkState<'_, '_> {
             let operand = self.check.push_term(TypeTerm::Function(term)).into();
 
             self.check.push_generic_induction_root(symbol, operand);
-            self.check.bind_symbol_type(
+            self.check.publish_symbol_type(
                 tree.module_id,
                 symbol,
                 TypeTerm::Function(term),
@@ -441,7 +441,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// function value(): number { 1 }
     /// ```
-    pub(in crate::check) fn constrain_function_fallthrough_return(
+    pub(in crate::check) fn constrain_function_completion_return(
         &mut self,
         tree: &dir::Tree,
         body: dir::LocalNodeId<dir::Expression>,
@@ -564,7 +564,7 @@ impl WalkState<'_, '_> {
         // reserve the source node as the inferred return type
         let node = source.into_global(module);
 
-        Some(self.check.bind_node_type_variable(module, node).into())
+        Some(self.check.reserve_node_type(module, node).into())
     }
 
     /// Ensure one nominal declaration has a member receiver context.
@@ -581,7 +581,7 @@ impl WalkState<'_, '_> {
         let symbol = symbol?;
         let ty = self
             .check
-            .bind_symbol_type_variable_if_missing(module, symbol)
+            .reserve_symbol_type_if_missing(module, symbol)
             .into();
 
         Some(MemberReceiverContext {

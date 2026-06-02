@@ -3,38 +3,39 @@ use destack_dir as dir;
 use crate::check::WalkState;
 
 impl WalkState<'_, '_> {
-    /// Return whether one block can fall through normally.
+    /// Return whether one block can complete normally.
     ///
     /// Example:
     /// ```ds
     /// {
-    ///     return value;
+    ///     const value = 1;
+    ///     value
     /// }
     /// ```
-    pub(in crate::check) fn can_block_fall_through(
+    pub(in crate::check) fn block_can_complete_normally(
         &self,
         tree: &dir::Tree,
         block: &dir::Block,
     ) -> bool {
         for expression in &block.leading_expressions {
-            if !self.can_expression_fall_through(tree, *expression) {
+            if !self.expression_can_complete_normally(tree, *expression) {
                 return false;
             }
         }
 
         match block.tail_expression {
-            Some(expression) => self.can_expression_fall_through(tree, expression),
+            Some(expression) => self.expression_can_complete_normally(tree, expression),
             None => true,
         }
     }
 
-    /// Return whether one expression can fall through normally.
+    /// Return whether one expression can complete normally.
     ///
     /// Example:
     /// ```ds
-    /// if condition { return value; }
+    /// if (condition) { value } else { fallback }
     /// ```
-    pub(in crate::check) fn can_expression_fall_through(
+    pub(in crate::check) fn expression_can_complete_normally(
         &self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
@@ -46,39 +47,39 @@ impl WalkState<'_, '_> {
             | dir::Expression::Continue { .. }
             | dir::Expression::Throw { .. } => false,
             // { ... }
-            dir::Expression::Block(block) => self.can_block_fall_through(tree, tree.get(*block)),
+            dir::Expression::Block(block) => {
+                self.block_can_complete_normally(tree, tree.get(*block))
+            }
             // if condition { then } else { otherwise }
             dir::Expression::If {
                 then_expression,
                 else_expression: Some(else_expression),
                 ..
             } => {
-                self.can_expression_fall_through(tree, *then_expression)
-                    || self.can_expression_fall_through(tree, *else_expression)
+                self.expression_can_complete_normally(tree, *then_expression)
+                    || self.expression_can_complete_normally(tree, *else_expression)
             }
             // if condition { then }
             dir::Expression::If {
                 else_expression: None,
                 ..
             } => true,
-            // match value { case pattern => body }
+            // match (value) { pattern => body }
             dir::Expression::Match { cases, .. } => cases
                 .iter()
-                .any(|case| self.can_match_case_fall_through(tree, tree.get(*case))),
-            // try body catch error finally cleanup
+                .any(|case| self.match_case_can_complete_normally(tree, tree.get(*case))),
+            // try { value } catch (error) { recover(error) }
             dir::Expression::Try {
                 body,
                 catch,
                 finally,
             } => {
-                let body = self.can_expression_fall_through(tree, *body);
-                let catch = if let Some(catch) = catch {
-                    self.can_catch_fall_through(tree, tree.get(*catch))
-                } else {
-                    true
-                };
+                let body = self.expression_can_complete_normally(tree, *body);
+                let catch = catch.is_some_and(|catch| {
+                    self.expression_can_complete_normally(tree, tree.get(catch).body)
+                });
                 let finally = if let Some(finally) = finally {
-                    self.can_expression_fall_through(tree, *finally)
+                    self.expression_can_complete_normally(tree, *finally)
                 } else {
                     true
                 };
@@ -146,40 +147,29 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Return whether one match case can fall through normally.
+    /// Return whether one match case can complete normally.
     ///
     /// Example:
     /// ```ds
-    /// case value => return value
+    /// match (value) {
+    ///     0 => "zero",
+    ///     _ => "other",
+    /// }
     /// ```
-    pub(in crate::check) fn can_match_case_fall_through(
+    pub(in crate::check) fn match_case_can_complete_normally(
         &self,
         tree: &dir::Tree,
         case: &dir::MatchCase,
     ) -> bool {
         match case {
-            // case pattern => expression
+            // pattern => expression
             dir::MatchCase::Expression { body, .. } => {
-                self.can_expression_fall_through(tree, *body)
+                self.expression_can_complete_normally(tree, *body)
             }
-            // case pattern => { ... }
+            // pattern => { ... }
             dir::MatchCase::Block { body, .. } => {
-                self.can_block_fall_through(tree, tree.get(*body))
+                self.block_can_complete_normally(tree, tree.get(*body))
             }
         }
-    }
-
-    /// Return whether one catch body can fall through normally.
-    ///
-    /// Example:
-    /// ```ds
-    /// catch error => recover(error)
-    /// ```
-    pub(in crate::check) fn can_catch_fall_through(
-        &self,
-        tree: &dir::Tree,
-        catch: &dir::Catch,
-    ) -> bool {
-        self.can_expression_fall_through(tree, catch.body)
     }
 }

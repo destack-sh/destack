@@ -1,6 +1,6 @@
 use crate::check::{
-    Condition, ConditionPredicate, Decorator, Origin, ReceiverCapture, StaticIfCondition,
-    StaticOperand, StaticTerm, VariableId, VariableKind, WalkState,
+    Condition, ConditionPredicate, Origin, ReceiverCapture, StaticIfCondition, StaticOperand,
+    StaticTerm, VariableId, VariableKind, WalkState,
 };
 use crate::common::dir::r#static::{StaticContext, StaticFailure};
 use destack_dir as dir;
@@ -10,7 +10,7 @@ impl WalkState<'_, '_> {
     ///
     /// Example:
     /// ```ds
-    /// @static.if(Target.isShared)
+    /// @if(Target.isShared)
     /// function f() {}
     /// ```
     pub(in crate::check) fn evaluate_owner_static_guard(
@@ -19,40 +19,38 @@ impl WalkState<'_, '_> {
         owner: dir::LocalNodeIdAny,
         receiver: Option<ReceiverCapture>,
     ) -> Condition {
-        let decorators = self.check.decorators_for_owner(tree.module_id, owner);
+        let invocations = self
+            .check
+            .decorator_invocations_for_owner(tree.module_id, owner);
         let mut condition = Condition::Always;
 
         // combine visible static guards in source order
-        for decorator in decorators {
-            match decorator {
-                Decorator::StaticIf(decorator) => {
-                    let StaticIfCondition::Present(condition_expression) = decorator.condition
-                    else {
-                        self.check.report_invalid_static_guard(
-                            tree.module_id,
-                            decorator.condition_anchor(),
-                        );
+        for invocation in invocations {
+            if let Some(decorator) = self
+                .check
+                .static_if_decorator_from_invocation(tree.module_id, &invocation)
+            {
+                let StaticIfCondition::Present(condition_expression) = decorator.condition else {
+                    self.check
+                        .report_invalid_static_guard(tree.module_id, decorator.condition_anchor());
 
-                        return Condition::Never;
-                    };
-                    let next = self.evaluate_static_guard(tree, receiver, condition_expression);
+                    return Condition::Never;
+                };
+                let next = self.evaluate_static_guard(tree, receiver, condition_expression);
 
-                    condition = condition.and(next);
-                    if condition.is_never() {
-                        return Condition::Never;
-                    }
+                condition = condition.and(next);
+                if condition.is_never() {
+                    return Condition::Never;
                 }
-                Decorator::Other(call) => {
-                    let decorator_node = self
-                        .check
-                        .module(tree.module_id)
-                        .view()
-                        .get(call.decorator)
-                        .clone();
+            } else {
+                let decorator_node = self
+                    .check
+                    .module(tree.module_id)
+                    .view()
+                    .get(invocation.decorator)
+                    .clone();
 
-                    self.walk_decorator(tree, call.decorator, &decorator_node);
-                }
-                _ => {}
+                self.walk_decorator(tree, invocation.decorator, &decorator_node);
             }
         }
 
@@ -73,7 +71,7 @@ impl WalkState<'_, '_> {
     ///
     /// Example:
     /// ```ds
-    /// @static.if(Enabled)
+    /// @if(Enabled)
     /// const value = 1;
     /// ```
     pub(in crate::check) fn push_static_guard_for(
@@ -92,16 +90,19 @@ impl WalkState<'_, '_> {
                 .insert(symbol, condition.clone());
         }
 
+        // just bail if statically never
         if condition.is_never() {
-            return false;
+            false
         }
-        self.push_static_guard(owner_condition);
-
-        true
+        // actually push and keep going (conditionally)
+        else {
+            self.push_static_guard(owner_condition);
+            true
+        }
     }
 
     /// Return the active static guard.
-    pub(super) fn active_static_guard(&self) -> Condition {
+    pub(in crate::check) fn active_static_guard(&self) -> Condition {
         self.flow().active_static_guard()
     }
 
@@ -137,7 +138,7 @@ impl WalkState<'_, '_> {
                 }
                 Err(StaticFailure::NotStatic(expression)) => {
                     let condition_guard = this.active_static_guard();
-                    let variable = this.check.bind_static_expression_variable(
+                    let variable = this.check.reserve_static_expression(
                         tree.module_id,
                         condition,
                         condition_guard,
@@ -195,7 +196,7 @@ impl WalkState<'_, '_> {
             dir::Expression::This => {
                 let source = expression.into_global_any(tree.module_id);
                 if let Some(term) = self.lower_this_receiver_type_term(source) {
-                    self.bind_node_type(tree.module_id, expression, term);
+                    self.publish_node_type(tree.module_id, expression, term);
                 }
             }
             // this.X
@@ -311,7 +312,7 @@ impl WalkState<'_, '_> {
             let condition = self.active_static_guard();
 
             self.check
-                .equate_static_operand(variable, operand, condition);
+                .equate_static(origin, variable, operand, condition);
         }
 
         variable
@@ -448,9 +449,11 @@ impl WalkState<'_, '_> {
         name: dir::StringId,
         tree: &dir::Tree,
     ) -> Option<StaticOperand> {
+        let guard = self.active_static_guard();
         let symbol = self
             .check
             .lookup_symbol_by_name(tree.module_id, id.into_any(), name, dir::SymbolSpace::Value)
+            .available_under(&guard)
             .unique_symbol()?;
 
         if self.check.symbol_kind(tree.module_id, symbol)
@@ -479,9 +482,11 @@ impl WalkState<'_, '_> {
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         tree: &dir::Tree,
     ) -> Option<StaticTerm> {
+        let guard = self.active_static_guard();
         let symbol = self
             .check
             .lookup_symbol_by_name(tree.module_id, id.into_any(), name, dir::SymbolSpace::Type)
+            .available_under(&guard)
             .unique_symbol()?;
         let item = self.check.environment.language.item(symbol)?;
 

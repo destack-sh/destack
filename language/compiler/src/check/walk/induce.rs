@@ -3,7 +3,8 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
     CheckState, Condition, FunctionTerm, GenericInductionRoot, GenericInductionSlot, GenericSlot,
-    Origin, Solution, StaticTerm, TermId, TypeOperand, TypeTerm, VariableId, VariableKind,
+    Origin, StaticSolution, StaticTerm, TermId, TypeOperand, TypeSolution, TypeTerm, VariableId,
+    VariableKind,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -144,7 +145,7 @@ impl CheckState<'_> {
 
                 self.attach_generic_slot(variable, generic);
                 self.equate_type(variable, TypeTerm::Parameter(slot), Condition::Always);
-                self.insert_known_solution(key.variable, Solution::Type(parameter.into()));
+                self.insert_known_solution(key.variable, TypeSolution::Term(parameter).into());
             }
             VariableKind::Static => {
                 let generic = GenericSlot::Static {
@@ -155,8 +156,10 @@ impl CheckState<'_> {
                 let parameter = self.push_term(StaticTerm::Parameter(slot));
 
                 self.attach_generic_slot(variable, generic);
-                self.equate_static(variable, StaticTerm::Parameter(slot), Condition::Always);
-                self.insert_known_solution(key.variable, Solution::Static(parameter.into()));
+                let origin = self.variable(variable).source;
+
+                self.equate_static(origin, variable, parameter, Condition::Always);
+                self.insert_known_solution(key.variable, StaticSolution::Term(parameter).into());
             }
         }
 

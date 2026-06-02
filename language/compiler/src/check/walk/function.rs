@@ -61,7 +61,7 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn lower_function_type_term(
         &mut self,
-        declaration: &dir::FunctionType,
+        declaration: &dir::FunctionTypeExpression,
         return_type: Option<TypeOperand>,
         tree: &dir::Tree,
     ) -> TermId<FunctionTerm> {
@@ -260,9 +260,9 @@ impl WalkState<'_, '_> {
         // walk body and constrain implicit return
         self.walk_expression(tree, body, tree.get(body));
         if !Self::is_constructor_signature(signature)
-            && self.can_expression_fall_through(tree, body)
+            && self.expression_can_complete_normally(tree, body)
         {
-            self.constrain_function_fallthrough_return(tree, body);
+            self.constrain_function_completion_return(tree, body);
         }
 
         self.leave_function_frame();
@@ -339,10 +339,7 @@ impl WalkState<'_, '_> {
         let symbol = self.check.declaration_symbol(tree.module_id, source)?;
         let variable = self
             .check
-            .generics
-            .slots_by_symbol
-            .get(&symbol)
-            .copied()
+            .generic_slot_variable_for_symbol(symbol)
             .unwrap_or_else(|| panic!("generic parameter {symbol:?} was not bound before use"));
 
         Some(variable)
@@ -391,7 +388,7 @@ impl WalkState<'_, '_> {
             if let Some(ty) = self.check.node_type(node) {
                 return Some(ty);
             }
-            let variable = self.check.bind_node_type_variable(tree.module_id, node);
+            let variable = self.check.reserve_node_type(tree.module_id, node);
 
             return Some(variable.into());
         };

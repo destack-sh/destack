@@ -83,7 +83,7 @@ impl CheckState<'_> {
             arguments,
         };
 
-        match self.require_symbol_type(symbol) {
+        match self.require_symbol_type(module, symbol) {
             TypeOperand::Variable(variable) => {
                 self.equate_type(variable, term, Condition::Always);
             }
