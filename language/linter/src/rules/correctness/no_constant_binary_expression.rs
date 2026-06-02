@@ -3,7 +3,8 @@ use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_constant_to_bool, expression_has_side_effects, expression_is_equal,
-    expression_path_segments, expression_unwrap_parenthesized_source_form,
+    expression_is_nullish_literal, expression_path_segments,
+    expression_unwrap_parenthesized_source_form,
 };
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -166,7 +167,7 @@ fn check_constant_result(
             dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
                 | dir::Expression::TemplateExpression { .. }
         );
-        let right_is_nullish = is_nullish(ctx.dir.tree(), right);
+        let right_is_nullish = expression_is_nullish_literal(ctx.dir.tree(), right_id);
         if left_is_string && right_is_nullish {
             return Some("string concatenation with null/undefined");
         }
@@ -175,7 +176,7 @@ fn check_constant_result(
             dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(_))
                 | dir::Expression::TemplateExpression { .. }
         );
-        let left_is_nullish = is_nullish(ctx.dir.tree(), left);
+        let left_is_nullish = expression_is_nullish_literal(ctx.dir.tree(), left_id);
         if right_is_string && left_is_nullish {
             return Some("string concatenation with null/undefined");
         }
@@ -212,28 +213,6 @@ fn expression_constant_truthiness(
     }
 }
 
-/// Check if an expression is nullish (null or undefined).
-fn is_nullish(tree: &dir::Tree, expression: &dir::Expression) -> bool {
-    let dir::Expression::Type { value } = expression else {
-        return false;
-    };
-
-    type_expression_is_nullish(tree, *value)
-}
-
-/// Return true when one type-expression node is `null` or `undefined`.
-fn type_expression_is_nullish(
-    tree: &dir::Tree,
-    type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
-) -> bool {
-    matches!(
-        tree.get(type_expression_id),
-        dir::TypeExpression::Literal {
-            value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
-        }
-    )
-}
-
 /// Return true when nullishness of one expression is statically fixed.
 fn expression_has_constant_nullishness(
     ctx: &LintModuleContext<'_>,
@@ -245,7 +224,7 @@ fn expression_has_constant_nullishness(
     let expression = ctx.dir.get(expression_id);
 
     // keep non nullish mode strict for nullish literals
-    if require_non_nullish && is_nullish(ctx.dir.tree(), expression) {
+    if require_non_nullish && expression_is_nullish_literal(ctx.dir.tree(), expression_id) {
         return false;
     }
 

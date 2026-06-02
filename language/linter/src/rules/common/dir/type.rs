@@ -626,6 +626,7 @@ fn evaluate_terminal_boolean_type_query(
             ),
             dir::Type::Literal(literal) => match literal {
                 dir::ScalarLiteral::Null => true,
+                dir::ScalarLiteral::Undefined => true,
                 dir::ScalarLiteral::Boolean(false) => true,
                 dir::ScalarLiteral::Boolean(true) => false,
                 dir::ScalarLiteral::Integer(value) => *value == 0,
@@ -1365,6 +1366,7 @@ fn type_truthiness_inner(
             },
             dir::Type::Literal(literal) => match literal {
                 dir::ScalarLiteral::Null => TypeTruthiness::AlwaysFalsy,
+                dir::ScalarLiteral::Undefined => TypeTruthiness::AlwaysFalsy,
                 dir::ScalarLiteral::Boolean(value) => {
                     if value {
                         TypeTruthiness::AlwaysTruthy

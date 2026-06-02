@@ -146,7 +146,7 @@ fn get_argument_literal_type(ctx: &LintModuleContext<'_>, arg: &Argument) -> Opt
     let value = ctx.dir.get(value_id);
     match value {
         Expression::ScalarLiteral(literal) => match literal {
-            ScalarLiteral::Null => None,
+            ScalarLiteral::Null | ScalarLiteral::Undefined => None,
             ScalarLiteral::String(_) => Some(LiteralType::String),
             ScalarLiteral::Integer(_) | ScalarLiteral::Float(_) | ScalarLiteral::Bigint(_) => {
                 Some(LiteralType::Number)

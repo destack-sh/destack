@@ -7,8 +7,7 @@ use destack_source::Span;
 use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
-    assign_pattern_is_unqualified_path_name, expression_is_unqualified_path_name,
-    is_simple_identifier, subtree_mentions_identifier_name,
+    expression_is_unqualified_path_name, is_simple_identifier, subtree_mentions_identifier_name,
 };
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 
@@ -69,11 +68,6 @@ fn is_restricted_name(name: &str) -> bool {
     RESTRICTED_NAMES.binary_search(&name).is_ok()
 }
 
-/// Return true when one string id is `undefined`.
-fn name_is_undefined(ctx: &LintModuleContext<'_>, name: dir::StringId) -> bool {
-    ctx.strings.get(name) == "undefined"
-}
-
 impl LintRule for NoShadowRestrictedNames {
     fn meta(&self) -> &'static LintMeta {
         NoShadowRestrictedNames::meta()
@@ -93,12 +87,6 @@ impl LintRule for NoShadowRestrictedNames {
 
             let name_str = ctx.strings.get(name).to_string();
             if !is_restricted_name(&name_str) {
-                continue;
-            }
-
-            // allow safe shadowing of `undefined`
-            if name_is_undefined(ctx, name) && binding_safely_shadows_undefined(ctx, node_id, name)
-            {
                 continue;
             }
 
@@ -421,63 +409,6 @@ impl dir::NodeVisitor for ScopeReferenceSearchVisitor {
     }
 }
 
-/// Return true when one `undefined` binding is safe to shadow.
-fn binding_safely_shadows_undefined(
-    ctx: &LintModuleContext<'_>,
-    pattern_id: dir::LocalNodeId<dir::Pattern>,
-    name: dir::StringId,
-) -> bool {
-    // keep only simple declarator bindings
-    let Some(parent_id) = ctx.dir.get_parent_id(pattern_id.id) else {
-        return false;
-    };
-    if ctx.dir.get_node_type(parent_id) != dir::NodeType::Declarator {
-        return false;
-    }
-
-    let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id);
-    let declarator = ctx.dir.get(declarator_id);
-    if declarator.pattern != pattern_id {
-        return false;
-    }
-    if declarator.value.is_some() {
-        return false;
-    }
-
-    // require no write usage of the same unqualified name
-    !identifier_has_write_usage(ctx, name)
-}
-
-/// Return true when one unqualified identifier has assignment-like writes.
-fn identifier_has_write_usage(ctx: &LintModuleContext<'_>, name: dir::StringId) -> bool {
-    for expression_id in ctx.dir.iter_nodes::<dir::Expression>() {
-        let expression = ctx.dir.get(expression_id);
-
-        // capture direct assignment writes
-        if let dir::Expression::Assign { left, .. } = expression
-            && assign_pattern_is_unqualified_path_name(ctx.dir.tree(), *left, name)
-        {
-            return true;
-        }
-
-        // capture unary increment and decrement writes
-        if let dir::Expression::Unary { operator, right } = expression
-            && matches!(
-                operator,
-                dir::UnaryOperator::PreIncrement
-                    | dir::UnaryOperator::PostIncrement
-                    | dir::UnaryOperator::PreDecrement
-                    | dir::UnaryOperator::PostDecrement
-            )
-            && expression_is_unqualified_path_name(ctx.dir.tree(), *right, name)
-        {
-            return true;
-        }
-    }
-
-    false
-}
-
 /// Return the declaration span when it is exactly the identifier token.
 fn exact_identifier_span(
     ctx: &LintModuleContext<'_>,
@@ -556,33 +487,6 @@ class Object {}
             "no_shadow_restricted_names/test_detects_array_function.ds",
             r#"
 function Array() {}
-"#,
-        );
-        test.result(result)
-            .assert_lint("no-shadow-restricted-names");
-    }
-
-    #[test]
-    fn test_allows_safe_undefined_shadow_without_initializer() {
-        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint(
-            "no_shadow_restricted_names/test_allows_safe_undefined_shadow_without_initializer.ds",
-            r#"
-let undefined
-doSomething(undefined)
-"#,
-        );
-        test.result(result)
-            .assert_no_lint("no-shadow-restricted-names");
-    }
-
-    #[test]
-    fn test_detects_undefined_shadow_with_initializer() {
-        let test = TestProgram::for_rule_without_prelude(NoShadowRestrictedNames);
-        let result = test.lint(
-            "no_shadow_restricted_names/test_detects_undefined_shadow_with_initializer.ds",
-            r#"
-let undefined = 1
 "#,
         );
         test.result(result)

@@ -1220,6 +1220,9 @@ impl<'a> DuplicateSignatureCollector<'a> {
             dir::ScalarLiteral::Null => {
                 self.push_same("scalar_value", "null");
             }
+            dir::ScalarLiteral::Undefined => {
+                self.push_same("scalar_value", "undefined");
+            }
             dir::ScalarLiteral::Boolean(value) => {
                 self.push_literal_hashed("scalar_value", stable_hash_bool(*value), "$bool");
             }

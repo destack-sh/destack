@@ -174,7 +174,9 @@ fn key_expression_kind(
     // scalar literal keys are statically classifiable
     if let dir::Expression::ScalarLiteral(value) = expression {
         return match value {
-            dir::ScalarLiteral::Null => Some(ObjectKeyKind::StringLike),
+            dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined => {
+                Some(ObjectKeyKind::StringLike)
+            }
             dir::ScalarLiteral::String(_)
             | dir::ScalarLiteral::Boolean(_)
             | dir::ScalarLiteral::Character(_)

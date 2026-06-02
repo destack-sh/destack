@@ -1,7 +1,9 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolKind, walk_expression};
 use destack_workspace::LintSeverity;
 
-use crate::rules::common::{expression_unwrap_transparent, is_reference_symbol_kind};
+use crate::rules::common::{
+    expression_is_nullish_literal, expression_unwrap_transparent, is_reference_symbol_kind,
+};
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 
 declare_lint! {
@@ -82,8 +84,8 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
         right = expression_unwrap_transparent(self.ctx.dir.tree(), right);
 
         // allow explicit nullish sentinel checks on optional values
-        if is_nullish_literal_expression(self.ctx.dir.tree(), left)
-            || is_nullish_literal_expression(self.ctx.dir.tree(), right)
+        if expression_is_nullish_literal(self.ctx.dir.tree(), left)
+            || expression_is_nullish_literal(self.ctx.dir.tree(), right)
         {
             return;
         }
@@ -123,24 +125,6 @@ impl<'a, 'b> StructCompareVisitor<'a, 'b> {
             .label("structs have no identity; use == or != instead"),
         );
     }
-}
-
-/// Return true when one expression is a nullish literal.
-fn is_nullish_literal_expression(
-    tree: &dir::Tree,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> bool {
-    let expression = tree.get(expression_id);
-    let dir::Expression::Type { value } = expression else {
-        return false;
-    };
-
-    matches!(
-        tree.get(*value),
-        dir::TypeExpression::Literal {
-            value: dir::TypeLiteral::Null | dir::TypeLiteral::Undefined,
-        }
-    )
 }
 
 impl NodeVisitor for StructCompareVisitor<'_, '_> {

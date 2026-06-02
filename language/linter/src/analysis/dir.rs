@@ -63,6 +63,7 @@ fn evaluate_const_value(
     match expression {
         dir::Expression::ScalarLiteral(value) => match value {
             dir::ScalarLiteral::Null => Some(ConstValue::Null),
+            dir::ScalarLiteral::Undefined => Some(ConstValue::Undefined),
             dir::ScalarLiteral::Boolean(value) => Some(ConstValue::Boolean(*value)),
             dir::ScalarLiteral::Integer(value) => Some(ConstValue::Integer(*value)),
             dir::ScalarLiteral::Bigint(value) => Some(ConstValue::Bigint(*value)),
