@@ -128,7 +128,7 @@ fn static_elements(
             element,
             length,
             copy: _,
-        } => array_static_elements(tree, ty, *element, *length, expected_len, pointer_bytes),
+        } => array_static_elements(tree, ty, element, *length, expected_len, pointer_bytes),
         mir_type => Err(CodegenCraneliftError::unsupported_type(
             format!("aggregate initializer for non-aggregate type: {mir_type:?}"),
             ty.into_any(),
@@ -170,7 +170,7 @@ fn record_static_elements(
 fn array_static_elements(
     tree: &mir::Tree,
     array: mir::LocalNodeId<mir::Type>,
-    element: mir::TypeReference,
+    element: &mir::TypeReference,
     length: u64,
     expected_len: usize,
     pointer_bytes: u8,
@@ -272,10 +272,7 @@ fn integer_bytes(
 }
 
 /// Return little endian float bytes.
-fn float_bytes(
-    bits: u64,
-    format: mir::FloatType,
-) -> Vec<u8> {
+fn float_bytes(bits: u64, format: mir::FloatType) -> Vec<u8> {
     match format {
         mir::FloatType::Float16 | mir::FloatType::Bfloat16 => (bits as u16).to_le_bytes().to_vec(),
         mir::FloatType::Float32 => (bits as u32).to_le_bytes().to_vec(),
@@ -299,7 +296,7 @@ fn align_to(offset: u32, alignment: u32) -> u32 {
 
 /// Return one concrete MIR type from a recoverable reference.
 fn type_id(
-    ty: mir::TypeReference,
+    ty: &mir::TypeReference,
     context: &str,
 ) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Type>> {
     ty.ty().ok_or_else(|| CodegenCraneliftError::Internal {

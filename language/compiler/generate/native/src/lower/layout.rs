@@ -147,7 +147,8 @@ pub(crate) fn compute_type_layout(
             access,
             ..
         } => {
-            let (data, _length) = mir::slice_header_types(*kind, *element, *access, space.clone());
+            let (data, _length) =
+                mir::slice_header_types(*kind, element.clone(), *access, space.clone());
             let data = tree
                 .iter_nodes::<mir::Type>()
                 .find_map(|(type_id, ty)| (ty == &data).then_some(type_id))
