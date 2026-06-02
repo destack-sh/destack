@@ -17,12 +17,12 @@ use crate::host::time::TimerClock;
 use crate::host::{
     HostEvent, HostEventKind, LifecycleEvent, LifecycleSourceKind, LifecycleState, ResourceId,
 };
-use crate::runtime::engine::{CallContext, Continuation, Engine, Entry, MemoryContext, Outcome};
+use crate::runtime::engine::{Continuation, Engine, EngineCall, EngineMemory, Entry, Outcome};
 use crate::runtime::scheduler::{Readiness, ScheduledTimer, Task, TaskId, TimerDeadline};
 use crate::runtime::time::Nanos;
 use crate::runtime::{
-    BindingCallContext, ExecutionContext, RuntimeHeap, TickResult, Worker, WorkerId, WorkerOptions,
-    World, WorldState, current_runnable_scope,
+    BindingCall, RuntimeHeap, TickResult, Worker, WorkerId, WorkerOptions, World, WorldState,
+    current_runnable_scope,
 };
 use crate::world::RuntimeId;
 
@@ -31,16 +31,16 @@ pub(crate) fn test_resource_id(local_id: u64) -> ResourceId {
     ResourceId::new(WorkerId(1), local_id)
 }
 
-/// Build one native binding call context for runtime tests.
-pub(crate) fn binding_call_context<'host>(
+/// Build one native binding call for runtime tests.
+pub(crate) fn binding_call<'host>(
     worker: &mut Worker,
     host: &'host dyn Host,
     host_queue: &'host HostQueue,
     world: &mut WorldState,
-) -> BindingCallContext<'host> {
-    let execution_context = ExecutionContext::new(host.is_process_main_context());
+) -> BindingCall<'host> {
+    let is_process_main = host.is_process_main_context();
 
-    BindingCallContext {
+    BindingCall {
         runtime_id: worker.runtime_id,
         worker_id: worker.id,
         environment: worker.environment.clone(),
@@ -52,7 +52,7 @@ pub(crate) fn binding_call_context<'host>(
         host_queue,
         world: world as *mut WorldState,
         scope: current_runnable_scope(),
-        execution_context,
+        is_process_main,
     }
 }
 
@@ -518,7 +518,7 @@ impl TestWorldRuntime {
             .expect("runtime should exist");
 
         runtime
-            .with_worker_context(worker_id, |shared, runtime_static, worker| {
+            .with_worker(worker_id, |shared, runtime_static, worker| {
                 start_worker_continuation(
                     worker,
                     host.as_ref(),
@@ -590,7 +590,7 @@ pub(crate) fn start_worker_continuation(
     entry: &str,
     value: i32,
 ) -> Continuation {
-    let mut call_context = binding_call_context(worker, host, host_queue, world);
+    let mut call_context = binding_call(worker, host, host_queue, world);
     let Worker {
         heap: worker_heap,
         statics,
@@ -599,9 +599,9 @@ pub(crate) fn start_worker_continuation(
         shared_gc_worker,
         ..
     } = worker;
-    let context = CallContext {
-        runtime: std::ptr::NonNull::from(&mut call_context).cast(),
-        memory: MemoryContext {
+    let context = EngineCall {
+        host: std::ptr::NonNull::from(&mut call_context).cast(),
+        memory: EngineMemory {
             heap: worker_heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache,

@@ -1,7 +1,5 @@
 use std::cell::Cell;
 
-use serde::{Deserialize, Serialize};
-
 use crate::host::binding::BindingAffinity;
 use crate::runtime::scheduler::{MicrotaskId, TaskId};
 
@@ -9,20 +7,6 @@ thread_local! {
     /// TLS slot for the currently running task or microtask.
     static CURRENT_RUNNABLE_SCOPE: Cell<RunnableScope> =
         const { Cell::new(RunnableScope::empty()) };
-}
-
-/// Runtime execution context for one binding call.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExecutionContext {
-    /// Whether the current execution context is the process main context.
-    pub is_process_main: bool,
-}
-
-impl ExecutionContext {
-    /// Build one execution context payload.
-    pub const fn new(is_process_main: bool) -> Self {
-        Self { is_process_main }
-    }
 }
 
 /// Currently running task or microtask.

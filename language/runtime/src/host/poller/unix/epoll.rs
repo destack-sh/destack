@@ -11,6 +11,7 @@ use crate::diagnostic::{
 use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
+    WAKE_TOKEN_BITS,
 };
 use crate::host::{HostError, ResourceId, core as host_core};
 
@@ -68,7 +69,7 @@ impl EpollPoller {
         // register the wake pipe for readability
         let mut event = epoll_event {
             events: libc::EPOLLIN as u32,
-            u64: PollerToken::WAKE.0,
+            u64: WAKE_TOKEN_BITS,
         };
         let result = epoll_control(epoll_fd, libc::EPOLL_CTL_ADD, wake_fd, &mut event);
         if result < 0 {
@@ -105,7 +106,7 @@ impl HostPoller for EpollPoller {
         flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
-        if token.is_reserved() {
+        if token.is_internal() {
             return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "token",
                 "token reserved for poller internals",
@@ -161,7 +162,7 @@ impl HostPoller for EpollPoller {
         flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
-        if token.is_reserved() {
+        if token.is_internal() {
             return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "token",
                 "token reserved for poller internals",
@@ -267,7 +268,7 @@ impl HostPoller for EpollPoller {
         let mut output = Vec::with_capacity(result as usize);
         let mut oneshot = Vec::new();
         for event in self.events.iter().take(result as usize) {
-            if event.u64 == PollerToken::WAKE.0 {
+            if event.u64 == WAKE_TOKEN_BITS {
                 drain_wake(self.wake_fd);
                 continue;
             }

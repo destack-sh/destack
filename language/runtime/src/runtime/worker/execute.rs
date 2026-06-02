@@ -1,9 +1,6 @@
 use std::ptr::NonNull;
 
-use super::{
-    BindingCallContext, ExecutionContext, RunnableScope, Worker, current_runnable_scope,
-    enter_runnable_scope,
-};
+use super::{BindingCall, RunnableScope, Worker, current_runnable_scope, enter_runnable_scope};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::Host;
 use crate::host::core::{HostQueue, poll_host_events};
@@ -20,14 +17,14 @@ use destack_heap as heap;
 const DEFAULT_MAX_MICROTASK_DEPTH: usize = usize::MAX;
 
 impl Worker {
-    /// Build one runtime-owned binding call context.
-    fn binding_call_context<'host>(
+    /// Build one runtime-owned binding call.
+    fn binding_call<'host>(
         &mut self,
         world: &mut WorldState,
         host: &'host dyn Host,
         host_queue: &'host HostQueue,
-    ) -> BindingCallContext<'host> {
-        BindingCallContext {
+    ) -> BindingCall<'host> {
+        BindingCall {
             runtime_id: self.runtime_id,
             worker_id: self.id,
             environment: self.environment.clone(),
@@ -39,7 +36,7 @@ impl Worker {
             host_queue,
             world,
             scope: current_runnable_scope(),
-            execution_context: ExecutionContext::new(host.is_process_main_context()),
+            is_process_main: host.is_process_main_context(),
         }
     }
 
@@ -57,7 +54,7 @@ impl Worker {
     ) -> RuntimeResult<engine::Value> {
         // execute the entrypoint with yielding enabled
         let _guard = enter_runnable_scope(RunnableScope::empty());
-        let mut call_context = self.binding_call_context(world, host, host_queue);
+        let mut call_context = self.binding_call(world, host, host_queue);
         let Worker {
             heap,
             shared_cache,
@@ -66,9 +63,9 @@ impl Worker {
             engine,
             ..
         } = self;
-        let context = engine::CallContext {
-            runtime: NonNull::from(&mut call_context).cast(),
-            memory: engine::MemoryContext {
+        let context = engine::EngineCall {
+            host: NonNull::from(&mut call_context).cast(),
+            memory: engine::EngineMemory {
                 heap,
                 shared_heap: shared.shared.as_ref(),
                 shared_cache,
@@ -587,7 +584,7 @@ impl Worker {
         runnable: Continuation,
         resume_value: engine::Value,
     ) -> RuntimeResult<Outcome<Continuation>> {
-        let mut call_context = self.binding_call_context(world, host, host_queue);
+        let mut call_context = self.binding_call(world, host, host_queue);
         let Worker {
             heap,
             shared_cache,
@@ -596,9 +593,9 @@ impl Worker {
             engine,
             ..
         } = self;
-        let context = engine::CallContext {
-            runtime: NonNull::from(&mut call_context).cast(),
-            memory: engine::MemoryContext {
+        let context = engine::EngineCall {
+            host: NonNull::from(&mut call_context).cast(),
+            memory: engine::EngineMemory {
                 heap,
                 shared_heap: shared.shared.as_ref(),
                 shared_cache,

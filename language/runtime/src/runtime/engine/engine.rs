@@ -6,7 +6,7 @@ use destack_mir as mir;
 use destack_native as native;
 use destack_vm as vm;
 
-use super::{CallContext, Continuation, ContinuationImage, Entry, Image, MemoryContext, Outcome};
+use super::{Continuation, ContinuationImage, EngineCall, EngineMemory, Entry, Image, Outcome};
 use crate::diagnostic::{EngineError, RuntimeError, RuntimeResult};
 
 const NATIVE_ENGINE: &str = "native";
@@ -30,7 +30,7 @@ impl Engine {
     }
 
     /// Initialize worker-owned static bytes.
-    pub fn initialize(&mut self, context: MemoryContext<'_>) -> RuntimeResult<()> {
+    pub fn initialize(&mut self, context: EngineMemory<'_>) -> RuntimeResult<()> {
         match self {
             Self::Vm(engine) => engine::Engine::initialize(engine.as_mut(), context)
                 .map_err(Box::<RuntimeError>::from),
@@ -43,7 +43,7 @@ impl Engine {
     /// Run one entrypoint.
     pub fn run(
         &mut self,
-        context: CallContext<'_>,
+        context: EngineCall<'_>,
         entry: &Entry,
         args: &[engine::Value],
     ) -> RuntimeResult<Outcome<Continuation>> {
@@ -72,7 +72,7 @@ impl Engine {
     /// Resume one continuation.
     pub fn resume(
         &mut self,
-        context: CallContext<'_>,
+        context: EngineCall<'_>,
         continuation: Continuation,
         value: engine::Value,
     ) -> RuntimeResult<Outcome<Continuation>> {
@@ -153,7 +153,7 @@ impl Engine {
     }
 
     /// Fork this engine over already-forked memory.
-    pub fn fork(&self, context: MemoryContext<'_>) -> RuntimeResult<Self> {
+    pub fn fork(&self, context: EngineMemory<'_>) -> RuntimeResult<Self> {
         match self {
             Self::Vm(engine) => {
                 let engine = engine::Engine::fork(engine.as_ref(), context)
@@ -170,7 +170,7 @@ impl Engine {
     }
 
     /// Capture one immutable engine image.
-    pub fn image(&self, context: MemoryContext<'_>) -> RuntimeResult<Image> {
+    pub fn image(&self, context: EngineMemory<'_>) -> RuntimeResult<Image> {
         match self {
             Self::Vm(engine) => {
                 let image = engine::Engine::image(engine.as_ref(), context)
@@ -187,7 +187,7 @@ impl Engine {
     }
 
     /// Restore one immutable engine image.
-    pub fn restore(&mut self, context: MemoryContext<'_>, image: &Image) -> RuntimeResult<()> {
+    pub fn restore(&mut self, context: EngineMemory<'_>, image: &Image) -> RuntimeResult<()> {
         match (self, image) {
             (Self::Vm(engine), Image::Vm(image)) => {
                 engine::Engine::restore(engine.as_mut(), context, image)

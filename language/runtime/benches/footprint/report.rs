@@ -15,7 +15,7 @@ use destack_runtime::runtime::scheduler::EventLoop;
 use destack_runtime::runtime::{Runtime, Worker};
 use destack_runtime::simulation::Simulation;
 use destack_runtime::world::trace::{Observations, Trace, TraceLog};
-use destack_runtime::world::{Policy, Resource, Scenario, World};
+use destack_runtime::world::{Entity, Policy, Scenario, World};
 use destack_vm::{Continuation, ContinuationImage, Machine, StackImage};
 use destack_workspace::{Environment, RuntimeOptions};
 
@@ -47,7 +47,7 @@ fn print_type_sizes() {
         ("world", "Trace", size_of::<Trace>()),
         ("world", "TraceLog", size_of::<TraceLog>()),
         ("world", "Observations", size_of::<Observations>()),
-        ("world", "Resource", size_of::<Resource>()),
+        ("world", "Entity", size_of::<Entity>()),
         ("runtime", "Runtime", size_of::<Runtime>()),
         ("runtime", "Worker", size_of::<Worker>()),
         ("runtime", "EventLoop", size_of::<EventLoop>()),

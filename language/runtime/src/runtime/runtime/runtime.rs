@@ -177,9 +177,9 @@ impl Runtime {
         self.workers.get_mut(&worker_id).map(Box::as_mut)
     }
 
-    /// Run one closure with one worker and its runtime context.
+    /// Run one closure with one worker.
     #[cfg(test)]
-    pub(crate) fn with_worker_context<R>(
+    pub(crate) fn with_worker<R>(
         &mut self,
         worker_id: WorkerId,
         callback: impl FnOnce(&RuntimeHeap, &engine::StaticSpace, &mut Worker) -> R,
@@ -339,7 +339,7 @@ impl Runtime {
 
     /// Insert one worker and return its id.
     fn insert_worker(&mut self, worker: Worker) -> RuntimeResult<WorkerId> {
-        // derive one stable id from the underlying runtime context
+        // keep worker ownership one to one
         let worker = Box::new(worker);
         let worker_id = worker.id;
 

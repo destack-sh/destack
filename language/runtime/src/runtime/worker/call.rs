@@ -17,12 +17,12 @@ use crate::world::scenario::{ScenarioCallId, ScenarioRunner};
 use crate::world::trace::{EntropySubject, Trace};
 use crate::world::{RuntimeId, WorldState};
 
-use super::{ExecutionContext, RunnableScope, WorkerId, binding_affinity_name};
+use super::{RunnableScope, WorkerId, binding_affinity_name};
 use destack_workspace::{Environment, RuntimeDiagnosticLevel, RuntimeOptions};
 
 /// TLS payload for native runtime calls.
 #[derive(Debug)]
-pub struct BindingCallContext<'host> {
+pub struct BindingCall<'host> {
     /// Runtime owner identifier in world topology.
     pub(crate) runtime_id: RuntimeId,
     /// Worker identifier in world topology.
@@ -45,15 +45,15 @@ pub struct BindingCallContext<'host> {
     pub(crate) world: *mut WorldState,
     /// Currently running task or microtask.
     pub(crate) scope: RunnableScope,
-    /// Execution-affinity context for the current call.
-    pub(crate) execution_context: ExecutionContext,
+    /// Whether this call is running on the process main thread.
+    pub(crate) is_process_main: bool,
 }
 
 /// Scope guard that records one after-binding event when one binding call completes.
 #[derive(Debug)]
 pub struct BindingCallGuard<'call> {
     /// Binding call context for event routing.
-    context: &'call BindingCallContext<'call>,
+    context: &'call BindingCall<'call>,
     /// Binding descriptor for event routing.
     spec: BindingDescriptor,
     /// Binding call identifier for before and after correlation.
@@ -68,7 +68,7 @@ impl Drop for BindingCallGuard<'_> {
 }
 
 #[allow(clippy::mut_from_ref)]
-impl BindingCallContext<'_> {
+impl BindingCall<'_> {
     /// Borrow the binding registry.
     #[inline]
     fn bindings(&self) -> &BindingRegistry {
@@ -177,9 +177,9 @@ impl BindingCallContext<'_> {
         self.scope
     }
 
-    /// Return the execution-affinity context for this call.
-    pub const fn execution_context(&self) -> ExecutionContext {
-        self.execution_context
+    /// Return whether this call is running on the process main thread.
+    pub const fn is_process_main(&self) -> bool {
+        self.is_process_main
     }
 
     /// Advance host and runtime wait progress for one blocked binding path.
@@ -324,9 +324,9 @@ impl BindingCallContext<'_> {
         )
     }
 
-    /// Ensure the current execution context satisfies one binding affinity.
+    /// Ensure the current binding call satisfies one affinity.
     fn ensure_binding_affinity_allowed(&self, spec: BindingDescriptor) -> RuntimeResult<()> {
-        if execution_context_satisfies(self.execution_context(), spec.affinity()) {
+        if binding_affinity_satisfied(self.is_process_main(), spec.affinity()) {
             return Ok(());
         }
 
@@ -455,14 +455,14 @@ impl BindingCallContext<'_> {
     }
 }
 
-/// Return whether one execution context satisfies one binding affinity requirement.
-pub(crate) const fn execution_context_satisfies(
-    execution_context: ExecutionContext,
+/// Return whether one binding affinity requirement is satisfied.
+pub(crate) const fn binding_affinity_satisfied(
+    is_process_main: bool,
     affinity: BindingAffinity,
 ) -> bool {
     match affinity {
         BindingAffinity::None => true,
         BindingAffinity::Worker => true,
-        BindingAffinity::Main => execution_context.is_process_main,
+        BindingAffinity::Main => is_process_main,
     }
 }

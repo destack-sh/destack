@@ -19,5 +19,5 @@ pub enum ContinuationImage {
     /// VM continuation image.
     Vm(vm::ContinuationImage),
     /// Native continuation image.
-    Native(engine::Continuation),
+    Native(engine::MaterializedContinuation),
 }
