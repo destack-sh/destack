@@ -3,14 +3,14 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallCallee, CallTerm, CheckState, MemberCallCallee, MemberCallTerm, MemberProtocol,
-    MemberResolution, MemberResolutionTarget, MemberSelection, Origin, Progress, Reduction,
-    SubscriptMethod, TypeTerm, VariableId,
+    CallCallee, CallTerm, CheckState, FormTerm, MemberCallSource, MemberCallTerm, MemberDecision,
+    MemberProtocol, MemberResolution, MemberTargetResolution, Origin, Progress, Reduction,
+    SubscriptMethod, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Runtime index access term.
 ///
-/// ```ts
+/// ```ds
 /// values[index]
 /// tuple[0]
 /// ```
@@ -18,17 +18,36 @@ use crate::check::{
 pub(in crate::check) struct IndexTerm {
     /// The source index expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The selected index form.
+    pub(in crate::check) kind: IndexKind,
     /// The indexed receiver type.
-    pub(in crate::check) receiver: VariableId,
+    pub(in crate::check) receiver: TypeOperand,
     /// The index expression type.
-    pub(in crate::check) index: VariableId,
+    pub(in crate::check) index: TypeOperand,
     /// The direct structural key when syntax makes it obvious.
     pub(in crate::check) key: Option<dir::StaticKey>,
 }
 
+/// Source-selected index form.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum IndexKind {
+    /// Element index access.
+    ///
+    /// ```ds
+    /// values[index]
+    /// ```
+    Element,
+    /// Slice index access.
+    ///
+    /// ```ds
+    /// values[start..end]
+    /// ```
+    Slice,
+}
+
 /// Runtime index set term.
 ///
-/// ```ts
+/// ```ds
 /// values[index] = value
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -36,22 +55,33 @@ pub(in crate::check) struct IndexSetTerm {
     /// The source assignment expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The indexed receiver type.
-    pub(in crate::check) receiver: VariableId,
+    pub(in crate::check) receiver: TypeOperand,
     /// The index expression type.
-    pub(in crate::check) index: VariableId,
+    pub(in crate::check) index: TypeOperand,
     /// The assigned value type.
-    pub(in crate::check) value: VariableId,
+    pub(in crate::check) value: TypeOperand,
     /// The direct structural key when syntax makes it obvious.
     pub(in crate::check) key: Option<dir::StaticKey>,
 }
 
+/// Receiver type prepared for structural index lookup.
+struct IndexReceiver {
+    /// The reduced receiver type.
+    ty: TypeTerm,
+    /// Whether the indexed receiver is readonly.
+    is_readonly: bool,
+}
+
 impl IndexTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> smallvec::SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> smallvec::SmallVec<[VariableId; 2]> {
         let mut variables = smallvec::SmallVec::new();
 
-        variables.push(self.receiver);
-        variables.push(self.index);
+        variables.extend(self.receiver.referenced_variables(state));
+        variables.extend(self.index.referenced_variables(state));
 
         variables
     }
@@ -59,12 +89,15 @@ impl IndexTerm {
 
 impl IndexSetTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> smallvec::SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> smallvec::SmallVec<[VariableId; 2]> {
         let mut variables = smallvec::SmallVec::new();
 
-        variables.push(self.receiver);
-        variables.push(self.index);
-        variables.push(self.value);
+        variables.extend(self.receiver.referenced_variables(state));
+        variables.extend(self.index.referenced_variables(state));
+        variables.extend(self.value.referenced_variables(state));
 
         variables
     }
@@ -95,7 +128,11 @@ impl CheckState<'_> {
         set: &IndexSetTerm,
     ) -> CompilerResult<Reduction<TypeTerm>> {
         if self.reduce_structural_index_set(origin, module, set)? {
-            return Ok(Reduction::value(TypeTerm::Variable(set.value)));
+            let Some(value) = self.type_operand_term(set.value)? else {
+                return Ok(Reduction::pending());
+            };
+
+            return Ok(Reduction::value(value));
         }
 
         let call = self.index_set_call_term(set)?;
@@ -104,8 +141,12 @@ impl CheckState<'_> {
             return Ok(Reduction::progress(reduction.progress));
         };
 
+        let Some(value) = self.type_operand_term(set.value)? else {
+            return Ok(Reduction::progress(reduction.progress));
+        };
+
         Ok(Reduction {
-            value: Some(TypeTerm::Variable(set.value)),
+            value: Some(value),
             progress: reduction.progress,
         })
     }
@@ -118,9 +159,9 @@ impl CheckState<'_> {
         result: VariableId,
     ) -> CompilerResult<Progress> {
         if let Some(term) = self.reduce_structural_index_type(origin, result.module, index)? {
-            let term = self.terms.push(term);
+            let term = self.push_term(term);
 
-            return self.solve_contextual_type_assignability(origin, term, result);
+            return self.relate_contextual_type_assignability(origin, term, result);
         }
         let call = self.index_call_term(index)?;
 
@@ -134,7 +175,7 @@ impl CheckState<'_> {
         set: &IndexSetTerm,
         result: VariableId,
     ) -> CompilerResult<Progress> {
-        self.solve_contextual_type_assignability(origin, set.value, result)
+        self.relate_contextual_type_assignability(origin, set.value, result)
     }
 
     /// Reduce one structural tuple or shape index.
@@ -144,7 +185,32 @@ impl CheckState<'_> {
         module: ModuleId,
         index: &IndexTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(receiver) = self.solved_type_term(index.receiver)? else {
+        let Some(receiver) = self.reduce_index_receiver_type(origin, index.receiver)? else {
+            return Ok(None);
+        };
+
+        if let Some(term) = self.index_array_type(index, &receiver.ty, receiver.is_readonly)? {
+            return Ok(Some(term));
+        }
+
+        let Some(key) = index.key else {
+            return Ok(None);
+        };
+        let term = self.resolve_member_type(origin, module, &receiver.ty, &key, &[])?;
+        if term.is_some() {
+            self.select_builtin_index_member(index, dir::BuiltinMember::Index)?;
+        }
+
+        Ok(term)
+    }
+
+    /// Return one reduced receiver for structural index lookup.
+    fn reduce_index_receiver_type(
+        &mut self,
+        origin: Origin,
+        receiver: TypeOperand,
+    ) -> CompilerResult<Option<IndexReceiver>> {
+        let Some(receiver) = self.type_operand_term(receiver)? else {
             return Ok(None);
         };
         let receiver = match self.reduce_type_term(origin, &receiver)? {
@@ -157,21 +223,22 @@ impl CheckState<'_> {
                 progress: _,
             } => receiver,
         };
-        let selects_slice = self.index_syntax_selects_slice(index.source);
 
-        if let Some(term) = self.index_array_type(index, &receiver, selects_slice) {
-            return Ok(Some(term));
-        }
-
-        let Some(key) = index.key else {
+        let TypeTerm::Form { form, payload } = receiver else {
+            return Ok(Some(IndexReceiver {
+                ty: receiver,
+                is_readonly: false,
+            }));
+        };
+        let Some(payload) = self.type_operand_term(payload)? else {
             return Ok(None);
         };
-        let term = self.resolve_member_type(origin, module, &receiver, &key, &[])?;
-        if term.is_some() {
-            self.select_builtin_index_member(index, dir::BuiltinMember::Index);
-        }
+        let is_readonly = matches!(self.term(form), FormTerm::Readonly);
 
-        Ok(term)
+        Ok(Some(IndexReceiver {
+            ty: payload,
+            is_readonly,
+        }))
     }
 
     /// Return a structural array or slice subscript result.
@@ -179,63 +246,51 @@ impl CheckState<'_> {
         &mut self,
         index: &IndexTerm,
         receiver: &TypeTerm,
-        selects_slice: bool,
-    ) -> Option<TypeTerm> {
-        let (element, is_readonly) = match receiver {
-            TypeTerm::Array { element } => (*element, false),
-            TypeTerm::FixedArray {
-                element,
-                length: _,
-                is_readonly,
-            } => (*element, *is_readonly),
-            TypeTerm::Slice {
-                element,
-                is_readonly,
-            } => (*element, *is_readonly),
-            _ => return None,
+        is_readonly: bool,
+    ) -> CompilerResult<Option<TypeTerm>> {
+        let element = match receiver {
+            TypeTerm::Array { element } => *element,
+            TypeTerm::FixedArray { element, length: _ } => *element,
+            TypeTerm::Slice { element } => *element,
+            _ => return Ok(None),
         };
-        if selects_slice {
-            self.select_builtin_index_member(index, dir::BuiltinMember::Slice);
+        if index.kind == IndexKind::Slice {
+            self.select_builtin_index_member(index, dir::BuiltinMember::Slice)?;
 
-            return Some(TypeTerm::Slice {
-                element,
-                is_readonly,
-            });
+            let term = TypeTerm::Slice { element };
+            if is_readonly {
+                let payload = self.push_term(term);
+                let form = self.push_term(FormTerm::Readonly);
+
+                return Ok(Some(TypeTerm::Form {
+                    form,
+                    payload: payload.into(),
+                }));
+            }
+
+            return Ok(Some(term));
         }
 
-        self.select_builtin_index_member(index, dir::BuiltinMember::Index);
+        self.select_builtin_index_member(index, dir::BuiltinMember::Index)?;
 
-        Some(element.to_type_term(self))
-    }
-
-    /// Return whether this subscript uses range syntax.
-    fn index_syntax_selects_slice(&self, source: dir::GlobalNodeIdAny) -> bool {
-        if source.local_id.ty != dir::NodeType::Expression {
-            return false;
-        }
-        let view = self.module(source.module_id).view();
-        let source = dir::LocalNodeId::<dir::Expression>::new(source.local_id.id);
-        let dir::Expression::Index {
-            left: _,
-            index: Some(index),
-            position: _,
-        } = view.get(source)
-        else {
-            return false;
-        };
-
-        matches!(view.get(*index), dir::Expression::RangeExpression { .. })
+        self.type_operand_term(element)
     }
 
     /// Select one builtin subscript member resolution.
-    fn select_builtin_index_member(&mut self, index: &IndexTerm, builtin: dir::BuiltinMember) {
+    fn select_builtin_index_member(
+        &mut self,
+        index: &IndexTerm,
+        builtin: dir::BuiltinMember,
+    ) -> CompilerResult<()> {
         let resolution = MemberResolution {
             source: index.source,
             receiver: index.receiver,
-            target: MemberResolutionTarget::Builtin(builtin),
+            target: MemberTargetResolution::Builtin(builtin),
         };
 
-        self.select_member(index.source, MemberSelection::Resolved(resolution));
+        self.select_member(index.source, MemberDecision::Resolved(resolution))?;
+
+        Ok(())
     }
 
     /// Return whether one structural index set is accepted.
@@ -248,14 +303,17 @@ impl CheckState<'_> {
         let Some(key) = set.key else {
             return Ok(false);
         };
-        let Some(receiver) = self.solved_type_term(set.receiver)? else {
+        let Some(receiver) = self.reduce_index_receiver_type(origin, set.receiver)? else {
             return Ok(false);
         };
-        let Some(term) = self.resolve_member_type(origin, module, &receiver, &key, &[])? else {
+        if receiver.is_readonly {
+            return Ok(false);
+        }
+        let Some(term) = self.resolve_member_type(origin, module, &receiver.ty, &key, &[])? else {
             return Ok(false);
         };
-        let term = self.terms.push(term);
-        self.solve_contextual_type_assignability(origin, set.value, term)?;
+        let term = self.push_term(term);
+        self.relate_contextual_type_assignability(origin, set.value, term)?;
 
         Ok(true)
     }
@@ -268,7 +326,7 @@ impl CheckState<'_> {
             SubscriptMethod::Index.key(strings)
         };
         let member = MemberCallTerm {
-            callee: MemberCallCallee::Protocol {
+            source: MemberCallSource::Protocol {
                 protocol: MemberProtocol {
                     item: dir::LanguageItem::Index,
                     arguments: Vec::new().into(),
@@ -278,13 +336,14 @@ impl CheckState<'_> {
             key,
             arguments: Vec::new().into(),
         };
-        let member = self.terms.push(member);
+        let member = self.push_term(member);
 
         Ok(CallTerm {
             source: index.source,
             callee: CallCallee::Member(member),
             generic_arguments: Default::default(),
             arguments: vec![index.index.into()].into(),
+            argument_values: Default::default(),
         })
     }
 
@@ -296,7 +355,7 @@ impl CheckState<'_> {
             SubscriptMethod::IndexSet.key(strings)
         };
         let member = MemberCallTerm {
-            callee: MemberCallCallee::Protocol {
+            source: MemberCallSource::Protocol {
                 protocol: MemberProtocol {
                     item: dir::LanguageItem::IndexSet,
                     arguments: Vec::new().into(),
@@ -306,13 +365,14 @@ impl CheckState<'_> {
             key,
             arguments: Vec::new().into(),
         };
-        let member = self.terms.push(member);
+        let member = self.push_term(member);
 
         Ok(CallTerm {
             source: set.source,
             callee: CallCallee::Member(member),
             generic_arguments: Default::default(),
             arguments: vec![set.index.into(), set.value.into()].into(),
+            argument_values: Default::default(),
         })
     }
 }

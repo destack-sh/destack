@@ -3,11 +3,11 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, GenericArgument, Reduction, TypeTerm, VariableId};
+use crate::check::{CheckState, GenericArgument, Reduction, TypeOperand, TypeTerm, VariableId};
 
 /// Runtime tree expression term.
 ///
-/// ```tsx
+/// ```dsx
 /// <Tag prop={value}>{child}</Tag>
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -15,13 +15,13 @@ pub(in crate::check) struct TreeTerm {
     /// The source tree expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The explicit tag expression type, when any.
-    pub(in crate::check) tag: Option<VariableId>,
+    pub(in crate::check) tag: Option<TypeOperand>,
     /// The explicit tag generic arguments.
-    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 4]>,
+    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 2]>,
     /// The tree attribute argument types.
-    pub(in crate::check) arguments: Vec<VariableId>,
+    pub(in crate::check) arguments: Vec<TypeOperand>,
     /// The child tree element argument types.
-    pub(in crate::check) elements: Vec<VariableId>,
+    pub(in crate::check) elements: Vec<TypeOperand>,
 }
 
 impl TreeTerm {
@@ -32,14 +32,24 @@ impl TreeTerm {
     ) -> SmallVec<[VariableId; 8]> {
         let mut variables = SmallVec::new();
 
-        variables.extend(self.tag);
+        if let Some(tag) = self.tag {
+            variables.extend(tag.referenced_variables(state));
+        }
         variables.extend(
             self.generic_arguments
                 .iter()
                 .flat_map(|argument| state.argument_variables(argument)),
         );
-        variables.extend(self.arguments.iter().copied());
-        variables.extend(self.elements.iter().copied());
+        variables.extend(
+            self.arguments
+                .iter()
+                .flat_map(|argument| argument.referenced_variables(state)),
+        );
+        variables.extend(
+            self.elements
+                .iter()
+                .flat_map(|element| element.referenced_variables(state)),
+        );
 
         variables
     }

@@ -80,8 +80,9 @@ impl CheckState<'_> {
         let origin = Origin::Node(source);
         let variable = self.allocate_variable(module, VariableKind::Static, origin);
         let term = StaticTerm::Expression(id.into_global(module));
+        let term = self.push_term(term);
 
-        self.equate_static(variable, term, condition);
+        self.equate_static(origin, variable, term, condition);
 
         variable
     }

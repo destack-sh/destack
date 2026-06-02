@@ -9,7 +9,7 @@ use crate::check::{
 
 /// Runtime template string term.
 ///
-/// ```ts
+/// ```ds
 /// `/${prefix}/${id}`
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -19,13 +19,19 @@ pub(in crate::check) struct TemplateTerm {
     /// The literal string segments.
     pub(in crate::check) strings: Vec<dir::StringId>,
     /// The interpolated expression types.
-    pub(in crate::check) spans: Vec<VariableId>,
+    pub(in crate::check) spans: Vec<TypeOperand>,
 }
 
 impl TemplateTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
-        self.spans.iter().copied().collect()
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
+        self.spans
+            .iter()
+            .flat_map(|span| span.referenced_variables(state))
+            .collect()
     }
 }
 
@@ -37,7 +43,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<TypeTerm>> {
         // wait for interpolations so failed operands own their diagnostics
         for span in &template.spans {
-            if self.solved_type_term(*span)?.is_none() {
+            if self.type_operand_term(*span)?.is_none() {
                 return Ok(None);
             }
         }
@@ -50,7 +56,7 @@ impl CheckState<'_> {
 
 /// Runtime tagged template term.
 ///
-/// ```ts
+/// ```ds
 /// sql<User>`select ${id}`
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -58,13 +64,13 @@ pub(in crate::check) struct TaggedTemplateTerm {
     /// The source tagged template expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The tag expression type.
-    pub(in crate::check) tag: VariableId,
+    pub(in crate::check) tag: TypeOperand,
     /// The explicit tag generic arguments.
-    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 4]>,
+    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 2]>,
     /// The literal string segments.
     pub(in crate::check) strings: Vec<dir::StringId>,
     /// The interpolated expression types.
-    pub(in crate::check) spans: Vec<VariableId>,
+    pub(in crate::check) spans: Vec<TypeOperand>,
 }
 
 impl TaggedTemplateTerm {
@@ -72,16 +78,20 @@ impl TaggedTemplateTerm {
     pub(in crate::check) fn referenced_variables(
         &self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
+    ) -> SmallVec<[VariableId; 2]> {
         let mut variables = SmallVec::new();
 
-        variables.push(self.tag);
+        variables.extend(self.tag.referenced_variables(state));
         variables.extend(
             self.generic_arguments
                 .iter()
                 .flat_map(|argument| state.argument_variables(argument)),
         );
-        variables.extend(self.spans.iter().copied());
+        variables.extend(
+            self.spans
+                .iter()
+                .flat_map(|span| span.referenced_variables(state)),
+        );
 
         variables
     }
@@ -100,7 +110,7 @@ impl CheckState<'_> {
 
         let call = self.tagged_template_call(template)?;
 
-        self.reduce_call_term(origin, template.tag.module, &call)
+        self.reduce_call_term(origin, template.source.module_id, &call)
     }
 
     /// Expect a tagged template call to produce the expected result.
@@ -122,21 +132,22 @@ impl CheckState<'_> {
     /// Return the lowered call shape for one tagged template.
     fn tagged_template_call(&mut self, template: &TaggedTemplateTerm) -> CompilerResult<CallTerm> {
         let string = TypeTerm::Literal(TypeLiteralTerm::Primitive(dir::PrimitiveType::String));
-        let string = self.terms.push(string);
+        let string = self.push_term(string);
         let strings = TypeTerm::Array {
             element: string.into(),
         };
-        let strings = self.terms.push(strings);
+        let strings = self.push_term(strings);
         let mut arguments = Vec::with_capacity(template.spans.len() + 1);
 
         arguments.push(strings.into());
-        arguments.extend(template.spans.iter().copied().map(TypeOperand::from));
+        arguments.extend(template.spans.iter().copied());
 
         Ok(CallTerm {
             source: template.source,
-            callee: CallCallee::Value(template.tag),
+            callee: CallCallee::Expression(template.tag),
             generic_arguments: template.generic_arguments.clone(),
             arguments: arguments.into(),
+            argument_values: Default::default(),
         })
     }
 

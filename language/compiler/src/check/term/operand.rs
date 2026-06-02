@@ -1,116 +1,271 @@
 use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 
+use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::check::{CheckState, StaticTerm, Term, TermId, TypeTerm, VariableId};
-
-/// Relation operand in one term space.
-pub(in crate::check) enum Operand<T: Term> {
-    /// A solver variable.
-    Variable(VariableId),
-    /// A fixed term.
-    Term(TermId<T>),
-}
+use crate::check::{CheckState, StaticTerm, TermId, TypeTerm, VariableId};
 
 /// Type relation operand.
-pub(in crate::check) type TypeOperand = Operand<TypeTerm>;
+pub(in crate::check) enum TypeOperand {
+    /// A solver variable.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const inferred = value
+    /// ```
+    Variable(VariableId),
+    /// A fixed check term.
+    ///
+    /// Examples:
+    /// ```ds
+    /// const known: string = value
+    /// ```
+    Term(TermId<TypeTerm>),
+    /// A committed DIR type.
+    ///
+    /// Examples:
+    /// ```ds
+    /// import { Value } from "./dependency"
+    /// ```
+    Type(dir::GlobalTypeId),
+}
+
+// assert that TypeOperand <= 64B
+const _: () = assert!(std::mem::size_of::<TypeOperand>() <= 64);
 
 /// Static relation operand.
-pub(in crate::check) type StaticOperand = Operand<StaticTerm>;
+pub(in crate::check) enum StaticOperand {
+    /// A solver variable.
+    ///
+    /// Examples:
+    /// ```ds
+    /// <comptime N>
+    /// ```
+    Variable(VariableId),
+    /// A fixed check term.
+    ///
+    /// Examples:
+    /// ```ds
+    /// <4>
+    /// ```
+    Term(TermId<StaticTerm>),
+    /// A committed DIR static value.
+    ///
+    /// Examples:
+    /// ```ds
+    /// import { N } from "./dependency"
+    /// ```
+    Static(dir::GlobalStaticId),
+}
 
-impl<T: Term> Operand<T> {
+// assert that StaticOperand <= 64B
+const _: () = assert!(std::mem::size_of::<StaticOperand>() <= 64);
+
+impl TypeOperand {
     /// Return the variable identity when this operand has one.
     pub(in crate::check) fn variable(self) -> Option<VariableId> {
         match self {
             Self::Variable(variable) => Some(variable),
-            Self::Term(_) => None,
+            Self::Term(_) | Self::Type(_) => None,
+        }
+    }
+
+    /// Return the known type term when this operand is not still open.
+    pub(in crate::check) fn known_type_term(self, state: &CheckState<'_>) -> Option<TypeTerm> {
+        let operand = match self {
+            Self::Variable(variable) => state.variable_type_solution_operand(variable)?,
+            Self::Term(_) | Self::Type(_) => self,
+        };
+
+        match operand {
+            Self::Variable(_) => None,
+            Self::Term(term) => Some(state.term(term).clone()),
+            Self::Type(ty) => Some(TypeTerm::Type(ty)),
+        }
+    }
+
+    /// Return variables referenced by this operand.
+    pub(in crate::check) fn referenced_variables(
+        self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
+        match self {
+            Self::Variable(variable) => smallvec::smallvec![variable],
+            Self::Term(term) => state.term(term).referenced_variables(state),
+            Self::Type(_) => SmallVec::new(),
         }
     }
 }
 
-impl<T: Term> Clone for Operand<T> {
+impl StaticOperand {
+    /// Return the variable identity when this operand has one.
+    pub(in crate::check) fn variable(self) -> Option<VariableId> {
+        match self {
+            Self::Variable(variable) => Some(variable),
+            Self::Term(_) | Self::Static(_) => None,
+        }
+    }
+
+    /// Return the known static term when this operand is not still open.
+    pub(in crate::check) fn known_static_term(self, state: &CheckState<'_>) -> Option<StaticTerm> {
+        let operand = match self {
+            Self::Variable(variable) => state.variable_static_solution_operand(variable)?,
+            Self::Term(_) | Self::Static(_) => self,
+        };
+
+        match operand {
+            Self::Variable(_) => None,
+            Self::Term(term) => Some(state.term(term).clone()),
+            Self::Static(value) => Some(StaticTerm::Static(value)),
+        }
+    }
+
+    /// Return variables referenced by this operand.
+    pub(in crate::check) fn referenced_variables(
+        self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
+        match self {
+            Self::Variable(variable) => smallvec::smallvec![variable],
+            Self::Term(term) => state.term(term).referenced_variables(state),
+            Self::Static(_) => SmallVec::new(),
+        }
+    }
+}
+
+impl Clone for TypeOperand {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<T: Term> Copy for Operand<T> {}
+impl Copy for TypeOperand {}
 
-impl<T: Term> PartialEq for Operand<T> {
+impl Clone for StaticOperand {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl Copy for StaticOperand {}
+
+impl PartialEq for TypeOperand {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Variable(left), Self::Variable(right)) => left == right,
             (Self::Term(left), Self::Term(right)) => left.id == right.id,
-            (Self::Variable(_), Self::Term(_)) | (Self::Term(_), Self::Variable(_)) => false,
+            (Self::Type(left), Self::Type(right)) => left == right,
+            _ => false,
         }
     }
 }
 
-impl<T: Term> Eq for Operand<T> {}
+impl Eq for TypeOperand {}
 
-impl<T: Term> Debug for Operand<T> {
+impl PartialEq for StaticOperand {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Variable(left), Self::Variable(right)) => left == right,
+            (Self::Term(left), Self::Term(right)) => left.id == right.id,
+            (Self::Static(left), Self::Static(right)) => left == right,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for StaticOperand {}
+
+impl Hash for TypeOperand {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Variable(variable) => {
+                0_u8.hash(state);
+                variable.hash(state);
+            }
+            Self::Term(term) => {
+                1_u8.hash(state);
+                term.id.hash(state);
+            }
+            Self::Type(ty) => {
+                2_u8.hash(state);
+                ty.hash(state);
+            }
+        }
+    }
+}
+
+impl Hash for StaticOperand {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Variable(variable) => {
+                0_u8.hash(state);
+                variable.hash(state);
+            }
+            Self::Term(term) => {
+                1_u8.hash(state);
+                term.id.hash(state);
+            }
+            Self::Static(value) => {
+                2_u8.hash(state);
+                value.hash(state);
+            }
+        }
+    }
+}
+
+impl Debug for TypeOperand {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Variable(variable) => f.debug_tuple("Variable").field(variable).finish(),
             Self::Term(term) => f.debug_tuple("Term").field(&term.id).finish(),
+            Self::Type(ty) => f.debug_tuple("Type").field(ty).finish(),
         }
     }
 }
 
-impl Operand<TypeTerm> {
-    /// Return this operand as a type term.
-    pub(in crate::check) fn to_type_term(self, state: &CheckState<'_>) -> TypeTerm {
+impl Debug for StaticOperand {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Variable(variable) => TypeTerm::Variable(variable),
-            Self::Term(term) => state.terms.get(term).clone(),
-        }
-    }
-
-    /// Return variables referenced by this operand.
-    pub(in crate::check) fn referenced_variables(
-        self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
-        match self {
-            Self::Variable(variable) => smallvec::smallvec![variable],
-            Self::Term(term) => state.terms.get(term).referenced_variables(state),
+            Self::Variable(variable) => f.debug_tuple("Variable").field(variable).finish(),
+            Self::Term(term) => f.debug_tuple("Term").field(&term.id).finish(),
+            Self::Static(value) => f.debug_tuple("Static").field(value).finish(),
         }
     }
 }
 
-impl Operand<StaticTerm> {
-    /// Return variables referenced by this operand.
-    pub(in crate::check) fn referenced_variables(
-        self,
-        state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
-        match self {
-            Self::Variable(variable) => smallvec::smallvec![variable],
-            Self::Term(term) => state.terms.get(term).referenced_variables(state),
-        }
-    }
-}
-
-impl From<VariableId> for Operand<TypeTerm> {
+impl From<VariableId> for TypeOperand {
     fn from(variable: VariableId) -> Self {
         Self::Variable(variable)
     }
 }
 
-impl From<TermId<TypeTerm>> for Operand<TypeTerm> {
+impl From<TermId<TypeTerm>> for TypeOperand {
     fn from(term: TermId<TypeTerm>) -> Self {
         Self::Term(term)
     }
 }
 
-impl From<VariableId> for Operand<StaticTerm> {
+impl From<dir::GlobalTypeId> for TypeOperand {
+    fn from(ty: dir::GlobalTypeId) -> Self {
+        Self::Type(ty)
+    }
+}
+
+impl From<VariableId> for StaticOperand {
     fn from(variable: VariableId) -> Self {
         Self::Variable(variable)
     }
 }
 
-impl From<TermId<StaticTerm>> for Operand<StaticTerm> {
+impl From<TermId<StaticTerm>> for StaticOperand {
     fn from(term: TermId<StaticTerm>) -> Self {
         Self::Term(term)
+    }
+}
+
+impl From<dir::GlobalStaticId> for StaticOperand {
+    fn from(value: dir::GlobalStaticId) -> Self {
+        Self::Static(value)
     }
 }

@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Origin, Progress, TypeOperand, TypeRelation,
+    CheckState, Decision, Origin, Progress, Substitution, TypeOperand, TypeRelation,
 };
 
 /// Tuple element payload.
@@ -26,7 +26,7 @@ impl TupleElement {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: Substitution<'_>,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         Ok(Self {
@@ -44,7 +44,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn substitute_tuple_elements(
         &mut self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: Substitution<'_>,
         elements: &[TupleElement],
     ) -> CompilerResult<Vec<TupleElement>> {
         elements
@@ -111,7 +111,7 @@ impl CheckState<'_> {
 
         // constrain each matching element
         for (left, right) in left.iter().zip(right) {
-            progress = progress.merge(self.solve_type_equality(origin, left.ty, right.ty)?);
+            progress = progress.merge(self.relate_type_equality(origin, left.ty, right.ty)?);
         }
 
         Ok(progress)
@@ -131,7 +131,8 @@ impl CheckState<'_> {
 
         // constrain each matching element
         for (source, target) in source.iter().zip(target) {
-            progress = progress.merge(self.solve_type_assignability(origin, source.ty, target.ty)?);
+            progress =
+                progress.merge(self.relate_type_assignability(origin, source.ty, target.ty)?);
         }
 
         Ok(progress)
@@ -152,7 +153,7 @@ impl CheckState<'_> {
         // push each expected element type
         for (element, target) in elements.iter().zip(targets) {
             progress = progress
-                .merge(self.solve_contextual_type_assignability(origin, element.ty, target.ty)?);
+                .merge(self.relate_contextual_type_assignability(origin, element.ty, target.ty)?);
         }
 
         Ok(progress)

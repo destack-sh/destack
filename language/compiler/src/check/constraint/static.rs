@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Decision, GenericSubstitution, Origin, StaticTerm};
+use crate::check::{CheckState, Decision, Origin, StaticOperand, StaticTerm, Substitution};
 
 /// One static boolean predicate with its reduction context.
 ///
@@ -15,8 +15,8 @@ use crate::check::{CheckState, Decision, GenericSubstitution, Origin, StaticTerm
 pub(in crate::check) struct ConditionPredicate {
     /// The source that produced this predicate.
     pub(in crate::check) origin: Origin,
-    /// The static boolean term.
-    pub(in crate::check) term: StaticTerm,
+    /// The static boolean operand.
+    pub(in crate::check) operand: StaticOperand,
 }
 
 /// Static condition under which one checked item exists.
@@ -60,12 +60,12 @@ impl ConditionPredicate {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: Substitution<'_>,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let predicate = Self {
             origin: self.origin,
-            term: self.term.substitute(module, substitution, state)?,
+            operand: state.substitute_static_operand(module, substitution, self.operand)?,
         };
 
         Ok(predicate)
@@ -76,6 +76,21 @@ impl Condition {
     /// Return whether this condition excludes the item.
     pub(in crate::check) fn is_never(&self) -> bool {
         matches!(self, Self::Never)
+    }
+
+    /// Return whether this condition is guaranteed by one active guard.
+    pub(in crate::check) fn is_guaranteed_by(&self, guard: &Self) -> bool {
+        match (self, guard) {
+            (Self::Always, _) | (_, Self::Never) => true,
+            (Self::Never, Self::Always | Self::When { .. }) => false,
+            (Self::When { .. }, Self::Always) => false,
+            (
+                Self::When {
+                    conditions: required,
+                },
+                Self::When { conditions: active },
+            ) => required.iter().all(|condition| active.contains(condition)),
+        }
     }
 
     /// Combine two static conditions with logical conjunction.
@@ -100,7 +115,7 @@ impl Condition {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: Substitution<'_>,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let condition = match self {
@@ -134,7 +149,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-        substitution: &GenericSubstitution,
+        substitution: Substitution<'_>,
     ) -> CompilerResult<Decision> {
         let condition = self.symbol_availability(symbol);
         let condition = condition.substitute(module, substitution, self)?;
@@ -143,7 +158,7 @@ impl CheckState<'_> {
     }
 
     /// Return the static condition that gates one symbol.
-    fn symbol_availability(&self, symbol: dir::GlobalSymbolId) -> Condition {
+    pub(in crate::check) fn symbol_availability(&self, symbol: dir::GlobalSymbolId) -> Condition {
         let Some(module) = self.modules.get(&symbol.module_id) else {
             return Condition::Always;
         };
@@ -164,7 +179,12 @@ impl CheckState<'_> {
 
         // reduce predicates through solved static values
         for condition in conditions {
-            let Some(term) = self.reduce_static_term(condition.origin, &condition.term)? else {
+            let Some(term) = self.static_operand_term(condition.operand)? else {
+                remaining.push(condition.clone());
+                continue;
+            };
+
+            let Some(term) = self.reduce_static_term(condition.origin, &term)? else {
                 remaining.push(condition.clone());
 
                 continue;
@@ -179,7 +199,7 @@ impl CheckState<'_> {
                 }) => return Ok(Condition::Never),
                 term => remaining.push(ConditionPredicate {
                     origin: condition.origin,
-                    term,
+                    operand: self.push_term(term).into(),
                 }),
             }
         }

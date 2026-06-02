@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, Condition, Constraint, Origin, StaticTerm, TypeLiteralTerm, TypeOperand, TypeTerm,
-    VariableId,
+    CheckState, Condition, Constraint, Origin, StaticOperand, TypeLiteralTerm, TypeOperand,
+    TypeTerm, VariableId,
 };
 
 /// Relation between two type operands.
@@ -98,19 +98,30 @@ impl CheckState<'_> {
         self.relate_type(origin, TypeRelation::Equal, variable, term, condition);
     }
 
-    /// Equate one static variable to one static term.
+    /// Equate two static operands.
     pub(in crate::check) fn equate_static(
         &mut self,
-        variable: VariableId,
-        term: StaticTerm,
+        origin: Origin,
+        left: impl Into<StaticOperand>,
+        right: impl Into<StaticOperand>,
         condition: Condition,
     ) {
-        let origin = self.variable(variable).source;
-        let term = self.push_term(term);
+        self.relate_static(origin, StaticRelation::Equal, left, right, condition);
+    }
+
+    /// Relate two static operands.
+    pub(in crate::check) fn relate_static(
+        &mut self,
+        origin: Origin,
+        relation: StaticRelation,
+        left: impl Into<StaticOperand>,
+        right: impl Into<StaticOperand>,
+        condition: Condition,
+    ) {
         let constraint = Constraint::Static {
-            relation: StaticRelation::Equal,
-            left: variable.into(),
-            right: term.into(),
+            relation,
+            left: left.into(),
+            right: right.into(),
             origin,
             condition,
         };

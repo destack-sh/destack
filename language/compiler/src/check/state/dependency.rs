@@ -22,6 +22,8 @@ pub(in crate::check) struct CheckDependencyState {
     pub(in crate::check) statics: dir::StaticTable<'static>,
     /// The checked generic table.
     pub(in crate::check) generics: dir::GenericTable<'static>,
+    /// The checked layout table.
+    pub(in crate::check) layouts: dir::LayoutTable<'static>,
     /// The checked extension table.
     pub(in crate::check) extensions: dir::ExtensionTable<'static>,
 }
@@ -92,6 +94,7 @@ impl CheckState<'_> {
         let types = checked.type_table(bound.as_ref(), expanded.as_ref());
         let statics = checked.static_table(bound.as_ref(), expanded.as_ref());
         let generics = checked.generic_table();
+        let layouts = checked.layout_table();
         let extensions = checked.extension_table();
 
         Ok(CheckDependencyState {
@@ -101,6 +104,7 @@ impl CheckState<'_> {
             types,
             statics,
             generics,
+            layouts,
             extensions,
         })
     }

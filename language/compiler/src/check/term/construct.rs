@@ -4,14 +4,14 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallableSelection, CheckState, ConstructFailure, ConstructResolution, ConstructSelection,
-    FunctionTerm, GenericArgument, GenericInstance, Origin, Progress, Reduction, TypeLiteralTerm,
-    TypeOperand, TypeTerm, VariableId,
+    CallableDispatch, CheckState, ConstructDecision, ConstructFailure, ConstructResolution,
+    ConstructTargetResolution, FunctionTerm, GenericArgument, Origin, Progress, Reduction,
+    TypeLiteralTerm, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Runtime construct expression term.
 ///
-/// ```ts
+/// ```ds
 /// new User(name)
 /// new Ctor()
 /// ```
@@ -20,9 +20,9 @@ pub(in crate::check) struct ConstructTerm {
     /// The source construct expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The construct callee type.
-    pub(in crate::check) callee: VariableId,
+    pub(in crate::check) callee: TypeOperand,
     /// The explicit construct generic arguments.
-    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 4]>,
+    pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 2]>,
     /// The argument expression types.
     pub(in crate::check) arguments: SmallVec<[TypeOperand; 4]>,
 }
@@ -32,10 +32,10 @@ impl ConstructTerm {
     pub(in crate::check) fn referenced_variables(
         &self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
+    ) -> SmallVec<[VariableId; 2]> {
         let mut variables = SmallVec::new();
 
-        variables.push(self.callee);
+        variables.extend(self.callee.referenced_variables(state));
         variables.extend(
             self.generic_arguments
                 .iter()
@@ -62,28 +62,32 @@ impl CheckState<'_> {
         let result = self.select_construct_target(origin, module, construct, None)?;
         let progress = result.progress();
         let function = match &result {
-            CallableSelection::Resolved {
+            CallableDispatch::ConstructSelected {
                 target, function, ..
             } => {
-                let (symbol, instance) = target.as_constructor_target();
-
-                self.select_construct_resolution(construct, symbol, instance, function)?;
+                self.select_construct_resolution(construct, target.clone(), function)?;
 
                 function
             }
-            CallableSelection::Rejected(failure) => {
-                let failure = failure.clone().into();
-
-                self.select_construct_rejection(construct, failure)?;
+            CallableDispatch::ConstructRejected(failure) => {
+                self.reject_construct(construct, *failure)?;
 
                 return Ok(Reduction::progress(progress));
             }
-            CallableSelection::Pending { .. } => return Ok(Reduction::progress(progress)),
+            CallableDispatch::CallSelected { .. } | CallableDispatch::CallRejected(_) => {
+                panic!("construct term dispatch produced a call selection");
+            }
+            CallableDispatch::Pending { .. } => return Ok(Reduction::progress(progress)),
         };
 
         let term = match function.return_type {
-            Some(TypeOperand::Variable(return_type)) => TypeTerm::Variable(return_type),
-            Some(TypeOperand::Term(return_type)) => self.terms.get(return_type).clone(),
+            Some(return_type) => {
+                let Some(term) = self.type_operand_term(return_type)? else {
+                    return Ok(Reduction::progress(progress));
+                };
+
+                term
+            }
             None => TypeTerm::Literal(TypeLiteralTerm::Void),
         };
         Ok(Reduction {
@@ -102,44 +106,42 @@ impl CheckState<'_> {
         let module = result.module;
         let resolved = self.select_construct_target(origin, module, construct, Some(result))?;
         let progress = resolved.progress();
-        let progress =
-            match &resolved {
-                CallableSelection::Resolved {
-                    target, function, ..
-                } => {
-                    let (symbol, instance) = target.as_constructor_target();
+        let progress = match &resolved {
+            CallableDispatch::ConstructSelected {
+                target, function, ..
+            } => {
+                self.select_construct_resolution(construct, target.clone(), function)?;
 
-                    self.select_construct_resolution(construct, symbol, instance, function)?;
-
-                    match function.return_type {
-                        Some(return_type) => progress.merge(
-                            self.solve_contextual_type_assignability(origin, return_type, result)?,
-                        ),
-                        None => progress,
-                    }
+                match function.return_type {
+                    Some(return_type) => progress.merge(
+                        self.relate_contextual_type_assignability(origin, return_type, result)?,
+                    ),
+                    None => progress,
                 }
-                CallableSelection::Rejected(failure) => {
-                    let failure = failure.clone().into();
+            }
+            CallableDispatch::ConstructRejected(failure) => {
+                self.reject_construct(construct, *failure)?;
 
-                    self.select_construct_rejection(construct, failure)?;
-
-                    progress
-                }
-                CallableSelection::Pending { .. } => progress,
-            };
+                progress
+            }
+            CallableDispatch::CallSelected { .. } | CallableDispatch::CallRejected(_) => {
+                panic!("construct term dispatch produced a call selection");
+            }
+            CallableDispatch::Pending { .. } => progress,
+        };
 
         Ok(progress)
     }
 
-    /// Select one rejected construct expression for diagnostics.
-    fn select_construct_rejection(
+    /// Reject one construct expression for diagnostics.
+    fn reject_construct(
         &mut self,
         construct: &ConstructTerm,
         failure: ConstructFailure,
     ) -> CompilerResult<()> {
-        let decision = ConstructSelection::Rejected(failure);
+        let decision = ConstructDecision::Rejected(failure);
 
-        self.select_construct(construct.source, decision);
+        self.select_construct(construct.source, decision)?;
 
         Ok(())
     }
@@ -148,19 +150,17 @@ impl CheckState<'_> {
     fn select_construct_resolution(
         &mut self,
         construct: &ConstructTerm,
-        symbol: Option<dir::GlobalSymbolId>,
-        instance: Option<&GenericInstance>,
+        target: ConstructTargetResolution,
         function: &FunctionTerm,
     ) -> CompilerResult<()> {
         let resolution = ConstructResolution {
             source: construct.source,
-            symbol,
-            instance: instance.cloned(),
+            target,
             function: function.clone(),
         };
-        let decision = ConstructSelection::Resolved(resolution);
+        let decision = ConstructDecision::Resolved(resolution);
 
-        self.select_construct(construct.source, decision);
+        self.select_construct(construct.source, decision)?;
 
         Ok(())
     }

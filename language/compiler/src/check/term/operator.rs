@@ -2,13 +2,13 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, FunctionTerm, OperatorCandidateSelection, OperatorFailure, OperatorFailureReason,
-    OperatorResolution, OperatorSelection, Origin, Progress, TypeTerm, VariableId,
+    CheckState, FunctionTerm, OperatorCandidateDispatch, OperatorDecision, OperatorFailure,
+    OperatorFailureReason, OperatorResolution, Origin, Progress, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Runtime operator expression term.
 ///
-/// ```ts
+/// ```ds
 /// -value
 /// left + right
 /// ```
@@ -19,29 +19,52 @@ pub(in crate::check) struct OperatorTerm {
     /// The source operator.
     pub(in crate::check) kind: OperatorTermKind,
     /// The receiver operand type.
-    pub(in crate::check) receiver: VariableId,
+    pub(in crate::check) receiver: TypeOperand,
     /// The remaining operand type.
-    pub(in crate::check) argument: Option<VariableId>,
+    pub(in crate::check) argument: Option<TypeOperand>,
 }
 
 impl OperatorTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> smallvec::SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> smallvec::SmallVec<[VariableId; 2]> {
         let mut variables = smallvec::SmallVec::new();
 
-        variables.push(self.receiver);
-        variables.extend(self.argument);
+        variables.extend(self.receiver.referenced_variables(state));
+        if let Some(argument) = self.argument {
+            variables.extend(argument.referenced_variables(state));
+        }
 
         variables
     }
 }
 
 /// Source operator represented by an operator term.
+///
+/// Examples:
+/// ```ds
+/// -value
+/// left + right
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) enum OperatorTermKind {
     /// Unary source operator.
+    ///
+    /// Examples:
+    /// ```ds
+    /// -value
+    /// !flag
+    /// ```
     Unary(dir::UnaryOperator),
     /// Binary source operator.
+    ///
+    /// Examples:
+    /// ```ds
+    /// left + right
+    /// left === right
+    /// ```
     Binary(dir::BinaryOperator),
 }
 
@@ -54,10 +77,10 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<TypeTerm>> {
         let result = self.select_operator_candidate(origin, operator, None)?;
         match &result {
-            OperatorCandidateSelection::Builtin { return_type } => {
+            OperatorCandidateDispatch::Builtin { return_type } => {
                 return Ok(Some(return_type.clone()));
             }
-            OperatorCandidateSelection::Method {
+            OperatorCandidateDispatch::Method {
                 symbol,
                 function,
                 return_type,
@@ -66,12 +89,12 @@ impl CheckState<'_> {
 
                 return Ok(Some(return_type.clone()));
             }
-            OperatorCandidateSelection::NoMatch { reason } => {
-                self.select_operator_rejection(operator, *reason)?;
+            OperatorCandidateDispatch::NoMatch { reason } => {
+                self.reject_operator(operator, *reason)?;
 
                 return Ok(None);
             }
-            OperatorCandidateSelection::Pending => return Ok(None),
+            OperatorCandidateDispatch::Pending => return Ok(None),
         }
     }
 
@@ -84,12 +107,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<Progress> {
         let resolved = self.select_operator_candidate(origin, operator, Some(result))?;
         let progress = match &resolved {
-            OperatorCandidateSelection::Builtin { return_type } => {
+            OperatorCandidateDispatch::Builtin { return_type } => {
                 self.select_builtin_operator(operator, result)?;
 
                 self.expect_operator_return_type(origin, &return_type, result)?
             }
-            OperatorCandidateSelection::Method {
+            OperatorCandidateDispatch::Method {
                 symbol,
                 function,
                 return_type,
@@ -98,12 +121,12 @@ impl CheckState<'_> {
 
                 self.expect_operator_return_type(origin, &return_type, result)?
             }
-            OperatorCandidateSelection::NoMatch { reason } => {
-                self.select_operator_rejection(operator, *reason)?;
+            OperatorCandidateDispatch::NoMatch { reason } => {
+                self.reject_operator(operator, *reason)?;
 
                 Progress::Unchanged
             }
-            OperatorCandidateSelection::Pending => Progress::Unchanged,
+            OperatorCandidateDispatch::Pending => Progress::Unchanged,
         };
 
         Ok(progress)
@@ -116,15 +139,15 @@ impl CheckState<'_> {
         return_type: &TypeTerm,
         result: VariableId,
     ) -> CompilerResult<Progress> {
-        let Some(expected) = self.solved_type_term(result)? else {
+        let Some(expected) = self.type_solution(result)? else {
             return Ok(Progress::Unchanged);
         };
 
         self.constrain_solved_type_assignable(origin, return_type, &expected)
     }
 
-    /// Select one rejected operator for diagnostics.
-    pub(in crate::check) fn select_operator_rejection(
+    /// Reject one operator for diagnostics.
+    pub(in crate::check) fn reject_operator(
         &mut self,
         operator: &OperatorTerm,
         reason: OperatorFailureReason,
@@ -134,9 +157,9 @@ impl CheckState<'_> {
             kind: operator.kind,
             reason,
         };
-        let decision = OperatorSelection::Rejected(failure);
+        let decision = OperatorDecision::Rejected(failure);
 
-        self.select_operator(decision);
+        self.select_operator(decision)?;
 
         Ok(())
     }
@@ -155,9 +178,9 @@ impl CheckState<'_> {
             result,
         };
 
-        let decision = OperatorSelection::Resolved(resolution);
+        let decision = OperatorDecision::Resolved(resolution);
 
-        self.select_operator(decision);
+        self.select_operator(decision)?;
 
         Ok(())
     }
@@ -176,9 +199,9 @@ impl CheckState<'_> {
             function: function.clone(),
         };
 
-        let decision = OperatorSelection::Resolved(resolution);
+        let decision = OperatorDecision::Resolved(resolution);
 
-        self.select_operator(decision);
+        self.select_operator(decision)?;
 
         Ok(())
     }

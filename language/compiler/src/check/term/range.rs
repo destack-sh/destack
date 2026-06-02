@@ -10,7 +10,7 @@ use crate::check::{
 
 /// Runtime range expression term.
 ///
-/// ```ts
+/// ```ds
 /// start..end
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -18,20 +18,27 @@ pub(in crate::check) struct RangeValueTerm {
     /// The source range expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The lower bound expression type.
-    pub(in crate::check) start: Option<VariableId>,
+    pub(in crate::check) start: Option<TypeOperand>,
     /// The upper bound expression type.
-    pub(in crate::check) end: Option<VariableId>,
+    pub(in crate::check) end: Option<TypeOperand>,
     /// The range end kind.
     pub(in crate::check) end_kind: dir::RangeEnd,
 }
 
 impl RangeValueTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
         let mut variables = SmallVec::new();
 
-        variables.extend(self.start);
-        variables.extend(self.end);
+        if let Some(start) = self.start {
+            variables.extend(start.referenced_variables(state));
+        }
+        if let Some(end) = self.end {
+            variables.extend(end.referenced_variables(state));
+        }
 
         variables
     }
@@ -81,11 +88,11 @@ impl CheckState<'_> {
         // push element context into present bounds
         if let Some(start) = range.start {
             progress =
-                progress.merge(self.solve_contextual_type_assignability(origin, start, element)?);
+                progress.merge(self.relate_contextual_type_assignability(origin, start, element)?);
         }
         if let Some(end) = range.end {
             progress =
-                progress.merge(self.solve_contextual_type_assignability(origin, end, element)?);
+                progress.merge(self.relate_contextual_type_assignability(origin, end, element)?);
         }
 
         Ok(progress)
@@ -107,13 +114,9 @@ impl CheckState<'_> {
 
     /// Return the shared bound type for one range expression.
     fn range_element_type(&mut self, range: &RangeValueTerm) -> TypeOperand {
-        let elements = range
-            .referenced_variables()
-            .into_iter()
-            .map(TypeOperand::from)
-            .collect();
-        let operation = self.terms.push(TypeOperationTerm::BestCommon { elements });
-        let term = self.terms.push(TypeTerm::Operation(operation));
+        let elements = range.start.into_iter().chain(range.end).collect();
+        let operation = self.push_term(TypeOperationTerm::BestCommon { elements });
+        let term = self.push_term(TypeTerm::Operation(operation));
 
         term.into()
     }
