@@ -190,7 +190,7 @@ impl CheckState<'_> {
                 function
             }
             CallableDispatch::CallRejected(failure) => {
-                self.reject_call_from_calllable(call, failure.clone())?;
+                self.reject_call_from_callable(call, failure.clone())?;
 
                 return Ok(Reduction::progress(progress));
             }
@@ -253,7 +253,7 @@ impl CheckState<'_> {
                 }
             }
             CallableDispatch::CallRejected(failure) => {
-                self.reject_call_from_calllable(call, failure.clone())?;
+                self.reject_call_from_callable(call, failure.clone())?;
 
                 progress
             }
@@ -269,7 +269,7 @@ impl CheckState<'_> {
     }
 
     /// Reject one call for diagnostics.
-    pub(in crate::check) fn reject_call_from_calllable(
+    pub(in crate::check) fn reject_call_from_callable(
         &mut self,
         call: &CallTerm,
         failure: CallFailure,

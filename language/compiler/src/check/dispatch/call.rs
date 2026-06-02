@@ -315,29 +315,28 @@ impl CheckState<'_> {
         call: &CallTerm,
         expected: Option<VariableId>,
     ) -> CompilerResult<Option<CallableDispatch>> {
-        let CallCallee::Reference { value: _, symbol } = call.callee else {
+        let CallCallee::Reference {
+            value: callee,
+            symbol,
+        } = call.callee
+        else {
             return Ok(None);
         };
 
         let module = call.source.module_id;
-        if self.symbol_kind(module, symbol) == Some(dir::SymbolKind::Newtype) {
-            let callee = self.require_symbol_type(module, symbol);
-            let term = TypeTerm::Reference {
-                origin: Origin::Node(call.source),
-                symbol,
-                arguments: Vec::new().into(),
-            };
-
-            return self.select_construct_call(origin, call, expected, callee, &term);
-        }
-
-        let ty = self.require_symbol_type(module, symbol);
-        let Some(term) = self.type_operand_term(ty)? else {
+        let Some(term) = self.type_operand_term(callee)? else {
             return Ok(Some(CallableDispatch::pending()));
         };
         let function = match self.call_signature(module, &term)? {
             CallableSignature::Pending => return Ok(Some(CallableDispatch::pending())),
-            CallableSignature::Absent => return Ok(None),
+            CallableSignature::Absent => {
+                return match self.select_construct_call(origin, call, expected, callee, &term)? {
+                    Some(result) => Ok(Some(result)),
+                    None => Ok(Some(CallableDispatch::call_rejected(
+                        CallFailure::NotCallable,
+                    ))),
+                };
+            }
             CallableSignature::Present(function) => function,
         };
         let result = self.select_call_signature(
@@ -376,57 +375,18 @@ impl CheckState<'_> {
             ConstructCandidates::Absent => return Ok(None),
             ConstructCandidates::Present(candidates) => candidates,
         };
-        let candidate_set = CandidateSet::from_len(candidates.len());
+        let result = self.select_construct_candidate(
+            origin,
+            module,
+            call.source,
+            candidates,
+            &call.generic_arguments,
+            &call.arguments,
+            &call.argument_values,
+            expected,
+        )?;
 
-        // choose the first compatible declaration order construct candidate
-        for candidate in candidates {
-            let probe = self.begin_inference_probe();
-            let owner = Some(candidate.target.symbol());
-            let application = candidate.target.application().cloned();
-            let target = CallableTarget::Construct(candidate.target);
-            let result = self.select_call_signature(
-                origin,
-                module,
-                call.source,
-                owner,
-                application,
-                candidate.function,
-                &call.generic_arguments,
-                &call.arguments,
-                &call.argument_values,
-                expected,
-                target,
-                candidate_set,
-            )?;
-            match result {
-                CallableDispatch::ConstructSelected { .. } => {
-                    self.commit_inference_probe(probe)?;
-
-                    return Ok(Some(result));
-                }
-                CallableDispatch::CallSelected { .. } => {
-                    panic!("construct call dispatch produced a call selection");
-                }
-                CallableDispatch::Pending { .. } => {
-                    if candidate_set.keeps_pending_probe() {
-                        self.commit_inference_probe(probe)?;
-
-                        return Ok(Some(result));
-                    } else {
-                        self.drop_inference_probe(probe);
-
-                        return Ok(Some(CallableDispatch::pending()));
-                    }
-                }
-                CallableDispatch::CallRejected(_) | CallableDispatch::ConstructRejected(_) => {
-                    self.drop_inference_probe(probe);
-                }
-            }
-        }
-
-        Ok(Some(CallableDispatch::construct_rejected(
-            ConstructFailure::NoMatch,
-        )))
+        Ok(Some(result))
     }
 
     /// Select a call whose callee is a member projection.
@@ -672,7 +632,7 @@ impl CheckState<'_> {
         argument_values: &[dir::GlobalNodeId<dir::Expression>],
         expected: Option<VariableId>,
     ) -> CompilerResult<CallableDispatch> {
-        let mut callable_count = 0;
+        let mut callable_signature_count = 0;
         let mut saw_pending = false;
         let mut argument_failure = None;
         let candidate_set = CandidateSet::from_len(candidates.len());
@@ -708,7 +668,7 @@ impl CheckState<'_> {
                 }
                 CallableSignature::Present(function) => function,
             };
-            callable_count += 1;
+            callable_signature_count += 1;
             let result = self.select_call_signature(
                 origin,
                 candidate.module,
@@ -768,7 +728,7 @@ impl CheckState<'_> {
         }
 
         // preserve the precise single candidate argument error
-        if callable_count == 1
+        if callable_signature_count == 1
             && let Some((argument, parameter)) = argument_failure
         {
             return Ok(CallableDispatch::call_rejected(CallFailure::ArgumentType {
@@ -778,7 +738,7 @@ impl CheckState<'_> {
         }
 
         // distinguish rejected callable overloads from non callable values
-        if callable_count > 0 {
+        if callable_signature_count > 0 {
             Ok(CallableDispatch::call_rejected(CallFailure::NoMatch))
         } else {
             Ok(CallableDispatch::call_rejected(CallFailure::NotCallable))
