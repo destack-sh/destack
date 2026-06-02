@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{CheckState, Condition};
 
-use super::name::NameLookup;
+use super::name::{NameLookup, NameTarget};
 
 /// One target resolved through source path lookup.
 #[derive(Debug, Clone, PartialEq)]
@@ -119,21 +119,33 @@ impl CheckState<'_> {
         };
 
         // resolve the root binding before consulting namespace paths
-        let root = match self.lookup_symbol_by_name(module, source, *name, root_space) {
-            // exactly one root symbol
-            NameLookup::Found(candidate) => PathCandidate::Symbol {
-                symbol: candidate.symbol,
-                condition: candidate.condition,
+        let root = match self.lookup_name_by_name(module, source, *name, root_space) {
+            // exactly one root target
+            NameLookup::Found(candidate) => match candidate.target {
+                NameTarget::Symbol(symbol) => PathCandidate::Symbol {
+                    symbol,
+                    condition: candidate.condition,
+                },
+                NameTarget::Namespace(module) => PathCandidate::Namespace {
+                    module,
+                    condition: candidate.condition,
+                },
             },
-            // no root symbol
+            // no root target
             NameLookup::Missing => return Ok(PathLookup::Missing),
-            // multiple root symbols
+            // multiple root targets
             NameLookup::Ambiguous(candidates) => {
                 let candidates = candidates
                     .into_iter()
-                    .map(|candidate| PathCandidate::Symbol {
-                        symbol: candidate.symbol,
-                        condition: candidate.condition,
+                    .map(|candidate| match candidate.target {
+                        NameTarget::Symbol(symbol) => PathCandidate::Symbol {
+                            symbol,
+                            condition: candidate.condition,
+                        },
+                        NameTarget::Namespace(module) => PathCandidate::Namespace {
+                            module,
+                            condition: candidate.condition,
+                        },
                     })
                     .collect();
 

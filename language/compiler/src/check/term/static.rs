@@ -1073,7 +1073,7 @@ impl CheckState<'_> {
         name: dir::StringId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
         let Some(symbol) = self
-            .lookup_symbol_by_name(module, expression.into_any(), name, dir::SymbolSpace::Value)
+            .lookup_name_by_name(module, expression.into_any(), name, dir::SymbolSpace::Value)
             .unique_symbol()
         else {
             return Ok(None);
@@ -1200,7 +1200,7 @@ impl CheckState<'_> {
         let left_node = self.module(module).view().get(left).clone();
         let symbol = match left_node {
             dir::Expression::Identifier { name } => self
-                .lookup_symbol_by_name(module, left.into_any(), name, dir::SymbolSpace::Value)
+                .lookup_name_by_name(module, left.into_any(), name, dir::SymbolSpace::Value)
                 .unique_symbol(),
             dir::Expression::QualifiedReference { path, .. } => {
                 match self.lookup_path(module, left.into_any(), &path, dir::SymbolSpace::Value)? {

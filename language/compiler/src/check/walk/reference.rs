@@ -483,7 +483,7 @@ impl WalkState<'_, '_> {
         let guard = self.active_static_guard();
         let symbol = self
             .check
-            .lookup_symbol_by_name(
+            .lookup_name_by_name(
                 tree.module_id,
                 id.into_any(),
                 *name,

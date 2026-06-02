@@ -16,7 +16,7 @@ impl WalkState<'_, '_> {
 
                 // resolve root binding
                 let symbol = self
-                    .check.lookup_symbol_by_name(
+                    .check.lookup_name_by_name(
                         tree.module_id,
                         id.into_any(),
                         *name,
@@ -34,7 +34,7 @@ impl WalkState<'_, '_> {
                 // resolve root binding
                 let name = path.segments[0];
                 let symbol = self
-                    .check.lookup_symbol_by_name(
+                    .check.lookup_name_by_name(
                         tree.module_id,
                         id.into_any(),
                         name,

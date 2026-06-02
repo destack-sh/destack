@@ -59,11 +59,14 @@ impl CheckState<'_> {
 
         // include resolved profile global targets
         for target in imports
-            .global_symbol_by_key
+            .global_target_by_key
             .values()
-            .flat_map(|symbols| symbols.iter().copied())
+            .flat_map(|targets| targets.iter().copied())
         {
-            let dependency = target.module_id;
+            let dependency = match target {
+                dir::ImportTarget::Symbol(symbol) => symbol.module_id,
+                dir::ImportTarget::Namespace(module) => module,
+            };
             if !self.modules.contains_key(&dependency) {
                 dependencies.insert(dependency);
             }
