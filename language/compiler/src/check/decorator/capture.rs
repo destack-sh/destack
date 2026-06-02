@@ -1,6 +1,7 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
-use crate::check::{CheckState, Decorator};
+use crate::check::CheckState;
 
 impl CheckState<'_> {
     /// Return the capture directive attached to one function symbol.
@@ -10,25 +11,25 @@ impl CheckState<'_> {
     ) -> Option<dir::CaptureDirective> {
         let module = symbol.module_id;
         let source = self.symbol_source_node(symbol);
-        let decorators = self.decorators_for_owner(module, source);
+        let invocations = self.decorator_invocations_for_owner(module, source);
         let mut directive = None;
 
         // use the last capture decorator in source order
-        for decorator in decorators {
-            let Decorator::Capture(call) = decorator else {
+        for invocation in invocations {
+            if self.decorator_item(module, &invocation) != Some(dir::LanguageItem::Capture) {
                 continue;
-            };
+            }
 
-            directive = self.capture_directive_from_arguments(module, &call.arguments);
+            directive = self.capture_directive_from_arguments(module, &invocation.arguments);
         }
 
         directive
     }
 
-    /// Return the capture directive represented by decorator arguments.
+    /// Return the capture directive represented by decorator invocation arguments.
     fn capture_directive_from_arguments(
         &self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> Option<dir::CaptureDirective> {
         let [argument] = arguments else {
@@ -55,7 +56,7 @@ impl CheckState<'_> {
     /// Return the capture directive represented by an object literal.
     fn capture_directive_from_properties(
         &self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> Option<dir::CaptureDirective> {
         let mut default = None;
@@ -90,7 +91,7 @@ impl CheckState<'_> {
     /// Return the capture mode represented by one expression.
     fn capture_mode_from_expression(
         &self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::CaptureMode> {
         let dir::Expression::ScalarLiteral(dir::ScalarLiteral::String(name)) =
@@ -105,7 +106,7 @@ impl CheckState<'_> {
     /// Return the capture mode represented by one string.
     fn capture_mode_from_string(
         &self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         name: dir::StringId,
     ) -> Option<dir::CaptureMode> {
         let mode = match self.module(module).strings.get(name) {
