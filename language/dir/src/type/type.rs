@@ -469,6 +469,7 @@ impl From<&ScalarLiteral> for Type {
     fn from(value: &ScalarLiteral) -> Self {
         match value {
             ScalarLiteral::Null => Self::Null,
+            ScalarLiteral::Undefined => Self::Undefined,
             ScalarLiteral::Boolean(_) => Self::Primitive(PrimitiveType::Boolean),
             ScalarLiteral::Character(_) => Self::Primitive(PrimitiveType::Character),
             ScalarLiteral::String(_)

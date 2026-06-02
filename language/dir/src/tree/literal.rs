@@ -6,6 +6,8 @@ use crate::{Argument, FloatType, IntegerType, LocalNodeId, PrimitiveType, String
 ///
 /// Examples:
 /// ```
+/// undefined
+/// null
 /// true
 /// false
 /// 1
@@ -21,6 +23,8 @@ use crate::{Argument, FloatType, IntegerType, LocalNodeId, PrimitiveType, String
 pub enum ScalarLiteral {
     /// Null value.
     Null,
+    /// Undefined value.
+    Undefined,
     /// Boolean value.
     Boolean(bool),
     /// Integer value.
