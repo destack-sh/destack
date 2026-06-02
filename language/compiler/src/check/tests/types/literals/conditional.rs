@@ -10,14 +10,16 @@ const value = true ? 1 : 2;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = true ? 1 : 2;
-/// @type.symbol symbol=value type=1 | 2
+/// @type.symbol symbol=value source=value type=1 | 2
 /// @type.node source="true ? 1 : 2" type=1 | 2
 /// @type.node source=true type=true
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
+
+/// @check.stats.solve variables=0 terms=6 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -32,14 +34,16 @@ let value = true ? 1 : 2;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 let value = true ? 1 : 2;
-/// @type.symbol symbol=value type=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @type.node source="true ? 1 : 2" type=1 | 2
 /// @type.node source=true type=true
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
+
+/// @check.stats.solve variables=0 terms=6 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

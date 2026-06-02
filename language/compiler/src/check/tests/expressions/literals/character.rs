@@ -10,11 +10,13 @@ const value = 'a';
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = 'a';
 /// @type.symbol symbol=value type='a'
 /// @type.node source='a' type='a'
+
+/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -29,17 +31,19 @@ let value = 'a';
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 let value = 'a';
 /// @type.symbol symbol=value type=char
 /// @type.node source='a' type='a'
+
+/// @check.stats.solve variables=0 terms=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
 
 #[test]
-fn test_annotation_context_widens_binding_type() {
+fn test_annotation_sets_binding_type() {
     let session = TestSession::single(
         r#"
 const value: char = 'a';
@@ -48,11 +52,13 @@ const value: char = 'a';
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: char = 'a';
 /// @type.symbol symbol=value type=char
 /// @type.node source='a' type='a'
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -67,11 +73,13 @@ const value: string = 'a';
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: string = 'a';
 /// @type.symbol symbol=value type=string
 /// @type.node source='a' type='a'
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
@@ -91,11 +99,13 @@ const value: int32 = 'a';
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: int32 = 'a';
 /// @type.symbol symbol=value type=int32
 /// @type.node source='a' type='a'
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
@@ -115,11 +125,13 @@ const value: char | string = 'a';
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: char | string = 'a';
 /// @type.symbol symbol=value type=char | string
 /// @type.node source='a' type='a'
+
+/// @check.stats.solve variables=0 terms=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

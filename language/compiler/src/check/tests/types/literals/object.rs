@@ -24,7 +24,8 @@ const version = config.version;
 /// @type.node source=config.version type=int32
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.version receiver={ version: int32 } kind=field key=version
-/// @check.stats.solve variables=2 terms=14 constraints=2 obligations=0 solutions=2 bounds=4 decisions=1
+
+/// @check.stats.solve variables=0 terms=8 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -40,7 +41,7 @@ const mode = config.nested.mode;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const config = { nested: { mode: "dev" } } as const;
 /// @type.symbol symbol=config type={ readonly nested: { readonly mode: "dev" } }
@@ -57,6 +58,8 @@ const mode = config.nested.mode;
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.nested receiver={ readonly nested: { readonly mode: "dev" } } kind=field key=nested
 /// @resolution.member source=config.nested.mode receiver={ readonly mode: "dev" } kind=field key=mode
+
+/// @check.stats.solve variables=0 terms=14 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -72,7 +75,7 @@ const mode = value.env.mode;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string } };
 /// @type.symbol symbol=value type={ readonly env: { readonly mode: "dev" } }
@@ -92,6 +95,8 @@ const mode = value.env.mode;
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.env receiver={ readonly env: { readonly mode: "dev" } } kind=field key=env
 /// @resolution.member source=value.env.mode receiver={ readonly mode: "dev" } kind=field key=mode
+
+/// @check.stats.solve variables=0 terms=19 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }

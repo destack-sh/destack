@@ -12,7 +12,7 @@ const value: Named = { name: "Ada", extra: true };
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 type Named = { name: string };
 /// @type.symbol symbol=Named type={ name: string }
@@ -24,6 +24,8 @@ const value: Named = { name: "Ada", extra: true };
 /// @type.node source="{ name: \"Ada\", extra: true }" type={ name: "Ada"; extra: true }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
+
+/// @check.stats.solve variables=0 terms=8 constraints=1 obligations=0 solutions=0 bounds=0 decisions=1
 
 "#,
         r#"
@@ -46,7 +48,7 @@ const value: Named = source;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 type Named = { name: string };
 /// @type.symbol symbol=Named type={ name: string }
@@ -63,6 +65,8 @@ const value: Named = source;
 /// @resolution.name source=Named target=Named
 /// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
+
+/// @check.stats.solve variables=0 terms=11 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }

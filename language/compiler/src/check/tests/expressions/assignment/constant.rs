@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_const_binding_assignment_reports_error() {
+fn test_const_binding_rejects_assignment() {
     let session = TestSession::single(
         r#"
 const value: int32 = 1;
@@ -33,7 +33,7 @@ value = 2;
 }
 
 #[test]
-fn test_const_binding_allows_mutable_member_assignment() {
+fn test_const_binding_accepts_member_assignment() {
     let session = TestSession::single(
         r#"
 const state: { count: int32 } = { count: 0 };
@@ -58,6 +58,8 @@ state.count = 1;
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.count receiver={ count: int32 } kind=field key=count
 /// @type.node source=1 type=int32
+
+/// @check.stats.solve variables=0 terms=10 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
     );
 }

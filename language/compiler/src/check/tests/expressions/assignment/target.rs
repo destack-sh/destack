@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_initializer_assignment_mismatch_reports_error() {
+fn test_initializer_rejects_incompatible_value() {
     let session = TestSession::single(
         r#"
 const value: int32 = "text";
@@ -27,7 +27,7 @@ const value: int32 = "text";
 }
 
 #[test]
-fn test_readonly_member_assignment_reports_error() {
+fn test_readonly_member_rejects_assignment() {
     let session = TestSession::single(
         r#"
 const state: { readonly count: int32 } = { count: 0 };
@@ -52,6 +52,8 @@ state.count = 1;
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.count receiver={ readonly count: int32 } kind=field key=count
 /// @type.node source=1 type=int32
+
+/// @check.stats.solve variables=0 terms=10 constraints=2 obligations=1 solutions=0 bounds=0 decisions=2
 "#,
         r#"
 /// @diagnostic.error code=EC204 message="assignment target is not writable"

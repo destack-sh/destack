@@ -21,7 +21,7 @@ const copy = version;
 
     session.assert_dir_checked_many(
         &["values.ds", "main.ds"],
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === values.ds ===
 export const version = 1;
@@ -36,6 +36,8 @@ const copy = version;
 /// @type.symbol symbol=copy type=1
 /// @type.node source=version type=1
 /// @resolution.name source=version target=values.version
+
+/// @check.stats.solve variables=0 terms=1 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -61,7 +63,7 @@ const copy = counter;
 
     session.assert_dir_checked_many(
         &["values.ds", "main.ds"],
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 === values.ds ===
 export let counter = 1;
@@ -76,6 +78,8 @@ const copy = counter;
 /// @type.symbol symbol=copy type=int32
 /// @type.node source=counter type=int32
 /// @resolution.name source=counter target=values.counter
+
+/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }

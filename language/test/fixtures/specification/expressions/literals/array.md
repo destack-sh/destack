@@ -24,11 +24,11 @@ x satisfies string[];
 
 ### empty array
 
-Empty arrays have unknown element type.
+Empty arrays have never element type unless context supplies an element type.
 
 ```ds
 const x = [];
-x satisfies unknown[];
+x satisfies never[];
 ```
 
 ### mixed array
@@ -152,7 +152,7 @@ Arrays expose length.
 
 ```ds
 const values = [1, 2, 3];
-values.length satisfies int32;
+values.length satisfies number;
 ```
 
 ### array push checks element types

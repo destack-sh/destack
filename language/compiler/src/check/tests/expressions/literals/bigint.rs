@@ -10,11 +10,13 @@ const value = 42n;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = 42n;
 /// @type.symbol symbol=value type=42n
 /// @type.node source=42n type=42n
+
+/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -29,17 +31,19 @@ let value = 42n;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 let value = 42n;
 /// @type.symbol symbol=value type=bigint
 /// @type.node source=42n type=42n
+
+/// @check.stats.solve variables=0 terms=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
 
 #[test]
-fn test_annotation_context_widens_binding_type() {
+fn test_annotation_sets_binding_type() {
     let session = TestSession::single(
         r#"
 const value: bigint = 42n;
@@ -48,11 +52,13 @@ const value: bigint = 42n;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: bigint = 42n;
 /// @type.symbol symbol=value type=bigint
 /// @type.node source=42n type=42n
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -67,11 +73,13 @@ const value: number = 42n;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: number = 42n;
 /// @type.symbol symbol=value type=float64
 /// @type.node source=42n type=42n
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
@@ -91,11 +99,13 @@ const value: bigint | string = 42n;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: bigint | string = 42n;
 /// @type.symbol symbol=value type=bigint | string
 /// @type.node source=42n type=42n
+
+/// @check.stats.solve variables=0 terms=5 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

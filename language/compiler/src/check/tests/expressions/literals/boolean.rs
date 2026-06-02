@@ -10,11 +10,13 @@ const value = true;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = true;
 /// @type.symbol symbol=value type=true
 /// @type.node source=true type=true
+
+/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -29,17 +31,19 @@ let value = true;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 let value = true;
 /// @type.symbol symbol=value type=boolean
 /// @type.node source=true type=true
+
+/// @check.stats.solve variables=0 terms=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
 
 #[test]
-fn test_annotation_context_widens_binding_type() {
+fn test_annotation_sets_binding_type() {
     let session = TestSession::single(
         r#"
 const value: boolean = false;
@@ -48,11 +52,13 @@ const value: boolean = false;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: boolean = false;
 /// @type.symbol symbol=value type=boolean
 /// @type.node source=false type=false
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -67,11 +73,13 @@ const value = false;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = false;
 /// @type.symbol symbol=value type=false
 /// @type.node source=false type=false
+
+/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -86,11 +94,13 @@ const value: string = true;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: string = true;
 /// @type.symbol symbol=value type=string
 /// @type.node source=true type=true
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
@@ -110,11 +120,13 @@ const value: number = false;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: number = false;
 /// @type.symbol symbol=value type=float64
 /// @type.node source=false type=false
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"

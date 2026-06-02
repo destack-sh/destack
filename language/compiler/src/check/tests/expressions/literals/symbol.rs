@@ -10,7 +10,7 @@ const value: symbol = Symbol.create("id");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: symbol = Symbol.create("id");
 /// @type.symbol symbol=value type=symbol
@@ -21,6 +21,8 @@ const value: symbol = Symbol.create("id");
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
 /// @type.node source="\"id\"" type="id"
+
+/// @check.stats.solve variables=0 terms=6 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -35,7 +37,7 @@ const value: string = Symbol.create("id");
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: string = Symbol.create("id");
 /// @type.symbol symbol=value type=string
@@ -46,6 +48,8 @@ const value: string = Symbol.create("id");
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
 /// @type.node source="\"id\"" type="id"
+
+/// @check.stats.solve variables=0 terms=6 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
 
 "#,
         r#"
@@ -65,7 +69,7 @@ const value: symbol | string = Symbol.create("id");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: symbol | string = Symbol.create("id");
 /// @type.symbol symbol=value type=symbol | string
@@ -76,6 +80,8 @@ const value: symbol | string = Symbol.create("id");
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
 /// @type.node source="\"id\"" type="id"
+
+/// @check.stats.solve variables=0 terms=8 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
 "#,
     );
 }
@@ -90,7 +96,7 @@ const value: number = Symbol.create("id");
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: number = Symbol.create("id");
 /// @type.symbol symbol=value type=float64
@@ -101,6 +107,8 @@ const value: number = Symbol.create("id");
 /// @resolution.member source=Symbol.create receiver=types.symbol.Symbol kind=symbol target=types.symbol.Symbol.create
 /// @resolution.call source="Symbol.create(\"id\")" parameters=(string | float64) return=symbol kind=symbol target=types.symbol.Symbol.create receiver=types.symbol.Symbol
 /// @type.node source="\"id\"" type="id"
+
+/// @check.stats.solve variables=0 terms=6 constraints=2 obligations=0 solutions=0 bounds=0 decisions=3
 
 "#,
         r#"
