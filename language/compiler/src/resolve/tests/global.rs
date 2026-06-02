@@ -76,7 +76,7 @@ global {
         r#"
 const value = answer;
 
-/// @import.global key=answer symbols=[globals.answer]
+/// @import.global key=answer targets=[globals.answer]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=2 types=0 globals=required:1,modules:1
@@ -126,10 +126,111 @@ export type Option = string;
         r#"
 let local = Function;
 
-/// @import.global key=Function symbols=[types.Function]
+/// @import.global key=Function targets=[types.Function]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=2 types=0 globals=required:1,modules:1 exports=miss:1,hit:0,cycle:0
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_records_profile_global_namespace_reexports() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "compiler": {
+        "globals": ["globals.ds"]
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+let local = api;
+"#,
+        )
+        .module(
+            "globals.ds",
+            r#"
+global {
+    export * as api from "./api.ds";
+}
+"#,
+        )
+        .module(
+            "api.ds",
+            r#"
+export const value = 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+let local = api;
+
+/// @import.global key=api targets=[api.ds]
+
+/// @import.summary globals=1
+/// @resolve.stats roots=1 expressions=2 types=0 globals=required:1,modules:1
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_records_profile_global_namespace_paths() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "compiler": {
+        "globals": ["globals.ds"]
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+let local = api.value;
+"#,
+        )
+        .module(
+            "globals.ds",
+            r#"
+global {
+    export * as api from "./api.ds";
+}
+"#,
+        )
+        .module(
+            "api.ds",
+            r#"
+export const value = 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+let local = api.value;
+/// @path.symbol source=api.value target=api.value
+/// @path.namespace source=api module=api.ds
+
+/// @import.global key=api targets=[api.ds]
+
+/// @import.summary globals=1
+/// @resolve.stats roots=1 expressions=3 types=0 globals=required:1,modules:1 exports=miss:1,hit:0,cycle:0
+/// @path.summary paths=2
 "#,
     );
 }
@@ -175,7 +276,7 @@ export class Promise<T> {}
         r#"
 let promise: Promise<string>;
 
-/// @import.global key=Promise symbols=[async.Promise]
+/// @import.global key=Promise targets=[async.Promise]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=1 types=2 globals=required:1,modules:1 exports=miss:1,hit:0,cycle:0
@@ -200,7 +301,7 @@ let promise: Promise<string>;
         r#"
 let promise: Promise<string>;
 
-/// @import.global key=Promise symbols=[async.promise.Promise]
+/// @import.global key=Promise targets=[async.promise.Promise]
 
 /// @import.summary globals=1
 /// @resolve.stats roots=1 expressions=1 types=2 globals=required:1,modules:0
@@ -400,6 +501,55 @@ function read() {
 
 /// @import.summary
 /// @resolve.stats roots=1 expressions=6 types=0
+"#,
+    );
+}
+
+#[test]
+fn test_resolve_does_not_resolve_shadowed_profile_global_namespace_paths() {
+    let compiler = TestSession::new()
+        .data(
+            "destack.json",
+            r#"
+{
+    "compiler": {
+        "globals": ["globals.ds"]
+    }
+}
+"#,
+        )
+        .module(
+            "main.ds",
+            r#"
+const api = {};
+const value = api.value;
+"#,
+        )
+        .module(
+            "globals.ds",
+            r#"
+global {
+    export * as api from "./api.ds";
+}
+"#,
+        )
+        .module(
+            "api.ds",
+            r#"
+export const value = 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_resolved(
+        "main.ds",
+        DirRows::imports().with_summaries().with_resolve_stats(),
+        r#"
+const api = {};
+const value = api.value;
+
+/// @import.summary
+/// @resolve.stats roots=2 expressions=5 types=0
 "#,
     );
 }

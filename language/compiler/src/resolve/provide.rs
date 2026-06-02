@@ -52,14 +52,14 @@ impl Compiler {
         // collect source references and syntax language items
         state.walk(&expanded.roots);
 
-        // resolve namespace path references through imported module surfaces
-        state.resolve_path_references()?;
-
         // resolve profile globals through global tables
         state.resolve_profile_globals(&environment.globals)?;
 
         // resolve source-visible language globals
         state.resolve_language_globals(&environment.language)?;
+
+        // resolve namespace path references through imported module surfaces
+        state.resolve_path_references()?;
 
         // resolve syntax-required language item modules
         state.resolve_syntax_language_items(&environment.language)?;
