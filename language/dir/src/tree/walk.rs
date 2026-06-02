@@ -1422,9 +1422,9 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 let where_clause = tree.get(*where_clause_id);
                 visitor.visit_where_clause(tree, *where_clause_id, where_clause);
             }
-            if let Some(extends_expression_id) = declaration.extends_expression {
-                let extends_expression = tree.get(extends_expression_id);
-                visitor.visit_expression(tree, extends_expression_id, extends_expression);
+            if let Some(extends_type_id) = declaration.extends_type {
+                let extends_type = tree.get(extends_type_id);
+                visitor.visit_type_expression(tree, extends_type_id, extends_type);
             }
             for expression_id in &declaration.implements_types {
                 let expression = tree.get(*expression_id);
@@ -1466,14 +1466,9 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
                 let where_clause = tree.get(*where_clause_id);
                 visitor.visit_where_clause(tree, *where_clause_id, where_clause);
             }
-            for heritage in &declaration.extends {
-                let expression = tree.get(heritage.expression);
-                visitor.visit_expression(tree, heritage.expression, expression);
-
-                for argument_id in &heritage.generic_arguments {
-                    let argument = tree.get(*argument_id);
-                    visitor.visit_generic_argument(tree, *argument_id, argument);
-                }
+            for extends_type_id in &declaration.extends_types {
+                let extends_type = tree.get(*extends_type_id);
+                visitor.visit_type_expression(tree, *extends_type_id, extends_type);
             }
             for member_id in &declaration.members {
                 let member = tree.get(*member_id);

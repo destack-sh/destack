@@ -1,7 +1,5 @@
 use crate::Parser;
-use destack_dir::{
-    Declaration, Expression, FunctionDeclaration, FunctionForm, GenericArgument, LocalNodeId,
-};
+use destack_dir::{Declaration, Expression, FunctionDeclaration, FunctionForm, LocalNodeId};
 
 impl Parser {
     /// Unwrap label wrappers to get the underlying expression.
@@ -15,20 +13,6 @@ impl Parser {
         }
 
         current
-    }
-
-    /// Split one instantiation expression into its receiver and generic arguments.
-    pub(crate) fn split_instantiation_expression(
-        &self,
-        expression_id: LocalNodeId<Expression>,
-    ) -> (LocalNodeId<Expression>, Vec<LocalNodeId<GenericArgument>>) {
-        match self.tree.get(expression_id) {
-            Expression::Instantiation {
-                left,
-                generic_arguments,
-            } => (*left, generic_arguments.clone()),
-            _ => (expression_id, Vec::new()),
-        }
     }
 
     /// Return true when an expression is a lambda declaration without wrapping parentheses.

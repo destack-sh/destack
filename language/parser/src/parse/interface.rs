@@ -90,7 +90,7 @@ impl Parser {
                 .map(|_| self.get_span_from(&generic_parameter_container_start));
 
             // optional extends
-            let extends = self.eat_interface_extends_if_present()?;
+            let extends_types = self.eat_extends_types_if_present()?;
 
             // where
             let where_clauses = self.eat_where_maybe()?;
@@ -116,7 +116,7 @@ impl Parser {
                     is_nominal: kind == TypeKind::Nominal,
                     generic_parameters: generic_parameters.unwrap_or_default(),
                     where_clauses: where_clauses.unwrap_or_default(),
-                    extends: extends.unwrap_or_default(),
+                    extends_types: extends_types.unwrap_or_default(),
                     members,
                 }),
                 self.get_span_from(start),

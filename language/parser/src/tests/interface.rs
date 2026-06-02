@@ -37,14 +37,13 @@ fn test_parse_interface_with_extends() {
     let interface_id = parser
         .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
-    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, extends, members, .. }) => {
+    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, is_nominal, generic_parameters, extends_types, members, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Foo");
         assert!(!*is_nominal);
         assert!(members.is_empty());
         assert!(generic_parameters.is_empty());
-        assert_eq!(extends.len(), 1);
-        assert_expression_path!(parser, parser.tree.get(extends[0].expression), "Bar");
-        assert!(extends[0].generic_arguments.is_empty());
+        assert_eq!(extends_types.len(), 1);
+        assert_expression_path!(parser, parser.tree.get(extends_types[0]), "Bar");
     });
 }
 
@@ -63,20 +62,24 @@ interface Foo extends Bar<Baz>, Namespace.Qux<string> {}
         .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
 
-    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends, .. }) => {
-        assert_eq!(extends.len(), 2);
+    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
+        assert_eq!(extends_types.len(), 2);
 
-        assert_expression_path!(parser, parser.tree.get(extends[0].expression), "Bar");
-        assert_eq!(extends[0].generic_arguments.len(), 1);
-        assert_node!(parser.tree, extends[0].generic_arguments[0], GenericArgument::Type { value } => {
-            assert_expression_path!(parser, parser.tree.get(*value), "Baz");
+        assert_node!(parser.tree, extends_types[0], TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "Bar");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_expression_path!(parser, parser.tree.get(*value), "Baz");
+            });
         });
 
-        assert_expression_path!(parser, parser.tree.get(extends[1].expression), "Namespace.Qux");
-        assert_eq!(extends[1].generic_arguments.len(), 1);
-        assert_node!(parser.tree, extends[1].generic_arguments[0], GenericArgument::Type { value } => {
-            assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
-                assert_eq!(*value, TypeLiteral::String);
+        assert_node!(parser.tree, extends_types[1], TypeExpression::Reference { path, generic_arguments } => {
+            assert_path!(parser, *path, "Namespace.Qux");
+            assert_eq!(generic_arguments.len(), 1);
+            assert_node!(parser.tree, generic_arguments[0], GenericArgument::Type { value } => {
+                assert_node!(parser.tree, *value, TypeExpression::Literal { value } => {
+                    assert_eq!(*value, TypeLiteral::String);
+                });
             });
         });
     });
@@ -181,9 +184,9 @@ interface Foo extends Bar
     let interface_id = parser
         .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
-    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends, .. }) => {
-        assert_eq!(extends.len(), 1);
-        assert_expression_path!(parser, parser.tree.get(extends[0].expression), "Bar");
+    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
+        assert_eq!(extends_types.len(), 1);
+        assert_expression_path!(parser, parser.tree.get(extends_types[0]), "Bar");
     });
 }
 
@@ -202,10 +205,10 @@ Baz {
     let interface_id = parser
         .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
-    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends, .. }) => {
-        assert_eq!(extends.len(), 2);
-        assert_expression_path!(parser, parser.tree.get(extends[0].expression), "Bar");
-        assert_expression_path!(parser, parser.tree.get(extends[1].expression), "Baz");
+    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
+        assert_eq!(extends_types.len(), 2);
+        assert_expression_path!(parser, parser.tree.get(extends_types[0]), "Bar");
+        assert_expression_path!(parser, parser.tree.get(extends_types[1]), "Baz");
     });
 }
 
@@ -225,10 +228,10 @@ Baz {
     let interface_id = parser
         .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
-    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends, .. }) => {
-        assert_eq!(extends.len(), 2);
-        assert_expression_path!(parser, parser.tree.get(extends[0].expression), "Bar");
-        assert_expression_path!(parser, parser.tree.get(extends[1].expression), "Baz");
+    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { extends_types, .. }) => {
+        assert_eq!(extends_types.len(), 2);
+        assert_expression_path!(parser, parser.tree.get(extends_types[0]), "Bar");
+        assert_expression_path!(parser, parser.tree.get(extends_types[1]), "Baz");
     });
 }
 
@@ -250,14 +253,13 @@ interface Foo extends Baz {
     let interface_id = parser
         .eat_interface(&start, DeclarationHeader::default(), TypeKind::Structural)
         .unwrap();
-    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, extends, members, .. }) => {
+    assert_node!(parser.tree, interface_id, Declaration::Interface(InterfaceDeclaration { name, generic_parameters, extends_types, members, .. }) => {
         assert_string!(parser, name.expect("expected name").string(), "Foo");
         assert!(generic_parameters.is_empty());
 
         // extends Baz
-        assert_eq!(extends.len(), 1);
-        assert_expression_path!(parser, parser.tree.get(extends[0].expression), "Baz");
-        assert!(extends[0].generic_arguments.is_empty());
+        assert_eq!(extends_types.len(), 1);
+        assert_expression_path!(parser, parser.tree.get(extends_types[0]), "Baz");
 
         // readonly value: int32
         assert_node!(parser.tree, members[0], TypeMember::Field { key: Key::Name(Name::Identifier(name)), declared_type: ty, is_readonly, .. } => {
