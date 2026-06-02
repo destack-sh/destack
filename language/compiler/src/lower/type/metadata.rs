@@ -81,7 +81,9 @@ impl ModuleLowerer<'_> {
                 };
                 let layout_id = self.insert_layout_metadata(
                     ty,
-                    mir::LayoutShape::Tuple { fields: Vec::new() },
+                    mir::LayoutShape::Tuple(mir::TupleLayout {
+                        elements: Vec::new(),
+                    }),
                     size,
                     alignment,
                     fields,
@@ -223,11 +225,11 @@ impl ModuleLowerer<'_> {
         })?;
 
         Ok((
-            mir::LayoutShape::Array {
-                element_type: element,
-                element_stride: stride,
-                element_count: Some(length_u32),
-            },
+            mir::LayoutShape::Array(mir::ArrayLayout {
+                element,
+                stride,
+                count: Some(length_u32),
+            }),
             total_size,
             alignment,
         ))
@@ -259,10 +261,15 @@ impl ModuleLowerer<'_> {
                         message: "missing union storage field".to_string(),
                     })?;
 
-            mir::LayoutShape::Variant {
-                tag_offset: tag_index.offset,
-                storage_offset: storage_index.offset,
-            }
+            mir::LayoutShape::Variant(mir::VariantLayout {
+                tag: mir::VariantTagLayout {
+                    ty: Some(tag_index.ty),
+                    size: tag_index.size,
+                    alignment: tag_index.alignment,
+                },
+                payload_offset: storage_index.offset,
+                variants: Vec::new(),
+            })
         }
         // prefer dynamic layouts when present
         else if let Some(type_id) = type_id
@@ -288,15 +295,15 @@ impl ModuleLowerer<'_> {
             mir::LayoutShape::Dynamic
         }
         // preserve object dispatch headers as first-class layout metadata
-        else if let Some(vtable_field) = layout
+        else if layout
             .fields
             .iter()
             .find(|field| field.kind == FieldLayoutKind::VtableHeader)
+            .is_some()
         {
-            mir::LayoutShape::Object {
-                table_offset: vtable_field.offset,
+            mir::LayoutShape::Object(mir::ObjectLayout {
                 fields: Vec::new(),
-            }
+            })
         }
         // use closure layouts for function values
         else if type_id.is_some_and(|type_id| {
@@ -327,11 +334,11 @@ impl ModuleLowerer<'_> {
             .values()
             .any(|env_layout| env_layout.env_type == mir_type)
         {
-            mir::LayoutShape::Struct { fields: Vec::new() }
+            mir::LayoutShape::Struct(mir::StructLayout { fields: Vec::new() })
         }
         // default to plain struct layout
         else {
-            mir::LayoutShape::Struct { fields: Vec::new() }
+            mir::LayoutShape::Struct(mir::StructLayout { fields: Vec::new() })
         };
 
         Ok(layout_shape)

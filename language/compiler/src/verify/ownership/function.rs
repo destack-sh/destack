@@ -567,7 +567,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 length,
                 ..
             } => {
-                let projection = mir::PlaceProjection::Range {
+                let projection = mir::PlaceProjection::Slice {
                     start: *start,
                     length: *length,
                 };

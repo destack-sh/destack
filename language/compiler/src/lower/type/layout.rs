@@ -423,27 +423,11 @@ impl TypeLowerer<'_> {
                 let bytes = pointer_bytes as u32;
                 Some((bytes * 2, bytes))
             }
-            mir::Type::Closure {
-                signature,
-                environment,
-            } => {
-                let mut max_align: u32 = 1;
-                let mut current_offset: u32 = 0;
-
+            mir::Type::Closure { signature, .. } => {
                 let _ = signature.ty()?;
                 let pointer_size = pointer_bytes as u32;
-                max_align = max_align.max(pointer_size);
-                current_offset = Self::align_up(current_offset, pointer_size) + pointer_size;
 
-                let environment_ty = tree.get(environment.ty()?);
-                let (environment_size, environment_align) =
-                    self.size_and_align_of_type(environment_ty, tree)?;
-                max_align = max_align.max(environment_align);
-                current_offset =
-                    Self::align_up(current_offset, environment_align) + environment_size;
-
-                let total_size = Self::align_up(current_offset, max_align);
-                Some((total_size, max_align))
+                Some((pointer_size * 2, pointer_size))
             }
             mir::Type::Newtype { inner, .. } => {
                 let inner_ty = tree.get(inner.ty()?);
