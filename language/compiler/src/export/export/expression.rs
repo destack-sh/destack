@@ -65,7 +65,7 @@ impl Compiler {
                 self.collect_reexports(state, expression_id, &items)
             }
 
-            // reject local export clauses inside global blocks
+            // collect ambient exports from this module
             dir::Expression::Export {
                 target: None,
                 items,
@@ -73,13 +73,7 @@ impl Compiler {
             } if is_global => {
                 let items = state.static_allowed_items(items)?;
 
-                for item_id in &items {
-                    state.report_diagnostic(ExportError::UnsupportedGlobalExport {
-                        anchor: state.anchor_node(item_id.id)?,
-                    });
-                }
-
-                Ok(())
+                self.collect_global_clause_exports(state, &items)
             }
 
             // collect exports from this module
@@ -168,6 +162,33 @@ impl Compiler {
         Ok(())
     }
 
+    /// Export a local export clause into the global table.
+    fn collect_global_clause_exports(
+        &self,
+        state: &mut ExportState<'_>,
+        items: &[dir::LocalNodeId<dir::DependencyItem>],
+    ) -> ExportResult<()> {
+        for item_id in items {
+            let Some(dir::ExportEntry::Local(export)) =
+                self.clause_export_entry(state, *item_id)?
+            else {
+                continue;
+            };
+
+            let Some(key) = export.key.named_key() else {
+                state.report_diagnostic(ExportError::DefaultGlobalExport {
+                    anchor: state.anchor_node(item_id.id)?,
+                });
+
+                continue;
+            };
+
+            state.globals.push_local(key, export.source);
+        }
+
+        Ok(())
+    }
+
     /// Return one global re-export entry from a dependency item.
     fn global_reexport_entry(
         &self,
@@ -193,7 +214,7 @@ impl Compiler {
                 }?;
 
                 let Some(key) = key.named_key() else {
-                    state.report_diagnostic(ExportError::UnsupportedGlobalExport {
+                    state.report_diagnostic(ExportError::DefaultGlobalExport {
                         anchor: state.anchor_node(item_id.id)?,
                     });
 
@@ -240,9 +261,9 @@ impl Compiler {
                 // skip parser recovery items
                 dir::DependencyItem::Error => {}
 
-                // reject ambient star re-exports
-                _ if matches!(item.export_selector(), Some(dir::ExportSelector::Namespace)) => {
-                    state.report_diagnostic(ExportError::UnsupportedGlobalExport {
+                // reject keyless ambient namespace re-exports
+                _ if item.is_star_export() => {
+                    state.report_diagnostic(ExportError::NamespaceGlobalExport {
                         anchor: state.anchor_node(item_id.id)?,
                     });
                 }
