@@ -37,8 +37,6 @@ pub enum TraceMap {
     },
     /// Payload stores a tagged variant with variant-specific trace maps.
     Tagged {
-        /// The byte offset of the variant tag.
-        tag_offset: u32,
         /// The byte width of the variant tag.
         tag_bytes: u8,
         /// Variant trace maps keyed by normalized tag value.
@@ -104,9 +102,9 @@ impl TraceMap {
 pub struct TraceVariant {
     /// The normalized numeric tag value selecting this variant.
     pub tag: u64,
-    /// The byte offset of the variant storage.
-    pub storage_offset: u32,
-    /// The storage trace map for this variant.
+    /// The byte offset of the variant payload.
+    pub payload_offset: u32,
+    /// The payload trace map for this variant.
     pub map: TraceMap,
 }
 
