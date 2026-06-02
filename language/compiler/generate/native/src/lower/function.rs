@@ -83,7 +83,7 @@ impl<'a> FunctionLowerer<'a> {
 
         // capture closure environment type before lowering
         self.environment_type =
-            self.optional_type_id(self.function.environment, "closure environment type")?;
+            self.optional_type_id(&self.function.environment, "closure environment type")?;
 
         // phase 0.5: pre-declare all referenced functions in the current function
         // (must be done before creating the FunctionBuilder)
@@ -198,7 +198,7 @@ impl<'a> FunctionLowerer<'a> {
             let local = self.tree.get(local_id);
             let ty = lower_type(
                 self.tree,
-                self.type_id(local.ty, "local type")?,
+                self.type_id(&local.ty, "local type")?,
                 self.pointer_bytes,
             )?;
             let size = ty.bytes();
@@ -244,7 +244,7 @@ impl<'a> FunctionLowerer<'a> {
         for param in &self.function.parameters {
             let ty = lower_type(
                 self.tree,
-                self.type_id(param.ty, "function parameter type")?,
+                self.type_id(&param.ty, "function parameter type")?,
                 self.pointer_bytes,
             )?;
             let value = builder.append_block_param(entry_block, ty);
@@ -273,7 +273,7 @@ impl<'a> FunctionLowerer<'a> {
             for param in &mir_block.parameters {
                 let ty = lower_type(
                     self.tree,
-                    self.type_id(param.ty, "block parameter type")?,
+                    self.type_id(&param.ty, "block parameter type")?,
                     self.pointer_bytes,
                 )?;
                 let value = builder.append_block_param(target_block, ty);
@@ -402,7 +402,7 @@ impl<'a> FunctionLowerer<'a> {
                 let argument_value = self.lowered_value(*argument, value_map, "cast argument")?;
                 let target_type = lower_type(
                     self.tree,
-                    self.type_id(*to_type, "cast destination type")?,
+                    self.type_id(to_type, "cast destination type")?,
                     self.pointer_bytes,
                 )?;
                 let result = self.lower_cast(
@@ -436,7 +436,7 @@ impl<'a> FunctionLowerer<'a> {
                 let local_data = self.tree.get(local);
                 let ty = lower_type(
                     self.tree,
-                    self.type_id(local_data.ty, "local type")?,
+                    self.type_id(&local_data.ty, "local type")?,
                     self.pointer_bytes,
                 )?;
                 let result = builder.ins().stack_load(ty, slot, 0);
@@ -605,7 +605,7 @@ impl<'a> FunctionLowerer<'a> {
                 let ptr_value = self.lowered_value(*pointer, value_map, "load pointer")?;
                 let loaded_type = lower_type(
                     self.tree,
-                    self.type_id(*result_type, "load result type")?,
+                    self.type_id(result_type, "load result type")?,
                     self.pointer_bytes,
                 )?;
 
@@ -691,7 +691,7 @@ impl<'a> FunctionLowerer<'a> {
                 let aggregate_type = self.tree.get(aggregate_type_id);
                 let aggregate_layout_type_id = match aggregate_type {
                     mir::Type::Reference { pointee, .. } => {
-                        self.type_id(*pointee, "field address pointee type")?
+                        self.type_id(pointee, "field address pointee type")?
                     }
                     _ => aggregate_type_id,
                 };
@@ -730,7 +730,7 @@ impl<'a> FunctionLowerer<'a> {
                 let aggregate_type = self.tree.get(aggregate_type_id);
                 let aggregate_layout_type_id = match aggregate_type {
                     mir::Type::Reference { pointee, .. } => {
-                        self.type_id(*pointee, "field set pointee type")?
+                        self.type_id(pointee, "field set pointee type")?
                     }
                     _ => aggregate_type_id,
                 };
@@ -771,7 +771,7 @@ impl<'a> FunctionLowerer<'a> {
                 // element type
                 let element_type_id = match array_type {
                     mir::Type::Array { element, .. } => {
-                        self.type_id(*element, "array element type")?
+                        self.type_id(element, "array element type")?
                     }
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
@@ -811,14 +811,14 @@ impl<'a> FunctionLowerer<'a> {
                 let array_layout = match array_type {
                     mir::Type::Reference { pointee, .. } => self
                         .tree
-                        .get(self.type_id(*pointee, "element address pointee type")?),
+                        .get(self.type_id(pointee, "element address pointee type")?),
                     _ => array_type,
                 };
 
                 // element type
                 let element_type_id = match array_layout {
                     mir::Type::Array { element, .. } => {
-                        self.type_id(*element, "array element type")?
+                        self.type_id(element, "array element type")?
                     }
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
@@ -855,7 +855,7 @@ impl<'a> FunctionLowerer<'a> {
                 // element type
                 let element_type_id = match array_type {
                     mir::Type::Array { element, .. } => {
-                        self.type_id(*element, "array element type")?
+                        self.type_id(element, "array element type")?
                     }
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
@@ -933,13 +933,13 @@ impl<'a> FunctionLowerer<'a> {
             } => {
                 let callee = self.value_id(*callee, "indirect call callee")?;
                 let sig_ref = self.build_indirect_call_signature(
-                    self.type_id(call.signature, "indirect call signature")?,
+                    self.type_id(&call.signature, "indirect call signature")?,
                     builder,
                     "indirect call",
                 )?;
                 let (callee_value, environment_value) = self.lower_indirect_callee(
                     callee,
-                    self.type_id(call.signature, "indirect call signature")?,
+                    self.type_id(&call.signature, "indirect call signature")?,
                     value_map,
                     builder,
                 )?;
@@ -990,7 +990,7 @@ impl<'a> FunctionLowerer<'a> {
                 ..
             } => {
                 let destination = self.value_id(*destination, "frame alloc destination")?;
-                let layout = self.type_id(*layout, "frame alloc layout")?;
+                let layout = self.type_id(layout, "frame alloc layout")?;
                 let ty = lower_type(self.tree, layout, self.pointer_bytes)?;
                 let size = ty.bytes();
 
@@ -1031,7 +1031,7 @@ impl<'a> FunctionLowerer<'a> {
                 fields,
             } => {
                 let destination = self.value_id(*destination, "struct destination")?;
-                let ty = self.type_id(*ty, "struct type")?;
+                let ty = self.type_id(ty, "struct type")?;
                 let field_values = self.tree.get_arguments(*fields);
                 let field_count = match self.tree.get(ty) {
                     mir::Type::Struct { fields, .. } => fields.len(),
@@ -1083,14 +1083,14 @@ impl<'a> FunctionLowerer<'a> {
                 elements,
             } => {
                 let destination = self.value_id(*destination, "tuple destination")?;
-                let ty = self.type_id(*ty, "tuple type")?;
+                let ty = self.type_id(ty, "tuple type")?;
                 let tuple_type = self.tree.get(ty);
 
                 // get element type definitions
                 let element_types = match tuple_type {
                     mir::Type::Tuple { elements, .. } => elements
                         .iter()
-                        .map(|element| self.type_id(*element, "tuple element type"))
+                        .map(|element| self.type_id(element, "tuple element type"))
                         .collect::<CodegenCraneliftResult<Vec<_>>>()?,
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
@@ -1135,13 +1135,13 @@ impl<'a> FunctionLowerer<'a> {
                 elements,
             } => {
                 let destination = self.value_id(*destination, "array destination")?;
-                let ty = self.type_id(*ty, "array type")?;
+                let ty = self.type_id(ty, "array type")?;
                 let array_type = self.tree.get(ty);
 
                 // get element type
                 let element_type_id = match array_type {
                     mir::Type::Array { element, .. } => {
-                        self.type_id(*element, "array element type")?
+                        self.type_id(element, "array element type")?
                     }
                     _ => {
                         return Err(CodegenCraneliftError::Internal {
@@ -1315,11 +1315,7 @@ impl<'a> FunctionLowerer<'a> {
             }
 
             // check: explicit condition lowering is not implemented here yet
-            mir::Terminator::Check {
-                success: _,
-                failure: _,
-                ..
-            } => {
+            mir::Terminator::Check { .. } => {
                 return Err(CodegenCraneliftError::Internal {
                     message: "check terminators are not supported in native codegen yet".into(),
                 });
@@ -1421,7 +1417,7 @@ impl<'a> FunctionLowerer<'a> {
             // tail call indirect: return_call_indirect (indirect tail call)
             mir::Terminator::TailCallIndirect { callee, call } => {
                 let callee = self.value_id(*callee, "tail indirect callee")?;
-                let signature = self.type_id(call.signature, "tail indirect signature")?;
+                let signature = self.type_id(&call.signature, "tail indirect signature")?;
                 let sig_ref =
                     self.build_indirect_call_signature(signature, builder, "tail call")?;
                 let (callee_value, environment_value) =
@@ -1589,11 +1585,11 @@ impl<'a> FunctionLowerer<'a> {
         let (signature, has_environment) = match self.tree.get(signature) {
             mir::Type::FunctionSignature { .. } => (signature, false),
             mir::Type::FunctionPointer { signature } => (
-                self.type_id(*signature, "function pointer signature")?,
+                self.type_id(signature, "function pointer signature")?,
                 false,
             ),
             mir::Type::Closure { signature, .. } => {
-                (self.type_id(*signature, "closure signature")?, true)
+                (self.type_id(signature, "closure signature")?, true)
             }
             _ => {
                 return Err(CodegenCraneliftError::Internal {
@@ -1618,7 +1614,7 @@ impl<'a> FunctionLowerer<'a> {
         for param_ty in parameters {
             let ty = lower_type(
                 self.tree,
-                self.type_id(*param_ty, "indirect call parameter type")?,
+                self.type_id(param_ty, "indirect call parameter type")?,
                 self.pointer_bytes,
             )?;
             signature.params.push(cir::AbiParam::new(ty));
@@ -1628,7 +1624,7 @@ impl<'a> FunctionLowerer<'a> {
                 .params
                 .push(cir::AbiParam::new(self.pointer_type()));
         }
-        let result = self.type_id(*result, "indirect call result type")?;
+        let result = self.type_id(result, "indirect call result type")?;
         let result_type = self.tree.get(result);
         if !matches!(result_type, mir::Type::Void) {
             let ty = lower_type(self.tree, result, self.pointer_bytes)?;
@@ -1662,7 +1658,7 @@ impl<'a> FunctionLowerer<'a> {
                 message: "indirect call signature is not a function type".into(),
             });
         };
-        let environment = self.type_id(*environment, "closure environment type")?;
+        let environment = self.type_id(environment, "closure environment type")?;
 
         let callee_value = value_map[&callee];
         let signature_node = signature.into_any();
@@ -1671,7 +1667,7 @@ impl<'a> FunctionLowerer<'a> {
         let (environment_offset, environment_field_type) =
             self.aggregate_field_offset_and_type(signature, 1, signature_node)?;
 
-        let function_type = self.type_id(*function_type, "closure function type")?;
+        let function_type = self.type_id(function_type, "closure function type")?;
 
         if function_field_type != function_type {
             return Err(CodegenCraneliftError::Internal {
@@ -1836,7 +1832,7 @@ impl<'a> FunctionLowerer<'a> {
     /// Return one concrete MIR type from a recoverable reference.
     fn type_id(
         &self,
-        ty: mir::TypeReference,
+        ty: &mir::TypeReference,
         context: &str,
     ) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Type>> {
         ty.ty().ok_or_else(|| CodegenCraneliftError::Internal {
@@ -1847,10 +1843,10 @@ impl<'a> FunctionLowerer<'a> {
     /// Return one optional concrete MIR type from a recoverable reference.
     fn optional_type_id(
         &self,
-        ty: Option<mir::TypeReference>,
+        ty: &Option<mir::TypeReference>,
         context: &str,
     ) -> CodegenCraneliftResult<Option<mir::LocalNodeId<mir::Type>>> {
-        ty.map(|ty| self.type_id(ty, context)).transpose()
+        ty.as_ref().map(|ty| self.type_id(ty, context)).transpose()
     }
 
     /// Return one concrete MIR function from a recoverable reference.
@@ -1977,17 +1973,18 @@ impl<'a> FunctionLowerer<'a> {
                 let field_id = fields.get(index as usize).ok_or_else(|| {
                     CodegenCraneliftError::out_of_bounds(node, index, fields.len())
                 })?;
-                self.tree.get(*field_id).ty
+                self.tree.get(*field_id).ty.clone()
             }
-            mir::Type::Tuple { elements, .. } => *elements
+            mir::Type::Tuple { elements, .. } => elements
                 .get(index as usize)
-                .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, elements.len()))?,
+                .ok_or_else(|| CodegenCraneliftError::out_of_bounds(node, index, elements.len()))?
+                .clone(),
             mir::Type::Closure {
                 signature,
                 environment,
             } => match index {
-                0 => *signature,
-                1 => *environment,
+                0 => signature.clone(),
+                1 => environment.clone(),
                 _ => return Err(CodegenCraneliftError::out_of_bounds(node, index, 2)),
             },
             _ => {
@@ -1997,7 +1994,7 @@ impl<'a> FunctionLowerer<'a> {
             }
         };
 
-        let field_type = self.type_id(field_type, "aggregate field type")?;
+        let field_type = self.type_id(&field_type, "aggregate field type")?;
 
         let layout = self.tree.type_layout(aggregate_type).ok_or_else(|| {
             CodegenCraneliftError::unsupported_type("missing aggregate layout metadata", node)

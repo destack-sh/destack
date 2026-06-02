@@ -130,7 +130,7 @@ impl<'a> ModuleLowerer<'a> {
 
             // define the data if we have an initializer (not for imports)
             if let Some(ref init) = global.initializer {
-                let ty = self.type_id(global.ty, "global type")?;
+                let ty = self.type_id(&global.ty, "global type")?;
                 let data = lower_static_data(tree, init, ty, pointer_bytes)?;
                 let mut data_description = cranelift_module::DataDescription::new();
                 data_description.define(data.bytes.into_boxed_slice());
@@ -214,7 +214,7 @@ impl<'a> ModuleLowerer<'a> {
         for param in &function.parameters {
             let ty = lower_type(
                 tree,
-                self.type_id(param.ty, "function parameter type")?,
+                self.type_id(&param.ty, "function parameter type")?,
                 pointer_bytes,
             )?;
             signature.params.push(cir::AbiParam::new(ty));
@@ -222,14 +222,14 @@ impl<'a> ModuleLowerer<'a> {
 
         // function environment parameter when used
         if let Some(environment) =
-            self.optional_type_id(function.environment, "closure environment type")?
+            self.optional_type_id(&function.environment, "closure environment type")?
         {
             let ty = lower_type(tree, environment, pointer_bytes)?;
             signature.params.push(cir::AbiParam::new(ty));
         }
 
         // return type (if not void)
-        let return_type = self.type_id(function.return_type, "function return type")?;
+        let return_type = self.type_id(&function.return_type, "function return type")?;
         if !matches!(tree.get(return_type), mir::Type::Void) {
             let ty = lower_type(tree, return_type, pointer_bytes)?;
             signature.returns.push(cir::AbiParam::new(ty));
@@ -241,7 +241,7 @@ impl<'a> ModuleLowerer<'a> {
     /// Return one concrete MIR type from a recoverable reference.
     fn type_id(
         &self,
-        ty: mir::TypeReference,
+        ty: &mir::TypeReference,
         context: &str,
     ) -> CodegenCraneliftResult<mir::LocalNodeId<mir::Type>> {
         ty.ty().ok_or_else(|| CodegenCraneliftError::Internal {
@@ -252,10 +252,10 @@ impl<'a> ModuleLowerer<'a> {
     /// Return one optional concrete MIR type from a recoverable reference.
     fn optional_type_id(
         &self,
-        ty: Option<mir::TypeReference>,
+        ty: &Option<mir::TypeReference>,
         context: &str,
     ) -> CodegenCraneliftResult<Option<mir::LocalNodeId<mir::Type>>> {
-        ty.map(|ty| self.type_id(ty, context)).transpose()
+        ty.as_ref().map(|ty| self.type_id(ty, context)).transpose()
     }
 
     /// Finish lowering and produce output.
