@@ -1,9 +1,10 @@
-use destack_engine::StaticPointer;
+use destack_engine::StaticAddress;
 use destack_heap::{HeapReference, SharedHeapReference};
 
+use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::program::Projection;
-use crate::{FramePointer, StackPointer, Word};
+use crate::{Cell, FramePointer, StackPointer};
 
 /// Return one element byte offset.
 #[inline(always)]
@@ -17,10 +18,10 @@ pub(crate) fn offset_heap(
     _machine: &mut Activation<'_>,
     reference: HeapReference,
     byte_offset: usize,
-) -> Word {
+) -> Cell {
     let reference = reference.add_bytes(byte_offset);
 
-    Word::heap_reference(reference)
+    Cell::heap_reference(reference)
 }
 
 /// Compute a fixed-offset address from a shared heap reference.
@@ -29,10 +30,10 @@ pub(crate) fn offset_shared_heap(
     _machine: &mut Activation<'_>,
     reference: SharedHeapReference,
     byte_offset: usize,
-) -> Word {
+) -> Cell {
     let reference = reference.add_bytes(byte_offset);
 
-    Word::shared_heap_reference(reference)
+    Cell::shared_heap_reference(reference)
 }
 
 /// Compute a fixed-offset address from a raw pointer.
@@ -41,34 +42,36 @@ pub(crate) fn offset_raw(
     _machine: &mut Activation<'_>,
     address: usize,
     byte_offset: usize,
-) -> Word {
+) -> Cell {
     let address = address + byte_offset;
 
-    Word::address(address)
+    Cell::address(address)
 }
 
 /// Compute a fixed-offset address from a stack pointer.
 #[inline(always)]
-pub(crate) fn offset_stack(pointer: StackPointer, byte_offset: usize) -> Word {
+pub(crate) fn offset_stack(pointer: StackPointer, byte_offset: usize) -> Cell {
     let pointer = pointer.add_bytes(byte_offset);
 
-    Word::stack_pointer(pointer)
+    Cell::stack_pointer(pointer)
 }
 
 /// Compute a fixed-offset address from a frame pointer.
 #[inline(always)]
-pub(crate) fn offset_frame(pointer: FramePointer, byte_offset: usize) -> Word {
+pub(crate) fn offset_frame(pointer: FramePointer, byte_offset: usize) -> Cell {
     let pointer = pointer.add_bytes(byte_offset);
 
-    Word::frame_pointer(pointer)
+    Cell::frame_pointer(pointer)
 }
 
-/// Compute a fixed-offset address from a static pointer.
+/// Compute a fixed-offset address from a static address.
 #[inline(always)]
-pub(crate) fn offset_static(pointer: StaticPointer, byte_offset: usize) -> Word {
-    let pointer = pointer.add_bytes(byte_offset);
+pub(crate) fn offset_static(address: StaticAddress, byte_offset: usize) -> Result<Cell, Error> {
+    let address = address
+        .add_bytes(byte_offset)
+        .ok_or(Error::invalid_instruction())?;
 
-    Word::static_pointer(pointer)
+    Ok(Cell::static_address(address))
 }
 
 /// Compute an element address from a heap reference.
@@ -78,11 +81,11 @@ pub(crate) fn element_heap(
     reference: HeapReference,
     element: Projection,
     index: u64,
-) -> Word {
+) -> Cell {
     let element_offset = element_byte_offset(index, element.byte_stride);
     let reference = reference.add_bytes(element_offset);
 
-    Word::heap_reference(reference)
+    Cell::heap_reference(reference)
 }
 
 /// Compute an element address from a shared heap reference.
@@ -92,11 +95,11 @@ pub(crate) fn element_shared_heap(
     reference: SharedHeapReference,
     element: Projection,
     index: u64,
-) -> Word {
+) -> Cell {
     let element_offset = element_byte_offset(index, element.byte_stride);
     let reference = reference.add_bytes(element_offset);
 
-    Word::shared_heap_reference(reference)
+    Cell::shared_heap_reference(reference)
 }
 
 /// Compute an element address from a raw pointer.
@@ -106,11 +109,11 @@ pub(crate) fn element_raw(
     address: usize,
     element: Projection,
     index: u64,
-) -> Word {
+) -> Cell {
     let element_offset = element_byte_offset(index, element.byte_stride);
     let address = address + element_offset;
 
-    Word::address(address)
+    Cell::address(address)
 }
 
 /// Compute an element address from a stack pointer.
@@ -120,11 +123,11 @@ pub(crate) fn element_stack(
     pointer: StackPointer,
     element: Projection,
     index: u64,
-) -> Word {
+) -> Cell {
     let element_offset = element_byte_offset(index, element.byte_stride);
     let pointer = pointer.add_bytes(element_offset);
 
-    Word::stack_pointer(pointer)
+    Cell::stack_pointer(pointer)
 }
 
 /// Compute an element address from a frame pointer.
@@ -134,23 +137,25 @@ pub(crate) fn element_frame(
     pointer: FramePointer,
     element: Projection,
     index: u64,
-) -> Word {
+) -> Cell {
     let element_offset = element_byte_offset(index, element.byte_stride);
     let pointer = pointer.add_bytes(element_offset);
 
-    Word::frame_pointer(pointer)
+    Cell::frame_pointer(pointer)
 }
 
-/// Compute an element address from a static pointer.
+/// Compute an element address from a static address.
 #[inline(always)]
 pub(crate) fn element_static(
     _machine: &mut Activation<'_>,
-    pointer: StaticPointer,
+    address: StaticAddress,
     element: Projection,
     index: u64,
-) -> Word {
+) -> Result<Cell, Error> {
     let element_offset = element_byte_offset(index, element.byte_stride);
-    let pointer = pointer.add_bytes(element_offset);
+    let address = address
+        .add_bytes(element_offset)
+        .ok_or(Error::invalid_instruction())?;
 
-    Word::static_pointer(pointer)
+    Ok(Cell::static_address(address))
 }

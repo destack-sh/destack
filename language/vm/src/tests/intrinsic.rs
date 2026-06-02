@@ -1,4 +1,4 @@
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::tests::{
     assert_runtime_error_matches, run_mir, run_mir_expect, run_mir_ok, run_mir_with_frame,
@@ -625,9 +625,9 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .expect("heap allocation should succeed");
 
         vec![
-            Word::heap_reference(handle),
-            Word::uint64(0),
-            Word::uint64(4),
+            Cell::heap_reference(handle),
+            Cell::uint64(0),
+            Cell::uint64(4),
         ]
     })
     .expect("barrier write should succeed");
@@ -671,9 +671,9 @@ b0(v0: ref<int32, managed, readonly, space(shared)>, v1: uint64, v2: uint64):
         machine.shared_heap.flush_allocation_cache(&mut allocator);
 
         vec![
-            Word::shared_heap_reference(handle),
-            Word::uint64(0),
-            Word::uint64(4),
+            Cell::shared_heap_reference(handle),
+            Cell::uint64(0),
+            Cell::uint64(4),
         ]
     })
     .expect("shared barrier write should succeed");
@@ -709,9 +709,9 @@ b0(v0: ref<int32, managed, readonly>, v1: uint64, v2: uint64):
             .expect("heap allocation should succeed");
 
         vec![
-            Word::heap_reference(handle),
-            Word::uint64(4),
-            Word::uint64(1),
+            Cell::heap_reference(handle),
+            Cell::uint64(4),
+            Cell::uint64(1),
         ]
     });
 
@@ -876,10 +876,10 @@ b0(v0: vector<int32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Word::int32(1),
-                Word::int32(2),
-                Word::int32(3),
-                Word::int32(4),
+                Cell::int32(1),
+                Cell::int32(2),
+                Cell::int32(3),
+                Cell::int32(4),
             ],
         );
         vec![input]
@@ -900,10 +900,10 @@ b0(v0: vector<int32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Word::int32(2),
-                Word::int32(3),
-                Word::int32(4),
-                Word::int32(5),
+                Cell::int32(2),
+                Cell::int32(3),
+                Cell::int32(4),
+                Cell::int32(5),
             ],
         );
         vec![input]
@@ -924,10 +924,10 @@ b0(v0: vector<int32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Word::int32(5),
-                Word::int32(2),
-                Word::int32(8),
-                Word::int32(1),
+                Cell::int32(5),
+                Cell::int32(2),
+                Cell::int32(8),
+                Cell::int32(1),
             ],
         );
         vec![input]
@@ -948,10 +948,10 @@ b0(v0: vector<int32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Word::int32(5),
-                Word::int32(2),
-                Word::int32(8),
-                Word::int32(1),
+                Cell::int32(5),
+                Cell::int32(2),
+                Cell::int32(8),
+                Cell::int32(1),
             ],
         );
         vec![input]
@@ -972,10 +972,10 @@ b0(v0: vector<uint32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Word::uint32(0b1111),
-                Word::uint32(0b1110),
-                Word::uint32(0b1100),
-                Word::uint32(0b1000),
+                Cell::uint32(0b1111),
+                Cell::uint32(0b1110),
+                Cell::uint32(0b1100),
+                Cell::uint32(0b1000),
             ],
         );
         vec![input]
@@ -996,10 +996,10 @@ b0(v0: vector<uint32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Word::uint32(0b0001),
-                Word::uint32(0b0010),
-                Word::uint32(0b0100),
-                Word::uint32(0b1000),
+                Cell::uint32(0b0001),
+                Cell::uint32(0b0010),
+                Cell::uint32(0b0100),
+                Cell::uint32(0b1000),
             ],
         );
         vec![input]
@@ -1020,10 +1020,10 @@ b0(v0: vector<uint32, 4>):
         let input = interp.materialize_value_for_type(
             ty,
             vec![
-                Word::uint32(1),
-                Word::uint32(2),
-                Word::uint32(3),
-                Word::uint32(4),
+                Cell::uint32(1),
+                Cell::uint32(2),
+                Cell::uint32(3),
+                Cell::uint32(4),
             ],
         );
         vec![input]

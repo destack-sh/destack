@@ -1,4 +1,4 @@
-use crate::Word;
+use crate::Cell;
 use crate::tests::{create_test_heap, trace_table};
 use destack_heap::{
     AllocationShape, Heap, HeapAllocationError, HeapError, HeapReference, HeapResult, RootSlot,
@@ -15,13 +15,13 @@ fn allocate(heap: &mut Heap) -> HeapReference {
         .expect("heap allocation should succeed")
 }
 
-/// Allocate one managed cell with word contents for tests.
-fn allocate_with_values(heap: &mut Heap, values: Vec<Word>) -> HeapReference {
-    let mut bytes = Vec::with_capacity(values.len() * Word::BYTE_LEN);
+/// Allocate one managed cell with cell contents for tests.
+fn allocate_with_values(heap: &mut Heap, values: Vec<Cell>) -> HeapReference {
+    let mut bytes = Vec::with_capacity(values.len() * Cell::BYTE_LEN);
     let mut offsets = Vec::new();
     for (index, value) in values.into_iter().enumerate() {
         if heap.is_heap_live(value.as_heap_reference()) {
-            offsets.push((index * Word::BYTE_LEN) as u32);
+            offsets.push((index * Cell::BYTE_LEN) as u32);
         }
 
         bytes.extend_from_slice(&value.to_byte_array());
@@ -35,7 +35,7 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Word>) -> HeapReference {
             shared_offsets: Vec::new().into_boxed_slice(),
         }
     };
-    let shape = AllocationShape::new(bytes.len(), Word::BYTE_LEN, None, &trace_map);
+    let shape = AllocationShape::new(bytes.len(), Cell::BYTE_LEN, None, &trace_map);
 
     heap.allocate_dynamic_bytes(shape, &bytes)
         .expect("heap allocation should succeed")
@@ -80,12 +80,12 @@ fn write_cell_bytes(heap: &mut Heap, reference: HeapReference, bytes: &[u8]) {
     }
 }
 
-/// Decode one heap reference from the first word.
+/// Decode one heap reference from the first cell.
 fn decode_first_heap_reference(bytes: &[u8]) -> HeapReference {
     let bits = u64::from_le_bytes(
         bytes[..HeapReference::BYTE_LEN]
             .try_into()
-            .expect("reference word should fit"),
+            .expect("reference cell should fit"),
     );
 
     HeapReference::from_bits(bits as usize)
@@ -156,8 +156,8 @@ fn test_gc_follows_references() {
     let mut heap = create_test_heap();
 
     let child2 = allocate(&mut heap);
-    let child1 = allocate_with_values(&mut heap, vec![Word::heap_reference(child2)]);
-    let root = allocate_with_values(&mut heap, vec![Word::heap_reference(child1)]);
+    let child1 = allocate_with_values(&mut heap, vec![Cell::heap_reference(child2)]);
+    let root = allocate_with_values(&mut heap, vec![Cell::heap_reference(child1)]);
     let _unreachable = allocate(&mut heap);
     let mut roots = [root];
 
@@ -166,9 +166,9 @@ fn test_gc_follows_references() {
     heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
     let rewritten_root = roots[0];
-    let rewritten_root_bytes = read_cell_bytes(&heap, rewritten_root, Word::BYTE_LEN);
+    let rewritten_root_bytes = read_cell_bytes(&heap, rewritten_root, Cell::BYTE_LEN);
     let rewritten_child1 = decode_first_heap_reference(&rewritten_root_bytes);
-    let rewritten_child1_bytes = read_cell_bytes(&heap, rewritten_child1, Word::BYTE_LEN);
+    let rewritten_child1_bytes = read_cell_bytes(&heap, rewritten_child1, Cell::BYTE_LEN);
     let rewritten_child2 = decode_first_heap_reference(&rewritten_child1_bytes);
 
     assert_eq!(allocation_count(&heap), 3);
@@ -191,7 +191,7 @@ fn test_gc_handles_cycles() {
         local_offsets: vec![0].into_boxed_slice(),
         shared_offsets: Vec::new().into_boxed_slice(),
     };
-    let shape = AllocationShape::new(Word::BYTE_LEN, Word::BYTE_LEN, None, &trace_map);
+    let shape = AllocationShape::new(Cell::BYTE_LEN, Cell::BYTE_LEN, None, &trace_map);
     let a = heap
         .allocate_dynamic_zeroed(shape)
         .expect("heap allocation should succeed");
@@ -199,8 +199,8 @@ fn test_gc_handles_cycles() {
         .allocate_dynamic_zeroed(shape)
         .expect("heap allocation should succeed");
 
-    write_cell_bytes(&mut heap, a, &Word::heap_reference(b).to_byte_array());
-    write_cell_bytes(&mut heap, b, &Word::heap_reference(a).to_byte_array());
+    write_cell_bytes(&mut heap, a, &Cell::heap_reference(b).to_byte_array());
+    write_cell_bytes(&mut heap, b, &Cell::heap_reference(a).to_byte_array());
 
     let _unreachable1 = allocate(&mut heap);
     let _unreachable2 = allocate(&mut heap);
@@ -211,9 +211,9 @@ fn test_gc_handles_cycles() {
     heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
     let rewritten_a = roots[0];
-    let rewritten_a_bytes = read_cell_bytes(&heap, rewritten_a, Word::BYTE_LEN);
+    let rewritten_a_bytes = read_cell_bytes(&heap, rewritten_a, Cell::BYTE_LEN);
     let rewritten_b = decode_first_heap_reference(&rewritten_a_bytes);
-    let rewritten_b_bytes = read_cell_bytes(&heap, rewritten_b, Word::BYTE_LEN);
+    let rewritten_b_bytes = read_cell_bytes(&heap, rewritten_b, Cell::BYTE_LEN);
     let cycle_back = decode_first_heap_reference(&rewritten_b_bytes);
 
     assert_eq!(allocation_count(&heap), 2);
@@ -251,16 +251,16 @@ fn test_gc_multiple_references_to_same_cell() {
     let mut heap = create_test_heap();
 
     let shared = allocate(&mut heap);
-    let holder1 = allocate_with_values(&mut heap, vec![Word::heap_reference(shared)]);
-    let holder2 = allocate_with_values(&mut heap, vec![Word::heap_reference(shared)]);
+    let holder1 = allocate_with_values(&mut heap, vec![Cell::heap_reference(shared)]);
+    let holder2 = allocate_with_values(&mut heap, vec![Cell::heap_reference(shared)]);
     let mut roots = [holder1, holder2];
 
     assert_eq!(allocation_count(&heap), 3);
 
     heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
-    let first_holder_bytes = read_cell_bytes(&heap, roots[0], Word::BYTE_LEN);
-    let second_holder_bytes = read_cell_bytes(&heap, roots[1], Word::BYTE_LEN);
+    let first_holder_bytes = read_cell_bytes(&heap, roots[0], Cell::BYTE_LEN);
+    let second_holder_bytes = read_cell_bytes(&heap, roots[1], Cell::BYTE_LEN);
     let rewritten_child1 = decode_first_heap_reference(&first_holder_bytes);
     let rewritten_child2 = decode_first_heap_reference(&second_holder_bytes);
 
@@ -281,9 +281,9 @@ fn test_gc_traces_nested_heap_references() {
     let child = allocate(&mut heap);
     let inner = allocate_with_values(
         &mut heap,
-        vec![Word::int32(42), Word::heap_reference(child)],
+        vec![Cell::int32(42), Cell::heap_reference(child)],
     );
-    let parent = allocate_with_values(&mut heap, vec![Word::heap_reference(inner)]);
+    let parent = allocate_with_values(&mut heap, vec![Cell::heap_reference(inner)]);
 
     let _unreachable = allocate(&mut heap);
     let mut roots = [parent];
@@ -293,10 +293,10 @@ fn test_gc_traces_nested_heap_references() {
     heap.collect_full(&mut |visit| visit_roots(&mut roots, visit), trace_table())
         .expect("heap collection should succeed");
     let rewritten_parent = roots[0];
-    let rewritten_parent_bytes = read_cell_bytes(&heap, rewritten_parent, Word::BYTE_LEN);
+    let rewritten_parent_bytes = read_cell_bytes(&heap, rewritten_parent, Cell::BYTE_LEN);
     let rewritten_inner = decode_first_heap_reference(&rewritten_parent_bytes);
-    let inner_bytes = read_cell_bytes(&heap, rewritten_inner, 2 * Word::BYTE_LEN);
-    let rewritten_child = decode_first_heap_reference(&inner_bytes[Word::BYTE_LEN..]);
+    let inner_bytes = read_cell_bytes(&heap, rewritten_inner, 2 * Cell::BYTE_LEN);
+    let rewritten_child = decode_first_heap_reference(&inner_bytes[Cell::BYTE_LEN..]);
 
     assert_eq!(allocation_count(&heap), 3);
     assert_ne!(rewritten_parent, parent);
@@ -307,8 +307,8 @@ fn test_gc_traces_nested_heap_references() {
     assert!(!contains(&heap, child));
     assert!(contains(&heap, rewritten_parent));
     assert_eq!(
-        Word::from_byte_slice(&inner_bytes[..Word::BYTE_LEN]),
-        Some(Word::int32(42))
+        Cell::from_byte_slice(&inner_bytes[..Cell::BYTE_LEN]),
+        Some(Cell::int32(42))
     );
     assert_cell_prefix(&heap, rewritten_child, &[0]);
 }

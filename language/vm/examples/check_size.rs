@@ -1,5 +1,5 @@
 use destack_heap::HeapReference;
-use destack_vm::{Continuation, Frame, Machine, Program, StackPointer, Word};
+use destack_vm::{Cell, Continuation, Frame, Machine, Program, StackPointer};
 
 fn main() {
     println!("Program: {} bytes", std::mem::size_of::<Program>());
@@ -10,7 +10,7 @@ fn main() {
     );
     println!("Frame: {} bytes", std::mem::size_of::<Frame>());
 
-    println!("Word: {} bytes", std::mem::size_of::<Word>());
+    println!("Cell: {} bytes", std::mem::size_of::<Cell>());
     println!(
         "HeapReference: {} bytes",
         std::mem::size_of::<HeapReference>()
@@ -21,7 +21,7 @@ fn main() {
         std::mem::size_of::<StackPointer>()
     );
     println!(
-        "Option<Word>: {} bytes",
-        std::mem::size_of::<Option<Word>>()
+        "Option<Cell>: {} bytes",
+        std::mem::size_of::<Option<Cell>>()
     );
 }

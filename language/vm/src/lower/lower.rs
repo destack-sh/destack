@@ -11,7 +11,7 @@ use crate::{Error, Result};
 use super::block::{BlockOrder, FunctionContext};
 use super::pool::{Pool, lookup_call_target};
 use super::tree::ValueType;
-use super::value::{ValueLayoutMap, ValueLayoutMapBuilder};
+use super::value::{ValueShapeMap, ValueShapeMapBuilder};
 
 /// One whole-function lowering session.
 struct FunctionLowerer<'a, 'table> {
@@ -54,8 +54,8 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             .map(|value_type| value_type.ty)
             .collect::<Vec<_>>();
         let value_count = value_types.len();
-        let value_layout_map =
-            ValueLayoutMapBuilder::new(tree, func, &block_order.block, &value_type, value_count)
+        let value_shape_map =
+            ValueShapeMapBuilder::new(tree, func, &block_order.block, &value_type, value_count)
                 .build();
         let value_use_count = compute_value_use_counts(tree, &block_order.block, value_count)?;
         let local_index_by_id = Self::local_index_map(func);
@@ -69,7 +69,7 @@ impl<'a, 'table> FunctionLowerer<'a, 'table> {
             call_frame_states,
             call_targets,
             frame_layout,
-            value_layout_map,
+            value_shape_map,
             value_type,
             layouts,
             layout_id_by_type,
@@ -324,9 +324,9 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| Error::internal(format!("missing local index for {local:?}")))
     }
 
-    /// Return the lowered value layout map.
-    pub(super) fn value_layout_map(&self) -> &ValueLayoutMap {
-        &self.function.value_layout_map
+    /// Return the lowered value shape map.
+    pub(super) fn value_shape_map(&self) -> &ValueShapeMap {
+        &self.function.value_shape_map
     }
 
     /// Return the lowered value types.

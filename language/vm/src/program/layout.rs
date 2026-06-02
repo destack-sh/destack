@@ -4,10 +4,10 @@ use destack_engine as engine;
 use destack_mir as mir;
 use destack_mir::{LayoutId, TraceMap};
 
-use crate::program::{WordLayout, pointer_class_from_reference, word_layout_from_pointer_class};
-use crate::{Error, Result, Word};
+use crate::program::{CellLayout, address_space_from_reference, cell_layout_from_address_space};
+use crate::{Cell, Error, Result};
 
-const WORD_BITS: usize = Word::BYTE_LEN * 8;
+const CELL_BITS: usize = Cell::BYTE_LEN * 8;
 
 /// One compiled layout for one MIR type.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -108,9 +108,9 @@ impl Layout {
         matches!(self.shape, LayoutShape::Scalar)
     }
 
-    /// Report whether this type fits in one VM word.
-    pub(crate) fn is_word(&self) -> bool {
-        self.is_scalar() && self.byte_len <= Word::BYTE_LEN
+    /// Report whether this type fits in one VM cell.
+    pub(crate) fn is_cell(&self) -> bool {
+        self.is_scalar() && self.byte_len <= Cell::BYTE_LEN
     }
 
     /// Return the byte alignment of this layout.
@@ -184,21 +184,21 @@ impl TypeTable {
         self.types.get(&ty)
     }
 
-    /// Return one compiled layout by engine value layout id.
-    pub(crate) fn layout_for_value_id(&self, layout: engine::ValueLayoutId) -> Option<&Layout> {
-        self.layout(Self::type_for_value_layout(layout))
+    /// Return one compiled layout by engine storage layout id.
+    pub(crate) fn layout_for_storage_id(&self, layout: engine::StorageLayoutId) -> Option<&Layout> {
+        self.layout(Self::type_for_storage_id(layout))
     }
 
-    /// Return the MIR type id encoded by one engine value layout id.
-    pub(crate) fn type_for_value_layout(
-        layout: engine::ValueLayoutId,
+    /// Return the MIR type id encoded by one engine storage layout id.
+    pub(crate) fn type_for_storage_id(
+        layout: engine::StorageLayoutId,
     ) -> mir::LocalNodeId<mir::Type> {
         mir::LocalNodeId::new(layout.0)
     }
 
-    /// Return the engine value layout id for one MIR type id.
-    pub(crate) fn value_layout_id(ty: mir::LocalNodeId<mir::Type>) -> engine::ValueLayoutId {
-        engine::ValueLayoutId(ty.id)
+    /// Return the engine storage layout id for one MIR type id.
+    pub(crate) fn storage_layout_id(ty: mir::LocalNodeId<mir::Type>) -> engine::StorageLayoutId {
+        engine::StorageLayoutId(ty.id)
     }
 
     /// Return the MIR layout id for one MIR type.
@@ -209,7 +209,7 @@ impl TypeTable {
 
 impl ClosureObjectLayout {
     /// Return the heap layout table entry for closure objects.
-    pub(crate) fn table_layout(self, environment_layout: WordLayout) -> mir::Layout {
+    pub(crate) fn table_layout(self, environment_layout: CellLayout) -> mir::Layout {
         mir::Layout {
             shape: mir::LayoutShape::Closure,
             size: self.byte_len as u32,
@@ -234,31 +234,31 @@ pub(crate) fn closure_object_layout(pointer_bytes: usize) -> ClosureObjectLayout
 }
 
 /// Return the heap trace map for one closure object.
-fn closure_trace_map(environment_offset: usize, environment_layout: WordLayout) -> TraceMap {
+fn closure_trace_map(environment_offset: usize, environment_layout: CellLayout) -> TraceMap {
     let environment_offset = environment_offset as u32;
 
     match environment_layout {
-        WordLayout::HeapReference => TraceMap::Fixed {
+        CellLayout::HeapReference => TraceMap::Fixed {
             local_offsets: vec![environment_offset].into_boxed_slice(),
             shared_offsets: Vec::new().into_boxed_slice(),
         },
-        WordLayout::SharedHeapReference => TraceMap::Fixed {
+        CellLayout::SharedHeapReference => TraceMap::Fixed {
             local_offsets: Vec::new().into_boxed_slice(),
             shared_offsets: vec![environment_offset].into_boxed_slice(),
         },
-        WordLayout::Void
-        | WordLayout::Bool
-        | WordLayout::Int { .. }
-        | WordLayout::Uint { .. }
-        | WordLayout::Float16
-        | WordLayout::Bfloat16
-        | WordLayout::Float32
-        | WordLayout::Float64
-        | WordLayout::Address
-        | WordLayout::StackPointer
-        | WordLayout::FramePointer
-        | WordLayout::StaticPointer
-        | WordLayout::FunctionPointer => TraceMap::empty(),
+        CellLayout::Void
+        | CellLayout::Bool
+        | CellLayout::Int { .. }
+        | CellLayout::Uint { .. }
+        | CellLayout::Float16
+        | CellLayout::Bfloat16
+        | CellLayout::Float32
+        | CellLayout::Float64
+        | CellLayout::Address
+        | CellLayout::StackPointer
+        | CellLayout::FramePointer
+        | CellLayout::StaticAddress
+        | CellLayout::FunctionPointer => TraceMap::empty(),
     }
 }
 
@@ -581,8 +581,8 @@ fn scalar_byte_len(bit_width: usize) -> usize {
         return 4;
     }
 
-    if bit_width <= WORD_BITS {
-        return Word::BYTE_LEN;
+    if bit_width <= CELL_BITS {
+        return Cell::BYTE_LEN;
     }
 
     bit_width.div_ceil(8)
@@ -698,9 +698,9 @@ fn build_slice_layout(
     space: mir::Space,
     layout_id: LayoutId,
 ) -> Result<Layout> {
-    let pointer_class = pointer_class_from_reference(space, kind);
-    let data_layout = word_layout_from_pointer_class(pointer_class)
-        .ok_or_else(|| Error::invalid_pointer_type(format!("{pointer_class:?}")))?;
+    let address_space = address_space_from_reference(space, kind);
+    let data_layout = cell_layout_from_address_space(address_space)
+        .ok_or_else(|| Error::invalid_pointer_type(format!("{address_space:?}")))?;
     let pointer_bytes = tree.pointer_bytes() as usize;
     let data_byte_len = data_layout.byte_len(pointer_bytes);
     let length_offset = align_offset(data_byte_len, pointer_bytes);
@@ -833,7 +833,7 @@ fn build_tensor_view_layout(shape: &[mir::TensorDimension], layout_id: LayoutId)
     let slots = rank
         .checked_add(1)
         .ok_or_else(|| Error::internal(format!("tensor view rank overflow: rank={rank}")))?;
-    let byte_len = slots.checked_mul(Word::BYTE_LEN).ok_or_else(|| {
+    let byte_len = slots.checked_mul(Cell::BYTE_LEN).ok_or_else(|| {
         Error::internal(format!("tensor view byte length overflow: slots={slots}"))
     })?;
 
@@ -842,7 +842,7 @@ fn build_tensor_view_layout(shape: &[mir::TensorDimension], layout_id: LayoutId)
         byte_len,
         shape: LayoutShape::TensorView { rank },
         trace_map: TraceMap::empty(),
-        alignment: Word::BYTE_LEN,
+        alignment: Cell::BYTE_LEN,
     })
 }
 
@@ -1145,7 +1145,7 @@ fn variant_tag_bits(
             },
             mir::Constant::UInt { value, .. },
         ) if *width <= u64::BITS as u16 => u64::try_from(*value)
-            .map_err(|_| Error::internal("variant tag does not fit in one word")),
+            .map_err(|_| Error::internal("variant tag does not fit in one cell")),
         _ => Err(Error::internal("variant tag does not match tag type")),
     }
 }
@@ -1174,7 +1174,7 @@ fn variant_trace_map(
         ))
     })?;
 
-    if storage_layout.is_word() {
+    if storage_layout.is_cell() {
         return Ok(storage_layout.trace_map.clone());
     }
 

@@ -4,7 +4,7 @@ use std::mem;
 use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
 
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::program::{BinaryFloatKernel, ScalarLayout, UnaryFloatKernel};
 
@@ -60,75 +60,75 @@ fn expect_bool(ty: ScalarLayout) -> Result<(), Error> {
     Err(Error::type_mismatch("boolean scalar", format!("{ty:?}")))
 }
 
-/// Build one integer word.
+/// Build one integer cell.
 #[inline(always)]
-fn scalar_integer_word(value: u64, width: u16, is_signed: bool) -> Result<Word, Error> {
+fn scalar_integer_cell(value: u64, width: u16, is_signed: bool) -> Result<Cell, Error> {
     let width = width_u8(width)?;
 
     Ok(if is_signed {
-        Word::int(value as i64, width)
+        Cell::int(value as i64, width)
     } else {
-        Word::uint(value, width)
+        Cell::uint(value, width)
     })
 }
 
 /// And two boolean values.
 #[inline(always)]
-pub(crate) fn and_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn and_bool(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_bool(ty)?;
 
-    Ok(Word::bool(left.as_bool() && right.as_bool()))
+    Ok(Cell::bool(left.as_bool() && right.as_bool()))
 }
 
 /// Or two boolean values.
 #[inline(always)]
-pub(crate) fn or_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn or_bool(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_bool(ty)?;
 
-    Ok(Word::bool(left.as_bool() || right.as_bool()))
+    Ok(Cell::bool(left.as_bool() || right.as_bool()))
 }
 
 /// Xor two boolean values.
 #[inline(always)]
-pub(crate) fn xor_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn xor_bool(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_bool(ty)?;
 
-    Ok(Word::bool(left.as_bool() ^ right.as_bool()))
+    Ok(Cell::bool(left.as_bool() ^ right.as_bool()))
 }
 
 /// Add two integer values.
 #[inline(always)]
-pub(crate) fn add_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn add_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, is_signed) = int_layout(ty)?;
 
-    scalar_integer_word(left.as_u64().wrapping_add(right.as_u64()), width, is_signed)
+    scalar_integer_cell(left.as_u64().wrapping_add(right.as_u64()), width, is_signed)
 }
 
 /// Subtract two integer values.
 #[inline(always)]
-pub(crate) fn sub_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn sub_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, is_signed) = int_layout(ty)?;
 
-    scalar_integer_word(left.as_u64().wrapping_sub(right.as_u64()), width, is_signed)
+    scalar_integer_cell(left.as_u64().wrapping_sub(right.as_u64()), width, is_signed)
 }
 
 /// Multiply two integer values.
 #[inline(always)]
-pub(crate) fn mul_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn mul_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, is_signed) = int_layout(ty)?;
 
-    scalar_integer_word(left.as_u64().wrapping_mul(right.as_u64()), width, is_signed)
+    scalar_integer_cell(left.as_u64().wrapping_mul(right.as_u64()), width, is_signed)
 }
 
 /// Divide two signed integer values.
 #[inline(always)]
-pub(crate) fn div_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn div_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let width = signed_int_layout(ty)?;
     if right.as_i64() == 0 {
         return Err(Error::division_by_zero());
     }
 
-    Ok(Word::int(
+    Ok(Cell::int(
         left.as_i64().wrapping_div(right.as_i64()),
         width_u8(width)?,
     ))
@@ -136,13 +136,13 @@ pub(crate) fn div_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word,
 
 /// Divide two unsigned integer values.
 #[inline(always)]
-pub(crate) fn div_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn div_uint(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, _) = int_layout(ty)?;
     if right.as_u64() == 0 {
         return Err(Error::division_by_zero());
     }
 
-    Ok(Word::uint(
+    Ok(Cell::uint(
         left.as_u64().wrapping_div(right.as_u64()),
         width_u8(width)?,
     ))
@@ -150,13 +150,13 @@ pub(crate) fn div_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word
 
 /// Remainder two signed integer values.
 #[inline(always)]
-pub(crate) fn rem_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn rem_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let width = signed_int_layout(ty)?;
     if right.as_i64() == 0 {
         return Err(Error::division_by_zero());
     }
 
-    Ok(Word::int(
+    Ok(Cell::int(
         left.as_i64().wrapping_rem(right.as_i64()),
         width_u8(width)?,
     ))
@@ -164,13 +164,13 @@ pub(crate) fn rem_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word,
 
 /// Remainder two unsigned integer values.
 #[inline(always)]
-pub(crate) fn rem_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn rem_uint(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, _) = int_layout(ty)?;
     if right.as_u64() == 0 {
         return Err(Error::division_by_zero());
     }
 
-    Ok(Word::uint(
+    Ok(Cell::uint(
         left.as_u64().wrapping_rem(right.as_u64()),
         width_u8(width)?,
     ))
@@ -178,34 +178,34 @@ pub(crate) fn rem_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word
 
 /// And two integer values.
 #[inline(always)]
-pub(crate) fn and_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn and_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, is_signed) = int_layout(ty)?;
 
-    scalar_integer_word(left.as_u64() & right.as_u64(), width, is_signed)
+    scalar_integer_cell(left.as_u64() & right.as_u64(), width, is_signed)
 }
 
 /// Or two integer values.
 #[inline(always)]
-pub(crate) fn or_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn or_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, is_signed) = int_layout(ty)?;
 
-    scalar_integer_word(left.as_u64() | right.as_u64(), width, is_signed)
+    scalar_integer_cell(left.as_u64() | right.as_u64(), width, is_signed)
 }
 
 /// Xor two integer values.
 #[inline(always)]
-pub(crate) fn xor_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn xor_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, is_signed) = int_layout(ty)?;
 
-    scalar_integer_word(left.as_u64() ^ right.as_u64(), width, is_signed)
+    scalar_integer_cell(left.as_u64() ^ right.as_u64(), width, is_signed)
 }
 
 /// Shift one integer value left.
 #[inline(always)]
-pub(crate) fn shl_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn shl_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, is_signed) = int_layout(ty)?;
 
-    scalar_integer_word(
+    scalar_integer_cell(
         left.as_u64().wrapping_shl(right.as_u64() as u32),
         width,
         is_signed,
@@ -214,10 +214,10 @@ pub(crate) fn shl_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word,
 
 /// Arithmetically shift one integer value right.
 #[inline(always)]
-pub(crate) fn shr_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn shr_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let width = signed_int_layout(ty)?;
 
-    Ok(Word::int(
+    Ok(Cell::int(
         left.as_i64().wrapping_shr(right.as_u64() as u32),
         width_u8(width)?,
     ))
@@ -225,10 +225,10 @@ pub(crate) fn shr_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word,
 
 /// Logically shift one integer value right.
 #[inline(always)]
-pub(crate) fn shr_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn shr_uint(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     let (width, _) = int_layout(ty)?;
 
-    Ok(Word::uint(
+    Ok(Cell::uint(
         left.as_u64().wrapping_shr(right.as_u64() as u32),
         width_u8(width)?,
     ))
@@ -236,66 +236,66 @@ pub(crate) fn shr_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word
 
 /// Add two float32 values.
 #[inline(always)]
-pub(crate) fn add_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn add_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::float32(left.as_f32() + right.as_f32()))
+    Ok(Cell::float32(left.as_f32() + right.as_f32()))
 }
 
 /// Add two float64 values.
 #[inline(always)]
-pub(crate) fn add_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn add_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::float64(left.as_f64() + right.as_f64()))
+    Ok(Cell::float64(left.as_f64() + right.as_f64()))
 }
 
 /// Subtract two float32 values.
 #[inline(always)]
-pub(crate) fn sub_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn sub_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::float32(left.as_f32() - right.as_f32()))
+    Ok(Cell::float32(left.as_f32() - right.as_f32()))
 }
 
 /// Subtract two float64 values.
 #[inline(always)]
-pub(crate) fn sub_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn sub_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::float64(left.as_f64() - right.as_f64()))
+    Ok(Cell::float64(left.as_f64() - right.as_f64()))
 }
 
 /// Multiply two float32 values.
 #[inline(always)]
-pub(crate) fn mul_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn mul_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::float32(left.as_f32() * right.as_f32()))
+    Ok(Cell::float32(left.as_f32() * right.as_f32()))
 }
 
 /// Multiply two float64 values.
 #[inline(always)]
-pub(crate) fn mul_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn mul_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::float64(left.as_f64() * right.as_f64()))
+    Ok(Cell::float64(left.as_f64() * right.as_f64()))
 }
 
 /// Divide two float32 values.
 #[inline(always)]
-pub(crate) fn div_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn div_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::float32(left.as_f32() / right.as_f32()))
+    Ok(Cell::float32(left.as_f32() / right.as_f32()))
 }
 
 /// Divide two float64 values.
 #[inline(always)]
-pub(crate) fn div_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn div_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::float64(left.as_f64() / right.as_f64()))
+    Ok(Cell::float64(left.as_f64() / right.as_f64()))
 }
 
 /// Execute one generic binary float operation.
@@ -303,20 +303,20 @@ pub(crate) fn div_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word,
 pub(crate) fn binary_float(
     ty: ScalarLayout,
     kernel: BinaryFloatKernel,
-    left: Word,
-    right: Word,
-) -> Result<Word, Error> {
+    left: Cell,
+    right: Cell,
+) -> Result<Cell, Error> {
     let ScalarLayout::Float { format } = ty else {
         return Err(Error::type_mismatch("float scalar", format!("{ty:?}")));
     };
-    let left = f64_from_float_word(left, format);
-    let right = f64_from_float_word(right, format);
+    let left = f64_from_float_cell(left, format);
+    let right = f64_from_float_cell(right, format);
 
     let result = match kernel {
-        BinaryFloatKernel::Add => return Ok(float_word_from_f64(left + right, format)),
-        BinaryFloatKernel::Subtract => return Ok(float_word_from_f64(left - right, format)),
-        BinaryFloatKernel::Multiply => return Ok(float_word_from_f64(left * right, format)),
-        BinaryFloatKernel::Divide => return Ok(float_word_from_f64(left / right, format)),
+        BinaryFloatKernel::Add => return Ok(float_cell_from_f64(left + right, format)),
+        BinaryFloatKernel::Subtract => return Ok(float_cell_from_f64(left - right, format)),
+        BinaryFloatKernel::Multiply => return Ok(float_cell_from_f64(left * right, format)),
+        BinaryFloatKernel::Divide => return Ok(float_cell_from_f64(left / right, format)),
         BinaryFloatKernel::Equal => left == right,
         BinaryFloatKernel::NotEqual => left != right,
         BinaryFloatKernel::LessThan => left < right,
@@ -325,275 +325,275 @@ pub(crate) fn binary_float(
         BinaryFloatKernel::GreaterEqual => left >= right,
     };
 
-    Ok(Word::bool(result))
+    Ok(Cell::bool(result))
 }
 
 /// Add two generic float values.
 #[inline(always)]
-pub(crate) fn add_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn add_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::Add, left, right)
 }
 
 /// Subtract two generic float values.
 #[inline(always)]
-pub(crate) fn sub_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn sub_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::Subtract, left, right)
 }
 
 /// Multiply two generic float values.
 #[inline(always)]
-pub(crate) fn mul_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn mul_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::Multiply, left, right)
 }
 
 /// Divide two generic float values.
 #[inline(always)]
-pub(crate) fn div_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn div_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::Divide, left, right)
 }
 
 /// Compare generic float values for equality.
 #[inline(always)]
-pub(crate) fn eq_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn eq_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::Equal, left, right)
 }
 
 /// Compare generic float values for inequality.
 #[inline(always)]
-pub(crate) fn ne_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ne_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::NotEqual, left, right)
 }
 
 /// Compare generic float values with less than.
 #[inline(always)]
-pub(crate) fn lt_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn lt_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::LessThan, left, right)
 }
 
 /// Compare generic float values with less than or equal.
 #[inline(always)]
-pub(crate) fn le_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn le_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::LessEqual, left, right)
 }
 
 /// Compare generic float values with greater than.
 #[inline(always)]
-pub(crate) fn gt_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn gt_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::GreaterThan, left, right)
 }
 
 /// Compare generic float values with greater than or equal.
 #[inline(always)]
-pub(crate) fn ge_float(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ge_float(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     binary_float(ty, BinaryFloatKernel::GreaterEqual, left, right)
 }
 
 /// Compare two integer values for equality.
 #[inline(always)]
-pub(crate) fn eq_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn eq_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     int_layout(ty)?;
 
-    Ok(Word::bool(left.as_u64() == right.as_u64()))
+    Ok(Cell::bool(left.as_u64() == right.as_u64()))
 }
 
 /// Compare two boolean values for equality.
 #[inline(always)]
-pub(crate) fn eq_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn eq_bool(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_bool(ty)?;
 
-    Ok(Word::bool(left.as_bool() == right.as_bool()))
+    Ok(Cell::bool(left.as_bool() == right.as_bool()))
 }
 
 /// Compare two integer values for inequality.
 #[inline(always)]
-pub(crate) fn ne_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ne_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     int_layout(ty)?;
 
-    Ok(Word::bool(left.as_u64() != right.as_u64()))
+    Ok(Cell::bool(left.as_u64() != right.as_u64()))
 }
 
 /// Compare two boolean values for inequality.
 #[inline(always)]
-pub(crate) fn ne_bool(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ne_bool(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_bool(ty)?;
 
-    Ok(Word::bool(left.as_bool() != right.as_bool()))
+    Ok(Cell::bool(left.as_bool() != right.as_bool()))
 }
 
 /// Compare signed integers with less than.
 #[inline(always)]
-pub(crate) fn lt_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn lt_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     signed_int_layout(ty)?;
 
-    Ok(Word::bool(left.as_i64() < right.as_i64()))
+    Ok(Cell::bool(left.as_i64() < right.as_i64()))
 }
 
 /// Compare unsigned integers with less than.
 #[inline(always)]
-pub(crate) fn lt_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn lt_uint(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     int_layout(ty)?;
 
-    Ok(Word::bool(left.as_u64() < right.as_u64()))
+    Ok(Cell::bool(left.as_u64() < right.as_u64()))
 }
 
 /// Compare signed integers with less than or equal.
 #[inline(always)]
-pub(crate) fn le_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn le_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     signed_int_layout(ty)?;
 
-    Ok(Word::bool(left.as_i64() <= right.as_i64()))
+    Ok(Cell::bool(left.as_i64() <= right.as_i64()))
 }
 
 /// Compare unsigned integers with less than or equal.
 #[inline(always)]
-pub(crate) fn le_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn le_uint(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     int_layout(ty)?;
 
-    Ok(Word::bool(left.as_u64() <= right.as_u64()))
+    Ok(Cell::bool(left.as_u64() <= right.as_u64()))
 }
 
 /// Compare signed integers with greater than.
 #[inline(always)]
-pub(crate) fn gt_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn gt_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     signed_int_layout(ty)?;
 
-    Ok(Word::bool(left.as_i64() > right.as_i64()))
+    Ok(Cell::bool(left.as_i64() > right.as_i64()))
 }
 
 /// Compare unsigned integers with greater than.
 #[inline(always)]
-pub(crate) fn gt_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn gt_uint(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     int_layout(ty)?;
 
-    Ok(Word::bool(left.as_u64() > right.as_u64()))
+    Ok(Cell::bool(left.as_u64() > right.as_u64()))
 }
 
 /// Compare signed integers with greater than or equal.
 #[inline(always)]
-pub(crate) fn ge_int(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ge_int(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     signed_int_layout(ty)?;
 
-    Ok(Word::bool(left.as_i64() >= right.as_i64()))
+    Ok(Cell::bool(left.as_i64() >= right.as_i64()))
 }
 
 /// Compare unsigned integers with greater than or equal.
 #[inline(always)]
-pub(crate) fn ge_uint(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ge_uint(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     int_layout(ty)?;
 
-    Ok(Word::bool(left.as_u64() >= right.as_u64()))
+    Ok(Cell::bool(left.as_u64() >= right.as_u64()))
 }
 
 /// Compare float32 values for equality.
 #[inline(always)]
-pub(crate) fn eq_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn eq_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::bool(left.as_f32() == right.as_f32()))
+    Ok(Cell::bool(left.as_f32() == right.as_f32()))
 }
 
 /// Compare float64 values for equality.
 #[inline(always)]
-pub(crate) fn eq_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn eq_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::bool(left.as_f64() == right.as_f64()))
+    Ok(Cell::bool(left.as_f64() == right.as_f64()))
 }
 
 /// Compare float32 values for inequality.
 #[inline(always)]
-pub(crate) fn ne_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ne_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::bool(left.as_f32() != right.as_f32()))
+    Ok(Cell::bool(left.as_f32() != right.as_f32()))
 }
 
 /// Compare float64 values for inequality.
 #[inline(always)]
-pub(crate) fn ne_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ne_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::bool(left.as_f64() != right.as_f64()))
+    Ok(Cell::bool(left.as_f64() != right.as_f64()))
 }
 
 /// Compare float32 values with less than.
 #[inline(always)]
-pub(crate) fn lt_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn lt_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::bool(left.as_f32() < right.as_f32()))
+    Ok(Cell::bool(left.as_f32() < right.as_f32()))
 }
 
 /// Compare float64 values with less than.
 #[inline(always)]
-pub(crate) fn lt_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn lt_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::bool(left.as_f64() < right.as_f64()))
+    Ok(Cell::bool(left.as_f64() < right.as_f64()))
 }
 
 /// Compare float32 values with less than or equal.
 #[inline(always)]
-pub(crate) fn le_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn le_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::bool(left.as_f32() <= right.as_f32()))
+    Ok(Cell::bool(left.as_f32() <= right.as_f32()))
 }
 
 /// Compare float64 values with less than or equal.
 #[inline(always)]
-pub(crate) fn le_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn le_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::bool(left.as_f64() <= right.as_f64()))
+    Ok(Cell::bool(left.as_f64() <= right.as_f64()))
 }
 
 /// Compare float32 values with greater than.
 #[inline(always)]
-pub(crate) fn gt_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn gt_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::bool(left.as_f32() > right.as_f32()))
+    Ok(Cell::bool(left.as_f32() > right.as_f32()))
 }
 
 /// Compare float64 values with greater than.
 #[inline(always)]
-pub(crate) fn gt_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn gt_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::bool(left.as_f64() > right.as_f64()))
+    Ok(Cell::bool(left.as_f64() > right.as_f64()))
 }
 
 /// Compare float32 values with greater than or equal.
 #[inline(always)]
-pub(crate) fn ge_f32(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ge_f32(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::bool(left.as_f32() >= right.as_f32()))
+    Ok(Cell::bool(left.as_f32() >= right.as_f32()))
 }
 
 /// Compare float64 values with greater than or equal.
 #[inline(always)]
-pub(crate) fn ge_f64(ty: ScalarLayout, left: Word, right: Word) -> Result<Word, Error> {
+pub(crate) fn ge_f64(ty: ScalarLayout, left: Cell, right: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::bool(left.as_f64() >= right.as_f64()))
+    Ok(Cell::bool(left.as_f64() >= right.as_f64()))
 }
 
 /// Negate one float32 value.
 #[inline(always)]
-pub(crate) fn neg_f32(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+pub(crate) fn neg_f32(ty: ScalarLayout, value: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 32)?;
 
-    Ok(Word::float32(-value.as_f32()))
+    Ok(Cell::float32(-value.as_f32()))
 }
 
 /// Negate one float64 value.
 #[inline(always)]
-pub(crate) fn neg_f64(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+pub(crate) fn neg_f64(ty: ScalarLayout, value: Cell) -> Result<Cell, Error> {
     expect_float_width(ty, 64)?;
 
-    Ok(Word::float64(-value.as_f64()))
+    Ok(Cell::float64(-value.as_f64()))
 }
 
 /// Execute one generic unary float operation.
@@ -601,37 +601,37 @@ pub(crate) fn neg_f64(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
 pub(crate) fn unary_float(
     ty: ScalarLayout,
     kernel: UnaryFloatKernel,
-    value: Word,
-) -> Result<Word, Error> {
+    value: Cell,
+) -> Result<Cell, Error> {
     let ScalarLayout::Float { format } = ty else {
         return Err(Error::type_mismatch("float scalar", format!("{ty:?}")));
     };
-    let value = f64_from_float_word(value, format);
+    let value = f64_from_float_cell(value, format);
 
     let result = match kernel {
         UnaryFloatKernel::Negate => -value,
     };
 
-    Ok(float_word_from_f64(result, format))
+    Ok(float_cell_from_f64(result, format))
 }
 
 /// Negate one generic float value.
 #[inline(always)]
-pub(crate) fn neg_float(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+pub(crate) fn neg_float(ty: ScalarLayout, value: Cell) -> Result<Cell, Error> {
     unary_float(ty, UnaryFloatKernel::Negate, value)
 }
 
 /// Invert one boolean value.
 #[inline(always)]
-pub(crate) fn not_bool(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+pub(crate) fn not_bool(ty: ScalarLayout, value: Cell) -> Result<Cell, Error> {
     expect_bool(ty)?;
 
-    Ok(Word::bool(!value.as_bool()))
+    Ok(Cell::bool(!value.as_bool()))
 }
 
 /// Negate one signed integer value.
 #[inline(always)]
-pub(crate) fn neg_int(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+pub(crate) fn neg_int(ty: ScalarLayout, value: Cell) -> Result<Cell, Error> {
     let ScalarLayout::Int {
         width,
         is_signed: true,
@@ -641,21 +641,21 @@ pub(crate) fn neg_int(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
     };
     let width = width_u8(width)?;
 
-    Ok(Word::int(value.as_i64().wrapping_neg(), width))
+    Ok(Cell::int(value.as_i64().wrapping_neg(), width))
 }
 
 /// Invert one integer value.
 #[inline(always)]
-pub(crate) fn not_int(ty: ScalarLayout, value: Word) -> Result<Word, Error> {
+pub(crate) fn not_int(ty: ScalarLayout, value: Cell) -> Result<Cell, Error> {
     let ScalarLayout::Int { width, is_signed } = ty else {
         return Err(Error::type_mismatch("integer", format!("{ty:?}")));
     };
     let width = width_u8(width)?;
 
     Ok(if is_signed {
-        Word::int(!value.as_i64(), width)
+        Cell::int(!value.as_i64(), width)
     } else {
-        Word::uint(!value.as_u64(), width)
+        Cell::uint(!value.as_u64(), width)
     })
 }
 
@@ -795,8 +795,8 @@ impl ScalarConversion for SaturatingConversion {
 /// Result of evaluating scalar arithmetic.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ScalarResult {
-    /// One word-sized result.
-    Word(Word),
+    /// One cell-sized result.
+    Cell(Cell),
     /// One frame-backed result.
     Bytes(Vec<u8>),
 }
@@ -936,7 +936,7 @@ pub(crate) fn equal_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = compare_unsigned_bytes(&left, &right).is_eq();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// Compare two fixed-width integer byte values for inequality.
@@ -949,7 +949,7 @@ pub(crate) fn not_equal_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = !compare_unsigned_bytes(&left, &right).is_eq();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// Compare two signed fixed-width integer byte values with less than.
@@ -969,7 +969,7 @@ pub(crate) fn less_signed_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = compare_signed_bytes(&left, &right, width).is_lt();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// Compare two unsigned fixed-width integer byte values with less than.
@@ -982,7 +982,7 @@ pub(crate) fn less_unsigned_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = compare_unsigned_bytes(&left, &right).is_lt();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// Compare two signed fixed-width integer byte values with less or equal.
@@ -1002,7 +1002,7 @@ pub(crate) fn less_equal_signed_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = !compare_signed_bytes(&left, &right, width).is_gt();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// Compare two unsigned fixed-width integer byte values with less or equal.
@@ -1015,7 +1015,7 @@ pub(crate) fn less_equal_unsigned_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = !compare_unsigned_bytes(&left, &right).is_gt();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// Compare two signed fixed-width integer byte values with greater than.
@@ -1035,7 +1035,7 @@ pub(crate) fn greater_signed_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = compare_signed_bytes(&left, &right, width).is_gt();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// Compare two unsigned fixed-width integer byte values with greater than.
@@ -1048,7 +1048,7 @@ pub(crate) fn greater_unsigned_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = compare_unsigned_bytes(&left, &right).is_gt();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// Compare two signed fixed-width integer byte values with greater or equal.
@@ -1068,7 +1068,7 @@ pub(crate) fn greater_equal_signed_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = !compare_signed_bytes(&left, &right, width).is_lt();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// Compare two unsigned fixed-width integer byte values with greater or equal.
@@ -1081,7 +1081,7 @@ pub(crate) fn greater_equal_unsigned_bytes_value(
     let (left, right) = normalized_byte_inputs(left, right, width);
     let result = !compare_unsigned_bytes(&left, &right).is_lt();
 
-    Ok(ScalarResult::Word(Word::bool(result)))
+    Ok(ScalarResult::Cell(Cell::bool(result)))
 }
 
 /// And two fixed-width integer byte values.
@@ -1219,27 +1219,27 @@ pub(crate) fn convert_integer_bytes(
     result
 }
 
-/// Decode one fixed-width integer byte value into a VM word.
-pub(crate) fn integer_bytes_to_word(
+/// Decode one fixed-width integer byte value into a VM cell.
+pub(crate) fn integer_bytes_to_cell(
     value: &[u8],
     width: u16,
     is_signed: bool,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let value = normalized_integer_bytes(value, width);
     let fill = if is_signed && integer_is_negative(&value, width) {
         0xff
     } else {
         0
     };
-    let mut bytes = [fill; Word::BYTE_LEN];
+    let mut bytes = [fill; Cell::BYTE_LEN];
     let copied = bytes.len().min(value.len());
 
     bytes[..copied].copy_from_slice(&value[..copied]);
 
     Ok(if is_signed {
-        Word::int(i64::from_le_bytes(bytes), width_u8(width)?)
+        Cell::int(i64::from_le_bytes(bytes), width_u8(width)?)
     } else {
-        Word::uint(u64::from_le_bytes(bytes), width_u8(width)?)
+        Cell::uint(u64::from_le_bytes(bytes), width_u8(width)?)
     })
 }
 
@@ -1539,64 +1539,64 @@ fn clear_bit(value: &mut [u8], bit: usize) {
 
 /// Convert a scalar value exactly.
 pub(crate) fn convert_scalar_exact(
-    value: Word,
+    value: Cell,
     source: ScalarLayout,
     dest: ScalarLayout,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     convert_scalar_value::<ExactConversion>(value, source, dest)
 }
 
 /// Convert a scalar value by rounding to nearest even.
 pub(crate) fn convert_scalar_round_ties_even(
-    value: Word,
+    value: Cell,
     source: ScalarLayout,
     dest: ScalarLayout,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     convert_scalar_value::<RoundTiesEvenConversion>(value, source, dest)
 }
 
 /// Convert a scalar value by rounding toward zero.
 pub(crate) fn convert_scalar_round_toward_zero(
-    value: Word,
+    value: Cell,
     source: ScalarLayout,
     dest: ScalarLayout,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     convert_scalar_value::<RoundTowardZeroConversion>(value, source, dest)
 }
 
 /// Convert a scalar value by rounding toward negative infinity.
 pub(crate) fn convert_scalar_round_floor(
-    value: Word,
+    value: Cell,
     source: ScalarLayout,
     dest: ScalarLayout,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     convert_scalar_value::<RoundFloorConversion>(value, source, dest)
 }
 
 /// Convert a scalar value by rounding toward positive infinity.
 pub(crate) fn convert_scalar_round_ceil(
-    value: Word,
+    value: Cell,
     source: ScalarLayout,
     dest: ScalarLayout,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     convert_scalar_value::<RoundCeilConversion>(value, source, dest)
 }
 
 /// Convert a scalar value with saturation.
 pub(crate) fn convert_scalar_saturate(
-    value: Word,
+    value: Cell,
     source: ScalarLayout,
     dest: ScalarLayout,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     convert_scalar_value::<SaturatingConversion>(value, source, dest)
 }
 
 /// Convert a scalar value between numeric types.
 fn convert_scalar_value<C>(
-    value: Word,
+    value: Cell,
     source: ScalarLayout,
     dest: ScalarLayout,
-) -> Result<Word, Error>
+) -> Result<Cell, Error>
 where
     C: ScalarConversion,
 {
@@ -1647,12 +1647,12 @@ where
 
 /// Convert an integer value to another integer type.
 fn convert_int_to_int<C>(
-    value: Word,
+    value: Cell,
     source_width: u16,
     source_signed: bool,
     dest_width: u16,
     dest_signed: bool,
-) -> Result<Word, Error>
+) -> Result<Cell, Error>
 where
     C: ScalarConversion,
 {
@@ -1681,7 +1681,7 @@ where
                 let value = i128::from(value);
                 if value > i128::from(i64::MAX) {
                     let clamped = clamp_or_error_signed::<C>(value, min, max)?;
-                    return Ok(Word::int(clamped, dest_width_u8));
+                    return Ok(Cell::int(clamped, dest_width_u8));
                 }
 
                 value as i64
@@ -1689,7 +1689,7 @@ where
         };
         let clamped = clamp_or_error_signed::<C>(i128::from(value), min, max)?;
 
-        Ok(Word::int(clamped, dest_width_u8))
+        Ok(Cell::int(clamped, dest_width_u8))
     } else {
         // convert into the unsigned destination domain
         let max = unsigned_max(dest_width);
@@ -1697,7 +1697,7 @@ where
             IntValue::Signed(value) => {
                 if value < 0 {
                     let clamped = clamp_or_error_unsigned::<C>(-1, max)?;
-                    return Ok(Word::uint(clamped, dest_width_u8));
+                    return Ok(Cell::uint(clamped, dest_width_u8));
                 }
 
                 value as i128
@@ -1706,17 +1706,17 @@ where
         };
         let clamped = clamp_or_error_unsigned::<C>(value, max)?;
 
-        Ok(Word::uint(clamped, dest_width_u8))
+        Ok(Cell::uint(clamped, dest_width_u8))
     }
 }
 
 /// Convert an integer value to a float.
 fn convert_int_to_float<C>(
-    value: Word,
+    value: Cell,
     source_width: u16,
     source_signed: bool,
     destination: mir::FloatType,
-) -> Result<Word, Error>
+) -> Result<Cell, Error>
 where
     C: ScalarConversion,
 {
@@ -1755,16 +1755,16 @@ where
     }
 
     // emit destination float
-    Ok(float_word_from_f64(float_value, destination))
+    Ok(float_cell_from_f64(float_value, destination))
 }
 
 /// Convert a float value to an integer.
 fn convert_float_to_int<C>(
-    value: Word,
+    value: Cell,
     source: mir::FloatType,
     dest_width: u16,
     dest_signed: bool,
-) -> Result<Word, Error>
+) -> Result<Cell, Error>
 where
     C: ScalarConversion,
 {
@@ -1772,7 +1772,7 @@ where
     let dest_width_u8 = width_u8(dest_width)?;
 
     // resolve float value
-    let float_value = f64_from_float_word(value, source);
+    let float_value = f64_from_float_cell(value, source);
 
     // require finite values for exact conversions
     if !float_value.is_finite() && !C::accepts_non_finite() {
@@ -1796,7 +1796,7 @@ where
         };
         let clamped = clamp_or_error_signed::<C>(value, min, max)?;
 
-        Ok(Word::int(clamped, dest_width_u8))
+        Ok(Cell::int(clamped, dest_width_u8))
     } else {
         // clamp or reject in the unsigned destination domain
         let max = unsigned_max(dest_width);
@@ -1807,21 +1807,21 @@ where
         };
         let clamped = clamp_or_error_unsigned::<C>(value, max)?;
 
-        Ok(Word::uint(clamped, dest_width_u8))
+        Ok(Cell::uint(clamped, dest_width_u8))
     }
 }
 
 /// Convert a float value to another float type.
 fn convert_float_to_float<C>(
-    value: Word,
+    value: Cell,
     source: mir::FloatType,
     destination: mir::FloatType,
-) -> Result<Word, Error>
+) -> Result<Cell, Error>
 where
     C: ScalarConversion,
 {
     // resolve float value
-    let float_value = f64_from_float_word(value, source);
+    let float_value = f64_from_float_cell(value, source);
 
     // apply rounding mode for narrowing conversions
     let rounded = C::round_float_to_float(float_value);
@@ -1841,19 +1841,19 @@ where
     }
 
     // emit destination float
-    Ok(float_word_from_f64(rounded, destination))
+    Ok(float_cell_from_f64(rounded, destination))
 }
 
-/// Decode one float word as f64.
+/// Decode one float cell as f64.
 #[inline(always)]
-fn f64_from_float_word(value: Word, format: mir::FloatType) -> f64 {
+fn f64_from_float_cell(value: Cell, format: mir::FloatType) -> f64 {
     float_from_bits(format.format(), value.bits())
 }
 
-/// Encode one f64 value as one float word.
+/// Encode one f64 value as one float cell.
 #[inline(always)]
-fn float_word_from_f64(value: f64, format: mir::FloatType) -> Word {
-    Word::from_bits(float_to_bits(format.format(), value))
+fn float_cell_from_f64(value: f64, format: mir::FloatType) -> Cell {
+    Cell::from_bits(float_to_bits(format.format(), value))
 }
 
 /// Resolved integer values for conversions.
@@ -1954,166 +1954,166 @@ where
 }
 
 /// Add two scalar values using the supplied type.
-pub(crate) fn reduce_add(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_add(ty: ScalarLayout, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
 
-            Ok(Word::int(a.as_i64().wrapping_add(b.as_i64()), width))
+            Ok(Cell::int(a.as_i64().wrapping_add(b.as_i64()), width))
         }
         ScalarLayout::Int { width, .. } => {
             let width = width_u8(width)?;
 
-            Ok(Word::uint(a.as_u64().wrapping_add(b.as_u64()), width))
+            Ok(Cell::uint(a.as_u64().wrapping_add(b.as_u64()), width))
         }
         ScalarLayout::Float {
             format: mir::FloatType::Float32,
-        } => Ok(Word::float32(a.as_f32() + b.as_f32())),
+        } => Ok(Cell::float32(a.as_f32() + b.as_f32())),
         ScalarLayout::Float {
             format: mir::FloatType::Float64,
-        } => Ok(Word::float64(a.as_f64() + b.as_f64())),
+        } => Ok(Cell::float64(a.as_f64() + b.as_f64())),
         ScalarLayout::Float { .. } => add_float(ty, a, b),
         _ => Err(reduce_type_error("add", a, b)),
     }
 }
 
 /// Multiply two scalar values using the supplied type.
-pub(crate) fn reduce_multiply(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_multiply(ty: ScalarLayout, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
 
-            Ok(Word::int(a.as_i64().wrapping_mul(b.as_i64()), width))
+            Ok(Cell::int(a.as_i64().wrapping_mul(b.as_i64()), width))
         }
         ScalarLayout::Int { width, .. } => {
             let width = width_u8(width)?;
 
-            Ok(Word::uint(a.as_u64().wrapping_mul(b.as_u64()), width))
+            Ok(Cell::uint(a.as_u64().wrapping_mul(b.as_u64()), width))
         }
         ScalarLayout::Float {
             format: mir::FloatType::Float32,
-        } => Ok(Word::float32(a.as_f32() * b.as_f32())),
+        } => Ok(Cell::float32(a.as_f32() * b.as_f32())),
         ScalarLayout::Float {
             format: mir::FloatType::Float64,
-        } => Ok(Word::float64(a.as_f64() * b.as_f64())),
+        } => Ok(Cell::float64(a.as_f64() * b.as_f64())),
         ScalarLayout::Float { .. } => mul_float(ty, a, b),
         _ => Err(reduce_type_error("multiply", a, b)),
     }
 }
 
 /// Select the minimum of two scalar values using the supplied type.
-pub(crate) fn reduce_min(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_min(ty: ScalarLayout, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
 
-            Ok(Word::int(a.as_i64().min(b.as_i64()), width))
+            Ok(Cell::int(a.as_i64().min(b.as_i64()), width))
         }
         ScalarLayout::Int { width, .. } => {
             let width = width_u8(width)?;
 
-            Ok(Word::uint(a.as_u64().min(b.as_u64()), width))
+            Ok(Cell::uint(a.as_u64().min(b.as_u64()), width))
         }
         ScalarLayout::Float {
             format: mir::FloatType::Float32,
-        } => Ok(Word::float32(a.as_f32().min(b.as_f32()))),
+        } => Ok(Cell::float32(a.as_f32().min(b.as_f32()))),
         ScalarLayout::Float {
             format: mir::FloatType::Float64,
-        } => Ok(Word::float64(a.as_f64().min(b.as_f64()))),
+        } => Ok(Cell::float64(a.as_f64().min(b.as_f64()))),
         ScalarLayout::Float { format } => {
-            let a = f64_from_float_word(a, format);
-            let b = f64_from_float_word(b, format);
+            let a = f64_from_float_cell(a, format);
+            let b = f64_from_float_cell(b, format);
 
-            Ok(float_word_from_f64(a.min(b), format))
+            Ok(float_cell_from_f64(a.min(b), format))
         }
         _ => Err(reduce_type_error("min", a, b)),
     }
 }
 
 /// Select the maximum of two scalar values using the supplied type.
-pub(crate) fn reduce_max(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_max(ty: ScalarLayout, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
 
-            Ok(Word::int(a.as_i64().max(b.as_i64()), width))
+            Ok(Cell::int(a.as_i64().max(b.as_i64()), width))
         }
         ScalarLayout::Int { width, .. } => {
             let width = width_u8(width)?;
 
-            Ok(Word::uint(a.as_u64().max(b.as_u64()), width))
+            Ok(Cell::uint(a.as_u64().max(b.as_u64()), width))
         }
         ScalarLayout::Float {
             format: mir::FloatType::Float32,
-        } => Ok(Word::float32(a.as_f32().max(b.as_f32()))),
+        } => Ok(Cell::float32(a.as_f32().max(b.as_f32()))),
         ScalarLayout::Float {
             format: mir::FloatType::Float64,
-        } => Ok(Word::float64(a.as_f64().max(b.as_f64()))),
+        } => Ok(Cell::float64(a.as_f64().max(b.as_f64()))),
         ScalarLayout::Float { format } => {
-            let a = f64_from_float_word(a, format);
-            let b = f64_from_float_word(b, format);
+            let a = f64_from_float_cell(a, format);
+            let b = f64_from_float_cell(b, format);
 
-            Ok(float_word_from_f64(a.max(b), format))
+            Ok(float_cell_from_f64(a.max(b), format))
         }
         _ => Err(reduce_type_error("max", a, b)),
     }
 }
 
 /// Apply bitwise or logical and to two scalar values.
-pub(crate) fn reduce_and(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_and(ty: ScalarLayout, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
 
-            Ok(Word::int(a.as_i64() & b.as_i64(), width))
+            Ok(Cell::int(a.as_i64() & b.as_i64(), width))
         }
         ScalarLayout::Int { width, .. } => {
             let width = width_u8(width)?;
 
-            Ok(Word::uint(a.as_u64() & b.as_u64(), width))
+            Ok(Cell::uint(a.as_u64() & b.as_u64(), width))
         }
-        ScalarLayout::Bool => Ok(Word::bool(a.as_bool() && b.as_bool())),
+        ScalarLayout::Bool => Ok(Cell::bool(a.as_bool() && b.as_bool())),
         _ => Err(reduce_type_error("and", a, b)),
     }
 }
 
 /// Apply bitwise or logical or to two scalar values.
-pub(crate) fn reduce_or(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_or(ty: ScalarLayout, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
 
-            Ok(Word::int(a.as_i64() | b.as_i64(), width))
+            Ok(Cell::int(a.as_i64() | b.as_i64(), width))
         }
         ScalarLayout::Int { width, .. } => {
             let width = width_u8(width)?;
 
-            Ok(Word::uint(a.as_u64() | b.as_u64(), width))
+            Ok(Cell::uint(a.as_u64() | b.as_u64(), width))
         }
-        ScalarLayout::Bool => Ok(Word::bool(a.as_bool() || b.as_bool())),
+        ScalarLayout::Bool => Ok(Cell::bool(a.as_bool() || b.as_bool())),
         _ => Err(reduce_type_error("or", a, b)),
     }
 }
 
 /// Apply bitwise or logical xor to two scalar values.
-pub(crate) fn reduce_xor(ty: ScalarLayout, a: Word, b: Word) -> Result<Word, Error> {
+pub(crate) fn reduce_xor(ty: ScalarLayout, a: Cell, b: Cell) -> Result<Cell, Error> {
     match ty {
         ScalarLayout::Int { width, is_signed } if is_signed => {
             let width = width_u8(width)?;
 
-            Ok(Word::int(a.as_i64() ^ b.as_i64(), width))
+            Ok(Cell::int(a.as_i64() ^ b.as_i64(), width))
         }
         ScalarLayout::Int { width, .. } => {
             let width = width_u8(width)?;
 
-            Ok(Word::uint(a.as_u64() ^ b.as_u64(), width))
+            Ok(Cell::uint(a.as_u64() ^ b.as_u64(), width))
         }
-        ScalarLayout::Bool => Ok(Word::bool(a.as_bool() ^ b.as_bool())),
+        ScalarLayout::Bool => Ok(Cell::bool(a.as_bool() ^ b.as_bool())),
         _ => Err(reduce_type_error("xor", a, b)),
     }
 }
 
 /// Build one scalar reduction type error.
-fn reduce_type_error(op: &str, a: Word, b: Word) -> Error {
+fn reduce_type_error(op: &str, a: Cell, b: Cell) -> Error {
     Error::type_mismatch(format!("scalar {op} inputs"), format!("{a:?}, {b:?}"))
 }

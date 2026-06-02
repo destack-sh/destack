@@ -5,7 +5,7 @@ use destack_heap::{
 use destack_mir as mir;
 
 use super::{Program, repr_type};
-use crate::{Error, Word};
+use crate::{Cell, Error};
 
 impl Program {
     /// Return whether one scalar type carries a worker heap root.
@@ -14,7 +14,7 @@ impl Program {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Result<bool, Error> {
         Ok(matches!(
-            self.scalar_heap_edge(ty, Word::VOID)?,
+            self.scalar_heap_edge(ty, Cell::ZERO)?,
             Some(HeapEdge::Local(_))
         ))
     }
@@ -25,7 +25,7 @@ impl Program {
         ty: mir::LocalNodeId<mir::Type>,
     ) -> Result<bool, Error> {
         Ok(matches!(
-            self.scalar_heap_edge(ty, Word::VOID)?,
+            self.scalar_heap_edge(ty, Cell::ZERO)?,
             Some(HeapEdge::Shared(_))
         ))
     }
@@ -57,13 +57,13 @@ impl Program {
     fn scalar_heap_edge(
         &self,
         ty: mir::LocalNodeId<mir::Type>,
-        value: Word,
+        value: Cell,
     ) -> Result<Option<HeapEdge>, Error> {
         let layout = self.layout(ty).ok_or_else(|| {
             Error::internal(format!("missing scalar layout for root scan: type={ty:?}"))
         })?;
 
-        if !layout.is_word() {
+        if !layout.is_cell() {
             return Ok(None);
         }
 

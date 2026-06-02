@@ -12,9 +12,9 @@ pub(crate) fn execute_barrier_write_heap(
     let byte_len = instruction.c;
 
     // load barrier range
-    let object = activation.load_word_at(object);
-    let offset = activation.load_word_at(offset).as_uint() as usize;
-    let byte_len = activation.load_word_at(byte_len).as_uint() as usize;
+    let object = activation.load_cell_at(object);
+    let offset = activation.load_cell_at(offset).as_u64() as usize;
+    let byte_len = activation.load_cell_at(byte_len).as_u64() as usize;
 
     // publish to the local collector
     let result = activation.write_heap_barrier(object.as_heap_reference(), offset, byte_len);
@@ -37,9 +37,9 @@ pub(crate) fn execute_barrier_write_shared_heap(
     let byte_len = instruction.c;
 
     // load barrier range
-    let object = activation.load_word_at(object);
-    let offset = activation.load_word_at(offset).as_uint() as usize;
-    let byte_len = activation.load_word_at(byte_len).as_uint() as usize;
+    let object = activation.load_cell_at(object);
+    let offset = activation.load_cell_at(offset).as_u64() as usize;
+    let byte_len = activation.load_cell_at(byte_len).as_u64() as usize;
 
     // publish to the shared collector
     let result =

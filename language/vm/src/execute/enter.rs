@@ -1,4 +1,4 @@
-use crate::Word;
+use crate::Cell;
 use destack_engine as engine;
 use destack_mir as mir;
 
@@ -61,7 +61,7 @@ impl Activation<'_> {
         current_func: &Function,
         callee: LocalFunction<'_>,
         arguments: ArgumentRange,
-        env: Option<Word>,
+        env: Option<Cell>,
         moves: Option<MoveRange>,
         resume_pc: usize,
         return_state: Option<engine::FrameStateId>,
@@ -137,7 +137,7 @@ impl Activation<'_> {
         program: &Program,
         callee: LocalFunction<'_>,
         arguments: &[FrameValue],
-        env: Option<Word>,
+        env: Option<Cell>,
     ) -> RuntimeResult<()> {
         // load the callee entry metadata first
         let entry_block = callee.function.entry;
@@ -196,7 +196,7 @@ impl Activation<'_> {
         function: u32,
         target: CallTarget,
         arguments: ArgumentRange,
-        env: Option<Word>,
+        env: Option<Cell>,
         moves: Option<MoveRange>,
         resume_pc: usize,
     ) -> RuntimeResult<()> {
@@ -232,7 +232,7 @@ impl Activation<'_> {
         function: u32,
         target: CallTarget,
         arguments: ArgumentRange,
-        env: Option<Word>,
+        env: Option<Cell>,
         target_state: engine::FrameStateId,
     ) -> RuntimeResult<()> {
         // classify the call target
@@ -280,7 +280,7 @@ impl Activation<'_> {
         function: u32,
         target: CallTarget,
         arguments: ArgumentRange,
-        env: Option<Word>,
+        env: Option<Cell>,
         moves: Option<MoveRange>,
     ) -> RuntimeResult<Option<Outcome>> {
         // collect tail call arguments before reusing or popping the frame

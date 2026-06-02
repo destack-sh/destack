@@ -1,22 +1,22 @@
 use destack_mir as mir;
 
 use crate::program::{
-    Instruction, Op, PointerClass, Projection, ScalarLayout, TensorAddress, TensorBinary,
+    AddressSpace, Instruction, Op, Projection, ScalarLayout, TensorAddress, TensorBinary,
     TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorConvert, TensorConvolution,
     TensorCopy, TensorDot, TensorExtract, TensorFill, TensorGather, TensorIndexReduce,
     TensorLayout, TensorLayoutId, TensorLoad, TensorPad, TensorReduce, TensorReshape,
     TensorScatter, TensorSelect, TensorSlice, TensorStore, TensorTranspose, TensorView, U32RangeId,
-    scalar_layout_from_type, value_layout_from_type,
+    scalar_layout_from_type, value_shape_from_type,
 };
 use crate::{Error, Result};
 
 use super::arithmetic::{element_binary_kernel, same_contiguous_tensor_order};
-use super::frame::{value_offset, word_offset};
+use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 use super::projection::{
     tensor_element_projection as build_tensor_element_projection, tensor_element_type,
-    tensor_view_pointer_class,
+    tensor_view_address_space,
 };
 
 impl<'a> BlockLowerer<'a> {
@@ -37,7 +37,7 @@ impl<'a> BlockLowerer<'a> {
                 Instruction::new(
                     Op::TensorSplat,
                     value_offset(self, destination)?,
-                    word_offset(self, value)?,
+                    cell_offset(self, value)?,
                     tensor_layout.0,
                     0,
                 )
@@ -52,19 +52,19 @@ impl<'a> BlockLowerer<'a> {
                 let view = tensor_value(*view, "tensor load view")?;
                 let view_type = self.value_type_for_value(view)?;
                 let view_layout = self.tensor_layout(pool, view_type)?;
-                let indices = self.word_offset_reference_range(
+                let indices = self.cell_offset_reference_range(
                     pool,
                     self.tree.get_arguments(*indices),
                     "tensor load index",
                 )?;
-                let (pointer_class, element) = self.tensor_element_projection(view_type)?;
-                let address = TensorAddress::from_pointer_class(pointer_class)?;
+                let (address_space, element) = self.tensor_element_projection(view_type)?;
+                let address = TensorAddress::from_address_space(address_space)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
                     Op::TensorLoad,
                     TensorLoad {
-                        dest_offset: word_offset(self, destination)?,
+                        dest_offset: cell_offset(self, destination)?,
                         view_offset: value_offset(self, view)?,
                         indices,
                         view_layout,
@@ -83,7 +83,7 @@ impl<'a> BlockLowerer<'a> {
                 let tensor = tensor_value(*tensor, "tensor extract source")?;
                 let tensor_type = self.value_type_for_value(tensor)?;
                 let tensor_layout = self.tensor_layout(pool, tensor_type)?;
-                let indices = self.word_offset_reference_range(
+                let indices = self.cell_offset_reference_range(
                     pool,
                     self.tree.get_arguments(*indices),
                     "tensor extract index",
@@ -92,7 +92,7 @@ impl<'a> BlockLowerer<'a> {
                 pool.instruction_with_side(
                     Op::TensorExtract,
                     TensorExtract {
-                        dest_offset: word_offset(self, destination)?,
+                        dest_offset: cell_offset(self, destination)?,
                         tensor_offset: value_offset(self, tensor)?,
                         indices,
                         tensor_layout,
@@ -109,13 +109,13 @@ impl<'a> BlockLowerer<'a> {
                 let value = tensor_value(*value, "tensor store value")?;
                 let view_type = self.value_type_for_value(view)?;
                 let view_layout = self.tensor_layout(pool, view_type)?;
-                let indices = self.word_offset_reference_range(
+                let indices = self.cell_offset_reference_range(
                     pool,
                     self.tree.get_arguments(*indices),
                     "tensor store index",
                 )?;
-                let (pointer_class, element) = self.tensor_element_projection(view_type)?;
-                let address = TensorAddress::from_pointer_class(pointer_class)?;
+                let (address_space, element) = self.tensor_element_projection(view_type)?;
+                let address = TensorAddress::from_address_space(address_space)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
@@ -123,7 +123,7 @@ impl<'a> BlockLowerer<'a> {
                     TensorStore {
                         view_offset: value_offset(self, view)?,
                         indices,
-                        value_offset: word_offset(self, value)?,
+                        value_offset: cell_offset(self, value)?,
                         view_layout,
                         element,
                         address,
@@ -136,15 +136,15 @@ impl<'a> BlockLowerer<'a> {
                 let value = tensor_value(*value, "tensor fill value")?;
                 let view_type = self.value_type_for_value(view)?;
                 let view_layout = self.tensor_layout(pool, view_type)?;
-                let (pointer_class, element) = self.tensor_element_projection(view_type)?;
-                let address = TensorAddress::from_pointer_class(pointer_class)?;
+                let (address_space, element) = self.tensor_element_projection(view_type)?;
+                let address = TensorAddress::from_address_space(address_space)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
                     Op::TensorFill,
                     TensorFill {
                         view_offset: value_offset(self, view)?,
-                        value_offset: word_offset(self, value)?,
+                        value_offset: cell_offset(self, value)?,
                         view_layout,
                         element,
                         address,
@@ -161,8 +161,8 @@ impl<'a> BlockLowerer<'a> {
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let (target_class, target_element) = self.tensor_element_projection(target_type)?;
                 let (source_class, source_element) = self.tensor_element_projection(source_type)?;
-                let target_address = TensorAddress::from_pointer_class(target_class)?;
-                let source_address = TensorAddress::from_pointer_class(source_class)?;
+                let target_address = TensorAddress::from_address_space(target_class)?;
+                let source_address = TensorAddress::from_address_space(source_class)?;
                 let target_element = pool.projection(target_element);
                 let source_element = pool.projection(source_element);
 
@@ -192,7 +192,7 @@ impl<'a> BlockLowerer<'a> {
                 let dest_type = self.value_type_for_value(destination)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let shape = self.word_offset_reference_range(
+                let shape = self.cell_offset_reference_range(
                     pool,
                     self.tree.get_arguments(*shape),
                     "tensor reshape shape",
@@ -270,7 +270,7 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let destination = tensor_value(*destination, "tensor slice destination")?;
                 let tensor = tensor_value(*tensor, "tensor slice source")?;
-                let arguments = self.word_offset_reference_range(
+                let arguments = self.cell_offset_reference_range(
                     pool,
                     self.tree.get_arguments(*arguments),
                     "tensor slice argument",
@@ -307,7 +307,7 @@ impl<'a> BlockLowerer<'a> {
                 let destination = tensor_value(*destination, "tensor pad destination")?;
                 let tensor = tensor_value(*tensor, "tensor pad source")?;
                 let value = tensor_value(*value, "tensor pad value")?;
-                let arguments = self.word_offset_reference_range(
+                let arguments = self.cell_offset_reference_range(
                     pool,
                     self.tree.get_arguments(*arguments),
                     "tensor pad argument",
@@ -326,7 +326,7 @@ impl<'a> BlockLowerer<'a> {
                         low_count: *low_count,
                         high_count: *high_count,
                         interior_count: *interior_count,
-                        value_offset: word_offset(self, value)?,
+                        value_offset: cell_offset(self, value)?,
                         source_layout,
                         dest_layout,
                     },
@@ -385,7 +385,7 @@ impl<'a> BlockLowerer<'a> {
                     TensorReduce {
                         dest_offset: value_offset(self, destination)?,
                         tensor_offset: value_offset(self, tensor)?,
-                        initial_offset: word_offset(self, initial)?,
+                        initial_offset: cell_offset(self, initial)?,
                         axes,
                         source_layout,
                         dest_layout,
@@ -597,7 +597,8 @@ impl<'a> BlockLowerer<'a> {
                 let right_layout = TensorLayout::from_type(self.tree, self.layouts(), right_type)?;
                 let element = tensor_element_type(self.tree, left_type)
                     .ok_or_else(|| Error::invalid_program("tensor compare element"))?;
-                let element_layout = value_layout_from_type(self.tree, element);
+                let element_layout =
+                    value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
                 let kernel = element_binary_kernel(*operator, element_layout)
                     .ok_or(Error::invalid_instruction())?;
                 if same_contiguous_tensor_order(&dest_layout, &left_layout, &right_layout) {
@@ -727,7 +728,7 @@ impl<'a> BlockLowerer<'a> {
             } => {
                 let destination = tensor_value(*destination, "tensor view destination")?;
                 let view = tensor_value(*view, "tensor view source")?;
-                let arguments = self.word_offset_reference_range(
+                let arguments = self.cell_offset_reference_range(
                     pool,
                     self.tree.get_arguments(*arguments),
                     "tensor view argument",
@@ -736,8 +737,8 @@ impl<'a> BlockLowerer<'a> {
                 let source_type = self.value_type_for_value(view)?;
                 let source_layout = self.tensor_layout(pool, source_type)?;
                 let dest_layout = self.tensor_layout(pool, dest_type)?;
-                let (pointer_class, element) = self.tensor_element_projection(source_type)?;
-                let address = TensorAddress::from_pointer_class(pointer_class)?;
+                let (address_space, element) = self.tensor_element_projection(source_type)?;
+                let address = TensorAddress::from_address_space(address_space)?;
                 let element = pool.projection(element);
 
                 pool.instruction_with_side(
@@ -760,19 +761,19 @@ impl<'a> BlockLowerer<'a> {
         })
     }
 
-    /// Return the backing pointer class and element projection for one tensor view.
+    /// Return the backing address space and element projection for one tensor view.
     fn tensor_element_projection(
         &self,
         view_type: mir::LocalNodeId<mir::Type>,
-    ) -> Result<(PointerClass, Projection)> {
+    ) -> Result<(AddressSpace, Projection)> {
         let element_type =
             tensor_element_type(self.tree, view_type).ok_or(Error::invalid_instruction())?;
-        let pointer_class =
-            tensor_view_pointer_class(self.tree, view_type).ok_or(Error::invalid_instruction())?;
+        let address_space =
+            tensor_view_address_space(self.tree, view_type).ok_or(Error::invalid_instruction())?;
         let projection = build_tensor_element_projection(self.tree, self.layouts(), element_type)
             .ok_or(Error::invalid_instruction())?;
 
-        Ok((pointer_class, projection))
+        Ok((address_space, projection))
     }
 
     /// Return the compiled tensor layout for one tensor type.
@@ -786,8 +787,8 @@ impl<'a> BlockLowerer<'a> {
         Ok(pool.tensor_layout(layout))
     }
 
-    /// Return one side-table range of word frame offsets.
-    fn word_offset_reference_range(
+    /// Return one side-table range of cell frame offsets.
+    fn cell_offset_reference_range(
         &self,
         pool: &mut Pool<'_, '_>,
         values: &[mir::ValueReference],
@@ -796,7 +797,7 @@ impl<'a> BlockLowerer<'a> {
         let mut offsets = Vec::with_capacity(values.len());
         for value in values {
             let value = tensor_value(*value, context)?;
-            offsets.push(word_offset(self, value)?);
+            offsets.push(cell_offset(self, value)?);
         }
 
         Ok(pool.u32_range(&offsets))

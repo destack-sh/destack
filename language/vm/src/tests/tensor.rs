@@ -1,4 +1,4 @@
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::{Error, ProgramError};
 use crate::tests::{
     TestMachine, assert_runtime_error_matches, run_mir_expect, run_mir_with_frame,
@@ -6,9 +6,9 @@ use crate::tests::{
 };
 use destack_engine::Value;
 
-/// Return one float16 test word.
-fn float16_word(value: f64) -> Word {
-    Word::from(&Value::float16(value))
+/// Return one float16 test cell.
+fn float16_cell(value: f64) -> Cell {
+    Cell::from(&Value::float16(value))
 }
 
 /// Create a tensor value from the provided elements.
@@ -17,9 +17,9 @@ fn tensor_from_values(
     function: &str,
     index: usize,
     values: &[i32],
-) -> Word {
+) -> Cell {
     let ty = machine.parameter_type(function, index);
-    let elements = values.iter().copied().map(Word::int32).collect();
+    let elements = values.iter().copied().map(Cell::int32).collect();
 
     machine.materialize_value_for_type(ty, elements)
 }
@@ -30,9 +30,9 @@ fn tensor_from_f64_values(
     function: &str,
     index: usize,
     values: &[f64],
-) -> Word {
+) -> Cell {
     let ty = machine.parameter_type(function, index);
-    let elements = values.iter().copied().map(Word::float64).collect();
+    let elements = values.iter().copied().map(Cell::float64).collect();
 
     machine.materialize_value_for_type(ty, elements)
 }
@@ -43,9 +43,9 @@ fn tensor_from_f16_values(
     function: &str,
     index: usize,
     values: &[f64],
-) -> Word {
+) -> Cell {
     let ty = machine.parameter_type(function, index);
-    let elements = values.iter().copied().map(float16_word).collect();
+    let elements = values.iter().copied().map(float16_cell).collect();
 
     machine.materialize_value_for_type(ty, elements)
 }
@@ -53,7 +53,7 @@ fn tensor_from_f16_values(
 /// Run one tensor MIR function and assert its scalar result.
 fn run_tensor_expect<F>(mir_text: &str, function: &str, setup: F, expected: Value)
 where
-    F: FnOnce(&mut TestMachine) -> Vec<Word>,
+    F: FnOnce(&mut TestMachine) -> Vec<Cell>,
 {
     let output = run_mir_with_frame_ok(mir_text, function, setup);
 

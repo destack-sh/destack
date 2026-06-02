@@ -4,13 +4,13 @@ use core::arch::aarch64::{vaddq_u32, vld1q_u32, vst1q_u32};
 use core::arch::x86_64::{__m128i, _mm_add_epi32, _mm_loadu_si128, _mm_storeu_si128};
 
 use super::access;
-use super::index::word_to_usize;
+use super::index::cell_to_usize;
 use super::scalar::{
     convert_scalar_exact, convert_scalar_round_ceil, convert_scalar_round_floor,
     convert_scalar_round_ties_even, convert_scalar_round_toward_zero, convert_scalar_saturate,
     reduce_add, reduce_and, reduce_max, reduce_min, reduce_multiply, reduce_or, reduce_xor,
 };
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::program::{
@@ -171,7 +171,7 @@ fn load_vector_element(
     vector_offset: u32,
     element: Projection,
     element_index: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     // compute the exact element address
     let element_offset = element.byte_stride * element_index;
     let pointer = activation
@@ -192,7 +192,7 @@ fn store_vector_elements<F>(
     mut element_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut Activation<'_>, usize) -> Result<Word, Error>,
+    F: FnMut(&mut Activation<'_>, usize) -> Result<Cell, Error>,
 {
     // write each result element by lowered frame layout
     for element_index in 0..element_count as usize {
@@ -212,7 +212,7 @@ where
 fn execute_vector_binary_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
+    operation: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
     let VectorBinary {
@@ -259,7 +259,7 @@ pub(crate) fn execute_vector_binary(
 /// Return the scalar operation for one vector binary kernel.
 fn vector_binary_operation(
     kernel: ElementBinaryKernel,
-) -> fn(ScalarLayout, Word, Word) -> Result<Word, Error> {
+) -> fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error> {
     match kernel {
         ElementBinaryKernel::AndBool => super::scalar::and_bool,
         ElementBinaryKernel::OrBool => super::scalar::or_bool,
@@ -326,7 +326,7 @@ fn vector_binary_operation(
 fn execute_vector_unary_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Word) -> Result<Word, Error>,
+    operation: fn(ScalarLayout, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
     let VectorUnary {
@@ -374,7 +374,7 @@ pub(crate) fn execute_vector_unary(
 /// Return the scalar operation for one vector unary kernel.
 fn vector_unary_operation(
     kernel: ElementUnaryKernel,
-) -> fn(ScalarLayout, Word) -> Result<Word, Error> {
+) -> fn(ScalarLayout, Cell) -> Result<Cell, Error> {
     match kernel {
         ElementUnaryKernel::NotBool => super::scalar::not_bool,
         ElementUnaryKernel::NegInt => super::scalar::neg_int,
@@ -623,8 +623,8 @@ pub(crate) fn execute_packed_splat_32x4(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    // broadcast one word-sized scalar into packed frame bytes
-    let value = activation.load_word_at(instruction.b).bits() as u32;
+    // broadcast one cell-sized scalar into packed frame bytes
+    let value = activation.load_cell_at(instruction.b).bits() as u32;
 
     write_packed(activation, instruction.a, [value; 4]);
 
@@ -636,8 +636,8 @@ pub(crate) fn execute_packed_splat_64x2(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    // broadcast one word-sized scalar into packed frame bytes
-    let value = activation.load_word_at(instruction.b).bits();
+    // broadcast one cell-sized scalar into packed frame bytes
+    let value = activation.load_cell_at(instruction.b).bits();
 
     write_packed(activation, instruction.a, [value; 2]);
 
@@ -657,7 +657,7 @@ pub(crate) fn execute_vector_splat(
         element_count,
     } = activation.side::<VectorSplat>(instruction);
 
-    let element_value = activation.load_word_at(*value_offset);
+    let element_value = activation.load_cell_at(*value_offset);
 
     // store the same value into each element
     store_vector_elements(
@@ -686,7 +686,7 @@ pub(crate) fn execute_vector_extract(
     } = activation.side::<VectorExtract>(instruction);
 
     // resolve and validate the dynamic element index
-    let index_value = word_to_usize(activation.load_word_at(*index_offset))?;
+    let index_value = cell_to_usize(activation.load_cell_at(*index_offset))?;
     let element_count = *element_count as usize;
     if index_value >= element_count {
         return Err(Error::index_out_of_bounds(
@@ -695,9 +695,9 @@ pub(crate) fn execute_vector_extract(
         ));
     }
 
-    // load the selected element into the destination word
+    // load the selected element into the destination cell
     let result = load_vector_element(activation, *vector_offset, *vector_element, index_value)?;
-    activation.store_word_at(*dest_offset, result);
+    activation.store_cell_at(*dest_offset, result);
 
     Ok(())
 }
@@ -719,7 +719,7 @@ pub(crate) fn execute_vector_insert(
     } = activation.side::<VectorInsert>(instruction);
 
     // resolve and validate the dynamic element index
-    let index_value = word_to_usize(activation.load_word_at(*index_offset))?;
+    let index_value = cell_to_usize(activation.load_cell_at(*index_offset))?;
     let element_count = *element_count;
     let element_count_usize = element_count as usize;
 
@@ -732,7 +732,7 @@ pub(crate) fn execute_vector_insert(
     }
 
     // read the inserted scalar once
-    let inserted_value = activation.load_word_at(*value_offset);
+    let inserted_value = activation.load_cell_at(*value_offset);
 
     // write the updated vector one element at a time
     store_vector_elements(
@@ -849,7 +849,7 @@ pub(crate) fn execute_vector_select(
 fn execute_vector_reduce_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
+    operation: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
     let VectorReduce {
@@ -875,7 +875,7 @@ fn execute_vector_reduce_elements(
         result = operation(*element_layout, result, value)?;
     }
 
-    activation.store_word_at(*dest_offset, result);
+    activation.store_cell_at(*dest_offset, result);
 
     Ok(())
 }
@@ -916,7 +916,7 @@ pub(crate) fn execute_vector_reduce(
 fn execute_vector_convert_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    convert: fn(Word, ScalarLayout, ScalarLayout) -> Result<Word, Error>,
+    convert: fn(Cell, ScalarLayout, ScalarLayout) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode the precomputed vector descriptor
     let VectorConvert {

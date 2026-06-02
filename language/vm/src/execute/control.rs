@@ -1,4 +1,4 @@
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::program::{
@@ -30,12 +30,12 @@ fn branch_transfer(is_truthy: bool, then_edge: Edge, else_edge: Edge) -> Transfe
 
 /// Load one fused comparison branch.
 #[inline(always)]
-fn compare_branch_words(
+fn compare_branch_cells(
     activation: &Activation<'_>,
     instruction: &Instruction,
-) -> (Word, Word, Edge, Edge) {
-    let left = activation.load_word_at(instruction.a);
-    let right = activation.load_word_at(instruction.b);
+) -> (Cell, Cell, Edge, Edge) {
+    let left = activation.load_cell_at(instruction.a);
+    let right = activation.load_cell_at(instruction.b);
     let then_edge = control_edge(activation, instruction.c);
     let else_edge = control_edge(activation, instruction.d);
 
@@ -57,7 +57,7 @@ macro_rules! fixed_compare_branch_executor {
                 activation: &mut Activation<'_>,
                 instruction: &Instruction,
             ) -> Transfer {
-                let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+                let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
                 let left = left.bits() as $ty;
                 let right = right.bits() as $ty;
                 let is_truthy = left $operation right;
@@ -91,10 +91,10 @@ fn load_wide_switch_value<const IS_SIGNED: bool>(
     integer_bytes_to_case_value::<IS_SIGNED>(bytes, width)
 }
 
-/// Load one word switch value as an integer case value.
+/// Load one cell switch value as an integer case value.
 #[inline(always)]
-fn load_word_switch_value<const IS_SIGNED: bool>(activation: &Activation<'_>, offset: u32) -> i128 {
-    let value = activation.load_word_at(offset);
+fn load_cell_switch_value<const IS_SIGNED: bool>(activation: &Activation<'_>, offset: u32) -> i128 {
+    let value = activation.load_cell_at(offset);
 
     if IS_SIGNED {
         return value.as_i64() as i128;
@@ -153,28 +153,28 @@ fn switch_layout(field: u32) -> (u32, bool) {
     (width, is_signed)
 }
 
-/// Load one word as a signed integer.
+/// Load one cell as a signed integer.
 #[inline(always)]
-fn load_signed_word(activation: &Activation<'_>, offset: u32) -> i64 {
-    activation.load_word_at(offset).as_i64()
+fn load_signed_cell(activation: &Activation<'_>, offset: u32) -> i64 {
+    activation.load_cell_at(offset).as_i64()
 }
 
-/// Load one word as an unsigned integer.
+/// Load one cell as an unsigned integer.
 #[inline(always)]
-fn load_unsigned_word(activation: &Activation<'_>, offset: u32) -> u64 {
-    activation.load_word_at(offset).as_u64()
+fn load_unsigned_cell(activation: &Activation<'_>, offset: u32) -> u64 {
+    activation.load_cell_at(offset).as_u64()
 }
 
-/// Load one unsigned word as a non-negative length.
+/// Load one unsigned cell as a non-negative length.
 #[inline(always)]
-fn load_unsigned_length_word(activation: &Activation<'_>, offset: u32) -> u64 {
-    load_unsigned_word(activation, offset)
+fn load_unsigned_length_cell(activation: &Activation<'_>, offset: u32) -> u64 {
+    load_unsigned_cell(activation, offset)
 }
 
-/// Load one signed word as a non-negative length.
+/// Load one signed cell as a non-negative length.
 #[inline(always)]
-fn load_signed_length_word(activation: &Activation<'_>, offset: u32) -> Result<u64, Error> {
-    let value = load_signed_word(activation, offset);
+fn load_signed_length_cell(activation: &Activation<'_>, offset: u32) -> Result<u64, Error> {
+    let value = load_signed_cell(activation, offset);
     if value < 0 {
         return Err(Error::type_mismatch(
             "non negative integer",
@@ -192,18 +192,18 @@ fn bounds_check<const INDEX_SIGNED: bool, const LENGTH_SIGNED: bool>(
     check: BoundsCheck,
 ) -> Result<bool, Error> {
     let length = if LENGTH_SIGNED {
-        load_signed_length_word(activation, check.length)?
+        load_signed_length_cell(activation, check.length)?
     } else {
-        load_unsigned_length_word(activation, check.length)
+        load_unsigned_length_cell(activation, check.length)
     };
 
     if INDEX_SIGNED {
-        let index = load_signed_word(activation, check.index);
+        let index = load_signed_cell(activation, check.index);
 
         return Ok(index >= 0 && (index as u64) < length);
     }
 
-    let index = load_unsigned_word(activation, check.index);
+    let index = load_unsigned_cell(activation, check.index);
 
     Ok(index < length)
 }
@@ -217,12 +217,12 @@ fn shift_range_check<const IS_SIGNED: bool>(
     let bit_width = u64::from(check.bit_width);
 
     if IS_SIGNED {
-        let value = load_signed_word(activation, check.value);
+        let value = load_signed_cell(activation, check.value);
 
         return value >= 0 && (value as u64) < bit_width;
     }
 
-    let value = load_unsigned_word(activation, check.value);
+    let value = load_unsigned_cell(activation, check.value);
 
     value < bit_width
 }
@@ -233,7 +233,7 @@ fn narrow_check<const IS_SIGNED: bool>(activation: &Activation<'_>, check: Narro
     let target_width = u32::from(check.to_width);
 
     if IS_SIGNED {
-        let value = load_signed_word(activation, check.value);
+        let value = load_signed_cell(activation, check.value);
         let shift = target_width - 1;
         let min_value = -(1_i128 << shift);
         let max_value = (1_i128 << shift) - 1;
@@ -242,7 +242,7 @@ fn narrow_check<const IS_SIGNED: bool>(activation: &Activation<'_>, check: Narro
         return value >= min_value && value <= max_value;
     }
 
-    let value = load_unsigned_word(activation, check.value);
+    let value = load_unsigned_cell(activation, check.value);
     let max_value = if target_width >= 64 {
         u128::from(u64::MAX)
     } else {
@@ -255,7 +255,7 @@ fn narrow_check<const IS_SIGNED: bool>(activation: &Activation<'_>, check: Narro
 /// Evaluate one variant tag check.
 #[inline(always)]
 fn variant_check(activation: &Activation<'_>, check: VariantCheck) -> bool {
-    let actual = load_unsigned_word(activation, check.value);
+    let actual = load_unsigned_cell(activation, check.value);
 
     actual == check.expected
 }
@@ -282,16 +282,16 @@ fn unsigned_max(width: u8) -> u128 {
 
 /// Load signed overflow inputs.
 fn signed_overflow_inputs(activation: &Activation<'_>, check: OverflowCheck) -> (i128, i128) {
-    let left = load_signed_word(activation, check.left) as i128;
-    let right = load_signed_word(activation, check.right) as i128;
+    let left = load_signed_cell(activation, check.left) as i128;
+    let right = load_signed_cell(activation, check.right) as i128;
 
     (left, right)
 }
 
 /// Load unsigned overflow inputs.
 fn unsigned_overflow_inputs(activation: &Activation<'_>, check: OverflowCheck) -> (u128, u128) {
-    let left = u128::from(load_unsigned_word(activation, check.left));
-    let right = u128::from(load_unsigned_word(activation, check.right));
+    let left = u128::from(load_unsigned_cell(activation, check.left));
+    let right = u128::from(load_unsigned_cell(activation, check.right));
 
     (left, right)
 }
@@ -375,17 +375,17 @@ fn evaluate_check(activation: &Activation<'_>, constraint: &Check) -> Result<boo
         Check::BoundsUintInt(check) => bounds_check::<false, true>(activation, *check),
         Check::BoundsUintUint(check) => bounds_check::<false, false>(activation, *check),
         Check::Null { value } => {
-            let value = activation.load_word_at(*value);
+            let value = activation.load_cell_at(*value);
 
             Ok(value.bits() != 0)
         }
         Check::DivZeroInt { divisor } => {
-            let value = load_signed_word(activation, *divisor);
+            let value = load_signed_cell(activation, *divisor);
 
             Ok(value != 0)
         }
         Check::DivZeroUint { divisor } => {
-            let value = load_unsigned_word(activation, *divisor);
+            let value = load_unsigned_cell(activation, *divisor);
 
             Ok(value != 0)
         }
@@ -402,7 +402,7 @@ fn evaluate_check(activation: &Activation<'_>, constraint: &Check) -> Result<boo
         Check::OverflowDivInt(check) => overflow_div_int(activation, *check),
         Check::OverflowDivUint(check) => overflow_div_uint(activation, *check),
         Check::Type { value, expected } => {
-            let value = activation.load_word_at(*value);
+            let value = activation.load_cell_at(*value);
 
             Ok(value.as_u64() == u64::from(*expected))
         }
@@ -422,16 +422,16 @@ pub(crate) fn execute_assume(
 
 /// Return an address from a lowered frame offset.
 #[inline(always)]
-fn frame_address(activation: &Activation<'_>, offset: u32) -> Word {
-    Word::frame_pointer(activation.frame_pointer_at(offset))
+fn frame_address(activation: &Activation<'_>, offset: u32) -> Cell {
+    Cell::frame_pointer(activation.frame_pointer_at(offset))
 }
 
-/// Execute word return.
-pub(crate) fn execute_return_word(
+/// Execute cell return.
+pub(crate) fn execute_return_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let return_value = activation.load_word_at(instruction.a);
+    let return_value = activation.load_cell_at(instruction.a);
 
     Transfer::Return(return_value)
 }
@@ -453,15 +453,15 @@ pub(crate) fn execute_return_void(
 ) -> Transfer {
     let _ = instruction;
 
-    Transfer::Return(Word::VOID)
+    Transfer::Return(Cell::ZERO)
 }
 
-/// Execute word yield.
-pub(crate) fn execute_yield_word(
+/// Execute cell yield.
+pub(crate) fn execute_yield_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let yield_value = activation.load_word_at(instruction.a);
+    let yield_value = activation.load_cell_at(instruction.a);
     let source_type = mir::LocalNodeId::new(instruction.b);
     let frame_state = engine::FrameStateId(instruction.c);
 
@@ -514,7 +514,7 @@ pub(crate) fn execute_branch_bool(
     let else_edge = control_edge(activation, instruction.c);
 
     // evaluate branch condition
-    let condition = activation.load_word_at(condition);
+    let condition = activation.load_cell_at(condition);
     let is_truthy = condition.bits() != 0;
 
     branch_transfer(is_truthy, then_edge, else_edge)
@@ -583,11 +583,11 @@ pub(crate) fn execute_check(
 
 /// Execute integer equality branch.
 #[inline(always)]
-pub(crate) fn execute_branch_eq_word(
+pub(crate) fn execute_branch_eq_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.bits() == right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -595,11 +595,11 @@ pub(crate) fn execute_branch_eq_word(
 
 /// Execute integer inequality branch.
 #[inline(always)]
-pub(crate) fn execute_branch_ne_word(
+pub(crate) fn execute_branch_ne_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.bits() != right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -607,11 +607,11 @@ pub(crate) fn execute_branch_ne_word(
 
 /// Execute signed integer less-than branch.
 #[inline(always)]
-pub(crate) fn execute_branch_lt_word_int(
+pub(crate) fn execute_branch_lt_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = (left.bits() as i64) < (right.bits() as i64);
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -619,11 +619,11 @@ pub(crate) fn execute_branch_lt_word_int(
 
 /// Execute signed integer less-or-equal branch.
 #[inline(always)]
-pub(crate) fn execute_branch_le_word_int(
+pub(crate) fn execute_branch_le_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = (left.bits() as i64) <= (right.bits() as i64);
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -631,11 +631,11 @@ pub(crate) fn execute_branch_le_word_int(
 
 /// Execute signed integer greater-than branch.
 #[inline(always)]
-pub(crate) fn execute_branch_gt_word_int(
+pub(crate) fn execute_branch_gt_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = (left.bits() as i64) > (right.bits() as i64);
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -643,11 +643,11 @@ pub(crate) fn execute_branch_gt_word_int(
 
 /// Execute signed integer greater-or-equal branch.
 #[inline(always)]
-pub(crate) fn execute_branch_ge_word_int(
+pub(crate) fn execute_branch_ge_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = (left.bits() as i64) >= (right.bits() as i64);
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -655,11 +655,11 @@ pub(crate) fn execute_branch_ge_word_int(
 
 /// Execute unsigned integer less-than branch.
 #[inline(always)]
-pub(crate) fn execute_branch_lt_word_uint(
+pub(crate) fn execute_branch_lt_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.bits() < right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -667,11 +667,11 @@ pub(crate) fn execute_branch_lt_word_uint(
 
 /// Execute unsigned integer less-or-equal branch.
 #[inline(always)]
-pub(crate) fn execute_branch_le_word_uint(
+pub(crate) fn execute_branch_le_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.bits() <= right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -679,11 +679,11 @@ pub(crate) fn execute_branch_le_word_uint(
 
 /// Execute unsigned integer greater-than branch.
 #[inline(always)]
-pub(crate) fn execute_branch_gt_word_uint(
+pub(crate) fn execute_branch_gt_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.bits() > right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -691,11 +691,11 @@ pub(crate) fn execute_branch_gt_word_uint(
 
 /// Execute unsigned integer greater-or-equal branch.
 #[inline(always)]
-pub(crate) fn execute_branch_ge_word_uint(
+pub(crate) fn execute_branch_ge_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.bits() >= right.bits();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -707,7 +707,7 @@ pub(crate) fn execute_branch_eq_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f32() == right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -719,7 +719,7 @@ pub(crate) fn execute_branch_ne_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f32() != right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -731,7 +731,7 @@ pub(crate) fn execute_branch_lt_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f32() < right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -743,7 +743,7 @@ pub(crate) fn execute_branch_le_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f32() <= right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -755,7 +755,7 @@ pub(crate) fn execute_branch_gt_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f32() > right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -767,7 +767,7 @@ pub(crate) fn execute_branch_ge_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f32() >= right.as_f32();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -779,7 +779,7 @@ pub(crate) fn execute_branch_eq_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f64() == right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -791,7 +791,7 @@ pub(crate) fn execute_branch_ne_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f64() != right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -803,7 +803,7 @@ pub(crate) fn execute_branch_lt_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f64() < right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -815,7 +815,7 @@ pub(crate) fn execute_branch_le_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f64() <= right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -827,7 +827,7 @@ pub(crate) fn execute_branch_gt_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f64() > right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -839,7 +839,7 @@ pub(crate) fn execute_branch_ge_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
-    let (left, right, then_edge, else_edge) = compare_branch_words(activation, instruction);
+    let (left, right, then_edge, else_edge) = compare_branch_cells(activation, instruction);
     let is_truthy = left.as_f64() >= right.as_f64();
 
     compare_branch_transfer(then_edge, else_edge, is_truthy)
@@ -853,11 +853,11 @@ pub(crate) fn execute_switch(
     let (width, is_signed) = switch_layout(instruction.d);
 
     if width <= u64::BITS && is_signed {
-        return execute_switch_word::<true>(activation, instruction);
+        return execute_switch_cell::<true>(activation, instruction);
     }
 
     if width <= u64::BITS {
-        return execute_switch_word::<false>(activation, instruction);
+        return execute_switch_cell::<false>(activation, instruction);
     }
 
     if is_signed {
@@ -875,20 +875,20 @@ pub(crate) fn execute_switch_table(
     let (_, is_signed) = switch_layout(instruction.d);
 
     if is_signed {
-        return execute_switch_table_word::<true>(activation, instruction);
+        return execute_switch_table_cell::<true>(activation, instruction);
     }
 
-    execute_switch_table_word::<false>(activation, instruction)
+    execute_switch_table_cell::<false>(activation, instruction)
 }
 
-/// Execute a word switch.
-fn execute_switch_word<const IS_SIGNED: bool>(
+/// Execute a cell switch.
+fn execute_switch_cell<const IS_SIGNED: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let cases = activation.switch_cases(SwitchCasesId(instruction.b));
     let default_edge = control_edge(activation, instruction.c);
-    let int_val = load_word_switch_value::<IS_SIGNED>(activation, instruction.a);
+    let int_val = load_cell_switch_value::<IS_SIGNED>(activation, instruction.a);
 
     // find matching case
     for case in cases {
@@ -934,14 +934,14 @@ fn execute_switch_wide<const IS_SIGNED: bool>(
     default_switch_transfer(default_edge)
 }
 
-/// Execute a word switch via dense jump table.
-fn execute_switch_table_word<const IS_SIGNED: bool>(
+/// Execute a cell switch via dense jump table.
+fn execute_switch_table_cell<const IS_SIGNED: bool>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Transfer {
     let table = activation.switch_table(SwitchTableId(instruction.b));
     let default_edge = control_edge(activation, instruction.c);
-    let int_val = load_word_switch_value::<IS_SIGNED>(activation, instruction.a);
+    let int_val = load_cell_switch_value::<IS_SIGNED>(activation, instruction.a);
 
     // resolve jump table entry
     if int_val < table.min {
@@ -976,7 +976,7 @@ pub(crate) fn execute_panic(
         return Transfer::Error(Error::panic("panic resumed"));
     }
 
-    let payload = activation.load_word_at(instruction.a);
+    let payload = activation.load_cell_at(instruction.a);
     let message = format!("panic payload: {payload:?}");
 
     Transfer::Error(Error::panic(message))

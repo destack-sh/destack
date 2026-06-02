@@ -3,9 +3,9 @@ use destack_mir as mir;
 use destack_heap::{HeapReference, SharedHeapReference};
 
 use crate::program::{ConstValue, Instruction, Op};
-use crate::{Error, ReferenceSpace, Result, Word};
+use crate::{Cell, Error, ReferenceSpace, Result};
 
-use super::frame::{value_offset, word_offset};
+use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 use super::value::reference_meta_for_type;
@@ -25,18 +25,18 @@ impl<'a> BlockLowerer<'a> {
         let destination_type = self.value_type_for_value(destination)?;
         let layout = self.layout_for_type(destination_type)?;
 
-        // inline word constants directly in the instruction
-        if layout.is_word() {
+        // inline cell constants directly in the instruction
+        if layout.is_cell() {
             let value = if matches!(value, mir::Constant::Null) {
-                self.null_word(destination_type)
+                self.null_cell(destination_type)
             } else {
-                Word::from(value)
+                Cell::from(value)
             };
             let bits = value.bits();
 
             return Ok(Instruction::new(
-                Op::LoadConstWord,
-                word_offset(self, destination)?,
+                Op::LoadConstCell,
+                cell_offset(self, destination)?,
                 bits as u32,
                 (bits >> 32) as u32,
                 0,
@@ -56,20 +56,20 @@ impl<'a> BlockLowerer<'a> {
         ))
     }
 
-    /// Return the null word for one reference-like type.
-    fn null_word(&self, value_type: mir::LocalNodeId<mir::Type>) -> Word {
+    /// Return the null cell for one reference-like type.
+    fn null_cell(&self, value_type: mir::LocalNodeId<mir::Type>) -> Cell {
         let reference = reference_meta_for_type(self.tree, value_type);
 
         match reference.kind() {
             Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique)
                 if matches!(reference.space(), ReferenceSpace::Shared) =>
             {
-                Word::shared_heap_reference(SharedHeapReference::NULL)
+                Cell::shared_heap_reference(SharedHeapReference::NULL)
             }
             Some(mir::ReferenceKind::Managed | mir::ReferenceKind::Unique) => {
-                Word::heap_reference(HeapReference::NULL)
+                Cell::heap_reference(HeapReference::NULL)
             }
-            _ => Word::address(0),
+            _ => Cell::address(0),
         }
     }
 }

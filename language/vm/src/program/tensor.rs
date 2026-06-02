@@ -5,7 +5,7 @@ use destack_mir as mir;
 use crate::{Error, Result};
 
 use super::{
-    Layout, PointerClass, Projection, ScalarLayout, scalar_layout_from_type, word_layout_from_type,
+    AddressSpace, Layout, Projection, ScalarLayout, cell_layout_from_type, scalar_layout_from_type,
 };
 
 /// Tensor view backing memory selected by lowering.
@@ -26,16 +26,15 @@ pub(crate) enum TensorAddress {
 }
 
 impl TensorAddress {
-    /// Return the tensor address for one pointer class.
-    pub(crate) fn from_pointer_class(pointer_class: PointerClass) -> Result<Self> {
-        Ok(match pointer_class {
-            PointerClass::Heap | PointerClass::HeapAddress => Self::Heap,
-            PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Self::SharedHeap,
-            PointerClass::Address => Self::Address,
-            PointerClass::Stack => Self::Stack,
-            PointerClass::Frame => Self::Frame,
-            PointerClass::Static => Self::Static,
-            PointerClass::Unknown => return Err(Error::invalid_instruction()),
+    /// Return the tensor address for one address space.
+    pub(crate) fn from_address_space(address_space: AddressSpace) -> Result<Self> {
+        Ok(match address_space {
+            AddressSpace::Local => Self::Heap,
+            AddressSpace::Shared => Self::SharedHeap,
+            AddressSpace::Raw => Self::Address,
+            AddressSpace::Stack => Self::Stack,
+            AddressSpace::Frame => Self::Frame,
+            AddressSpace::Static => Self::Static,
         })
     }
 }
@@ -92,20 +91,20 @@ impl TensorLayout {
         let is_contiguous = element_count == element_span_len;
 
         // compile frame element projection
-        let value_layout = layouts.get(&ty).ok_or(Error::invalid_instruction())?;
+        let value_shape = layouts.get(&ty).ok_or(Error::invalid_instruction())?;
         let element_layout = layouts.get(&element).ok_or(Error::invalid_instruction())?;
         let element_projection = Projection::indexed(
             element,
             element_span_len as u64,
             element_layout.stride(),
             element_layout.byte_len,
-            word_layout_from_type(tree, element),
+            cell_layout_from_type(tree, element),
         );
         let element_layout = scalar_layout_from_type(tree, element)
             .ok_or_else(|| Error::type_mismatch("tensor scalar element", format!("{element:?}")))?;
 
         Ok(Self {
-            byte_len: value_layout.byte_len,
+            byte_len: value_shape.byte_len,
             shape: shape.into_boxed_slice(),
             strides: strides.into_boxed_slice(),
             element_count,

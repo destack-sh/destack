@@ -1,6 +1,6 @@
-use crate::Word;
+use crate::Cell;
 
-use super::frame::{frame_value_from_word, materialize_value, store_frame_value};
+use super::frame::{frame_value_from_cell, materialize_value, store_frame_value};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Outcome};
 use crate::program::Program;
@@ -10,7 +10,7 @@ impl Activation<'_> {
     pub(crate) fn complete_return(
         &mut self,
         program: &Program,
-        value: Word,
+        value: Cell,
     ) -> RuntimeResult<Option<Outcome>> {
         // capture the returned value before the callee frame goes away
         let callee = self
@@ -25,7 +25,7 @@ impl Activation<'_> {
             .ty()
             .ok_or_else(|| Error::invalid_program("return call type"))?;
         let returned =
-            frame_value_from_word(program, self.machine.frames.as_slice(), return_type, value)
+            frame_value_from_cell(program, self.machine.frames.as_slice(), return_type, value)
                 .map_err(RuntimeError::new)?;
 
         // pop the callee frame and release its live bytes

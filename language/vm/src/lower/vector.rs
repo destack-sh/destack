@@ -3,12 +3,12 @@ use destack_mir as mir;
 use crate::program::{
     ElementBinaryKernel, Instruction, Op, Projection, ScalarLayout, VectorBinary, VectorConvert,
     VectorExtract, VectorInsert, VectorReduce, VectorSelect, VectorShuffle, VectorSplat,
-    scalar_layout_from_type, value_layout_from_type, word_layout_from_type,
+    cell_layout_from_type, scalar_layout_from_type, value_shape_from_type,
 };
 use crate::{Error, Result};
 
 use super::arithmetic::element_binary_kernel;
-use super::frame::{value_offset, word_offset};
+use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 
@@ -48,7 +48,7 @@ impl<'a> BlockLowerer<'a> {
             element_count as u64,
             element.stride,
             element.byte_len,
-            word_layout_from_type(self.tree, element.ty),
+            cell_layout_from_type(self.tree, element.ty),
         );
 
         Ok((access, element_count, element.ty))
@@ -86,7 +86,7 @@ impl<'a> BlockLowerer<'a> {
             return Ok(Instruction::new(
                 op,
                 value_offset(self, destination)?,
-                word_offset(self, value)?,
+                cell_offset(self, value)?,
                 0,
                 0,
             ));
@@ -97,7 +97,7 @@ impl<'a> BlockLowerer<'a> {
             Op::VectorSplat,
             VectorSplat {
                 dest_offset: value_offset(self, destination)?,
-                value_offset: word_offset(self, value)?,
+                value_offset: cell_offset(self, value)?,
                 dest_element,
                 element_count,
             },
@@ -125,13 +125,13 @@ impl<'a> BlockLowerer<'a> {
         let vector_type = self.value_type_for_value(vector)?;
         let (vector_element, element_count, _) = self.vector_element_projection(vector_type)?;
 
-        // store the dynamic index as a word frame offset
+        // store the dynamic index as a cell frame offset
         Ok(pool.instruction_with_side(
             Op::VectorExtract,
             VectorExtract {
-                dest_offset: word_offset(self, destination)?,
+                dest_offset: cell_offset(self, destination)?,
                 vector_offset: value_offset(self, vector)?,
-                index_offset: word_offset(self, index)?,
+                index_offset: cell_offset(self, index)?,
                 vector_element,
                 element_count,
             },
@@ -166,14 +166,14 @@ impl<'a> BlockLowerer<'a> {
         let (dest_element, element_count, _) = self.vector_element_projection(destination_type)?;
         let (vector_element, _, _) = self.vector_element_projection(vector_type)?;
 
-        // store the dynamic index and inserted scalar as word frame offsets
+        // store the dynamic index and inserted scalar as cell frame offsets
         Ok(pool.instruction_with_side(
             Op::VectorInsert,
             VectorInsert {
                 dest_offset: value_offset(self, destination)?,
                 vector_offset: value_offset(self, vector)?,
-                index_offset: word_offset(self, index)?,
-                value_offset: word_offset(self, value)?,
+                index_offset: cell_offset(self, index)?,
+                value_offset: cell_offset(self, value)?,
                 dest_element,
                 vector_element,
                 element_count,
@@ -304,7 +304,7 @@ impl<'a> BlockLowerer<'a> {
         Ok(pool.instruction_with_side(
             Op::VectorReduce,
             VectorReduce {
-                dest_offset: word_offset(self, destination)?,
+                dest_offset: cell_offset(self, destination)?,
                 vector_offset: value_offset(self, vector)?,
                 kernel: operator,
                 vector_element,
@@ -347,7 +347,8 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // comparisons write boolean elements
-        let element_layout = value_layout_from_type(self.tree, element);
+        let element_layout =
+            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
         let kernel = element_binary_kernel(operator, element_layout)
             .filter(is_element_compare_kernel)
             .ok_or(Error::invalid_instruction())?;

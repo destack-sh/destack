@@ -3,7 +3,7 @@ use destack_mir as mir;
 use crate::program::Instruction;
 use crate::{Error, Result};
 
-use super::frame::{value_offset, word_offset};
+use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
 use super::op::select_field_addr_op;
 
@@ -30,20 +30,20 @@ impl<'a> BlockLowerer<'a> {
 
         // lower fixed projections as base plus byte offset
         let layout = self
-            .value_layout_map()
+            .value_shape_map()
             .get(base)
             .ok_or(Error::invalid_instruction())?;
-        let op = select_field_addr_op(self.value_layout_map(), base)?;
+        let op = select_field_addr_op(self.value_shape_map(), base)?;
         let field = self.field_projection_for_value(base, index)?;
         let base = if layout.is_frame_storage() {
             value_offset(self, base)?
         } else {
-            word_offset(self, base)?
+            cell_offset(self, base)?
         };
 
         Ok(Instruction::new(
             op,
-            word_offset(self, destination)?,
+            cell_offset(self, destination)?,
             base,
             0,
             instruction_byte_offset(field.byte_offset)?,

@@ -1,18 +1,18 @@
 use destack_engine as engine;
 use destack_mir as mir;
-use engine::ValueLayoutId;
+use engine::StorageLayoutId;
 
 /// One lowered frame move slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct MoveSlot {
-    /// The value layout id.
-    pub layout: ValueLayoutId,
+    /// The storage layout id.
+    pub layout: StorageLayoutId,
     /// Byte offset from the frame base.
     pub offset: u32,
     /// Slot byte length.
     pub byte_len: u32,
-    /// Whether this slot stores one word.
-    pub is_word: bool,
+    /// Whether this slot stores one cell.
+    pub is_cell: bool,
 }
 
 /// Argument range within one function argument pool.

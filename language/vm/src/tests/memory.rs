@@ -1,4 +1,4 @@
-use crate::Word;
+use crate::Cell;
 use crate::tests::{
     create_machine, create_machine_with_data_layout, run_mir_expect, run_mir_ok,
     run_mir_with_frame_ok,
@@ -187,7 +187,7 @@ fn test_shared_heap_reference_value_roundtrip() {
     let reference = SharedHeapReference::new(7);
 
     assert_eq!(
-        Word::shared_heap_reference(reference).as_shared_heap_reference(),
+        Cell::shared_heap_reference(reference).as_shared_heap_reference(),
         reference
     );
 }
@@ -209,7 +209,7 @@ b0:
         panic!("expected heap slice value, got {output:?}");
     };
     let bytes = read_heap_bytes(&machine.heap, slice, 2 * HeapReference::BYTE_LEN);
-    let data = Word::heap_reference(decode_heap_reference(&bytes, 0));
+    let data = Cell::heap_reference(decode_heap_reference(&bytes, 0));
     let len = decode_usize(&bytes, HeapReference::BYTE_LEN);
 
     assert!(!data.as_heap_reference().is_null());
@@ -238,7 +238,7 @@ b0:
         slice,
         2 * SharedHeapReference::BYTE_LEN,
     );
-    let data = Word::shared_heap_reference(decode_shared_heap_reference(&bytes, 0));
+    let data = Cell::shared_heap_reference(decode_shared_heap_reference(&bytes, 0));
     let len = decode_usize(&bytes, SharedHeapReference::BYTE_LEN);
 
     assert!(!data.as_shared_heap_reference().is_null());
@@ -275,7 +275,7 @@ b0(v0: (int32, int32)):
 }"#;
     let output = run_mir_with_frame_ok(mir, "getFirst", |interp| {
         let ty = interp.parameter_type("getFirst", 0);
-        let agg = interp.materialize_value_for_type(ty, vec![Word::int32(10), Word::int32(20)]);
+        let agg = interp.materialize_value_for_type(ty, vec![Cell::int32(10), Cell::int32(20)]);
         vec![agg]
     });
     assert_eq!(output, Value::int32(10));
@@ -293,8 +293,8 @@ b0(v0: (int32, int32), v1: int32):
 }"#;
     let output = run_mir_with_frame_ok(mir, "setAndGet", |interp| {
         let ty = interp.parameter_type("setAndGet", 0);
-        let agg = interp.materialize_value_for_type(ty, vec![Word::int32(10), Word::int32(20)]);
-        vec![agg, Word::int32(99)]
+        let agg = interp.materialize_value_for_type(ty, vec![Cell::int32(10), Cell::int32(20)]);
+        vec![agg, Cell::int32(99)]
     });
     assert_eq!(output, Value::int32(99));
 }
@@ -313,9 +313,9 @@ b0(v0: (int32, int32), v1: int32):
 }"#;
     let output = run_mir_with_frame_ok(mir, "setWithoutAlias", |interp| {
         let ty = interp.parameter_type("setWithoutAlias", 0);
-        let tuple = interp.materialize_value_for_type(ty, vec![Word::int32(10), Word::int32(20)]);
+        let tuple = interp.materialize_value_for_type(ty, vec![Cell::int32(10), Cell::int32(20)]);
 
-        vec![tuple, Word::int32(99)]
+        vec![tuple, Cell::int32(99)]
     });
 
     assert_eq!(output, Value::int32(109));
@@ -374,7 +374,7 @@ b0(v0: [int32; 3]):
         let ty = interp.parameter_type("getElem", 0);
         let array = interp.materialize_value_for_type(
             ty,
-            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
+            vec![Cell::int32(10), Cell::int32(20), Cell::int32(30)],
         );
 
         vec![array]
@@ -416,10 +416,10 @@ b0(v0: [int32; 3], v1: int32):
         let ty = interp.parameter_type("setWithoutAlias", 0);
         let array = interp.materialize_value_for_type(
             ty,
-            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
+            vec![Cell::int32(10), Cell::int32(20), Cell::int32(30)],
         );
 
-        vec![array, Word::int32(99)]
+        vec![array, Cell::int32(99)]
     });
 
     assert_eq!(output, Value::int32(119));
@@ -439,9 +439,9 @@ b0(v0: [int32; 3], v1: int32):
         let ty = interp.parameter_type("setAndGet", 0);
         let arr = interp.materialize_value_for_type(
             ty,
-            vec![Word::int32(10), Word::int32(20), Word::int32(30)],
+            vec![Cell::int32(10), Cell::int32(20), Cell::int32(30)],
         );
-        vec![arr, Word::int32(99)]
+        vec![arr, Cell::int32(99)]
     });
     assert_eq!(output, Value::int32(99));
 }

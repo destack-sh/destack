@@ -2,7 +2,7 @@ use destack_heap::DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES;
 use destack_memory::AddressSpace;
 use serde::{Deserialize, Serialize};
 
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 
 /// Page-backed byte stack for one machine.
@@ -77,7 +77,7 @@ impl Stack {
 
         let mut stack = Self::new(limit_bytes)?;
         if !image.is_empty() {
-            let base = stack.allocate_uninit(image.len(), Word::BYTE_LEN)?;
+            let base = stack.allocate_uninit(image.len(), Cell::BYTE_LEN)?;
             stack.copy_bytes(base, &image.bytes)?;
         }
 

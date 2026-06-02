@@ -10,7 +10,7 @@ use super::scalar::{
     remainder_unsigned_bytes_value, shift_left_bytes_value, shift_right_signed_bytes_value,
     shift_right_unsigned_bytes_value, subtract_bytes_value, xor_bytes_value,
 };
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::program::{
@@ -20,27 +20,27 @@ use crate::program::{
 const INTEGER_SIGN_BIT: u32 = 1 << 16;
 const INTEGER_WIDTH_MASK: u32 = INTEGER_SIGN_BIT - 1;
 
-/// Rebuild one canonical VM word from integer bits.
+/// Rebuild one canonical VM cell from integer bits.
 #[inline(always)]
-fn integer_word<const IS_SIGNED: bool>(raw: u64, width: u8) -> Word {
+fn integer_cell<const IS_SIGNED: bool>(raw: u64, width: u8) -> Cell {
     if IS_SIGNED {
-        return Word::int(raw as i64, width);
+        return Cell::int(raw as i64, width);
     }
 
-    Word::uint(raw, width)
+    Cell::uint(raw, width)
 }
 
-/// Rebuild one canonical VM word from an encoded integer layout.
+/// Rebuild one canonical VM cell from an encoded integer layout.
 #[inline(always)]
-fn integer_word_from_field(raw: u64, field: u32) -> Word {
+fn integer_cell_from_field(raw: u64, field: u32) -> Cell {
     let width = integer_width(field);
     let is_signed = field & INTEGER_SIGN_BIT != 0;
 
     if is_signed {
-        return Word::int(raw as i64, width);
+        return Cell::int(raw as i64, width);
     }
 
-    Word::uint(raw, width)
+    Cell::uint(raw, width)
 }
 
 /// Unpack one VM integer width.
@@ -65,7 +65,7 @@ fn store_scalar_value(
     value: ScalarResult,
 ) -> Result<(), Error> {
     match value {
-        ScalarResult::Word(value) => activation.store_word_at(dest, value),
+        ScalarResult::Cell(value) => activation.store_cell_at(dest, value),
         ScalarResult::Bytes(bytes) => {
             let dest = activation.frame_pointer_at(dest).address() as *mut u8;
             unsafe {
@@ -95,50 +95,50 @@ fn frame_bytes_at<'a>(activation: &'a Activation<'_>, offset: u32, byte_len: usi
     unsafe { std::slice::from_raw_parts(address, byte_len) }
 }
 
-/// Load one lowered binary word operation.
+/// Load one lowered binary cell operation.
 #[inline(always)]
-fn load_binary_word_values(
+fn load_binary_cell_values(
     activation: &Activation<'_>,
     instruction: &Instruction,
-) -> (u32, Word, Word) {
+) -> (u32, Cell, Cell) {
     let dest = instruction.a;
     let left = instruction.b;
     let right = instruction.c;
 
     (
         dest,
-        activation.load_word_at(left),
-        activation.load_word_at(right),
+        activation.load_cell_at(left),
+        activation.load_cell_at(right),
     )
 }
 
-/// Load one lowered binary word operation as raw payloads.
+/// Load one lowered binary cell operation as raw payloads.
 #[inline(always)]
 fn load_binary_raw_values(
     activation: &Activation<'_>,
     instruction: &Instruction,
 ) -> (u32, u64, u64) {
     let dest = instruction.a;
-    let left = activation.load_word_at(instruction.b).bits();
-    let right = activation.load_word_at(instruction.c).bits();
+    let left = activation.load_cell_at(instruction.b).bits();
+    let right = activation.load_cell_at(instruction.c).bits();
 
     (dest, left, right)
 }
 
-/// Load one lowered unary word operation.
+/// Load one lowered unary cell operation.
 #[inline(always)]
-fn load_unary_word_value(activation: &Activation<'_>, instruction: &Instruction) -> (u32, Word) {
+fn load_unary_cell_value(activation: &Activation<'_>, instruction: &Instruction) -> (u32, Cell) {
     let dest = instruction.a;
     let argument = instruction.b;
 
-    (dest, activation.load_word_at(argument))
+    (dest, activation.load_cell_at(argument))
 }
 
-/// Load one lowered unary word operation as a raw payload.
+/// Load one lowered unary cell operation as a raw payload.
 #[inline(always)]
 fn load_unary_raw_value(activation: &Activation<'_>, instruction: &Instruction) -> (u32, u64) {
     let dest = instruction.a;
-    let argument = activation.load_word_at(instruction.b).bits();
+    let argument = activation.load_cell_at(instruction.b).bits();
 
     (dest, argument)
 }
@@ -150,8 +150,8 @@ fn load_binary_integer_values(
     instruction: &Instruction,
 ) -> (u32, u64, u64, u8) {
     let dest = instruction.a;
-    let left = activation.load_word_at(instruction.b).bits();
-    let right = activation.load_word_at(instruction.c).bits();
+    let left = activation.load_cell_at(instruction.b).bits();
+    let right = activation.load_cell_at(instruction.c).bits();
     let width = integer_width(instruction.d);
 
     (dest, left, right, width)
@@ -164,15 +164,15 @@ fn load_unary_integer_value(
     instruction: &Instruction,
 ) -> (u32, u64, u8) {
     let dest = instruction.a;
-    let argument = activation.load_word_at(instruction.b).bits();
+    let argument = activation.load_cell_at(instruction.b).bits();
     let width = integer_width(instruction.d);
 
     (dest, argument, width)
 }
 
-/// Execute word constant load.
+/// Execute cell constant load.
 #[inline(always)]
-pub(crate) fn execute_load_const_word(
+pub(crate) fn execute_load_const_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -180,7 +180,7 @@ pub(crate) fn execute_load_const_word(
     let bits = u64::from(instruction.b) | (u64::from(instruction.c) << 32);
 
     // store constant bits
-    activation.store_word_at(dest, Word::from_bits(bits));
+    activation.store_cell_at(dest, Cell::from_bits(bits));
 
     Ok(())
 }
@@ -295,8 +295,8 @@ pub(crate) fn execute_and_bool(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_bool() && right.as_bool()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_bool() && right.as_bool()));
 
     Ok(())
 }
@@ -307,8 +307,8 @@ pub(crate) fn execute_or_bool(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_bool() || right.as_bool()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_bool() || right.as_bool()));
 
     Ok(())
 }
@@ -319,8 +319,8 @@ pub(crate) fn execute_xor_bool(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_bool() ^ right.as_bool()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_bool() ^ right.as_bool()));
 
     Ok(())
 }
@@ -331,8 +331,8 @@ pub(crate) fn execute_add_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::float32(left.as_f32() + right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::float32(left.as_f32() + right.as_f32()));
 
     Ok(())
 }
@@ -343,8 +343,8 @@ pub(crate) fn execute_sub_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::float32(left.as_f32() - right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::float32(left.as_f32() - right.as_f32()));
 
     Ok(())
 }
@@ -355,8 +355,8 @@ pub(crate) fn execute_mul_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::float32(left.as_f32() * right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::float32(left.as_f32() * right.as_f32()));
 
     Ok(())
 }
@@ -367,8 +367,8 @@ pub(crate) fn execute_div_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::float32(left.as_f32() / right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::float32(left.as_f32() / right.as_f32()));
 
     Ok(())
 }
@@ -379,8 +379,8 @@ pub(crate) fn execute_eq_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f32() == right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f32() == right.as_f32()));
 
     Ok(())
 }
@@ -391,8 +391,8 @@ pub(crate) fn execute_ne_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f32() != right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f32() != right.as_f32()));
 
     Ok(())
 }
@@ -403,8 +403,8 @@ pub(crate) fn execute_lt_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f32() < right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f32() < right.as_f32()));
 
     Ok(())
 }
@@ -415,8 +415,8 @@ pub(crate) fn execute_le_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f32() <= right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f32() <= right.as_f32()));
 
     Ok(())
 }
@@ -427,8 +427,8 @@ pub(crate) fn execute_gt_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f32() > right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f32() > right.as_f32()));
 
     Ok(())
 }
@@ -439,8 +439,8 @@ pub(crate) fn execute_ge_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f32() >= right.as_f32()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f32() >= right.as_f32()));
 
     Ok(())
 }
@@ -451,8 +451,8 @@ pub(crate) fn execute_add_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::float64(left.as_f64() + right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::float64(left.as_f64() + right.as_f64()));
 
     Ok(())
 }
@@ -463,8 +463,8 @@ pub(crate) fn execute_sub_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::float64(left.as_f64() - right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::float64(left.as_f64() - right.as_f64()));
 
     Ok(())
 }
@@ -475,8 +475,8 @@ pub(crate) fn execute_mul_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::float64(left.as_f64() * right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::float64(left.as_f64() * right.as_f64()));
 
     Ok(())
 }
@@ -487,8 +487,8 @@ pub(crate) fn execute_div_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::float64(left.as_f64() / right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::float64(left.as_f64() / right.as_f64()));
 
     Ok(())
 }
@@ -499,8 +499,8 @@ pub(crate) fn execute_eq_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f64() == right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f64() == right.as_f64()));
 
     Ok(())
 }
@@ -511,8 +511,8 @@ pub(crate) fn execute_ne_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f64() != right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f64() != right.as_f64()));
 
     Ok(())
 }
@@ -523,8 +523,8 @@ pub(crate) fn execute_lt_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f64() < right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f64() < right.as_f64()));
 
     Ok(())
 }
@@ -535,8 +535,8 @@ pub(crate) fn execute_le_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f64() <= right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f64() <= right.as_f64()));
 
     Ok(())
 }
@@ -547,8 +547,8 @@ pub(crate) fn execute_gt_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f64() > right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f64() > right.as_f64()));
 
     Ok(())
 }
@@ -559,8 +559,8 @@ pub(crate) fn execute_ge_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left.as_f64() >= right.as_f64()));
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(left.as_f64() >= right.as_f64()));
 
     Ok(())
 }
@@ -574,10 +574,10 @@ pub(crate) fn execute_binary_float(
     let operation = BinaryFloat::from_field(instruction.d);
     let (format, kernel) = operation.decode()?;
     let layout = ScalarLayout::Float { format };
-    let (dest, left, right) = load_binary_word_values(activation, instruction);
+    let (dest, left, right) = load_binary_cell_values(activation, instruction);
     let result = super::scalar::binary_float(layout, kernel, left, right)?;
 
-    activation.store_word_at(dest, result);
+    activation.store_cell_at(dest, result);
 
     Ok(())
 }
@@ -587,7 +587,7 @@ pub(crate) fn execute_binary_float(
 // ============================================================================
 
 macro_rules! fixed_binary_executor {
-    ($(#[$doc:meta] $name:ident => $word:ident, $ty:ty, $operation:ident,)+) => {
+    ($(#[$doc:meta] $name:ident => $cell:ident, $ty:ty, $operation:ident,)+) => {
         $(
             #[$doc]
             #[inline(always)]
@@ -599,7 +599,7 @@ macro_rules! fixed_binary_executor {
                 let left = left as $ty;
                 let right = right as $ty;
                 let value = left.$operation(right);
-                activation.store_word_at(dest, Word::$word(value));
+                activation.store_cell_at(dest, Cell::$cell(value));
 
                 Ok(())
             }
@@ -620,7 +620,7 @@ macro_rules! fixed_binary_layout_executor {
                 let left = left as $ty;
                 let right = right as $ty;
                 let value = left.$operation(right);
-                activation.store_word_at(dest, integer_word_from_field(value as u64, instruction.d));
+                activation.store_cell_at(dest, integer_cell_from_field(value as u64, instruction.d));
 
                 Ok(())
             }
@@ -629,7 +629,7 @@ macro_rules! fixed_binary_layout_executor {
 }
 
 macro_rules! fixed_div_executor {
-    ($(#[$doc:meta] $name:ident => $word:ident, $ty:ty, $operation:ident,)+) => {
+    ($(#[$doc:meta] $name:ident => $cell:ident, $ty:ty, $operation:ident,)+) => {
         $(
             #[$doc]
             #[inline(always)]
@@ -647,7 +647,7 @@ macro_rules! fixed_div_executor {
                 }
 
                 let value = left.$operation(right);
-                activation.store_word_at(dest, Word::$word(value));
+                activation.store_cell_at(dest, Cell::$cell(value));
 
                 Ok(())
             }
@@ -656,7 +656,7 @@ macro_rules! fixed_div_executor {
 }
 
 macro_rules! fixed_shift_executor {
-    ($(#[$doc:meta] $name:ident => $word:ident, $ty:ty, $operation:ident,)+) => {
+    ($(#[$doc:meta] $name:ident => $cell:ident, $ty:ty, $operation:ident,)+) => {
         $(
             #[$doc]
             #[inline(always)]
@@ -668,7 +668,7 @@ macro_rules! fixed_shift_executor {
                 let left = left as $ty;
                 let right = right as u32;
                 let value = left.$operation(right);
-                activation.store_word_at(dest, Word::$word(value));
+                activation.store_cell_at(dest, Cell::$cell(value));
 
                 Ok(())
             }
@@ -689,7 +689,7 @@ macro_rules! fixed_shift_layout_executor {
                 let left = left as $ty;
                 let right = right as u32;
                 let value = left.$operation(right);
-                activation.store_word_at(dest, integer_word_from_field(value as u64, instruction.d));
+                activation.store_cell_at(dest, integer_cell_from_field(value as u64, instruction.d));
 
                 Ok(())
             }
@@ -709,7 +709,7 @@ macro_rules! fixed_compare_executor {
                 let (dest, left, right) = load_binary_raw_values(activation, instruction);
                 let left = left as $ty;
                 let right = right as $ty;
-                activation.store_word_at(dest, Word::bool(left $operation right));
+                activation.store_cell_at(dest, Cell::bool(left $operation right));
 
                 Ok(())
             }
@@ -718,7 +718,7 @@ macro_rules! fixed_compare_executor {
 }
 
 macro_rules! fixed_unary_executor {
-    ($(#[$doc:meta] $name:ident => $word:ident, $ty:ty, $operation:expr,)+) => {
+    ($(#[$doc:meta] $name:ident => $cell:ident, $ty:ty, $operation:expr,)+) => {
         $(
             #[$doc]
             #[inline(always)]
@@ -729,7 +729,7 @@ macro_rules! fixed_unary_executor {
                 let (dest, argument) = load_unary_raw_value(activation, instruction);
                 let argument = argument as $ty;
                 let value = $operation(argument);
-                activation.store_word_at(dest, Word::$word(value));
+                activation.store_cell_at(dest, Cell::$cell(value));
 
                 Ok(())
             }
@@ -874,9 +874,9 @@ pub(crate) fn execute_not_32(
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_raw_value(activation, instruction);
     let value = !(argument as u32);
-    activation.store_word_at(
+    activation.store_cell_at(
         dest,
-        integer_word_from_field(u64::from(value), instruction.d),
+        integer_cell_from_field(u64::from(value), instruction.d),
     );
 
     Ok(())
@@ -890,104 +890,86 @@ pub(crate) fn execute_not_64(
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_raw_value(activation, instruction);
     let value = !argument;
-    activation.store_word_at(dest, integer_word_from_field(value, instruction.d));
+    activation.store_cell_at(dest, integer_cell_from_field(value, instruction.d));
 
     Ok(())
 }
 
-/// Execute word-stored signed integer addition.
+/// Execute cell-stored signed integer addition.
 #[inline(always)]
-pub(crate) fn execute_add_word_int(
+pub(crate) fn execute_add_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, integer_word::<true>(left.wrapping_add(right), width));
+    activation.store_cell_at(dest, integer_cell::<true>(left.wrapping_add(right), width));
 
     Ok(())
 }
 
-/// Execute word-stored unsigned integer addition.
+/// Execute cell-stored unsigned integer addition.
 #[inline(always)]
-pub(crate) fn execute_add_word_uint(
+pub(crate) fn execute_add_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, integer_word::<false>(left.wrapping_add(right), width));
+    activation.store_cell_at(dest, integer_cell::<false>(left.wrapping_add(right), width));
 
     Ok(())
 }
 
-/// Execute word-stored signed integer subtraction.
+/// Execute cell-stored signed integer subtraction.
 #[inline(always)]
-pub(crate) fn execute_sub_word_int(
+pub(crate) fn execute_sub_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, integer_word::<true>(left.wrapping_sub(right), width));
+    activation.store_cell_at(dest, integer_cell::<true>(left.wrapping_sub(right), width));
 
     Ok(())
 }
 
-/// Execute word-stored unsigned integer subtraction.
+/// Execute cell-stored unsigned integer subtraction.
 #[inline(always)]
-pub(crate) fn execute_sub_word_uint(
+pub(crate) fn execute_sub_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, integer_word::<false>(left.wrapping_sub(right), width));
+    activation.store_cell_at(dest, integer_cell::<false>(left.wrapping_sub(right), width));
 
     Ok(())
 }
 
-/// Execute word-stored signed integer multiplication.
+/// Execute cell-stored signed integer multiplication.
 #[inline(always)]
-pub(crate) fn execute_mul_word_int(
+pub(crate) fn execute_mul_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, integer_word::<true>(left.wrapping_mul(right), width));
+    activation.store_cell_at(dest, integer_cell::<true>(left.wrapping_mul(right), width));
 
     Ok(())
 }
 
-/// Execute word-stored unsigned integer multiplication.
+/// Execute cell-stored unsigned integer multiplication.
 #[inline(always)]
-pub(crate) fn execute_mul_word_uint(
+pub(crate) fn execute_mul_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, integer_word::<false>(left.wrapping_mul(right), width));
+    activation.store_cell_at(dest, integer_cell::<false>(left.wrapping_mul(right), width));
 
     Ok(())
 }
 
-/// Execute word-stored signed integer division.
+/// Execute cell-stored signed integer division.
 #[inline(always)]
-pub(crate) fn execute_div_word_int(
-    activation: &mut Activation<'_>,
-    instruction: &Instruction,
-) -> Result<(), Error> {
-    let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
-    if right == 0 {
-        return Err(Error::division_by_zero());
-    }
-
-    let left = left as i64;
-    let right = right as i64;
-    activation.store_word_at(dest, Word::int(left.wrapping_div(right), width));
-
-    Ok(())
-}
-
-/// Execute word-stored signed integer remainder.
-#[inline(always)]
-pub(crate) fn execute_rem_word_int(
+pub(crate) fn execute_div_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -998,14 +980,14 @@ pub(crate) fn execute_rem_word_int(
 
     let left = left as i64;
     let right = right as i64;
-    activation.store_word_at(dest, Word::int(left.wrapping_rem(right), width));
+    activation.store_cell_at(dest, Cell::int(left.wrapping_div(right), width));
 
     Ok(())
 }
 
-/// Execute word-stored unsigned integer division.
+/// Execute cell-stored signed integer remainder.
 #[inline(always)]
-pub(crate) fn execute_div_word_uint(
+pub(crate) fn execute_rem_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -1014,14 +996,16 @@ pub(crate) fn execute_div_word_uint(
         return Err(Error::division_by_zero());
     }
 
-    activation.store_word_at(dest, Word::uint(left.wrapping_div(right), width));
+    let left = left as i64;
+    let right = right as i64;
+    activation.store_cell_at(dest, Cell::int(left.wrapping_rem(right), width));
 
     Ok(())
 }
 
-/// Execute word-stored unsigned integer remainder.
+/// Execute cell-stored unsigned integer division.
 #[inline(always)]
-pub(crate) fn execute_rem_word_uint(
+pub(crate) fn execute_div_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -1030,85 +1014,101 @@ pub(crate) fn execute_rem_word_uint(
         return Err(Error::division_by_zero());
     }
 
-    activation.store_word_at(dest, Word::uint(left.wrapping_rem(right), width));
+    activation.store_cell_at(dest, Cell::uint(left.wrapping_div(right), width));
 
     Ok(())
 }
 
-/// Execute word-sized integer bitwise AND.
+/// Execute cell-stored unsigned integer remainder.
 #[inline(always)]
-pub(crate) fn execute_and_word(
+pub(crate) fn execute_rem_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, left, right) = load_binary_raw_values(activation, instruction);
-    activation.store_word_at(dest, integer_word_from_field(left & right, instruction.d));
+    let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
+    if right == 0 {
+        return Err(Error::division_by_zero());
+    }
+
+    activation.store_cell_at(dest, Cell::uint(left.wrapping_rem(right), width));
 
     Ok(())
 }
 
-/// Execute word-sized integer bitwise OR.
+/// Execute cell-sized integer bitwise AND.
 #[inline(always)]
-pub(crate) fn execute_or_word(
+pub(crate) fn execute_and_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_raw_values(activation, instruction);
-    activation.store_word_at(dest, integer_word_from_field(left | right, instruction.d));
+    activation.store_cell_at(dest, integer_cell_from_field(left & right, instruction.d));
 
     Ok(())
 }
 
-/// Execute word-sized integer bitwise XOR.
+/// Execute cell-sized integer bitwise OR.
 #[inline(always)]
-pub(crate) fn execute_xor_word(
+pub(crate) fn execute_or_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_raw_values(activation, instruction);
-    activation.store_word_at(dest, integer_word_from_field(left ^ right, instruction.d));
+    activation.store_cell_at(dest, integer_cell_from_field(left | right, instruction.d));
 
     Ok(())
 }
 
-/// Execute word-sized integer shift left.
+/// Execute cell-sized integer bitwise XOR.
 #[inline(always)]
-pub(crate) fn execute_shl_word(
+pub(crate) fn execute_xor_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right) = load_binary_raw_values(activation, instruction);
-    activation.store_word_at(
+    activation.store_cell_at(dest, integer_cell_from_field(left ^ right, instruction.d));
+
+    Ok(())
+}
+
+/// Execute cell-sized integer shift left.
+#[inline(always)]
+pub(crate) fn execute_shl_cell(
+    activation: &mut Activation<'_>,
+    instruction: &Instruction,
+) -> Result<(), Error> {
+    let (dest, left, right) = load_binary_raw_values(activation, instruction);
+    activation.store_cell_at(
         dest,
-        integer_word_from_field(left.wrapping_shl(right as u32), instruction.d),
+        integer_cell_from_field(left.wrapping_shl(right as u32), instruction.d),
     );
 
     Ok(())
 }
 
-/// Execute word-stored arithmetic shift right.
+/// Execute cell-stored arithmetic shift right.
 #[inline(always)]
-pub(crate) fn execute_shr_word_int(
+pub(crate) fn execute_shr_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(
+    activation.store_cell_at(
         dest,
-        Word::int((left as i64).wrapping_shr(right as u32), width),
+        Cell::int((left as i64).wrapping_shr(right as u32), width),
     );
 
     Ok(())
 }
 
-/// Execute word-stored logical shift right.
+/// Execute cell-stored logical shift right.
 #[inline(always)]
-pub(crate) fn execute_shr_word_uint(
+pub(crate) fn execute_shr_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, width) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::uint(left.wrapping_shr(right as u32), width));
+    activation.store_cell_at(dest, Cell::uint(left.wrapping_shr(right as u32), width));
 
     Ok(())
 }
@@ -1117,122 +1117,122 @@ pub(crate) fn execute_shr_word_uint(
 // integer comparison handlers
 // ============================================================================
 
-/// Execute word-stored scalar equality comparison.
+/// Execute cell-stored scalar equality comparison.
 #[inline(always)]
-pub(crate) fn execute_eq_word(
+pub(crate) fn execute_eq_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left == right));
+    activation.store_cell_at(dest, Cell::bool(left == right));
 
     Ok(())
 }
 
-/// Execute word-stored scalar inequality comparison.
+/// Execute cell-stored scalar inequality comparison.
 #[inline(always)]
-pub(crate) fn execute_ne_word(
+pub(crate) fn execute_ne_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left != right));
+    activation.store_cell_at(dest, Cell::bool(left != right));
 
     Ok(())
 }
 
-/// Execute word-stored signed less than comparison.
+/// Execute cell-stored signed less than comparison.
 #[inline(always)]
-pub(crate) fn execute_lt_word_int(
+pub(crate) fn execute_lt_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool((left as i64) < (right as i64)));
+    activation.store_cell_at(dest, Cell::bool((left as i64) < (right as i64)));
 
     Ok(())
 }
 
-/// Execute word-stored signed less than or equal comparison.
+/// Execute cell-stored signed less than or equal comparison.
 #[inline(always)]
-pub(crate) fn execute_le_word_int(
+pub(crate) fn execute_le_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool((left as i64) <= (right as i64)));
+    activation.store_cell_at(dest, Cell::bool((left as i64) <= (right as i64)));
 
     Ok(())
 }
 
-/// Execute word-stored signed greater than comparison.
+/// Execute cell-stored signed greater than comparison.
 #[inline(always)]
-pub(crate) fn execute_gt_word_int(
+pub(crate) fn execute_gt_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool((left as i64) > (right as i64)));
+    activation.store_cell_at(dest, Cell::bool((left as i64) > (right as i64)));
 
     Ok(())
 }
 
-/// Execute word-stored signed greater than or equal comparison.
+/// Execute cell-stored signed greater than or equal comparison.
 #[inline(always)]
-pub(crate) fn execute_ge_word_int(
+pub(crate) fn execute_ge_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool((left as i64) >= (right as i64)));
+    activation.store_cell_at(dest, Cell::bool((left as i64) >= (right as i64)));
 
     Ok(())
 }
 
-/// Execute word-stored unsigned less than comparison.
+/// Execute cell-stored unsigned less than comparison.
 #[inline(always)]
-pub(crate) fn execute_lt_word_uint(
+pub(crate) fn execute_lt_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left < right));
+    activation.store_cell_at(dest, Cell::bool(left < right));
 
     Ok(())
 }
 
-/// Execute word-stored unsigned less than or equal comparison.
+/// Execute cell-stored unsigned less than or equal comparison.
 #[inline(always)]
-pub(crate) fn execute_le_word_uint(
+pub(crate) fn execute_le_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left <= right));
+    activation.store_cell_at(dest, Cell::bool(left <= right));
 
     Ok(())
 }
 
-/// Execute word-stored unsigned greater than comparison.
+/// Execute cell-stored unsigned greater than comparison.
 #[inline(always)]
-pub(crate) fn execute_gt_word_uint(
+pub(crate) fn execute_gt_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left > right));
+    activation.store_cell_at(dest, Cell::bool(left > right));
 
     Ok(())
 }
 
-/// Execute word-stored unsigned greater than or equal comparison.
+/// Execute cell-stored unsigned greater than or equal comparison.
 #[inline(always)]
-pub(crate) fn execute_ge_word_uint(
+pub(crate) fn execute_ge_cell_uint(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, left, right, _) = load_binary_integer_values(activation, instruction);
-    activation.store_word_at(dest, Word::bool(left >= right));
+    activation.store_cell_at(dest, Cell::bool(left >= right));
 
     Ok(())
 }
@@ -1277,26 +1277,26 @@ pub(crate) fn execute_not_wide_int(
     execute_wide_unary(activation, instruction, not_bytes_value)
 }
 
-/// Execute word-stored signed integer negation.
+/// Execute cell-stored signed integer negation.
 #[inline(always)]
-pub(crate) fn execute_neg_word_int(
+pub(crate) fn execute_neg_cell_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, argument, width) = load_unary_integer_value(activation, instruction);
-    activation.store_word_at(dest, integer_word::<true>(argument.wrapping_neg(), width));
+    activation.store_cell_at(dest, integer_cell::<true>(argument.wrapping_neg(), width));
 
     Ok(())
 }
 
-/// Execute word-sized integer bit inversion.
+/// Execute cell-sized integer bit inversion.
 #[inline(always)]
-pub(crate) fn execute_not_word(
+pub(crate) fn execute_not_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (dest, argument) = load_unary_raw_value(activation, instruction);
-    activation.store_word_at(dest, integer_word_from_field(!argument, instruction.d));
+    activation.store_cell_at(dest, integer_cell_from_field(!argument, instruction.d));
 
     Ok(())
 }
@@ -1307,8 +1307,8 @@ pub(crate) fn execute_neg_f32(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, argument) = load_unary_word_value(activation, instruction);
-    activation.store_word_at(dest, Word::float32(-argument.as_f32()));
+    let (dest, argument) = load_unary_cell_value(activation, instruction);
+    activation.store_cell_at(dest, Cell::float32(-argument.as_f32()));
 
     Ok(())
 }
@@ -1319,8 +1319,8 @@ pub(crate) fn execute_neg_f64(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, argument) = load_unary_word_value(activation, instruction);
-    activation.store_word_at(dest, Word::float64(-argument.as_f64()));
+    let (dest, argument) = load_unary_cell_value(activation, instruction);
+    activation.store_cell_at(dest, Cell::float64(-argument.as_f64()));
 
     Ok(())
 }
@@ -1334,10 +1334,10 @@ pub(crate) fn execute_unary_float(
     let operation = UnaryFloat::from_field(instruction.d);
     let (format, kernel) = operation.decode()?;
     let layout = ScalarLayout::Float { format };
-    let (dest, value) = load_unary_word_value(activation, instruction);
+    let (dest, value) = load_unary_cell_value(activation, instruction);
     let result = super::scalar::unary_float(layout, kernel, value)?;
 
-    activation.store_word_at(dest, result);
+    activation.store_cell_at(dest, result);
 
     Ok(())
 }
@@ -1347,8 +1347,8 @@ pub(crate) fn execute_not_bool(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let (dest, argument) = load_unary_word_value(activation, instruction);
-    activation.store_word_at(dest, Word::bool(!argument.as_bool()));
+    let (dest, argument) = load_unary_cell_value(activation, instruction);
+    activation.store_cell_at(dest, Cell::bool(!argument.as_bool()));
 
     Ok(())
 }

@@ -3,7 +3,7 @@ use destack_mir as mir;
 use crate::program::{Instruction, Intrinsic, IntrinsicDest, Op};
 use crate::{Error, Result};
 
-use super::frame::word_offset;
+use super::frame::cell_offset;
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 
@@ -24,7 +24,7 @@ impl<'a> BlockLowerer<'a> {
                 .value()
                 .ok_or_else(|| Error::invalid_program("intrinsic argument"))?;
             let layout = self
-                .value_layout_map()
+                .value_shape_map()
                 .get(argument)
                 .ok_or(Error::invalid_instruction())?;
 
@@ -45,8 +45,8 @@ impl<'a> BlockLowerer<'a> {
                     .value(destination.0)
                     .ok_or(Error::invalid_instruction())?;
 
-                if slot.is_word {
-                    IntrinsicDest::Word(word_offset(self, destination)?)
+                if slot.is_cell {
+                    IntrinsicDest::Cell(cell_offset(self, destination)?)
                 } else {
                     IntrinsicDest::Frame(destination)
                 }

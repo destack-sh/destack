@@ -78,11 +78,11 @@ pub(crate) fn visit_frame_slot_root_slots(
     bytes: &mut [u8],
     visit: &mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>,
 ) -> Result<(), Error> {
-    let ty = program.type_for_value_layout(slot.layout);
+    let ty = program.type_for_storage_id(slot.layout);
     let layout = frame_slot_layout(program, slot)?;
 
     // aggregate slots may contain several heap roots
-    if !layout.is_word() {
+    if !layout.is_cell() {
         return program.visit_byte_root_slots(ty, bytes, visit);
     }
 
@@ -129,7 +129,7 @@ fn frame_slot_layout<'a>(
     program: &'a Program,
     slot: &engine::FrameSlot,
 ) -> Result<&'a Layout, Error> {
-    program.layout_for_value_id(slot.layout).ok_or_else(|| {
+    program.layout_for_storage_id(slot.layout).ok_or_else(|| {
         Error::internal(format!(
             "missing frame slot layout for root scan: layout={:?}",
             slot.layout

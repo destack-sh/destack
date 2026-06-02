@@ -515,6 +515,6 @@ fn move_slot(frame_layout: &engine::FrameLayout, value: mir::Value) -> Result<Mo
         layout: slot.layout,
         offset: slot.offset,
         byte_len: slot.byte_len,
-        is_word: slot.is_word,
+        is_cell: slot.is_cell,
     })
 }

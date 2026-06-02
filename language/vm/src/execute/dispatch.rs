@@ -52,9 +52,9 @@ macro_rules! dispatch_instruction {
         let instruction = &$function.code[$pc];
 
         match instruction.op {
-            Op::LoadConstWord => $step!(super::execute_load_const_word($activation, instruction)),
+            Op::LoadConstCell => $step!(super::execute_load_const_cell($activation, instruction)),
             Op::LoadConstBytes => $step!(super::execute_load_const_bytes($activation, instruction)),
-            Op::MoveWord => $step!(super::execute_move_word($activation, instruction)),
+            Op::MoveCell => $step!(super::execute_move_cell($activation, instruction)),
             Op::MoveFrame => $step!(super::execute_move_frame($activation, instruction)),
             Op::LoadHeapBytes => {
                 $step!(super::execute_load_heap_bytes($activation, instruction))
@@ -98,15 +98,15 @@ macro_rules! dispatch_instruction {
             Op::StoreStaticBytes => {
                 $step!(super::execute_store_static_bytes($activation, instruction))
             }
-            Op::SelectWord => $step!(super::execute_select_word($activation, instruction)),
+            Op::SelectCell => $step!(super::execute_select_cell($activation, instruction)),
             Op::SelectFrame => $step!(super::execute_select_frame($activation, instruction)),
             Op::AddressLocal => $step!(super::execute_address_local($activation, instruction)),
             Op::AddressStatic => $step!(super::execute_address_static($activation, instruction)),
             Op::AddressFunction => {
                 $step!(super::execute_address_function($activation, instruction))
             }
-            Op::BindClosureWord => {
-                $step!(super::execute_bind_closure_word($activation, instruction))
+            Op::BindClosureCell => {
+                $step!(super::execute_bind_closure_cell($activation, instruction))
             }
             Op::BindClosureAddress => {
                 $step!(super::execute_bind_closure_address(
@@ -805,16 +805,16 @@ macro_rules! dispatch_instruction {
             Op::RemU32 => $step!(super::execute_rem_u32($activation, instruction)),
             Op::RemI64 => $step!(super::execute_rem_i64($activation, instruction)),
             Op::RemU64 => $step!(super::execute_rem_u64($activation, instruction)),
-            Op::AddWordInt => $step!(super::execute_add_word_int($activation, instruction)),
-            Op::AddWordUint => $step!(super::execute_add_word_uint($activation, instruction)),
-            Op::SubWordInt => $step!(super::execute_sub_word_int($activation, instruction)),
-            Op::SubWordUint => $step!(super::execute_sub_word_uint($activation, instruction)),
-            Op::MulWordInt => $step!(super::execute_mul_word_int($activation, instruction)),
-            Op::MulWordUint => $step!(super::execute_mul_word_uint($activation, instruction)),
-            Op::DivWordInt => $step!(super::execute_div_word_int($activation, instruction)),
-            Op::DivWordUint => $step!(super::execute_div_word_uint($activation, instruction)),
-            Op::RemWordInt => $step!(super::execute_rem_word_int($activation, instruction)),
-            Op::RemWordUint => $step!(super::execute_rem_word_uint($activation, instruction)),
+            Op::AddCellInt => $step!(super::execute_add_cell_int($activation, instruction)),
+            Op::AddCellUint => $step!(super::execute_add_cell_uint($activation, instruction)),
+            Op::SubCellInt => $step!(super::execute_sub_cell_int($activation, instruction)),
+            Op::SubCellUint => $step!(super::execute_sub_cell_uint($activation, instruction)),
+            Op::MulCellInt => $step!(super::execute_mul_cell_int($activation, instruction)),
+            Op::MulCellUint => $step!(super::execute_mul_cell_uint($activation, instruction)),
+            Op::DivCellInt => $step!(super::execute_div_cell_int($activation, instruction)),
+            Op::DivCellUint => $step!(super::execute_div_cell_uint($activation, instruction)),
+            Op::RemCellInt => $step!(super::execute_rem_cell_int($activation, instruction)),
+            Op::RemCellUint => $step!(super::execute_rem_cell_uint($activation, instruction)),
             Op::And32 => $step!(super::execute_and_32($activation, instruction)),
             Op::And64 => $step!(super::execute_and_64($activation, instruction)),
             Op::Or32 => $step!(super::execute_or_32($activation, instruction)),
@@ -834,12 +834,12 @@ macro_rules! dispatch_instruction {
             Op::DivWideUint => $step!(super::execute_div_wide_uint($activation, instruction)),
             Op::RemWideInt => $step!(super::execute_rem_wide_int($activation, instruction)),
             Op::RemWideUint => $step!(super::execute_rem_wide_uint($activation, instruction)),
-            Op::AndWord => $step!(super::execute_and_word($activation, instruction)),
-            Op::OrWord => $step!(super::execute_or_word($activation, instruction)),
-            Op::XorWord => $step!(super::execute_xor_word($activation, instruction)),
-            Op::ShlWord => $step!(super::execute_shl_word($activation, instruction)),
-            Op::ShrWordInt => $step!(super::execute_shr_word_int($activation, instruction)),
-            Op::ShrWordUint => $step!(super::execute_shr_word_uint($activation, instruction)),
+            Op::AndCell => $step!(super::execute_and_cell($activation, instruction)),
+            Op::OrCell => $step!(super::execute_or_cell($activation, instruction)),
+            Op::XorCell => $step!(super::execute_xor_cell($activation, instruction)),
+            Op::ShlCell => $step!(super::execute_shl_cell($activation, instruction)),
+            Op::ShrCellInt => $step!(super::execute_shr_cell_int($activation, instruction)),
+            Op::ShrCellUint => $step!(super::execute_shr_cell_uint($activation, instruction)),
             Op::AndWideInt => $step!(super::execute_and_wide_int($activation, instruction)),
             Op::OrWideInt => $step!(super::execute_or_wide_int($activation, instruction)),
             Op::XorWideInt => $step!(super::execute_xor_wide_int($activation, instruction)),
@@ -887,16 +887,16 @@ macro_rules! dispatch_instruction {
             Op::GeU32 => $step!(super::execute_ge_u32($activation, instruction)),
             Op::GeI64 => $step!(super::execute_ge_i64($activation, instruction)),
             Op::GeU64 => $step!(super::execute_ge_u64($activation, instruction)),
-            Op::EqWord => $step!(super::execute_eq_word($activation, instruction)),
-            Op::NeWord => $step!(super::execute_ne_word($activation, instruction)),
-            Op::LtWordInt => $step!(super::execute_lt_word_int($activation, instruction)),
-            Op::LtWordUint => $step!(super::execute_lt_word_uint($activation, instruction)),
-            Op::LeWordInt => $step!(super::execute_le_word_int($activation, instruction)),
-            Op::LeWordUint => $step!(super::execute_le_word_uint($activation, instruction)),
-            Op::GtWordInt => $step!(super::execute_gt_word_int($activation, instruction)),
-            Op::GtWordUint => $step!(super::execute_gt_word_uint($activation, instruction)),
-            Op::GeWordInt => $step!(super::execute_ge_word_int($activation, instruction)),
-            Op::GeWordUint => $step!(super::execute_ge_word_uint($activation, instruction)),
+            Op::EqCell => $step!(super::execute_eq_cell($activation, instruction)),
+            Op::NeCell => $step!(super::execute_ne_cell($activation, instruction)),
+            Op::LtCellInt => $step!(super::execute_lt_cell_int($activation, instruction)),
+            Op::LtCellUint => $step!(super::execute_lt_cell_uint($activation, instruction)),
+            Op::LeCellInt => $step!(super::execute_le_cell_int($activation, instruction)),
+            Op::LeCellUint => $step!(super::execute_le_cell_uint($activation, instruction)),
+            Op::GtCellInt => $step!(super::execute_gt_cell_int($activation, instruction)),
+            Op::GtCellUint => $step!(super::execute_gt_cell_uint($activation, instruction)),
+            Op::GeCellInt => $step!(super::execute_ge_cell_int($activation, instruction)),
+            Op::GeCellUint => $step!(super::execute_ge_cell_uint($activation, instruction)),
             Op::EqWideInt => $step!(super::execute_eq_wide_int($activation, instruction)),
             Op::NeWideInt => $step!(super::execute_ne_wide_int($activation, instruction)),
             Op::LtWideInt => $step!(super::execute_lt_wide_int($activation, instruction)),
@@ -911,8 +911,8 @@ macro_rules! dispatch_instruction {
             Op::NegI64 => $step!(super::execute_neg_i64($activation, instruction)),
             Op::Not32 => $step!(super::execute_not_32($activation, instruction)),
             Op::Not64 => $step!(super::execute_not_64($activation, instruction)),
-            Op::NegWordInt => $step!(super::execute_neg_word_int($activation, instruction)),
-            Op::NotWord => $step!(super::execute_not_word($activation, instruction)),
+            Op::NegCellInt => $step!(super::execute_neg_cell_int($activation, instruction)),
+            Op::NotCell => $step!(super::execute_not_cell($activation, instruction)),
             Op::NegWideInt => $step!(super::execute_neg_wide_int($activation, instruction)),
             Op::NotWideInt => $step!(super::execute_not_wide_int($activation, instruction)),
             Op::NegF32 => $step!(super::execute_neg_f32($activation, instruction)),
@@ -971,14 +971,14 @@ macro_rules! dispatch_instruction {
             Op::CastIntToPointer => {
                 $step!(super::execute_cast_int_to_pointer($activation, instruction))
             }
-            Op::CastWordToWideInt => {
-                $step!(super::execute_cast_word_to_wide_int(
+            Op::CastCellToWideInt => {
+                $step!(super::execute_cast_cell_to_wide_int(
                     $activation,
                     instruction
                 ))
             }
-            Op::CastWideIntToWord => {
-                $step!(super::execute_cast_wide_int_to_word(
+            Op::CastWideIntToCell => {
+                $step!(super::execute_cast_wide_int_to_cell(
                     $activation,
                     instruction
                 ))
@@ -1104,31 +1104,31 @@ macro_rules! dispatch_instruction {
             Op::BranchGeU32 => $transfer!(super::execute_branch_ge_u32($activation, instruction)),
             Op::BranchGeI64 => $transfer!(super::execute_branch_ge_i64($activation, instruction)),
             Op::BranchGeU64 => $transfer!(super::execute_branch_ge_u64($activation, instruction)),
-            Op::BranchEqWord => $transfer!(super::execute_branch_eq_word($activation, instruction)),
-            Op::BranchNeWord => $transfer!(super::execute_branch_ne_word($activation, instruction)),
-            Op::BranchLtWordInt => {
-                $transfer!(super::execute_branch_lt_word_int($activation, instruction))
+            Op::BranchEqCell => $transfer!(super::execute_branch_eq_cell($activation, instruction)),
+            Op::BranchNeCell => $transfer!(super::execute_branch_ne_cell($activation, instruction)),
+            Op::BranchLtCellInt => {
+                $transfer!(super::execute_branch_lt_cell_int($activation, instruction))
             }
-            Op::BranchLeWordInt => {
-                $transfer!(super::execute_branch_le_word_int($activation, instruction))
+            Op::BranchLeCellInt => {
+                $transfer!(super::execute_branch_le_cell_int($activation, instruction))
             }
-            Op::BranchGtWordInt => {
-                $transfer!(super::execute_branch_gt_word_int($activation, instruction))
+            Op::BranchGtCellInt => {
+                $transfer!(super::execute_branch_gt_cell_int($activation, instruction))
             }
-            Op::BranchGeWordInt => {
-                $transfer!(super::execute_branch_ge_word_int($activation, instruction))
+            Op::BranchGeCellInt => {
+                $transfer!(super::execute_branch_ge_cell_int($activation, instruction))
             }
-            Op::BranchLtWordUint => {
-                $transfer!(super::execute_branch_lt_word_uint($activation, instruction))
+            Op::BranchLtCellUint => {
+                $transfer!(super::execute_branch_lt_cell_uint($activation, instruction))
             }
-            Op::BranchLeWordUint => {
-                $transfer!(super::execute_branch_le_word_uint($activation, instruction))
+            Op::BranchLeCellUint => {
+                $transfer!(super::execute_branch_le_cell_uint($activation, instruction))
             }
-            Op::BranchGtWordUint => {
-                $transfer!(super::execute_branch_gt_word_uint($activation, instruction))
+            Op::BranchGtCellUint => {
+                $transfer!(super::execute_branch_gt_cell_uint($activation, instruction))
             }
-            Op::BranchGeWordUint => {
-                $transfer!(super::execute_branch_ge_word_uint($activation, instruction))
+            Op::BranchGeCellUint => {
+                $transfer!(super::execute_branch_ge_cell_uint($activation, instruction))
             }
             Op::BranchEqF32 => $transfer!(super::execute_branch_eq_f32($activation, instruction)),
             Op::BranchNeF32 => $transfer!(super::execute_branch_ne_f32($activation, instruction)),
@@ -1172,7 +1172,7 @@ macro_rules! dispatch_instruction {
             }
             Op::AtomicFence => $step!(super::execute_atomic_fence($activation, instruction)),
             Op::Intrinsic => $step!(super::execute_intrinsic($activation, instruction)),
-            Op::ReturnWord => $transfer!(super::execute_return_word($activation, instruction)),
+            Op::ReturnCell => $transfer!(super::execute_return_cell($activation, instruction)),
             Op::ReturnAddress => {
                 $transfer!(super::execute_return_address($activation, instruction))
             }
@@ -1224,7 +1224,7 @@ macro_rules! dispatch_instruction {
             Op::PackedSplat64x2 => {
                 $step!(super::execute_packed_splat_64x2($activation, instruction))
             }
-            Op::YieldWord => $transfer!(super::execute_yield_word($activation, instruction)),
+            Op::YieldCell => $transfer!(super::execute_yield_cell($activation, instruction)),
             Op::YieldAddress => $transfer!(super::execute_yield_address($activation, instruction)),
         }
     };

@@ -3,7 +3,7 @@ use crate::tests::{
     assert_runtime_error, assert_runtime_error_matches, create_machine, run_mir, run_mir_expect,
     run_mir_ok,
 };
-use crate::{FunctionPointer, Word};
+use crate::{Cell, FunctionPointer};
 use destack_engine::Value;
 
 /// Branch instruction takes the true path when condition is true.
@@ -197,7 +197,7 @@ function noop(): void {
 b0:
     return
 }"#;
-    run_mir_expect(mir, "noop", &[], Value::VOID);
+    run_mir_expect(mir, "noop", &[], Value::Void);
 }
 
 /// Caller's local values are preserved across nested calls.
@@ -267,8 +267,8 @@ b0(v0: (int32) -> int32, v1: int32):
         .run_frame_function_by_name(
             "caller",
             &[
-                Word::function_pointer(FunctionPointer::from_bits(double_id.id as usize)),
-                Word::int32(21),
+                Cell::function_pointer(FunctionPointer::from_bits(double_id.id as usize)),
+                Cell::int32(21),
             ],
         )
         .expect("execution failed");
@@ -300,8 +300,8 @@ b0(v0: (int32) -> int32, v1: int32):
     let result = machine.run_frame_function_by_name(
         "caller",
         &[
-            Word::function_pointer(FunctionPointer::from_bits(wrong_id.id as usize)),
-            Word::int32(21),
+            Cell::function_pointer(FunctionPointer::from_bits(wrong_id.id as usize)),
+            Cell::int32(21),
         ],
     );
 
@@ -394,8 +394,8 @@ b0(v0: int32, v1: (int32, int32) -> int32):
         .run_frame_function_by_name(
             "entry",
             &[
-                Word::int32(200),
-                Word::function_pointer(FunctionPointer::from_bits(countdown_id.id as usize)),
+                Cell::int32(200),
+                Cell::function_pointer(FunctionPointer::from_bits(countdown_id.id as usize)),
             ],
         )
         .expect("execution failed");

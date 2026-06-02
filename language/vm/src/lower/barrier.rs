@@ -1,9 +1,9 @@
 use destack_mir as mir;
 
-use crate::program::{Instruction, Op, PointerClass, ValueLayout, value_layout_from_type};
+use crate::program::{AddressSpace, Instruction, Op, ValueShape, value_shape_from_type};
 use crate::{Error, Result};
 
-use super::frame::word_offset;
+use super::frame::cell_offset;
 use super::lower::BlockLowerer;
 
 impl<'a> BlockLowerer<'a> {
@@ -27,30 +27,30 @@ impl<'a> BlockLowerer<'a> {
 
         // encode the collector that owns this reference
         let object_type = self.value_type_for_value(object)?;
-        let object_layout = value_layout_from_type(self.tree, object_type);
-        let ValueLayout::Pointer { pointer_class, .. } = object_layout else {
+        let object_layout = value_shape_from_type(self.tree, object_type);
+        let Some(ValueShape::Pointer { address_space, .. }) = object_layout else {
             return Err(Error::type_mismatch(
                 "managed barrier reference",
                 format!("{object_layout:?}"),
             ));
         };
 
-        let op = match pointer_class {
-            PointerClass::Heap => Op::BarrierWriteHeap,
-            PointerClass::SharedHeap => Op::BarrierWriteSharedHeap,
+        let op = match address_space {
+            AddressSpace::Local => Op::BarrierWriteHeap,
+            AddressSpace::Shared => Op::BarrierWriteSharedHeap,
             _ => {
                 return Err(Error::type_mismatch(
                     "managed barrier reference",
-                    format!("{pointer_class:?}"),
+                    format!("{address_space:?}"),
                 ));
             }
         };
 
         Ok(Instruction::new(
             op,
-            word_offset(self, object)?,
-            word_offset(self, offset)?,
-            word_offset(self, byte_len)?,
+            cell_offset(self, object)?,
+            cell_offset(self, offset)?,
+            cell_offset(self, byte_len)?,
             0,
         ))
     }

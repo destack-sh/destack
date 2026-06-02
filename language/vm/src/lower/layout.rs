@@ -8,8 +8,8 @@ use super::projection::{
     array_element_count, element_projection, field_count_for_layout, field_projection,
 };
 use super::value::{
-    heap_pointee_type_for_value, heap_pointee_type_for_value_layout, raw_pointee_type_for_value,
-    raw_pointee_type_for_value_layout, value_type_for_value as lookup_value_type_for_value,
+    heap_pointee_type_for_storage_id, heap_pointee_type_for_value, raw_pointee_type_for_storage_id,
+    raw_pointee_type_for_value, value_type_for_value as lookup_value_type_for_value,
 };
 
 impl<'a> BlockLowerer<'a> {
@@ -26,7 +26,7 @@ impl<'a> BlockLowerer<'a> {
     /// Return one lowered field count for one value.
     pub(super) fn field_count_for_value(&self, value: mir::Value) -> Result<u32> {
         if let Some(count) = self
-            .value_layout_map()
+            .value_shape_map()
             .get(value)
             .and_then(|layout| field_count_for_layout(self.tree, layout))
         {
@@ -44,7 +44,7 @@ impl<'a> BlockLowerer<'a> {
     /// Return one lowered array length for one value.
     pub(super) fn array_length_for_value(&self, value: mir::Value) -> Result<u64> {
         if let Some(length) = self
-            .value_layout_map()
+            .value_shape_map()
             .get(value)
             .and_then(|layout| array_element_count(self.tree, layout))
         {
@@ -64,8 +64,8 @@ impl<'a> BlockLowerer<'a> {
         &self,
         value: mir::Value,
     ) -> Result<Option<mir::LocalNodeId<mir::Type>>> {
-        let pointee_type = heap_pointee_type_for_value_layout(self.value_layout_map(), value)
-            .or_else(|| raw_pointee_type_for_value_layout(self.value_layout_map(), value))
+        let pointee_type = heap_pointee_type_for_storage_id(self.value_shape_map(), value)
+            .or_else(|| raw_pointee_type_for_storage_id(self.value_shape_map(), value))
             .or_else(|| heap_pointee_type_for_value(self.tree, self.value_type(), value))
             .or_else(|| raw_pointee_type_for_value(self.tree, self.value_type(), value));
 

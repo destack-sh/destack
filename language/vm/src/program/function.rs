@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use destack_engine as engine;
 use destack_mir as mir;
 
-use super::{ArgumentRange, Instruction, MovePair, MoveRange, WordLayout, word_layout_from_type};
+use super::{ArgumentRange, CellLayout, Instruction, MovePair, MoveRange, cell_layout_from_type};
 use crate::Error;
 
 /// Lowered function with executable code and frame metadata.
@@ -89,12 +89,12 @@ impl FunctionTable {
         self.functions.get(index as usize)
     }
 
-    /// Return the closure environment word layout for one function id.
+    /// Return the closure environment cell layout for one function id.
     pub(crate) fn environment_layout(
         &self,
         tree: &mir::Tree,
         func_id: mir::LocalNodeId<mir::Function>,
-    ) -> Option<WordLayout> {
+    ) -> Option<CellLayout> {
         if !self.target_by_id.contains_key(&func_id) {
             return None;
         }
@@ -124,16 +124,16 @@ impl FunctionTable {
     }
 }
 
-/// Return one closure environment word layout.
+/// Return one closure environment cell layout.
 fn environment_layout(
     tree: &mir::Tree,
     function_id: mir::LocalNodeId<mir::Function>,
-) -> Option<WordLayout> {
+) -> Option<CellLayout> {
     let function = tree.get(function_id);
     let environment = function.environment.as_ref()?;
     let environment_type = environment.ty()?;
 
-    word_layout_from_type(tree, environment_type)
+    cell_layout_from_type(tree, environment_type)
 }
 
 /// Return whether one function matches one bare signature type.

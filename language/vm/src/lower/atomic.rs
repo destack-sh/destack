@@ -1,13 +1,13 @@
 use destack_mir as mir;
 
 use crate::program::{
-    AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
-    AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, Instruction, Op, PointerClass,
-    WordLayout, pointer_class_from_reference, repr_type, word_layout_from_type,
+    AddressSpace, AtomicAddress, AtomicCompareExchange, AtomicOrder, AtomicReadModifyWriteOperator,
+    AtomicReadModifyWriteShape, AtomicShape, AtomicWidth, CellLayout, Instruction, Op,
+    address_space_from_reference, cell_layout_from_type, repr_type,
 };
 use crate::{Error, Result};
 
-use super::frame::word_offset;
+use super::frame::cell_offset;
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 
@@ -32,8 +32,8 @@ impl<'a> BlockLowerer<'a> {
         // encode the operation directly into the instruction
         Ok(Instruction::new(
             Op::AtomicLoad,
-            word_offset(self, destination)?,
-            word_offset(self, pointer)?,
+            cell_offset(self, destination)?,
+            cell_offset(self, pointer)?,
             0,
             shape.encode(),
         ))
@@ -59,8 +59,8 @@ impl<'a> BlockLowerer<'a> {
         // encode the operation directly into the instruction
         Ok(Instruction::new(
             Op::AtomicStore,
-            word_offset(self, pointer)?,
-            word_offset(self, value)?,
+            cell_offset(self, pointer)?,
+            cell_offset(self, value)?,
             0,
             shape.encode(),
         ))
@@ -95,9 +95,9 @@ impl<'a> BlockLowerer<'a> {
             Op::AtomicCompareExchange,
             AtomicCompareExchange {
                 destination,
-                pointer_offset: word_offset(self, pointer)?,
-                expected_offset: word_offset(self, expected)?,
-                new_value_offset: word_offset(self, new_value)?,
+                pointer_offset: cell_offset(self, pointer)?,
+                expected_offset: cell_offset(self, expected)?,
+                new_value_offset: cell_offset(self, new_value)?,
                 shape,
                 failure_order,
                 is_weak,
@@ -129,9 +129,9 @@ impl<'a> BlockLowerer<'a> {
         if operator == mir::AtomicRmwOperator::Exchange {
             return Ok(Instruction::new(
                 Op::AtomicExchange,
-                word_offset(self, destination)?,
-                word_offset(self, pointer)?,
-                word_offset(self, value)?,
+                cell_offset(self, destination)?,
+                cell_offset(self, pointer)?,
+                cell_offset(self, value)?,
                 shape.encode(),
             ));
         }
@@ -142,9 +142,9 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             Op::AtomicReadModifyWrite,
-            word_offset(self, destination)?,
-            word_offset(self, pointer)?,
-            word_offset(self, value)?,
+            cell_offset(self, destination)?,
+            cell_offset(self, pointer)?,
+            cell_offset(self, value)?,
             shape.encode(),
         ))
     }
@@ -172,7 +172,7 @@ fn atomic_value(reference: mir::ValueReference, context: &str) -> Result<mir::Va
 /// Build the compact shape for one atomic memory operation.
 fn atomic_shape(
     access: mir::AtomicAccess,
-    layout: WordLayout,
+    layout: CellLayout,
     address: AtomicAddress,
     pointer_bytes: usize,
 ) -> Result<AtomicShape> {
@@ -184,7 +184,7 @@ fn atomic_shape(
 /// Map one MIR read-modify-write operator to a VM update operation.
 fn atomic_read_modify_write_operator(
     operator: mir::AtomicRmwOperator,
-    layout: WordLayout,
+    layout: CellLayout,
 ) -> Result<AtomicReadModifyWriteOperator> {
     use mir::AtomicRmwOperator as MirOperator;
 
@@ -206,35 +206,35 @@ fn atomic_read_modify_write_operator(
 }
 
 /// Return whether this layout supports integer arithmetic atomics.
-fn is_integer(layout: WordLayout) -> bool {
-    matches!(layout, WordLayout::Int { .. } | WordLayout::Uint { .. })
+fn is_integer(layout: CellLayout) -> bool {
+    matches!(layout, CellLayout::Int { .. } | CellLayout::Uint { .. })
 }
 
 /// Return whether this layout supports bitwise atomics.
-fn is_bits(layout: WordLayout) -> bool {
+fn is_bits(layout: CellLayout) -> bool {
     matches!(
         layout,
-        WordLayout::Bool | WordLayout::Int { .. } | WordLayout::Uint { .. }
+        CellLayout::Bool | CellLayout::Int { .. } | CellLayout::Uint { .. }
     )
 }
 
 /// Return whether this layout supports signed min/max atomics.
-fn is_signed_integer(layout: WordLayout) -> bool {
-    matches!(layout, WordLayout::Int { .. })
+fn is_signed_integer(layout: CellLayout) -> bool {
+    matches!(layout, CellLayout::Int { .. })
 }
 
 /// Return whether this layout supports unsigned min/max atomics.
-fn is_unsigned_integer(layout: WordLayout) -> bool {
-    matches!(layout, WordLayout::Uint { .. })
+fn is_unsigned_integer(layout: CellLayout) -> bool {
+    matches!(layout, CellLayout::Uint { .. })
 }
 
 /// Return whether this layout supports floating CAS-loop atomics.
-fn is_float(layout: WordLayout) -> bool {
-    matches!(layout, WordLayout::Float32 | WordLayout::Float64)
+fn is_float(layout: CellLayout) -> bool {
+    matches!(layout, CellLayout::Float32 | CellLayout::Float64)
 }
 
-/// Return the atomic payload width for one word layout.
-fn atomic_width(layout: WordLayout, pointer_bytes: usize) -> Result<AtomicWidth> {
+/// Return the atomic payload width for one cell layout.
+fn atomic_width(layout: CellLayout, pointer_bytes: usize) -> Result<AtomicWidth> {
     let byte_len = layout.byte_len(pointer_bytes);
 
     Ok(match byte_len {
@@ -249,22 +249,22 @@ fn atomic_width(layout: WordLayout, pointer_bytes: usize) -> Result<AtomicWidth>
 /// Build the VM atomic shape for one MIR atomic instruction.
 fn atomic_shape_from_parts(
     access: mir::AtomicAccess,
-    layout: WordLayout,
+    layout: CellLayout,
     address: AtomicAddress,
     width: AtomicWidth,
 ) -> AtomicShape {
     let order = AtomicOrder::from_mir(access.ordering);
-    let is_signed = matches!(layout, WordLayout::Int { .. });
+    let is_signed = matches!(layout, CellLayout::Int { .. });
 
     AtomicShape::new(address, width, order, is_signed)
 }
 
-/// Require an atomic pointer with a concrete word layout and address class.
+/// Require an atomic pointer with a concrete cell layout and address class.
 fn require_atomic_pointer(
     tree: &mir::Tree,
     value_types: &[mir::LocalNodeId<mir::Type>],
     pointer: mir::Value,
-) -> Result<(WordLayout, AtomicAddress)> {
+) -> Result<(CellLayout, AtomicAddress)> {
     // resolve the pointer value type
     let pointer_type = value_type_for_atomic_pointer(tree, value_types, pointer)?;
     let pointer_type = repr_type(tree, pointer_type);
@@ -280,8 +280,8 @@ fn require_atomic_pointer(
         return Err(Error::invalid_pointer_type(format!("{pointer:?}")));
     };
 
-    let pointer_class = pointer_class_from_reference(space.clone(), *kind);
-    let address = atomic_address(pointer_class)?;
+    let address_space = address_space_from_reference(space.clone(), *kind);
+    let address = atomic_address(address_space)?;
 
     // require atomic storage
     let pointee = pointee
@@ -295,12 +295,12 @@ fn require_atomic_pointer(
         )));
     };
 
-    // require a word-sized atomic payload
+    // require a cell-sized atomic payload
     let value = value
         .ty()
         .ok_or_else(|| Error::invalid_pointer_type(format!("{:?}", tree.get(pointee))))?;
-    let layout = word_layout_from_type(tree, value).ok_or_else(|| {
-        Error::type_mismatch("word atomic pointee", format!("{:?}", tree.get(value)))
+    let layout = cell_layout_from_type(tree, value).ok_or_else(|| {
+        Error::type_mismatch("cell atomic pointee", format!("{:?}", tree.get(value)))
     })?;
 
     Ok((layout, address))
@@ -320,14 +320,13 @@ fn value_type_for_atomic_pointer(
 }
 
 /// Select the VM atomic address representation.
-fn atomic_address(pointer_class: PointerClass) -> Result<AtomicAddress> {
-    match pointer_class {
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(AtomicAddress::Heap),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(AtomicAddress::SharedHeap),
-        PointerClass::Address => Ok(AtomicAddress::Address),
-        PointerClass::Stack => Ok(AtomicAddress::Stack),
-        PointerClass::Frame => Ok(AtomicAddress::Frame),
-        PointerClass::Static => Ok(AtomicAddress::Static),
-        _ => Err(Error::invalid_instruction()),
+fn atomic_address(address_space: AddressSpace) -> Result<AtomicAddress> {
+    match address_space {
+        AddressSpace::Local => Ok(AtomicAddress::Heap),
+        AddressSpace::Shared => Ok(AtomicAddress::SharedHeap),
+        AddressSpace::Raw => Ok(AtomicAddress::Address),
+        AddressSpace::Stack => Ok(AtomicAddress::Stack),
+        AddressSpace::Frame => Ok(AtomicAddress::Frame),
+        AddressSpace::Static => Ok(AtomicAddress::Static),
     }
 }

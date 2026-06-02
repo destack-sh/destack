@@ -2,7 +2,7 @@ use destack_mir as mir;
 
 use crate::program::Instruction;
 
-use super::frame::word_offset;
+use super::frame::cell_offset;
 use super::lower::BlockLowerer;
 use super::op::select_compare_branch_op;
 use super::pool::Pool;
@@ -53,7 +53,7 @@ impl<'a> BlockLowerer<'a> {
         }
 
         let left_type = self.value_type_for_value(left).ok()?;
-        if !self.layout_for_type(left_type).ok()?.is_word() {
+        if !self.layout_for_type(left_type).ok()?.is_cell() {
             return None;
         }
 
@@ -80,13 +80,13 @@ impl<'a> BlockLowerer<'a> {
         let then_edge = pool.edge(then_index as u32, then_moves);
         let else_edge = pool.edge(else_index as u32, else_moves);
 
-        let left_layout = self.value_layout_map().get(left);
+        let left_layout = self.value_shape_map().get(left);
         let op = select_compare_branch_op(*operator, left_layout)?;
 
         Some(Instruction::new(
             op,
-            word_offset(self, left).ok()?,
-            word_offset(self, right).ok()?,
+            cell_offset(self, left).ok()?,
+            cell_offset(self, right).ok()?,
             then_edge.0,
             else_edge.0,
         ))

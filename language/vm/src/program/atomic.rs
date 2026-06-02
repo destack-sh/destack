@@ -24,7 +24,7 @@ pub(crate) enum AtomicAddress {
     Stack = 4,
     /// Frame pointer.
     Frame = 5,
-    /// Static pointer.
+    /// Static address.
     Static = 6,
 }
 

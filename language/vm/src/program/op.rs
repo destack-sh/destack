@@ -4,12 +4,12 @@ pub(crate) enum Op {
     // ============================================================================
     // values
     // ============================================================================
-    /// Load a word constant.
-    LoadConstWord,
+    /// Load a cell constant.
+    LoadConstCell,
     /// Load a byte constant into a frame value.
     LoadConstBytes,
-    /// Move one word between frame offsets.
-    MoveWord,
+    /// Move one cell between frame offsets.
+    MoveCell,
     /// Move bytes between frame values.
     MoveFrame,
     /// Load bytes from local heap memory into a frame value.
@@ -36,8 +36,8 @@ pub(crate) enum Op {
     StoreFrameBytes,
     /// Store bytes from a frame value into static memory.
     StoreStaticBytes,
-    /// Select one of two word values.
-    SelectWord,
+    /// Select one of two cell values.
+    SelectCell,
     /// Select one of two frame values.
     SelectFrame,
 
@@ -50,8 +50,8 @@ pub(crate) enum Op {
     AddressStatic,
     /// Materialize a function pointer.
     AddressFunction,
-    /// Bind a function pointer to one word environment.
-    BindClosureWord,
+    /// Bind a function pointer to one cell environment.
+    BindClosureCell,
     /// Bind a function pointer to one frame address environment.
     BindClosureAddress,
     /// Load the current closure environment.
@@ -442,26 +442,26 @@ pub(crate) enum Op {
     RemI64,
     /// Remainder 64-bit unsigned integer values.
     RemU64,
-    /// Add word-stored signed integer values.
-    AddWordInt,
-    /// Add word-stored unsigned integer values.
-    AddWordUint,
-    /// Subtract word-stored signed integer values.
-    SubWordInt,
-    /// Subtract word-stored unsigned integer values.
-    SubWordUint,
-    /// Multiply word-stored signed integer values.
-    MulWordInt,
-    /// Multiply word-stored unsigned integer values.
-    MulWordUint,
-    /// Divide word-stored signed integer values.
-    DivWordInt,
-    /// Divide word-stored unsigned integer values.
-    DivWordUint,
-    /// Remainder word-stored signed integer values.
-    RemWordInt,
-    /// Remainder word-stored unsigned integer values.
-    RemWordUint,
+    /// Add cell-stored signed integer values.
+    AddCellInt,
+    /// Add cell-stored unsigned integer values.
+    AddCellUint,
+    /// Subtract cell-stored signed integer values.
+    SubCellInt,
+    /// Subtract cell-stored unsigned integer values.
+    SubCellUint,
+    /// Multiply cell-stored signed integer values.
+    MulCellInt,
+    /// Multiply cell-stored unsigned integer values.
+    MulCellUint,
+    /// Divide cell-stored signed integer values.
+    DivCellInt,
+    /// Divide cell-stored unsigned integer values.
+    DivCellUint,
+    /// Remainder cell-stored signed integer values.
+    RemCellInt,
+    /// Remainder cell-stored unsigned integer values.
+    RemCellUint,
     /// And 32-bit integer values.
     And32,
     /// And 64-bit integer values.
@@ -500,18 +500,18 @@ pub(crate) enum Op {
     RemWideInt,
     /// Remainder wide unsigned integer values.
     RemWideUint,
-    /// And word-sized integer values.
-    AndWord,
-    /// Or word-sized integer values.
-    OrWord,
-    /// Xor word-sized integer values.
-    XorWord,
-    /// Shift word-sized integer values left.
-    ShlWord,
-    /// Arithmetically shift word-stored signed integer values right.
-    ShrWordInt,
-    /// Logically shift word-stored unsigned integer values right.
-    ShrWordUint,
+    /// And cell-sized integer values.
+    AndCell,
+    /// Or cell-sized integer values.
+    OrCell,
+    /// Xor cell-sized integer values.
+    XorCell,
+    /// Shift cell-sized integer values left.
+    ShlCell,
+    /// Arithmetically shift cell-stored signed integer values right.
+    ShrCellInt,
+    /// Logically shift cell-stored unsigned integer values right.
+    ShrCellUint,
     /// And wide integer values.
     AndWideInt,
     /// Or wide integer values.
@@ -582,26 +582,26 @@ pub(crate) enum Op {
     GeI64,
     /// Compare 64-bit unsigned integer values with greater than or equal.
     GeU64,
-    /// Compare word-stored scalar values for equality.
-    EqWord,
-    /// Compare word-stored scalar values for inequality.
-    NeWord,
-    /// Compare word-stored signed integers with less than.
-    LtWordInt,
-    /// Compare word-stored unsigned integers with less than.
-    LtWordUint,
-    /// Compare word-stored signed integers with less than or equal.
-    LeWordInt,
-    /// Compare word-stored unsigned integers with less than or equal.
-    LeWordUint,
-    /// Compare word-stored signed integers with greater than.
-    GtWordInt,
-    /// Compare word-stored unsigned integers with greater than.
-    GtWordUint,
-    /// Compare word-stored signed integers with greater than or equal.
-    GeWordInt,
-    /// Compare word-stored unsigned integers with greater than or equal.
-    GeWordUint,
+    /// Compare cell-stored scalar values for equality.
+    EqCell,
+    /// Compare cell-stored scalar values for inequality.
+    NeCell,
+    /// Compare cell-stored signed integers with less than.
+    LtCellInt,
+    /// Compare cell-stored unsigned integers with less than.
+    LtCellUint,
+    /// Compare cell-stored signed integers with less than or equal.
+    LeCellInt,
+    /// Compare cell-stored unsigned integers with less than or equal.
+    LeCellUint,
+    /// Compare cell-stored signed integers with greater than.
+    GtCellInt,
+    /// Compare cell-stored unsigned integers with greater than.
+    GtCellUint,
+    /// Compare cell-stored signed integers with greater than or equal.
+    GeCellInt,
+    /// Compare cell-stored unsigned integers with greater than or equal.
+    GeCellUint,
     /// Compare wide integers for equality.
     EqWideInt,
     /// Compare wide integers for inequality.
@@ -654,10 +654,10 @@ pub(crate) enum Op {
     Not32,
     /// Invert a 64-bit integer value.
     Not64,
-    /// Negate a word-stored signed integer value.
-    NegWordInt,
-    /// Invert a word-sized integer value.
-    NotWord,
+    /// Negate a cell-stored signed integer value.
+    NegCellInt,
+    /// Invert a cell-sized integer value.
+    NotCell,
     /// Negate a wide integer value.
     NegWideInt,
     /// Invert a wide integer value.
@@ -688,36 +688,36 @@ pub(crate) enum Op {
     PackedNegF64x2,
     /// Execute one contiguous tensor unary kernel.
     TensorContiguousUnary,
-    /// Reinterpret one word value.
+    /// Reinterpret one cell value.
     CastBitcast,
-    /// Truncate one integer word.
+    /// Truncate one integer cell.
     CastTruncate,
-    /// Zero extend one integer word.
+    /// Zero extend one integer cell.
     CastZeroExtend,
-    /// Sign extend one integer word.
+    /// Sign extend one integer cell.
     CastSignExtend,
-    /// Convert one float word to a signed integer word.
+    /// Convert one float cell to a signed integer cell.
     CastFloatToSignedInt,
-    /// Convert one float word to an unsigned integer word.
+    /// Convert one float cell to an unsigned integer cell.
     CastFloatToUnsignedInt,
-    /// Saturating convert one float word to a signed integer word.
+    /// Saturating convert one float cell to a signed integer cell.
     CastFloatToSignedIntSaturating,
-    /// Saturating convert one float word to an unsigned integer word.
+    /// Saturating convert one float cell to an unsigned integer cell.
     CastFloatToUnsignedIntSaturating,
-    /// Convert one signed integer word to a float word.
+    /// Convert one signed integer cell to a float cell.
     CastSignedIntToFloat,
-    /// Convert one unsigned integer word to a float word.
+    /// Convert one unsigned integer cell to a float cell.
     CastUnsignedIntToFloat,
-    /// Convert one float word to another float format.
+    /// Convert one float cell to another float format.
     CastFloatConvert,
-    /// Convert one pointer word to an integer word.
+    /// Convert one pointer cell to an integer cell.
     CastPointerToInt,
-    /// Convert one integer word to a pointer word.
+    /// Convert one integer cell to a pointer cell.
     CastIntToPointer,
-    /// Cast one word integer into wide integer bytes.
-    CastWordToWideInt,
-    /// Cast wide integer bytes into one word integer.
-    CastWideIntToWord,
+    /// Cast one cell integer into wide integer bytes.
+    CastCellToWideInt,
+    /// Cast wide integer bytes into one cell integer.
+    CastWideIntToCell,
     /// Cast wide integer bytes into wide integer bytes.
     CastWideInt,
     /// Cast one dense tensor pointer into a tensor view descriptor.
@@ -818,26 +818,26 @@ pub(crate) enum Op {
     BranchGeI64,
     /// Branch when a 64-bit unsigned integer is greater than or equal to another.
     BranchGeU64,
-    /// Branch when word-stored scalar values are equal.
-    BranchEqWord,
-    /// Branch when word-stored scalar values are not equal.
-    BranchNeWord,
-    /// Branch when a word-stored signed integer is less than another.
-    BranchLtWordInt,
-    /// Branch when a word-stored unsigned integer is less than another.
-    BranchLtWordUint,
-    /// Branch when a word-stored signed integer is less than or equal to another.
-    BranchLeWordInt,
-    /// Branch when a word-stored unsigned integer is less than or equal to another.
-    BranchLeWordUint,
-    /// Branch when a word-stored signed integer is greater than another.
-    BranchGtWordInt,
-    /// Branch when a word-stored unsigned integer is greater than another.
-    BranchGtWordUint,
-    /// Branch when a word-stored signed integer is greater than or equal to another.
-    BranchGeWordInt,
-    /// Branch when a word-stored unsigned integer is greater than or equal to another.
-    BranchGeWordUint,
+    /// Branch when cell-stored scalar values are equal.
+    BranchEqCell,
+    /// Branch when cell-stored scalar values are not equal.
+    BranchNeCell,
+    /// Branch when a cell-stored signed integer is less than another.
+    BranchLtCellInt,
+    /// Branch when a cell-stored unsigned integer is less than another.
+    BranchLtCellUint,
+    /// Branch when a cell-stored signed integer is less than or equal to another.
+    BranchLeCellInt,
+    /// Branch when a cell-stored unsigned integer is less than or equal to another.
+    BranchLeCellUint,
+    /// Branch when a cell-stored signed integer is greater than another.
+    BranchGtCellInt,
+    /// Branch when a cell-stored unsigned integer is greater than another.
+    BranchGtCellUint,
+    /// Branch when a cell-stored signed integer is greater than or equal to another.
+    BranchGeCellInt,
+    /// Branch when a cell-stored unsigned integer is greater than or equal to another.
+    BranchGeCellUint,
     /// Branch when float32 values are equal.
     BranchEqF32,
     /// Branch when float64 values are equal.
@@ -870,14 +870,14 @@ pub(crate) enum Op {
     Check,
     /// Record an assumed condition.
     Assume,
-    /// Return one word value from the current function.
-    ReturnWord,
+    /// Return one cell value from the current function.
+    ReturnCell,
     /// Return one frame address from the current function.
     ReturnAddress,
     /// Return without a value.
     ReturnVoid,
-    /// Yield one word value from the current function.
-    YieldWord,
+    /// Yield one cell value from the current function.
+    YieldCell,
     /// Yield one frame address from the current function.
     YieldAddress,
     /// Abort execution.

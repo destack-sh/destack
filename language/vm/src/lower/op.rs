@@ -1,9 +1,9 @@
 use destack_mir as mir;
 
 use crate::diagnostic::Error;
-use crate::program::{Op, PointerClass, Projection, ValueLayout, WordLayout};
+use crate::program::{AddressSpace, CellLayout, Op, Projection, ValueShape};
 
-use super::value::ValueLayoutMap;
+use super::value::ValueShapeMap;
 
 /// One scalar load representation.
 #[derive(Clone, Copy)]
@@ -37,90 +37,90 @@ enum ScalarStore {
     Width64,
 }
 
-/// Return the scalar load representation for one word layout.
-fn scalar_load(layout: WordLayout) -> Result<ScalarLoad, Error> {
+/// Return the scalar load representation for one cell layout.
+fn scalar_load(layout: CellLayout) -> Result<ScalarLoad, Error> {
     Ok(match layout {
-        WordLayout::Void => return Err(Error::invalid_instruction()),
-        WordLayout::Bool => ScalarLoad::U8,
-        WordLayout::Int { width } if width <= 8 => ScalarLoad::I8,
-        WordLayout::Int { width } if width <= 16 => ScalarLoad::I16,
-        WordLayout::Int { width } if width <= 32 => ScalarLoad::I32,
-        WordLayout::Int { width } if width <= 64 => ScalarLoad::Width64,
-        WordLayout::Uint { width } if width <= 8 => ScalarLoad::U8,
-        WordLayout::Uint { width } if width <= 16 => ScalarLoad::U16,
-        WordLayout::Uint { width } if width <= 32 => ScalarLoad::U32,
-        WordLayout::Uint { width } if width <= 64 => ScalarLoad::Width64,
-        WordLayout::Float16 | WordLayout::Bfloat16 => ScalarLoad::U16,
-        WordLayout::Float32 => ScalarLoad::U32,
-        WordLayout::Float64
-        | WordLayout::HeapReference
-        | WordLayout::SharedHeapReference
-        | WordLayout::Address
-        | WordLayout::StackPointer
-        | WordLayout::FramePointer
-        | WordLayout::StaticPointer
-        | WordLayout::FunctionPointer => ScalarLoad::Width64,
-        WordLayout::Int { .. } | WordLayout::Uint { .. } => {
+        CellLayout::Void => return Err(Error::invalid_instruction()),
+        CellLayout::Bool => ScalarLoad::U8,
+        CellLayout::Int { width } if width <= 8 => ScalarLoad::I8,
+        CellLayout::Int { width } if width <= 16 => ScalarLoad::I16,
+        CellLayout::Int { width } if width <= 32 => ScalarLoad::I32,
+        CellLayout::Int { width } if width <= 64 => ScalarLoad::Width64,
+        CellLayout::Uint { width } if width <= 8 => ScalarLoad::U8,
+        CellLayout::Uint { width } if width <= 16 => ScalarLoad::U16,
+        CellLayout::Uint { width } if width <= 32 => ScalarLoad::U32,
+        CellLayout::Uint { width } if width <= 64 => ScalarLoad::Width64,
+        CellLayout::Float16 | CellLayout::Bfloat16 => ScalarLoad::U16,
+        CellLayout::Float32 => ScalarLoad::U32,
+        CellLayout::Float64
+        | CellLayout::HeapReference
+        | CellLayout::SharedHeapReference
+        | CellLayout::Address
+        | CellLayout::StackPointer
+        | CellLayout::FramePointer
+        | CellLayout::StaticAddress
+        | CellLayout::FunctionPointer => ScalarLoad::Width64,
+        CellLayout::Int { .. } | CellLayout::Uint { .. } => {
             return Err(Error::invalid_instruction());
         }
     })
 }
 
-/// Return the scalar store representation for one word layout.
-fn scalar_store(layout: WordLayout) -> Result<ScalarStore, Error> {
+/// Return the scalar store representation for one cell layout.
+fn scalar_store(layout: CellLayout) -> Result<ScalarStore, Error> {
     Ok(match layout {
-        WordLayout::Void => return Err(Error::invalid_instruction()),
-        WordLayout::Bool => ScalarStore::Width8,
-        WordLayout::Int { width } | WordLayout::Uint { width } if width <= 8 => ScalarStore::Width8,
-        WordLayout::Int { width } | WordLayout::Uint { width } if width <= 16 => {
+        CellLayout::Void => return Err(Error::invalid_instruction()),
+        CellLayout::Bool => ScalarStore::Width8,
+        CellLayout::Int { width } | CellLayout::Uint { width } if width <= 8 => ScalarStore::Width8,
+        CellLayout::Int { width } | CellLayout::Uint { width } if width <= 16 => {
             ScalarStore::Width16
         }
-        WordLayout::Int { width } | WordLayout::Uint { width } if width <= 32 => {
+        CellLayout::Int { width } | CellLayout::Uint { width } if width <= 32 => {
             ScalarStore::Width32
         }
-        WordLayout::Int { width } | WordLayout::Uint { width } if width <= 64 => {
+        CellLayout::Int { width } | CellLayout::Uint { width } if width <= 64 => {
             ScalarStore::Width64
         }
-        WordLayout::Float16 | WordLayout::Bfloat16 => ScalarStore::Width16,
-        WordLayout::Float32 => ScalarStore::Width32,
-        WordLayout::Float64
-        | WordLayout::HeapReference
-        | WordLayout::SharedHeapReference
-        | WordLayout::Address
-        | WordLayout::StackPointer
-        | WordLayout::FramePointer
-        | WordLayout::StaticPointer
-        | WordLayout::FunctionPointer => ScalarStore::Width64,
-        WordLayout::Int { .. } | WordLayout::Uint { .. } => {
+        CellLayout::Float16 | CellLayout::Bfloat16 => ScalarStore::Width16,
+        CellLayout::Float32 => ScalarStore::Width32,
+        CellLayout::Float64
+        | CellLayout::HeapReference
+        | CellLayout::SharedHeapReference
+        | CellLayout::Address
+        | CellLayout::StackPointer
+        | CellLayout::FramePointer
+        | CellLayout::StaticAddress
+        | CellLayout::FunctionPointer => ScalarStore::Width64,
+        CellLayout::Int { .. } | CellLayout::Uint { .. } => {
             return Err(Error::invalid_instruction());
         }
     })
 }
 
-/// Select a binary op from one known value layout.
+/// Select a binary op from one known value shape.
 pub(super) fn select_binary_op(
-    layout: Option<ValueLayout>,
+    layout: Option<ValueShape>,
     operator: mir::BinaryOperator,
 ) -> Option<Op> {
     use mir::BinaryOperator::*;
 
     let op = match layout {
-        Some(ValueLayout::Int { width, signed }) if width <= u64::BITS as u16 => {
+        Some(ValueShape::Int { width, signed }) if width <= u64::BITS as u16 => {
             select_integer_op(operator, signed, width)?
         }
-        Some(ValueLayout::Int { signed, .. }) => select_wide_integer_op(operator, signed)?,
-        Some(ValueLayout::Float {
+        Some(ValueShape::Int { signed, .. }) => select_wide_integer_op(operator, signed)?,
+        Some(ValueShape::Float {
             format: mir::FloatType::Float32,
         }) => select_float_op(operator, false)?,
-        Some(ValueLayout::Float {
+        Some(ValueShape::Float {
             format: mir::FloatType::Float64,
         }) => select_float_op(operator, true)?,
-        Some(ValueLayout::Bool) => match operator {
+        Some(ValueShape::Bool) => match operator {
             And => Op::AndBool,
             Or => Op::OrBool,
             Xor => Op::XorBool,
-            Equal => Op::EqWord,
-            NotEqual => Op::NeWord,
+            Equal => Op::EqCell,
+            NotEqual => Op::NeCell,
             _ => return None,
         },
         _ => return None,
@@ -142,7 +142,7 @@ pub(super) fn select_integer_op(
     match width {
         32 => select_integer_32_op(operator, signed),
         64 => select_integer_64_op(operator, signed),
-        _ => select_integer_word_op(operator, signed),
+        _ => select_integer_cell_op(operator, signed),
     }
 }
 
@@ -216,37 +216,37 @@ fn select_integer_64_op(operator: mir::BinaryOperator, signed: bool) -> Option<O
     })
 }
 
-/// Select an arbitrary-width integer op stored in one word.
-fn select_integer_word_op(operator: mir::BinaryOperator, signed: bool) -> Option<Op> {
+/// Select an arbitrary-width integer op stored in one cell.
+fn select_integer_cell_op(operator: mir::BinaryOperator, signed: bool) -> Option<Op> {
     use mir::BinaryOperator::*;
 
     Some(match (operator, signed) {
-        (Add, true) => Op::AddWordInt,
-        (Add, false) => Op::AddWordUint,
-        (Subtract, true) => Op::SubWordInt,
-        (Subtract, false) => Op::SubWordUint,
-        (Multiply, true) => Op::MulWordInt,
-        (Multiply, false) => Op::MulWordUint,
-        (SignedDivide, true) => Op::DivWordInt,
-        (UnsignedDivide, _) => Op::DivWordUint,
-        (SignedRemainder, true) => Op::RemWordInt,
-        (UnsignedRemainder, _) => Op::RemWordUint,
-        (And, _) => Op::AndWord,
-        (Or, _) => Op::OrWord,
-        (Xor, _) => Op::XorWord,
-        (ShiftLeft, _) => Op::ShlWord,
-        (ArithmeticShiftRight, true) => Op::ShrWordInt,
-        (LogicalShiftRight, _) => Op::ShrWordUint,
-        (Equal, _) => Op::EqWord,
-        (NotEqual, _) => Op::NeWord,
-        (SignedLessThan, true) => Op::LtWordInt,
-        (SignedLessEqual, true) => Op::LeWordInt,
-        (SignedGreaterThan, true) => Op::GtWordInt,
-        (SignedGreaterEqual, true) => Op::GeWordInt,
-        (UnsignedLessThan, _) => Op::LtWordUint,
-        (UnsignedLessEqual, _) => Op::LeWordUint,
-        (UnsignedGreaterThan, _) => Op::GtWordUint,
-        (UnsignedGreaterEqual, _) => Op::GeWordUint,
+        (Add, true) => Op::AddCellInt,
+        (Add, false) => Op::AddCellUint,
+        (Subtract, true) => Op::SubCellInt,
+        (Subtract, false) => Op::SubCellUint,
+        (Multiply, true) => Op::MulCellInt,
+        (Multiply, false) => Op::MulCellUint,
+        (SignedDivide, true) => Op::DivCellInt,
+        (UnsignedDivide, _) => Op::DivCellUint,
+        (SignedRemainder, true) => Op::RemCellInt,
+        (UnsignedRemainder, _) => Op::RemCellUint,
+        (And, _) => Op::AndCell,
+        (Or, _) => Op::OrCell,
+        (Xor, _) => Op::XorCell,
+        (ShiftLeft, _) => Op::ShlCell,
+        (ArithmeticShiftRight, true) => Op::ShrCellInt,
+        (LogicalShiftRight, _) => Op::ShrCellUint,
+        (Equal, _) => Op::EqCell,
+        (NotEqual, _) => Op::NeCell,
+        (SignedLessThan, true) => Op::LtCellInt,
+        (SignedLessEqual, true) => Op::LeCellInt,
+        (SignedGreaterThan, true) => Op::GtCellInt,
+        (SignedGreaterEqual, true) => Op::GeCellInt,
+        (UnsignedLessThan, _) => Op::LtCellUint,
+        (UnsignedLessEqual, _) => Op::LeCellUint,
+        (UnsignedGreaterThan, _) => Op::GtCellUint,
+        (UnsignedGreaterEqual, _) => Op::GeCellUint,
         _ => return None,
     })
 }
@@ -327,32 +327,32 @@ pub(super) fn select_integer_unary_op(
     Some(match (operator, signed, width) {
         (mir::UnaryOperator::Negate, true, 32) => Op::NegI32,
         (mir::UnaryOperator::Negate, true, 64) => Op::NegI64,
-        (mir::UnaryOperator::Negate, true, _) => Op::NegWordInt,
+        (mir::UnaryOperator::Negate, true, _) => Op::NegCellInt,
         (mir::UnaryOperator::Not, _, 32) => Op::Not32,
         (mir::UnaryOperator::Not, _, 64) => Op::Not64,
-        (mir::UnaryOperator::Not, _, _) => Op::NotWord,
+        (mir::UnaryOperator::Not, _, _) => Op::NotCell,
         _ => return None,
     })
 }
 
-/// Select a unary op from one known value layout.
+/// Select a unary op from one known value shape.
 pub(super) fn select_unary_op(
-    value_layouts: &ValueLayoutMap,
+    value_shape_map: &ValueShapeMap,
     argument: mir::Value,
     operator: mir::UnaryOperator,
 ) -> Option<Op> {
-    match value_layouts.get(argument) {
-        Some(ValueLayout::Int { width, signed }) if width <= u64::BITS as u16 => {
+    match value_shape_map.get(argument) {
+        Some(ValueShape::Int { width, signed }) if width <= u64::BITS as u16 => {
             select_integer_unary_op(operator, signed, width)
         }
-        Some(ValueLayout::Int { signed, .. }) => select_wide_integer_unary_op(operator, signed),
-        Some(ValueLayout::Float {
+        Some(ValueShape::Int { signed, .. }) => select_wide_integer_unary_op(operator, signed),
+        Some(ValueShape::Float {
             format: mir::FloatType::Float32,
         }) if operator == mir::UnaryOperator::FloatNegate => Some(Op::NegF32),
-        Some(ValueLayout::Float {
+        Some(ValueShape::Float {
             format: mir::FloatType::Float64,
         }) if operator == mir::UnaryOperator::FloatNegate => Some(Op::NegF64),
-        Some(ValueLayout::Bool) if operator == mir::UnaryOperator::Not => Some(Op::NotBool),
+        Some(ValueShape::Bool) if operator == mir::UnaryOperator::Not => Some(Op::NotBool),
         _ => None,
     }
 }
@@ -369,141 +369,117 @@ pub(super) fn select_wide_integer_unary_op(
     })
 }
 
-/// Select a load handler for one known pointer class and projection.
+/// Select a load handler for one known address space and projection.
 pub(super) fn select_load_op(
-    pointer_class: PointerClass,
+    address_space: AddressSpace,
     projection: Projection,
 ) -> Result<Op, Error> {
-    if !projection.is_word() {
-        return select_bytes_load_op(pointer_class);
+    if !projection.is_cell() {
+        return select_bytes_load_op(address_space);
     }
 
-    let layout = projection.word_layout.ok_or(Error::invalid_instruction())?;
+    let layout = projection.cell_layout.ok_or(Error::invalid_instruction())?;
     let load = scalar_load(layout)?;
 
-    select_scalar_load_op(pointer_class, load)
+    select_scalar_load_op(address_space, load)
 }
 
-/// Select a store handler for one known pointer class and projection.
+/// Select a store handler for one known address space and projection.
 pub(super) fn select_store_op(
-    pointer_class: PointerClass,
+    address_space: AddressSpace,
     projection: Projection,
 ) -> Result<Op, Error> {
-    if !projection.is_word() {
-        return select_bytes_store_op(pointer_class);
+    if !projection.is_cell() {
+        return select_bytes_store_op(address_space);
     }
 
-    let layout = projection.word_layout.ok_or(Error::invalid_instruction())?;
+    let layout = projection.cell_layout.ok_or(Error::invalid_instruction())?;
     let store = scalar_store(layout)?;
 
-    select_scalar_store_op(pointer_class, store)
+    select_scalar_store_op(address_space, store)
 }
 
 /// Select one scalar load operation.
-fn select_scalar_load_op(pointer_class: PointerClass, load: ScalarLoad) -> Result<Op, Error> {
-    Ok(match (pointer_class, load) {
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarLoad::U8) => Op::LoadHeapU8,
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarLoad::I8) => Op::LoadHeapI8,
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarLoad::U16) => Op::LoadHeapU16,
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarLoad::I16) => Op::LoadHeapI16,
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarLoad::U32) => Op::LoadHeapU32,
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarLoad::I32) => Op::LoadHeapI32,
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarLoad::Width64) => Op::LoadHeap64,
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarLoad::U8) => {
-            Op::LoadSharedHeapU8
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarLoad::I8) => {
-            Op::LoadSharedHeapI8
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarLoad::U16) => {
-            Op::LoadSharedHeapU16
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarLoad::I16) => {
-            Op::LoadSharedHeapI16
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarLoad::U32) => {
-            Op::LoadSharedHeapU32
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarLoad::I32) => {
-            Op::LoadSharedHeapI32
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarLoad::Width64) => {
-            Op::LoadSharedHeap64
-        }
-        (PointerClass::Address, ScalarLoad::U8) => Op::LoadRawU8,
-        (PointerClass::Address, ScalarLoad::I8) => Op::LoadRawI8,
-        (PointerClass::Address, ScalarLoad::U16) => Op::LoadRawU16,
-        (PointerClass::Address, ScalarLoad::I16) => Op::LoadRawI16,
-        (PointerClass::Address, ScalarLoad::U32) => Op::LoadRawU32,
-        (PointerClass::Address, ScalarLoad::I32) => Op::LoadRawI32,
-        (PointerClass::Address, ScalarLoad::Width64) => Op::LoadRaw64,
-        (PointerClass::Stack, ScalarLoad::U8) => Op::LoadStackU8,
-        (PointerClass::Stack, ScalarLoad::I8) => Op::LoadStackI8,
-        (PointerClass::Stack, ScalarLoad::U16) => Op::LoadStackU16,
-        (PointerClass::Stack, ScalarLoad::I16) => Op::LoadStackI16,
-        (PointerClass::Stack, ScalarLoad::U32) => Op::LoadStackU32,
-        (PointerClass::Stack, ScalarLoad::I32) => Op::LoadStackI32,
-        (PointerClass::Stack, ScalarLoad::Width64) => Op::LoadStack64,
-        (PointerClass::Frame, ScalarLoad::U8) => Op::LoadFrameU8,
-        (PointerClass::Frame, ScalarLoad::I8) => Op::LoadFrameI8,
-        (PointerClass::Frame, ScalarLoad::U16) => Op::LoadFrameU16,
-        (PointerClass::Frame, ScalarLoad::I16) => Op::LoadFrameI16,
-        (PointerClass::Frame, ScalarLoad::U32) => Op::LoadFrameU32,
-        (PointerClass::Frame, ScalarLoad::I32) => Op::LoadFrameI32,
-        (PointerClass::Frame, ScalarLoad::Width64) => Op::LoadFrame64,
-        (PointerClass::Static, ScalarLoad::U8) => Op::LoadStaticU8,
-        (PointerClass::Static, ScalarLoad::I8) => Op::LoadStaticI8,
-        (PointerClass::Static, ScalarLoad::U16) => Op::LoadStaticU16,
-        (PointerClass::Static, ScalarLoad::I16) => Op::LoadStaticI16,
-        (PointerClass::Static, ScalarLoad::U32) => Op::LoadStaticU32,
-        (PointerClass::Static, ScalarLoad::I32) => Op::LoadStaticI32,
-        (PointerClass::Static, ScalarLoad::Width64) => Op::LoadStatic64,
-        (PointerClass::Unknown, _) => return Err(Error::invalid_instruction()),
+fn select_scalar_load_op(address_space: AddressSpace, load: ScalarLoad) -> Result<Op, Error> {
+    Ok(match (address_space, load) {
+        (AddressSpace::Local, ScalarLoad::U8) => Op::LoadHeapU8,
+        (AddressSpace::Local, ScalarLoad::I8) => Op::LoadHeapI8,
+        (AddressSpace::Local, ScalarLoad::U16) => Op::LoadHeapU16,
+        (AddressSpace::Local, ScalarLoad::I16) => Op::LoadHeapI16,
+        (AddressSpace::Local, ScalarLoad::U32) => Op::LoadHeapU32,
+        (AddressSpace::Local, ScalarLoad::I32) => Op::LoadHeapI32,
+        (AddressSpace::Local, ScalarLoad::Width64) => Op::LoadHeap64,
+        (AddressSpace::Shared, ScalarLoad::U8) => Op::LoadSharedHeapU8,
+        (AddressSpace::Shared, ScalarLoad::I8) => Op::LoadSharedHeapI8,
+        (AddressSpace::Shared, ScalarLoad::U16) => Op::LoadSharedHeapU16,
+        (AddressSpace::Shared, ScalarLoad::I16) => Op::LoadSharedHeapI16,
+        (AddressSpace::Shared, ScalarLoad::U32) => Op::LoadSharedHeapU32,
+        (AddressSpace::Shared, ScalarLoad::I32) => Op::LoadSharedHeapI32,
+        (AddressSpace::Shared, ScalarLoad::Width64) => Op::LoadSharedHeap64,
+        (AddressSpace::Raw, ScalarLoad::U8) => Op::LoadRawU8,
+        (AddressSpace::Raw, ScalarLoad::I8) => Op::LoadRawI8,
+        (AddressSpace::Raw, ScalarLoad::U16) => Op::LoadRawU16,
+        (AddressSpace::Raw, ScalarLoad::I16) => Op::LoadRawI16,
+        (AddressSpace::Raw, ScalarLoad::U32) => Op::LoadRawU32,
+        (AddressSpace::Raw, ScalarLoad::I32) => Op::LoadRawI32,
+        (AddressSpace::Raw, ScalarLoad::Width64) => Op::LoadRaw64,
+        (AddressSpace::Stack, ScalarLoad::U8) => Op::LoadStackU8,
+        (AddressSpace::Stack, ScalarLoad::I8) => Op::LoadStackI8,
+        (AddressSpace::Stack, ScalarLoad::U16) => Op::LoadStackU16,
+        (AddressSpace::Stack, ScalarLoad::I16) => Op::LoadStackI16,
+        (AddressSpace::Stack, ScalarLoad::U32) => Op::LoadStackU32,
+        (AddressSpace::Stack, ScalarLoad::I32) => Op::LoadStackI32,
+        (AddressSpace::Stack, ScalarLoad::Width64) => Op::LoadStack64,
+        (AddressSpace::Frame, ScalarLoad::U8) => Op::LoadFrameU8,
+        (AddressSpace::Frame, ScalarLoad::I8) => Op::LoadFrameI8,
+        (AddressSpace::Frame, ScalarLoad::U16) => Op::LoadFrameU16,
+        (AddressSpace::Frame, ScalarLoad::I16) => Op::LoadFrameI16,
+        (AddressSpace::Frame, ScalarLoad::U32) => Op::LoadFrameU32,
+        (AddressSpace::Frame, ScalarLoad::I32) => Op::LoadFrameI32,
+        (AddressSpace::Frame, ScalarLoad::Width64) => Op::LoadFrame64,
+        (AddressSpace::Static, ScalarLoad::U8) => Op::LoadStaticU8,
+        (AddressSpace::Static, ScalarLoad::I8) => Op::LoadStaticI8,
+        (AddressSpace::Static, ScalarLoad::U16) => Op::LoadStaticU16,
+        (AddressSpace::Static, ScalarLoad::I16) => Op::LoadStaticI16,
+        (AddressSpace::Static, ScalarLoad::U32) => Op::LoadStaticU32,
+        (AddressSpace::Static, ScalarLoad::I32) => Op::LoadStaticI32,
+        (AddressSpace::Static, ScalarLoad::Width64) => Op::LoadStatic64,
     })
 }
 
 /// Select one scalar store operation.
-fn select_scalar_store_op(pointer_class: PointerClass, store: ScalarStore) -> Result<Op, Error> {
-    Ok(match (pointer_class, store) {
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarStore::Width8) => Op::StoreHeap8,
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarStore::Width16) => Op::StoreHeap16,
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarStore::Width32) => Op::StoreHeap32,
-        (PointerClass::Heap | PointerClass::HeapAddress, ScalarStore::Width64) => Op::StoreHeap64,
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarStore::Width8) => {
-            Op::StoreSharedHeap8
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarStore::Width16) => {
-            Op::StoreSharedHeap16
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarStore::Width32) => {
-            Op::StoreSharedHeap32
-        }
-        (PointerClass::SharedHeap | PointerClass::SharedHeapAddress, ScalarStore::Width64) => {
-            Op::StoreSharedHeap64
-        }
-        (PointerClass::Address, ScalarStore::Width8) => Op::StoreRaw8,
-        (PointerClass::Address, ScalarStore::Width16) => Op::StoreRaw16,
-        (PointerClass::Address, ScalarStore::Width32) => Op::StoreRaw32,
-        (PointerClass::Address, ScalarStore::Width64) => Op::StoreRaw64,
-        (PointerClass::Stack, ScalarStore::Width8) => Op::StoreStack8,
-        (PointerClass::Stack, ScalarStore::Width16) => Op::StoreStack16,
-        (PointerClass::Stack, ScalarStore::Width32) => Op::StoreStack32,
-        (PointerClass::Stack, ScalarStore::Width64) => Op::StoreStack64,
-        (PointerClass::Frame, ScalarStore::Width8) => Op::StoreFrame8,
-        (PointerClass::Frame, ScalarStore::Width16) => Op::StoreFrame16,
-        (PointerClass::Frame, ScalarStore::Width32) => Op::StoreFrame32,
-        (PointerClass::Frame, ScalarStore::Width64) => Op::StoreFrame64,
-        (PointerClass::Static, ScalarStore::Width8) => Op::StoreStatic8,
-        (PointerClass::Static, ScalarStore::Width16) => Op::StoreStatic16,
-        (PointerClass::Static, ScalarStore::Width32) => Op::StoreStatic32,
-        (PointerClass::Static, ScalarStore::Width64) => Op::StoreStatic64,
-        (PointerClass::Unknown, _) => return Err(Error::invalid_instruction()),
+fn select_scalar_store_op(address_space: AddressSpace, store: ScalarStore) -> Result<Op, Error> {
+    Ok(match (address_space, store) {
+        (AddressSpace::Local, ScalarStore::Width8) => Op::StoreHeap8,
+        (AddressSpace::Local, ScalarStore::Width16) => Op::StoreHeap16,
+        (AddressSpace::Local, ScalarStore::Width32) => Op::StoreHeap32,
+        (AddressSpace::Local, ScalarStore::Width64) => Op::StoreHeap64,
+        (AddressSpace::Shared, ScalarStore::Width8) => Op::StoreSharedHeap8,
+        (AddressSpace::Shared, ScalarStore::Width16) => Op::StoreSharedHeap16,
+        (AddressSpace::Shared, ScalarStore::Width32) => Op::StoreSharedHeap32,
+        (AddressSpace::Shared, ScalarStore::Width64) => Op::StoreSharedHeap64,
+        (AddressSpace::Raw, ScalarStore::Width8) => Op::StoreRaw8,
+        (AddressSpace::Raw, ScalarStore::Width16) => Op::StoreRaw16,
+        (AddressSpace::Raw, ScalarStore::Width32) => Op::StoreRaw32,
+        (AddressSpace::Raw, ScalarStore::Width64) => Op::StoreRaw64,
+        (AddressSpace::Stack, ScalarStore::Width8) => Op::StoreStack8,
+        (AddressSpace::Stack, ScalarStore::Width16) => Op::StoreStack16,
+        (AddressSpace::Stack, ScalarStore::Width32) => Op::StoreStack32,
+        (AddressSpace::Stack, ScalarStore::Width64) => Op::StoreStack64,
+        (AddressSpace::Frame, ScalarStore::Width8) => Op::StoreFrame8,
+        (AddressSpace::Frame, ScalarStore::Width16) => Op::StoreFrame16,
+        (AddressSpace::Frame, ScalarStore::Width32) => Op::StoreFrame32,
+        (AddressSpace::Frame, ScalarStore::Width64) => Op::StoreFrame64,
+        (AddressSpace::Static, ScalarStore::Width8) => Op::StoreStatic8,
+        (AddressSpace::Static, ScalarStore::Width16) => Op::StoreStatic16,
+        (AddressSpace::Static, ScalarStore::Width32) => Op::StoreStatic32,
+        (AddressSpace::Static, ScalarStore::Width64) => Op::StoreStatic64,
     })
 }
 
 /// Select one frame value scalar load operation.
 pub(super) fn select_frame_value_load_op(projection: Projection) -> Result<Op, Error> {
-    let layout = projection.word_layout.ok_or(Error::invalid_instruction())?;
+    let layout = projection.cell_layout.ok_or(Error::invalid_instruction())?;
 
     Ok(match scalar_load(layout)? {
         ScalarLoad::U8 => Op::LoadFrameValueU8,
@@ -518,7 +494,7 @@ pub(super) fn select_frame_value_load_op(projection: Projection) -> Result<Op, E
 
 /// Select one frame value scalar store operation.
 pub(super) fn select_frame_value_store_op(projection: Projection) -> Result<Op, Error> {
-    let layout = projection.word_layout.ok_or(Error::invalid_instruction())?;
+    let layout = projection.cell_layout.ok_or(Error::invalid_instruction())?;
 
     Ok(match scalar_store(layout)? {
         ScalarStore::Width8 => Op::StoreFrameValue8,
@@ -529,128 +505,117 @@ pub(super) fn select_frame_value_store_op(projection: Projection) -> Result<Op, 
 }
 
 /// Select one byte load operation.
-fn select_bytes_load_op(pointer_class: PointerClass) -> Result<Op, Error> {
-    match pointer_class {
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::LoadHeapBytes),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::LoadSharedHeapBytes),
-        PointerClass::Address => Ok(Op::LoadRawBytes),
-        PointerClass::Stack => Ok(Op::LoadStackBytes),
-        PointerClass::Frame => Ok(Op::LoadFrameBytes),
-        PointerClass::Static => Ok(Op::LoadStaticBytes),
-        PointerClass::Unknown => Err(Error::invalid_instruction()),
+fn select_bytes_load_op(address_space: AddressSpace) -> Result<Op, Error> {
+    match address_space {
+        AddressSpace::Local => Ok(Op::LoadHeapBytes),
+        AddressSpace::Shared => Ok(Op::LoadSharedHeapBytes),
+        AddressSpace::Raw => Ok(Op::LoadRawBytes),
+        AddressSpace::Stack => Ok(Op::LoadStackBytes),
+        AddressSpace::Frame => Ok(Op::LoadFrameBytes),
+        AddressSpace::Static => Ok(Op::LoadStaticBytes),
     }
 }
 
 /// Select one byte store operation.
-fn select_bytes_store_op(pointer_class: PointerClass) -> Result<Op, Error> {
-    match pointer_class {
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::StoreHeapBytes),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => Ok(Op::StoreSharedHeapBytes),
-        PointerClass::Address => Ok(Op::StoreRawBytes),
-        PointerClass::Stack => Ok(Op::StoreStackBytes),
-        PointerClass::Frame => Ok(Op::StoreFrameBytes),
-        PointerClass::Static => Ok(Op::StoreStaticBytes),
-        PointerClass::Unknown => Err(Error::invalid_instruction()),
+fn select_bytes_store_op(address_space: AddressSpace) -> Result<Op, Error> {
+    match address_space {
+        AddressSpace::Local => Ok(Op::StoreHeapBytes),
+        AddressSpace::Shared => Ok(Op::StoreSharedHeapBytes),
+        AddressSpace::Raw => Ok(Op::StoreRawBytes),
+        AddressSpace::Stack => Ok(Op::StoreStackBytes),
+        AddressSpace::Frame => Ok(Op::StoreFrameBytes),
+        AddressSpace::Static => Ok(Op::StoreStaticBytes),
     }
 }
 
-/// Select a field address handler based on inferred value layout.
+/// Select a field address handler based on inferred value shape.
 pub(super) fn select_field_addr_op(
-    value_layouts: &ValueLayoutMap,
+    value_shape_map: &ValueShapeMap,
     base: mir::Value,
 ) -> Result<Op, Error> {
-    let layout = value_layouts
+    let shape = value_shape_map
         .get(base)
         .ok_or(Error::invalid_instruction())?;
-    match layout {
-        ValueLayout::FrameBytes { .. } => Ok(Op::AddressFrameValueOffset),
-        ValueLayout::Pointer { pointer_class, .. } => select_offset_address_op(pointer_class),
+    match shape {
+        ValueShape::FrameBytes { .. } => Ok(Op::AddressFrameValueOffset),
+        ValueShape::Pointer { address_space, .. } => select_offset_address_op(address_space),
         _ => Err(Error::invalid_instruction()),
     }
 }
 
-/// Select an element address handler based on inferred value layout.
+/// Select an element address handler based on inferred value shape.
 pub(super) fn select_element_addr_op(
-    value_layouts: &ValueLayoutMap,
+    value_shape_map: &ValueShapeMap,
     array: mir::Value,
 ) -> Result<Op, Error> {
-    let layout = value_layouts
+    let shape = value_shape_map
         .get(array)
         .ok_or(Error::invalid_instruction())?;
-    match layout {
-        ValueLayout::FrameBytes { .. } | ValueLayout::Array { .. } => {
+    match shape {
+        ValueShape::FrameBytes { .. } | ValueShape::Array { .. } => {
             Ok(Op::AddressFrameValueElement)
         }
-        ValueLayout::Pointer { pointer_class, .. } => select_index_address_op(pointer_class),
+        ValueShape::Pointer { address_space, .. } => select_index_address_op(address_space),
         _ => Err(Error::invalid_instruction()),
     }
 }
 
-/// Select a slice element address handler based on the backing pointer class.
-pub(super) fn select_slice_element_addr_op(pointer_class: PointerClass) -> Result<Op, Error> {
-    match pointer_class {
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::AddressHeapSliceElement),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => {
-            Ok(Op::AddressSharedHeapSliceElement)
-        }
-        PointerClass::Address => Ok(Op::AddressRawSliceElement),
-        PointerClass::Stack => Ok(Op::AddressStackSliceElement),
-        PointerClass::Frame => Ok(Op::AddressFrameSliceElement),
-        PointerClass::Static => Ok(Op::AddressStaticSliceElement),
-        PointerClass::Unknown => Err(Error::invalid_instruction()),
+/// Select a slice element address handler based on the backing address space.
+pub(super) fn select_slice_element_addr_op(address_space: AddressSpace) -> Result<Op, Error> {
+    match address_space {
+        AddressSpace::Local => Ok(Op::AddressHeapSliceElement),
+        AddressSpace::Shared => Ok(Op::AddressSharedHeapSliceElement),
+        AddressSpace::Raw => Ok(Op::AddressRawSliceElement),
+        AddressSpace::Stack => Ok(Op::AddressStackSliceElement),
+        AddressSpace::Frame => Ok(Op::AddressFrameSliceElement),
+        AddressSpace::Static => Ok(Op::AddressStaticSliceElement),
     }
 }
 
 /// Select one indexed address operation.
-fn select_index_address_op(pointer_class: PointerClass) -> Result<Op, Error> {
-    match pointer_class {
-        PointerClass::Frame => Ok(Op::AddressFrameElement),
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::AddressHeapElement),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => {
-            Ok(Op::AddressSharedHeapElement)
-        }
-        PointerClass::Address => Ok(Op::AddressRawElement),
-        PointerClass::Stack => Ok(Op::AddressStackElement),
-        PointerClass::Static => Ok(Op::AddressStaticElement),
-        PointerClass::Unknown => Err(Error::invalid_instruction()),
+fn select_index_address_op(address_space: AddressSpace) -> Result<Op, Error> {
+    match address_space {
+        AddressSpace::Frame => Ok(Op::AddressFrameElement),
+        AddressSpace::Local => Ok(Op::AddressHeapElement),
+        AddressSpace::Shared => Ok(Op::AddressSharedHeapElement),
+        AddressSpace::Raw => Ok(Op::AddressRawElement),
+        AddressSpace::Stack => Ok(Op::AddressStackElement),
+        AddressSpace::Static => Ok(Op::AddressStaticElement),
     }
 }
 
 /// Select one fixed-offset address operation.
-fn select_offset_address_op(pointer_class: PointerClass) -> Result<Op, Error> {
-    match pointer_class {
-        PointerClass::Frame => Ok(Op::AddressFrameOffset),
-        PointerClass::Heap | PointerClass::HeapAddress => Ok(Op::AddressHeapOffset),
-        PointerClass::SharedHeap | PointerClass::SharedHeapAddress => {
-            Ok(Op::AddressSharedHeapOffset)
-        }
-        PointerClass::Address => Ok(Op::AddressRawOffset),
-        PointerClass::Stack => Ok(Op::AddressStackOffset),
-        PointerClass::Static => Ok(Op::AddressStaticOffset),
-        PointerClass::Unknown => Err(Error::invalid_instruction()),
+fn select_offset_address_op(address_space: AddressSpace) -> Result<Op, Error> {
+    match address_space {
+        AddressSpace::Frame => Ok(Op::AddressFrameOffset),
+        AddressSpace::Local => Ok(Op::AddressHeapOffset),
+        AddressSpace::Shared => Ok(Op::AddressSharedHeapOffset),
+        AddressSpace::Raw => Ok(Op::AddressRawOffset),
+        AddressSpace::Stack => Ok(Op::AddressStackOffset),
+        AddressSpace::Static => Ok(Op::AddressStaticOffset),
     }
 }
 
 /// Select a compare and branch handler based on operator type.
 pub(super) fn select_compare_branch_op(
     operator: mir::BinaryOperator,
-    layout: Option<ValueLayout>,
+    layout: Option<ValueShape>,
 ) -> Option<Op> {
     let op = match layout {
-        Some(ValueLayout::Int { width: 32, signed }) => {
+        Some(ValueShape::Int { width: 32, signed }) => {
             select_compare_branch_32_op(operator, signed)?
         }
-        Some(ValueLayout::Int { width: 64, signed }) => {
+        Some(ValueShape::Int { width: 64, signed }) => {
             select_compare_branch_64_op(operator, signed)?
         }
-        Some(ValueLayout::Float {
+        Some(ValueShape::Float {
             format: mir::FloatType::Float32,
         }) => select_float_branch_op(operator, false)?,
-        Some(ValueLayout::Float {
+        Some(ValueShape::Float {
             format: mir::FloatType::Float64,
         }) => select_float_branch_op(operator, true)?,
-        Some(ValueLayout::Float { .. }) => return None,
-        _ => select_compare_branch_word_op(operator)?,
+        Some(ValueShape::Float { .. }) => return None,
+        _ => select_compare_branch_cell_op(operator)?,
     };
 
     Some(op)
@@ -690,19 +655,19 @@ fn select_compare_branch_64_op(operator: mir::BinaryOperator, signed: bool) -> O
     })
 }
 
-/// Select an arbitrary-width word compare branch op.
-fn select_compare_branch_word_op(operator: mir::BinaryOperator) -> Option<Op> {
+/// Select an arbitrary-width cell compare branch op.
+fn select_compare_branch_cell_op(operator: mir::BinaryOperator) -> Option<Op> {
     Some(match operator {
-        mir::BinaryOperator::Equal => Op::BranchEqWord,
-        mir::BinaryOperator::NotEqual => Op::BranchNeWord,
-        mir::BinaryOperator::SignedLessThan => Op::BranchLtWordInt,
-        mir::BinaryOperator::SignedLessEqual => Op::BranchLeWordInt,
-        mir::BinaryOperator::SignedGreaterThan => Op::BranchGtWordInt,
-        mir::BinaryOperator::SignedGreaterEqual => Op::BranchGeWordInt,
-        mir::BinaryOperator::UnsignedLessThan => Op::BranchLtWordUint,
-        mir::BinaryOperator::UnsignedLessEqual => Op::BranchLeWordUint,
-        mir::BinaryOperator::UnsignedGreaterThan => Op::BranchGtWordUint,
-        mir::BinaryOperator::UnsignedGreaterEqual => Op::BranchGeWordUint,
+        mir::BinaryOperator::Equal => Op::BranchEqCell,
+        mir::BinaryOperator::NotEqual => Op::BranchNeCell,
+        mir::BinaryOperator::SignedLessThan => Op::BranchLtCellInt,
+        mir::BinaryOperator::SignedLessEqual => Op::BranchLeCellInt,
+        mir::BinaryOperator::SignedGreaterThan => Op::BranchGtCellInt,
+        mir::BinaryOperator::SignedGreaterEqual => Op::BranchGeCellInt,
+        mir::BinaryOperator::UnsignedLessThan => Op::BranchLtCellUint,
+        mir::BinaryOperator::UnsignedLessEqual => Op::BranchLeCellUint,
+        mir::BinaryOperator::UnsignedGreaterThan => Op::BranchGtCellUint,
+        mir::BinaryOperator::UnsignedGreaterEqual => Op::BranchGeCellUint,
         _ => return None,
     })
 }

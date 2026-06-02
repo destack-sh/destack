@@ -4,11 +4,11 @@ use destack_mir::Type;
 use crate::program::{
     BinaryFloat, BinaryFloatKernel, ElementBinaryKernel, ElementUnaryKernel, Instruction, Op,
     TensorBinary, TensorContiguousBinary, TensorContiguousUnary, TensorLayout, TensorUnary,
-    UnaryFloat, UnaryFloatKernel, ValueLayout, VectorBinary, VectorUnary, value_layout_from_type,
+    UnaryFloat, UnaryFloatKernel, ValueShape, VectorBinary, VectorUnary, value_shape_from_type,
 };
 use crate::{Error, Result};
 
-use super::frame::{value_offset, word_offset};
+use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
 use super::op::{select_binary_op, select_integer_op, select_integer_unary_op, select_unary_op};
 use super::pool::Pool;
@@ -28,17 +28,17 @@ impl<'a> BlockLowerer<'a> {
         value.value().ok_or_else(|| Error::invalid_program(context))
     }
 
-    /// Lower one word binary instruction.
-    fn lower_binary_word(
+    /// Lower one cell binary instruction.
+    fn lower_binary_cell(
         &self,
         op: Op,
         destination: mir::Value,
         left: mir::Value,
         right: mir::Value,
     ) -> Result<Instruction> {
-        let destination = word_offset(self, destination)?;
-        let left = word_offset(self, left)?;
-        let right = word_offset(self, right)?;
+        let destination = cell_offset(self, destination)?;
+        let left = cell_offset(self, left)?;
+        let right = cell_offset(self, right)?;
 
         Ok(Instruction::new(op, destination, left, right, 0))
     }
@@ -67,7 +67,8 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // use direct packed operations when one register covers the vector
-        let element_layout = value_layout_from_type(self.tree, element);
+        let element_layout =
+            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
         if let Some(op) = self
             .packed_vector(dest_element, element_count, dest_element_type)?
             .and_then(|shape| vector_packed_binary_op(operator, shape))
@@ -116,7 +117,8 @@ impl<'a> BlockLowerer<'a> {
         let right_type = self.value_type_for_value(right)?;
         let element = tensor_element_type(self.tree, left_type)
             .ok_or_else(|| Error::invalid_program("tensor binary element"))?;
-        let element_layout = value_layout_from_type(self.tree, element);
+        let element_layout =
+            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
         let kernel =
             element_binary_kernel(operator, element_layout).ok_or(Error::invalid_instruction())?;
         let left_layout = TensorLayout::from_type(self.tree, self.layouts(), left_type)?;
@@ -183,25 +185,25 @@ impl<'a> BlockLowerer<'a> {
         left_type: mir::LocalNodeId<mir::Type>,
         right: mir::Value,
     ) -> Result<Instruction> {
-        // specialize machine-word integers by signedness and width
+        // specialize machine-cell integers by signedness and width
         let layout = self
-            .value_layout_map()
+            .value_shape_map()
             .get(left)
-            .or_else(|| Some(value_layout_from_type(self.tree, left_type)));
-        if let Some(ValueLayout::Int { width, signed }) = layout
+            .or_else(|| value_shape_from_type(self.tree, left_type));
+        if let Some(ValueShape::Int { width, signed }) = layout
             && let Some(op) = select_integer_op(operator, signed, width)
         {
             return Ok(Instruction::new(
                 op,
-                word_offset(self, destination)?,
-                word_offset(self, left)?,
-                word_offset(self, right)?,
+                cell_offset(self, destination)?,
+                cell_offset(self, left)?,
+                cell_offset(self, right)?,
                 integer_layout_field(width, signed),
             ));
         }
 
         // encode 16 bit float formats without a side table
-        if let Some(ValueLayout::Float { format }) = layout
+        if let Some(ValueShape::Float { format }) = layout
             && !matches!(format, mir::FloatType::Float32 | mir::FloatType::Float64)
         {
             let kernel =
@@ -210,9 +212,9 @@ impl<'a> BlockLowerer<'a> {
 
             return Ok(Instruction::new(
                 Op::BinaryFloat,
-                word_offset(self, destination)?,
-                word_offset(self, left)?,
-                word_offset(self, right)?,
+                cell_offset(self, destination)?,
+                cell_offset(self, left)?,
+                cell_offset(self, right)?,
                 operation.field(),
             ));
         }
@@ -225,11 +227,11 @@ impl<'a> BlockLowerer<'a> {
 
         // wide integers use frame byte addresses
         if is_wide_binary_op(op) {
-            let Some(ValueLayout::Int { width, signed }) = layout else {
+            let Some(ValueShape::Int { width, signed }) = layout else {
                 return Err(Error::invalid_instruction());
             };
             let destination = if is_wide_comparison_op(op) {
-                word_offset(self, destination)?
+                cell_offset(self, destination)?
             } else {
                 value_offset(self, destination)?
             };
@@ -243,18 +245,18 @@ impl<'a> BlockLowerer<'a> {
             ));
         }
 
-        self.lower_binary_word(op, destination, left, right)
+        self.lower_binary_cell(op, destination, left, right)
     }
 
-    /// Lower one word unary instruction.
-    fn lower_unary_word(
+    /// Lower one cell unary instruction.
+    fn lower_unary_cell(
         &self,
         op: Op,
         destination: mir::Value,
         argument: mir::Value,
     ) -> Result<Instruction> {
-        let destination = word_offset(self, destination)?;
-        let argument = word_offset(self, argument)?;
+        let destination = cell_offset(self, destination)?;
+        let argument = cell_offset(self, argument)?;
 
         Ok(Instruction::new(op, destination, argument, 0, 0))
     }
@@ -281,7 +283,8 @@ impl<'a> BlockLowerer<'a> {
         }
 
         // use direct packed operations when one register covers the vector
-        let element_layout = value_layout_from_type(self.tree, element);
+        let element_layout =
+            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
         if let Some(op) = self
             .packed_vector(dest_element, element_count, element)?
             .and_then(|shape| vector_packed_unary_op(operator, shape))
@@ -326,7 +329,8 @@ impl<'a> BlockLowerer<'a> {
         // decode tensor element and layouts
         let element = tensor_element_type(self.tree, argument_type)
             .ok_or_else(|| Error::invalid_program("tensor unary element"))?;
-        let element_layout = value_layout_from_type(self.tree, element);
+        let element_layout =
+            value_shape_from_type(self.tree, element).ok_or(Error::invalid_instruction())?;
         let kernel =
             element_unary_kernel(operator, element_layout).ok_or(Error::invalid_instruction())?;
         let argument_layout = TensorLayout::from_type(self.tree, self.layouts(), argument_type)?;
@@ -387,25 +391,25 @@ impl<'a> BlockLowerer<'a> {
         argument: mir::Value,
         argument_type: mir::LocalNodeId<mir::Type>,
     ) -> Result<Instruction> {
-        // specialize machine-word integers by signedness and width
+        // specialize machine-cell integers by signedness and width
         let layout = self
-            .value_layout_map()
+            .value_shape_map()
             .get(argument)
-            .or_else(|| Some(value_layout_from_type(self.tree, argument_type)));
-        if let Some(ValueLayout::Int { width, signed }) = layout
+            .or_else(|| value_shape_from_type(self.tree, argument_type));
+        if let Some(ValueShape::Int { width, signed }) = layout
             && let Some(op) = select_integer_unary_op(operator, signed, width)
         {
             return Ok(Instruction::new(
                 op,
-                word_offset(self, destination)?,
-                word_offset(self, argument)?,
+                cell_offset(self, destination)?,
+                cell_offset(self, argument)?,
                 0,
                 integer_layout_field(width, signed),
             ));
         }
 
         // encode 16 bit float formats without a side table
-        if let Some(ValueLayout::Float { format }) = layout
+        if let Some(ValueShape::Float { format }) = layout
             && !matches!(format, mir::FloatType::Float32 | mir::FloatType::Float64)
         {
             let kernel = UnaryFloatKernel::from_mir(operator).ok_or(Error::invalid_instruction())?;
@@ -413,23 +417,23 @@ impl<'a> BlockLowerer<'a> {
 
             return Ok(Instruction::new(
                 Op::UnaryFloat,
-                word_offset(self, destination)?,
-                word_offset(self, argument)?,
+                cell_offset(self, destination)?,
+                cell_offset(self, argument)?,
                 0,
                 operation.field(),
             ));
         }
 
         // select the remaining scalar family
-        let op = match select_unary_op(self.value_layout_map(), argument, operator) {
+        let op = match select_unary_op(self.value_shape_map(), argument, operator) {
             Some(op) => op,
             None => return Err(Error::invalid_instruction()),
         };
 
         // wide integers use frame byte addresses
         if is_wide_unary_op(op) {
-            let ValueLayout::Int { width, signed } =
-                value_layout_from_type(self.tree, argument_type)
+            let Some(ValueShape::Int { width, signed }) =
+                value_shape_from_type(self.tree, argument_type)
             else {
                 return Err(Error::invalid_instruction());
             };
@@ -443,7 +447,7 @@ impl<'a> BlockLowerer<'a> {
             ));
         }
 
-        self.lower_unary_word(op, destination, argument)
+        self.lower_unary_cell(op, destination, argument)
     }
 
     /// Lower one binary instruction.
@@ -564,13 +568,13 @@ pub(super) fn same_contiguous_tensor_unary_order(
 /// Select one element binary kernel.
 pub(super) fn element_binary_kernel(
     operator: mir::BinaryOperator,
-    layout: ValueLayout,
+    layout: ValueShape,
 ) -> Option<ElementBinaryKernel> {
     use ElementBinaryKernel as Kernel;
     use mir::BinaryOperator::*;
 
     Some(match layout {
-        ValueLayout::Bool => match operator {
+        ValueShape::Bool => match operator {
             And => Kernel::AndBool,
             Or => Kernel::OrBool,
             Xor => Kernel::XorBool,
@@ -578,7 +582,7 @@ pub(super) fn element_binary_kernel(
             NotEqual => Kernel::NeBool,
             _ => return None,
         },
-        ValueLayout::Int { signed, .. } => match (operator, signed) {
+        ValueShape::Int { signed, .. } => match (operator, signed) {
             (Add, _) => Kernel::AddInt,
             (Subtract, _) => Kernel::SubInt,
             (Multiply, _) => Kernel::MulInt,
@@ -604,7 +608,7 @@ pub(super) fn element_binary_kernel(
             (UnsignedGreaterEqual, _) => Kernel::GeUint,
             _ => return None,
         },
-        ValueLayout::Float {
+        ValueShape::Float {
             format: mir::FloatType::Float32,
         } => match operator {
             FloatAdd => Kernel::AddF32,
@@ -619,7 +623,7 @@ pub(super) fn element_binary_kernel(
             FloatGreaterEqual => Kernel::GeF32,
             _ => return None,
         },
-        ValueLayout::Float {
+        ValueShape::Float {
             format: mir::FloatType::Float64,
         } => match operator {
             FloatAdd => Kernel::AddF64,
@@ -634,7 +638,7 @@ pub(super) fn element_binary_kernel(
             FloatGreaterEqual => Kernel::GeF64,
             _ => return None,
         },
-        ValueLayout::Float { .. } => match operator {
+        ValueShape::Float { .. } => match operator {
             FloatAdd => Kernel::AddFloat,
             FloatSubtract => Kernel::SubFloat,
             FloatMultiply => Kernel::MulFloat,
@@ -702,7 +706,7 @@ fn vector_packed_unary_op(operator: mir::UnaryOperator, shape: PackedVector) -> 
 /// Select a direct packed tensor binary opcode.
 fn tensor_packed_binary_op(
     operator: mir::BinaryOperator,
-    layout: ValueLayout,
+    layout: ValueShape,
     element_count: usize,
 ) -> Option<Op> {
     let shape = packed_tensor_shape(layout, element_count)?;
@@ -713,7 +717,7 @@ fn tensor_packed_binary_op(
 /// Select a direct packed tensor unary opcode.
 fn tensor_packed_unary_op(
     operator: mir::UnaryOperator,
-    layout: ValueLayout,
+    layout: ValueShape,
     element_count: usize,
 ) -> Option<Op> {
     let shape = packed_tensor_shape(layout, element_count)?;
@@ -722,44 +726,44 @@ fn tensor_packed_unary_op(
 }
 
 /// Return the packed vector shape for one register-sized contiguous tensor.
-fn packed_tensor_shape(layout: ValueLayout, element_count: usize) -> Option<PackedVector> {
+fn packed_tensor_shape(layout: ValueShape, element_count: usize) -> Option<PackedVector> {
     Some(match (layout, element_count) {
         (
-            ValueLayout::Int {
+            ValueShape::Int {
                 width: 32,
                 signed: true,
             },
             4,
         ) => PackedVector::I32x4,
         (
-            ValueLayout::Int {
+            ValueShape::Int {
                 width: 32,
                 signed: false,
             },
             4,
         ) => PackedVector::U32x4,
         (
-            ValueLayout::Int {
+            ValueShape::Int {
                 width: 64,
                 signed: true,
             },
             2,
         ) => PackedVector::I64x2,
         (
-            ValueLayout::Int {
+            ValueShape::Int {
                 width: 64,
                 signed: false,
             },
             2,
         ) => PackedVector::U64x2,
         (
-            ValueLayout::Float {
+            ValueShape::Float {
                 format: mir::FloatType::Float32,
             },
             4,
         ) => PackedVector::F32x4,
         (
-            ValueLayout::Float {
+            ValueShape::Float {
                 format: mir::FloatType::Float64,
             },
             2,
@@ -771,27 +775,27 @@ fn packed_tensor_shape(layout: ValueLayout, element_count: usize) -> Option<Pack
 /// Select one element unary kernel.
 fn element_unary_kernel(
     operator: mir::UnaryOperator,
-    layout: ValueLayout,
+    layout: ValueShape,
 ) -> Option<ElementUnaryKernel> {
     use ElementUnaryKernel as Kernel;
 
     Some(match (operator, layout) {
-        (mir::UnaryOperator::Negate, ValueLayout::Int { signed: true, .. }) => Kernel::NegInt,
-        (mir::UnaryOperator::Not, ValueLayout::Int { .. }) => Kernel::NotInt,
+        (mir::UnaryOperator::Negate, ValueShape::Int { signed: true, .. }) => Kernel::NegInt,
+        (mir::UnaryOperator::Not, ValueShape::Int { .. }) => Kernel::NotInt,
         (
             mir::UnaryOperator::FloatNegate,
-            ValueLayout::Float {
+            ValueShape::Float {
                 format: mir::FloatType::Float32,
             },
         ) => Kernel::NegF32,
         (
             mir::UnaryOperator::FloatNegate,
-            ValueLayout::Float {
+            ValueShape::Float {
                 format: mir::FloatType::Float64,
             },
         ) => Kernel::NegF64,
-        (mir::UnaryOperator::FloatNegate, ValueLayout::Float { .. }) => Kernel::NegFloat,
-        (mir::UnaryOperator::Not, ValueLayout::Bool) => Kernel::NotBool,
+        (mir::UnaryOperator::FloatNegate, ValueShape::Float { .. }) => Kernel::NegFloat,
+        (mir::UnaryOperator::Not, ValueShape::Bool) => Kernel::NotBool,
         _ => return None,
     })
 }

@@ -1,6 +1,6 @@
 use std::mem;
 
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Outcome, Stack};
 use crate::options::LimitOptions;
@@ -63,7 +63,7 @@ impl Activation<'_> {
         &mut self,
         program: &Program,
         limits: LimitOptions,
-        value: Word,
+        value: Cell,
         source_type: mir::LocalNodeId<mir::Type>,
         frame_state: engine::FrameStateId,
     ) -> RuntimeResult<Outcome> {
@@ -71,7 +71,7 @@ impl Activation<'_> {
         let resume_frame_index = self.machine.frames.len() - 1;
 
         // capture the yielded result before moving the stack into the continuation
-        let value = super::frame::frame_value_from_word(
+        let value = super::frame::frame_value_from_cell(
             program,
             self.machine.frames.as_slice(),
             source_type,

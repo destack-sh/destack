@@ -1,23 +1,22 @@
 use super::access;
-use destack_engine::StaticPointer;
 use destack_mir as mir;
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::program::{Instruction, Projection, ProjectionId};
-use crate::{FramePointer, Word};
+use crate::{Cell, FramePointer};
 
-/// Execute frame word move.
+/// Execute frame cell move.
 #[inline(always)]
-pub(crate) fn execute_move_word(
+pub(crate) fn execute_move_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let destination_offset = instruction.a;
     let source_offset = instruction.b;
 
-    let value = activation.load_word_at(source_offset);
-    activation.store_word_at(destination_offset, value);
+    let value = activation.load_cell_at(source_offset);
+    activation.store_cell_at(destination_offset, value);
 
     Ok(())
 }
@@ -124,7 +123,7 @@ pub(crate) fn execute_load_static_bytes(
 
     access::load_static_bytes(
         activation,
-        address.as_static_pointer(),
+        address.as_static_address(),
         access,
         destination,
         destination_len,
@@ -216,7 +215,7 @@ pub(crate) fn execute_store_static_bytes(
     let (address, access, source, byte_len) = store_bytes(activation, instruction);
 
     activation.with_frame_bytes_at(source, byte_len, |activation, source| {
-        access::store_static_bytes(activation, address.as_static_pointer(), access, source)
+        access::store_static_bytes(activation, address.as_static_address(), access, source)
     })?;
 
     Ok(())
@@ -226,13 +225,13 @@ pub(crate) fn execute_store_static_bytes(
 fn load_bytes(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-) -> (Word, Projection, *mut u8, usize) {
+) -> (Cell, Projection, *mut u8, usize) {
     let destination = instruction.a;
     let address = instruction.b;
     let access = ProjectionId(instruction.c);
     let access = activation.projection(access);
 
-    let address = activation.load_word_at(address);
+    let address = activation.load_cell_at(address);
     let destination = activation.frame_pointer_at(destination).address() as *mut u8;
     let destination_len = access.byte_len;
 
@@ -243,13 +242,13 @@ fn load_bytes(
 fn store_bytes(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-) -> (Word, Projection, u32, usize) {
+) -> (Cell, Projection, u32, usize) {
     let address = instruction.a;
     let source = instruction.b;
     let access = ProjectionId(instruction.c);
     let access = activation.projection(access);
 
-    let address = activation.load_word_at(address);
+    let address = activation.load_cell_at(address);
     let byte_len = access.byte_len;
 
     (address, access, source, byte_len)
@@ -267,11 +266,11 @@ pub(crate) fn execute_address_local(
     let local = mir::LocalNodeId::new(local);
     let address = activation
         .active_frame()
-        .local_address(activation.active_frame_layout(), local)?;
+        .local_address(activation.frame_layout(), local)?;
     let pointer = FramePointer::from_address(address);
-    let value = Word::frame_pointer(pointer);
+    let value = Cell::frame_pointer(pointer);
 
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -284,45 +283,22 @@ pub(crate) fn execute_address_static(
     let dest = instruction.a;
 
     let global: mir::LocalNodeId<mir::Global> = mir::LocalNodeId::new(instruction.b);
-    let pointer = match activation.static_pointer(global) {
-        Some(pointer) => pointer,
+    let address = match activation.static_address(global) {
+        Some(address) => address,
         None => return Err(Error::undefined_global(global)),
     };
-    let pointer = Word::static_pointer(pointer);
+    let pointer = Cell::static_address(address);
 
-    activation.store_word_at(dest, pointer);
+    activation.store_cell_at(dest, pointer);
 
     Ok(())
 }
 
-/// Return the immutable static region for one static address.
-#[inline(always)]
-fn immutable_static_region_for_pointer(
-    activation: &Activation<'_>,
-    pointer: StaticPointer,
-) -> Option<mir::LocalNodeId<mir::Global>> {
-    let region = activation
-        .statics()
-        .region_for_pointer(pointer)
-        .or_else(|| {
-            activation
-                .machine
-                .program
-                .statics
-                .region_for_pointer(pointer)
-        })?;
-    if region.is_mutable {
-        return None;
-    }
-
-    Some(mir::LocalNodeId::new(region.id.0))
-}
-
 /// Load scalar access instruction fields.
 #[inline(always)]
-fn load_fields(activation: &Activation<'_>, instruction: &Instruction) -> (u32, Word, usize) {
+fn load_fields(activation: &Activation<'_>, instruction: &Instruction) -> (u32, Cell, usize) {
     let dest = instruction.a;
-    let pointer = activation.load_word_at(instruction.b);
+    let pointer = activation.load_cell_at(instruction.b);
     let byte_offset = instruction.c as usize;
 
     (dest, pointer, byte_offset)
@@ -330,9 +306,9 @@ fn load_fields(activation: &Activation<'_>, instruction: &Instruction) -> (u32, 
 
 /// Store scalar instruction fields.
 #[inline(always)]
-fn store_fields(activation: &Activation<'_>, instruction: &Instruction) -> (Word, Word, usize) {
-    let pointer = activation.load_word_at(instruction.a);
-    let value = activation.load_word_at(instruction.b);
+fn store_fields(activation: &Activation<'_>, instruction: &Instruction) -> (Cell, Cell, usize) {
+    let pointer = activation.load_cell_at(instruction.a);
+    let value = activation.load_cell_at(instruction.b);
     let byte_offset = instruction.c as usize;
 
     (pointer, value, byte_offset)
@@ -347,7 +323,7 @@ pub(crate) fn execute_load_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: b
     let (dest, pointer, byte_offset) = load_fields(activation, instruction);
 
     let value = access::load_heap_scalar::<BYTE_LEN, IS_SIGNED>(activation, pointer, byte_offset);
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -362,7 +338,7 @@ pub(crate) fn execute_load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SI
 
     let value =
         access::load_shared_heap_scalar::<BYTE_LEN, IS_SIGNED>(activation, pointer, byte_offset);
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -376,7 +352,7 @@ pub(crate) fn execute_load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bo
     let (dest, pointer, byte_offset) = load_fields(activation, instruction);
 
     let value = access::load_raw_scalar::<BYTE_LEN, IS_SIGNED>(activation, pointer, byte_offset);
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -394,7 +370,7 @@ pub(crate) fn execute_load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: 
         pointer.as_stack_pointer(),
         byte_offset,
     );
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -409,10 +385,10 @@ pub(crate) fn execute_load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED:
 
     let value = access::load_static_scalar::<BYTE_LEN, IS_SIGNED>(
         activation,
-        pointer.as_static_pointer(),
+        pointer.as_static_address(),
         byte_offset,
-    );
-    activation.store_word_at(dest, value);
+    )?;
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -473,13 +449,12 @@ pub(crate) fn execute_store_static_scalar<const BYTE_LEN: usize>(
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let (pointer, value, byte_offset) = store_fields(activation, instruction);
-    let pointer = pointer.as_static_pointer();
-
-    if let Some(global) = immutable_static_region_for_pointer(activation, pointer) {
-        return Err(Error::immutable_global_write(global));
-    }
-
-    access::store_static_scalar::<BYTE_LEN>(activation, pointer, byte_offset, value);
+    access::store_static_scalar::<BYTE_LEN>(
+        activation,
+        pointer.as_static_address(),
+        byte_offset,
+        value,
+    )?;
 
     Ok(())
 }

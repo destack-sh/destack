@@ -1,35 +1,35 @@
 use std::ptr;
 
-use destack_engine::StaticPointer;
+use destack_engine::StaticAddress;
 use destack_heap::{HeapReference, SharedHeapReference};
 
 use crate::diagnostic::Error;
 use crate::machine::Activation;
-use crate::program::{Projection, SlotProjection, WordLayout};
-use crate::{FramePointer, StackPointer, Word};
+use crate::program::{CellLayout, Projection, SlotProjection};
+use crate::{Cell, FramePointer, StackPointer};
 
 const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
 
 /// Debug assert one lowered scalar access.
 #[inline(always)]
-fn debug_assert_word_access(access: Projection) {
-    debug_assert!(access.is_word());
-    debug_assert!(access.byte_len <= Word::BYTE_LEN);
+fn debug_assert_cell_access(access: Projection) {
+    debug_assert!(access.is_cell());
+    debug_assert!(access.byte_len <= Cell::BYTE_LEN);
 }
 
 /// Return one lowered scalar layout.
 #[inline(always)]
-fn scalar_layout(access: Projection) -> WordLayout {
-    debug_assert!(access.word_layout.is_some());
+fn scalar_layout(access: Projection) -> CellLayout {
+    debug_assert!(access.cell_layout.is_some());
 
-    // SAFETY: scalar projections are lowered with a word layout and asserted in debug builds
-    unsafe { access.word_layout.unwrap_unchecked() }
+    // SAFETY: scalar projections are lowered with a cell layout and asserted in debug builds
+    unsafe { access.cell_layout.unwrap_unchecked() }
 }
 
 /// Return one lowered slot layout.
 #[inline(always)]
-fn slot_layout(access: SlotProjection) -> WordLayout {
-    access.word_layout
+fn slot_layout(access: SlotProjection) -> CellLayout {
+    access.cell_layout
 }
 
 /// Return one local heap native address.
@@ -105,20 +105,20 @@ fn load_unsigned_raw(address: usize, byte_len: usize) -> u64 {
 #[inline(always)]
 pub(super) fn load_scalar_at_address<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     address: usize,
-) -> Word {
+) -> Cell {
     let raw = load_unsigned_raw(address, BYTE_LEN);
-    let raw = if IS_SIGNED && BYTE_LEN < Word::BYTE_LEN {
+    let raw = if IS_SIGNED && BYTE_LEN < Cell::BYTE_LEN {
         sign_extend_scalar(raw, BYTE_LEN)
     } else {
         raw
     };
 
-    Word::from_bits(raw)
+    Cell::from_bits(raw)
 }
 
 /// Store one lowered scalar to one native address.
 #[inline(always)]
-pub(super) fn store_scalar_at_address<const BYTE_LEN: usize>(address: usize, value: Word) {
+pub(super) fn store_scalar_at_address<const BYTE_LEN: usize>(address: usize, value: Cell) {
     store_unsigned_raw(address, value.bits(), BYTE_LEN);
 }
 
@@ -172,7 +172,7 @@ fn store_bytewise_unsigned_raw(destination: *mut u8, raw: u64, byte_len: usize) 
 
 /// Load one typed scalar from one native address.
 #[inline(always)]
-pub(super) fn load_scalar_by_layout_at_address(address: usize, layout: WordLayout) -> Word {
+pub(super) fn load_scalar_by_layout_at_address(address: usize, layout: CellLayout) -> Cell {
     let raw = load_unsigned_raw(address, layout.byte_len(POINTER_BYTE_LEN));
 
     layout.decode(raw)
@@ -180,7 +180,7 @@ pub(super) fn load_scalar_by_layout_at_address(address: usize, layout: WordLayou
 
 /// Store one typed scalar to one native address.
 #[inline(always)]
-pub(super) fn store_scalar_by_layout_at_address(address: usize, layout: WordLayout, value: Word) {
+pub(super) fn store_scalar_by_layout_at_address(address: usize, layout: CellLayout, value: Cell) {
     let raw = layout.encode(value);
 
     store_unsigned_raw(address, raw, layout.byte_len(POINTER_BYTE_LEN));
@@ -189,10 +189,10 @@ pub(super) fn store_scalar_by_layout_at_address(address: usize, layout: WordLayo
 /// Load one scalar from raw memory.
 pub(crate) fn load_raw_scalar_by_layout(
     _machine: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
-) -> Word {
-    debug_assert_word_access(access);
+) -> Cell {
+    debug_assert_cell_access(access);
 
     let address = raw_address(pointer.as_address(), access.byte_offset);
 
@@ -202,11 +202,11 @@ pub(crate) fn load_raw_scalar_by_layout(
 /// Store one scalar into raw memory.
 pub(crate) fn store_raw_scalar_by_layout(
     _machine: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
-    value: Word,
+    value: Cell,
 ) {
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
     let address = raw_address(pointer.as_address(), access.byte_offset);
 
     store_scalar_by_layout_at_address(address, scalar_layout(access), value);
@@ -215,7 +215,7 @@ pub(crate) fn store_raw_scalar_by_layout(
 /// Store bytes into a raw pointer.
 pub(crate) fn store_raw_bytes(
     _machine: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
     bytes: &[u8],
 ) -> Result<(), Error> {
@@ -229,7 +229,7 @@ pub(crate) fn store_raw_bytes(
 #[inline(always)]
 pub(crate) fn load_raw_bytes(
     _machine: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
     destination: *mut u8,
     destination_len: usize,
@@ -244,7 +244,7 @@ pub(crate) fn load_raw_bytes(
 #[inline(always)]
 pub(crate) fn load_heap_bytes(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
     destination: *mut u8,
     destination_len: usize,
@@ -260,7 +260,7 @@ pub(crate) fn load_heap_bytes(
 #[inline(always)]
 pub(crate) fn load_shared_heap_bytes(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
     destination: *mut u8,
     destination_len: usize,
@@ -302,18 +302,21 @@ pub(crate) fn load_frame_bytes(
     Ok(())
 }
 
-/// Load bytes from a static pointer.
+/// Load bytes from a static address.
 #[inline(always)]
 pub(crate) fn load_static_bytes(
-    _machine: &mut Activation<'_>,
-    pointer: StaticPointer,
+    activation: &mut Activation<'_>,
+    address: StaticAddress,
     access: Projection,
     destination: *mut u8,
     destination_len: usize,
 ) -> Result<(), Error> {
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let address = address
+        .add_bytes(access.byte_offset)
+        .ok_or(Error::invalid_instruction())?;
+    let address = activation.static_native_address(address, destination_len)?;
 
-    load_native_bytes(pointer.address(), destination, destination_len);
+    load_native_bytes(address, destination, destination_len);
     Ok(())
 }
 
@@ -321,9 +324,9 @@ pub(crate) fn load_static_bytes(
 #[inline(always)]
 pub(crate) fn load_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     byte_offset: usize,
-) -> Word {
+) -> Cell {
     let reference = pointer.as_heap_reference();
     let address = local_heap_address(activation, reference, byte_offset);
 
@@ -334,9 +337,9 @@ pub(crate) fn load_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
 #[inline(always)]
 pub(crate) fn load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     byte_offset: usize,
-) -> Word {
+) -> Cell {
     let reference = pointer.as_shared_heap_reference();
     let address = shared_heap_address(activation, reference, byte_offset);
 
@@ -347,9 +350,9 @@ pub(crate) fn load_shared_heap_scalar<const BYTE_LEN: usize, const IS_SIGNED: bo
 #[inline(always)]
 pub(crate) fn load_raw_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     _machine: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     byte_offset: usize,
-) -> Word {
+) -> Cell {
     let address = raw_address(pointer.as_address(), byte_offset);
 
     load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address)
@@ -361,31 +364,34 @@ pub(crate) fn load_stack_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
     _machine: &mut Activation<'_>,
     pointer: StackPointer,
     byte_offset: usize,
-) -> Word {
+) -> Cell {
     let pointer = pointer.add_bytes(byte_offset);
 
     load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address())
 }
 
-/// Load one scalar from a static pointer.
+/// Load one scalar from a static address.
 #[inline(always)]
 pub(crate) fn load_static_scalar<const BYTE_LEN: usize, const IS_SIGNED: bool>(
-    _machine: &mut Activation<'_>,
-    pointer: StaticPointer,
+    activation: &mut Activation<'_>,
+    address: StaticAddress,
     byte_offset: usize,
-) -> Word {
-    let pointer = pointer.add_bytes(byte_offset);
+) -> Result<Cell, Error> {
+    let address = address
+        .add_bytes(byte_offset)
+        .ok_or(Error::invalid_instruction())?;
+    let address = activation.static_native_address(address, BYTE_LEN)?;
 
-    load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address())
+    Ok(load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(address))
 }
 
 /// Store one scalar through a local heap reference.
 #[inline(always)]
 pub(crate) fn store_heap_scalar<const BYTE_LEN: usize>(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     byte_offset: usize,
-    value: Word,
+    value: Cell,
 ) {
     let reference = pointer.as_heap_reference();
     let address = local_heap_address(activation, reference, byte_offset);
@@ -397,9 +403,9 @@ pub(crate) fn store_heap_scalar<const BYTE_LEN: usize>(
 #[inline(always)]
 pub(crate) fn store_shared_heap_scalar<const BYTE_LEN: usize>(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     byte_offset: usize,
-    value: Word,
+    value: Cell,
 ) {
     let reference = pointer.as_shared_heap_reference();
     let address = shared_heap_address(activation, reference, byte_offset);
@@ -411,9 +417,9 @@ pub(crate) fn store_shared_heap_scalar<const BYTE_LEN: usize>(
 #[inline(always)]
 pub(crate) fn store_raw_scalar<const BYTE_LEN: usize>(
     _machine: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     byte_offset: usize,
-    value: Word,
+    value: Cell,
 ) {
     let address = raw_address(pointer.as_address(), byte_offset);
 
@@ -426,36 +432,40 @@ pub(crate) fn store_stack_scalar<const BYTE_LEN: usize>(
     _machine: &mut Activation<'_>,
     pointer: StackPointer,
     byte_offset: usize,
-    value: Word,
+    value: Cell,
 ) {
     let pointer = pointer.add_bytes(byte_offset);
 
     store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 }
 
-/// Store one scalar through a static pointer.
+/// Store one scalar through a static address.
 #[inline(always)]
 pub(crate) fn store_static_scalar<const BYTE_LEN: usize>(
-    _machine: &mut Activation<'_>,
-    pointer: StaticPointer,
+    activation: &mut Activation<'_>,
+    address: StaticAddress,
     byte_offset: usize,
-    value: Word,
-) {
-    let pointer = pointer.add_bytes(byte_offset);
+    value: Cell,
+) -> Result<(), Error> {
+    let address = address
+        .add_bytes(byte_offset)
+        .ok_or(Error::invalid_instruction())?;
+    let address = activation.static_native_address_mut(address, BYTE_LEN)?;
 
-    store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
+    store_scalar_at_address::<BYTE_LEN>(address, value);
+    Ok(())
 }
 
 /// Load one scalar from a heap reference.
 #[inline(always)]
 pub(crate) fn load_heap_scalar_by_layout(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
-) -> Word {
+) -> Cell {
     let reference = pointer.as_heap_reference();
 
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
     let address = local_heap_address(activation, reference, access.byte_offset);
 
     load_scalar_by_layout_at_address(address, scalar_layout(access))
@@ -465,12 +475,12 @@ pub(crate) fn load_heap_scalar_by_layout(
 #[inline(always)]
 pub(crate) fn load_shared_heap_scalar_by_layout(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
-) -> Word {
+) -> Cell {
     let reference = pointer.as_shared_heap_reference();
 
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
     let address = shared_heap_address(activation, reference, access.byte_offset);
 
     load_scalar_by_layout_at_address(address, scalar_layout(access))
@@ -482,10 +492,10 @@ pub(crate) fn load_stack_scalar_by_layout(
     _machine: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
-) -> Word {
+) -> Cell {
     let pointer = pointer.add_bytes(access.byte_offset);
 
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
 
     load_scalar_by_layout_at_address(pointer.address(), scalar_layout(access))
 }
@@ -496,10 +506,10 @@ pub(crate) fn load_frame_scalar_by_layout(
     _machine: &mut Activation<'_>,
     pointer: FramePointer,
     access: Projection,
-) -> Word {
+) -> Cell {
     let pointer = pointer.add_bytes(access.byte_offset);
 
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
 
     load_scalar_by_layout_at_address(pointer.address(), scalar_layout(access))
 }
@@ -510,37 +520,43 @@ pub(crate) fn load_frame_slot_by_layout(
     _machine: &mut Activation<'_>,
     pointer: FramePointer,
     access: SlotProjection,
-) -> Word {
+) -> Cell {
     let pointer = pointer.add_bytes(access.byte_offset);
 
-    debug_assert!(access.byte_len <= Word::BYTE_LEN);
+    debug_assert!(access.byte_len <= Cell::BYTE_LEN);
 
     load_scalar_by_layout_at_address(pointer.address(), slot_layout(access))
 }
 
-/// Load one scalar from a static pointer.
+/// Load one scalar from a static address.
 #[inline(always)]
 pub(crate) fn load_static_scalar_by_layout(
-    _machine: &mut Activation<'_>,
-    pointer: StaticPointer,
+    activation: &mut Activation<'_>,
+    address: StaticAddress,
     access: Projection,
-) -> Word {
-    let pointer = pointer.add_bytes(access.byte_offset);
+) -> Result<Cell, Error> {
+    let address = address
+        .add_bytes(access.byte_offset)
+        .ok_or(Error::invalid_instruction())?;
+    let address = activation.static_native_address(address, access.byte_len)?;
 
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
 
-    load_scalar_by_layout_at_address(pointer.address(), scalar_layout(access))
+    Ok(load_scalar_by_layout_at_address(
+        address,
+        scalar_layout(access),
+    ))
 }
 
 /// Store one scalar through a heap reference.
 #[inline(always)]
 pub(crate) fn store_heap_scalar_by_layout(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
-    value: Word,
+    value: Cell,
 ) {
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
     let reference = pointer.as_heap_reference();
 
     let start = access.byte_offset;
@@ -553,7 +569,7 @@ pub(crate) fn store_heap_scalar_by_layout(
 #[inline(always)]
 pub(crate) fn store_heap_bytes(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
     bytes: &[u8],
 ) -> Result<(), Error> {
@@ -570,11 +586,11 @@ pub(crate) fn store_heap_bytes(
 #[inline(always)]
 pub(crate) fn store_shared_heap_scalar_by_layout(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
-    value: Word,
+    value: Cell,
 ) {
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
     let reference = pointer.as_shared_heap_reference();
 
     let start = access.byte_offset;
@@ -587,7 +603,7 @@ pub(crate) fn store_shared_heap_scalar_by_layout(
 #[inline(always)]
 pub(crate) fn store_shared_heap_bytes(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     access: Projection,
     bytes: &[u8],
 ) -> Result<(), Error> {
@@ -606,9 +622,9 @@ pub(crate) fn store_stack_scalar_by_layout(
     _machine: &mut Activation<'_>,
     pointer: StackPointer,
     access: Projection,
-    value: Word,
+    value: Cell,
 ) {
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
     let pointer = pointer.add_bytes(access.byte_offset);
 
     store_scalar_by_layout_at_address(pointer.address(), scalar_layout(access), value);
@@ -635,9 +651,9 @@ pub(crate) fn store_frame_scalar_by_layout(
     _machine: &mut Activation<'_>,
     pointer: FramePointer,
     access: Projection,
-    value: Word,
+    value: Cell,
 ) {
-    debug_assert_word_access(access);
+    debug_assert_cell_access(access);
     let pointer = pointer.add_bytes(access.byte_offset);
 
     store_scalar_by_layout_at_address(pointer.address(), scalar_layout(access), value);
@@ -649,40 +665,47 @@ pub(crate) fn store_frame_slot_by_layout(
     _machine: &mut Activation<'_>,
     pointer: FramePointer,
     access: SlotProjection,
-    value: Word,
+    value: Cell,
 ) {
     let pointer = pointer.add_bytes(access.byte_offset);
 
-    debug_assert!(access.byte_len <= Word::BYTE_LEN);
+    debug_assert!(access.byte_len <= Cell::BYTE_LEN);
 
     store_scalar_by_layout_at_address(pointer.address(), slot_layout(access), value);
 }
 
-/// Store one scalar through a static pointer.
+/// Store one scalar through a static address.
 #[inline(always)]
 pub(crate) fn store_static_scalar_by_layout(
-    _machine: &mut Activation<'_>,
-    pointer: StaticPointer,
+    activation: &mut Activation<'_>,
+    address: StaticAddress,
     access: Projection,
-    value: Word,
-) {
-    debug_assert_word_access(access);
-    let pointer = pointer.add_bytes(access.byte_offset);
+    value: Cell,
+) -> Result<(), Error> {
+    debug_assert_cell_access(access);
+    let address = address
+        .add_bytes(access.byte_offset)
+        .ok_or(Error::invalid_instruction())?;
+    let address = activation.static_native_address_mut(address, access.byte_len)?;
 
-    store_scalar_by_layout_at_address(pointer.address(), scalar_layout(access), value);
+    store_scalar_by_layout_at_address(address, scalar_layout(access), value);
+    Ok(())
 }
 
-/// Store bytes into a static pointer.
+/// Store bytes into a static address.
 #[inline(always)]
 pub(crate) fn store_static_bytes(
-    _machine: &mut Activation<'_>,
-    pointer: StaticPointer,
+    activation: &mut Activation<'_>,
+    address: StaticAddress,
     access: Projection,
     bytes: &[u8],
 ) -> Result<(), Error> {
-    let pointer = pointer.add_bytes(access.byte_offset);
+    let address = address
+        .add_bytes(access.byte_offset)
+        .ok_or(Error::invalid_instruction())?;
+    let address = activation.static_native_address_mut(address, bytes.len())?;
 
-    store_native_bytes(pointer.address(), bytes);
+    store_native_bytes(address, bytes);
 
     Ok(())
 }

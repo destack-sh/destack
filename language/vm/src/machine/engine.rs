@@ -11,7 +11,7 @@ impl engine::Engine for Machine {
     type Image = Arc<MachineImage>;
     type Error = RuntimeError;
 
-    fn initialize(&mut self, context: engine::MemoryContext<'_>) -> Result<(), Self::Error> {
+    fn initialize(&mut self, context: engine::EngineMemory<'_>) -> Result<(), Self::Error> {
         Machine::initialize(
             self,
             context.heap,
@@ -22,7 +22,7 @@ impl engine::Engine for Machine {
 
     fn run(
         &mut self,
-        context: engine::CallContext<'_>,
+        context: engine::EngineCall<'_>,
         entry: engine::EntryPoint,
         args: &[engine::Value],
     ) -> Result<Outcome, Self::Error> {
@@ -42,7 +42,7 @@ impl engine::Engine for Machine {
 
     fn resume(
         &mut self,
-        context: engine::CallContext<'_>,
+        context: engine::EngineCall<'_>,
         continuation: Continuation,
         value: engine::Value,
     ) -> Result<Outcome, Self::Error> {
@@ -60,17 +60,17 @@ impl engine::Engine for Machine {
         )
     }
 
-    fn fork(&self, _context: engine::MemoryContext<'_>) -> Result<Self, Self::Error> {
+    fn fork(&self, _context: engine::EngineMemory<'_>) -> Result<Self, Self::Error> {
         Machine::fork(self)
     }
 
-    fn image(&self, _context: engine::MemoryContext<'_>) -> Result<Self::Image, Self::Error> {
+    fn image(&self, _context: engine::EngineMemory<'_>) -> Result<Self::Image, Self::Error> {
         Ok(Arc::new(Machine::image(self)?))
     }
 
     fn restore(
         &mut self,
-        _context: engine::MemoryContext<'_>,
+        _context: engine::EngineMemory<'_>,
         image: &Self::Image,
     ) -> Result<(), Self::Error> {
         Machine::restore_image(self, image)
