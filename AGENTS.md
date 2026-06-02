@@ -15,9 +15,9 @@
 - As with logic, symmetry in naming across related logic is simpler, and simpler is better.
 - Avoid single-letter variables unless obvious (e.g., `i`, `x`, `Vector.x` are fine).
 - Booleans should start with `is_` unless already clear (or otherwise required by context), though enums are usually better anyway.
-- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
+- Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", "channel", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
 - The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy.
-- It can be tempting to name things along the lines of "x*for_y" in certain overload situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does \_not* mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue.)
+- It can be tempting to name things along the lines of "x_for_y" in certain overload situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does \_not* mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue.)
 
 ### Logic
 
@@ -57,11 +57,25 @@ else {
 ```
 
 - As a corollary, it is good practice to try and keep the flow and depth of branching predictable and consistent.
-- There are really two main kinds of branching: unexpected / early exit guards, and "main" if-else-if-else chains (however they may manifest). Early exist can use the if-jump/return style, but anything that is a serious of if-jump-if-jump-if-jump should usually be turned into a coherent logic blocked legible chain as above, and/or use match statements.
+- There are really two main kinds of branching: unexpected / early exit guards, and "main" if-else-if-else chains (however they may manifest). Early exist can use the if-jump/return style, but anything that is a serious of if-jump-if-jump-if-jump should usually be turned into a coherent logic blocked legible chain as above, and/or use match statements:
+
+```
+let Some(extracted) = extract(foo) else {
+    return;
+};
+if invalid(extracted) {
+    return;
+}
+
+match extracted {
+    // ... each variant ...
+    // ... could also be if-else-if-else if that reads better
+}
+```
 
 ### Factoring
 
-- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware.
+- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware and under expected usage scenarios.
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Most code on the internet, on StackOverflow, or on open source libraries, and even in their documentation, is not very good. Anything external we take in should be treated with great suspicion.
 - Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
