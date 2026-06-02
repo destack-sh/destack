@@ -41,44 +41,44 @@ impl OperandTable {
 }
 
 impl CheckState<'_> {
-    /// Bind one checked type variable to a node.
-    pub(in crate::check) fn bind_node_type_variable(
+    /// Reserve one checked type variable for a node.
+    pub(in crate::check) fn reserve_node_type(
         &mut self,
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> VariableId {
         let variable = self.allocate_variable(module, VariableKind::Type, Origin::Node(node));
         let operand = TypeOperand::Variable(variable);
-        self.write_node_type_operand(node, operand);
+        self.publish_node_type_entry(node, operand);
         variable
     }
 
-    /// Bind one checked static variable to a node.
-    pub(in crate::check) fn bind_node_static_variable(
+    /// Reserve one checked static variable for a node.
+    pub(in crate::check) fn reserve_node_static(
         &mut self,
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> VariableId {
         let variable = self.allocate_variable(module, VariableKind::Static, Origin::Node(node));
         let operand = StaticOperand::Variable(variable);
-        self.write_node_static_operand(node, operand);
+        self.publish_node_static_entry(node, operand);
         variable
     }
 
-    /// Bind one checked type variable to a symbol.
-    pub(in crate::check) fn bind_symbol_type_variable(
+    /// Reserve one checked type variable for a symbol.
+    pub(in crate::check) fn reserve_symbol_type(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> VariableId {
         let variable = self.allocate_variable(module, VariableKind::Type, Origin::Symbol(symbol));
         let operand = TypeOperand::Variable(variable);
-        self.write_symbol_type_operand(symbol, operand);
+        self.publish_symbol_type_entry(symbol, operand);
         variable
     }
 
-    /// Return one checked symbol type variable, binding it when missing.
-    pub(in crate::check) fn bind_symbol_type_variable_if_missing(
+    /// Return one checked symbol type variable, reserving it when missing.
+    pub(in crate::check) fn reserve_symbol_type_if_missing(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
@@ -88,12 +88,12 @@ impl CheckState<'_> {
             Some(TypeOperand::Term(_) | TypeOperand::Type(_)) => {
                 panic!("check symbol {symbol:?} already has checked type operand")
             }
-            None => self.bind_symbol_type_variable(module, symbol),
+            None => self.reserve_symbol_type(module, symbol),
         }
     }
 
-    /// Bind one checked static variable to a symbol.
-    pub(in crate::check) fn bind_symbol_static_variable(
+    /// Reserve one checked static variable for a symbol.
+    pub(in crate::check) fn reserve_symbol_static(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
@@ -102,13 +102,13 @@ impl CheckState<'_> {
 
         let operand = StaticOperand::Variable(variable);
 
-        self.write_symbol_static_operand(symbol, operand);
+        self.publish_symbol_static_entry(symbol, operand);
 
         variable
     }
 
-    /// Import one checked symbol type operand without committing it.
-    pub(in crate::check) fn import_symbol_type_operand(
+    /// Cache one checked symbol type operand without committing it.
+    pub(in crate::check) fn cache_symbol_type_operand(
         &mut self,
         symbol: dir::GlobalSymbolId,
         operand: TypeOperand,
@@ -122,8 +122,8 @@ impl CheckState<'_> {
         operand
     }
 
-    /// Import one checked symbol static operand without committing it.
-    pub(in crate::check) fn import_symbol_static_operand(
+    /// Cache one checked symbol static operand without committing it.
+    pub(in crate::check) fn cache_symbol_static_operand(
         &mut self,
         symbol: dir::GlobalSymbolId,
         operand: StaticOperand,
@@ -136,18 +136,18 @@ impl CheckState<'_> {
         operand
     }
 
-    /// Bind one checked static operand to a symbol.
-    pub(in crate::check) fn bind_symbol_static_operand(
+    /// Publish one checked static operand for a symbol.
+    pub(in crate::check) fn publish_symbol_static_operand(
         &mut self,
         symbol: dir::GlobalSymbolId,
         operand: StaticOperand,
     ) -> StaticOperand {
-        self.write_symbol_static_operand(symbol, operand);
+        self.publish_symbol_static_entry(symbol, operand);
         operand
     }
 
-    /// Bind one checked type term to a node.
-    pub(in crate::check) fn bind_node_type<T: dir::Node + Clone>(
+    /// Publish one checked type term for a node.
+    pub(in crate::check) fn publish_node_type<T: dir::Node + Clone>(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<T>,
@@ -155,24 +155,24 @@ impl CheckState<'_> {
     ) -> TypeOperand {
         let node = id.into_global_any(module);
         let operand = self.create_type_term_operand(module, Origin::Node(node), term);
-        self.write_node_type_operand(node, operand);
+        self.publish_node_type_entry(node, operand);
         operand
     }
 
-    /// Bind one checked type operand to a node.
-    pub(in crate::check) fn bind_node_type_operand<T: dir::Node + Clone>(
+    /// Publish one checked type operand for a node.
+    pub(in crate::check) fn publish_node_type_operand<T: dir::Node + Clone>(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<T>,
         operand: TypeOperand,
     ) -> TypeOperand {
         let node = id.into_global_any(module);
-        self.write_node_type_operand(node, operand);
+        self.publish_node_type_entry(node, operand);
         operand
     }
 
-    /// Bind one checked type term to a symbol.
-    pub(in crate::check) fn bind_symbol_type(
+    /// Publish one checked type term for a symbol.
+    pub(in crate::check) fn publish_symbol_type(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
@@ -193,12 +193,12 @@ impl CheckState<'_> {
         }
 
         let operand = self.create_type_term_operand(module, Origin::Symbol(symbol), term);
-        self.write_symbol_type_operand(symbol, operand);
+        self.publish_symbol_type_entry(symbol, operand);
         operand
     }
 
-    /// Bind one checked type operand to a symbol.
-    pub(in crate::check) fn bind_symbol_type_operand(
+    /// Publish one checked type operand for a symbol.
+    pub(in crate::check) fn publish_symbol_type_operand(
         &mut self,
         symbol: dir::GlobalSymbolId,
         operand: TypeOperand,
@@ -219,23 +219,25 @@ impl CheckState<'_> {
             };
         }
 
-        self.write_symbol_type_operand(symbol, operand);
+        self.publish_symbol_type_entry(symbol, operand);
 
         operand
     }
 
-    /// Bind one checked static expression variable to a node.
-    pub(in crate::check) fn bind_static_expression_variable(
+    /// Reserve one checked static expression variable for a node.
+    pub(in crate::check) fn reserve_static_expression(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Expression>,
         condition: Condition,
     ) -> VariableId {
         let node = id.into_global_any(module);
-        let variable = self.bind_node_static_variable(module, node);
+        let origin = Origin::Node(node);
+        let variable = self.reserve_node_static(module, node);
         let term = StaticTerm::Expression(id.into_global(module));
+        let term = self.push_term(term);
 
-        self.equate_static(variable, term, condition);
+        self.equate_static(origin, variable, term, condition);
 
         variable
     }
@@ -245,8 +247,8 @@ impl CheckState<'_> {
         self.operands.types.get(&id).copied()
     }
 
-    /// Bind one operand to a checked DIR type id.
-    pub(in crate::check) fn bind_type_operand(
+    /// Publish one operand for a checked DIR type id.
+    pub(in crate::check) fn publish_type_operand(
         &mut self,
         id: dir::GlobalTypeId,
         operand: TypeOperand,
@@ -320,7 +322,7 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return one checked symbol type operand, importing it when missing.
+    /// Return one checked symbol type operand, caching it when missing.
     pub(in crate::check) fn require_symbol_type(
         &mut self,
         module: ModuleId,
@@ -333,7 +335,7 @@ impl CheckState<'_> {
         if let Some(target) = self.import_alias_target(symbol) {
             let operand = self.require_symbol_type(module, target);
 
-            self.bind_symbol_type_operand(symbol, operand, Condition::Always);
+            self.publish_symbol_type_operand(symbol, operand, Condition::Always);
 
             return operand;
         }
@@ -345,7 +347,7 @@ impl CheckState<'_> {
         self.require_dependency_symbol_type(module, symbol)
     }
 
-    /// Return one dependency symbol type operand, importing it when missing.
+    /// Return one dependency symbol type operand, caching it when missing.
     fn require_dependency_symbol_type(
         &mut self,
         module: ModuleId,
@@ -362,7 +364,7 @@ impl CheckState<'_> {
             .unwrap_or_else(|| panic!("dependency symbol {symbol:?} has no checked type"));
         let operand = self.import_dependency_type_operand(module, symbol.module_id, source);
 
-        self.import_symbol_type_operand(symbol, operand)
+        self.cache_symbol_type_operand(symbol, operand)
     }
 
     /// Return one type operand as a type variable.
@@ -408,8 +410,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Write one checked type operand for a node.
-    fn write_node_type_operand(&mut self, node: dir::GlobalNodeIdAny, operand: TypeOperand) {
+    /// Publish one checked type table entry for a node.
+    fn publish_node_type_entry(&mut self, node: dir::GlobalNodeIdAny, operand: TypeOperand) {
         if self.operands.node_types.contains_key(&node) {
             panic!("check node {node:?} already has checked type");
         }
@@ -417,8 +419,8 @@ impl CheckState<'_> {
         self.operands.node_types.insert(node, operand);
     }
 
-    /// Write one checked static operand for a node.
-    fn write_node_static_operand(&mut self, node: dir::GlobalNodeIdAny, operand: StaticOperand) {
+    /// Publish one checked static table entry for a node.
+    fn publish_node_static_entry(&mut self, node: dir::GlobalNodeIdAny, operand: StaticOperand) {
         if self.operands.node_statics.contains_key(&node) {
             panic!("check node {node:?} already has checked static");
         }
@@ -426,8 +428,8 @@ impl CheckState<'_> {
         self.operands.node_statics.insert(node, operand);
     }
 
-    /// Write one checked type operand for a symbol.
-    fn write_symbol_type_operand(&mut self, symbol: dir::GlobalSymbolId, operand: TypeOperand) {
+    /// Publish one checked type table entry for a symbol.
+    fn publish_symbol_type_entry(&mut self, symbol: dir::GlobalSymbolId, operand: TypeOperand) {
         if self.operands.symbol_types.contains_key(&symbol) {
             panic!("check symbol {symbol:?} already has checked type");
         }
@@ -435,8 +437,8 @@ impl CheckState<'_> {
         self.operands.symbol_types.insert(symbol, operand);
     }
 
-    /// Write one checked static operand for a symbol.
-    fn write_symbol_static_operand(&mut self, symbol: dir::GlobalSymbolId, operand: StaticOperand) {
+    /// Publish one checked static table entry for a symbol.
+    fn publish_symbol_static_entry(&mut self, symbol: dir::GlobalSymbolId, operand: StaticOperand) {
         if self.operands.symbol_statics.contains_key(&symbol) {
             panic!("check symbol {symbol:?} already has checked static");
         }

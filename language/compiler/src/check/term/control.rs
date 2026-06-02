@@ -9,7 +9,7 @@ use crate::check::{
 
 /// Runtime await expression term.
 ///
-/// ```ts
+/// ```ds
 /// await value
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -22,7 +22,7 @@ pub(in crate::check) struct AwaitTerm {
 
 /// Runtime try operator term.
 ///
-/// ```ts
+/// ```ds
 /// result?
 /// result!
 /// ```
@@ -41,7 +41,7 @@ impl TryTerm {
     pub(in crate::check) fn referenced_variables(
         &self,
         state: &CheckState<'_>,
-    ) -> smallvec::SmallVec<[VariableId; 4]> {
+    ) -> smallvec::SmallVec<[VariableId; 2]> {
         let mut variables = smallvec::SmallVec::new();
         variables.extend(self.value.referenced_variables(state));
         variables
@@ -50,7 +50,7 @@ impl TryTerm {
 
 /// Runtime try failure projection.
 ///
-/// ```ts
+/// ```ds
 /// value?
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -66,7 +66,7 @@ impl TryFailureTerm {
     pub(in crate::check) fn referenced_variables(
         &self,
         state: &CheckState<'_>,
-    ) -> smallvec::SmallVec<[VariableId; 4]> {
+    ) -> smallvec::SmallVec<[VariableId; 2]> {
         let mut variables = smallvec::SmallVec::new();
         variables.extend(self.value.referenced_variables(state));
         variables
@@ -75,7 +75,7 @@ impl TryFailureTerm {
 
 /// Runtime yield expression term.
 ///
-/// ```ts
+/// ```ds
 /// yield value
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -83,7 +83,7 @@ pub(in crate::check) struct YieldTerm {
     /// The source yield expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The yielded value type.
-    pub(in crate::check) value: Option<VariableId>,
+    pub(in crate::check) value: Option<TypeOperand>,
     /// The current generator yield channel.
     pub(in crate::check) yield_type: Option<VariableId>,
     /// The value received when the generator resumes.
@@ -96,10 +96,15 @@ pub(in crate::check) struct YieldTerm {
 
 impl YieldTerm {
     /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(&self) -> smallvec::SmallVec<[VariableId; 4]> {
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> smallvec::SmallVec<[VariableId; 2]> {
         let mut variables = smallvec::SmallVec::new();
 
-        variables.extend(self.value);
+        if let Some(value) = self.value {
+            variables.extend(value.referenced_variables(state));
+        }
         variables.extend(self.yield_type);
         variables.extend(self.resume_type);
         variables.extend(self.delegate_return_type);
@@ -109,11 +114,27 @@ impl YieldTerm {
 }
 
 /// Try operator behavior.
+///
+/// Examples:
+/// ```ds
+/// result?
+/// result!
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::check) enum TryTermKind {
     /// Propagate failure through the enclosing return type.
+    ///
+    /// Examples:
+    /// ```ds
+    /// result?
+    /// ```
     Maybe,
     /// Trap failure and produce the successful value.
+    ///
+    /// Examples:
+    /// ```ds
+    /// result!
+    /// ```
     Must,
 }
 
@@ -140,10 +161,14 @@ impl CheckState<'_> {
             dir::YieldCardinality::Generator => yielded.delegate_return_type,
         };
 
-        Ok(Some(match ty {
-            Some(ty) => TypeTerm::Variable(ty),
-            None => TypeTerm::Literal(TypeLiteralTerm::Error),
-        }))
+        let Some(ty) = ty else {
+            return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
+        };
+        let Some(term) = self.type_operand_term(ty.into())? else {
+            return Ok(None);
+        };
+
+        Ok(Some(term))
     }
 
     /// Expect an awaited operand to produce the expected result.
@@ -160,9 +185,9 @@ impl CheckState<'_> {
             symbol,
             arguments: vec![argument].into(),
         };
-        let expected = self.terms.push(expected);
+        let expected = self.push_term(expected);
 
-        self.solve_contextual_type_assignability(origin, awaited.value, expected)
+        self.relate_contextual_type_assignability(origin, awaited.value, expected)
     }
 
     /// Reduce one try operator term.
@@ -172,9 +197,15 @@ impl CheckState<'_> {
         module: ModuleId,
         tried: &TryTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
-        let value = self.try_associated_type_operand(origin, module, tried.value, "Value")?;
+        let Some(value) = self.try_associated_type_operand(origin, module, tried.value, "Value")?
+        else {
+            return Ok(None);
+        };
+        let Some(value) = self.type_operand_term(value)? else {
+            return Ok(None);
+        };
 
-        Ok(value.map(|value| value.to_type_term(self)))
+        Ok(Some(value))
     }
 
     /// Reduce one try failure projection.
@@ -184,9 +215,16 @@ impl CheckState<'_> {
         module: ModuleId,
         tried: &TryFailureTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
-        let failure = self.try_associated_type_operand(origin, module, tried.value, "Failure")?;
+        let Some(failure) =
+            self.try_associated_type_operand(origin, module, tried.value, "Failure")?
+        else {
+            return Ok(None);
+        };
+        let Some(failure) = self.type_operand_term(failure)? else {
+            return Ok(None);
+        };
 
-        Ok(failure.map(|failure| failure.to_type_term(self)))
+        Ok(Some(failure))
     }
 
     /// Expect a try value projection to produce the expected result.
@@ -201,7 +239,7 @@ impl CheckState<'_> {
         else {
             return Ok(Progress::Unchanged);
         };
-        let progress = self.solve_contextual_type_assignability(origin, value, result)?;
+        let progress = self.relate_contextual_type_assignability(origin, value, result)?;
 
         Ok(progress)
     }
@@ -218,7 +256,7 @@ impl CheckState<'_> {
         else {
             return Ok(Progress::Unchanged);
         };
-        let progress = self.solve_contextual_type_assignability(origin, failure, result)?;
+        let progress = self.relate_contextual_type_assignability(origin, failure, result)?;
 
         Ok(progress)
     }
@@ -237,7 +275,7 @@ impl CheckState<'_> {
         let Some(source) = source else {
             return Ok(Progress::Unchanged);
         };
-        let progress = self.solve_contextual_type_assignability(origin, source, result)?;
+        let progress = self.relate_contextual_type_assignability(origin, source, result)?;
 
         Ok(progress)
     }
@@ -247,7 +285,7 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         value: TypeOperand,
-        return_type: VariableId,
+        return_type: TypeOperand,
     ) -> CompilerResult<Decision> {
         let Some(failure) = self.try_associated_type_operand(
             Origin::Node(source),
@@ -258,8 +296,8 @@ impl CheckState<'_> {
         else {
             return Ok(Decision::Undecidable);
         };
-        let target = self.from_failure_type(source, return_type.module, failure)?;
-        let Some(return_type) = self.solved_type_term(return_type)? else {
+        let target = self.from_failure_type(source, source.module_id, failure)?;
+        let Some(return_type) = self.reduce_type_operand(Origin::Node(source), return_type)? else {
             return Ok(Decision::Undecidable);
         };
 
@@ -269,13 +307,6 @@ impl CheckState<'_> {
     /// Return the fulfilled value type from one promise term.
     fn promise_value_type(&mut self, term: &TypeTerm) -> CompilerResult<Option<TypeTerm>> {
         match term {
-            TypeTerm::Variable(variable) => {
-                let Some(term) = self.solved_type_term(*variable)? else {
-                    return Ok(None);
-                };
-
-                self.promise_value_type(&term)
-            }
             TypeTerm::Reference {
                 origin: _,
                 symbol,
@@ -285,7 +316,11 @@ impl CheckState<'_> {
                     return Ok(None);
                 };
 
-                Ok(Some(TypeTerm::Variable(value)))
+                let Some(term) = self.type_operand_term(value.into())? else {
+                    return Ok(None);
+                };
+
+                Ok(Some(term))
             }
             _ => Ok(None),
         }
@@ -311,10 +346,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
-        match member.ty {
-            TypeTerm::Variable(variable) => Ok(Some(variable.into())),
-            term => Ok(Some(self.terms.push(term).into())),
-        }
+        Ok(Some(self.push_term(member.ty).into()))
     }
 
     /// Return the `FromFailure<F>` protocol type.

@@ -42,8 +42,8 @@ impl CheckState<'_> {
             PlaceTarget::Binding { symbol } => {
                 self.decide_writable_binding(place.source, symbol)?
             }
-            PlaceTarget::MemberTerm { owner, key } => self.decide_writable_member(owner, key)?,
-            PlaceTarget::IndexTerm { .. } | PlaceTarget::Dereference => Decision::Yes,
+            PlaceTarget::Member { owner, key } => self.decide_writable_member(owner, key)?,
+            PlaceTarget::Index { .. } | PlaceTarget::Dereference => Decision::Yes,
         };
 
         Ok(decision)
@@ -87,7 +87,8 @@ impl CheckState<'_> {
         };
 
         // structural fields carry their write access directly
-        if let TypeTerm::Shape { members } = owner {
+        if let TypeTerm::Shape(shape) = owner {
+            let members = self.term(shape).members.clone();
             for member in members {
                 if let ShapeMember::Field {
                     key: member_key,

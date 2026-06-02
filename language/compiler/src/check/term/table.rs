@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use crate::check::{
     AssignPatternTerm, AwaitTerm, CallTerm, ConstructTerm, FormTerm, FunctionTerm, IdentityTerm,
     ImportMetaTerm, IndexSetTerm, IndexTerm, InstanceCheckTerm, KeyMembershipTerm, LayoutTerm,
-    MemberCallTerm, MemberTerm, OperatorTerm, PatternTerm, RangeValueTerm, ReceiverTerm,
+    MemberCallTerm, MemberTerm, OperatorTerm, PatternTerm, RangeValueTerm, ReceiverTerm, ShapeTerm,
     StaticTerm, SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm, TryFailureTerm, TryTerm,
     TypeOperationTerm, TypeTerm, TypeValueTerm, YieldTerm,
 };
@@ -78,6 +78,20 @@ macro_rules! define_term_table {
                 }
             }
         )+
+
+        impl TermTable {
+            /// Return the total number of stored terms.
+            pub(in crate::check) fn len(&self) -> usize {
+                0 $(+ self.$field.len())+
+            }
+
+            /// Append another term table into this table.
+            pub(in crate::check) fn append(&mut self, mut other: Self) {
+                $(
+                    self.$field.append(&mut other.$field);
+                )+
+            }
+        }
     };
 }
 
@@ -101,6 +115,7 @@ define_term_table! {
     patterns: PatternTerm,
     range_values: RangeValueTerm,
     receivers: ReceiverTerm,
+    shapes: ShapeTerm,
     statics: StaticTerm,
     supers: SuperTerm,
     tagged_templates: TaggedTemplateTerm,
@@ -120,23 +135,8 @@ impl TermTable {
         Self::default()
     }
 
-    /// Insert one term and return its typed id.
-    pub(in crate::check) fn push<T: Term>(&mut self, term: T) -> TermId<T> {
-        let arena = T::arena_mut(self);
-        let id = TermId::new(arena.len() as u32);
-
-        arena.push(term);
-
-        id
-    }
-
-    /// Return one term by typed id.
-    pub(in crate::check) fn get<T: Term>(&self, id: TermId<T>) -> &T {
-        &T::arena(self)[id.index()]
-    }
-
-    /// Return one mutable term by typed id.
-    pub(in crate::check) fn get_mut<T: Term>(&mut self, id: TermId<T>) -> &mut T {
-        &mut T::arena_mut(self)[id.index()]
+    /// Push one term into its arena.
+    pub(in crate::check) fn push<T: Term>(&mut self, term: T) {
+        T::arena_mut(self).push(term);
     }
 }

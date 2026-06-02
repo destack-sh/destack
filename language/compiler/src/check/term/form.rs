@@ -3,17 +3,40 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Progress, StaticOperand, StaticRelation, VariableId,
+    CheckState, Decision, Progress, StaticOperand, StaticRelation, Substitution, VariableId,
 };
 
 /// Check-local memory form term.
+///
+/// Examples:
+/// ```ds
+/// &value
+/// ^value
+/// shared ^value
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum FormTerm {
     /// Managed value form.
+    ///
+    /// Examples:
+    /// ```ds
+    /// value
+    /// ```
     Managed,
     /// Owned value form.
+    ///
+    /// Examples:
+    /// ```ds
+    /// ^value
+    /// ```
     Owned,
     /// Borrowed value form.
+    ///
+    /// Examples:
+    /// ```ds
+    /// &value
+    /// &exclusive value
+    /// ```
     Borrowed {
         /// The solved lifetime value.
         lifetime: StaticOperand,
@@ -21,13 +44,28 @@ pub(in crate::check) enum FormTerm {
         access: StaticOperand,
     },
     /// Raw pointer form.
+    ///
+    /// Examples:
+    /// ```ds
+    /// *value
+    /// ```
     Raw,
     /// Placed value form.
+    ///
+    /// Examples:
+    /// ```ds
+    /// shared ^value
+    /// ```
     Placed {
         /// The solved place value.
         place: StaticOperand,
     },
     /// Readonly view form.
+    ///
+    /// Examples:
+    /// ```ds
+    /// readonly value
+    /// ```
     Readonly,
 }
 
@@ -49,7 +87,7 @@ impl FormTerm {
     pub(in crate::check) fn referenced_variables(
         &self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
+    ) -> SmallVec<[VariableId; 2]> {
         let mut variables = SmallVec::new();
 
         match self {
@@ -68,7 +106,7 @@ impl FormTerm {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: Substitution<'_>,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let form = match self {
@@ -199,13 +237,13 @@ impl CheckState<'_> {
                     access: right_access,
                 },
             ) => {
-                let lifetime = self.solve_static_equality(*left_lifetime, *right_lifetime)?;
-                let access = self.solve_static_equality(*left_access, *right_access)?;
+                let lifetime = self.relate_static_equality(*left_lifetime, *right_lifetime)?;
+                let access = self.relate_static_equality(*left_access, *right_access)?;
 
                 lifetime.merge(access)
             }
             (FormTerm::Placed { place: left }, FormTerm::Placed { place: right }) => {
-                self.solve_static_equality(*left, *right)?
+                self.relate_static_equality(*left, *right)?
             }
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
@@ -225,7 +263,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Progress> {
         let progress = match (source, target) {
             (FormTerm::Placed { place: source }, FormTerm::Placed { place: target }) => {
-                self.solve_static_equality(*source, *target)?
+                self.relate_static_equality(*source, *target)?
             }
             (
                 FormTerm::Borrowed {
@@ -238,8 +276,8 @@ impl CheckState<'_> {
                 },
             ) => {
                 let lifetime =
-                    self.solve_static_assignability(*source_lifetime, *target_lifetime)?;
-                let access = self.solve_static_assignability(*source_access, *target_access)?;
+                    self.relate_static_assignability(*source_lifetime, *target_lifetime)?;
+                let access = self.relate_static_assignability(*source_access, *target_access)?;
 
                 lifetime.merge(access)
             }
@@ -267,8 +305,8 @@ impl CheckState<'_> {
                     access: target_access,
                 },
             ) => {
-                let lifetime = self.solve_static_equality(*lifetime, *target_lifetime)?;
-                let access = self.solve_static_equality(*access, *target_access)?;
+                let lifetime = self.relate_static_equality(*lifetime, *target_lifetime)?;
+                let access = self.relate_static_equality(*access, *target_access)?;
 
                 lifetime.merge(access)
             }
@@ -277,7 +315,7 @@ impl CheckState<'_> {
                 FormTerm::Placed {
                     place: target_place,
                 },
-            ) => self.solve_static_equality(*place, *target_place)?,
+            ) => self.relate_static_equality(*place, *target_place)?,
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
             | (FormTerm::Raw, FormTerm::Raw)

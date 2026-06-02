@@ -108,27 +108,25 @@ impl CheckState<'_> {
 
         match self.import_dependency_static_operand(source) {
             StaticOperand::Variable(variable) => {
-                self.import_symbol_static_operand(symbol, variable.into());
+                self.cache_symbol_static_operand(symbol, variable.into());
 
                 variable
             }
             StaticOperand::Term(term) => {
                 let origin = Origin::Symbol(symbol);
                 let variable = self.allocate_variable(module, VariableKind::Static, origin);
-                let term = self.term(term).clone();
 
-                self.equate_static(variable, term, Condition::Always);
-                self.import_symbol_static_operand(symbol, variable.into());
+                self.equate_static(origin, variable, term, Condition::Always);
+                self.cache_symbol_static_operand(symbol, variable.into());
 
                 variable
             }
             StaticOperand::Static(value) => {
                 let origin = Origin::Symbol(symbol);
                 let variable = self.allocate_variable(module, VariableKind::Static, origin);
-                let term = StaticTerm::Static(value);
 
-                self.equate_static(variable, term, Condition::Always);
-                self.import_symbol_static_operand(symbol, variable.into());
+                self.equate_static(origin, variable, value, Condition::Always);
+                self.cache_symbol_static_operand(symbol, variable.into());
 
                 variable
             }
@@ -203,7 +201,7 @@ impl CheckState<'_> {
         self.static_id_operand(source)
     }
 
-    /// Import one checked type parameter as a generic variable operand.
+    /// Cache one checked type parameter as a generic variable operand.
     fn import_type_parameter_operand(
         &mut self,
         module: ModuleId,
@@ -215,7 +213,7 @@ impl CheckState<'_> {
         }
         let variable = self.generic_parameter_variable(module, parameter);
         let operand = TypeOperand::Variable(variable);
-        self.bind_type_operand(target_id, operand);
+        self.publish_type_operand(target_id, operand);
 
         operand
     }

@@ -4,19 +4,21 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Origin, Progress, TypeOperand, TypeRelation,
-    VariableId,
+    CheckState, Decision, Origin, Progress, ReceiverSubstitution, Substitution, TypeOperand,
+    TypeRelation, VariableId,
 };
 
 /// Function parameter payload.
 ///
-/// ```ts
+/// ```ds
 /// value?: string
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct FunctionParameter {
     /// The parameter type.
     pub(in crate::check) ty: TypeOperand,
+    /// The static generic slot supplied by this runtime argument.
+    pub(in crate::check) static_slot: Option<Box<VariableId>>,
     /// Whether the parameter may be omitted at the call site.
     pub(in crate::check) is_optional: bool,
     /// Whether the parameter captures the remaining call arguments.
@@ -28,20 +30,37 @@ impl FunctionParameter {
     pub(in crate::check) fn required(ty: impl Into<TypeOperand>) -> Self {
         Self {
             ty: ty.into(),
+            static_slot: None,
             is_optional: false,
             is_rest: false,
         }
     }
 
     /// Substitute generic arguments through this function parameter.
-    pub(in crate::check) fn substitute(
+    pub(in crate::check) fn substitute<'a>(
         &self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: impl Into<Substitution<'a>> + Copy,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         Ok(Self {
             ty: state.substitute_type_operand(module, substitution, self.ty)?,
+            static_slot: None,
+            is_optional: self.is_optional,
+            is_rest: self.is_rest,
+        })
+    }
+
+    /// Substitute the selected receiver through this function parameter.
+    pub(in crate::check) fn substitute_receiver(
+        &self,
+        module: ModuleId,
+        substitution: ReceiverSubstitution,
+        state: &mut CheckState<'_>,
+    ) -> CompilerResult<Self> {
+        Ok(Self {
+            ty: state.substitute_receiver_type_operand(module, self.ty, substitution)?,
+            static_slot: self.static_slot.clone(),
             is_optional: self.is_optional,
             is_rest: self.is_rest,
         })
@@ -50,7 +69,7 @@ impl FunctionParameter {
 
 /// Function type term.
 ///
-/// ```ts
+/// ```ds
 /// (value: string) => int32
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -58,11 +77,11 @@ pub(in crate::check) struct FunctionTerm {
     /// The function asynchrony.
     pub(in crate::check) asynchrony: dir::Asynchrony,
     /// The generic parameter types.
-    pub(in crate::check) generic_parameters: SmallVec<[VariableId; 4]>,
+    pub(in crate::check) generic_parameters: Vec<VariableId>,
     /// The optional `this` parameter type.
     pub(in crate::check) this_parameter: Option<TypeOperand>,
     /// The parameter types.
-    pub(in crate::check) parameters: SmallVec<[FunctionParameter; 4]>,
+    pub(in crate::check) parameters: SmallVec<[FunctionParameter; 2]>,
     /// The optional return type.
     pub(in crate::check) return_type: Option<TypeOperand>,
     /// Whether this is a generator function.
@@ -71,19 +90,24 @@ pub(in crate::check) struct FunctionTerm {
 
 impl FunctionTerm {
     /// Substitute generic arguments through this function term.
-    pub(in crate::check) fn substitute(
+    pub(in crate::check) fn substitute<'a>(
         &self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: impl Into<Substitution<'a>> + Copy,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
-        let mut generic_parameters = SmallVec::new();
-        for parameter in &self.generic_parameters {
-            let slot = state.generic_parameter_slot(*parameter).id();
-            let is_substituted = substitution.entries.iter().any(|entry| entry.slot == slot);
-            if !is_substituted {
-                generic_parameters.push(*parameter);
+        let mut generic_parameters = Vec::new();
+        let substitution = substitution.into();
+        if let Some(generic) = substitution.generic {
+            for parameter in &self.generic_parameters {
+                let slot = state.generic_parameter_slot(*parameter).id();
+                let is_substituted = generic.entries.iter().any(|entry| entry.slot == slot);
+                if !is_substituted {
+                    generic_parameters.push(*parameter);
+                }
             }
+        } else {
+            generic_parameters.extend(self.generic_parameters.iter().copied());
         }
 
         Ok(Self {
@@ -105,6 +129,37 @@ impl FunctionTerm {
             is_generator: self.is_generator,
         })
     }
+
+    /// Substitute the selected receiver through this function term.
+    pub(in crate::check) fn substitute_receiver(
+        &self,
+        module: ModuleId,
+        substitution: ReceiverSubstitution,
+        state: &mut CheckState<'_>,
+    ) -> CompilerResult<Self> {
+        Ok(Self {
+            asynchrony: self.asynchrony,
+            generic_parameters: self.generic_parameters.clone(),
+            this_parameter: self
+                .this_parameter
+                .map(|parameter| {
+                    state.substitute_receiver_type_operand(module, parameter, substitution)
+                })
+                .transpose()?,
+            parameters: self
+                .parameters
+                .iter()
+                .map(|parameter| parameter.substitute_receiver(module, substitution, state))
+                .collect::<CompilerResult<SmallVec<_>>>()?,
+            return_type: self
+                .return_type
+                .map(|return_type| {
+                    state.substitute_receiver_type_operand(module, return_type, substitution)
+                })
+                .transpose()?,
+            is_generator: self.is_generator,
+        })
+    }
 }
 
 impl FunctionTerm {
@@ -112,7 +167,7 @@ impl FunctionTerm {
     pub(in crate::check) fn referenced_variables(
         &self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
+    ) -> SmallVec<[VariableId; 2]> {
         let mut variables = SmallVec::new();
 
         variables.extend(self.generic_parameters.iter().copied());
@@ -135,6 +190,55 @@ impl FunctionTerm {
 }
 
 impl CheckState<'_> {
+    /// Return a function term from one committed DIR function type.
+    pub(in crate::check) fn function_type_term(
+        &mut self,
+        module: ModuleId,
+        function: dir::FunctionType,
+    ) -> CompilerResult<FunctionTerm> {
+        let mut generic_parameters = Vec::with_capacity(function.generic_parameters.len());
+        for parameter in function.generic_parameters {
+            let parameter = self.global_type_operand(module, parameter);
+            let TypeOperand::Variable(parameter) = parameter else {
+                panic!("committed function generic parameter is not a check variable");
+            };
+
+            generic_parameters.push(parameter);
+        }
+
+        let this_parameter = function
+            .this_parameter
+            .map(|parameter| self.global_type_operand(module, parameter));
+        let parameters = function
+            .parameters
+            .into_iter()
+            .map(|parameter| {
+                let static_slot = parameter
+                    .static_slot
+                    .map(|slot| Box::new(self.generic_parameter_variable(module, slot)));
+
+                FunctionParameter {
+                    ty: self.global_type_operand(module, parameter.ty),
+                    static_slot,
+                    is_optional: parameter.is_optional,
+                    is_rest: parameter.is_rest,
+                }
+            })
+            .collect();
+        let return_type = function
+            .return_type
+            .map(|return_type| self.global_type_operand(module, return_type));
+
+        Ok(FunctionTerm {
+            asynchrony: function.asynchrony,
+            generic_parameters,
+            this_parameter,
+            parameters,
+            return_type,
+            is_generator: function.is_generator,
+        })
+    }
+
     /// Expect one function term to satisfy one expected function type.
     pub(in crate::check) fn expect_function_term(
         &mut self,
@@ -152,7 +256,7 @@ impl CheckState<'_> {
         // push receiver context into the function input
         if let (Some(source), Some(target)) = (function.this_parameter, expected.this_parameter) {
             progress =
-                progress.merge(self.solve_contextual_type_assignability(origin, target, source)?);
+                progress.merge(self.relate_contextual_type_assignability(origin, target, source)?);
         }
 
         // push parameter context contravariantly
@@ -162,13 +266,13 @@ impl CheckState<'_> {
             }
 
             progress = progress
-                .merge(self.solve_contextual_type_assignability(origin, target.ty, source.ty)?);
+                .merge(self.relate_contextual_type_assignability(origin, target.ty, source.ty)?);
         }
 
         // push return context covariantly
         if let (Some(source), Some(target)) = (function.return_type, expected.return_type) {
             progress =
-                progress.merge(self.solve_contextual_type_assignability(origin, source, target)?);
+                progress.merge(self.relate_contextual_type_assignability(origin, source, target)?);
         }
 
         Ok(progress)

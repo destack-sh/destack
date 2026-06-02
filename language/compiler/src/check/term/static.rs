@@ -4,117 +4,117 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, ExportLookup, GenericArgument, GenericSlotId, GenericSubstitution,
-    LayoutQuery, LayoutTerm, Origin, Reduction, StaticOperand, StaticRelation, TermId,
-    TypeRelation, VariableId,
+    CheckState, Condition, Decision, GenericArgument, GenericSlotId, LayoutQuery, LayoutTerm,
+    Obligation, Origin, PathLookup, Reduction, StaticOperand, StaticRelation, Substitution,
+    TypeOperand, TypeRelation, VariableId,
 };
 
 /// Term used to define a static variable.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum StaticTerm {
+    /// Committed DIR static value.
+    ///
+    /// ```ds
+    /// import { N } from "./dependency"
+    /// ```
+    Static(dir::GlobalStaticId),
     /// Concrete static term.
     ///
-    /// ```ts
+    /// ```ds
     /// "mutable"
     /// ```
     Literal(dir::StaticTerm),
-    /// Static variable alias.
-    ///
-    /// ```ts
-    /// import { L } from "./lifetimes";
-    /// ```
-    Variable(VariableId),
     /// Static generic parameter.
     ///
-    /// ```ts
+    /// ```ds
     /// <comptime N: uint>
     /// ```
     Parameter(GenericSlotId),
     /// Source expression evaluated as a static term.
     ///
-    /// ```ts
+    /// ```ds
     /// N + 1
     /// ```
     Expression(dir::GlobalNodeId<dir::Expression>),
     /// Static member projection.
     ///
-    /// ```ts
+    /// ```ds
     /// Register.Width
     /// ```
     Member {
         /// The source member expression.
         source: dir::GlobalNodeIdAny,
         /// The owner type.
-        owner: VariableId,
+        owner: TypeOperand,
         /// The selected member key.
         key: dir::StaticKey,
         /// The applied static arguments.
-        arguments: SmallVec<[GenericArgument; 4]>,
-    },
-    /// Static value join.
-    ///
-    /// ```ts
-    /// L | R
-    /// ```
-    Join {
-        /// The joined values.
-        elements: Vec<VariableId>,
+        arguments: Vec<GenericArgument>,
     },
     /// Concrete layout query.
     ///
-    /// ```ts
+    /// ```ds
     /// sizeOf<T>()
     /// ```
     Layout(LayoutTerm),
     /// Compiler intrinsic returning a static value.
     ///
-    /// ```ts
+    /// ```ds
     /// LifetimeOf<T>
     /// ```
     Intrinsic {
         /// The intrinsic language item.
         item: dir::LanguageItem,
         /// The intrinsic arguments.
-        arguments: SmallVec<[GenericArgument; 4]>,
+        arguments: Vec<GenericArgument>,
     },
     /// Static equality comparison.
     ///
-    /// ```ts
+    /// ```ds
     /// this.Width == 4
     /// ```
     Equal {
         /// The left static value.
-        left: TermId<StaticTerm>,
+        left: StaticOperand,
         /// The right static value.
-        right: TermId<StaticTerm>,
+        right: StaticOperand,
         /// Whether the equality result is negated.
         is_negated: bool,
     },
     /// Type relation used as a static boolean.
     ///
-    /// ```ts
+    /// ```ds
     /// T extends string
     /// ```
     TypeRelation {
         /// The required type relation.
         relation: TypeRelation,
         /// The left type.
-        left: VariableId,
+        left: TypeOperand,
         /// The right type.
-        right: VariableId,
+        right: TypeOperand,
     },
     /// Static conditional value.
     ///
-    /// ```ts
+    /// ```ds
     /// C ? T : F
     /// ```
     Conditional {
         /// The static boolean condition.
-        condition: TermId<StaticTerm>,
+        condition: StaticOperand,
         /// The value selected when the condition holds.
-        then_value: TermId<StaticTerm>,
+        then_value: StaticOperand,
         /// The value selected when the condition does not hold.
-        else_value: TermId<StaticTerm>,
+        else_value: StaticOperand,
+    },
+    /// Static value union.
+    ///
+    /// ```ds
+    /// L | R
+    /// ```
+    Union {
+        /// The union elements.
+        elements: Vec<StaticOperand>,
     },
 }
 
@@ -123,26 +123,31 @@ impl StaticTerm {
     pub(in crate::check) fn referenced_variables(
         &self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
+    ) -> SmallVec<[VariableId; 2]> {
         let mut variables = SmallVec::new();
 
         match self {
-            Self::Variable(variable) => variables.push(*variable),
             Self::Member {
                 source: _,
                 owner,
                 key: _,
                 arguments,
             } => {
-                variables.push(*owner);
+                variables.extend(owner.referenced_variables(state));
                 variables.extend(
                     arguments
                         .iter()
                         .flat_map(|argument| state.argument_variables(argument)),
                 );
             }
-            Self::Join { elements } => variables.extend(elements.iter().copied()),
-            Self::Layout(layout) => variables.extend(layout.referenced_variables()),
+            Self::Union { elements } => {
+                variables.extend(
+                    elements
+                        .iter()
+                        .flat_map(|element| element.referenced_variables(state)),
+                );
+            }
+            Self::Layout(layout) => variables.extend(layout.referenced_variables(state)),
             Self::Intrinsic { item: _, arguments } => {
                 variables.extend(
                     arguments
@@ -151,27 +156,27 @@ impl StaticTerm {
                 );
             }
             Self::Equal { left, right, .. } => {
-                variables.extend(state.terms.get(*left).referenced_variables(state));
-                variables.extend(state.terms.get(*right).referenced_variables(state));
+                variables.extend(left.referenced_variables(state));
+                variables.extend(right.referenced_variables(state));
             }
             Self::TypeRelation {
                 relation: _,
                 left,
                 right,
             } => {
-                variables.push(*left);
-                variables.push(*right);
+                variables.extend(left.referenced_variables(state));
+                variables.extend(right.referenced_variables(state));
             }
             Self::Conditional {
                 condition,
                 then_value,
                 else_value,
             } => {
-                variables.extend(state.terms.get(*condition).referenced_variables(state));
-                variables.extend(state.terms.get(*then_value).referenced_variables(state));
-                variables.extend(state.terms.get(*else_value).referenced_variables(state));
+                variables.extend(condition.referenced_variables(state));
+                variables.extend(then_value.referenced_variables(state));
+                variables.extend(else_value.referenced_variables(state));
             }
-            Self::Literal(_) | Self::Parameter(_) | Self::Expression(_) => {}
+            Self::Literal(_) | Self::Parameter(_) | Self::Expression(_) | Self::Static(_) => {}
         }
 
         variables
@@ -181,7 +186,7 @@ impl StaticTerm {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: Substitution<'_>,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<StaticTerm> {
         let term = match self {
@@ -192,9 +197,21 @@ impl StaticTerm {
                     self.clone()
                 }
             }
-            StaticTerm::Join { elements } => StaticTerm::Join {
-                elements: state.substitute_static_variables(module, substitution, elements)?,
-            },
+            StaticTerm::Union { elements } => {
+                let mut substituted = Vec::with_capacity(elements.len());
+
+                for element in elements {
+                    substituted.push(state.substitute_static_operand(
+                        module,
+                        substitution,
+                        *element,
+                    )?);
+                }
+
+                StaticTerm::Union {
+                    elements: substituted,
+                }
+            }
             StaticTerm::Layout(layout) => {
                 StaticTerm::Layout(layout.substitute(module, substitution, state)?)
             }
@@ -205,23 +222,25 @@ impl StaticTerm {
                 arguments,
             } => StaticTerm::Member {
                 source: *source,
-                owner: state.substitute_type_variable(module, substitution, *owner)?,
+                owner: state.substitute_type_operand(module, substitution, *owner)?,
                 key: *key,
-                arguments: state.substitute_arguments(module, substitution, arguments)?,
+                arguments: state
+                    .substitute_arguments(module, substitution, arguments)?
+                    .into_vec(),
             },
             StaticTerm::Intrinsic { item, arguments } => StaticTerm::Intrinsic {
                 item: *item,
                 arguments: state
                     .substitute_arguments(module, substitution, arguments)?
-                    .into(),
+                    .into_vec(),
             },
             StaticTerm::Equal {
                 left,
                 right,
                 is_negated,
             } => StaticTerm::Equal {
-                left: state.substitute_static_term(module, substitution, *left)?,
-                right: state.substitute_static_term(module, substitution, *right)?,
+                left: state.substitute_static_operand(module, substitution, *left)?,
+                right: state.substitute_static_operand(module, substitution, *right)?,
                 is_negated: *is_negated,
             },
             StaticTerm::TypeRelation {
@@ -230,38 +249,28 @@ impl StaticTerm {
                 right,
             } => StaticTerm::TypeRelation {
                 relation: *relation,
-                left: state.substitute_type_variable(module, substitution, *left)?,
-                right: state.substitute_type_variable(module, substitution, *right)?,
+                left: state.substitute_type_operand(module, substitution, *left)?,
+                right: state.substitute_type_operand(module, substitution, *right)?,
             },
             StaticTerm::Conditional {
                 condition,
                 then_value,
                 else_value,
             } => StaticTerm::Conditional {
-                condition: state.substitute_static_term(module, substitution, *condition)?,
-                then_value: state.substitute_static_term(module, substitution, *then_value)?,
-                else_value: state.substitute_static_term(module, substitution, *else_value)?,
+                condition: state.substitute_static_operand(module, substitution, *condition)?,
+                then_value: state.substitute_static_operand(module, substitution, *then_value)?,
+                else_value: state.substitute_static_operand(module, substitution, *else_value)?,
             },
-            StaticTerm::Variable(variable) => {
-                if let Some(argument) = state.substitution_static_variable(substitution, *variable)
-                {
-                    StaticTerm::Variable(argument)
-                } else if let Some(term) = state.solved_static_term(*variable)? {
-                    term.substitute(module, substitution, state)?
-                } else {
-                    self.clone()
-                }
-            }
             StaticTerm::Parameter(slot) => {
                 if let Some(argument) = state.substitution_static_slot(substitution, *slot)
-                    && let Some(term) = state.solved_static_term(argument)?
+                    && let Some(term) = state.static_solution(argument)?
                 {
                     term
                 } else {
                     self.clone()
                 }
             }
-            StaticTerm::Literal(_) => self.clone(),
+            StaticTerm::Literal(_) | StaticTerm::Static(_) => self.clone(),
         };
 
         Ok(term)
@@ -269,20 +278,6 @@ impl StaticTerm {
 }
 
 impl CheckState<'_> {
-    /// Substitute generic arguments through one static term id.
-    pub(in crate::check) fn substitute_static_term(
-        &mut self,
-        module: ModuleId,
-        substitution: &GenericSubstitution,
-        term: TermId<StaticTerm>,
-    ) -> CompilerResult<TermId<StaticTerm>> {
-        let term = self.terms.get(term).clone();
-        let term = term.substitute(module, substitution, self)?;
-        let term = self.terms.push(term);
-
-        Ok(term)
-    }
-
     /// Decide one static term relation.
     pub(in crate::check) fn decide_static_term_relation(
         &self,
@@ -307,23 +302,25 @@ impl CheckState<'_> {
     ) -> CompilerResult<Decision> {
         let left = match left.into() {
             StaticOperand::Variable(variable) => {
-                let Some(term) = self.solved_static_term(variable)? else {
+                let Some(term) = self.static_solution(variable)? else {
                     return Ok(Decision::Undecidable);
                 };
 
                 term
             }
-            StaticOperand::Term(term) => self.terms.get(term).clone(),
+            StaticOperand::Term(term) => self.term(term).clone(),
+            StaticOperand::Static(value) => StaticTerm::Static(value),
         };
         let right = match right.into() {
             StaticOperand::Variable(variable) => {
-                let Some(term) = self.solved_static_term(variable)? else {
+                let Some(term) = self.static_solution(variable)? else {
                     return Ok(Decision::Undecidable);
                 };
 
                 term
             }
-            StaticOperand::Term(term) => self.terms.get(term).clone(),
+            StaticOperand::Term(term) => self.term(term).clone(),
+            StaticOperand::Static(value) => StaticTerm::Static(value),
         };
 
         self.decide_static_term_relation(relation, &left, &right)
@@ -337,14 +334,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<StaticTerm>> {
         let module = origin.module();
         let term = match term {
-            StaticTerm::Variable(variable) => {
-                let Some(term) = self.solved_static_term(*variable)? else {
-                    return Ok(None);
-                };
-
-                term
-            }
-            StaticTerm::Parameter(_) => term.clone(),
+            StaticTerm::Parameter(_) | StaticTerm::Static(_) => term.clone(),
             StaticTerm::Expression(expression) => {
                 let Some(term) = self.build_static_expression_term(expression.clone())? else {
                     return Ok(None);
@@ -365,7 +355,7 @@ impl CheckState<'_> {
                 if !arguments.is_empty() {
                     return Ok(None);
                 }
-                let Some(owner) = self.solved_type_term(*owner)? else {
+                let Some(owner) = self.type_operand_term(*owner)? else {
                     return Ok(None);
                 };
                 let owner = match self.reduce_type_term(origin, &owner)? {
@@ -388,12 +378,12 @@ impl CheckState<'_> {
 
                 term
             }
-            StaticTerm::Join { elements } => {
-                let Some(term) = self.reduce_static_join(module, elements)? else {
+            StaticTerm::Union { elements } => {
+                let Some(term) = self.reduce_static_union(origin, elements)? else {
                     return Ok(None);
                 };
 
-                StaticTerm::Literal(term)
+                term
             }
             StaticTerm::Layout(layout) => {
                 let Some(term) = self.reduce_layout_term(module, layout)? else {
@@ -414,11 +404,15 @@ impl CheckState<'_> {
                 right,
                 is_negated,
             } => {
-                let left = self.terms.get(*left).clone();
+                let Some(left) = self.static_operand_term(*left)? else {
+                    return Ok(None);
+                };
                 let Some(left) = self.reduce_static_term(origin, &left)? else {
                     return Ok(None);
                 };
-                let right = self.terms.get(*right).clone();
+                let Some(right) = self.static_operand_term(*right)? else {
+                    return Ok(None);
+                };
                 let Some(right) = self.reduce_static_term(origin, &right)? else {
                     return Ok(None);
                 };
@@ -455,7 +449,9 @@ impl CheckState<'_> {
                 then_value,
                 else_value,
             } => {
-                let condition = self.terms.get(*condition).clone();
+                let Some(condition) = self.static_operand_term(*condition)? else {
+                    return Ok(None);
+                };
                 let Some(condition) = self.reduce_static_term(origin, &condition)? else {
                     return Ok(None);
                 };
@@ -464,7 +460,9 @@ impl CheckState<'_> {
                     StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
                         value: dir::ScalarLiteral::Boolean(true),
                     }) => {
-                        let then_value = self.terms.get(*then_value).clone();
+                        let Some(then_value) = self.static_operand_term(*then_value)? else {
+                            return Ok(None);
+                        };
                         let Some(term) = self.reduce_static_term(origin, &then_value)? else {
                             return Ok(None);
                         };
@@ -474,7 +472,9 @@ impl CheckState<'_> {
                     StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
                         value: dir::ScalarLiteral::Boolean(false),
                     }) => {
-                        let else_value = self.terms.get(*else_value).clone();
+                        let Some(else_value) = self.static_operand_term(*else_value)? else {
+                            return Ok(None);
+                        };
                         let Some(term) = self.reduce_static_term(origin, &else_value)? else {
                             return Ok(None);
                         };
@@ -501,31 +501,22 @@ impl CheckState<'_> {
         }
 
         let decision = match (left, right) {
-            (StaticTerm::Variable(left), right) => {
-                let Some(left) = self.solved_static_term(*left)? else {
-                    return Ok(Decision::Undecidable);
-                };
-
-                self.decide_static_equal(&left, right)?
-            }
-            (left, StaticTerm::Variable(right)) => {
-                let Some(right) = self.solved_static_term(*right)? else {
-                    return Ok(Decision::Undecidable);
-                };
-
-                self.decide_static_equal(left, &right)?
-            }
             (StaticTerm::Literal(left), StaticTerm::Literal(right)) => {
-                self.decide_dir_static_equal(left, right)
+                if left == right {
+                    Decision::Yes
+                } else {
+                    Decision::No
+                }
             }
+            (StaticTerm::Static(_), _) | (_, StaticTerm::Static(_)) => Decision::Undecidable,
             (StaticTerm::Parameter(_), _)
             | (_, StaticTerm::Parameter(_))
             | (StaticTerm::Expression(_), _)
             | (_, StaticTerm::Expression(_))
             | (StaticTerm::Member { .. }, _)
             | (_, StaticTerm::Member { .. })
-            | (StaticTerm::Join { .. }, _)
-            | (_, StaticTerm::Join { .. })
+            | (StaticTerm::Union { .. }, _)
+            | (_, StaticTerm::Union { .. })
             | (StaticTerm::Layout(_), _)
             | (_, StaticTerm::Layout(_))
             | (StaticTerm::Intrinsic { .. }, _)
@@ -552,20 +543,6 @@ impl CheckState<'_> {
         }
 
         let decision = match (source, target) {
-            (StaticTerm::Variable(source), target) => {
-                let Some(source) = self.solved_static_term(*source)? else {
-                    return Ok(Decision::Undecidable);
-                };
-
-                self.decide_static_assignable(&source, target)?
-            }
-            (source, StaticTerm::Variable(target)) => {
-                let Some(target) = self.solved_static_term(*target)? else {
-                    return Ok(Decision::Undecidable);
-                };
-
-                self.decide_static_assignable(source, &target)?
-            }
             (
                 StaticTerm::Literal(dir::StaticTerm::Access { access: source }),
                 StaticTerm::Literal(dir::StaticTerm::Access { access: target }),
@@ -574,15 +551,20 @@ impl CheckState<'_> {
                 StaticTerm::Literal(dir::StaticTerm::Lifetime { lifetime: source }),
                 StaticTerm::Literal(dir::StaticTerm::Lifetime { lifetime: target }),
             ) => self.decide_lifetime_term_assignable(source, target),
+            (StaticTerm::Union { elements }, target) => {
+                self.decide_static_union_assignable_to_term(elements, target)?
+            }
+            (source, StaticTerm::Union { elements }) => {
+                self.decide_static_term_assignable_to_union(source, elements)?
+            }
             (StaticTerm::Literal(_), StaticTerm::Literal(_)) => Decision::No,
+            (StaticTerm::Static(_), _) | (_, StaticTerm::Static(_)) => Decision::Undecidable,
             (StaticTerm::Parameter(_), _)
             | (_, StaticTerm::Parameter(_))
             | (StaticTerm::Expression(_), _)
             | (_, StaticTerm::Expression(_))
             | (StaticTerm::Member { .. }, _)
             | (_, StaticTerm::Member { .. })
-            | (StaticTerm::Join { .. }, _)
-            | (_, StaticTerm::Join { .. })
             | (StaticTerm::Layout(_), _)
             | (_, StaticTerm::Layout(_))
             | (StaticTerm::Intrinsic { .. }, _)
@@ -596,6 +578,66 @@ impl CheckState<'_> {
         };
 
         Ok(decision)
+    }
+
+    /// Decide whether every static union element is assignable to one target.
+    fn decide_static_union_assignable_to_term(
+        &self,
+        elements: &[StaticOperand],
+        target: &StaticTerm,
+    ) -> CompilerResult<Decision> {
+        let mut saw_undecidable = false;
+
+        // require every source element to fit the target
+        for element in elements {
+            let Some(element) = self.static_operand_term(*element)? else {
+                saw_undecidable = true;
+
+                continue;
+            };
+
+            match self.decide_static_assignable(&element, target)? {
+                Decision::Yes => {}
+                Decision::No => return Ok(Decision::No),
+                Decision::Undecidable => saw_undecidable = true,
+            }
+        }
+
+        if saw_undecidable {
+            Ok(Decision::Undecidable)
+        } else {
+            Ok(Decision::Yes)
+        }
+    }
+
+    /// Decide whether one source is assignable to any static union element.
+    fn decide_static_term_assignable_to_union(
+        &self,
+        source: &StaticTerm,
+        elements: &[StaticOperand],
+    ) -> CompilerResult<Decision> {
+        let mut saw_undecidable = false;
+
+        // accept when any target element accepts the source
+        for element in elements {
+            let Some(element) = self.static_operand_term(*element)? else {
+                saw_undecidable = true;
+
+                continue;
+            };
+
+            match self.decide_static_assignable(source, &element)? {
+                Decision::Yes => return Ok(Decision::Yes),
+                Decision::No => {}
+                Decision::Undecidable => saw_undecidable = true,
+            }
+        }
+
+        if saw_undecidable {
+            Ok(Decision::Undecidable)
+        } else {
+            Ok(Decision::No)
+        }
     }
 
     /// Decide access capability assignability.
@@ -671,34 +713,33 @@ impl CheckState<'_> {
         if lower_terms.is_empty() && upper_terms.is_empty() {
             return None;
         }
-        let mut lower_rank = 0;
-        let mut upper_rank = 2;
+        let mut lower_access = dir::Access::Readonly;
+        let mut upper_access = dir::Access::Exclusive;
         let mut saw_access = false;
 
         // collect minimum required access
         for term in lower_terms {
             let access = self.static_access(term)?;
-            lower_rank = lower_rank.max(Self::access_rank(access));
+            lower_access = Self::stricter_access(lower_access, access);
             saw_access = true;
         }
 
         // collect maximum allowed access
         for term in upper_terms {
             let access = self.static_access(term)?;
-            upper_rank = upper_rank.min(Self::access_rank(access));
+            upper_access = Self::weaker_access(upper_access, access);
             saw_access = true;
         }
-        if !saw_access || lower_rank > upper_rank {
+        if !saw_access || Self::access_rank(lower_access) > Self::access_rank(upper_access) {
             return None;
         }
 
         // preserve exact source access when inference only has an upper bound
-        let rank = if lower_terms.is_empty() {
-            upper_rank
+        let access = if lower_terms.is_empty() {
+            upper_access
         } else {
-            lower_rank
+            lower_access
         };
-        let access = Self::access_from_rank(rank);
 
         Some(StaticTerm::Literal(dir::StaticTerm::Access { access }))
     }
@@ -741,18 +782,29 @@ impl CheckState<'_> {
                 }
             }
 
-            return Some(StaticTerm::Join { elements });
+            return Some(StaticTerm::Union {
+                elements: elements.into_iter().map(StaticOperand::from).collect(),
+            });
         }
 
         None
     }
 
-    /// Return the access capability for one rank.
-    fn access_from_rank(rank: u8) -> dir::Access {
-        match rank {
-            0 => dir::Access::Readonly,
-            1 => dir::Access::Mutable,
-            _ => dir::Access::Exclusive,
+    /// Return the stricter of two access capabilities.
+    fn stricter_access(left: dir::Access, right: dir::Access) -> dir::Access {
+        if Self::access_rank(left) >= Self::access_rank(right) {
+            left
+        } else {
+            right
+        }
+    }
+
+    /// Return the weaker of two access capabilities.
+    fn weaker_access(left: dir::Access, right: dir::Access) -> dir::Access {
+        if Self::access_rank(left) <= Self::access_rank(right) {
+            left
+        } else {
+            right
         }
     }
 
@@ -769,38 +821,47 @@ impl CheckState<'_> {
         Some(first.clone())
     }
 
-    /// Reduce one static join.
-    fn reduce_static_join(
+    /// Reduce one static union.
+    fn reduce_static_union(
         &mut self,
-        _module: ModuleId,
-        elements: &[VariableId],
-    ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let [element] = elements else {
+        origin: Origin,
+        elements: &[StaticOperand],
+    ) -> CompilerResult<Option<StaticTerm>> {
+        if elements.is_empty() {
             return Ok(None);
+        }
+        let mut reduced = Vec::with_capacity(elements.len());
+
+        for element in elements {
+            let Some(term) = self.static_operand_term(*element)? else {
+                return Ok(None);
+            };
+            let Some(term) = self.reduce_static_term(origin, &term)? else {
+                return Ok(None);
+            };
+
+            match term {
+                StaticTerm::Union { elements } => reduced.extend(elements),
+                _ => reduced.push(self.push_term(term).into()),
+            }
+        }
+
+        let term = match reduced.as_slice() {
+            [element] => {
+                let Some(term) = self.static_operand_term(*element)? else {
+                    return Ok(None);
+                };
+
+                term
+            }
+            _ => StaticTerm::Union { elements: reduced },
         };
 
-        self.static_value((*element).into())
-    }
-
-    /// Decide exact DIR static equality.
-    fn decide_dir_static_equal(&self, left: &dir::StaticTerm, right: &dir::StaticTerm) -> Decision {
-        if left == right {
-            Decision::Yes
-        } else {
-            Decision::No
-        }
+        Ok(Some(term))
     }
 }
 
 impl CheckState<'_> {
-    /// Return one locally concrete static expression value.
-    pub(in crate::check) fn build_static_expression_value(
-        &mut self,
-        expression: dir::GlobalNodeId<dir::Expression>,
-    ) -> CompilerResult<Option<dir::StaticTerm>> {
-        self.build_static_expression_value_from_node(expression.module_id, expression.local_id)
-    }
-
     /// Return one static expression as a solver static term.
     pub(in crate::check) fn build_static_expression_term(
         &mut self,
@@ -827,13 +888,13 @@ impl CheckState<'_> {
                 left,
                 name: Some(name),
             } => {
-                let owner = self.intern_node_type_variable(module, left.into_global_any(module));
+                let owner = self.require_node_type(left.into_global_any(module));
 
                 Some(StaticTerm::Member {
                     source,
                     owner,
                     key: dir::StaticKey::Name(name),
-                    arguments: Vec::new().into(),
+                    arguments: Vec::new(),
                 })
             }
             dir::Expression::Type { value } => {
@@ -865,8 +926,8 @@ impl CheckState<'_> {
                 );
 
                 Some(StaticTerm::Equal {
-                    left: self.terms.push(left),
-                    right: self.terms.push(right),
+                    left: self.push_term(left).into(),
+                    right: self.push_term(right).into(),
                     is_negated,
                 })
             }
@@ -896,9 +957,9 @@ impl CheckState<'_> {
                 };
 
                 Some(StaticTerm::Conditional {
-                    condition: self.terms.push(condition),
-                    then_value: self.terms.push(then_value),
-                    else_value: self.terms.push(else_value),
+                    condition: self.push_term(condition).into(),
+                    then_value: self.push_term(then_value).into(),
+                    else_value: self.push_term(else_value).into(),
                 })
             }
             dir::Expression::Call {
@@ -914,7 +975,7 @@ impl CheckState<'_> {
                 &arguments,
             )?,
             _ => self
-                .build_static_expression_value_from_node(module, expression_id)?
+                .static_expression_literal(module, expression_id)?
                 .map(StaticTerm::Literal),
         };
 
@@ -940,13 +1001,13 @@ impl CheckState<'_> {
             }
             dir::TypeExpression::Extends { left, right } => StaticTerm::TypeRelation {
                 relation: TypeRelation::Extends,
-                left: self.intern_node_type_variable(module, left.into_global_any(module)),
-                right: self.intern_node_type_variable(module, right.into_global_any(module)),
+                left: self.require_node_type(left.into_global_any(module)),
+                right: self.require_node_type(right.into_global_any(module)),
             },
             dir::TypeExpression::Implements { left, right } => StaticTerm::TypeRelation {
                 relation: TypeRelation::Implements,
-                left: self.intern_node_type_variable(module, left.into_global_any(module)),
-                right: self.intern_node_type_variable(module, right.into_global_any(module)),
+                left: self.require_node_type(left.into_global_any(module)),
+                right: self.require_node_type(right.into_global_any(module)),
             },
             dir::TypeExpression::Conditional {
                 left,
@@ -956,9 +1017,8 @@ impl CheckState<'_> {
             } => {
                 let condition = StaticTerm::TypeRelation {
                     relation: TypeRelation::Extends,
-                    left: self.intern_node_type_variable(module, left.into_global_any(module)),
-                    right: self
-                        .intern_node_type_variable(module, extends_type.into_global_any(module)),
+                    left: self.require_node_type(left.into_global_any(module)),
+                    right: self.require_node_type(extends_type.into_global_any(module)),
                 };
                 let Some(then_value) = self.build_static_type_expression_term(module, then_type)?
                 else {
@@ -970,9 +1030,9 @@ impl CheckState<'_> {
                 };
 
                 StaticTerm::Conditional {
-                    condition: self.terms.push(condition),
-                    then_value: self.terms.push(then_value),
-                    else_value: self.terms.push(else_value),
+                    condition: self.push_term(condition).into(),
+                    then_value: self.push_term(then_value).into(),
+                    else_value: self.push_term(else_value).into(),
                 }
             }
             _ => return Ok(None),
@@ -982,7 +1042,7 @@ impl CheckState<'_> {
     }
 
     /// Return one locally concrete static expression value by local expression id.
-    fn build_static_expression_value_from_node(
+    pub(in crate::check) fn static_expression_literal(
         &mut self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -990,14 +1050,14 @@ impl CheckState<'_> {
         let expression_node = self.module(module).view().get(expression).clone();
         let term = match expression_node {
             dir::Expression::Identifier { name } => {
-                self.build_static_reference_value(module, expression, name)?
+                self.static_reference_literal(module, expression, name)?
             }
             dir::Expression::QualifiedReference { path, .. } => {
-                self.build_static_path_value(module, expression, &path)?
+                self.static_path_literal(module, expression, &path)?
             }
             dir::Expression::ScalarLiteral(value) => Some(dir::StaticTerm::ScalarLiteral { value }),
             dir::Expression::ObjectExpression { properties } => {
-                self.build_static_object_value(module, &properties)?
+                self.static_object_literal(module, &properties)?
             }
             _ => None,
         };
@@ -1006,7 +1066,7 @@ impl CheckState<'_> {
     }
 
     /// Return one locally concrete static reference expression value.
-    fn build_static_reference_value(
+    fn static_reference_literal(
         &mut self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -1019,31 +1079,30 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        self.build_static_symbol_value(module, symbol)
+        self.static_symbol_literal(module, symbol)
     }
 
     /// Return one locally concrete static path expression value.
-    fn build_static_path_value(
+    fn static_path_literal(
         &mut self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
         path: &dir::Path,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let symbol = match self.lookup_path_symbol(
-            module,
-            expression.into_any(),
-            path,
-            dir::SymbolSpace::Value,
-        )? {
-            ExportLookup::Found(symbol) => symbol,
-            ExportLookup::Missing | ExportLookup::Ambiguous(_) => return Ok(None),
-        };
+        let symbol =
+            match self.lookup_path(module, expression.into_any(), path, dir::SymbolSpace::Value)? {
+                PathLookup::Found(candidate) => match candidate.symbol() {
+                    Some(symbol) => symbol,
+                    None => return Ok(None),
+                },
+                PathLookup::Missing | PathLookup::Ambiguous(_) => return Ok(None),
+            };
 
-        self.build_static_symbol_value(module, symbol)
+        self.static_symbol_literal(module, symbol)
     }
 
     /// Return one locally concrete static symbol expression value.
-    fn build_static_symbol_value(
+    fn static_symbol_literal(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
@@ -1051,7 +1110,7 @@ impl CheckState<'_> {
         let Some(variable) = self.generic_static_variable(module, symbol)? else {
             return Ok(None);
         };
-        let term = match self.solved_static_term(variable)? {
+        let term = match self.static_solution(variable)? {
             Some(StaticTerm::Literal(term)) => Some(term),
             _ => None,
         };
@@ -1060,7 +1119,7 @@ impl CheckState<'_> {
     }
 
     /// Return one locally concrete static object expression value.
-    fn build_static_object_value(
+    fn static_object_literal(
         &mut self,
         module: ModuleId,
         properties: &[dir::LocalNodeId<dir::Property>],
@@ -1084,7 +1143,7 @@ impl CheckState<'_> {
 
         // solve statically known field values
         for (key, value) in fields {
-            let Some(value) = self.build_static_expression_value_from_node(module, value)? else {
+            let Some(value) = self.static_expression_literal(module, value)? else {
                 return Ok(None);
             };
 
@@ -1123,6 +1182,11 @@ impl CheckState<'_> {
             target,
             query,
         };
+        self.require(Obligation::Concrete {
+            source,
+            ty: target,
+            condition: Condition::Always,
+        });
 
         Ok(Some(StaticTerm::Layout(layout)))
     }
@@ -1139,14 +1203,9 @@ impl CheckState<'_> {
                 .lookup_symbol_by_name(module, left.into_any(), name, dir::SymbolSpace::Value)
                 .unique_symbol(),
             dir::Expression::QualifiedReference { path, .. } => {
-                match self.lookup_path_symbol(
-                    module,
-                    left.into_any(),
-                    &path,
-                    dir::SymbolSpace::Value,
-                )? {
-                    ExportLookup::Found(symbol) => Some(symbol),
-                    ExportLookup::Missing | ExportLookup::Ambiguous(_) => None,
+                match self.lookup_path(module, left.into_any(), &path, dir::SymbolSpace::Value)? {
+                    PathLookup::Found(candidate) => candidate.symbol(),
+                    PathLookup::Missing | PathLookup::Ambiguous(_) => None,
                 }
             }
             dir::Expression::Parenthesized { expression } => {
@@ -1163,7 +1222,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> CompilerResult<Option<VariableId>> {
+    ) -> CompilerResult<Option<TypeOperand>> {
         let [argument] = generic_arguments else {
             return Ok(None);
         };
@@ -1173,7 +1232,7 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        let target = self.intern_local_node_type_variable(module, value);
+        let target = self.require_local_node_type(module, value);
 
         Ok(Some(target))
     }

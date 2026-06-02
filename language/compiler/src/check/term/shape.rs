@@ -4,14 +4,27 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSubstitution, Origin, Progress, TypeOperand, TypeRelation,
+    CheckState, Decision, Origin, Progress, Substitution, TypeOperand, TypeRelation, TypeTerm,
     VariableId,
 };
 
 /// Shape member payload.
+///
+/// Examples:
+/// ```ds
+/// { name: string }
+/// { (value: string): int32 }
+/// { new (value: string): User }
+/// { [key: string]: int32 }
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum ShapeMember {
     /// Shape field.
+    ///
+    /// Examples:
+    /// ```ds
+    /// { name: string }
+    /// ```
     Field {
         /// The field key.
         key: dir::StaticKey,
@@ -23,16 +36,31 @@ pub(in crate::check) enum ShapeMember {
         is_readonly: bool,
     },
     /// Call signature.
+    ///
+    /// Examples:
+    /// ```ds
+    /// { (value: string): int32 }
+    /// ```
     CallSignature {
         /// The signature type.
         ty: TypeOperand,
     },
     /// Construct signature.
+    ///
+    /// Examples:
+    /// ```ds
+    /// { new (value: string): User }
+    /// ```
     ConstructSignature {
         /// The signature type.
         ty: TypeOperand,
     },
-    /// IndexTerm signature.
+    /// Index signature.
+    ///
+    /// Examples:
+    /// ```ds
+    /// { [key: string]: int32 }
+    /// ```
     IndexSignature {
         /// The parameter name.
         name: dir::StringId,
@@ -47,12 +75,19 @@ pub(in crate::check) enum ShapeMember {
     },
 }
 
+/// Structural object shape payload.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct ShapeTerm {
+    /// The shape members.
+    pub(in crate::check) members: SmallVec<[ShapeMember; 2]>,
+}
+
 impl ShapeMember {
     /// Return variables referenced by this term.
     pub(in crate::check) fn referenced_variables(
         &self,
         state: &CheckState<'_>,
-    ) -> SmallVec<[VariableId; 4]> {
+    ) -> SmallVec<[VariableId; 2]> {
         let mut variables = SmallVec::new();
 
         match self {
@@ -83,7 +118,7 @@ impl ShapeMember {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: Substitution<'_>,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let member = match self {
@@ -124,11 +159,21 @@ impl ShapeMember {
 }
 
 impl CheckState<'_> {
+    /// Store one structural shape type.
+    pub(in crate::check) fn push_shape_type(
+        &mut self,
+        members: SmallVec<[ShapeMember; 2]>,
+    ) -> TypeTerm {
+        let shape = self.push_term(ShapeTerm { members });
+
+        TypeTerm::Shape(shape)
+    }
+
     /// Substitute generic arguments through shape members.
     pub(in crate::check) fn substitute_shape_members(
         &mut self,
         module: ModuleId,
-        substitution: &GenericSubstitution,
+        substitution: Substitution<'_>,
         members: &[ShapeMember],
     ) -> CompilerResult<Vec<ShapeMember>> {
         members
@@ -215,7 +260,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            progress = progress.merge(self.solve_type_equality(origin, left_ty, right_ty)?);
+            progress = progress.merge(self.relate_type_equality(origin, left_ty, right_ty)?);
         }
 
         Ok(progress)
@@ -239,7 +284,8 @@ impl CheckState<'_> {
                 continue;
             };
 
-            progress = progress.merge(self.solve_type_assignability(origin, source_ty, target_ty)?);
+            progress =
+                progress.merge(self.relate_type_assignability(origin, source_ty, target_ty)?);
         }
 
         Ok(progress)
@@ -264,7 +310,7 @@ impl CheckState<'_> {
             };
 
             progress = progress
-                .merge(self.solve_contextual_type_assignability(origin, member_ty, target_ty)?);
+                .merge(self.relate_contextual_type_assignability(origin, member_ty, target_ty)?);
         }
 
         Ok(progress)
