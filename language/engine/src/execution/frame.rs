@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{FrameStateId, ValueLayoutId};
+use crate::{FrameStateId, StorageLayoutId};
 
-/// Captured frame.
+/// Materialized frame captured at one managed safepoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Frame {
+pub struct MaterializedFrame {
     /// The captured frame state.
     pub frame_state: FrameStateId,
     /// The captured frame bytes.
@@ -19,7 +19,7 @@ pub struct FrameLayoutId(pub u32);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct FrameSlotId(pub u32);
 
-/// One typed slot inside one frame.
+/// Physical storage slot inside one frame.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FrameSlot {
     /// The slot id.
@@ -30,13 +30,13 @@ pub struct FrameSlot {
     pub byte_len: u32,
     /// The slot byte alignment.
     pub alignment: u16,
-    /// Whether this slot stores one word.
-    pub is_word: bool,
-    /// The slot value layout.
-    pub layout: ValueLayoutId,
+    /// Whether this slot stores one cell.
+    pub is_cell: bool,
+    /// The slot storage layout.
+    pub layout: StorageLayoutId,
 }
 
-/// Byte layout for one frame.
+/// Physical byte layout for one frame.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FrameLayout {
     /// The layout id.

@@ -132,9 +132,6 @@ pub enum Value {
 }
 
 impl Value {
-    /// The void boundary value.
-    pub const VOID: Self = Self::Void;
-
     /// Create one boolean value.
     pub const fn bool(value: bool) -> Self {
         Self::Bool(value)

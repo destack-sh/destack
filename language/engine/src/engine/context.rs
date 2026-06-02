@@ -5,11 +5,11 @@ use destack_heap as heap;
 
 use crate::StaticSpace;
 
-/// Opaque runtime context for engine-specific helpers.
-pub type RuntimeContext = c_void;
+/// Opaque host call state for engine helper calls.
+pub type HostCall = c_void;
 
 /// Memory available to one engine operation.
-pub struct MemoryContext<'a> {
+pub struct EngineMemory<'a> {
     /// Worker heap.
     pub heap: &'a mut heap::Heap,
     /// Runtime heap.
@@ -24,10 +24,10 @@ pub struct MemoryContext<'a> {
     pub runtime_static: &'a StaticSpace,
 }
 
-impl std::fmt::Debug for MemoryContext<'_> {
+impl std::fmt::Debug for EngineMemory<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("MemoryContext")
+            .debug_struct("EngineMemory")
             .field("heap", &"<heap>")
             .field("shared_heap", &"<shared heap>")
             .field("shared_cache", &"<shared allocation cache>")
@@ -38,19 +38,19 @@ impl std::fmt::Debug for MemoryContext<'_> {
     }
 }
 
-/// Execution context for one engine call.
-pub struct CallContext<'a> {
-    /// Runtime-owned opaque context for helper calls.
-    pub runtime: NonNull<RuntimeContext>,
+/// Engine execution call.
+pub struct EngineCall<'a> {
+    /// Runtime-owned host call state.
+    pub host: NonNull<HostCall>,
     /// Memory available to this call.
-    pub memory: MemoryContext<'a>,
+    pub memory: EngineMemory<'a>,
 }
 
-impl std::fmt::Debug for CallContext<'_> {
+impl std::fmt::Debug for EngineCall<'_> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("CallContext")
-            .field("runtime", &true)
+            .debug_struct("EngineCall")
+            .field("host", &true)
             .field("memory", &self.memory)
             .finish()
     }

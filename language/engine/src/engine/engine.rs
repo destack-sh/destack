@@ -1,7 +1,7 @@
 use destack_heap as heap;
 use serde::{Deserialize, Serialize};
 
-use crate::{CallContext, MemoryContext, StaticSpace, Value};
+use crate::{EngineCall, EngineMemory, StaticSpace, Value};
 
 /// Execution engine for one worker.
 pub trait Engine: Send {
@@ -13,12 +13,12 @@ pub trait Engine: Send {
     type Error;
 
     /// Initialize worker static memory.
-    fn initialize(&mut self, context: MemoryContext<'_>) -> Result<(), Self::Error>;
+    fn initialize(&mut self, context: EngineMemory<'_>) -> Result<(), Self::Error>;
 
     /// Run one entrypoint.
     fn run(
         &mut self,
-        context: CallContext<'_>,
+        context: EngineCall<'_>,
         entry: EntryPoint,
         args: &[Value],
     ) -> Result<Outcome<Self::Continuation, Value>, Self::Error>;
@@ -26,23 +26,23 @@ pub trait Engine: Send {
     /// Resume one continuation.
     fn resume(
         &mut self,
-        context: CallContext<'_>,
+        context: EngineCall<'_>,
         continuation: Self::Continuation,
         value: Value,
     ) -> Result<Outcome<Self::Continuation, Value>, Self::Error>;
 
     /// Fork this engine over forked memory.
-    fn fork(&self, context: MemoryContext<'_>) -> Result<Self, Self::Error>
+    fn fork(&self, context: EngineMemory<'_>) -> Result<Self, Self::Error>
     where
         Self: Sized;
 
     /// Capture one execution image.
-    fn image(&self, context: MemoryContext<'_>) -> Result<Self::Image, Self::Error>;
+    fn image(&self, context: EngineMemory<'_>) -> Result<Self::Image, Self::Error>;
 
     /// Restore one execution image.
     fn restore(
         &mut self,
-        context: MemoryContext<'_>,
+        context: EngineMemory<'_>,
         image: &Self::Image,
     ) -> Result<(), Self::Error>;
 

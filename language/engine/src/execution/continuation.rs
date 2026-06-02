@@ -1,11 +1,11 @@
-use crate::{EngineId, Frame};
+use crate::{EngineId, MaterializedFrame};
 use serde::{Deserialize, Serialize};
 
-/// Captured continuation.
+/// Materialized continuation captured at one managed safepoint.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Continuation {
+pub struct MaterializedContinuation {
     /// The engine id.
     pub engine_id: EngineId,
     /// The frames from outermost to innermost.
-    pub frames: Vec<Frame>,
+    pub frames: Vec<MaterializedFrame>,
 }
