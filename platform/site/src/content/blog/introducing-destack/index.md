@@ -1,7 +1,7 @@
 ---
 title: "introducing destack"
-subtitle: "the absurdly integrated stack for humans building correct, optimal, integrated software systems with confidence"
-date: "2026-05-30"
+subtitle: "the absurdly integrated stack for humans building correct, optimal, integrated software systems on TypeScript++"
+date: "2026-06-14"
 tags: ["language", "runtime", "platform"]
 author: "Florian"
 ---
@@ -67,7 +67,6 @@ Despite incredible hardware advances, accumulated wisdom, and many libraries and
 - .. the dream of "if only we had something less harsh than symbolic systems / code" is old and fails every time
 - even if we could magically
 
-
 ## correctness = alignment + visibility
 
 - there is not a single test, or suite of tests, mathematical proof, or specific gate that you can run to convince me that some non-trivial program is correct (irrespective of human written or not)
@@ -92,15 +91,25 @@ Despite incredible hardware advances, accumulated wisdom, and many libraries and
 - it's all one product
 - tomorrow tech demo
 
+- constraints and state spaces
 - well known topology
-- policy
-- granularity and multi level views
+- engineering and understanding systems
+- correctness and optimality
+- strong "pre-deploy" guarantees including but not limited to strong typestate patterns, compiler checks, linters, .. custom lints, custom static and dynamic analysis, software in motion, DST, ...
+- DST! benches! fuzzing! reflection! they all relate!
 
-## designed for humans, by humans
+- policy, permissioning, deny-by-default, zero-trust
+- granularity and multi level views
+- need to be in the details
+- birds eye, tracer bullet, slow motion, etc...
+
+## human-first design
 
 - curious trend of "agent native" programming tools
 - upon closer inspection, it is never quite clear what exactly makes some piece of software or infrastructure more "agent native" than something engineered for, say, mere humans
 - doesn't really mean anything
+- "agent native" mostly seems to mean "churning out as much code as possible while delegating review to even more agents", which is the exact opposite of what I want
+- (relatedly, "how to manage dozens of agents" is not a problem I experience nor does Destack do anything _specific_ to "solve" that "problem")
 
 - common theme seems to be in _removing_ me from the details, and "just have humans give high level direction"
 - I've tried that, it doesn't work, I don't want to do that
@@ -139,8 +148,7 @@ requirements, wishlist:
 - typescript is tantalizingly close to a systems language
 - remove all the dynamic / JS baggage, add a little bit of layout and memory control, and we're looking at a surprisingly presentable low level language
 
-
-## optimality and expressivity
+## optimality requires expressivity
 
 - what do we mean by "optimal" and why does it even matter
 - we're going to run a _lot_ more software, and ideally, we're also going to run a lot of it in "simulation" and speculative modes - the faster we can do this, the better, and it really adds up
@@ -186,7 +194,7 @@ requirements, wishlist:
 
 - up until less than a year ago, seriously proposing new languages and software ecosystems would have been insane
 - it took years of iteration and development for Rust, Mojo, Zig, .. to get off the ground and reach respectable levels of maturity and adoption
-- having a language that looks like typescript but doesn't directly run most existing typescript appears to be an odd positioning
+- having a language that looks like typescript but doesn't directly run most existing typescript appears to be an odd positioning; however, the goal is not to be a 1:1 mapping since it's impossible to "just run TS" without making significant tradeoffs in either direction. 
 - "one-shot portable"
 - (should be locally portable by going file by file without global context)
 

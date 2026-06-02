@@ -12,9 +12,8 @@ export function Hero() {
             <div class="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6 px-2 md:px-4 lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center">
                 <section class="flex flex-col gap-y-2 md:gap-y-3">
                     <p class="max-w-3xl text-sm leading-6 font-bold text-neutral-700">
-                        <Underline>destack</Underline> is a deeply integrated stack for building
-                        correct, optimal, integrated software on one{" "}
-                        <Underline>unified, native TypeScript++ toolchain</Underline>, VM,
+                        the absurdly integrated stack for
+                        humans building correct, optimal, integrated software with <span class="italic">one</span> <Underline>unified, native TypeScript++ toolchain</Underline>, VM,
                         compiler, debugger, and runtime
                     </p>
                 </section>

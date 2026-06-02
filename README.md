@@ -30,7 +30,6 @@ instead of wrangling many disparate languages, tools, libraries, approaches, run
 - [**Destack Language**](language/README.md): TypeScript(++) toolchain, VM, AOT compiler, runtime.
 - [**Destack Library**](library/README.md): Rich standard library for most things most software needs.
 - [**Destack Templates**](template/README.md): Ready-to-clone starter kits for common use cases.
-- [**Destack Bridge**](bridge/README.md): Two-way bridges for integrating the Destack universe.
 
 The _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale, and we accomplish this by making all software systems fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
 The architecture is therefore modeled around "do-it-yourself software" over "ready-to-wear software", providing a sort of meta-stack for developing correct, optimal, integrated software stacks.

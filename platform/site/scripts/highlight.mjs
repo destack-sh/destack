@@ -4,7 +4,7 @@ import javascript from "highlight.js/lib/languages/javascript";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -36,8 +36,24 @@ function loadGrammar(directory, name) {
     return {
         directory,
         extension: grammar["file-types"][0],
-        queries: (grammar.highlights ?? []).map((query) => resolve(directory, query)),
+        queries: (grammar.highlights ?? []).map((query) => resolveQuery(directory, query)),
     };
+}
+
+function resolveQuery(directory, query) {
+    const localQuery = resolve(directory, query);
+    if (existsSync(localQuery)) {
+        return localQuery;
+    }
+
+    if (query.startsWith("node_modules/")) {
+        const workspaceQuery = resolve(repositoryDirectory, query);
+        if (existsSync(workspaceQuery)) {
+            return workspaceQuery;
+        }
+    }
+
+    throw new Error(`missing grammar query: ${query}`);
 }
 
 export function highlightCode(source, language) {
