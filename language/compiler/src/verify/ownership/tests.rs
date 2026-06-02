@@ -71,10 +71,10 @@ impl TestProgram {
         self.assert_anchor_before(active_borrow, anchor);
     }
 
-    /// Assert one borrowed-place change.
-    fn assert_change_of_borrowed_place(&mut self) {
+    /// Assert one borrowed-place invalidation.
+    fn assert_invalidation_of_borrowed_place(&mut self) {
         let errors = self.run_ownership();
-        let VerifyError::ChangeOfBorrowedPlace {
+        let VerifyError::InvalidationOfBorrowedPlace {
             anchor,
             borrowed_at,
         } = self.one_ownership_error(&errors)
@@ -85,28 +85,16 @@ impl TestProgram {
         self.assert_anchor_before(borrowed_at, anchor);
     }
 
-    /// Assert one readonly write.
-    fn assert_readonly_write(&mut self) {
+    /// Assert one write through readonly reference.
+    fn assert_write_through_readonly_reference(&mut self) {
         let errors = self.run_ownership();
-        let VerifyError::ReadonlyWrite { anchor } = self.one_ownership_error(&errors) else {
+        let VerifyError::WriteThroughReadonlyReference { anchor } =
+            self.one_ownership_error(&errors)
+        else {
             panic!("{errors:#?}");
         };
 
         assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
-    }
-
-    /// Assert one exclusive borrow crossing suspension.
-    fn assert_exclusive_borrow_across_suspension(&mut self) {
-        let errors = self.run_ownership();
-        let VerifyError::ExclusiveBorrowAcrossSuspension {
-            anchor,
-            borrowed_at,
-        } = self.one_ownership_error(&errors)
-        else {
-            panic!("{errors:#?}");
-        };
-
-        self.assert_anchor_before(borrowed_at, anchor);
     }
 
     /// Assert one rejected exclusive shared managed borrow.
@@ -121,10 +109,10 @@ impl TestProgram {
         assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
     }
 
-    /// Assert one borrow crossing suspension.
-    fn assert_borrow_across_suspension(&mut self) {
+    /// Assert one managed borrow crossing suspension.
+    fn assert_managed_borrow_across_suspension(&mut self) {
         let errors = self.run_ownership();
-        let VerifyError::BorrowAcrossSuspension {
+        let VerifyError::ManagedBorrowAcrossSuspension {
             anchor,
             borrowed_at,
         } = self.one_ownership_error(&errors)
@@ -169,7 +157,7 @@ impl TestProgram {
 
         let BorrowObligationRecord { obligation, anchor } = &obligations[0];
         let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
-        assert!(lifetime.includes_parameter(parameter), "{lifetime:#?}");
+        assert!(lifetime.includes_slot(parameter), "{lifetime:#?}");
         assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
     }
 
@@ -407,7 +395,7 @@ b0(v0: ref<Box, unique>):
 }"#,
     );
 
-    program.assert_change_of_borrowed_place();
+    program.assert_invalidation_of_borrowed_place();
 }
 
 #[test]
@@ -516,7 +504,7 @@ b2:
 }"#,
     );
 
-    program.assert_change_of_borrowed_place();
+    program.assert_invalidation_of_borrowed_place();
 }
 
 #[test]
@@ -534,7 +522,7 @@ b0(v0: int32, v1: int32):
 }"#,
     );
 
-    program.assert_change_of_borrowed_place();
+    program.assert_invalidation_of_borrowed_place();
 }
 
 #[test]
@@ -548,7 +536,7 @@ b0(v0: ref<int32, borrowed, readonly>, v1: int32):
 }"#,
     );
 
-    program.assert_readonly_write();
+    program.assert_write_through_readonly_reference();
 }
 
 #[test]
@@ -569,7 +557,7 @@ b0(v0: ref<Box, borrowed>, v1: int32):
 }"#,
     );
 
-    program.assert_change_of_borrowed_place();
+    program.assert_invalidation_of_borrowed_place();
 }
 
 #[test]
@@ -817,7 +805,7 @@ b1(v3: ref<User, managed>, v4: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    program.assert_borrow_across_suspension();
+    program.assert_managed_borrow_across_suspension();
 }
 
 #[test]
@@ -838,7 +826,7 @@ b1(v2: ref<User, managed>):
 }"#,
     );
 
-    program.assert_borrow_across_suspension();
+    program.assert_managed_borrow_across_suspension();
 }
 
 #[test]
@@ -898,7 +886,7 @@ b1(v3: ref<User, managed, space(shared)>, v4: ref<int32, borrowed, readonly, spa
 }"#,
     );
 
-    program.assert_borrow_across_suspension();
+    program.assert_managed_borrow_across_suspension();
 }
 
 #[test]
@@ -1078,6 +1066,27 @@ block1(v1: ref<int32, borrowed, readonly>):
 }
 
 #[test]
+fn test_apply_aggregate_parameter_lifetime_across_yield() {
+    let mut program = TestProgram::mir(
+        r#"
+type Holder<L: lifetime> {
+    ref<int32, borrowed, readonly, lifetime(L)>;
+}
+
+function test(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Holder<lifetime(1)>): int32 {
+entry0(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, readonly>, v2: Holder<lifetime(1)>):
+    v3: ref<int32, borrowed, readonly, lifetime(1)> = field.get v2, 0
+    yield v3, block1(v3)
+block1(v4: ref<int32, borrowed, readonly, lifetime(1)>):
+    v5: int32 = load v4
+    return v5
+}"#,
+    );
+
+    program.assert_suspension_stable_obligation(1);
+}
+
+#[test]
 fn test_allow_static_borrow_across_yield() {
     let mut program = TestProgram::mir(
         r#"
@@ -1118,7 +1127,7 @@ b2(v0: ref<User, managed>):
 }"#,
     );
 
-    program.assert_borrow_across_suspension();
+    program.assert_managed_borrow_across_suspension();
 }
 
 #[test]
@@ -1146,7 +1155,7 @@ b2(v3: ref<User, managed>, v4: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    program.assert_borrow_across_suspension();
+    program.assert_managed_borrow_across_suspension();
 }
 
 #[test]
@@ -1179,7 +1188,7 @@ b3(v3: ref<User, managed>, v4: ref<int32, borrowed, readonly>):
 }"#,
     );
 
-    program.assert_borrow_across_suspension();
+    program.assert_managed_borrow_across_suspension();
 }
 
 #[test]
@@ -1208,7 +1217,7 @@ b2(v0: ref<int32, borrowed, readonly>):
     // require the same source proof from callee and caller
     for BorrowObligationRecord { obligation, anchor } in &obligations {
         let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
-        assert!(lifetime.includes_parameter(0), "{lifetime:#?}");
+        assert!(lifetime.includes_slot(0), "{lifetime:#?}");
         assert!(matches!(anchor, DiagnosticAnchor::Span(_)), "{anchor:#?}");
     }
 }
@@ -1229,7 +1238,7 @@ b0(v0: (ref<int32, borrowed, readonly>) -> int32 @suspensionSafe(0), v1: ref<Use
 }"#,
     );
 
-    program.assert_borrow_across_suspension();
+    program.assert_managed_borrow_across_suspension();
 }
 
 #[test]
@@ -1270,7 +1279,7 @@ b2(v3: ref<int32, borrowed, readonly>):
 }
 
 #[test]
-fn test_reject_exclusive_borrow_across_yield() {
+fn test_allow_frame_exclusive_borrow_across_yield() {
     let mut program = TestProgram::mir(
         r#"
 function test(v0: int32): int32 {
@@ -1285,11 +1294,11 @@ block1(v2: int32, v3: ref<int32, borrowed, exclusive, space(frame)>):
 }"#,
     );
 
-    program.assert_exclusive_borrow_across_suspension();
+    program.assert_no_ownership_errors();
 }
 
 #[test]
-fn test_reject_exclusive_parameter_across_yield() {
+fn test_require_exclusive_parameter_source_across_yield() {
     let mut program = TestProgram::mir(
         r#"
 function test(v0: ref<int32, borrowed, exclusive>): int32 {
@@ -1301,7 +1310,7 @@ block1(v1: ref<int32, borrowed, exclusive>):
 }"#,
     );
 
-    program.assert_exclusive_borrow_across_suspension();
+    program.assert_suspension_stable_obligation(0);
 }
 
 #[test]
