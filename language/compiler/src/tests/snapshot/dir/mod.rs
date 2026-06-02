@@ -1,3 +1,4 @@
+mod annotation;
 mod binding;
 mod builder;
 mod capture;
@@ -12,6 +13,7 @@ mod r#macro;
 mod metadata;
 mod module;
 mod name;
+mod nominal;
 mod path;
 mod relation;
 mod resolution;
