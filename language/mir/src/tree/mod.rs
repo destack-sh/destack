@@ -1,6 +1,7 @@
 mod attribute;
 mod block;
 mod call;
+mod constant;
 mod function;
 mod global;
 mod instruction;
@@ -27,6 +28,7 @@ mod walk;
 pub use attribute::*;
 pub use block::*;
 pub use call::*;
+pub use constant::*;
 pub use function::*;
 pub use global::*;
 pub use instruction::*;
