@@ -82,10 +82,10 @@ impl Compiler {
                 self.bind_generic_parameters(state, tree, &declaration.generic_parameters);
                 self.bind_where_clauses(state, tree, &declaration.where_clauses);
 
-                // visit inherited value
-                if let Some(extends_expression_id) = declaration.extends_expression {
-                    let extends_expression = tree.get(extends_expression_id);
-                    state.visit_expression(tree, extends_expression_id, extends_expression);
+                // visit inherited type
+                if let Some(extends_type_id) = declaration.extends_type {
+                    let extends_type = tree.get(extends_type_id);
+                    state.visit_type_expression(tree, extends_type_id, extends_type);
                 }
 
                 // visit implemented types
@@ -129,13 +129,9 @@ impl Compiler {
                 self.bind_where_clauses(state, tree, &declaration.where_clauses);
 
                 // visit inherited types
-                for heritage in &declaration.extends {
-                    let expression = tree.get(heritage.expression);
-                    state.visit_expression(tree, heritage.expression, expression);
-                    for argument_id in &heritage.generic_arguments {
-                        let argument = tree.get(*argument_id);
-                        state.visit_generic_argument(tree, *argument_id, argument);
-                    }
+                for extends_type_id in &declaration.extends_types {
+                    let extends_type = tree.get(*extends_type_id);
+                    state.visit_type_expression(tree, *extends_type_id, extends_type);
                 }
 
                 // visit interface members
