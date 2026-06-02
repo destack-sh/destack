@@ -106,11 +106,7 @@ export class Promise<T> {
             this.reject(reason);
         };
 
-        try {
-            executor(resolve, reject);
-        } catch (error) {
-            this.reject(error);
-        }
+        executor(resolve, reject);
     }
 
     /// Continue when the promise fulfills.
@@ -121,21 +117,13 @@ export class Promise<T> {
         new Promise<U | F>((resolve, reject) => {
             this.react({
                 onFulfilled: (value) => {
-                    try {
-                        Promise.resolve(onFulfilled(value)).then(resolve, reject);
-                    } catch (error) {
-                        reject(error);
-                    }
+                    Promise.resolve(onFulfilled(value)).then(resolve, reject);
                 },
                 onRejected: (error) => {
                     if (onRejected == undefined) {
                         reject(error);
                     } else {
-                        try {
-                            Promise.resolve(onRejected(error)).then(resolve, reject);
-                        } catch (error) {
-                            reject(error);
-                        }
+                        Promise.resolve(onRejected(error)).then(resolve, reject);
                     }
                 },
             });
