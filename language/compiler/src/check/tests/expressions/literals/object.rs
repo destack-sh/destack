@@ -10,13 +10,15 @@ const value = { a: 1, b: "two" };
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = { a: 1, b: "two" };
 /// @type.symbol symbol=value type={ a: int32; b: string }
 /// @type.node source="{ a: 1, b: \"two\" }" type={ a: 1; b: "two" }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
+
+/// @check.stats.solve variables=0 terms=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -33,7 +35,7 @@ const person = { name, age };
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const name = "Ada";
 /// @type.symbol symbol=name type="Ada"
@@ -50,6 +52,8 @@ const person = { name, age };
 /// @resolution.name source=name target=name
 /// @type.node source=age type=42
 /// @resolution.name source=age target=age
+
+/// @check.stats.solve variables=0 terms=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=2
 "#,
     );
 }
@@ -64,11 +68,13 @@ const value = {};
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = {};
 /// @type.symbol symbol=value type={  }
 /// @type.node source={} type={  }
+
+/// @check.stats.solve variables=0 terms=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -83,7 +89,7 @@ const value = { a: 1, b: "two" } as const;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = { a: 1, b: "two" } as const;
 /// @type.symbol symbol=value type={ readonly a: 1; readonly b: "two" }
@@ -91,6 +97,8 @@ const value = { a: 1, b: "two" } as const;
 /// @type.node source="{ a: 1, b: \"two\" }" type={ readonly a: 1; readonly b: "two" }
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
+
+/// @check.stats.solve variables=0 terms=5 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -105,7 +113,7 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.symbol symbol=value type={ a: float64; b: string }
@@ -114,6 +122,8 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 /// @type.node source="{ a: 1, b: 2 }" type={ a: 1; b: 2 }
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
+
+/// @check.stats.solve variables=0 terms=9 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
@@ -137,7 +147,7 @@ const mode = config.mode;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 type Mode = "dev" | "prod";
 /// @type.symbol symbol=Mode type="dev" | "prod"
@@ -160,6 +170,8 @@ const mode = config.mode;
 /// @type.node source=config.mode type="dev"
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.mode receiver={ mode: "dev" } kind=field key=mode
+
+/// @check.stats.solve variables=0 terms=13 constraints=1 obligations=0 solutions=0 bounds=0 decisions=4
 "#,
     );
 }

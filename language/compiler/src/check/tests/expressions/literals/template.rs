@@ -11,7 +11,7 @@ const greeting = `hello ${name}`;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const name = "Ada";
 /// @type.symbol symbol=name type="Ada"
@@ -22,6 +22,8 @@ const greeting = `hello ${name}`;
 /// @type.node source="`hello ${name}`" type=string
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
+
+/// @check.stats.solve variables=0 terms=4 constraints=0 obligations=0 solutions=0 bounds=0 decisions=1
 "#,
     );
 }
@@ -36,11 +38,13 @@ const greeting: string = `hello`;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const greeting: string = `hello`;
 /// @type.symbol symbol=greeting type=string
 /// @type.node source=`hello` type=string
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -55,11 +59,13 @@ const value: number = `hello`;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: number = `hello`;
 /// @type.symbol symbol=value type=float64
 /// @type.node source=`hello` type=string
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"

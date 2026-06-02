@@ -1,7 +1,7 @@
 use crate::tests::{DirRows, TestSession};
 
 #[test]
-fn test_import_binding_assignment_reports_error() {
+fn test_import_binding_rejects_assignment() {
     let session = TestSession::new()
         .module(
             "counter.ds",

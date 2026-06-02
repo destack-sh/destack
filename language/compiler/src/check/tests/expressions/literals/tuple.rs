@@ -10,7 +10,7 @@ let value = (1, "two", true);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 let value = (1, "two", true);
 /// @type.symbol symbol=value type=(int32, string, boolean)
@@ -18,6 +18,8 @@ let value = (1, "two", true);
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
+
+/// @check.stats.solve variables=0 terms=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -32,7 +34,7 @@ const value = (1, "two", true) as const;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = (1, "two", true) as const;
 /// @type.symbol symbol=value type=readonly (1, "two", true)
@@ -41,6 +43,8 @@ const value = (1, "two", true) as const;
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
+
+/// @check.stats.solve variables=0 terms=7 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -55,7 +59,7 @@ const value = (1, "two", true);
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = (1, "two", true);
 /// @type.symbol symbol=value type=(int32, string, boolean)
@@ -63,6 +67,8 @@ const value = (1, "two", true);
 /// @type.node source=1 type=1
 /// @type.node source="\"two\"" type="two"
 /// @type.node source=true type=true
+
+/// @check.stats.solve variables=0 terms=9 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -77,7 +83,7 @@ const value = (1, (2, 3));
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = (1, (2, 3));
 /// @type.symbol symbol=value type=(int32, (int32, int32))
@@ -86,6 +92,8 @@ const value = (1, (2, 3));
 /// @type.node source="(2, 3)" type=(2, 3)
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
+
+/// @check.stats.solve variables=0 terms=11 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -100,13 +108,15 @@ const value: (1 | 2, "a" | "b") = (1, "a");
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: (1 | 2, "a" | "b") = (1, "a");
 /// @type.symbol symbol=value type=(1 | 2, "a" | "b")
 /// @type.node source="(1, \"a\")" type=(1, "a")
 /// @type.node source=1 type=1
 /// @type.node source="\"a\"" type="a"
+
+/// @check.stats.solve variables=0 terms=9 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -121,13 +131,15 @@ const value: (number, string) = (1, 2);
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: (number, string) = (1, 2);
 /// @type.symbol symbol=value type=(float64, string)
 /// @type.node source="(1, 2)" type=(1, 2)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
+
+/// @check.stats.solve variables=0 terms=7 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
