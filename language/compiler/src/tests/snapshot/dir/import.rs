@@ -20,13 +20,14 @@ impl SnapshotTable for dir::ImportTable {
             builder.push(row);
         }
 
-        for (key, symbols) in &self.global_symbol_by_key {
-            let symbols = symbols
-                .iter()
-                .map(|symbol| builder.symbol_path_label(*symbol));
+        for (key, targets) in &self.global_target_by_key {
+            let targets = targets.iter().map(|target| match target {
+                dir::ImportTarget::Symbol(symbol) => builder.symbol_path_label(*symbol),
+                dir::ImportTarget::Namespace(module) => builder.module_path(*module),
+            });
             let row = SnapshotRow::new(SnapshotAnchor::End, "import", "global")
                 .field("key", builder.static_key(*key))
-                .list_field("symbols", symbols);
+                .list_field("targets", targets);
             builder.push(row);
         }
 
@@ -39,7 +40,7 @@ impl SnapshotTable for dir::ImportTable {
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "import", "summary")
             .count_field("symbols", self.target_by_symbol.len())
-            .count_field("globals", self.global_symbol_by_key.len())
+            .count_field("globals", self.global_target_by_key.len())
             .count_field("language", self.language_symbol_by_item.len());
         builder.push(row);
     }

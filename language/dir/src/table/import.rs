@@ -13,8 +13,8 @@ pub struct ImportTable {
     pub dependencies: Vec<ModuleId>,
     /// Imported local symbols keyed to their resolved target.
     pub target_by_symbol: IndexMap<LocalSymbolId, ImportTarget>,
-    /// Global symbols made visible by the active profile.
-    pub global_symbol_by_key: IndexMap<StaticKey, Vec<GlobalSymbolId>>,
+    /// Global targets made visible by the active profile.
+    pub global_target_by_key: IndexMap<StaticKey, Vec<ImportTarget>>,
     /// Language item symbols required by compiler syntax.
     pub language_symbol_by_item: IndexMap<LanguageItem, GlobalSymbolId>,
 }
@@ -26,7 +26,7 @@ impl ImportTable {
             module_id,
             dependencies: Vec::new(),
             target_by_symbol: IndexMap::new(),
-            global_symbol_by_key: IndexMap::new(),
+            global_target_by_key: IndexMap::new(),
             language_symbol_by_item: IndexMap::new(),
         }
     }
@@ -43,11 +43,11 @@ impl ImportTable {
         self.target_by_symbol.insert(symbol, target);
     }
 
-    /// Add one imported global symbol.
-    pub fn push_global_symbol(&mut self, key: StaticKey, symbol: GlobalSymbolId) {
-        let symbols = self.global_symbol_by_key.entry(key).or_default();
-        if !symbols.contains(&symbol) {
-            symbols.push(symbol);
+    /// Add one imported global target.
+    pub fn push_global_target(&mut self, key: StaticKey, target: ImportTarget) {
+        let targets = self.global_target_by_key.entry(key).or_default();
+        if !targets.contains(&target) {
+            targets.push(target);
         }
     }
 
@@ -73,9 +73,9 @@ impl ImportTable {
             })
     }
 
-    /// Return imported global symbols for one key.
-    pub fn global_symbols(&self, key: StaticKey) -> Option<&[GlobalSymbolId]> {
-        self.global_symbol_by_key.get(&key).map(Vec::as_slice)
+    /// Return imported global targets for one key.
+    pub fn global_targets(&self, key: StaticKey) -> Option<&[ImportTarget]> {
+        self.global_target_by_key.get(&key).map(Vec::as_slice)
     }
 
     /// Return one imported language item symbol.
