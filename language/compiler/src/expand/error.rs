@@ -6,18 +6,14 @@ use destack_source::ModuleId;
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
 #[diagnostic(severity = Error, phase = Expand)]
 pub enum ExpandError {
-    /// Invalid static if decorator.
-    #[diagnostic(code = "EX100", message = "invalid static if: {message}")]
-    InvalidStaticIf {
-        anchor: DiagnosticAnchor,
-        message: String,
-    },
-
     /// Internal expand failure.
     #[diagnostic(code = "EX900", message = "internal error: {message}")]
     Internal {
+        /// The source that triggered the internal failure.
         anchor: DiagnosticAnchor,
+        /// The module being expanded.
         module: ModuleId,
+        /// The internal failure message.
         message: String,
     },
 }
