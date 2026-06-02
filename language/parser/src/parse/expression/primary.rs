@@ -646,6 +646,13 @@ impl Parser {
 
                 Ok(Some(expression))
             }
+            Keyword::Undefined => {
+                self.bump();
+                let literal = Expression::ScalarLiteral(ScalarLiteral::Undefined);
+                let expression = self.insert_node(literal, self.get_span_from(start));
+
+                Ok(Some(expression))
+            }
             Keyword::New => self.eat_new().map(Some),
             Keyword::Async => self.eat_lambda_expression(start),
             Keyword::Import if self.can_start_import_statement() => self.eat_import().map(Some),

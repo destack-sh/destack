@@ -16,10 +16,7 @@ use std::sync::Arc;
 
 use crate::{ParserError, ParserResult};
 
-use super::state::ParserState;
-
 use super::flags::ParserFlags;
-use super::identifier::TypeLiteralIdentifiers;
 use super::mode::ContextualLexMode;
 use super::options::ParserOptions;
 
@@ -117,8 +114,6 @@ pub struct Parser {
     pub errors: Vec<ParserError>,
     /// The parser error keys encountered so far.
     error_keys: HashSet<ParserErrorKey>,
-    /// Semantic parser bookkeeping.
-    pub(crate) state: ParserState,
 }
 
 impl Debug for Parser {
@@ -225,7 +220,6 @@ impl Parser {
         // initialize source-local parser state
         let file_id = file.id;
         strings.reserve(estimated_strings);
-        let type_literal_identifiers = TypeLiteralIdentifiers::new(strings.as_ref());
         Self {
             file,
             file_id,
@@ -255,7 +249,6 @@ impl Parser {
             strings,
             errors: Vec::with_capacity(4),
             error_keys: HashSet::with_capacity(4),
-            state: ParserState::new(type_literal_identifiers),
         }
     }
 
@@ -376,7 +369,6 @@ impl Parser {
         self.flags = flags;
         self.errors.clear();
         self.error_keys.clear();
-        self.state.reset();
 
         self.read_next_token();
         self.previous_token_end = 0;

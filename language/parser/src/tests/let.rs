@@ -380,7 +380,7 @@ let x: float64[3] = undefined
     assert_node!(parser.tree, let_id, Expression::Let { declarators, mutability: _, .. } => {
         assert_eq!(declarators.len(), 1);
 
-        assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, .. } => {
+        assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
             // x
             assert_node!(parser.tree, *pattern, Pattern::Binding { name, .. } => {
                 assert_string!(parser, *name, "x");
@@ -394,6 +394,9 @@ let x: float64[3] = undefined
                 });
                 assert_node!(parser.tree, *index, TypeExpression::ScalarLiteral { value: ScalarLiteral::Integer(3) });
             });
+
+            // undefined
+            assert_node!(parser.tree, value.expect("expected initializer"), Expression::ScalarLiteral(ScalarLiteral::Undefined));
         });
     });
 }

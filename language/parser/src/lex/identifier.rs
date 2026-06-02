@@ -306,7 +306,7 @@ pub(crate) fn keyword_from_identifier(identifier: &str) -> Option<Keyword> {
             | (6, b'a' | b'd' | b'e' | b'i' | b'p' | b'r' | b's' | b't')
             | (7, b'a' | b'd' | b'e' | b'f' | b'n' | b'p' | b'v')
             | (8, b'a' | b'c' | b'd' | b'f' | b'o' | b'p' | b'r')
-            | (9, b'e' | b'i' | b'n' | b'p' | b's')
+            | (9, b'e' | b'i' | b'n' | b'p' | b's' | b'u')
             | (10, b'i')
             | (11, b'c')
     );

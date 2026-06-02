@@ -260,6 +260,15 @@ impl Parser {
                     self.get_span_from(start),
                 ))
             }
+            Keyword::Undefined => {
+                self.bump();
+                Some(self.insert_node(
+                    TypeExpression::Literal {
+                        value: TypeLiteral::Undefined,
+                    },
+                    self.get_span_from(start),
+                ))
+            }
             Keyword::Infer => Some(self.eat_type_infer_expression()?),
             Keyword::Typeof => Some(self.eat_typeof_query(start)?),
             _ => None,
