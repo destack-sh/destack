@@ -331,8 +331,10 @@ pub struct AssociatedTypeDefinition {
     pub symbol: GlobalSymbolId,
     /// The source member node.
     pub source: GlobalNodeIdAny,
-    /// The checked associated type.
-    pub ty: GlobalTypeId,
+    /// The upper bound required by this associated type.
+    pub constraint: Option<GlobalTypeId>,
+    /// The concrete associated type value.
+    pub value: Option<GlobalTypeId>,
 }
 
 /// One checked associated static value.
