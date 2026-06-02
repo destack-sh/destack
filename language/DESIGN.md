@@ -46,6 +46,7 @@ Destack does not support JS/TS syntax that conflicts with either Destack-specifi
 | **Var declarations** | `var x` | not supported | legacy `var` scoping is unnecessary with `const` and `let` |
 | **Ambiguous generic arrow** | `<T>() => value` | not supported | ambiguous with TSX tree syntax, use `<T,>() => value` |
 | **Sequence expressions** | `(a, b, c)` | not supported | `.ds` uses parenthesized comma lists for explicit tuples |
+| **Shadowable `undefined`** | `let undefined = value` | not supported | `undefined` is a literal keyword, just like `null` |
 | **Single-quoted literals** | `'A'` | `char` in `.ds`, string in `.ts` / `.tsx` | `.ds` uses double-quoted strings and single-quoted scalar characters |
 | **Type angle assertions** | `<T>value`, `<const>value` | legacy angle-bracket assertions are not supported | use `value as T`, `value satisfies T`, or `value as const` |
 | **Private fields** | `#field` | not supported | `#field` syntax is redundant with real `private` in `.ds` |
@@ -906,17 +907,16 @@ The exact layout of a type can be configured via decorators that constrain its r
 | `@repr("C")` | Use the active target's C ABI layout. |
 | `@repr("transparent")` | Give a single-field declaration the same ABI representation as its field. |
 | `@repr(T)` | Use primitive scalar `T` as an enum backing representation. |
-| `@align(N)` | Raise the minimum aggregate alignment to `N`. |
-| `@packed` / `@packed(N)` | Lower the maximum field alignment, with `@packed` equivalent to `@packed(1)`. |
+| `@repr({ align: N })` | Raise the minimum aggregate alignment to `N`. |
+| `@repr({ packed: true })` / `@repr({ packed: N })` | Lower the maximum field alignment, with `true` equivalent to `1`. |
 
 ```ds
-@align(64)
+@repr({ align: 64 })
 struct CacheLine {
     value: uint64;
 }
 
-@repr("C")
-@packed
+@repr("C", { packed: true })
 struct WireHeader {
     tag: uint8;
     size: uint32;
