@@ -124,6 +124,7 @@ pub(crate) fn format_scalar_literal<'ast>(
 
     match scalar {
         ScalarLiteral::Null => token("null").format(f)?,
+        ScalarLiteral::Undefined => token("undefined").format(f)?,
         ScalarLiteral::Boolean(value) => token(if *value { "true" } else { "false" }).format(f)?,
         ScalarLiteral::Integer(value) => {
             if source_lexeme.is_empty() {
