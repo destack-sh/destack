@@ -61,6 +61,7 @@ fn is_short_expression(
         Expression::Unary { right, .. } => is_short_expression(context, *right, threshold),
         Expression::ScalarLiteral(
             ScalarLiteral::Null
+            | ScalarLiteral::Undefined
             | ScalarLiteral::Boolean(_)
             | ScalarLiteral::Integer(_)
             | ScalarLiteral::Bigint(_)

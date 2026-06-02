@@ -15,8 +15,6 @@ use destack_fir::prelude::{
 use destack_fir::{format_args, write};
 use smallvec::SmallVec;
 
-const UNDEFINED_IDENTIFIER: &str = "undefined";
-
 /// Return the value expression for an argument.
 pub(crate) fn argument_value(
     tree: &Tree,
@@ -257,8 +255,7 @@ fn expression_is_jsx_chain_bare_branch(
     let expression = context.tree.get(expression_id);
 
     match expression {
-        Expression::ScalarLiteral(ScalarLiteral::Null) => true,
-        Expression::Identifier { name } => context.strings.get(*name) == UNDEFINED_IDENTIFIER,
+        Expression::ScalarLiteral(ScalarLiteral::Null | ScalarLiteral::Undefined) => true,
         _ if is_alternate => expression_is_ternary(context, expression_id),
         _ => false,
     }

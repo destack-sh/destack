@@ -189,10 +189,10 @@ class X2 {
 fn test_format_method_comments() {
     assert_format_program_reference_widths(
         r#"class A {
-  m1(element: Element, key: string, undefined: undefined) /* block comment */ {
+  m1(element: Element, key: string, missing: undefined) /* block comment */ {
     // method body
   }
-  m2(element: Element, key: string, undefined: undefined): void /* block comment */ {
+  m2(element: Element, key: string, missing: undefined): void /* block comment */ {
     // method body
   }
   m3(tagName: string, rect: number[]): void // line comment
@@ -210,13 +210,13 @@ fn test_format_method_comments() {
             (
                 80,
                 r#"class A {
-  m1(element: Element, key: string, undefined: undefined) /* block comment */ {
+  m1(element: Element, key: string, missing: undefined) /* block comment */ {
     // method body
   }
   m2(
     element: Element,
     key: string,
-    undefined: undefined,
+    missing: undefined,
   ): void /* block comment */ {
     // method body
   }
@@ -234,10 +234,10 @@ fn test_format_method_comments() {
             (
                 100,
                 r#"class A {
-  m1(element: Element, key: string, undefined: undefined) /* block comment */ {
+  m1(element: Element, key: string, missing: undefined) /* block comment */ {
     // method body
   }
-  m2(element: Element, key: string, undefined: undefined): void /* block comment */ {
+  m2(element: Element, key: string, missing: undefined): void /* block comment */ {
     // method body
   }
   m3(tagName: string, rect: number[]): void {
