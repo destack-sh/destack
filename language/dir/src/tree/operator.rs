@@ -360,6 +360,96 @@ impl BinaryOperator {
         self as u16
     }
 
+    /// Return whether this operator tests equality.
+    #[inline]
+    pub fn is_equality(self) -> bool {
+        matches!(
+            self,
+            BinaryOperator::Equal
+                | BinaryOperator::NotEqual
+                | BinaryOperator::EqualStrict
+                | BinaryOperator::NotEqualStrict
+        )
+    }
+
+    /// Return whether this equality operator negates the relation.
+    #[inline]
+    pub fn is_negative_equality(self) -> bool {
+        matches!(
+            self,
+            BinaryOperator::NotEqual | BinaryOperator::NotEqualStrict
+        )
+    }
+
+    /// Return whether this operator tests strict identity equality.
+    #[inline]
+    pub fn is_strict_equality(self) -> bool {
+        matches!(
+            self,
+            BinaryOperator::EqualStrict | BinaryOperator::NotEqualStrict
+        )
+    }
+
+    /// Return whether this operator has builtin primitive numeric behavior.
+    #[inline]
+    pub fn has_numeric_builtin(self) -> bool {
+        matches!(
+            self,
+            BinaryOperator::Exponent
+                | BinaryOperator::Multiply
+                | BinaryOperator::Divide
+                | BinaryOperator::Remainder
+                | BinaryOperator::Add
+                | BinaryOperator::Subtract
+                | BinaryOperator::ShiftLeft
+                | BinaryOperator::ShiftRight
+                | BinaryOperator::UnsignedShiftRight
+                | BinaryOperator::ElementwiseAnd
+                | BinaryOperator::ElementwiseXor
+                | BinaryOperator::ElementwiseOr
+                | BinaryOperator::Equal
+                | BinaryOperator::NotEqual
+                | BinaryOperator::LessThan
+                | BinaryOperator::LessThanOrEqual
+                | BinaryOperator::GreaterThan
+                | BinaryOperator::GreaterThanOrEqual
+        )
+    }
+
+    /// Return whether this numeric operator returns boolean.
+    #[inline]
+    pub fn returns_boolean_for_numeric_operands(self) -> bool {
+        matches!(
+            self,
+            BinaryOperator::Equal
+                | BinaryOperator::NotEqual
+                | BinaryOperator::LessThan
+                | BinaryOperator::LessThanOrEqual
+                | BinaryOperator::GreaterThan
+                | BinaryOperator::GreaterThanOrEqual
+        )
+    }
+
+    /// Return whether this numeric operator only accepts integer operands.
+    #[inline]
+    pub fn requires_integer_numeric_operands(self) -> bool {
+        matches!(
+            self,
+            BinaryOperator::ShiftLeft
+                | BinaryOperator::ShiftRight
+                | BinaryOperator::UnsignedShiftRight
+                | BinaryOperator::ElementwiseAnd
+                | BinaryOperator::ElementwiseXor
+                | BinaryOperator::ElementwiseOr
+        )
+    }
+
+    /// Return whether this operator is boolean short-circuit logic.
+    #[inline]
+    pub fn is_logical_boolean(self) -> bool {
+        matches!(self, BinaryOperator::And | BinaryOperator::Or)
+    }
+
     /// Convert a TokenType to a BinaryOperator (if a direct mapping exists).
     #[inline]
     pub fn from_token(token_str: &str, token_type: TokenType) -> Option<BinaryOperator> {

@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, GlobalTypeId, SegmentView, StaticKey};
+use crate::{Arena, GlobalSymbolId, GlobalTypeId, SegmentView, StaticKey};
 
 /// Cumulative layouts for one DIR module.
 #[derive(Debug, Clone)]
@@ -107,6 +107,28 @@ impl<'a> LayoutTable<'a> {
         Some(self.get_layout(layout_id))
     }
 
+    /// Return one newtype representation by symbol.
+    pub fn newtype_representation(&self, symbol: GlobalSymbolId) -> Option<&NewtypeRepresentation> {
+        for segment in self.segments.iter().rev() {
+            if let Some(representation) = segment.newtype_representation(symbol) {
+                return Some(representation);
+            }
+        }
+
+        None
+    }
+
+    /// Return one enum representation by symbol.
+    pub fn enum_representation(&self, symbol: GlobalSymbolId) -> Option<&EnumRepresentation> {
+        for segment in self.segments.iter().rev() {
+            if let Some(representation) = segment.enum_representation(symbol) {
+                return Some(representation);
+            }
+        }
+
+        None
+    }
+
     /// Get a layout by id.
     pub fn get_layout(&self, layout_id: LocalLayoutId) -> &Layout {
         for segment in self.segments.iter() {
@@ -138,6 +160,10 @@ pub struct LayoutSegment {
     pub(crate) layouts: Arena<Layout>,
     /// Layout ids keyed by canonical type id.
     pub(crate) type_layouts: IndexMap<GlobalTypeId, LocalLayoutId>,
+    /// Newtype representation facts keyed by declaring symbol.
+    pub(crate) newtype_representations: IndexMap<GlobalSymbolId, NewtypeRepresentation>,
+    /// Enum representation facts keyed by declaring symbol.
+    pub(crate) enum_representations: IndexMap<GlobalSymbolId, EnumRepresentation>,
 }
 
 impl LayoutSegment {
@@ -148,6 +174,8 @@ impl LayoutSegment {
             first_layout_id: 0,
             layouts: Arena::new(),
             type_layouts: IndexMap::new(),
+            newtype_representations: IndexMap::new(),
+            enum_representations: IndexMap::new(),
         }
     }
 
@@ -158,6 +186,8 @@ impl LayoutSegment {
             first_layout_id: base.layout_count(),
             layouts: Arena::new(),
             type_layouts: IndexMap::new(),
+            newtype_representations: IndexMap::new(),
+            enum_representations: IndexMap::new(),
         }
     }
 
@@ -172,6 +202,18 @@ impl LayoutSegment {
     /// Bind one type to a layout.
     pub fn set_type_layout(&mut self, type_id: GlobalTypeId, layout_id: LocalLayoutId) {
         self.type_layouts.insert(type_id, layout_id);
+    }
+
+    /// Insert one newtype representation.
+    pub fn insert_newtype_representation(&mut self, representation: NewtypeRepresentation) {
+        self.newtype_representations
+            .insert(representation.symbol, representation);
+    }
+
+    /// Insert one enum representation.
+    pub fn insert_enum_representation(&mut self, representation: EnumRepresentation) {
+        self.enum_representations
+            .insert(representation.symbol, representation);
     }
 
     /// Return the layout id for one type.
@@ -189,6 +231,44 @@ impl LayoutSegment {
     /// Return the number of type layout bindings.
     pub fn type_layout_count(&self) -> usize {
         self.type_layouts.len()
+    }
+
+    /// Return one newtype representation by symbol.
+    pub fn newtype_representation(&self, symbol: GlobalSymbolId) -> Option<&NewtypeRepresentation> {
+        self.newtype_representations.get(&symbol)
+    }
+
+    /// Iterate newtype representation facts.
+    pub fn newtype_representations(
+        &self,
+    ) -> impl Iterator<Item = (GlobalSymbolId, &NewtypeRepresentation)> + '_ {
+        self.newtype_representations
+            .iter()
+            .map(|(symbol, representation)| (*symbol, representation))
+    }
+
+    /// Return the number of newtype representation facts.
+    pub fn newtype_representation_count(&self) -> usize {
+        self.newtype_representations.len()
+    }
+
+    /// Return one enum representation by symbol.
+    pub fn enum_representation(&self, symbol: GlobalSymbolId) -> Option<&EnumRepresentation> {
+        self.enum_representations.get(&symbol)
+    }
+
+    /// Iterate enum representation facts.
+    pub fn enum_representations(
+        &self,
+    ) -> impl Iterator<Item = (GlobalSymbolId, &EnumRepresentation)> + '_ {
+        self.enum_representations
+            .iter()
+            .map(|(symbol, representation)| (*symbol, representation))
+    }
+
+    /// Return the number of enum representation facts.
+    pub fn enum_representation_count(&self) -> usize {
+        self.enum_representations.len()
     }
 
     /// Get a layout by id.
@@ -212,7 +292,10 @@ impl LayoutSegment {
 
     /// Return whether this segment has no layouts.
     pub fn is_empty(&self) -> bool {
-        self.layouts.is_empty() && self.type_layouts.is_empty()
+        self.layouts.is_empty()
+            && self.type_layouts.is_empty()
+            && self.newtype_representations.is_empty()
+            && self.enum_representations.is_empty()
     }
 
     /// Get a layout owned by this table segment.
@@ -239,6 +322,35 @@ impl LocalLayoutId {
     }
 }
 
+/// Runtime representation of one nominal newtype.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NewtypeRepresentation {
+    /// The newtype symbol.
+    pub symbol: GlobalSymbolId,
+    /// The backing type.
+    pub backing: GlobalTypeId,
+}
+
+/// Runtime representation of one nominal enum.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnumRepresentation {
+    /// The enum symbol.
+    pub symbol: GlobalSymbolId,
+    /// The discriminant backing type.
+    pub backing: Option<GlobalTypeId>,
+    /// The enum variants in source order.
+    pub variants: Vec<EnumVariantRepresentation>,
+}
+
+/// Runtime representation of one enum variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnumVariantRepresentation {
+    /// The variant symbol.
+    pub symbol: GlobalSymbolId,
+    /// The discriminant value when known.
+    pub value: Option<i64>,
+}
+
 /// Concrete memory layout for a checked type.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Layout {
@@ -250,28 +362,34 @@ pub struct Layout {
     pub alignment: Option<u32>,
 }
 
-/// Aggregate layout shape.
+/// Concrete memory layout shape.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LayoutShape {
     /// No runtime storage.
     None,
     /// Builtin scalar storage.
     Scalar,
-    /// Pointer-sized erased value storage.
-    Dynamic,
-    /// Struct or object storage.
+    /// Struct storage.
     Struct(StructLayout),
     /// Tuple storage.
     Tuple(TupleLayout),
+    /// Slice header storage.
+    Slice(SliceLayout),
+    /// Array storage.
+    Array(ArrayLayout),
     /// Variant value storage.
     Variant(VariantLayout),
+    /// Object storage with a dispatch table header.
+    Object(ObjectLayout),
+    /// Pointer-sized erased value storage.
+    Dynamic,
+    /// Runtime closure storage.
+    Closure,
     /// Transparent nominal storage.
     Newtype(NewtypeLayout),
-    /// Runtime function or closure storage.
-    Function,
 }
 
-/// Concrete layout for a struct or object.
+/// Concrete layout for a struct.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StructLayout {
     /// The fields in layout order.
@@ -285,18 +403,60 @@ pub struct TupleLayout {
     pub elements: Vec<LayoutField>,
 }
 
+/// Concrete layout for a slice header.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SliceLayout {
+    /// The slice element type.
+    pub element: GlobalTypeId,
+}
+
+/// Concrete layout for an array.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArrayLayout {
+    /// The array element type.
+    pub element: GlobalTypeId,
+    /// The byte stride between elements.
+    pub stride: Option<u32>,
+    /// The fixed element count when known.
+    pub count: Option<u32>,
+}
+
 /// Concrete layout for a variant value.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VariantLayout {
+    /// The tag layout.
+    pub tag: VariantTagLayout,
+    /// The variant payload byte offset.
+    pub payload_offset: Option<u32>,
     /// The variant cases.
     pub variants: Vec<VariantCaseLayout>,
+}
+
+/// Concrete layout for a variant tag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VariantTagLayout {
+    /// The tag type when it has been materialized.
+    pub ty: Option<GlobalTypeId>,
+    /// The tag size in bytes.
+    pub size: Option<u32>,
+    /// The tag alignment in bytes.
+    pub alignment: Option<u32>,
+}
+
+/// Concrete layout for an object.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ObjectLayout {
+    /// The fields in layout order.
+    pub fields: Vec<LayoutField>,
 }
 
 /// Concrete layout for a nominal newtype.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewtypeLayout {
+    /// The backing type.
+    pub backing_type: GlobalTypeId,
     /// The backing type layout.
-    pub backing: LocalLayoutId,
+    pub backing_layout: LocalLayoutId,
 }
 
 /// Concrete field or tuple-element layout.
