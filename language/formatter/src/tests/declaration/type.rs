@@ -85,18 +85,6 @@ fn test_format_enum_member_blank_lines() {
     );
 }
 
-/// Class extends sequence expressions should keep required parentheses.
-#[test]
-fn test_format_class_extends_sequence_expression_parentheses() {
-    assert_format_program!(
-        r#"class A extends (a, b) {}
-"#,
-        r#"class A extends (a, b) {}
-"#,
-        FileType::TypeScript,
-    );
-}
-
 /// Class member comments after an extends clause should stay on their members.
 #[test]
 fn test_format_class_extends_member_comments() {

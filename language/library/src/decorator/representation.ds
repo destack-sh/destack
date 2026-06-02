@@ -40,7 +40,7 @@ export type RepresentationOptions = {
 /// ```
 @languageItem("decorator.repr")
 export newtype repr =
-    (Representation,)
+    | (Representation,)
     | (Representation, RepresentationOptions)
     | (Type,)
     | (Type, RepresentationOptions)

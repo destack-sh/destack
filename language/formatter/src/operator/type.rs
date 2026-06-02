@@ -1,7 +1,6 @@
 use crate::annotation::{
     FormatLeadingComments, FormatTrailingComments, format_node_with_trailing_comments,
 };
-use crate::chain::transparent_inner_expression;
 use crate::expression::{write_expression_without_trailing_comments, write_type_expression_node};
 use crate::{DestackFormatContext, DestackFormatter};
 use destack_dir::{
@@ -227,46 +226,6 @@ pub(crate) fn expression_generic_arguments(
             generic_arguments, ..
         } => Some(generic_arguments.as_slice()),
         _ => None,
-    }
-}
-
-/// Return whether an expression tree contains generic arguments.
-pub(crate) fn expression_has_generic_arguments(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-) -> bool {
-    let expression_id = transparent_inner_expression(context, expression_id);
-
-    match context.tree.get(expression_id) {
-        Expression::QualifiedReference {
-            generic_arguments, ..
-        } => !generic_arguments.is_empty(),
-        Expression::Member { left, .. } | Expression::PrivateMember { left, .. } => {
-            expression_has_generic_arguments(context, *left)
-        }
-        Expression::TaggedTemplateExpression {
-            tag,
-            generic_arguments,
-            ..
-        } => !generic_arguments.is_empty() || expression_has_generic_arguments(context, *tag),
-        Expression::TreeExpression {
-            left,
-            generic_arguments,
-            ..
-        } => {
-            !generic_arguments.is_empty()
-                || left.is_some_and(|left_id| expression_has_generic_arguments(context, left_id))
-        }
-        Expression::Call {
-            left,
-            generic_arguments,
-            ..
-        }
-        | Expression::Instantiation {
-            left,
-            generic_arguments,
-        } => !generic_arguments.is_empty() || expression_has_generic_arguments(context, *left),
-        _ => false,
     }
 }
 

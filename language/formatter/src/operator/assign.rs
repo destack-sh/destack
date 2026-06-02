@@ -1,7 +1,5 @@
 use super::binary::is_logical_binary_operator;
-use super::r#type::{
-    expression_has_generic_arguments, write_type_expression_with_inline_prefix_annotations,
-};
+use super::r#type::write_type_expression_with_inline_prefix_annotations;
 use crate::annotation::{
     FormatTrailingComments, format_comment, prefix_annotations, write_comment_slice,
     write_inline_prefix_annotations,
@@ -788,12 +786,20 @@ fn declaration_type_expression_has_generic_arguments(
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
+        TypeExpression::Parenthesized { expression } => {
+            declaration_type_expression_has_generic_arguments(context, *expression)
+        }
         TypeExpression::Reference {
             generic_arguments, ..
-        }
-        | TypeExpression::Member {
-            generic_arguments, ..
         } => !generic_arguments.is_empty(),
+        TypeExpression::Member {
+            left,
+            generic_arguments,
+            ..
+        } => {
+            !generic_arguments.is_empty()
+                || declaration_type_expression_has_generic_arguments(context, *left)
+        }
         _ => false,
     }
 }
@@ -811,11 +817,10 @@ fn declaration_has_generic_heritage(
             .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id)),
         Declaration::Class(declaration) => {
             declaration
-                .extends_expression
+                .extends_type
                 .iter()
                 .copied()
-                .any(|expression_id| expression_has_generic_arguments(context, expression_id))
-                || !declaration.extends_generic_arguments.is_empty()
+                .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id))
                 || declaration.implements_types.iter().copied().any(|type_id| {
                     declaration_type_expression_has_generic_arguments(context, type_id)
                 })
@@ -825,10 +830,11 @@ fn declaration_has_generic_heritage(
             .iter()
             .copied()
             .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id)),
-        Declaration::Interface(declaration) => declaration.extends.iter().any(|heritage| {
-            !heritage.generic_arguments.is_empty()
-                || expression_has_generic_arguments(context, heritage.expression)
-        }),
+        Declaration::Interface(declaration) => declaration
+            .extends_types
+            .iter()
+            .copied()
+            .any(|type_id| declaration_type_expression_has_generic_arguments(context, type_id)),
         Declaration::Extension(declaration) => {
             declaration_type_expression_has_generic_arguments(context, declaration.target_type)
                 || declaration.implements_types.iter().copied().any(|type_id| {
