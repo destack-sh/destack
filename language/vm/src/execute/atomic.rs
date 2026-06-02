@@ -4,7 +4,7 @@ use std::sync::atomic::{
 
 use destack_mir as mir;
 
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::program::{
@@ -26,13 +26,13 @@ pub(crate) fn execute_atomic_load(
 ) -> Result<(), Error> {
     // decode precomputed addressing and ordering
     let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = activation.load_word_at(instruction.b);
-    let address = atomic_address(activation, pointer, shape.address)?;
+    let pointer = activation.load_cell_at(instruction.b);
+    let address = atomic_address(activation, pointer, shape.address, shape.width)?;
 
     // load and publish the scalar result
     let raw = atomic_load(address, shape)?;
-    let value = atomic_word(raw, shape);
-    activation.store_word_at(instruction.a, value);
+    let value = atomic_cell(raw, shape);
+    activation.store_cell_at(instruction.a, value);
 
     Ok(())
 }
@@ -44,9 +44,9 @@ pub(crate) fn execute_atomic_store(
 ) -> Result<(), Error> {
     // decode precomputed addressing and ordering
     let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = activation.load_word_at(instruction.a);
-    let value = activation.load_word_at(instruction.b);
-    let address = atomic_address(activation, pointer, shape.address)?;
+    let pointer = activation.load_cell_at(instruction.a);
+    let value = activation.load_cell_at(instruction.b);
+    let address = atomic_address(activation, pointer, shape.address, shape.width)?;
 
     // store the scalar payload
     atomic_store(address, value.bits(), shape)?;
@@ -61,14 +61,14 @@ pub(crate) fn execute_atomic_exchange(
 ) -> Result<(), Error> {
     // decode precomputed addressing and ordering
     let shape = AtomicShape::decode(instruction.d)?;
-    let pointer = activation.load_word_at(instruction.b);
-    let value = activation.load_word_at(instruction.c);
-    let address = atomic_address(activation, pointer, shape.address)?;
+    let pointer = activation.load_cell_at(instruction.b);
+    let value = activation.load_cell_at(instruction.c);
+    let address = atomic_address(activation, pointer, shape.address, shape.width)?;
 
     // exchange and publish the old scalar value
     let raw = atomic_exchange(address, value.bits(), shape)?;
-    let value = atomic_word(raw, shape);
-    activation.store_word_at(instruction.a, value);
+    let value = atomic_cell(raw, shape);
+    activation.store_cell_at(instruction.a, value);
 
     Ok(())
 }
@@ -80,10 +80,15 @@ pub(crate) fn execute_atomic_compare_exchange(
 ) -> Result<(), Error> {
     // decode aggregate result metadata
     let compare_exchange = *activation.side::<AtomicCompareExchange>(instruction);
-    let pointer = activation.load_word_at(compare_exchange.pointer_offset);
-    let expected = activation.load_word_at(compare_exchange.expected_offset);
-    let new_value = activation.load_word_at(compare_exchange.new_value_offset);
-    let address = atomic_address(activation, pointer, compare_exchange.shape.address)?;
+    let pointer = activation.load_cell_at(compare_exchange.pointer_offset);
+    let expected = activation.load_cell_at(compare_exchange.expected_offset);
+    let new_value = activation.load_cell_at(compare_exchange.new_value_offset);
+    let address = atomic_address(
+        activation,
+        pointer,
+        compare_exchange.shape.address,
+        compare_exchange.shape.width,
+    )?;
 
     // execute compare exchange and build the pair result
     let old = atomic_compare_exchange(
@@ -95,7 +100,7 @@ pub(crate) fn execute_atomic_compare_exchange(
         compare_exchange.is_weak,
     )?;
     let success = old == truncate(expected.bits(), compare_exchange.shape.width);
-    let old = atomic_word(old, compare_exchange.shape);
+    let old = atomic_cell(old, compare_exchange.shape);
 
     store_compare_exchange_result(activation, compare_exchange.destination, old, success)
 }
@@ -107,14 +112,14 @@ pub(crate) fn execute_atomic_read_modify_write(
 ) -> Result<(), Error> {
     // decode precomputed addressing, ordering, and update operation
     let shape = AtomicReadModifyWriteShape::decode(instruction.d)?;
-    let pointer = activation.load_word_at(instruction.b);
-    let value = activation.load_word_at(instruction.c);
-    let address = atomic_address(activation, pointer, shape.shape.address)?;
+    let pointer = activation.load_cell_at(instruction.b);
+    let value = activation.load_cell_at(instruction.c);
+    let address = atomic_address(activation, pointer, shape.shape.address, shape.shape.width)?;
 
     // update and publish the old scalar value
     let raw = atomic_read_modify_write(address, value, shape)?;
-    let value = atomic_word(raw, shape.shape);
-    activation.store_word_at(instruction.a, value);
+    let value = atomic_cell(raw, shape.shape);
+    activation.store_cell_at(instruction.a, value);
 
     Ok(())
 }
@@ -135,8 +140,9 @@ pub(crate) fn execute_atomic_fence(
 /// Resolve an atomic pointer to a native address.
 fn atomic_address(
     activation: &Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     address: AtomicAddress,
+    width: AtomicWidth,
 ) -> Result<usize, Error> {
     // offset zero is the reserved null reference
     if pointer.bits() == 0 {
@@ -152,7 +158,9 @@ fn atomic_address(
         AtomicAddress::Address => pointer.as_address(),
         AtomicAddress::Stack => pointer.as_stack_pointer().address(),
         AtomicAddress::Frame => pointer.as_frame_pointer().address(),
-        AtomicAddress::Static => pointer.as_static_pointer().address(),
+        AtomicAddress::Static => {
+            activation.static_native_address(pointer.as_static_address(), width.byte_len())?
+        }
     };
 
     Ok(address)
@@ -162,7 +170,7 @@ fn atomic_address(
 fn store_compare_exchange_result(
     activation: &mut Activation<'_>,
     destination: mir::Value,
-    value: Word,
+    value: Cell,
     success: bool,
 ) -> Result<(), Error> {
     // write old value and success flag into the destination tuple
@@ -171,7 +179,7 @@ fn store_compare_exchange_result(
         destination,
         |_machine, index, _ty| match index {
             0 => Ok(value),
-            1 => Ok(Word::bool(success)),
+            1 => Ok(Cell::bool(success)),
             _ => Err(Error::invalid_instruction()),
         },
     )?;
@@ -179,14 +187,14 @@ fn store_compare_exchange_result(
     Ok(())
 }
 
-/// Convert raw atomic bits into one VM word.
+/// Convert raw atomic bits into one VM cell.
 #[inline(always)]
-fn atomic_word(raw: u64, shape: AtomicShape) -> Word {
+fn atomic_cell(raw: u64, shape: AtomicShape) -> Cell {
     if shape.is_signed && shape.width != AtomicWidth::Width64 {
-        return Word::from_bits(sign_extend(raw, shape.width));
+        return Cell::from_bits(sign_extend(raw, shape.width));
     }
 
-    Word::from_bits(raw)
+    Cell::from_bits(raw)
 }
 
 /// Sign-extend one atomic integer payload.
@@ -329,7 +337,7 @@ fn atomic_compare_exchange(
 #[inline(always)]
 fn atomic_read_modify_write(
     address: usize,
-    value: Word,
+    value: Cell,
     shape: AtomicReadModifyWriteShape,
 ) -> Result<u64, Error> {
     use AtomicReadModifyWriteOperator as Operator;
@@ -555,7 +563,7 @@ fn atomic_fetch_max_signed(address: usize, raw: u64, shape: AtomicShape) -> Resu
 /// Execute one floating atomic update with a CAS loop.
 fn atomic_float_update<F>(
     address: usize,
-    value: Word,
+    value: Cell,
     shape: AtomicShape,
     operation: F,
 ) -> Result<u64, Error>
@@ -566,7 +574,7 @@ where
         AtomicWidth::Width32 => {
             let raw = atomic_update_u32(address, shape, |old| {
                 let old = f32::from_bits(old);
-                let value = value.as_float32();
+                let value = value.as_f32();
 
                 (operation(old as f64, value as f64) as f32).to_bits()
             })?;
@@ -575,7 +583,7 @@ where
         }
         AtomicWidth::Width64 => atomic_update_u64(address, shape, |old| {
             let old = f64::from_bits(old);
-            let value = value.as_float64();
+            let value = value.as_f64();
 
             operation(old, value).to_bits()
         }),

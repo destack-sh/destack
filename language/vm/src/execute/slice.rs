@@ -1,6 +1,6 @@
 use super::element::{element_byte_offset, load_array_index_at};
 use super::{access, address};
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::program::{Instruction, SliceProjection, SliceProjectionId};
@@ -11,8 +11,8 @@ pub(crate) fn load_slice_length_at(
     activation: &Activation<'_>,
     value_offset: u32,
 ) -> Result<usize, Error> {
-    let value = activation.load_word_at(value_offset);
-    let length = value.as_uint();
+    let value = activation.load_cell_at(value_offset);
+    let length = value.as_u64();
 
     usize::try_from(length).map_err(|_| Error::allocation_failed())
 }
@@ -22,11 +22,11 @@ pub(crate) fn store_slice_at(
     activation: &mut Activation<'_>,
     dest: u32,
     access: SliceProjection,
-    data: Word,
+    data: Cell,
     length: usize,
 ) -> Result<(), Error> {
     // write the two descriptor fields through their lowered layouts
-    let length = Word::uint(length as u64, usize::BITS as u8);
+    let length = Cell::uint(length as u64, usize::BITS as u8);
     let pointer = activation.frame_pointer_at(dest);
     access::store_frame_slot_by_layout(activation, pointer, access.data, data);
     access::store_frame_slot_by_layout(activation, pointer, access.length, length);
@@ -36,7 +36,7 @@ pub(crate) fn store_slice_at(
 
 /// Load the data pointer from one slice descriptor.
 #[inline(always)]
-fn load_slice_data(activation: &mut Activation<'_>, slice: Word, access: SliceProjection) -> Word {
+fn load_slice_data(activation: &mut Activation<'_>, slice: Cell, access: SliceProjection) -> Cell {
     let slice = slice.as_frame_pointer();
 
     access::load_frame_slot_by_layout(activation, slice, access.data)
@@ -44,8 +44,8 @@ fn load_slice_data(activation: &mut Activation<'_>, slice: Word, access: SlicePr
 
 /// Store a computed slice element address.
 #[inline(always)]
-fn store_slice_element_address(activation: &mut Activation<'_>, dest: u32, value: Word) {
-    activation.store_word_at(dest, value);
+fn store_slice_element_address(activation: &mut Activation<'_>, dest: u32, value: Cell) {
+    activation.store_cell_at(dest, value);
 }
 
 /// Return one lowered slice element projection.
@@ -59,9 +59,9 @@ fn instruction_slice_element(activation: &Activation<'_>, access: u32) -> SliceP
 fn slice_address_fields(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-) -> (u32, Word, u64, SliceProjection) {
+) -> (u32, Cell, u64, SliceProjection) {
     let dest = instruction.a;
-    let slice = Word::frame_pointer(activation.frame_pointer_at(instruction.b));
+    let slice = Cell::frame_pointer(activation.frame_pointer_at(instruction.b));
     let index = instruction.c;
     let access = instruction_slice_element(activation, instruction.d);
 
@@ -145,14 +145,14 @@ pub(crate) fn execute_address_frame_slice_element(
     let data = load_slice_data(activation, slice, access);
     let offset = element_byte_offset(index, access.element.byte_stride);
     let pointer = data.as_frame_pointer().add_bytes(offset);
-    let value = Word::frame_pointer(pointer);
+    let value = Cell::frame_pointer(pointer);
 
     store_slice_element_address(activation, dest, value);
 
     Ok(())
 }
 
-/// Execute slice element addr on static pointers.
+/// Execute slice element addr on static addresses.
 pub(crate) fn execute_address_static_slice_element(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
@@ -161,7 +161,7 @@ pub(crate) fn execute_address_static_slice_element(
 
     let data = load_slice_data(activation, slice, access);
     let value =
-        address::element_static(activation, data.as_static_pointer(), access.element, index);
+        address::element_static(activation, data.as_static_address(), access.element, index)?;
 
     store_slice_element_address(activation, dest, value);
 

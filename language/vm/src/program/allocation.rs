@@ -44,7 +44,7 @@ pub(crate) struct AllocationBranch {
 pub(crate) struct SliceAllocationBranch {
     /// The destination frame offset.
     pub destination: u32,
-    /// The length word frame offset.
+    /// The length cell frame offset.
     pub length: u32,
     /// The backing element allocation site.
     pub element: AllocationSiteId,

@@ -20,50 +20,50 @@ pub(crate) struct CheckId(pub(crate) u32);
 /// One lowered runtime check.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Check {
-    /// Bounds check over signed index and signed length words.
+    /// Bounds check over signed index and signed length cells.
     BoundsIntInt(BoundsCheck),
-    /// Bounds check over signed index and unsigned length words.
+    /// Bounds check over signed index and unsigned length cells.
     BoundsIntUint(BoundsCheck),
-    /// Bounds check over unsigned index and signed length words.
+    /// Bounds check over unsigned index and signed length cells.
     BoundsUintInt(BoundsCheck),
-    /// Bounds check over unsigned index and unsigned length words.
+    /// Bounds check over unsigned index and unsigned length cells.
     BoundsUintUint(BoundsCheck),
-    /// Non-null check over one word.
+    /// Non-null check over one cell.
     Null {
-        /// The value word offset.
+        /// The value cell offset.
         value: u32,
     },
-    /// Division-by-zero check over one signed word.
+    /// Division-by-zero check over one signed cell.
     DivZeroInt { divisor: u32 },
-    /// Division-by-zero check over one unsigned word.
+    /// Division-by-zero check over one unsigned cell.
     DivZeroUint { divisor: u32 },
-    /// Shift range check over one signed shift amount word.
+    /// Shift range check over one signed shift amount cell.
     ShiftRangeInt(ShiftRangeCheck),
-    /// Shift range check over one unsigned shift amount word.
+    /// Shift range check over one unsigned shift amount cell.
     ShiftRangeUint(ShiftRangeCheck),
-    /// Signed integer narrowing check over one word.
+    /// Signed integer narrowing check over one cell.
     NarrowInt(NarrowCheck),
-    /// Unsigned integer narrowing check over one word.
+    /// Unsigned integer narrowing check over one cell.
     NarrowUint(NarrowCheck),
-    /// Signed add overflow check over two words.
+    /// Signed add overflow check over two cells.
     OverflowAddInt(OverflowCheck),
-    /// Unsigned add overflow check over two words.
+    /// Unsigned add overflow check over two cells.
     OverflowAddUint(OverflowCheck),
-    /// Signed subtract overflow check over two words.
+    /// Signed subtract overflow check over two cells.
     OverflowSubInt(OverflowCheck),
-    /// Unsigned subtract overflow check over two words.
+    /// Unsigned subtract overflow check over two cells.
     OverflowSubUint(OverflowCheck),
-    /// Signed multiply overflow check over two words.
+    /// Signed multiply overflow check over two cells.
     OverflowMulInt(OverflowCheck),
-    /// Unsigned multiply overflow check over two words.
+    /// Unsigned multiply overflow check over two cells.
     OverflowMulUint(OverflowCheck),
-    /// Signed divide or remainder overflow check over two words.
+    /// Signed divide or remainder overflow check over two cells.
     OverflowDivInt(OverflowCheck),
-    /// Unsigned divide or remainder overflow check over two words.
+    /// Unsigned divide or remainder overflow check over two cells.
     OverflowDivUint(OverflowCheck),
     /// Runtime type descriptor check.
     Type {
-        /// The descriptor word offset.
+        /// The descriptor cell offset.
         value: u32,
         /// The expected type id.
         expected: u32,
@@ -72,48 +72,48 @@ pub(crate) enum Check {
     Variant(VariantCheck),
 }
 
-/// Bounds check over index and length words.
+/// Bounds check over index and length cells.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct BoundsCheck {
-    /// The index word offset.
+    /// The index cell offset.
     pub(crate) index: u32,
-    /// The length word offset.
+    /// The length cell offset.
     pub(crate) length: u32,
 }
 
-/// Shift amount range check over one word.
+/// Shift amount range check over one cell.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ShiftRangeCheck {
-    /// The shift amount word offset.
+    /// The shift amount cell offset.
     pub(crate) value: u32,
     /// The shifted type bit width.
     pub(crate) bit_width: u8,
 }
 
-/// Integer narrowing check over one word.
+/// Integer narrowing check over one cell.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct NarrowCheck {
-    /// The value word offset.
+    /// The value cell offset.
     pub(crate) value: u32,
     /// The target bit width.
     pub(crate) to_width: u8,
 }
 
-/// Variant tag check over one word.
+/// Variant tag check over one cell.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct VariantCheck {
-    /// The tag word offset.
+    /// The tag cell offset.
     pub(crate) value: u32,
     /// The expected tag.
     pub(crate) expected: u64,
 }
 
-/// Two word inputs for one overflow check.
+/// Two cell inputs for one overflow check.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct OverflowCheck {
-    /// The left input word offset.
+    /// The left input cell offset.
     pub(crate) left: u32,
-    /// The right input word offset.
+    /// The right input cell offset.
     pub(crate) right: u32,
     /// The input bit width.
     pub(crate) width: u8,
@@ -197,7 +197,7 @@ pub(crate) struct TensorScatterId(pub(crate) u32);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct TensorLayoutId(pub(crate) u32);
 
-/// Record stored outside the fixed instruction words.
+/// Record stored outside the fixed instruction cells.
 pub(crate) trait SideRecord: Copy {
     /// Add one side record to the table.
     fn push(table: &mut SideTableBuilder, record: Self) -> u32;

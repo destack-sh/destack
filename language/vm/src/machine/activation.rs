@@ -20,11 +20,11 @@ pub(crate) struct Activation<'run> {
     /// Worker shared allocation cache for this execution.
     pub(crate) shared_cache: &'run mut AllocationCache,
     /// Index of the active frame in the machine stack.
-    pub(crate) active_frame_index: usize,
+    pub(crate) frame_index: usize,
     /// Native address of the active frame bytes.
-    pub(crate) active_frame_base: usize,
+    pub(crate) frame_base: usize,
     /// Active frame layout.
-    pub(crate) active_frame_layout: engine::FrameLayoutId,
+    pub(crate) frame_layout: engine::FrameLayoutId,
 }
 
 impl<'run> Activation<'run> {
@@ -44,9 +44,9 @@ impl<'run> Activation<'run> {
             shared,
             shared_gc,
             shared_cache,
-            active_frame_index: 0,
-            active_frame_base: 0,
-            active_frame_layout: engine::FrameLayoutId(0),
+            frame_index: 0,
+            frame_base: 0,
+            frame_layout: engine::FrameLayoutId(0),
         }
     }
 
@@ -65,9 +65,9 @@ impl<'run> Activation<'run> {
             .frame_layout_by_id(frame_layout)
             .ok_or(Error::invalid_instruction())?;
 
-        self.active_frame_index = frame_index;
-        self.active_frame_base = frame_base;
-        self.active_frame_layout = frame_layout;
+        self.frame_index = frame_index;
+        self.frame_base = frame_base;
+        self.frame_layout = frame_layout;
 
         Ok(())
     }

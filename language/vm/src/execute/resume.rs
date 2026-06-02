@@ -1,4 +1,4 @@
-use crate::Word;
+use crate::Cell;
 use destack_engine as engine;
 
 use super::frame::{FrameValue, store_frame_value};
@@ -9,8 +9,8 @@ use destack_mir as mir;
 
 /// Saved frame value used while binding parameters.
 enum SavedFrameValue {
-    /// One scalar word.
-    Word(Word),
+    /// One scalar cell.
+    Cell(Cell),
     /// One frame byte range.
     Bytes(Vec<u8>),
 }
@@ -33,13 +33,13 @@ fn bind_frame_parameters(
                 .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
             if source_slot.byte_len != destination_slot.byte_len
-                || source_slot.is_word != destination_slot.is_word
+                || source_slot.is_cell != destination_slot.is_cell
             {
                 return Err(RuntimeError::new(Error::invalid_instruction()));
             }
 
-            if destination_slot.is_word {
-                return Ok(SavedFrameValue::Word(frame.read_word(source_slot)));
+            if destination_slot.is_cell {
+                return Ok(SavedFrameValue::Cell(frame.read_cell(source_slot)));
             }
 
             Ok(SavedFrameValue::Bytes(
@@ -55,7 +55,7 @@ fn bind_frame_parameters(
             .ok_or_else(|| RuntimeError::new(Error::invalid_instruction()))?;
 
         match value {
-            SavedFrameValue::Word(word) => frame.write_word(destination_slot, word),
+            SavedFrameValue::Cell(cell) => frame.write_cell(destination_slot, cell),
             SavedFrameValue::Bytes(bytes) => {
                 frame
                     .slot_bytes_mut(destination_slot)

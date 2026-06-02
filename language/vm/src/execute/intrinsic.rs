@@ -4,10 +4,10 @@ use std::{ptr, slice};
 use destack_mir as mir;
 use smallvec::SmallVec;
 
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::{Error, RuntimeResult};
 use crate::program::{
-    ArgumentRange, Instruction, Intrinsic, IntrinsicDest, PointerClass, ValueLayout,
+    AddressSpace, ArgumentRange, Instruction, Intrinsic, IntrinsicDest, ValueShape,
 };
 
 use crate::machine::Activation;
@@ -15,9 +15,9 @@ use crate::machine::Activation;
 /// Intrinsic arguments decoded from one pooled argument range.
 struct IntrinsicArguments {
     /// Argument layouts.
-    layouts: SmallVec<[ValueLayout; 16]>,
-    /// Argument words.
-    words: SmallVec<[Word; 16]>,
+    layouts: SmallVec<[ValueShape; 16]>,
+    /// Argument cells.
+    cells: SmallVec<[Cell; 16]>,
 }
 
 /// Collect intrinsic arguments for one call.
@@ -25,24 +25,24 @@ struct IntrinsicArguments {
 fn load_intrinsic_arguments(
     activation: &mut Activation<'_>,
     arguments: ArgumentRange,
-    layouts: &[ValueLayout],
+    layouts: &[ValueShape],
 ) -> IntrinsicArguments {
     let argument_slice = activation.argument_slice(arguments);
     debug_assert_eq!(argument_slice.len(), layouts.len());
 
     let mut stored_layouts = SmallVec::with_capacity(argument_slice.len());
-    let mut words = SmallVec::with_capacity(argument_slice.len());
+    let mut cells = SmallVec::with_capacity(argument_slice.len());
 
     for (argument, layout) in argument_slice.iter().zip(layouts) {
-        let word = activation.load_value(*argument);
+        let cell = activation.load_value(*argument);
 
         stored_layouts.push(*layout);
-        words.push(word);
+        cells.push(cell);
     }
 
     IntrinsicArguments {
         layouts: stored_layouts,
-        words,
+        cells,
     }
 }
 
@@ -50,18 +50,18 @@ fn load_intrinsic_arguments(
 fn finish_intrinsic_result(
     activation: &mut Activation<'_>,
     dest: IntrinsicDest,
-    result: RuntimeResult<Word>,
+    result: RuntimeResult<Cell>,
 ) -> Result<(), Error> {
     match result {
         Ok(result) => {
             match dest {
                 IntrinsicDest::None => {}
-                IntrinsicDest::Word(offset) => activation.store_word_at(offset, result),
+                IntrinsicDest::Cell(offset) => activation.store_cell_at(offset, result),
                 IntrinsicDest::Frame(value) => {
-                    if result != Word::VOID {
+                    if result != Cell::ZERO {
                         return Err(Error::type_mismatch(
                             "frame intrinsic result",
-                            format!("word result for {value:?}"),
+                            format!("cell result for {value:?}"),
                         ));
                     }
                 }
@@ -83,34 +83,34 @@ fn require_frame_dest(
         IntrinsicDest::None => Err(activation
             .machine
             .runtime_error(Error::invalid_program("intrinsic destination"))),
-        IntrinsicDest::Word(offset) => Err(activation.machine.runtime_error(Error::type_mismatch(
+        IntrinsicDest::Cell(offset) => Err(activation.machine.runtime_error(Error::type_mismatch(
             "frame intrinsic destination",
-            format!("word offset: {offset}"),
+            format!("cell offset: {offset}"),
         ))),
     }
 }
 
 /// Return the destination for an intrinsic that must not produce a frame value.
-fn require_word_dest(
+fn require_cell_dest(
     activation: &Activation<'_>,
     dest: IntrinsicDest,
 ) -> RuntimeResult<IntrinsicDest> {
     match dest {
-        IntrinsicDest::None | IntrinsicDest::Word(_) => Ok(dest),
+        IntrinsicDest::None | IntrinsicDest::Cell(_) => Ok(dest),
         IntrinsicDest::Frame(value) => Err(activation.machine.runtime_error(Error::type_mismatch(
-            "word intrinsic destination",
+            "cell intrinsic destination",
             format!("frame-backed value: {value:?}"),
         ))),
     }
 }
 
-/// Finish one word intrinsic result.
-fn finish_word_intrinsic_result(
+/// Finish one cell intrinsic result.
+fn finish_cell_intrinsic_result(
     activation: &mut Activation<'_>,
     dest: IntrinsicDest,
-    result: RuntimeResult<Word>,
+    result: RuntimeResult<Cell>,
 ) -> Result<(), Error> {
-    let dest = match require_word_dest(activation, dest) {
+    let dest = match require_cell_dest(activation, dest) {
         Ok(dest) => dest,
         Err(error) => return Err(error.error),
     };
@@ -122,12 +122,12 @@ fn finish_word_intrinsic_result(
 fn finish_frame_intrinsic_result(
     activation: &mut Activation<'_>,
     dest: IntrinsicDest,
-    result: RuntimeResult<Word>,
+    result: RuntimeResult<Cell>,
 ) -> Result<(), Error> {
     finish_intrinsic_result(activation, dest, result)
 }
 
-macro_rules! word_intrinsic {
+macro_rules! cell_intrinsic {
     ($(#[$doc:meta])* $function:ident, $method:ident) => {
         $(#[$doc])*
         pub(crate) fn $function(
@@ -140,9 +140,9 @@ macro_rules! word_intrinsic {
                 intrinsic.arguments,
                 intrinsic.layouts(),
             );
-            let result = activation.$method(arguments.layouts.as_slice(), arguments.words.as_slice());
+            let result = activation.$method(arguments.layouts.as_slice(), arguments.cells.as_slice());
 
-            finish_word_intrinsic_result(activation, intrinsic.dest, result)
+            finish_cell_intrinsic_result(activation, intrinsic.dest, result)
         }
     };
 }
@@ -167,7 +167,7 @@ macro_rules! destination_intrinsic {
             let result = activation.$method(
                 destination,
                 arguments.layouts.as_slice(),
-                arguments.words.as_slice(),
+                arguments.cells.as_slice(),
             );
 
             finish_frame_intrinsic_result(activation, intrinsic.dest, result)
@@ -175,37 +175,37 @@ macro_rules! destination_intrinsic {
     };
 }
 
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute leading zero count.
     execute_intrinsic_leading_zero_count,
     leading_zero_count
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute trailing zero count.
     execute_intrinsic_trailing_zero_count,
     trailing_zero_count
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute population count.
     execute_intrinsic_population_count,
     population_count
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute byte swap.
     execute_intrinsic_byte_swap,
     byte_swap
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute bit reverse.
     execute_intrinsic_bit_reverse,
     bit_reverse
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute rotate left.
     execute_intrinsic_rotate_left,
     rotate_left
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute rotate right.
     execute_intrinsic_rotate_right,
     rotate_right
@@ -225,237 +225,237 @@ destination_intrinsic!(
     execute_intrinsic_mul_overflow,
     mul_overflow
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute unchecked addition.
     execute_intrinsic_add_unchecked,
     add_unchecked
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute unchecked subtraction.
     execute_intrinsic_sub_unchecked,
     sub_unchecked
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute unchecked multiplication.
     execute_intrinsic_mul_unchecked,
     mul_unchecked
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute unchecked division.
     execute_intrinsic_div_unchecked,
     div_unchecked
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute unchecked remainder.
     execute_intrinsic_rem_unchecked,
     rem_unchecked
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute unchecked left shift.
     execute_intrinsic_shl_unchecked,
     shl_unchecked
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute unchecked right shift.
     execute_intrinsic_shr_unchecked,
     shr_unchecked
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute saturating addition.
     execute_intrinsic_sat_add,
     sat_add
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute saturating subtraction.
     execute_intrinsic_sat_sub,
     sat_sub
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute raw memory copy.
     execute_intrinsic_memcpy,
     memcpy
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute raw memory move.
     execute_intrinsic_memmove,
     memmove
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute raw memory fill.
     execute_intrinsic_memset,
     memset
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute raw memory comparison.
     execute_intrinsic_memcmp,
     memcmp
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute read prefetch hint.
     execute_intrinsic_prefetch_read,
     prefetch_read
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute write prefetch hint.
     execute_intrinsic_prefetch_write,
     prefetch_write
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute transmute.
     execute_intrinsic_transmute,
     transmute
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute space cast.
     execute_intrinsic_space_cast,
     space_cast
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute raw pointer offset.
     execute_intrinsic_pointer_offset_from,
     ptr_offset_from
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute raw equality.
     execute_intrinsic_raw_eq,
     raw_eq
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute square root.
     execute_intrinsic_sqrt,
     sqrt
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute absolute value.
     execute_intrinsic_abs,
     abs
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute fused multiply-add.
     execute_intrinsic_fma,
     fma
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute sign copy.
     execute_intrinsic_copy_sign,
     copy_sign
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute minimum.
     execute_intrinsic_min,
     min
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute maximum.
     execute_intrinsic_max,
     max
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute sine.
     execute_intrinsic_sin,
     sin
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute cosine.
     execute_intrinsic_cos,
     cos
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute tangent.
     execute_intrinsic_tan,
     tan
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute arc sine.
     execute_intrinsic_asin,
     asin
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute arc cosine.
     execute_intrinsic_acos,
     acos
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute arc tangent.
     execute_intrinsic_atan,
     atan
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute two-argument arc tangent.
     execute_intrinsic_atan2,
     atan2
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute natural exponent.
     execute_intrinsic_exp,
     exp
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute base-two exponent.
     execute_intrinsic_exp2,
     exp2
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute natural logarithm.
     execute_intrinsic_log,
     log
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute base-two logarithm.
     execute_intrinsic_log2,
     log2
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute base-ten logarithm.
     execute_intrinsic_log10,
     log10
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute power.
     execute_intrinsic_pow,
     pow
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute floor.
     execute_intrinsic_floor,
     floor
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute ceiling.
     execute_intrinsic_ceil,
     ceil
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute truncation.
     execute_intrinsic_trunc,
     trunc
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute rounding.
     execute_intrinsic_round,
     round
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute breakpoint.
     execute_intrinsic_breakpoint,
     breakpoint
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute return address load.
     execute_intrinsic_return_address,
     return_address_intrinsic
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute frame address load.
     execute_intrinsic_frame_address,
     frame_address_intrinsic
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute expected value hint.
     execute_intrinsic_expect,
     expect
 );
-word_intrinsic!(
+cell_intrinsic!(
     /// Execute black box.
     execute_intrinsic_black_box,
     black_box
@@ -545,25 +545,25 @@ impl Activation<'_> {
     fn store_pair(
         &mut self,
         destination: mir::Value,
-        first: Word,
-        second: Word,
-    ) -> RuntimeResult<Word> {
+        first: Cell,
+        second: Cell,
+    ) -> RuntimeResult<Cell> {
         super::frame::store_frame_fields(self, destination, |_machine, index, _ty| match index {
             0 => Ok(first),
             1 => Ok(second),
             _ => Err(Error::invalid_instruction()),
         })?;
 
-        Ok(Word::VOID)
+        Ok(Cell::ZERO)
     }
 
     /// Return one intrinsic argument value.
     fn intrinsic_value<'a>(
         &self,
         intrinsic: mir::Intrinsic,
-        args: &'a [Word],
+        args: &'a [Cell],
         index: usize,
-    ) -> RuntimeResult<&'a Word> {
+    ) -> RuntimeResult<&'a Cell> {
         args.get(index).ok_or_else(|| {
             self.machine
                 .runtime_error(Error::invalid_intrinsic_arguments(
@@ -576,9 +576,9 @@ impl Activation<'_> {
     fn intrinsic_layout(
         &self,
         intrinsic: mir::Intrinsic,
-        layouts: &[ValueLayout],
+        layouts: &[ValueShape],
         index: usize,
-    ) -> RuntimeResult<ValueLayout> {
+    ) -> RuntimeResult<ValueShape> {
         layouts.get(index).copied().ok_or_else(|| {
             self.machine
                 .runtime_error(Error::invalid_intrinsic_arguments(
@@ -591,19 +591,19 @@ impl Activation<'_> {
     fn integer_argument(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueLayout],
-        args: &[Word],
+        arguments: &[ValueShape],
+        args: &[Cell],
         index: usize,
-    ) -> RuntimeResult<(Word, u8, bool)> {
+    ) -> RuntimeResult<(Cell, u8, bool)> {
         let value = *self.intrinsic_value(intrinsic, args, index)?;
         let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
 
         match layout {
-            ValueLayout::Int { width, signed } if width <= Word::BIT_LEN as u16 => {
+            ValueShape::Int { width, signed } if width <= Cell::BIT_LEN as u16 => {
                 Ok((value, width as u8, signed))
             }
             _ => Err(self.machine.runtime_error(Error::type_mismatch(
-                "word-sized integer",
+                "cell-sized integer",
                 format!("{layout:?}"),
             ))),
         }
@@ -613,9 +613,9 @@ impl Activation<'_> {
     fn integer_pair(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueLayout],
-        args: &[Word],
-    ) -> RuntimeResult<(Word, Word, u8, bool)> {
+        arguments: &[ValueShape],
+        args: &[Cell],
+    ) -> RuntimeResult<(Cell, Cell, u8, bool)> {
         let (left, width, signed) = self.integer_argument(intrinsic, arguments, args, 0)?;
         let (right, right_width, right_signed) =
             self.integer_argument(intrinsic, arguments, args, 1)?;
@@ -634,19 +634,19 @@ impl Activation<'_> {
     fn float_argument(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueLayout],
-        args: &[Word],
+        arguments: &[ValueShape],
+        args: &[Cell],
         index: usize,
-    ) -> RuntimeResult<(Word, u8)> {
+    ) -> RuntimeResult<(Cell, u8)> {
         let value = *self.intrinsic_value(intrinsic, args, index)?;
         let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
 
         match layout {
-            ValueLayout::Float { format } if format.width() <= Word::BIT_LEN as u16 => {
+            ValueShape::Float { format } if format.width() <= Cell::BIT_LEN as u16 => {
                 Ok((value, format.width() as u8))
             }
             _ => Err(self.machine.runtime_error(Error::type_mismatch(
-                "word-sized float",
+                "cell-sized float",
                 format!("{layout:?}"),
             ))),
         }
@@ -656,9 +656,9 @@ impl Activation<'_> {
     fn float_pair(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueLayout],
-        args: &[Word],
-    ) -> RuntimeResult<(Word, Word, u8)> {
+        arguments: &[ValueShape],
+        args: &[Cell],
+    ) -> RuntimeResult<(Cell, Cell, u8)> {
         let (left, width) = self.float_argument(intrinsic, arguments, args, 0)?;
         let (right, right_width) = self.float_argument(intrinsic, arguments, args, 1)?;
 
@@ -676,16 +676,16 @@ impl Activation<'_> {
     fn raw_address_argument(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueLayout],
-        args: &[Word],
+        arguments: &[ValueShape],
+        args: &[Cell],
         index: usize,
     ) -> RuntimeResult<usize> {
         let value = *self.intrinsic_value(intrinsic, args, index)?;
         let layout = self.intrinsic_layout(intrinsic, arguments, index)?;
 
         match layout {
-            ValueLayout::Pointer {
-                pointer_class: PointerClass::Address,
+            ValueShape::Pointer {
+                address_space: AddressSpace::Raw,
                 ..
             } => Ok(value.as_address()),
             _ => Err(self
@@ -698,10 +698,10 @@ impl Activation<'_> {
     fn byte_count_argument(
         &self,
         intrinsic: mir::Intrinsic,
-        args: &[Word],
+        args: &[Cell],
         index: usize,
     ) -> RuntimeResult<usize> {
-        let value = self.intrinsic_value(intrinsic, args, index)?.as_uint();
+        let value = self.intrinsic_value(intrinsic, args, index)?.as_u64();
 
         usize::try_from(value).map_err(|_| {
             self.machine
@@ -712,7 +712,7 @@ impl Activation<'_> {
     }
 
     /// Return the first passthrough argument.
-    fn first_argument(&self, intrinsic: mir::Intrinsic, args: &[Word]) -> RuntimeResult<Word> {
+    fn first_argument(&self, intrinsic: mir::Intrinsic, args: &[Cell]) -> RuntimeResult<Cell> {
         args.first().copied().ok_or_else(|| {
             self.machine
                 .runtime_error(Error::invalid_intrinsic_arguments(
@@ -724,66 +724,66 @@ impl Activation<'_> {
     // bit manipulation
 
     /// Count leading zeros.
-    fn leading_zero_count(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn leading_zero_count(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::LeadingZeroCount, arguments, args, 0)?;
         let count = if signed {
             match width {
-                8 => (arg.as_int() as i8).leading_zeros(),
-                16 => (arg.as_int() as i16).leading_zeros(),
-                32 => (arg.as_int() as i32).leading_zeros(),
-                _ => arg.as_int().leading_zeros(),
+                8 => (arg.as_i64() as i8).leading_zeros(),
+                16 => (arg.as_i64() as i16).leading_zeros(),
+                32 => (arg.as_i64() as i32).leading_zeros(),
+                _ => arg.as_i64().leading_zeros(),
             }
         } else {
             match width {
-                8 => (arg.as_uint() as u8).leading_zeros(),
-                16 => (arg.as_uint() as u16).leading_zeros(),
-                32 => (arg.as_uint() as u32).leading_zeros(),
-                _ => arg.as_uint().leading_zeros(),
+                8 => (arg.as_u64() as u8).leading_zeros(),
+                16 => (arg.as_u64() as u16).leading_zeros(),
+                32 => (arg.as_u64() as u32).leading_zeros(),
+                _ => arg.as_u64().leading_zeros(),
             }
         };
 
-        Ok(Word::uint(count as u64, width))
+        Ok(Cell::uint(count as u64, width))
     }
 
     /// Count trailing zeros.
-    fn trailing_zero_count(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn trailing_zero_count(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::TrailingZeroCount, arguments, args, 0)?;
         let count = if signed {
             match width {
-                8 => (arg.as_int() as i8).trailing_zeros(),
-                16 => (arg.as_int() as i16).trailing_zeros(),
-                32 => (arg.as_int() as i32).trailing_zeros(),
-                _ => arg.as_int().trailing_zeros(),
+                8 => (arg.as_i64() as i8).trailing_zeros(),
+                16 => (arg.as_i64() as i16).trailing_zeros(),
+                32 => (arg.as_i64() as i32).trailing_zeros(),
+                _ => arg.as_i64().trailing_zeros(),
             }
         } else {
             match width {
-                8 => (arg.as_uint() as u8).trailing_zeros(),
-                16 => (arg.as_uint() as u16).trailing_zeros(),
-                32 => (arg.as_uint() as u32).trailing_zeros(),
-                _ => arg.as_uint().trailing_zeros(),
+                8 => (arg.as_u64() as u8).trailing_zeros(),
+                16 => (arg.as_u64() as u16).trailing_zeros(),
+                32 => (arg.as_u64() as u32).trailing_zeros(),
+                _ => arg.as_u64().trailing_zeros(),
             }
         };
 
-        Ok(Word::uint(count as u64, width))
+        Ok(Cell::uint(count as u64, width))
     }
 
     /// Count set bits (population count).
-    fn population_count(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn population_count(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, _) =
             self.integer_argument(mir::Intrinsic::PopulationCount, arguments, args, 0)?;
 
-        Ok(Word::uint(arg.as_uint().count_ones() as u64, width))
+        Ok(Cell::uint(arg.as_u64().count_ones() as u64, width))
     }
 
     /// Reverse byte order (endianness swap).
-    fn byte_swap(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn byte_swap(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::ByteSwap, arguments, args, 0)?;
 
         if signed {
-            let value = arg.as_int();
+            let value = arg.as_i64();
             let swapped = match width {
                 16 => (value as i16).swap_bytes() as i64,
                 32 => (value as i32).swap_bytes() as i64,
@@ -791,10 +791,10 @@ impl Activation<'_> {
                 _ => value,
             };
 
-            return Ok(Word::int(swapped, width));
+            return Ok(Cell::int(swapped, width));
         }
 
-        let value = arg.as_uint();
+        let value = arg.as_u64();
         let swapped = match width {
             16 => (value as u16).swap_bytes() as u64,
             32 => (value as u32).swap_bytes() as u64,
@@ -802,16 +802,16 @@ impl Activation<'_> {
             _ => value,
         };
 
-        Ok(Word::uint(swapped, width))
+        Ok(Cell::uint(swapped, width))
     }
 
     /// Reverse all bits in an integer.
-    fn bit_reverse(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn bit_reverse(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::BitReverse, arguments, args, 0)?;
 
         if signed {
-            let value = arg.as_int();
+            let value = arg.as_i64();
             let reversed = match width {
                 8 => (value as i8).reverse_bits() as i64,
                 16 => (value as i16).reverse_bits() as i64,
@@ -820,10 +820,10 @@ impl Activation<'_> {
                 _ => value,
             };
 
-            return Ok(Word::int(reversed, width));
+            return Ok(Cell::int(reversed, width));
         }
 
-        let value = arg.as_uint();
+        let value = arg.as_u64();
         let reversed = match width {
             8 => (value as u8).reverse_bits() as u64,
             16 => (value as u16).reverse_bits() as u64,
@@ -832,17 +832,17 @@ impl Activation<'_> {
             _ => value,
         };
 
-        Ok(Word::uint(reversed, width))
+        Ok(Cell::uint(reversed, width))
     }
 
     /// Rotate bits left.
-    fn rotate_left(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn rotate_left(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::RotateLeft, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::RotateLeft, args, 1)? as u32;
 
         if signed {
-            let value = arg.as_int();
+            let value = arg.as_i64();
             let rotated = match width {
                 8 => (value as u8).rotate_left(amount) as i64,
                 16 => (value as u16).rotate_left(amount) as i64,
@@ -851,10 +851,10 @@ impl Activation<'_> {
                 _ => value,
             };
 
-            return Ok(Word::int(rotated, width));
+            return Ok(Cell::int(rotated, width));
         }
 
-        let value = arg.as_uint();
+        let value = arg.as_u64();
         let rotated = match width {
             8 => (value as u8).rotate_left(amount) as u64,
             16 => (value as u16).rotate_left(amount) as u64,
@@ -863,17 +863,17 @@ impl Activation<'_> {
             _ => value,
         };
 
-        Ok(Word::uint(rotated, width))
+        Ok(Cell::uint(rotated, width))
     }
 
     /// Rotate bits right.
-    fn rotate_right(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn rotate_right(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::RotateRight, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::RotateRight, args, 1)? as u32;
 
         if signed {
-            let value = arg.as_int();
+            let value = arg.as_i64();
             let rotated = match width {
                 8 => (value as u8).rotate_right(amount) as i64,
                 16 => (value as u16).rotate_right(amount) as i64,
@@ -882,10 +882,10 @@ impl Activation<'_> {
                 _ => value,
             };
 
-            return Ok(Word::int(rotated, width));
+            return Ok(Cell::int(rotated, width));
         }
 
-        let value = arg.as_uint();
+        let value = arg.as_u64();
         let rotated = match width {
             8 => (value as u8).rotate_right(amount) as u64,
             16 => (value as u16).rotate_right(amount) as u64,
@@ -894,7 +894,7 @@ impl Activation<'_> {
             _ => value,
         };
 
-        Ok(Word::uint(rotated, width))
+        Ok(Cell::uint(rotated, width))
     }
 
     // overflowing arithmetic
@@ -904,15 +904,15 @@ impl Activation<'_> {
     fn add_overflow(
         &mut self,
         destination: mir::Value,
-        arguments: &[ValueLayout],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+        arguments: &[ValueShape],
+        args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::AddOverflow, arguments, args)?;
 
         if signed {
-            let a = left.as_int();
-            let b = right.as_int();
+            let a = left.as_i64();
+            let b = right.as_i64();
             let (result, overflow) = match width {
                 8 => {
                     let (result, overflow) = (a as i8).overflowing_add(b as i8);
@@ -929,11 +929,11 @@ impl Activation<'_> {
                 _ => a.overflowing_add(b),
             };
 
-            return self.store_pair(destination, Word::int(result, width), Word::bool(overflow));
+            return self.store_pair(destination, Cell::int(result, width), Cell::bool(overflow));
         }
 
-        let a = left.as_uint();
-        let b = right.as_uint();
+        let a = left.as_u64();
+        let b = right.as_u64();
         let (result, overflow) = match width {
             8 => {
                 let (result, overflow) = (a as u8).overflowing_add(b as u8);
@@ -950,7 +950,7 @@ impl Activation<'_> {
             _ => a.overflowing_add(b),
         };
 
-        self.store_pair(destination, Word::uint(result, width), Word::bool(overflow))
+        self.store_pair(destination, Cell::uint(result, width), Cell::bool(overflow))
     }
 
     /// Subtract with overflow detection.
@@ -958,15 +958,15 @@ impl Activation<'_> {
     fn sub_overflow(
         &mut self,
         destination: mir::Value,
-        arguments: &[ValueLayout],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+        arguments: &[ValueShape],
+        args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SubOverflow, arguments, args)?;
 
         if signed {
-            let a = left.as_int();
-            let b = right.as_int();
+            let a = left.as_i64();
+            let b = right.as_i64();
             let (result, overflow) = match width {
                 8 => {
                     let (result, overflow) = (a as i8).overflowing_sub(b as i8);
@@ -983,11 +983,11 @@ impl Activation<'_> {
                 _ => a.overflowing_sub(b),
             };
 
-            return self.store_pair(destination, Word::int(result, width), Word::bool(overflow));
+            return self.store_pair(destination, Cell::int(result, width), Cell::bool(overflow));
         }
 
-        let a = left.as_uint();
-        let b = right.as_uint();
+        let a = left.as_u64();
+        let b = right.as_u64();
         let (result, overflow) = match width {
             8 => {
                 let (result, overflow) = (a as u8).overflowing_sub(b as u8);
@@ -1004,7 +1004,7 @@ impl Activation<'_> {
             _ => a.overflowing_sub(b),
         };
 
-        self.store_pair(destination, Word::uint(result, width), Word::bool(overflow))
+        self.store_pair(destination, Cell::uint(result, width), Cell::bool(overflow))
     }
 
     /// Multiply with overflow detection.
@@ -1012,15 +1012,15 @@ impl Activation<'_> {
     fn mul_overflow(
         &mut self,
         destination: mir::Value,
-        arguments: &[ValueLayout],
-        args: &[Word],
-    ) -> RuntimeResult<Word> {
+        arguments: &[ValueShape],
+        args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::MulOverflow, arguments, args)?;
 
         if signed {
-            let a = left.as_int();
-            let b = right.as_int();
+            let a = left.as_i64();
+            let b = right.as_i64();
             let (result, overflow) = match width {
                 8 => {
                     let (result, overflow) = (a as i8).overflowing_mul(b as i8);
@@ -1037,11 +1037,11 @@ impl Activation<'_> {
                 _ => a.overflowing_mul(b),
             };
 
-            return self.store_pair(destination, Word::int(result, width), Word::bool(overflow));
+            return self.store_pair(destination, Cell::int(result, width), Cell::bool(overflow));
         }
 
-        let a = left.as_uint();
-        let b = right.as_uint();
+        let a = left.as_u64();
+        let b = right.as_u64();
         let (result, overflow) = match width {
             8 => {
                 let (result, overflow) = (a as u8).overflowing_mul(b as u8);
@@ -1058,138 +1058,138 @@ impl Activation<'_> {
             _ => a.overflowing_mul(b),
         };
 
-        self.store_pair(destination, Word::uint(result, width), Word::bool(overflow))
+        self.store_pair(destination, Cell::uint(result, width), Cell::bool(overflow))
     }
 
     // unchecked arithmetic
 
     /// Add without overflow checking (wrapping).
-    fn add_unchecked(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn add_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::AddUnchecked, arguments, args)?;
 
         if signed {
-            return Ok(Word::int(left.as_int().wrapping_add(right.as_int()), width));
+            return Ok(Cell::int(left.as_i64().wrapping_add(right.as_i64()), width));
         }
 
-        Ok(Word::uint(
-            left.as_uint().wrapping_add(right.as_uint()),
+        Ok(Cell::uint(
+            left.as_u64().wrapping_add(right.as_u64()),
             width,
         ))
     }
 
     /// Subtract without overflow checking (wrapping).
-    fn sub_unchecked(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn sub_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SubUnchecked, arguments, args)?;
 
         if signed {
-            return Ok(Word::int(left.as_int().wrapping_sub(right.as_int()), width));
+            return Ok(Cell::int(left.as_i64().wrapping_sub(right.as_i64()), width));
         }
 
-        Ok(Word::uint(
-            left.as_uint().wrapping_sub(right.as_uint()),
+        Ok(Cell::uint(
+            left.as_u64().wrapping_sub(right.as_u64()),
             width,
         ))
     }
 
     /// Multiply without overflow checking (wrapping).
-    fn mul_unchecked(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn mul_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::MulUnchecked, arguments, args)?;
 
         if signed {
-            return Ok(Word::int(left.as_int().wrapping_mul(right.as_int()), width));
+            return Ok(Cell::int(left.as_i64().wrapping_mul(right.as_i64()), width));
         }
 
-        Ok(Word::uint(
-            left.as_uint().wrapping_mul(right.as_uint()),
+        Ok(Cell::uint(
+            left.as_u64().wrapping_mul(right.as_u64()),
             width,
         ))
     }
 
     /// Divide without overflow checking.
-    fn div_unchecked(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn div_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::DivUnchecked, arguments, args)?;
 
         if signed {
-            if right.as_int() == 0 {
+            if right.as_i64() == 0 {
                 return Err(self.machine.runtime_error(Error::division_by_zero()));
             }
 
-            return Ok(Word::int(left.as_int().wrapping_div(right.as_int()), width));
+            return Ok(Cell::int(left.as_i64().wrapping_div(right.as_i64()), width));
         }
 
-        if right.as_uint() == 0 {
+        if right.as_u64() == 0 {
             return Err(self.machine.runtime_error(Error::division_by_zero()));
         }
 
-        Ok(Word::uint(
-            left.as_uint().wrapping_div(right.as_uint()),
+        Ok(Cell::uint(
+            left.as_u64().wrapping_div(right.as_u64()),
             width,
         ))
     }
 
     /// Remainder without overflow checking.
-    fn rem_unchecked(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn rem_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::RemUnchecked, arguments, args)?;
 
         if signed {
-            if right.as_int() == 0 {
+            if right.as_i64() == 0 {
                 return Err(self.machine.runtime_error(Error::division_by_zero()));
             }
 
-            return Ok(Word::int(left.as_int().wrapping_rem(right.as_int()), width));
+            return Ok(Cell::int(left.as_i64().wrapping_rem(right.as_i64()), width));
         }
 
-        if right.as_uint() == 0 {
+        if right.as_u64() == 0 {
             return Err(self.machine.runtime_error(Error::division_by_zero()));
         }
 
-        Ok(Word::uint(
-            left.as_uint().wrapping_rem(right.as_uint()),
+        Ok(Cell::uint(
+            left.as_u64().wrapping_rem(right.as_u64()),
             width,
         ))
     }
 
     /// Shift left without overflow checking.
-    fn shl_unchecked(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn shl_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::ShlUnchecked, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::ShlUnchecked, args, 1)? as u32;
 
         if signed {
-            return Ok(Word::int(arg.as_int().wrapping_shl(amount), width));
+            return Ok(Cell::int(arg.as_i64().wrapping_shl(amount), width));
         }
 
-        Ok(Word::uint(arg.as_uint().wrapping_shl(amount), width))
+        Ok(Cell::uint(arg.as_u64().wrapping_shl(amount), width))
     }
 
     /// Shift right without overflow checking.
-    fn shr_unchecked(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn shr_unchecked(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (arg, width, signed) =
             self.integer_argument(mir::Intrinsic::ShrUnchecked, arguments, args, 0)?;
         let amount = self.byte_count_argument(mir::Intrinsic::ShrUnchecked, args, 1)? as u32;
 
         if signed {
-            return Ok(Word::int(arg.as_int().wrapping_shr(amount), width));
+            return Ok(Cell::int(arg.as_i64().wrapping_shr(amount), width));
         }
 
-        Ok(Word::uint(arg.as_uint().wrapping_shr(amount), width))
+        Ok(Cell::uint(arg.as_u64().wrapping_shr(amount), width))
     }
 
     // saturating arithmetic
 
     /// Saturating addition.
-    fn sat_add(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn sat_add(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SatAdd, arguments, args)?;
 
         if signed {
-            let a = left.as_int();
-            let b = right.as_int();
+            let a = left.as_i64();
+            let b = right.as_i64();
             let result = match width {
                 8 => (a as i8).saturating_add(b as i8) as i64,
                 16 => (a as i16).saturating_add(b as i16) as i64,
@@ -1197,11 +1197,11 @@ impl Activation<'_> {
                 _ => a.saturating_add(b),
             };
 
-            return Ok(Word::int(result, width));
+            return Ok(Cell::int(result, width));
         }
 
-        let a = left.as_uint();
-        let b = right.as_uint();
+        let a = left.as_u64();
+        let b = right.as_u64();
         let result = match width {
             8 => (a as u8).saturating_add(b as u8) as u64,
             16 => (a as u16).saturating_add(b as u16) as u64,
@@ -1209,17 +1209,17 @@ impl Activation<'_> {
             _ => a.saturating_add(b),
         };
 
-        Ok(Word::uint(result, width))
+        Ok(Cell::uint(result, width))
     }
 
     /// Saturating subtraction.
-    fn sat_sub(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn sat_sub(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, right, width, signed) =
             self.integer_pair(mir::Intrinsic::SatSub, arguments, args)?;
 
         if signed {
-            let a = left.as_int();
-            let b = right.as_int();
+            let a = left.as_i64();
+            let b = right.as_i64();
             let result = match width {
                 8 => (a as i8).saturating_sub(b as i8) as i64,
                 16 => (a as i16).saturating_sub(b as i16) as i64,
@@ -1227,11 +1227,11 @@ impl Activation<'_> {
                 _ => a.saturating_sub(b),
             };
 
-            return Ok(Word::int(result, width));
+            return Ok(Cell::int(result, width));
         }
 
-        let a = left.as_uint();
-        let b = right.as_uint();
+        let a = left.as_u64();
+        let b = right.as_u64();
         let result = match width {
             8 => (a as u8).saturating_sub(b as u8) as u64,
             16 => (a as u16).saturating_sub(b as u16) as u64,
@@ -1239,7 +1239,7 @@ impl Activation<'_> {
             _ => a.saturating_sub(b),
         };
 
-        Ok(Word::uint(result, width))
+        Ok(Cell::uint(result, width))
     }
 
     // float math helpers
@@ -1248,28 +1248,28 @@ impl Activation<'_> {
     fn float_unary(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueLayout],
-        args: &[Word],
+        arguments: &[ValueShape],
+        args: &[Cell],
         f64_op: fn(f64) -> f64,
         f32_op: fn(f32) -> f32,
-    ) -> RuntimeResult<Word> {
+    ) -> RuntimeResult<Cell> {
         let layout = self.intrinsic_layout(intrinsic, arguments, 0)?;
 
         if matches!(intrinsic, mir::Intrinsic::Abs)
-            && let ValueLayout::Int {
+            && let ValueShape::Int {
                 width,
                 signed: true,
             } = layout
         {
-            let value = self.intrinsic_value(intrinsic, args, 0)?.as_int();
+            let value = self.intrinsic_value(intrinsic, args, 0)?.as_i64();
 
-            return Ok(Word::int(value.abs(), width as u8));
+            return Ok(Cell::int(value.abs(), width as u8));
         }
 
         let (arg, width) = self.float_argument(intrinsic, arguments, args, 0)?;
         match width {
-            32 => Ok(Word::float32(f32_op(arg.as_float32()))),
-            _ => Ok(Word::float64(f64_op(arg.as_float64()))),
+            32 => Ok(Cell::float32(f32_op(arg.as_f32()))),
+            _ => Ok(Cell::float64(f64_op(arg.as_f64()))),
         }
     }
 
@@ -1277,81 +1277,81 @@ impl Activation<'_> {
     fn float_binary(
         &self,
         intrinsic: mir::Intrinsic,
-        arguments: &[ValueLayout],
-        args: &[Word],
+        arguments: &[ValueShape],
+        args: &[Cell],
         f64_op: fn(f64, f64) -> f64,
         f32_op: fn(f32, f32) -> f32,
-    ) -> RuntimeResult<Word> {
+    ) -> RuntimeResult<Cell> {
         let (left, right, width) = self.float_pair(intrinsic, arguments, args)?;
 
         match width {
-            32 => Ok(Word::float32(f32_op(left.as_float32(), right.as_float32()))),
-            _ => Ok(Word::float64(f64_op(left.as_float64(), right.as_float64()))),
+            32 => Ok(Cell::float32(f32_op(left.as_f32(), right.as_f32()))),
+            _ => Ok(Cell::float64(f64_op(left.as_f64(), right.as_f64()))),
         }
     }
 
     /// Evaluate square root.
-    fn sqrt(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn sqrt(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Sqrt, arguments, args, f64::sqrt, f32::sqrt)
     }
 
     /// Evaluate absolute value.
-    fn abs(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn abs(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Abs, arguments, args, f64::abs, f32::abs)
     }
 
     /// Evaluate sine.
-    fn sin(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn sin(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Sin, arguments, args, f64::sin, f32::sin)
     }
 
     /// Evaluate cosine.
-    fn cos(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn cos(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Cos, arguments, args, f64::cos, f32::cos)
     }
 
     /// Evaluate tangent.
-    fn tan(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn tan(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Tan, arguments, args, f64::tan, f32::tan)
     }
 
     /// Evaluate arc sine.
-    fn asin(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn asin(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Asin, arguments, args, f64::asin, f32::asin)
     }
 
     /// Evaluate arc cosine.
-    fn acos(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn acos(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Acos, arguments, args, f64::acos, f32::acos)
     }
 
     /// Evaluate arc tangent.
-    fn atan(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn atan(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Atan, arguments, args, f64::atan, f32::atan)
     }
 
     /// Evaluate natural exponent.
-    fn exp(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn exp(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Exp, arguments, args, f64::exp, f32::exp)
     }
 
     /// Evaluate base-two exponent.
-    fn exp2(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn exp2(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Exp2, arguments, args, f64::exp2, f32::exp2)
     }
 
     /// Evaluate natural logarithm.
-    fn log(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn log(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Log, arguments, args, f64::ln, f32::ln)
     }
 
     /// Evaluate base-two logarithm.
-    fn log2(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn log2(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Log2, arguments, args, f64::log2, f32::log2)
     }
 
     /// Evaluate base-ten logarithm.
-    fn log10(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn log10(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(
             mir::Intrinsic::Log10,
             arguments,
@@ -1362,7 +1362,7 @@ impl Activation<'_> {
     }
 
     /// Evaluate floor.
-    fn floor(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn floor(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(
             mir::Intrinsic::Floor,
             arguments,
@@ -1373,12 +1373,12 @@ impl Activation<'_> {
     }
 
     /// Evaluate ceiling.
-    fn ceil(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn ceil(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(mir::Intrinsic::Ceil, arguments, args, f64::ceil, f32::ceil)
     }
 
     /// Evaluate truncation.
-    fn trunc(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn trunc(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(
             mir::Intrinsic::Trunc,
             arguments,
@@ -1389,7 +1389,7 @@ impl Activation<'_> {
     }
 
     /// Evaluate rounding.
-    fn round(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn round(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_unary(
             mir::Intrinsic::Round,
             arguments,
@@ -1400,17 +1400,17 @@ impl Activation<'_> {
     }
 
     /// Evaluate minimum.
-    fn min(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn min(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(mir::Intrinsic::Min, arguments, args, f64::min, f32::min)
     }
 
     /// Evaluate maximum.
-    fn max(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn max(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(mir::Intrinsic::Max, arguments, args, f64::max, f32::max)
     }
 
     /// Evaluate sign copy.
-    fn copy_sign(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn copy_sign(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(
             mir::Intrinsic::CopySign,
             arguments,
@@ -1421,7 +1421,7 @@ impl Activation<'_> {
     }
 
     /// Evaluate two-argument arc tangent.
-    fn atan2(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn atan2(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(
             mir::Intrinsic::Atan2,
             arguments,
@@ -1432,12 +1432,12 @@ impl Activation<'_> {
     }
 
     /// Evaluate power.
-    fn pow(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn pow(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.float_binary(mir::Intrinsic::Pow, arguments, args, f64::powf, f32::powf)
     }
 
     /// Fused multiply-add.
-    fn fma(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn fma(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let (left, width) = self.float_argument(mir::Intrinsic::Fma, arguments, args, 0)?;
         let (middle, middle_width) =
             self.float_argument(mir::Intrinsic::Fma, arguments, args, 1)?;
@@ -1451,13 +1451,11 @@ impl Activation<'_> {
         }
 
         match width {
-            32 => Ok(Word::float32(
-                left.as_float32()
-                    .mul_add(middle.as_float32(), right.as_float32()),
+            32 => Ok(Cell::float32(
+                left.as_f32().mul_add(middle.as_f32(), right.as_f32()),
             )),
-            _ => Ok(Word::float64(
-                left.as_float64()
-                    .mul_add(middle.as_float64(), right.as_float64()),
+            _ => Ok(Cell::float64(
+                left.as_f64().mul_add(middle.as_f64(), right.as_f64()),
             )),
         }
     }
@@ -1465,127 +1463,127 @@ impl Activation<'_> {
     // comparison
 
     /// Bitwise equality comparison.
-    fn raw_eq(&self, _arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn raw_eq(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         if args.len() < 2 {
             return Err(self
                 .machine
                 .runtime_error(Error::invalid_intrinsic_arguments("raw_eq")));
         }
 
-        Ok(Word::bool(args[0].bits() == args[1].bits()))
+        Ok(Cell::bool(args[0].bits() == args[1].bits()))
     }
 
-    /// Reinterpret one word.
-    fn transmute(&self, _arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    /// Reinterpret one cell.
+    fn transmute(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.first_argument(mir::Intrinsic::Transmute, args)
     }
 
     /// Cast between spaces.
-    fn space_cast(&self, _arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn space_cast(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.first_argument(mir::Intrinsic::SpaceCast, args)
     }
 
     // pointer operations
 
     /// Compute pointer difference.
-    fn ptr_offset_from(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn ptr_offset_from(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let a = self.raw_address_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 0)?;
         let b = self.raw_address_argument(mir::Intrinsic::PointerOffsetFrom, arguments, args, 1)?;
 
-        Ok(Word::int(a as i64 - b as i64, 64))
+        Ok(Cell::int(a as i64 - b as i64, 64))
     }
 
     // memory operations
 
     /// Copy memory between locations.
-    fn memcpy(&mut self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn memcpy(&mut self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let destination = self.raw_address_argument(mir::Intrinsic::Memcpy, arguments, args, 0)?;
         let source = self.raw_address_argument(mir::Intrinsic::Memcpy, arguments, args, 1)?;
         let len = self.byte_count_argument(mir::Intrinsic::Memcpy, args, 2)?;
         if len == 0 {
-            return Ok(Word::VOID);
+            return Ok(Cell::ZERO);
         }
 
         self.copy_memory(destination, source, len)?;
 
-        Ok(Word::VOID)
+        Ok(Cell::ZERO)
     }
 
     /// Move memory (handles overlapping regions).
-    fn memmove(&mut self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn memmove(&mut self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.memcpy(arguments, args)
     }
 
     /// Fill memory with a byte value.
-    fn memset(&mut self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn memset(&mut self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let destination = self.raw_address_argument(mir::Intrinsic::Memset, arguments, args, 0)?;
         let byte = self
             .intrinsic_value(mir::Intrinsic::Memset, args, 1)?
-            .as_uint() as u8;
+            .as_u64() as u8;
         let len = self.byte_count_argument(mir::Intrinsic::Memset, args, 2)?;
         if len == 0 {
-            return Ok(Word::VOID);
+            return Ok(Cell::ZERO);
         }
 
         self.store_memory(destination, byte, len)?;
 
-        Ok(Word::VOID)
+        Ok(Cell::ZERO)
     }
 
     /// Compare memory ranges.
-    fn memcmp(&self, arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn memcmp(&self, arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         let left = self.raw_address_argument(mir::Intrinsic::Memcmp, arguments, args, 0)?;
         let right = self.raw_address_argument(mir::Intrinsic::Memcmp, arguments, args, 1)?;
         let len = self.byte_count_argument(mir::Intrinsic::Memcmp, args, 2)?;
         if len == 0 {
-            return Ok(Word::int(0, 32));
+            return Ok(Cell::int(0, 32));
         }
 
         let result = self.compare_memory(left, right, len)?;
 
-        Ok(Word::int(result as i64, 32))
+        Ok(Cell::int(result as i64, 32))
     }
 
     /// Ignore read prefetch in the activation.
-    fn prefetch_read(&self, _arguments: &[ValueLayout], _args: &[Word]) -> RuntimeResult<Word> {
-        Ok(Word::VOID)
+    fn prefetch_read(&self, _arguments: &[ValueShape], _args: &[Cell]) -> RuntimeResult<Cell> {
+        Ok(Cell::ZERO)
     }
 
     /// Ignore write prefetch in the activation.
-    fn prefetch_write(&self, _arguments: &[ValueLayout], _args: &[Word]) -> RuntimeResult<Word> {
-        Ok(Word::VOID)
+    fn prefetch_write(&self, _arguments: &[ValueShape], _args: &[Cell]) -> RuntimeResult<Cell> {
+        Ok(Cell::ZERO)
     }
 
     /// Ignore breakpoint in the activation.
-    fn breakpoint(&self, _arguments: &[ValueLayout], _args: &[Word]) -> RuntimeResult<Word> {
-        Ok(Word::VOID)
+    fn breakpoint(&self, _arguments: &[ValueShape], _args: &[Cell]) -> RuntimeResult<Cell> {
+        Ok(Cell::ZERO)
     }
 
     /// Return the current return address.
     fn return_address_intrinsic(
         &self,
-        _arguments: &[ValueLayout],
-        _args: &[Word],
-    ) -> RuntimeResult<Word> {
+        _arguments: &[ValueShape],
+        _args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         self.return_address()
     }
 
     /// Return the current frame address.
     fn frame_address_intrinsic(
         &self,
-        _arguments: &[ValueLayout],
-        _args: &[Word],
-    ) -> RuntimeResult<Word> {
+        _arguments: &[ValueShape],
+        _args: &[Cell],
+    ) -> RuntimeResult<Cell> {
         self.frame_address()
     }
 
     /// Return the hinted value.
-    fn expect(&self, _arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn expect(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.first_argument(mir::Intrinsic::Expect, args)
     }
 
     /// Return the black box value.
-    fn black_box(&self, _arguments: &[ValueLayout], args: &[Word]) -> RuntimeResult<Word> {
+    fn black_box(&self, _arguments: &[ValueShape], args: &[Cell]) -> RuntimeResult<Cell> {
         self.first_argument(mir::Intrinsic::BlackBox, args)
     }
 
@@ -1649,9 +1647,9 @@ impl Activation<'_> {
     // runtime introspection
 
     /// Return the synthetic return address.
-    fn return_address(&self) -> RuntimeResult<Word> {
+    fn return_address(&self) -> RuntimeResult<Cell> {
         if self.machine.frames.len() < 2 {
-            return Ok(Word::uint(0, 64));
+            return Ok(Cell::uint(0, 64));
         }
 
         let caller_frame = &self.machine.frames[self.machine.frames.len() - 2];
@@ -1662,13 +1660,13 @@ impl Activation<'_> {
             .id as u64;
 
         let synthetic_addr = (func_id << 32) | block_id;
-        Ok(Word::uint(synthetic_addr, 64))
+        Ok(Cell::uint(synthetic_addr, 64))
     }
 
     /// Return the synthetic frame address.
-    fn frame_address(&self) -> RuntimeResult<Word> {
+    fn frame_address(&self) -> RuntimeResult<Cell> {
         let frame_idx = self.machine.frames.len() as u64;
         let synthetic_addr = 0x7FFF_0000_0000_0000u64 | frame_idx;
-        Ok(Word::uint(synthetic_addr, 64))
+        Ok(Cell::uint(synthetic_addr, 64))
     }
 }

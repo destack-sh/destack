@@ -1,7 +1,7 @@
 use std::{mem, ptr};
 
 use destack_engine as engine;
-use destack_engine::StaticPointer;
+use destack_engine::StaticAddress;
 use destack_heap::{
     AllocationShape, AllocationSite as HeapAllocationSite, HeapReference, HeapResult, SharedHeap,
     SharedHeapReference, SmallAllocationPlan, SmallAllocationSite as HeapSmallAllocationSite,
@@ -17,7 +17,7 @@ use crate::program::{
     SwitchCase, SwitchCasesId, SwitchTable, SwitchTableId, TensorConvolutionId, TensorDotId,
     TensorGatherId, TensorLayout, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
 };
-use crate::{FramePointer, Word};
+use crate::{Cell, FramePointer};
 
 impl Activation<'_> {
     /// Borrow one pooled side record.
@@ -54,25 +54,25 @@ impl Activation<'_> {
         value: mir::Value,
     ) -> Result<mir::LocalNodeId<mir::Type>, Error> {
         let slot = self
-            .active_frame_layout()
+            .frame_layout()
             .value(value.0)
             .ok_or(Error::invalid_instruction())?;
 
-        Ok(self.machine.program.type_for_value_layout(slot.layout))
+        Ok(self.machine.program.type_for_storage_id(slot.layout))
     }
 
     /// Return the frame slot for one SSA value.
     #[inline]
     pub(crate) fn value_slot(&self, value: mir::Value) -> Result<&engine::FrameSlot, Error> {
-        self.active_frame_layout()
+        self.frame_layout()
             .value(value.0)
             .ok_or(Error::invalid_instruction())
     }
 
-    /// Return whether one SSA value is stored as one word.
+    /// Return whether one SSA value is stored as one cell.
     #[inline]
-    pub(crate) fn value_is_word(&self, value: mir::Value) -> Result<bool, Error> {
-        Ok(self.value_slot(value)?.is_word)
+    pub(crate) fn value_is_cell(&self, value: mir::Value) -> Result<bool, Error> {
+        Ok(self.value_slot(value)?.is_cell)
     }
 
     /// Borrow one SSA value's bytes.
@@ -700,7 +700,7 @@ impl Activation<'_> {
     /// Borrow the active frame mutably.
     #[inline(always)]
     pub(crate) fn active_frame_mut(&mut self) -> &mut Frame {
-        let frame_index = self.active_frame_index;
+        let frame_index = self.frame_index;
         debug_assert!(frame_index < self.machine.frames.len());
 
         // SAFETY: activation frame binding validates the active frame index
@@ -710,7 +710,7 @@ impl Activation<'_> {
     /// Borrow the active frame.
     #[inline(always)]
     pub(crate) fn active_frame(&self) -> &Frame {
-        let frame_index = self.active_frame_index;
+        let frame_index = self.frame_index;
         debug_assert!(frame_index < self.machine.frames.len());
 
         // SAFETY: activation frame binding validates the active frame index
@@ -719,11 +719,8 @@ impl Activation<'_> {
 
     /// Borrow the current frame layout.
     #[inline(always)]
-    pub(crate) fn active_frame_layout(&self) -> &engine::FrameLayout {
-        let layout = self
-            .machine
-            .program
-            .frame_layout_by_id(self.active_frame_layout);
+    pub(crate) fn frame_layout(&self) -> &engine::FrameLayout {
+        let layout = self.machine.program.frame_layout_by_id(self.frame_layout);
         debug_assert!(layout.is_some());
 
         // SAFETY: active frames are created only from compiled frame layouts
@@ -780,43 +777,92 @@ impl Activation<'_> {
         Ok(address)
     }
 
-    /// Return the static pointer for one global.
+    /// Return the static address for one global.
     #[inline]
-    pub(crate) fn static_pointer(
+    pub(crate) fn static_address(
         &self,
         global: mir::LocalNodeId<mir::Global>,
-    ) -> Option<StaticPointer> {
+    ) -> Option<StaticAddress> {
         self.statics()
-            .pointer(self.machine.program.static_id(global))
-            .or_else(|| self.machine.program.static_pointer(global))
+            .address(self.machine.program.static_id(global))
+            .or_else(|| self.machine.program.static_address(global))
     }
 
-    /// Load one SSA value as a VM word.
+    /// Resolve one static byte range to a native address.
+    #[inline]
+    pub(crate) fn static_native_address(
+        &self,
+        address: StaticAddress,
+        byte_len: usize,
+    ) -> Result<usize, Error> {
+        self.statics()
+            .native_address(address, byte_len)
+            .or_else(|| {
+                self.machine
+                    .program
+                    .statics
+                    .native_address(address, byte_len)
+            })
+            .ok_or(Error::invalid_instruction())
+    }
+
+    /// Resolve one mutable static byte range to a native address.
+    #[inline]
+    pub(crate) fn static_native_address_mut(
+        &mut self,
+        address: StaticAddress,
+        byte_len: usize,
+    ) -> Result<usize, Error> {
+        if let Some(native_address) = self.statics.native_address_mut(address, byte_len) {
+            return Ok(native_address);
+        }
+
+        if self.statics().owns_address_range(address, byte_len) {
+            return Err(Error::immutable_global_write(mir::LocalNodeId::new(
+                address.id().0,
+            )));
+        }
+
+        if self
+            .machine
+            .program
+            .statics
+            .owns_address_range(address, byte_len)
+        {
+            return Err(Error::immutable_global_write(mir::LocalNodeId::new(
+                address.id().0,
+            )));
+        }
+
+        Err(Error::invalid_instruction())
+    }
+
+    /// Load one SSA value as a VM cell.
     #[inline(always)]
-    pub(crate) fn load_value(&self, v: mir::Value) -> Word {
+    pub(crate) fn load_value(&self, v: mir::Value) -> Cell {
         let slot = self.value_slot_unchecked(v);
 
-        // word values live inline in the frame
-        if slot.is_word {
-            return self.read_frame_word(slot.offset);
+        // cell values live inline in the frame
+        if slot.is_cell {
+            return self.read_frame_cell(slot.offset);
         }
 
         // aggregate SSA values are represented by their frame address
-        Word::frame_pointer(FramePointer::from_address(
-            self.active_frame_base + slot.offset as usize,
+        Cell::frame_pointer(FramePointer::from_address(
+            self.frame_base + slot.offset as usize,
         ))
     }
 
-    /// Read one word by frame byte offset.
+    /// Read one cell by frame byte offset.
     #[inline(always)]
-    pub(crate) fn load_word_at(&self, offset: u32) -> Word {
-        self.read_frame_word(offset)
+    pub(crate) fn load_cell_at(&self, offset: u32) -> Cell {
+        self.read_frame_cell(offset)
     }
 
     /// Return one frame pointer by frame byte offset.
     #[inline(always)]
     pub(crate) fn frame_pointer_at(&self, offset: u32) -> FramePointer {
-        let address = self.active_frame_base + offset as usize;
+        let address = self.frame_base + offset as usize;
 
         FramePointer::from_address(address)
     }
@@ -824,7 +870,7 @@ impl Activation<'_> {
     /// Borrow frame bytes at one byte offset.
     #[inline(always)]
     pub(crate) fn frame_bytes_at(&self, offset: u32, byte_len: usize) -> &[u8] {
-        let address = self.active_frame_base + offset as usize;
+        let address = self.frame_base + offset as usize;
 
         // SAFETY: lowered frame offsets point inside the active frame layout
         unsafe { std::slice::from_raw_parts(address as *const u8, byte_len) }
@@ -838,7 +884,7 @@ impl Activation<'_> {
         byte_len: usize,
         operation: impl FnOnce(&mut Self, &[u8]) -> T,
     ) -> T {
-        let address = self.active_frame_base + offset as usize;
+        let address = self.frame_base + offset as usize;
 
         // SAFETY: lowered frame offsets point inside the active frame layout
         unsafe {
@@ -851,7 +897,7 @@ impl Activation<'_> {
     /// Store frame bytes at one byte offset.
     #[inline(always)]
     pub(crate) fn store_frame_bytes_at(&mut self, offset: u32, bytes: &[u8]) {
-        let address = self.active_frame_base + offset as usize;
+        let address = self.frame_base + offset as usize;
 
         // SAFETY: lowered frame offsets point inside the active frame layout
         unsafe {
@@ -867,7 +913,7 @@ impl Activation<'_> {
         destination: usize,
         byte_len: usize,
     ) {
-        let source = self.active_frame_base + source as usize;
+        let source = self.frame_base + source as usize;
 
         // SAFETY: caller provides a valid destination and lower validates the source frame range
         unsafe {
@@ -875,21 +921,21 @@ impl Activation<'_> {
         }
     }
 
-    /// Read one aligned word from the current frame.
+    /// Read one aligned cell from the current frame.
     #[inline(always)]
-    fn read_frame_word(&self, offset: u32) -> Word {
-        let address = self.active_frame_base + offset as usize;
-        debug_assert_eq!(address % mem::align_of::<Word>(), 0);
+    fn read_frame_cell(&self, offset: u32) -> Cell {
+        let address = self.frame_base + offset as usize;
+        debug_assert_eq!(address % mem::align_of::<Cell>(), 0);
 
-        // SAFETY: lowered word offsets are word-aligned and point inside the active frame
-        unsafe { ptr::read(address as *const Word) }
+        // SAFETY: lowered cell offsets are cell-aligned and point inside the active frame
+        unsafe { ptr::read(address as *const Cell) }
     }
 
     /// Return the frame slot for one SSA value without bounds checks.
     #[inline(always)]
     fn value_slot_unchecked(&self, v: mir::Value) -> &engine::FrameSlot {
         let index = v.0 as usize;
-        let layout = self.active_frame_layout();
+        let layout = self.frame_layout();
         debug_assert!(
             index < layout.values().len(),
             "ssa value out of bounds: {v:?}"
@@ -899,32 +945,32 @@ impl Activation<'_> {
         unsafe { layout.values().get_unchecked(index) }
     }
 
-    /// Store one word into an SSA value.
+    /// Store one cell into an SSA value.
     #[inline(always)]
-    pub(crate) fn store_value_word(&mut self, v: mir::Value, val: Word) {
+    pub(crate) fn store_value_cell(&mut self, v: mir::Value, val: Cell) {
         let slot = self.value_slot_unchecked(v);
-        let is_word = slot.is_word;
+        let is_cell = slot.is_cell;
         let offset = slot.offset;
 
-        debug_assert!(is_word, "attempted word write into frame bytes");
-        self.write_frame_word(offset, val);
+        debug_assert!(is_cell, "attempted cell write into frame bytes");
+        self.write_frame_cell(offset, val);
     }
 
-    /// Write one word by frame byte offset.
+    /// Write one cell by frame byte offset.
     #[inline(always)]
-    pub(crate) fn store_word_at(&mut self, offset: u32, val: Word) {
-        self.write_frame_word(offset, val);
+    pub(crate) fn store_cell_at(&mut self, offset: u32, val: Cell) {
+        self.write_frame_cell(offset, val);
     }
 
-    /// Write one aligned word into the current frame.
+    /// Write one aligned cell into the current frame.
     #[inline(always)]
-    fn write_frame_word(&mut self, offset: u32, value: Word) {
-        let address = self.active_frame_base + offset as usize;
-        debug_assert_eq!(address % mem::align_of::<Word>(), 0);
+    fn write_frame_cell(&mut self, offset: u32, value: Cell) {
+        let address = self.frame_base + offset as usize;
+        debug_assert_eq!(address % mem::align_of::<Cell>(), 0);
 
-        // SAFETY: lowered word offsets are word-aligned and point inside the active frame
+        // SAFETY: lowered cell offsets are cell-aligned and point inside the active frame
         unsafe {
-            ptr::write(address as *mut Word, value);
+            ptr::write(address as *mut Cell, value);
         }
     }
 
@@ -942,8 +988,8 @@ impl Activation<'_> {
         // SAFETY: lowered frame offsets point inside the active frame layout
         unsafe {
             ptr::copy(
-                (self.active_frame_base + source_offset) as *const u8,
-                (self.active_frame_base + destination_offset) as *mut u8,
+                (self.frame_base + source_offset) as *const u8,
+                (self.frame_base + destination_offset) as *mut u8,
                 byte_len,
             );
         }

@@ -157,7 +157,7 @@ b0:
     run_mir_expect(mir, "constant", &[], Value::int32(42));
 }
 
-/// Wide unsigned constants preserve bits above one VM word.
+/// Wide unsigned constants preserve bits above one VM cell.
 #[test]
 fn test_constant_uint128() {
     let mir = r#"

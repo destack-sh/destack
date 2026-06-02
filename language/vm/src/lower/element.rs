@@ -3,11 +3,11 @@ use destack_mir as mir;
 use crate::program::Instruction;
 use crate::{Error, Result};
 
-use super::frame::{value_offset, word_offset};
+use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
 use super::op::{select_element_addr_op, select_slice_element_addr_op};
 use super::pool::Pool;
-use super::projection::{slice_element_pointer_class, slice_projection};
+use super::projection::{slice_element_address_space, slice_projection};
 
 impl<'a> BlockLowerer<'a> {
     /// Lower one element address.
@@ -34,27 +34,27 @@ impl<'a> BlockLowerer<'a> {
         if let Some(access) = pointee_type
             .and_then(|pointee_type| slice_projection(self.tree, self.layouts(), pointee_type))
         {
-            let pointer_class = pointee_type
-                .and_then(|pointee_type| slice_element_pointer_class(self.tree, pointee_type))
+            let address_space = pointee_type
+                .and_then(|pointee_type| slice_element_address_space(self.tree, pointee_type))
                 .ok_or(Error::invalid_instruction())?;
-            let op = select_slice_element_addr_op(pointer_class)?;
+            let op = select_slice_element_addr_op(address_space)?;
             let access = pool.slice_projection(access);
 
             return Ok(Instruction::new(
                 op,
-                word_offset(self, destination)?,
+                cell_offset(self, destination)?,
                 value_offset(self, array)?,
-                word_offset(self, index)?,
+                cell_offset(self, index)?,
                 access.0,
             ));
         }
 
         // frame projections keep the dynamic index in frame metadata
         let layout = self
-            .value_layout_map()
+            .value_shape_map()
             .get(array)
             .ok_or(Error::invalid_instruction())?;
-        let op = select_element_addr_op(self.value_layout_map(), array)?;
+        let op = select_element_addr_op(self.value_shape_map(), array)?;
         let element = self.element_projection_for_value(array)?;
         let array_length = self.array_length_for_value(array)?;
         if layout.is_frame_storage() {
@@ -62,9 +62,9 @@ impl<'a> BlockLowerer<'a> {
 
             return Ok(Instruction::new(
                 op,
-                word_offset(self, destination)?,
+                cell_offset(self, destination)?,
                 value_offset(self, array)?,
-                word_offset(self, index)?,
+                cell_offset(self, index)?,
                 access.0,
             ));
         }
@@ -74,9 +74,9 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             op,
-            word_offset(self, destination)?,
-            word_offset(self, array)?,
-            word_offset(self, index)?,
+            cell_offset(self, destination)?,
+            cell_offset(self, array)?,
+            cell_offset(self, index)?,
             element.0,
         ))
     }

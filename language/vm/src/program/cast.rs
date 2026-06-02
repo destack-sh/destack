@@ -1,25 +1,25 @@
-use super::WordLayout;
+use super::CellLayout;
 use crate::{Error, Result};
 
 const INTEGER_SIGN_BIT: u32 = 1 << 8;
 const WIDE_SOURCE_SIGN_BIT: u32 = 1 << 8;
 const WIDE_DEST_SIGN_BIT: u32 = 1 << 9;
 
-const WORD_LAYOUT_LOCAL_REFERENCE: u32 = 1;
-const WORD_LAYOUT_SHARED_REFERENCE: u32 = 2;
-const WORD_LAYOUT_ADDRESS: u32 = 3;
-const WORD_LAYOUT_FLOAT16: u32 = 4;
-const WORD_LAYOUT_STACK_POINTER: u32 = 5;
-const WORD_LAYOUT_FRAME_POINTER: u32 = 6;
-const WORD_LAYOUT_STATIC_POINTER: u32 = 7;
-const WORD_LAYOUT_FUNCTION_POINTER: u32 = 8;
-const WORD_LAYOUT_BFLOAT16: u32 = 9;
-const WORD_LAYOUT_FLOAT32: u32 = 10;
-const WORD_LAYOUT_FLOAT64: u32 = 11;
+const CELL_LAYOUT_LOCAL_REFERENCE: u32 = 1;
+const CELL_LAYOUT_SHARED_REFERENCE: u32 = 2;
+const CELL_LAYOUT_ADDRESS: u32 = 3;
+const CELL_LAYOUT_FLOAT16: u32 = 4;
+const CELL_LAYOUT_STACK_POINTER: u32 = 5;
+const CELL_LAYOUT_FRAME_POINTER: u32 = 6;
+const CELL_LAYOUT_STATIC_ADDRESS: u32 = 7;
+const CELL_LAYOUT_FUNCTION_POINTER: u32 = 8;
+const CELL_LAYOUT_BFLOAT16: u32 = 9;
+const CELL_LAYOUT_FLOAT32: u32 = 10;
+const CELL_LAYOUT_FLOAT64: u32 = 11;
 const FLOAT_CAST_DEST_SHIFT: u32 = 8;
 const FLOAT_TO_INT_WIDTH_SHIFT: u32 = 8;
 
-/// Encoded integer target for one word cast instruction field.
+/// Encoded integer target for one cell cast instruction field.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct IntegerCast {
     /// The packed instruction field.
@@ -68,7 +68,7 @@ pub(crate) struct FloatCast {
 
 impl FloatCast {
     /// Encode one float cast.
-    pub(crate) fn new(source: WordLayout, destination: WordLayout) -> Result<Self> {
+    pub(crate) fn new(source: CellLayout, destination: CellLayout) -> Result<Self> {
         let source = float_layout_field(source)?;
         let destination = float_layout_field(destination)?;
 
@@ -90,7 +90,7 @@ impl FloatCast {
     }
 
     /// Decode the source and destination float layouts.
-    pub(crate) fn decode(self) -> Result<(WordLayout, WordLayout)> {
+    pub(crate) fn decode(self) -> Result<(CellLayout, CellLayout)> {
         let source = float_layout_from_field(self.field & 0xff)?;
         let destination = float_layout_from_field((self.field >> FLOAT_CAST_DEST_SHIFT) & 0xff)?;
 
@@ -107,7 +107,7 @@ pub(crate) struct IntToFloatCast {
 
 impl IntToFloatCast {
     /// Encode one integer to float cast.
-    pub(crate) fn new(destination: WordLayout) -> Result<Self> {
+    pub(crate) fn new(destination: CellLayout) -> Result<Self> {
         let field = float_layout_field(destination)?;
 
         Ok(Self { field })
@@ -126,7 +126,7 @@ impl IntToFloatCast {
     }
 
     /// Decode the destination float layout.
-    pub(crate) fn decode(self) -> Result<WordLayout> {
+    pub(crate) fn decode(self) -> Result<CellLayout> {
         float_layout_from_field(self.field)
     }
 }
@@ -140,7 +140,7 @@ pub(crate) struct FloatToIntCast {
 
 impl FloatToIntCast {
     /// Encode one float to integer cast.
-    pub(crate) fn new(source: WordLayout, width: u16) -> Result<Self> {
+    pub(crate) fn new(source: CellLayout, width: u16) -> Result<Self> {
         let source = float_layout_field(source)?;
         let width = u8::try_from(width).map_err(|_| Error::invalid_cast())?;
 
@@ -162,7 +162,7 @@ impl FloatToIntCast {
     }
 
     /// Decode the source float layout and destination integer width.
-    pub(crate) fn decode(self) -> Result<(WordLayout, u8)> {
+    pub(crate) fn decode(self) -> Result<(CellLayout, u8)> {
         let source = float_layout_from_field(self.field & 0xff)?;
         let width = ((self.field >> FLOAT_TO_INT_WIDTH_SHIFT) & 0xff) as u8;
 
@@ -170,7 +170,7 @@ impl FloatToIntCast {
     }
 }
 
-/// Encoded pointer target for one word cast instruction field.
+/// Encoded pointer target for one cell cast instruction field.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct PointerCast {
     /// The packed instruction field.
@@ -178,16 +178,16 @@ pub(crate) struct PointerCast {
 }
 
 impl PointerCast {
-    /// Encode one pointer-shaped word layout.
-    pub(crate) fn new(layout: WordLayout) -> Result<Self> {
+    /// Encode one pointer-shaped cell layout.
+    pub(crate) fn new(layout: CellLayout) -> Result<Self> {
         let field = match layout {
-            WordLayout::HeapReference => WORD_LAYOUT_LOCAL_REFERENCE,
-            WordLayout::SharedHeapReference => WORD_LAYOUT_SHARED_REFERENCE,
-            WordLayout::Address => WORD_LAYOUT_ADDRESS,
-            WordLayout::StackPointer => WORD_LAYOUT_STACK_POINTER,
-            WordLayout::FramePointer => WORD_LAYOUT_FRAME_POINTER,
-            WordLayout::StaticPointer => WORD_LAYOUT_STATIC_POINTER,
-            WordLayout::FunctionPointer => WORD_LAYOUT_FUNCTION_POINTER,
+            CellLayout::HeapReference => CELL_LAYOUT_LOCAL_REFERENCE,
+            CellLayout::SharedHeapReference => CELL_LAYOUT_SHARED_REFERENCE,
+            CellLayout::Address => CELL_LAYOUT_ADDRESS,
+            CellLayout::StackPointer => CELL_LAYOUT_STACK_POINTER,
+            CellLayout::FramePointer => CELL_LAYOUT_FRAME_POINTER,
+            CellLayout::StaticAddress => CELL_LAYOUT_STATIC_ADDRESS,
+            CellLayout::FunctionPointer => CELL_LAYOUT_FUNCTION_POINTER,
             _ => return Err(Error::invalid_cast()),
         };
 
@@ -206,39 +206,39 @@ impl PointerCast {
         self.field
     }
 
-    /// Decode the pointer-shaped word layout.
-    pub(crate) fn decode(self) -> Result<WordLayout> {
+    /// Decode the pointer-shaped cell layout.
+    pub(crate) fn decode(self) -> Result<CellLayout> {
         match self.field {
-            WORD_LAYOUT_LOCAL_REFERENCE => Ok(WordLayout::HeapReference),
-            WORD_LAYOUT_SHARED_REFERENCE => Ok(WordLayout::SharedHeapReference),
-            WORD_LAYOUT_ADDRESS => Ok(WordLayout::Address),
-            WORD_LAYOUT_STACK_POINTER => Ok(WordLayout::StackPointer),
-            WORD_LAYOUT_FRAME_POINTER => Ok(WordLayout::FramePointer),
-            WORD_LAYOUT_STATIC_POINTER => Ok(WordLayout::StaticPointer),
-            WORD_LAYOUT_FUNCTION_POINTER => Ok(WordLayout::FunctionPointer),
+            CELL_LAYOUT_LOCAL_REFERENCE => Ok(CellLayout::HeapReference),
+            CELL_LAYOUT_SHARED_REFERENCE => Ok(CellLayout::SharedHeapReference),
+            CELL_LAYOUT_ADDRESS => Ok(CellLayout::Address),
+            CELL_LAYOUT_STACK_POINTER => Ok(CellLayout::StackPointer),
+            CELL_LAYOUT_FRAME_POINTER => Ok(CellLayout::FramePointer),
+            CELL_LAYOUT_STATIC_ADDRESS => Ok(CellLayout::StaticAddress),
+            CELL_LAYOUT_FUNCTION_POINTER => Ok(CellLayout::FunctionPointer),
             _ => Err(Error::invalid_cast()),
         }
     }
 }
 
-/// Return the encoded field for one float word layout.
-fn float_layout_field(layout: WordLayout) -> Result<u32> {
+/// Return the encoded field for one float cell layout.
+fn float_layout_field(layout: CellLayout) -> Result<u32> {
     match layout {
-        WordLayout::Float16 => Ok(WORD_LAYOUT_FLOAT16),
-        WordLayout::Bfloat16 => Ok(WORD_LAYOUT_BFLOAT16),
-        WordLayout::Float32 => Ok(WORD_LAYOUT_FLOAT32),
-        WordLayout::Float64 => Ok(WORD_LAYOUT_FLOAT64),
+        CellLayout::Float16 => Ok(CELL_LAYOUT_FLOAT16),
+        CellLayout::Bfloat16 => Ok(CELL_LAYOUT_BFLOAT16),
+        CellLayout::Float32 => Ok(CELL_LAYOUT_FLOAT32),
+        CellLayout::Float64 => Ok(CELL_LAYOUT_FLOAT64),
         _ => Err(Error::invalid_cast()),
     }
 }
 
-/// Return the float word layout for one encoded field.
-fn float_layout_from_field(field: u32) -> Result<WordLayout> {
+/// Return the float cell layout for one encoded field.
+fn float_layout_from_field(field: u32) -> Result<CellLayout> {
     match field {
-        WORD_LAYOUT_FLOAT16 => Ok(WordLayout::Float16),
-        WORD_LAYOUT_BFLOAT16 => Ok(WordLayout::Bfloat16),
-        WORD_LAYOUT_FLOAT32 => Ok(WordLayout::Float32),
-        WORD_LAYOUT_FLOAT64 => Ok(WordLayout::Float64),
+        CELL_LAYOUT_FLOAT16 => Ok(CellLayout::Float16),
+        CELL_LAYOUT_BFLOAT16 => Ok(CellLayout::Bfloat16),
+        CELL_LAYOUT_FLOAT32 => Ok(CellLayout::Float32),
+        CELL_LAYOUT_FLOAT64 => Ok(CellLayout::Float64),
         _ => Err(Error::invalid_cast()),
     }
 }

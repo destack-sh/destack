@@ -5,7 +5,7 @@ use crate::program::{
     AllocationBranch, AllocationSiteId, Edge, Instruction, SliceAllocationBranch,
     SliceProjectionId, SmallAllocationSiteId, Transfer,
 };
-use crate::{StackPointer, Word};
+use crate::{Cell, StackPointer};
 use destack_heap::{HeapError, HeapReferenceKind};
 
 /// Decode one power-of-two alignment from an instruction field.
@@ -52,7 +52,7 @@ pub(crate) fn execute_allocate_heap_zeroed(
     let reference = activation.allocate_zeroed_heap(allocation)?;
 
     // store result
-    activation.store_word_at(dest, Word::heap_reference(reference));
+    activation.store_cell_at(dest, Cell::heap_reference(reference));
 
     Ok(())
 }
@@ -67,7 +67,7 @@ pub(crate) fn execute_allocate_heap_uninit(
     let allocation = AllocationSiteId(instruction.b);
 
     let reference = activation.allocate_uninit_heap(allocation)?;
-    activation.store_word_at(dest, Word::heap_reference(reference));
+    activation.store_cell_at(dest, Cell::heap_reference(reference));
 
     Ok(())
 }
@@ -85,7 +85,7 @@ pub(crate) fn execute_allocate_heap_small_noscan_zeroed(
     let reference = activation.allocate_zeroed_heap_small_noscan(allocation)?;
 
     // store result
-    activation.store_word_at(dest, Word::heap_reference(reference));
+    activation.store_cell_at(dest, Cell::heap_reference(reference));
 
     Ok(())
 }
@@ -100,7 +100,7 @@ pub(crate) fn execute_allocate_heap_small_noscan_uninit(
     let allocation = SmallAllocationSiteId(instruction.b);
 
     let reference = activation.allocate_uninit_heap_small_noscan(allocation)?;
-    activation.store_word_at(dest, Word::heap_reference(reference));
+    activation.store_cell_at(dest, Cell::heap_reference(reference));
 
     Ok(())
 }
@@ -118,7 +118,7 @@ pub(crate) fn execute_allocate_heap_small_scan_zeroed(
     let reference = activation.allocate_zeroed_heap_small_scan(allocation)?;
 
     // store result
-    activation.store_word_at(dest, Word::heap_reference(reference));
+    activation.store_cell_at(dest, Cell::heap_reference(reference));
 
     Ok(())
 }
@@ -133,7 +133,7 @@ pub(crate) fn execute_allocate_heap_small_scan_uninit(
     let allocation = SmallAllocationSiteId(instruction.b);
 
     let reference = activation.allocate_uninit_heap_small_scan(allocation)?;
-    activation.store_word_at(dest, Word::heap_reference(reference));
+    activation.store_cell_at(dest, Cell::heap_reference(reference));
 
     Ok(())
 }
@@ -151,7 +151,7 @@ pub(crate) fn execute_allocate_heap_small_shared_edge_zeroed(
     let reference = activation.allocate_zeroed_heap_small_shared_edge(allocation)?;
 
     // store result
-    activation.store_word_at(dest, Word::heap_reference(reference));
+    activation.store_cell_at(dest, Cell::heap_reference(reference));
 
     Ok(())
 }
@@ -166,7 +166,7 @@ pub(crate) fn execute_allocate_heap_small_shared_edge_uninit(
     let allocation = SmallAllocationSiteId(instruction.b);
 
     let reference = activation.allocate_uninit_heap_small_shared_edge(allocation)?;
-    activation.store_word_at(dest, Word::heap_reference(reference));
+    activation.store_cell_at(dest, Cell::heap_reference(reference));
 
     Ok(())
 }
@@ -183,7 +183,7 @@ pub(crate) fn execute_allocate_shared_heap_zeroed(
     let reference = activation.allocate_zeroed_shared_heap(allocation)?;
 
     // store result
-    activation.store_word_at(dest, Word::shared_heap_reference(reference));
+    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
 
     Ok(())
 }
@@ -197,7 +197,7 @@ pub(crate) fn execute_allocate_shared_heap_uninit(
     let allocation = AllocationSiteId(instruction.b);
 
     let reference = activation.allocate_uninit_shared_heap(allocation)?;
-    activation.store_word_at(dest, Word::shared_heap_reference(reference));
+    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
 
     Ok(())
 }
@@ -214,7 +214,7 @@ pub(crate) fn execute_allocate_shared_heap_small_zeroed(
     let reference = activation.allocate_zeroed_shared_heap_small(allocation)?;
 
     // store result
-    activation.store_word_at(dest, Word::shared_heap_reference(reference));
+    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
 
     Ok(())
 }
@@ -228,7 +228,7 @@ pub(crate) fn execute_allocate_shared_heap_small_uninit(
     let allocation = SmallAllocationSiteId(instruction.b);
 
     let reference = activation.allocate_uninit_shared_heap_small(allocation)?;
-    activation.store_word_at(dest, Word::shared_heap_reference(reference));
+    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
 
     Ok(())
 }
@@ -277,7 +277,7 @@ fn execute_allocate_branch<const IS_SHARED: bool, const IS_ZEROED: bool>(
 
     match reference {
         Ok(reference) => {
-            activation.store_word_at(branch.destination, reference);
+            activation.store_cell_at(branch.destination, reference);
             Transfer::Jump {
                 block: branch.success.target,
                 moves: branch.success.moves,
@@ -295,23 +295,23 @@ fn execute_allocate_branch<const IS_SHARED: bool, const IS_ZEROED: bool>(
 fn allocate_branch_payload<const IS_SHARED: bool, const IS_ZEROED: bool>(
     activation: &mut Activation<'_>,
     allocation: AllocationSiteId,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     if IS_SHARED && IS_ZEROED {
         activation
             .allocate_zeroed_shared_heap(allocation)
-            .map(Word::shared_heap_reference)
+            .map(Cell::shared_heap_reference)
     } else if IS_SHARED {
         activation
             .allocate_uninit_shared_heap(allocation)
-            .map(Word::shared_heap_reference)
+            .map(Cell::shared_heap_reference)
     } else if IS_ZEROED {
         activation
             .allocate_zeroed_heap(allocation)
-            .map(Word::heap_reference)
+            .map(Cell::heap_reference)
     } else {
         activation
             .allocate_uninit_heap(allocation)
-            .map(Word::heap_reference)
+            .map(Cell::heap_reference)
     }
 }
 
@@ -333,7 +333,7 @@ pub(crate) fn execute_allocate_slice_zeroed(
     // build the backing array allocation shape
     let backing_reference = activation
         .allocate_zeroed_heap_slice(element, length)
-        .map(Word::heap_reference)?;
+        .map(Cell::heap_reference)?;
 
     // write the slice descriptor
     store_slice_at(activation, dest, access, backing_reference, length)?;
@@ -355,7 +355,7 @@ pub(crate) fn execute_allocate_slice_uninit(
     let length = load_slice_length_at(activation, length)?;
     let backing_reference = activation
         .allocate_uninit_heap_slice(element, length)
-        .map(Word::heap_reference)?;
+        .map(Cell::heap_reference)?;
 
     store_slice_at(activation, dest, access, backing_reference, length)?;
 
@@ -380,7 +380,7 @@ pub(crate) fn execute_allocate_shared_slice_zeroed(
     // build the backing array allocation shape
     let backing_reference = activation
         .allocate_zeroed_shared_heap_slice(element, length)
-        .map(Word::shared_heap_reference)?;
+        .map(Cell::shared_heap_reference)?;
 
     // write the slice descriptor
     store_slice_at(activation, dest, access, backing_reference, length)?;
@@ -402,7 +402,7 @@ pub(crate) fn execute_allocate_shared_slice_uninit(
     let length = load_slice_length_at(activation, length)?;
     let backing_reference = activation
         .allocate_uninit_shared_heap_slice(element, length)
-        .map(Word::shared_heap_reference)?;
+        .map(Cell::shared_heap_reference)?;
 
     store_slice_at(activation, dest, access, backing_reference, length)?;
 
@@ -491,23 +491,23 @@ fn allocate_slice_branch_payload<const IS_SHARED: bool, const IS_ZEROED: bool>(
     activation: &mut Activation<'_>,
     allocation: AllocationSiteId,
     length: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     if IS_SHARED && IS_ZEROED {
         activation
             .allocate_zeroed_shared_heap_slice(allocation, length)
-            .map(Word::shared_heap_reference)
+            .map(Cell::shared_heap_reference)
     } else if IS_SHARED {
         activation
             .allocate_uninit_shared_heap_slice(allocation, length)
-            .map(Word::shared_heap_reference)
+            .map(Cell::shared_heap_reference)
     } else if IS_ZEROED {
         activation
             .allocate_zeroed_heap_slice(allocation, length)
-            .map(Word::heap_reference)
+            .map(Cell::heap_reference)
     } else {
         activation
             .allocate_uninit_heap_slice(allocation, length)
-            .map(Word::heap_reference)
+            .map(Cell::heap_reference)
     }
 }
 
@@ -519,7 +519,7 @@ pub(crate) fn execute_free_heap(
     let reference = instruction.a;
 
     // free the unique heap allocation
-    let reference = activation.load_word_at(reference).as_heap_reference();
+    let reference = activation.load_cell_at(reference).as_heap_reference();
     match activation.free_heap(reference) {
         Ok(()) => {}
         Err(HeapError::InvalidReference {
@@ -543,7 +543,7 @@ pub(crate) fn execute_free_shared_heap(
 
     // free the unique shared heap allocation
     let reference = activation
-        .load_word_at(reference)
+        .load_cell_at(reference)
         .as_shared_heap_reference();
     match activation.free_shared_heap(reference) {
         Ok(()) => {}
@@ -568,9 +568,9 @@ pub(crate) fn execute_pin_heap(
     let value = instruction.b;
 
     // pin the local heap reference
-    let reference = activation.load_word_at(value).as_heap_reference();
+    let reference = activation.load_cell_at(value).as_heap_reference();
     match activation.pin_heap(reference) {
-        Ok(reference) => activation.store_word_at(dest, Word::heap_reference(reference)),
+        Ok(reference) => activation.store_cell_at(dest, Cell::heap_reference(reference)),
         Err(HeapError::InvalidReference {
             kind: HeapReferenceKind::Heap,
             ..
@@ -592,8 +592,8 @@ pub(crate) fn execute_pin_shared_heap(
     let value = instruction.b;
 
     // shared heap references are already stable
-    let reference = activation.load_word_at(value).as_shared_heap_reference();
-    activation.store_word_at(dest, Word::shared_heap_reference(reference));
+    let reference = activation.load_cell_at(value).as_shared_heap_reference();
+    activation.store_cell_at(dest, Cell::shared_heap_reference(reference));
 
     Ok(())
 }
@@ -606,7 +606,7 @@ pub(crate) fn execute_unpin_heap(
     let value = instruction.a;
 
     // release the local heap pin
-    let reference = activation.load_word_at(value).as_heap_reference();
+    let reference = activation.load_cell_at(value).as_heap_reference();
     match activation.unpin_heap(reference) {
         Ok(()) => {}
         Err(HeapError::InvalidReference {
@@ -643,9 +643,9 @@ pub(crate) fn execute_allocate_stack_zeroed(
     // allocate stack bytes from the lowered layout
     let address = activation.allocate_stack_zeroed(byte_len, alignment)?;
     let sp = StackPointer::from_address(address);
-    let value = Word::stack_pointer(sp);
+    let value = Cell::stack_pointer(sp);
 
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -662,9 +662,9 @@ pub(crate) fn execute_allocate_stack_uninit(
 
     let address = activation.allocate_stack_uninit(byte_len, alignment)?;
     let sp = StackPointer::from_address(address);
-    let value = Word::stack_pointer(sp);
+    let value = Cell::stack_pointer(sp);
 
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }

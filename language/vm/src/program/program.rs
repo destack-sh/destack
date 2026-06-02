@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_engine as engine;
-use destack_engine::StaticPointer;
+use destack_engine::StaticAddress;
 use destack_heap as heap;
 use destack_mir as mir;
 use destack_mir::{LayoutId, LayoutShape, LayoutTable, TraceMap};
@@ -12,10 +12,10 @@ use destack_mir::{LayoutId, LayoutShape, LayoutTable, TraceMap};
 use super::layout::{Layout, TypeTable, build_layouts, closure_object_layout};
 use super::{
     CallTarget, ClosureObjectLayout, FrameBinding, FrameEntry, Function, FunctionTable,
-    ProgramPoint, ResumeState, ResumeTable, SideTable, SideTableBuilder, word_layout_from_type,
+    ProgramPoint, ResumeState, ResumeTable, SideTable, SideTableBuilder, cell_layout_from_type,
 };
 use crate::lower::{ValueType, analyze_value_types, lower_function};
-use crate::{Error, FunctionPointer, Result, Word};
+use crate::{Cell, Error, FunctionPointer, Result};
 
 /// Lowered MIR program and execution metadata shared across machines.
 pub struct Program {
@@ -94,19 +94,22 @@ impl Program {
         ProgramPoint::new(function, block, pc)
     }
 
-    /// Convert one MIR type id into one engine value layout id.
+    /// Convert one MIR type id into one engine storage layout id.
     #[inline]
-    pub(crate) fn value_layout_id(&self, ty: mir::LocalNodeId<mir::Type>) -> engine::ValueLayoutId {
-        TypeTable::value_layout_id(ty)
+    pub(crate) fn storage_layout_id(
+        &self,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> engine::StorageLayoutId {
+        TypeTable::storage_layout_id(ty)
     }
 
-    /// Convert one engine value layout id into one MIR type id.
+    /// Convert one engine storage layout id into one MIR type id.
     #[inline]
-    pub(crate) fn type_for_value_layout(
+    pub(crate) fn type_for_storage_id(
         &self,
-        layout: engine::ValueLayoutId,
+        layout: engine::StorageLayoutId,
     ) -> mir::LocalNodeId<mir::Type> {
-        TypeTable::type_for_value_layout(layout)
+        TypeTable::type_for_storage_id(layout)
     }
 
     /// Return the closure heap object layout for this program.
@@ -179,8 +182,8 @@ impl Program {
     }
 
     /// Return the compiled layout for one program layout id.
-    pub(crate) fn layout_for_value_id(&self, layout: engine::ValueLayoutId) -> Option<&Layout> {
-        self.types.layout_for_value_id(layout)
+    pub(crate) fn layout_for_storage_id(&self, layout: engine::StorageLayoutId) -> Option<&Layout> {
+        self.types.layout_for_storage_id(layout)
     }
 
     /// Encode one global initializer into its declared bytes.
@@ -254,11 +257,11 @@ impl Program {
     }
 
     /// Return the program static address for one global.
-    pub(crate) fn static_pointer(
+    pub(crate) fn static_address(
         &self,
         global: mir::LocalNodeId<mir::Global>,
-    ) -> Option<StaticPointer> {
-        self.statics.pointer(self.static_id(global))
+    ) -> Option<StaticAddress> {
+        self.statics.address(self.static_id(global))
     }
 
     /// Return whether one global is stored in program static space.
@@ -415,7 +418,7 @@ fn function_address_initializer_bytes(
     function: mir::FunctionReference,
     byte_len: usize,
 ) -> Result<Vec<u8>> {
-    if byte_len > Word::BYTE_LEN {
+    if byte_len > Cell::BYTE_LEN {
         return Err(Error::type_mismatch(
             "address-sized initializer",
             format!("{byte_len} byte initializer"),
@@ -752,7 +755,7 @@ impl ProgramBuilder {
     ) -> Result<()> {
         let was_defined = data.define(
             engine::StaticId(global.id),
-            engine::ValueLayoutId(ty.id),
+            engine::StorageLayoutId(ty.id),
             alignment,
             is_mutable,
             bytes,
@@ -823,10 +826,10 @@ impl ProgramBuilder {
                             "closure environment type is not concrete: {type_id:?}"
                         ))
                     })?;
-                    let environment_layout = word_layout_from_type(&self.tree, environment)
+                    let environment_layout = cell_layout_from_type(&self.tree, environment)
                         .ok_or_else(|| {
                             Error::internal(format!(
-                                "closure environment type is not a word: {type_id:?}"
+                                "closure environment type is not a cell: {type_id:?}"
                             ))
                         })?;
                     closure_object_layout(self.tree.pointer_bytes() as usize)
@@ -1099,14 +1102,14 @@ impl ProgramBuilder {
         let layout = layouts
             .get(&ty)
             .ok_or_else(|| Error::invalid_program("frame slot layout"))?;
-        let is_word = layout.is_word();
-        let slot_alignment = if is_word {
-            layout.alignment().max(Word::BYTE_LEN)
+        let is_cell = layout.is_cell();
+        let slot_alignment = if is_cell {
+            layout.alignment().max(Cell::BYTE_LEN)
         } else {
             layout.alignment()
         };
-        let slot_len = if is_word {
-            layout.byte_len.max(Word::BYTE_LEN)
+        let slot_len = if is_cell {
+            layout.byte_len.max(Cell::BYTE_LEN)
         } else {
             layout.byte_len
         };
@@ -1120,8 +1123,8 @@ impl ProgramBuilder {
             offset: u32::try_from(offset).map_err(|_| Error::invalid_instruction())?,
             byte_len: u32::try_from(slot_len).map_err(|_| Error::invalid_instruction())?,
             alignment: u16::try_from(slot_alignment).map_err(|_| Error::invalid_instruction())?,
-            is_word,
-            layout: engine::ValueLayoutId(ty.id),
+            is_cell,
+            layout: engine::StorageLayoutId(ty.id),
         })
     }
 

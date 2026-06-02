@@ -4,7 +4,7 @@ use destack_engine as engine;
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::program::{Function, Program, ProgramPoint};
 
@@ -31,9 +31,9 @@ pub struct Frame {
     base: usize,
 }
 
-/// Immutable frame image.
+/// Immutable frame metadata captured with stack image bytes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct FrameImage {
+pub struct FrameSnapshot {
     /// The captured logical frame state.
     pub frame_state: engine::FrameStateId,
     /// The caller frame state after one callee returns.
@@ -148,47 +148,47 @@ impl Frame {
         self.base_address() + slot.offset as usize
     }
 
-    /// Read one word from a byte offset.
+    /// Read one cell from a byte offset.
     #[inline(always)]
-    pub(crate) fn read_word_at(&self, offset: u32) -> Word {
+    pub(crate) fn read_cell_at(&self, offset: u32) -> Cell {
         let address = self.base_address() + offset as usize;
-        debug_assert_eq!((address % mem::align_of::<Word>()), 0);
+        debug_assert_eq!((address % mem::align_of::<Cell>()), 0);
 
-        // SAFETY: lowered frame offsets are word-aligned and point inside this frame
-        unsafe { std::ptr::read(address as *const Word) }
+        // SAFETY: lowered frame offsets are cell-aligned and point inside this frame
+        unsafe { std::ptr::read(address as *const Cell) }
     }
 
-    /// Write one word into a byte offset.
+    /// Write one cell into a byte offset.
     #[inline(always)]
-    pub(crate) fn write_word_at(&mut self, offset: u32, value: Word) {
+    pub(crate) fn write_cell_at(&mut self, offset: u32, value: Cell) {
         let address = self.base_address() + offset as usize;
-        debug_assert_eq!((address % mem::align_of::<Word>()), 0);
+        debug_assert_eq!((address % mem::align_of::<Cell>()), 0);
 
-        // SAFETY: lowered frame offsets are word-aligned and point inside this frame
+        // SAFETY: lowered frame offsets are cell-aligned and point inside this frame
         unsafe {
-            std::ptr::write(address as *mut Word, value);
+            std::ptr::write(address as *mut Cell, value);
         }
     }
 
-    /// Read one word from a slot.
+    /// Read one cell from a slot.
     #[inline(always)]
-    pub(crate) fn read_word(&self, slot: &engine::FrameSlot) -> Word {
-        debug_assert!(slot.byte_len as usize >= Word::BYTE_LEN);
-        debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Word>()), 0);
+    pub(crate) fn read_cell(&self, slot: &engine::FrameSlot) -> Cell {
+        debug_assert!(slot.byte_len as usize >= Cell::BYTE_LEN);
+        debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Cell>()), 0);
 
-        // SAFETY: frame slots are lowered as word-sized aligned storage inside this frame
-        unsafe { std::ptr::read(self.slot_address(slot) as *const Word) }
+        // SAFETY: frame slots are lowered as cell-sized aligned storage inside this frame
+        unsafe { std::ptr::read(self.slot_address(slot) as *const Cell) }
     }
 
-    /// Write one word into a slot.
+    /// Write one cell into a slot.
     #[inline(always)]
-    pub(crate) fn write_word(&mut self, slot: &engine::FrameSlot, value: Word) {
-        debug_assert!(slot.byte_len as usize >= Word::BYTE_LEN);
-        debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Word>()), 0);
+    pub(crate) fn write_cell(&mut self, slot: &engine::FrameSlot, value: Cell) {
+        debug_assert!(slot.byte_len as usize >= Cell::BYTE_LEN);
+        debug_assert_eq!((self.slot_address(slot) % mem::align_of::<Cell>()), 0);
 
-        // SAFETY: frame slots are lowered as word-sized aligned storage inside this frame
+        // SAFETY: frame slots are lowered as cell-sized aligned storage inside this frame
         unsafe {
-            std::ptr::write(self.slot_address(slot) as *mut Word, value);
+            std::ptr::write(self.slot_address(slot) as *mut Cell, value);
         }
     }
 
@@ -225,26 +225,26 @@ impl Frame {
     pub(crate) fn load_environment(
         &self,
         layout: &engine::FrameLayout,
-    ) -> Result<Option<Word>, Error> {
+    ) -> Result<Option<Cell>, Error> {
         let Some(slot) = layout.environment() else {
             return Ok(None);
         };
 
-        Ok(Some(self.read_word(slot)))
+        Ok(Some(self.read_cell(slot)))
     }
 
     /// Store the closure environment for this frame.
     pub(crate) fn store_environment(
         &mut self,
         layout: &engine::FrameLayout,
-        value: Option<Word>,
+        value: Option<Cell>,
     ) -> Result<(), Error> {
         let Some(slot) = layout.environment() else {
             return Ok(());
         };
         let value = value.ok_or(Error::invalid_instruction())?;
 
-        self.write_word(slot, value);
+        self.write_cell(slot, value);
 
         Ok(())
     }
@@ -279,8 +279,8 @@ impl Frame {
         }
     }
 
-    /// Capture one immutable frame image.
-    pub(crate) fn image(&self, program: &Program) -> RuntimeResult<FrameImage> {
+    /// Capture one immutable frame snapshot.
+    pub(crate) fn image(&self, program: &Program) -> RuntimeResult<FrameSnapshot> {
         let block = self.block_id(program).map_err(RuntimeError::new)?;
         let point = ProgramPoint::new(self.function(), block, self.pc as u32);
         let frame_state = program.frame_state_at(point).ok_or_else(|| {
@@ -296,7 +296,7 @@ impl Frame {
                 )))
             })?;
 
-        Ok(FrameImage {
+        Ok(FrameSnapshot {
             frame_state,
             return_state: self.return_state,
             stack_offset: self.stack_offset,
@@ -304,9 +304,9 @@ impl Frame {
         })
     }
 
-    /// Create one frame from an immutable image.
+    /// Create one frame from an immutable snapshot.
     pub(crate) fn from_image(
-        image: &FrameImage,
+        image: &FrameSnapshot,
         program: &Program,
         stack_offset: usize,
         base: usize,

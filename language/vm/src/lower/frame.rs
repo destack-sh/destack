@@ -1,7 +1,7 @@
 use destack_engine as engine;
 use destack_mir as mir;
 
-use crate::program::{Instruction, Op, Projection, word_layout_from_type};
+use crate::program::{Instruction, Op, Projection, cell_layout_from_type};
 use crate::{Error, Result};
 
 use super::lower::BlockLowerer;
@@ -54,7 +54,7 @@ impl<'a> BlockLowerer<'a> {
         Ok(instructions)
     }
 
-    /// Lower one frame field read into a word load or frame move.
+    /// Lower one frame field read into a cell load or frame move.
     pub(super) fn lower_field_read(&self, inst: &mir::Instruction) -> Result<Vec<Instruction>> {
         let mir::Instruction::FieldGet {
             destination,
@@ -80,21 +80,21 @@ impl<'a> BlockLowerer<'a> {
             .ok_or(Error::invalid_field_access(*index, field_count))?;
         let field_layout = self.layout_for_type(field.value_type)?;
 
-        // read word fields directly
-        if field_layout.is_word() {
+        // read cell fields directly
+        if field_layout.is_cell() {
             let access = field;
             let op = select_frame_value_load_op(access)?;
 
             return Ok(vec![Instruction::new(
                 op,
-                word_offset(self, destination)?,
+                cell_offset(self, destination)?,
                 value_offset(self, base)?,
                 instruction_byte_offset(access.byte_offset)?,
                 0,
             )]);
         }
 
-        // move non-word fields as frame bytes
+        // move non-cell fields as frame bytes
         let destination_access = FrameRange {
             value_type: destination_type,
             byte_offset: 0,
@@ -115,7 +115,7 @@ impl<'a> BlockLowerer<'a> {
         )?])
     }
 
-    /// Lower one frame element read into a word load or frame move.
+    /// Lower one frame element read into a cell load or frame move.
     pub(super) fn lower_element_read(&self, inst: &mir::Instruction) -> Result<Vec<Instruction>> {
         let mir::Instruction::ElementGet {
             destination,
@@ -157,21 +157,21 @@ impl<'a> BlockLowerer<'a> {
         let element_layout = self.layout_for_type(element.value_type)?;
         let element_offset = element.byte_stride * *index as usize;
 
-        // read word elements directly
-        if element_layout.is_word() {
+        // read cell elements directly
+        if element_layout.is_cell() {
             let access = element.at_offset(element_offset).with_length(0);
             let op = select_frame_value_load_op(access)?;
 
             return Ok(vec![Instruction::new(
                 op,
-                word_offset(self, destination)?,
+                cell_offset(self, destination)?,
                 value_offset(self, array)?,
                 instruction_byte_offset(access.byte_offset)?,
                 0,
             )]);
         }
 
-        // move non-word elements as frame bytes
+        // move non-cell elements as frame bytes
         let destination_access = FrameRange {
             value_type: destination_type,
             byte_offset: 0,
@@ -279,15 +279,15 @@ impl<'a> BlockLowerer<'a> {
             .ok_or(Error::invalid_instruction())?;
         let element_offset = element.byte_stride * index as usize;
 
-        // store word elements directly
-        let instruction = if element.is_word() {
+        // store cell elements directly
+        let instruction = if element.is_cell() {
             let access = element.at_offset(element_offset).with_length(0);
             let op = select_frame_value_store_op(access)?;
 
             Instruction::new(
                 op,
                 value_offset(self, destination)?,
-                word_offset(self, value)?,
+                cell_offset(self, value)?,
                 instruction_byte_offset(access.byte_offset)?,
                 0,
             )
@@ -364,8 +364,8 @@ impl<'a> BlockLowerer<'a> {
         value: mir::Value,
         range: FrameRange,
     ) -> Result<Instruction> {
-        // move non-word values as frame bytes
-        if word_layout_from_type(self.tree, range.value_type).is_none() {
+        // move non-cell values as frame bytes
+        if cell_layout_from_type(self.tree, range.value_type).is_none() {
             let destination_access = range.into();
             let source_access = FrameRange {
                 byte_offset: 0,
@@ -382,19 +382,19 @@ impl<'a> BlockLowerer<'a> {
             );
         }
 
-        // store word values through the normal frame store path
+        // store cell values through the normal frame store path
         let access = Projection::fixed(
             range.value_type,
             range.byte_offset,
             range.byte_len,
-            word_layout_from_type(self.tree, range.value_type),
+            cell_layout_from_type(self.tree, range.value_type),
         );
         let op = select_frame_value_store_op(access)?;
 
         Ok(Instruction::new(
             op,
             value_offset(self, destination)?,
-            word_offset(self, value)?,
+            cell_offset(self, value)?,
             instruction_byte_offset(access.byte_offset)?,
             0,
         ))
@@ -425,19 +425,19 @@ impl From<FrameRange> for Projection {
             byte_stride: 0,
             length: 0,
             byte_len: range.byte_len,
-            word_layout: None,
+            cell_layout: None,
         }
     }
 }
 
-/// Return one word value's frame byte offset.
-pub(super) fn word_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<u32> {
+/// Return one cell value's frame byte offset.
+pub(super) fn cell_offset(lowerer: &BlockLowerer<'_>, value: mir::Value) -> Result<u32> {
     let region = frame_slot(lowerer, value)?;
 
-    // word instructions require single-word frame slots
-    if !region.is_word {
+    // cell instructions require single-cell frame slots
+    if !region.is_cell {
         return Err(Error::type_mismatch(
-            "word value",
+            "cell value",
             format!("frame-backed value: {value:?}"),
         ));
     }

@@ -1,7 +1,9 @@
 use destack_engine as engine;
 use serde::{Deserialize, Serialize};
 
-use super::{Frame, Stack, StackImage, visit_frame_slot_root_slots, visit_materialized_slots};
+use super::{
+    Frame, FrameSnapshot, Stack, StackImage, visit_frame_slot_root_slots, visit_materialized_slots,
+};
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::options::MachineOptions;
 use crate::program::Program;
@@ -30,20 +32,7 @@ pub struct ContinuationImage {
     /// The captured stack bytes.
     pub stack: StackImage,
     /// The captured frames from outermost to innermost.
-    pub frames: Vec<ContinuationFrame>,
-}
-
-/// Immutable frame image captured inside one continuation.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ContinuationFrame {
-    /// The logical frame state captured by this frame.
-    pub frame_state: engine::FrameStateId,
-    /// The caller frame state when another frame is active.
-    pub return_state: Option<engine::FrameStateId>,
-    /// The byte offset inside the captured stack image.
-    pub stack_offset: usize,
-    /// The captured frame byte width.
-    pub byte_len: usize,
+    pub frames: Vec<FrameSnapshot>,
 }
 
 impl Continuation {
@@ -81,7 +70,7 @@ impl Continuation {
                     .frame_state_and_materialization(program, frame, frame_index)
                     .map_err(RuntimeError::new)?;
 
-                Ok(ContinuationFrame::capture(frame, frame_state))
+                Ok(FrameSnapshot::capture(frame, frame_state))
             })
             .collect::<RuntimeResult<Vec<_>>>()?;
 
@@ -240,8 +229,8 @@ impl Continuation {
     }
 }
 
-impl ContinuationFrame {
-    /// Capture one durable frame from one live frame.
+impl FrameSnapshot {
+    /// Capture one frame snapshot from one live frame.
     fn capture(frame: &Frame, frame_state: engine::FrameStateId) -> Self {
         Self {
             frame_state,

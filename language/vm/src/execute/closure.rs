@@ -1,11 +1,11 @@
 use destack_heap::HeapReference;
 
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use destack_mir as mir;
 
-use crate::program::{ClosureEnvironment, ClosureObjectLayout, WordLayout};
+use crate::program::{CellLayout, ClosureEnvironment, ClosureObjectLayout};
 
 use super::access;
 
@@ -13,7 +13,7 @@ use super::access;
 fn decode_closure_object(
     activation: &mut Activation<'_>,
     reference: HeapReference,
-) -> Result<(Word, Word), Error> {
+) -> Result<(Cell, Cell), Error> {
     let layout = activation.machine.program.closure_object_layout();
     let base_address = activation.heap_address(reference, 0);
 
@@ -21,10 +21,10 @@ fn decode_closure_object(
     let function_address = base_address + layout.function_offset;
     let environment_address = base_address + layout.environment_offset;
     let function =
-        access::load_scalar_by_layout_at_address(function_address, WordLayout::FunctionPointer)
+        access::load_scalar_by_layout_at_address(function_address, CellLayout::FunctionPointer)
             .as_function_pointer();
     let function_id = mir::LocalNodeId::new(function.function_index());
-    let function = Word::function_pointer(function);
+    let function = Cell::function_pointer(function);
 
     // decode the environment through lowered function metadata
     let environment_layout = activation
@@ -39,13 +39,13 @@ fn decode_closure_object(
     Ok((function, environment_value))
 }
 
-/// Encode one word closure environment into pointer-sized bits.
-fn encode_closure_word_environment(
+/// Encode one cell closure environment into pointer-sized bits.
+fn encode_closure_cell_environment(
     activation: &mut Activation<'_>,
-    layout: WordLayout,
+    layout: CellLayout,
     environment_offset: u32,
 ) -> u64 {
-    let environment = activation.load_word_at(environment_offset);
+    let environment = activation.load_cell_at(environment_offset);
 
     layout.encode(environment)
 }
@@ -75,7 +75,7 @@ fn encode_closure_environment(
     environment_offset: u32,
 ) -> Result<u64, Error> {
     match environment {
-        ClosureEnvironment::Word { layout } => Ok(encode_closure_word_environment(
+        ClosureEnvironment::Cell { layout } => Ok(encode_closure_cell_environment(
             activation,
             layout,
             environment_offset,
@@ -91,13 +91,13 @@ fn bind_closure_object(
     activation: &mut Activation<'_>,
     closure_layout: mir::LayoutId,
     object_layout: ClosureObjectLayout,
-    function: Word,
+    function: Cell,
     environment_bits: u64,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let function = function.as_function_pointer();
     let function_bytes = (function.bits() as u64).to_le_bytes();
     let environment_bytes = environment_bits.to_le_bytes();
-    let mut bytes = [0u8; Word::BYTE_LEN * 2];
+    let mut bytes = [0u8; Cell::BYTE_LEN * 2];
     let bytes = &mut bytes[..object_layout.byte_len];
 
     // place the two pointer sized fields
@@ -112,7 +112,7 @@ fn bind_closure_object(
     // allocate the closure object
     let reference = activation.allocate_heap_layout_bytes(closure_layout, bytes)?;
 
-    Ok(Word::heap_reference(reference))
+    Ok(Cell::heap_reference(reference))
 }
 
 /// Bind one function and environment into a closure value.
@@ -120,10 +120,10 @@ pub(crate) fn bind_closure(
     activation: &mut Activation<'_>,
     closure_layout: mir::LayoutId,
     object_layout: ClosureObjectLayout,
-    function: Word,
+    function: Cell,
     environment: ClosureEnvironment,
     environment_offset: u32,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let environment_bits = encode_closure_environment(activation, environment, environment_offset)?;
 
     bind_closure_object(
@@ -138,8 +138,8 @@ pub(crate) fn bind_closure(
 /// Decode one closure value into function and environment values.
 pub(crate) fn decode_closure(
     activation: &mut Activation<'_>,
-    value: Word,
-) -> Result<(Word, Word), Error> {
+    value: Cell,
+) -> Result<(Cell, Cell), Error> {
     let reference = value.as_heap_reference();
     if activation.is_heap_live(reference) {
         return decode_closure_object(activation, reference);

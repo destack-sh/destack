@@ -1,31 +1,31 @@
 use destack_core::{float_from_bits, float_to_bits};
 use destack_mir as mir;
 
-use super::scalar::{convert_integer_bytes, integer_bytes_to_word};
-use crate::Word;
+use super::scalar::{convert_integer_bytes, integer_bytes_to_cell};
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::program::{
-    FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast, PointerCast,
-    WideIntegerCast, WordLayout,
+    CellLayout, FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast,
+    PointerCast, WideIntegerCast,
 };
 
-/// Execute one lowered word cast.
-fn execute_word_cast(
+/// Execute one lowered cell cast.
+fn execute_cell_cast(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    cast: fn(Word, u32) -> Result<Word, Error>,
+    cast: fn(Cell, u32) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     let dest = instruction.a;
     let argument = instruction.b;
     let cast_field = instruction.c;
 
-    // cast the word directly
-    let argument = activation.load_word_at(argument);
+    // cast the cell directly
+    let argument = activation.load_cell_at(argument);
     let result = cast(argument, cast_field)?;
 
     // store result
-    activation.store_word_at(dest, result);
+    activation.store_cell_at(dest, result);
 
     Ok(())
 }
@@ -47,7 +47,7 @@ fn integer_byte_len(width: u16) -> usize {
 }
 
 /// Cast one integer bit pattern into the requested pointer-shaped target type.
-fn cast_integer_to_pointer(raw: u64, field: u32) -> Result<Word, Error> {
+fn cast_integer_to_pointer(raw: u64, field: u32) -> Result<Cell, Error> {
     let layout = PointerCast::from_field(field).decode()?;
 
     Ok(layout.decode(raw))
@@ -55,7 +55,7 @@ fn cast_integer_to_pointer(raw: u64, field: u32) -> Result<Word, Error> {
 
 /// Truncate a signed integer to a target bit width.
 fn truncate_signed(value: i64, width: u8) -> i64 {
-    if width >= Word::BIT_LEN {
+    if width >= Cell::BIT_LEN {
         return value;
     }
 
@@ -72,7 +72,7 @@ fn truncate_signed(value: i64, width: u8) -> i64 {
 
 /// Truncate an unsigned integer to a target bit width.
 fn truncate_unsigned(value: u64, width: u8) -> u64 {
-    if width >= Word::BIT_LEN {
+    if width >= Cell::BIT_LEN {
         return value;
     }
 
@@ -83,7 +83,7 @@ fn truncate_unsigned(value: u64, width: u8) -> u64 {
 
 /// Compute integer bounds for a width and signedness.
 fn integer_bounds(width: u8, is_signed: bool) -> Option<(i128, i128)> {
-    if width == 0 || width > Word::BIT_LEN {
+    if width == 0 || width > Cell::BIT_LEN {
         return None;
     }
 
@@ -172,256 +172,256 @@ fn float_to_int_saturating(value: f64, min_bound: i128, max_bound: i128) -> i128
     truncated
 }
 
-/// Reinterpret one word value.
-fn cast_bitcast(argument: Word, _field: u32) -> Result<Word, Error> {
+/// Reinterpret one cell value.
+fn cast_bitcast(argument: Cell, _field: u32) -> Result<Cell, Error> {
     Ok(argument)
 }
 
-/// Truncate one integer word.
-fn cast_truncate(argument: Word, field: u32) -> Result<Word, Error> {
+/// Truncate one integer cell.
+fn cast_truncate(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (width, is_signed) = IntegerCast::from_field(field).decode();
 
     Ok(if is_signed {
-        Word::int(truncate_signed(argument.as_i64(), width), width)
+        Cell::int(truncate_signed(argument.as_i64(), width), width)
     } else {
-        Word::uint(truncate_unsigned(argument.as_u64(), width), width)
+        Cell::uint(truncate_unsigned(argument.as_u64(), width), width)
     })
 }
 
-/// Zero extend one integer word.
-fn cast_zero_extend(argument: Word, field: u32) -> Result<Word, Error> {
+/// Zero extend one integer cell.
+fn cast_zero_extend(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (width, _) = IntegerCast::from_field(field).decode();
 
-    Ok(Word::uint(argument.as_u64(), width))
+    Ok(Cell::uint(argument.as_u64(), width))
 }
 
-/// Sign extend one integer word.
-fn cast_sign_extend(argument: Word, field: u32) -> Result<Word, Error> {
+/// Sign extend one integer cell.
+fn cast_sign_extend(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (width, _) = IntegerCast::from_field(field).decode();
 
-    Ok(Word::int(argument.as_i64(), width))
+    Ok(Cell::int(argument.as_i64(), width))
 }
 
-/// Convert one float word to a signed integer word.
-fn cast_float_to_signed_int(argument: Word, field: u32) -> Result<Word, Error> {
+/// Convert one float cell to a signed integer cell.
+fn cast_float_to_signed_int(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (source, target_width) = FloatToIntCast::from_field(field).decode()?;
     let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::invalid_cast())?;
-    let value = float_word_to_f64(argument, source)?;
+    let value = float_cell_to_f64(argument, source)?;
     let converted = float_to_int_checked(value, min_bound, max_bound)
         .ok_or(Error::bad_conversion_to_integer())?;
 
-    Ok(Word::int(converted as i64, target_width))
+    Ok(Cell::int(converted as i64, target_width))
 }
 
-/// Convert one float word to an unsigned integer word.
-fn cast_float_to_unsigned_int(argument: Word, field: u32) -> Result<Word, Error> {
+/// Convert one float cell to an unsigned integer cell.
+fn cast_float_to_unsigned_int(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (source, target_width) = FloatToIntCast::from_field(field).decode()?;
     let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::invalid_cast())?;
-    let value = float_word_to_f64(argument, source)?;
+    let value = float_cell_to_f64(argument, source)?;
     let converted = float_to_int_checked(value, min_bound, max_bound)
         .ok_or(Error::bad_conversion_to_integer())?;
 
-    Ok(Word::uint(converted as u64, target_width))
+    Ok(Cell::uint(converted as u64, target_width))
 }
 
-/// Saturating convert one float word to a signed integer word.
-fn cast_float_to_signed_int_saturating(argument: Word, field: u32) -> Result<Word, Error> {
+/// Saturating convert one float cell to a signed integer cell.
+fn cast_float_to_signed_int_saturating(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (source, target_width) = FloatToIntCast::from_field(field).decode()?;
     let (min_bound, max_bound) = integer_bounds(target_width, true).ok_or(Error::invalid_cast())?;
-    let value = float_word_to_f64(argument, source)?;
+    let value = float_cell_to_f64(argument, source)?;
     let converted = float_to_int_saturating(value, min_bound, max_bound);
 
-    Ok(Word::int(converted as i64, target_width))
+    Ok(Cell::int(converted as i64, target_width))
 }
 
-/// Saturating convert one float word to an unsigned integer word.
-fn cast_float_to_unsigned_int_saturating(argument: Word, field: u32) -> Result<Word, Error> {
+/// Saturating convert one float cell to an unsigned integer cell.
+fn cast_float_to_unsigned_int_saturating(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (source, target_width) = FloatToIntCast::from_field(field).decode()?;
     let (min_bound, max_bound) = integer_bounds(target_width, false).ok_or(Error::invalid_cast())?;
-    let value = float_word_to_f64(argument, source)?;
+    let value = float_cell_to_f64(argument, source)?;
     let converted = float_to_int_saturating(value, min_bound, max_bound);
 
-    Ok(Word::uint(converted as u64, target_width))
+    Ok(Cell::uint(converted as u64, target_width))
 }
 
-/// Convert one signed integer word to a float word.
-fn cast_signed_int_to_float(argument: Word, field: u32) -> Result<Word, Error> {
+/// Convert one signed integer cell to a float cell.
+fn cast_signed_int_to_float(argument: Cell, field: u32) -> Result<Cell, Error> {
     let destination = IntToFloatCast::from_field(field).decode()?;
 
-    f64_to_float_word(argument.as_i64() as f64, destination)
+    f64_to_float_cell(argument.as_i64() as f64, destination)
 }
 
-/// Convert one unsigned integer word to a float word.
-fn cast_unsigned_int_to_float(argument: Word, field: u32) -> Result<Word, Error> {
+/// Convert one unsigned integer cell to a float cell.
+fn cast_unsigned_int_to_float(argument: Cell, field: u32) -> Result<Cell, Error> {
     let destination = IntToFloatCast::from_field(field).decode()?;
 
-    f64_to_float_word(argument.as_u64() as f64, destination)
+    f64_to_float_cell(argument.as_u64() as f64, destination)
 }
 
-/// Convert one float word.
-fn cast_float_convert(argument: Word, field: u32) -> Result<Word, Error> {
+/// Convert one float cell.
+fn cast_float_convert(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (source, destination) = FloatCast::from_field(field).decode()?;
-    let value = float_word_to_f64(argument, source)?;
+    let value = float_cell_to_f64(argument, source)?;
 
-    f64_to_float_word(value, destination)
+    f64_to_float_cell(value, destination)
 }
 
-/// Convert one pointer word to an integer word.
-fn cast_pointer_to_int(argument: Word, field: u32) -> Result<Word, Error> {
+/// Convert one pointer cell to an integer cell.
+fn cast_pointer_to_int(argument: Cell, field: u32) -> Result<Cell, Error> {
     let (target_width, _) = IntegerCast::from_field(field).decode();
 
-    Ok(Word::uint(argument.as_u64(), target_width))
+    Ok(Cell::uint(argument.as_u64(), target_width))
 }
 
-/// Convert one integer word to a pointer word.
-fn cast_int_to_pointer(argument: Word, field: u32) -> Result<Word, Error> {
+/// Convert one integer cell to a pointer cell.
+fn cast_int_to_pointer(argument: Cell, field: u32) -> Result<Cell, Error> {
     cast_integer_to_pointer(argument.as_u64(), field)
 }
 
-/// Execute bitcast word op.
+/// Execute bitcast cell op.
 pub(crate) fn execute_cast_bitcast(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_bitcast)
+    execute_cell_cast(activation, instruction, cast_bitcast)
 }
 
-/// Execute truncate word op.
+/// Execute truncate cell op.
 pub(crate) fn execute_cast_truncate(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_truncate)
+    execute_cell_cast(activation, instruction, cast_truncate)
 }
 
-/// Execute zero extend word op.
+/// Execute zero extend cell op.
 pub(crate) fn execute_cast_zero_extend(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_zero_extend)
+    execute_cell_cast(activation, instruction, cast_zero_extend)
 }
 
-/// Execute sign extend word op.
+/// Execute sign extend cell op.
 pub(crate) fn execute_cast_sign_extend(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_sign_extend)
+    execute_cell_cast(activation, instruction, cast_sign_extend)
 }
 
-/// Execute float to signed integer word op.
+/// Execute float to signed integer cell op.
 pub(crate) fn execute_cast_float_to_signed_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_float_to_signed_int)
+    execute_cell_cast(activation, instruction, cast_float_to_signed_int)
 }
 
-/// Execute float to unsigned integer word op.
+/// Execute float to unsigned integer cell op.
 pub(crate) fn execute_cast_float_to_unsigned_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_float_to_unsigned_int)
+    execute_cell_cast(activation, instruction, cast_float_to_unsigned_int)
 }
 
-/// Execute saturating float to signed integer word op.
+/// Execute saturating float to signed integer cell op.
 pub(crate) fn execute_cast_float_to_signed_int_saturating(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_float_to_signed_int_saturating)
+    execute_cell_cast(activation, instruction, cast_float_to_signed_int_saturating)
 }
 
-/// Execute saturating float to unsigned integer word op.
+/// Execute saturating float to unsigned integer cell op.
 pub(crate) fn execute_cast_float_to_unsigned_int_saturating(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(
+    execute_cell_cast(
         activation,
         instruction,
         cast_float_to_unsigned_int_saturating,
     )
 }
 
-/// Execute signed integer to float word op.
+/// Execute signed integer to float cell op.
 pub(crate) fn execute_cast_signed_int_to_float(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_signed_int_to_float)
+    execute_cell_cast(activation, instruction, cast_signed_int_to_float)
 }
 
-/// Execute unsigned integer to float word op.
+/// Execute unsigned integer to float cell op.
 pub(crate) fn execute_cast_unsigned_int_to_float(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_unsigned_int_to_float)
+    execute_cell_cast(activation, instruction, cast_unsigned_int_to_float)
 }
 
-/// Execute float convert word op.
+/// Execute float convert cell op.
 pub(crate) fn execute_cast_float_convert(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_float_convert)
+    execute_cell_cast(activation, instruction, cast_float_convert)
 }
 
-/// Decode one float word as f64.
-fn float_word_to_f64(word: Word, layout: WordLayout) -> Result<f64, Error> {
+/// Decode one float cell as f64.
+fn float_cell_to_f64(cell: Cell, layout: CellLayout) -> Result<f64, Error> {
     match layout {
-        WordLayout::Float16 => Ok(float_from_bits(
+        CellLayout::Float16 => Ok(float_from_bits(
             mir::FloatType::Float16.format(),
-            word.bits(),
+            cell.bits(),
         )),
-        WordLayout::Bfloat16 => Ok(float_from_bits(
+        CellLayout::Bfloat16 => Ok(float_from_bits(
             mir::FloatType::Bfloat16.format(),
-            word.bits(),
+            cell.bits(),
         )),
-        WordLayout::Float32 => Ok(word.as_float32() as f64),
-        WordLayout::Float64 => Ok(word.as_float64()),
+        CellLayout::Float32 => Ok(cell.as_f32() as f64),
+        CellLayout::Float64 => Ok(cell.as_f64()),
         _ => Err(Error::invalid_cast()),
     }
 }
 
-/// Encode one f64 into a float word layout.
-fn f64_to_float_word(value: f64, layout: WordLayout) -> Result<Word, Error> {
+/// Encode one f64 into a float cell layout.
+fn f64_to_float_cell(value: f64, layout: CellLayout) -> Result<Cell, Error> {
     match layout {
-        WordLayout::Float16 => Ok(Word::from_bits(float_to_bits(
+        CellLayout::Float16 => Ok(Cell::from_bits(float_to_bits(
             mir::FloatType::Float16.format(),
             value,
         ))),
-        WordLayout::Bfloat16 => Ok(Word::from_bits(float_to_bits(
+        CellLayout::Bfloat16 => Ok(Cell::from_bits(float_to_bits(
             mir::FloatType::Bfloat16.format(),
             value,
         ))),
-        WordLayout::Float32 => Ok(Word::float32(value as f32)),
-        WordLayout::Float64 => Ok(Word::float64(value)),
+        CellLayout::Float32 => Ok(Cell::float32(value as f32)),
+        CellLayout::Float64 => Ok(Cell::float64(value)),
         _ => Err(Error::invalid_cast()),
     }
 }
 
-/// Execute pointer to integer word op.
+/// Execute pointer to integer cell op.
 pub(crate) fn execute_cast_pointer_to_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_pointer_to_int)
+    execute_cell_cast(activation, instruction, cast_pointer_to_int)
 }
 
-/// Execute integer to pointer word op.
+/// Execute integer to pointer cell op.
 pub(crate) fn execute_cast_int_to_pointer(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    execute_word_cast(activation, instruction, cast_int_to_pointer)
+    execute_cell_cast(activation, instruction, cast_int_to_pointer)
 }
 
-/// Execute word to wide integer cast op.
-pub(crate) fn execute_cast_word_to_wide_int(
+/// Execute cell to wide integer cast op.
+pub(crate) fn execute_cast_cell_to_wide_int(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -431,8 +431,8 @@ pub(crate) fn execute_cast_word_to_wide_int(
     let (source_signed, _) = cast.signs();
     let (source_width, dest_width) = cast.widths_pair();
 
-    // cast from word bits into frame bytes
-    let source = activation.load_word_at(arg).to_byte_array();
+    // cast from cell bits into frame bytes
+    let source = activation.load_cell_at(arg).to_byte_array();
     let result = cast_integer_bytes(&source, source_width, source_signed, dest_width);
 
     // store result bytes
@@ -441,8 +441,8 @@ pub(crate) fn execute_cast_word_to_wide_int(
     Ok(())
 }
 
-/// Execute wide integer to word cast op.
-pub(crate) fn execute_cast_wide_int_to_word(
+/// Execute wide integer to cell cast op.
+pub(crate) fn execute_cast_wide_int_to_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -452,13 +452,13 @@ pub(crate) fn execute_cast_wide_int_to_word(
     let (source_signed, dest_signed) = cast.signs();
     let (source_width, dest_width) = cast.widths_pair();
 
-    // cast from frame bytes into word bits
+    // cast from frame bytes into cell bits
     let source = activation.frame_bytes_at(arg, integer_byte_len(source_width));
     let bytes = cast_integer_bytes(source, source_width, source_signed, dest_width);
-    let result = integer_bytes_to_word(&bytes, dest_width, dest_signed)?;
+    let result = integer_bytes_to_cell(&bytes, dest_width, dest_signed)?;
 
-    // store result word
-    activation.store_word_at(dest, result);
+    // store result cell
+    activation.store_cell_at(dest, result);
 
     Ok(())
 }
@@ -484,8 +484,8 @@ pub(crate) fn execute_cast_wide_int(
     Ok(())
 }
 
-/// Execute word select op.
-pub(crate) fn execute_select_word(
+/// Execute cell select op.
+pub(crate) fn execute_select_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -494,13 +494,13 @@ pub(crate) fn execute_select_word(
     let then_value = instruction.c;
     let else_value = instruction.d;
 
-    // select the source word
-    let condition = activation.load_word_at(condition).as_bool();
+    // select the source cell
+    let condition = activation.load_cell_at(condition).as_bool();
     let source = if condition { then_value } else { else_value };
-    let result = activation.load_word_at(source);
+    let result = activation.load_cell_at(source);
 
     // store result
-    activation.store_word_at(dest, result);
+    activation.store_cell_at(dest, result);
 
     Ok(())
 }
@@ -519,7 +519,7 @@ pub(crate) fn execute_select_frame(
     } = activation.side::<FrameSelect>(instruction);
 
     // select the source frame value
-    let condition = activation.load_word_at(*condition_offset).as_bool();
+    let condition = activation.load_cell_at(*condition_offset).as_bool();
     let source_offset = if condition { then_offset } else { else_offset };
 
     // move the selected frame slot directly

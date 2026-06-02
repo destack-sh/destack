@@ -2,12 +2,12 @@ use destack_mir as mir;
 
 use crate::program::{
     FloatCast, FloatToIntCast, FrameSelect, Instruction, IntToFloatCast, IntegerCast, Op,
-    PointerCast, TensorViewCast, ValueLayout, WideIntegerCast, value_layout_from_type,
-    word_layout_from_type,
+    PointerCast, TensorViewCast, ValueShape, WideIntegerCast, cell_layout_from_type,
+    value_shape_from_type,
 };
 use crate::{Error, Result};
 
-use super::frame::{value_offset, word_offset};
+use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 
@@ -44,22 +44,22 @@ impl<'a> BlockLowerer<'a> {
                 Op::CastTensorView,
                 TensorViewCast {
                     dest_offset: value_offset(self, destination)?,
-                    pointer_offset: word_offset(self, argument)?,
+                    pointer_offset: cell_offset(self, argument)?,
                     view_layout,
                 },
             ));
         }
 
-        let destination_is_word = self.layout_for_type(destination_type)?.is_word();
-        let argument_is_word = self.layout_for_type(argument_type)?.is_word();
+        let destination_is_cell = self.layout_for_type(destination_type)?.is_cell();
+        let argument_is_cell = self.layout_for_type(argument_type)?.is_cell();
 
-        // use the direct word path when both sides fit in one word
-        if destination_is_word && argument_is_word {
+        // use the direct cell path when both sides fit in one cell
+        if destination_is_cell && argument_is_cell {
             return Ok(Instruction::new(
-                word_cast_op(operator)?,
-                word_offset(self, destination)?,
-                word_offset(self, argument)?,
-                word_cast_field(self.tree, operator, argument_type, to_type)?,
+                cell_cast_op(operator)?,
+                cell_offset(self, destination)?,
+                cell_offset(self, argument)?,
+                cell_cast_field(self.tree, operator, argument_type, to_type)?,
                 0,
             ));
         }
@@ -70,24 +70,24 @@ impl<'a> BlockLowerer<'a> {
         let source_signed = wide_source_signed(operator, source_signed);
         let cast = WideIntegerCast::new(source_width, dest_width, source_signed, false);
 
-        // expand a word into frame bytes
-        if argument_is_word {
+        // expand a cell into frame bytes
+        if argument_is_cell {
             return Ok(Instruction::new(
-                Op::CastWordToWideInt,
+                Op::CastCellToWideInt,
                 value_offset(self, destination)?,
-                word_offset(self, argument)?,
+                cell_offset(self, argument)?,
                 cast.flags(),
                 cast.widths(),
             ));
         }
 
-        // collapse frame bytes into a word
-        if destination_is_word {
+        // collapse frame bytes into a cell
+        if destination_is_cell {
             let cast = WideIntegerCast::new(source_width, dest_width, source_signed, dest_signed);
 
             return Ok(Instruction::new(
-                Op::CastWideIntToWord,
-                word_offset(self, destination)?,
+                Op::CastWideIntToCell,
+                cell_offset(self, destination)?,
                 value_offset(self, argument)?,
                 cast.flags(),
                 cast.widths(),
@@ -127,16 +127,16 @@ impl<'a> BlockLowerer<'a> {
             .value()
             .ok_or_else(|| Error::invalid_program("select else value"))?;
 
-        // select word values without touching frame bytes
+        // select cell values without touching frame bytes
         let destination_type = self.value_type_for_value(destination)?;
         let destination_layout = self.layout_for_type(destination_type)?;
-        if destination_layout.is_word() {
+        if destination_layout.is_cell() {
             return Ok(Instruction::new(
-                Op::SelectWord,
-                word_offset(self, destination)?,
-                word_offset(self, condition)?,
-                word_offset(self, then_value)?,
-                word_offset(self, else_value)?,
+                Op::SelectCell,
+                cell_offset(self, destination)?,
+                cell_offset(self, condition)?,
+                cell_offset(self, then_value)?,
+                cell_offset(self, else_value)?,
             ));
         }
 
@@ -145,7 +145,7 @@ impl<'a> BlockLowerer<'a> {
             Op::SelectFrame,
             FrameSelect {
                 destination_offset: value_offset(self, destination)?,
-                condition_offset: word_offset(self, condition)?,
+                condition_offset: cell_offset(self, condition)?,
                 then_offset: value_offset(self, then_value)?,
                 else_offset: value_offset(self, else_value)?,
                 byte_len: destination_layout.byte_len,
@@ -154,8 +154,8 @@ impl<'a> BlockLowerer<'a> {
     }
 }
 
-/// Pack one word integer cast target.
-fn word_cast_op(operator: mir::CastOperator) -> Result<Op> {
+/// Pack one cell integer cast target.
+fn cell_cast_op(operator: mir::CastOperator) -> Result<Op> {
     match operator {
         mir::CastOperator::Bitcast => Ok(Op::CastBitcast),
         mir::CastOperator::Truncate => Ok(Op::CastTruncate),
@@ -175,8 +175,8 @@ fn word_cast_op(operator: mir::CastOperator) -> Result<Op> {
     }
 }
 
-/// Return one integer value layout.
-fn word_cast_field(
+/// Return one integer value shape.
+fn cell_cast_field(
     tree: &mir::Tree,
     operator: mir::CastOperator,
     from_type: mir::LocalNodeId<mir::Type>,
@@ -196,36 +196,36 @@ fn word_cast_field(
         | mir::CastOperator::FloatToUnsignedInt
         | mir::CastOperator::FloatToSignedIntSaturating
         | mir::CastOperator::FloatToUnsignedIntSaturating => {
-            let source = word_layout_from_type(tree, from_type).ok_or(Error::invalid_cast())?;
+            let source = cell_layout_from_type(tree, from_type).ok_or(Error::invalid_cast())?;
             let (width, _) = integer_layout(tree, to_type)?;
 
             Ok(FloatToIntCast::new(source, width)?.field())
         }
         mir::CastOperator::SignedIntToFloat | mir::CastOperator::UnsignedIntToFloat => {
-            let destination = word_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
+            let destination = cell_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
 
             Ok(IntToFloatCast::new(destination)?.field())
         }
         mir::CastOperator::FloatTruncate
         | mir::CastOperator::FloatExtend
         | mir::CastOperator::FloatConvert => {
-            let source = word_layout_from_type(tree, from_type).ok_or(Error::invalid_cast())?;
-            let destination = word_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
+            let source = cell_layout_from_type(tree, from_type).ok_or(Error::invalid_cast())?;
+            let destination = cell_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
 
             Ok(FloatCast::new(source, destination)?.field())
         }
         mir::CastOperator::IntToPointer => {
-            let layout = word_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
+            let layout = cell_layout_from_type(tree, to_type).ok_or(Error::invalid_cast())?;
 
             Ok(PointerCast::new(layout)?.field())
         }
     }
 }
 
-/// Return one word cast operation.
+/// Return one cell cast operation.
 fn integer_layout(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result<(u16, bool)> {
-    match value_layout_from_type(tree, ty) {
-        ValueLayout::Int { width, signed } => Ok((width, signed)),
+    match value_shape_from_type(tree, ty) {
+        Some(ValueShape::Int { width, signed }) => Ok((width, signed)),
         actual => Err(Error::type_mismatch(
             "integer cast value",
             format!("{actual:?}"),

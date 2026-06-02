@@ -8,19 +8,19 @@ use crate::diagnostic::Error;
 use crate::machine::{Activation, Frame};
 use crate::program::{
     ArgumentRange, Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect,
-    CallIndirectBranch, CallTarget, CallVirtual, CallVirtualBranch, ClosureBind, Function,
-    Instruction, MoveRange, Projection, TailCall, TailCallDynamic, TailCallIndirect,
-    TailCallVirtual, Transfer, WordLayout,
+    CallIndirectBranch, CallTarget, CallVirtual, CallVirtualBranch, CellLayout, ClosureBind,
+    Function, Instruction, MoveRange, Projection, TailCall, TailCallDynamic, TailCallIndirect,
+    TailCallVirtual, Transfer,
 };
-use crate::{FunctionPointer, Word};
+use crate::{Cell, FunctionPointer};
 use destack_mir as mir;
 
 /// Load one lowered call table field from a receiver.
 fn load_receiver_field<const IS_SHARED: bool>(
     activation: &mut Activation<'_>,
-    receiver: Word,
+    receiver: Cell,
     field: Projection,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     if IS_SHARED {
         return Ok(access::load_shared_heap_scalar::<8, false>(
             activation,
@@ -39,16 +39,18 @@ fn load_receiver_field<const IS_SHARED: bool>(
 /// Load one function target from an immutable dispatch table.
 fn load_dispatch_slot(
     activation: &Activation<'_>,
-    table_pointer: engine::StaticPointer,
+    table_address: engine::StaticAddress,
     slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // dispatch table slots are target pointers
     let pointer_bytes = activation.machine.program.tree.pointer_bytes() as usize;
     let byte_offset = slot as usize * pointer_bytes;
-    let entry_pointer = table_pointer.add_bytes(byte_offset);
+    let entry_address = table_address
+        .add_bytes(byte_offset)
+        .ok_or(Error::invalid_instruction())?;
 
     // static dispatch tables contain function addresses
-    let function = load_function_pointer(entry_pointer.address(), pointer_bytes)?;
+    let function = load_function_pointer(activation, entry_address, pointer_bytes)?;
     let function = function.as_function_pointer();
     let function = mir::LocalNodeId::new(function.function_index());
 
@@ -56,7 +58,13 @@ fn load_dispatch_slot(
 }
 
 /// Load one function address from static memory.
-fn load_function_pointer(address: usize, pointer_bytes: usize) -> Result<Word, Error> {
+fn load_function_pointer(
+    activation: &Activation<'_>,
+    address: engine::StaticAddress,
+    pointer_bytes: usize,
+) -> Result<Cell, Error> {
+    let address = activation.static_native_address(address, pointer_bytes)?;
+
     // read static bytes without assuming stronger alignment
     let raw = unsafe {
         match pointer_bytes {
@@ -66,19 +74,19 @@ fn load_function_pointer(address: usize, pointer_bytes: usize) -> Result<Word, E
         }
     };
 
-    Ok(WordLayout::FunctionPointer.decode(raw))
+    Ok(CellLayout::FunctionPointer.decode(raw))
 }
 
 /// Resolve the callee for one virtual call.
 fn resolve_virtual_callee<const IS_SHARED: bool>(
     activation: &mut Activation<'_>,
-    receiver: Word,
+    receiver: Cell,
     table_field: Projection,
     slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // load the vtable pointer from the receiver
     let vtable_value = load_receiver_field::<IS_SHARED>(activation, receiver, table_field)?;
-    let vtable_pointer = vtable_value.as_static_pointer();
+    let vtable_pointer = vtable_value.as_static_address();
 
     load_dispatch_slot(activation, vtable_pointer, slot)
 }
@@ -86,13 +94,13 @@ fn resolve_virtual_callee<const IS_SHARED: bool>(
 /// Resolve the callee for one dynamic call.
 fn resolve_dynamic_callee<const IS_SHARED: bool>(
     activation: &mut Activation<'_>,
-    receiver: Word,
+    receiver: Cell,
     table_field: Projection,
     slot: u32,
 ) -> Result<mir::LocalNodeId<mir::Function>, Error> {
     // load the dynamic table pointer from the erased receiver
     let dynamic_table_value = load_receiver_field::<IS_SHARED>(activation, receiver, table_field)?;
-    let dynamic_table_pointer = dynamic_table_value.as_static_pointer();
+    let dynamic_table_pointer = dynamic_table_value.as_static_address();
 
     load_dispatch_slot(activation, dynamic_table_pointer, slot)
 }
@@ -100,8 +108,8 @@ fn resolve_dynamic_callee<const IS_SHARED: bool>(
 /// Resolve the callee for one indirect call.
 fn resolve_indirect_callee<const HAS_ENVIRONMENT: bool>(
     activation: &mut Activation<'_>,
-    callee: Word,
-) -> Result<(mir::LocalNodeId<mir::Function>, Option<Word>), Error> {
+    callee: Cell,
+) -> Result<(mir::LocalNodeId<mir::Function>, Option<Cell>), Error> {
     // function pointers are already the callee payload
     if !HAS_ENVIRONMENT {
         let function = mir::LocalNodeId::new(callee.as_function_pointer().function_index());
@@ -138,16 +146,16 @@ pub(crate) fn execute_address_function(
     // build function pointer value
     let dest = instruction.a;
     let function_id = mir::LocalNodeId::<mir::Function>::new(instruction.b);
-    let value = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
+    let value = Cell::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
 
     // store result
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
 
-/// Build a closure value from one function and word environment.
-pub(crate) fn execute_bind_closure_word(
+/// Build a closure value from one function and cell environment.
+pub(crate) fn execute_bind_closure_cell(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
@@ -162,7 +170,7 @@ pub(crate) fn execute_bind_closure_word(
 
     // bind the function pointer and environment into a closure object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-    let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
+    let function = Cell::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
     let value = closure::bind_closure(
         activation,
         closure_layout,
@@ -173,7 +181,7 @@ pub(crate) fn execute_bind_closure_word(
     )?;
 
     // store result
-    activation.store_word_at(dest_offset, value);
+    activation.store_cell_at(dest_offset, value);
 
     Ok(())
 }
@@ -194,7 +202,7 @@ pub(crate) fn execute_bind_closure_address(
 
     // bind the function pointer and environment into a closure object
     let function_id = mir::LocalNodeId::<mir::Function>::new(function);
-    let function = Word::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
+    let function = Cell::function_pointer(FunctionPointer::from_bits(function_id.id as usize));
     let value = closure::bind_closure(
         activation,
         closure_layout,
@@ -205,7 +213,7 @@ pub(crate) fn execute_bind_closure_address(
     )?;
 
     // store result
-    activation.store_word_at(dest_offset, value);
+    activation.store_cell_at(dest_offset, value);
 
     Ok(())
 }
@@ -220,13 +228,13 @@ pub(crate) fn execute_load_closure_environment(
     // load current frame environment
     let environment = activation
         .active_frame()
-        .load_environment(activation.active_frame_layout())?;
+        .load_environment(activation.frame_layout())?;
     let Some(environment) = environment else {
         return Err(Error::invalid_instruction());
     };
 
     // store result
-    activation.store_word_at(dest, environment);
+    activation.store_cell_at(dest, environment);
 
     Ok(())
 }
@@ -251,7 +259,7 @@ fn local_function(activation: &Activation<'_>, target: CallTarget) -> Option<Fun
 fn enter_local_call(
     activation: &mut Activation<'_>,
     target: CallTarget,
-    env: Option<Word>,
+    env: Option<Cell>,
     moves: Option<MoveRange>,
     resume_pc: usize,
 ) -> Option<Transfer> {
@@ -291,7 +299,7 @@ fn enter_local_call(
     }
 
     // bind parameters from the current caller frame
-    let caller_index = activation.active_frame_index;
+    let caller_index = activation.frame_index;
     let current_function = {
         let frame = activation.active_frame();
         match activation
@@ -334,7 +342,7 @@ fn enter_call(
     function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
     arguments: ArgumentRange,
-    env: Option<Word>,
+    env: Option<Cell>,
     moves: Option<MoveRange>,
     resume_pc: usize,
     allow_direct: bool,
@@ -362,7 +370,7 @@ fn call_branch_transfer(
     function_id: mir::LocalNodeId<mir::Function>,
     target: CallTarget,
     arguments: ArgumentRange,
-    env: Option<Word>,
+    env: Option<Cell>,
     target_state: engine::FrameStateId,
 ) -> Transfer {
     // call terminators always use explicit transfer handling
@@ -440,7 +448,7 @@ fn execute_call_virtual<const IS_SHARED: bool>(
     } = activation.side::<CallVirtual>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = activation.load_word_at(*receiver_offset);
+    let receiver_value = activation.load_cell_at(*receiver_offset);
     let table_field = activation.projection(*table_field);
     let function_id =
         match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
@@ -498,7 +506,7 @@ fn execute_call_virtual_branch<const IS_SHARED: bool>(
         target_state,
     } = activation.side::<CallVirtualBranch>(instruction);
 
-    let receiver_value = activation.load_word_at(*receiver_offset);
+    let receiver_value = activation.load_cell_at(*receiver_offset);
     let table_field = activation.projection(*table_field);
     let function_id =
         match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
@@ -544,7 +552,7 @@ fn execute_call_dynamic<const IS_SHARED: bool>(
     } = activation.side::<CallDynamic>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = activation.load_word_at(*receiver_offset);
+    let receiver_value = activation.load_cell_at(*receiver_offset);
     let table_field = activation.projection(*table_field);
     let function_id =
         match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
@@ -602,7 +610,7 @@ fn execute_call_dynamic_branch<const IS_SHARED: bool>(
         target_state,
     } = activation.side::<CallDynamicBranch>(instruction);
 
-    let receiver_value = activation.load_word_at(*receiver_offset);
+    let receiver_value = activation.load_cell_at(*receiver_offset);
     let table_field = activation.projection(*table_field);
     let function_id =
         match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
@@ -647,7 +655,7 @@ fn execute_indirect_call<const HAS_ENVIRONMENT: bool>(
     } = activation.side::<CallIndirect>(instruction);
 
     // load callee value
-    let callee_value = activation.load_word_at(*callee_offset);
+    let callee_value = activation.load_cell_at(*callee_offset);
 
     // resolve closure function and environment
     let (function_id, env) =
@@ -712,7 +720,7 @@ fn execute_indirect_call_branch<const HAS_ENVIRONMENT: bool>(
         target_state,
     } = activation.side::<CallIndirectBranch>(instruction);
 
-    let callee_value = activation.load_word_at(*callee_offset);
+    let callee_value = activation.load_cell_at(*callee_offset);
     let (function_id, env) =
         match resolve_indirect_callee::<HAS_ENVIRONMENT>(activation, callee_value) {
             Ok(callee) => callee,
@@ -754,7 +762,7 @@ fn enter_tail_call(
     activation: &mut Activation<'_>,
     callee: &Function,
     argument_values: &[FrameValue],
-    env: Option<Word>,
+    env: Option<Cell>,
 ) -> Result<(), Error> {
     // load callee frame layout
     let layout = activation
@@ -784,7 +792,7 @@ fn enter_tail_call(
     }
 
     // bind dispatch metadata for the retargeted frame
-    let frame_index = activation.active_frame_index;
+    let frame_index = activation.frame_index;
     activation.bind_frame(frame_index)?;
 
     // bind function parameters
@@ -855,7 +863,7 @@ pub(crate) fn execute_tail_call(
             Some(function) => function,
             None => return Transfer::Error(Error::invalid_instruction()),
         };
-        let caller = match activation.frame(activation.active_frame_index) {
+        let caller = match activation.frame(activation.frame_index) {
             Ok(frame) => frame,
             Err(error) => return Transfer::Error(error),
         };
@@ -904,7 +912,7 @@ pub(crate) fn execute_tail_call_self(
 
     // collect argument values before clearing the frame
     let args = {
-        let caller = match activation.frame(activation.active_frame_index) {
+        let caller = match activation.frame(activation.frame_index) {
             Ok(frame) => frame,
             Err(error) => return Transfer::Error(error),
         };
@@ -946,7 +954,7 @@ pub(crate) fn execute_tail_call_self(
     }
 
     // bind dispatch metadata after replacing frame bytes
-    let frame_index = activation.active_frame_index;
+    let frame_index = activation.frame_index;
     if let Err(error) = activation.bind_frame(frame_index) {
         return Transfer::Error(error);
     }
@@ -996,7 +1004,7 @@ fn execute_tail_call_virtual<const IS_SHARED: bool>(
     } = activation.side::<TailCallVirtual>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = activation.load_word_at(*receiver_offset);
+    let receiver_value = activation.load_cell_at(*receiver_offset);
     let table_field = activation.projection(*table_field);
     let function_id =
         match resolve_virtual_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
@@ -1047,7 +1055,7 @@ fn execute_tail_call_dynamic<const IS_SHARED: bool>(
     } = activation.side::<TailCallDynamic>(instruction);
 
     // resolve dynamic callee
-    let receiver_value = activation.load_word_at(*receiver_offset);
+    let receiver_value = activation.load_cell_at(*receiver_offset);
     let table_field = activation.projection(*table_field);
     let function_id =
         match resolve_dynamic_callee::<IS_SHARED>(activation, receiver_value, table_field, *slot) {
@@ -1097,7 +1105,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     } = activation.side::<TailCallIndirect>(instruction);
 
     // load callee value
-    let callee_value = activation.load_word_at(*callee_offset);
+    let callee_value = activation.load_cell_at(*callee_offset);
 
     // resolve closure function and environment
     let (function_id, env) =
@@ -1152,7 +1160,7 @@ fn execute_indirect_tail_call<const HAS_ENVIRONMENT: bool>(
     };
 
     // collect argument values
-    let caller = match activation.frame(activation.active_frame_index) {
+    let caller = match activation.frame(activation.frame_index) {
         Ok(frame) => frame,
         Err(error) => return Transfer::Error(error),
     };

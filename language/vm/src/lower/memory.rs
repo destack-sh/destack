@@ -4,14 +4,14 @@ use destack_mir as mir;
 use crate::program::{Instruction, Op, Projection};
 use crate::{Error, Result};
 
-use super::frame::{value_offset, word_offset};
+use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
 use super::op::{select_load_op, select_store_op};
 use super::pool::Pool;
 use super::projection::pointee_projection;
 use super::value::{
-    heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
-    raw_pointee_type_for_value, raw_pointee_type_for_value_layout,
+    address_space_for_value, heap_pointee_type_for_storage_id, heap_pointee_type_for_value,
+    raw_pointee_type_for_storage_id, raw_pointee_type_for_value,
 };
 
 /// Encode one fixed byte offset into an instruction operand.
@@ -35,10 +35,10 @@ impl<'a> BlockLowerer<'a> {
         let destination_slot = frame_value_slot(self, destination)?;
         let local_slot = frame_local_slot(self, local)?;
 
-        // move word locals without runtime layout lookup
-        if destination_slot.is_word && local_slot.is_word {
+        // move cell locals without runtime layout lookup
+        if destination_slot.is_cell && local_slot.is_cell {
             return Ok(Instruction::new(
-                Op::MoveWord,
+                Op::MoveCell,
                 destination_slot.offset,
                 local_slot.offset,
                 0,
@@ -77,7 +77,7 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             Op::AddressLocal,
-            word_offset(self, destination)?,
+            cell_offset(self, destination)?,
             local,
             0,
             0,
@@ -99,10 +99,10 @@ impl<'a> BlockLowerer<'a> {
         let local_slot = frame_local_slot(self, local)?;
         let value_slot = frame_value_slot(self, value)?;
 
-        // move word locals without runtime layout lookup
-        if local_slot.is_word && value_slot.is_word {
+        // move cell locals without runtime layout lookup
+        if local_slot.is_cell && value_slot.is_cell {
             return Ok(Instruction::new(
-                Op::MoveWord,
+                Op::MoveCell,
                 local_slot.offset,
                 value_slot.offset,
                 0,
@@ -140,7 +140,7 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             Op::AddressStatic,
-            word_offset(self, destination)?,
+            cell_offset(self, destination)?,
             global.id,
             0,
             0,
@@ -162,7 +162,7 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             Op::AddressFunction,
-            word_offset(self, destination)?,
+            cell_offset(self, destination)?,
             function.id,
             0,
             0,
@@ -183,15 +183,15 @@ impl<'a> BlockLowerer<'a> {
             .value()
             .ok_or_else(|| Error::invalid_program("load pointer"))?;
         let access = self.pointee_projection_for_value(pointer)?;
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), pointer);
-        let op = select_load_op(pointer_class, access)?;
-        if !access.is_word() {
+        let address_space = address_space_for_value(self.value_shape_map(), pointer)?;
+        let op = select_load_op(address_space, access)?;
+        if !access.is_cell() {
             let access = pool.projection(access);
 
             return Ok(Instruction::new(
                 op,
                 value_offset(self, destination)?,
-                word_offset(self, pointer)?,
+                cell_offset(self, pointer)?,
                 access.0,
                 0,
             ));
@@ -199,8 +199,8 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             op,
-            word_offset(self, destination)?,
-            word_offset(self, pointer)?,
+            cell_offset(self, destination)?,
+            cell_offset(self, pointer)?,
             instruction_byte_offset(access.byte_offset)?,
             0,
         ))
@@ -220,15 +220,15 @@ impl<'a> BlockLowerer<'a> {
             .value()
             .ok_or_else(|| Error::invalid_program("store value"))?;
         let access = self.pointee_projection_for_value(pointer)?;
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), pointer);
-        let op = select_store_op(pointer_class, access)?;
+        let address_space = address_space_for_value(self.value_shape_map(), pointer)?;
+        let op = select_store_op(address_space, access)?;
 
-        if !access.is_word() {
+        if !access.is_cell() {
             let access = pool.projection(access);
 
             return Ok(Instruction::new(
                 op,
-                word_offset(self, pointer)?,
+                cell_offset(self, pointer)?,
                 value_offset(self, value)?,
                 access.0,
                 0,
@@ -237,8 +237,8 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             op,
-            word_offset(self, pointer)?,
-            word_offset(self, value)?,
+            cell_offset(self, pointer)?,
+            cell_offset(self, value)?,
             instruction_byte_offset(access.byte_offset)?,
             0,
         ))
@@ -246,8 +246,8 @@ impl<'a> BlockLowerer<'a> {
 
     /// Return the lowered projection for a pointer value.
     fn pointee_projection_for_value(&self, pointer: mir::Value) -> Result<Projection> {
-        let pointee_type = heap_pointee_type_for_value_layout(self.value_layout_map(), pointer)
-            .or_else(|| raw_pointee_type_for_value_layout(self.value_layout_map(), pointer))
+        let pointee_type = heap_pointee_type_for_storage_id(self.value_shape_map(), pointer)
+            .or_else(|| raw_pointee_type_for_storage_id(self.value_shape_map(), pointer))
             .or_else(|| heap_pointee_type_for_value(self.tree, self.value_type(), pointer))
             .or_else(|| raw_pointee_type_for_value(self.tree, self.value_type(), pointer));
         pointee_type

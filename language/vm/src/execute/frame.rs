@@ -8,11 +8,11 @@ use smallvec::SmallVec;
 use crate::diagnostic::{Error, ReferenceKind};
 use crate::machine::{Activation, Frame};
 use crate::program::{
-    ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, PointerClass, Program,
-    Projection, ProjectionId, ValueLayout, encode_word_bytes, pointer_class_from_reference,
-    repr_type, value_layout_from_type,
+    AddressSpace, ArgumentRange, Instruction, MovePair, MoveRange, MoveSlot, MoveSource, Program,
+    Projection, ProjectionId, ValueShape, address_space_from_reference, encode_cell_bytes,
+    repr_type, value_shape_from_type,
 };
-use crate::{FramePointer, Word};
+use crate::{Cell, FramePointer};
 use destack_heap::{AllocationCache, GcWorker, Heap};
 
 use super::access;
@@ -24,7 +24,7 @@ pub(super) fn frame_element_offset(
     access: Projection,
     index: u32,
 ) -> usize {
-    let index = activation.load_word_at(index).as_u64();
+    let index = activation.load_cell_at(index).as_u64();
 
     access.byte_offset + access.byte_stride * index as usize
 }
@@ -40,9 +40,9 @@ pub(crate) fn execute_address_frame_value_offset(
     let byte_offset = instruction.d as usize;
 
     let pointer = activation.frame_pointer_at(base).add_bytes(byte_offset);
-    let value = Word::frame_pointer(pointer);
+    let value = Cell::frame_pointer(pointer);
 
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -61,9 +61,9 @@ pub(crate) fn execute_address_frame_value_element(
     let access = activation.projection(access);
     let offset = frame_element_offset(activation, access, index);
     let pointer = activation.frame_pointer_at(base).add_bytes(offset);
-    let value = Word::frame_pointer(pointer);
+    let value = Cell::frame_pointer(pointer);
 
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -75,12 +75,12 @@ pub(crate) fn execute_load_frame_scalar<const BYTE_LEN: usize, const IS_SIGNED: 
     instruction: &Instruction,
 ) -> Result<(), Error> {
     let dest = instruction.a;
-    let base = activation.load_word_at(instruction.b);
+    let base = activation.load_cell_at(instruction.b);
     let byte_offset = instruction.c as usize;
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
 
     let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -97,7 +97,7 @@ pub(crate) fn execute_load_frame_value_scalar<const BYTE_LEN: usize, const IS_SI
     let pointer = activation.frame_pointer_at(base).add_bytes(byte_offset);
 
     let value = access::load_scalar_at_address::<BYTE_LEN, IS_SIGNED>(pointer.address());
-    activation.store_word_at(dest, value);
+    activation.store_cell_at(dest, value);
 
     Ok(())
 }
@@ -108,12 +108,12 @@ pub(crate) fn execute_store_frame_scalar<const BYTE_LEN: usize>(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
 ) -> Result<(), Error> {
-    let base = activation.load_word_at(instruction.a);
+    let base = activation.load_cell_at(instruction.a);
     let value = instruction.b;
     let byte_offset = instruction.c as usize;
 
     let pointer = base.as_frame_pointer().add_bytes(byte_offset);
-    let value = activation.load_word_at(value);
+    let value = activation.load_cell_at(value);
 
     access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
@@ -131,7 +131,7 @@ pub(crate) fn execute_store_frame_value_scalar<const BYTE_LEN: usize>(
     let byte_offset = instruction.c as usize;
 
     let pointer = activation.frame_pointer_at(base).add_bytes(byte_offset);
-    let value = activation.load_word_at(value);
+    let value = activation.load_cell_at(value);
 
     access::store_scalar_at_address::<BYTE_LEN>(pointer.address(), value);
 
@@ -141,9 +141,9 @@ pub(crate) fn execute_store_frame_value_scalar<const BYTE_LEN: usize>(
 /// One owned frame value body.
 #[derive(Clone, Debug)]
 pub(crate) enum FrameValueBody {
-    /// One scalar or pointer word.
-    Word(Word),
-    /// One non-word frame byte range.
+    /// One scalar or pointer cell.
+    Cell(Cell),
+    /// One non-cell frame byte range.
     Bytes(Box<[u8]>),
 }
 
@@ -157,12 +157,12 @@ pub(crate) struct FrameValue {
 }
 
 impl FrameValue {
-    /// Create one word value.
+    /// Create one cell value.
     #[inline]
-    pub(crate) fn word(ty: mir::LocalNodeId<mir::Type>, value: Word) -> Self {
+    pub(crate) fn cell(ty: mir::LocalNodeId<mir::Type>, value: Cell) -> Self {
         Self {
             ty,
-            body: FrameValueBody::Word(value),
+            body: FrameValueBody::Cell(value),
         }
     }
 
@@ -180,11 +180,11 @@ impl FrameValue {
 pub(crate) fn encode_argument_bytes(
     activation: &mut Activation<'_>,
     ty: mir::LocalNodeId<mir::Type>,
-    value: Word,
+    value: Cell,
 ) -> Result<Vec<u8>, Error> {
     let layout = activation.require_layout(ty)?.clone();
-    if layout.is_word() {
-        return Ok(encode_word_bytes(activation.machine.tree(), ty, value)?
+    if layout.is_cell() {
+        return Ok(encode_cell_bytes(activation.machine.tree(), ty, value)?
             .as_slice()
             .to_vec());
     }
@@ -202,7 +202,7 @@ pub(crate) fn store_frame_fields<F>(
     mut field_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut Activation<'_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Word, Error>,
+    F: FnMut(&mut Activation<'_>, u32, mir::LocalNodeId<mir::Type>) -> Result<Cell, Error>,
 {
     let ty = activation.value_type(destination)?;
     let layout = activation.require_layout(ty)?.clone();
@@ -223,7 +223,7 @@ where
             .ok_or(Error::invalid_field_access(index, field_count))?;
         let value = field_value(activation, index, field.ty)?;
         let value_end = field.offset + field.byte_len;
-        let value_bytes = encode_word_bytes(activation.machine.tree(), field.ty, value)?;
+        let value_bytes = encode_cell_bytes(activation.machine.tree(), field.ty, value)?;
         if value_bytes.len() != field.byte_len {
             return Err(Error::invalid_instruction());
         }
@@ -243,11 +243,11 @@ where
 fn store_argument_bytes(
     activation: &mut Activation<'_>,
     ty: mir::LocalNodeId<mir::Type>,
-    value: Word,
+    value: Cell,
     destination: &mut [u8],
 ) -> Result<(), Error> {
-    if activation.require_layout(ty)?.is_word() {
-        let bytes = encode_word_bytes(activation.machine.tree(), ty, value)?;
+    if activation.require_layout(ty)?.is_cell() {
+        let bytes = encode_cell_bytes(activation.machine.tree(), ty, value)?;
         if bytes.len() != destination.len() {
             return Err(Error::invalid_reference(ReferenceKind::Heap));
         }
@@ -293,45 +293,45 @@ pub(crate) fn frame_value_type(
         .value(value.0)
         .ok_or(Error::invalid_instruction())?;
 
-    Ok(program.type_for_value_layout(slot.layout))
+    Ok(program.type_for_storage_id(slot.layout))
 }
 
-/// Return the addressable word for one frame value.
-fn frame_value_word(program: &Program, frame: &Frame, value: mir::Value) -> Result<Word, Error> {
+/// Return the addressable cell for one frame value.
+fn frame_value_cell(program: &Program, frame: &Frame, value: mir::Value) -> Result<Cell, Error> {
     let frame_layout = program
         .frame_layout_by_id(frame.frame_layout())
         .ok_or(Error::invalid_instruction())?;
     let slot = frame_layout
         .value(value.0)
         .ok_or(Error::invalid_instruction())?;
-    let layout = program.layout_for_value_id(slot.layout).ok_or_else(|| {
+    let layout = program.layout_for_storage_id(slot.layout).ok_or_else(|| {
         Error::internal(format!(
-            "missing frame value layout: layout={:?}",
+            "missing frame storage layout: layout={:?}",
             slot.layout
         ))
     })?;
 
-    if layout.is_word() {
-        return Ok(frame.read_word(slot));
+    if layout.is_cell() {
+        return Ok(frame.read_cell(slot));
     }
 
-    Ok(Word::frame_pointer(FramePointer::from_address(
+    Ok(Cell::frame_pointer(FramePointer::from_address(
         frame.slot_address(slot),
     )))
 }
 
-/// Load one word or frame byte range into an owned frame value.
-pub(crate) fn frame_value_from_word(
+/// Load one cell or frame byte range into an owned frame value.
+pub(crate) fn frame_value_from_cell(
     program: &Program,
     frames: &[Frame],
     ty: mir::LocalNodeId<mir::Type>,
-    value: Word,
+    value: Cell,
 ) -> Result<FrameValue, Error> {
     let layout = program
         .layout(ty)
-        .ok_or_else(|| Error::internal(format!("missing frame value layout: type={ty:?}")))?;
-    if layout.is_word() {
-        return Ok(FrameValue::word(ty, value));
+        .ok_or_else(|| Error::internal(format!("missing frame storage layout: type={ty:?}")))?;
+    if layout.is_cell() {
+        return Ok(FrameValue::cell(ty, value));
     }
 
     let pointer = value.as_frame_pointer();
@@ -362,16 +362,16 @@ fn load_frame_value(
     value: mir::Value,
 ) -> Result<FrameValue, Error> {
     let ty = frame_value_type(program, frame, value)?;
-    let value = frame_value_word(program, frame, value)?;
+    let value = frame_value_cell(program, frame, value)?;
 
-    frame_value_from_word(program, frames, ty, value)
+    frame_value_from_cell(program, frames, ty, value)
 }
 
 /// Load one lowered frame slot into an owned value.
 fn load_frame_slot_value(program: &Program, frame: &Frame, slot: MoveSlot) -> FrameValue {
-    let ty = program.type_for_value_layout(slot.layout);
-    if slot.is_word {
-        return FrameValue::word(ty, frame.read_word_at(slot.offset));
+    let ty = program.type_for_storage_id(slot.layout);
+    if slot.is_cell {
+        return FrameValue::cell(ty, frame.read_cell_at(slot.offset));
     }
 
     let bytes = move_slot_bytes(frame, slot).to_vec().into_boxed_slice();
@@ -392,19 +392,19 @@ pub(crate) fn store_frame_value(
     let slot = frame_layout
         .value(destination.0)
         .ok_or(Error::invalid_instruction())?;
-    let layout = program.layout_for_value_id(slot.layout).ok_or_else(|| {
+    let layout = program.layout_for_storage_id(slot.layout).ok_or_else(|| {
         Error::internal(format!(
-            "missing destination value layout: layout={:?}",
+            "missing destination storage layout: layout={:?}",
             slot.layout
         ))
     })?;
 
-    match (layout.is_word(), value.body) {
-        (true, FrameValueBody::Word(value)) => dest_frame.write_word(slot, value),
+    match (layout.is_cell(), value.body) {
+        (true, FrameValueBody::Cell(value)) => dest_frame.write_cell(slot, value),
         (false, FrameValueBody::Bytes(bytes)) if bytes.len() == slot.byte_len as usize => {
             dest_frame.slot_bytes_mut(slot).copy_from_slice(&bytes);
         }
-        (false, FrameValueBody::Word(value)) => {
+        (false, FrameValueBody::Cell(value)) => {
             return Err(Error::type_mismatch(
                 "byte frame value",
                 format!("{value:?}"),
@@ -412,7 +412,7 @@ pub(crate) fn store_frame_value(
         }
         (true, FrameValueBody::Bytes(bytes)) => {
             return Err(Error::type_mismatch(
-                "word frame value",
+                "cell frame value",
                 format!("{} bytes", bytes.len()),
             ));
         }
@@ -429,8 +429,8 @@ pub(crate) fn store_frame_value(
 
 /// One buffered frame slot value.
 enum BufferedSlotValue {
-    /// Word slot value.
-    Word(Word),
+    /// Cell slot value.
+    Cell(Cell),
     /// Byte slot value.
     Bytes(SmallVec<[u8; 32]>),
 }
@@ -445,7 +445,7 @@ pub(crate) fn materialize_value(
     value: FrameValue,
 ) -> Result<engine::Value, Error> {
     match value.body {
-        FrameValueBody::Word(word) => materialize_word(program, value.ty, word),
+        FrameValueBody::Cell(cell) => materialize_cell(program, value.ty, cell),
         FrameValueBody::Bytes(bytes) => {
             if let Some(value) = materialize_scalar_bytes(program, value.ty, &bytes)? {
                 return Ok(value);
@@ -456,15 +456,15 @@ pub(crate) fn materialize_value(
                 .ok_or(Error::invalid_instruction())?;
             let shape = program.allocation_shape(layout_id)?;
 
-            match boundary_pointer_class(program, value.ty) {
-                PointerClass::Heap => {
+            match boundary_address_space(program, value.ty) {
+                AddressSpace::Local => {
                     let reference = heap
                         .allocate_dynamic_bytes(shape, &bytes)
                         .map_err(Error::from)?;
 
                     Ok(engine::Value::HeapReference(reference))
                 }
-                PointerClass::SharedHeap => {
+                AddressSpace::Shared => {
                     let reference = shared
                         .allocate_dynamic_bytes(
                             shared_gc,
@@ -477,7 +477,7 @@ pub(crate) fn materialize_value(
 
                     Ok(engine::Value::SharedHeapReference(reference))
                 }
-                pointer_class => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
+                address_space => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
             }
         }
     }
@@ -531,13 +531,13 @@ fn sign_extend_i128(value: u128, width: u16) -> i128 {
     ((value << shift) as i128) >> shift
 }
 
-/// Return the pointer class used to package one non-word boundary value.
-fn boundary_pointer_class(program: &Program, ty: mir::LocalNodeId<mir::Type>) -> PointerClass {
+/// Return the address space used to package one non-cell boundary value.
+fn boundary_address_space(program: &Program, ty: mir::LocalNodeId<mir::Type>) -> AddressSpace {
     let ty = repr_type(&program.tree, ty);
 
     match program.tree.get(ty) {
-        mir::Type::Slice { kind, space, .. } => pointer_class_from_reference(space.clone(), *kind),
-        _ => PointerClass::Heap,
+        mir::Type::Slice { kind, space, .. } => address_space_from_reference(space.clone(), *kind),
+        _ => AddressSpace::Local,
     }
 }
 
@@ -550,26 +550,26 @@ pub(crate) fn dematerialize_value(
     value: &engine::Value,
 ) -> Result<FrameValue, Error> {
     let layout = program.layout(ty).ok_or(Error::invalid_instruction())?;
-    if !layout.is_word() {
+    if !layout.is_cell() {
         return dematerialize_bytes(program, heap, shared, ty, value);
     }
 
-    let word = match value {
-        engine::Value::Void => Word::VOID,
-        engine::Value::Bool(value) => Word::bool(*value),
-        engine::Value::Int { value, width } => Word::int(*value as i64, *width as u8),
-        engine::Value::UInt { value, width } => Word::uint(*value as u64, *width as u8),
-        engine::Value::Float16 { bits } => Word::from_bits(u64::from(*bits)),
-        engine::Value::Bfloat16 { bits } => Word::from_bits(u64::from(*bits)),
-        engine::Value::Float32 { bits } => Word::float32(f32::from_bits(*bits)),
-        engine::Value::Float64 { bits } => Word::float64(f64::from_bits(*bits)),
-        engine::Value::Char(value) => Word::char(*value),
-        engine::Value::HeapReference(reference) => Word::heap_reference(*reference),
-        engine::Value::SharedHeapReference(reference) => Word::shared_heap_reference(*reference),
-        engine::Value::Address(address) => Word::address(*address),
+    let cell = match value {
+        engine::Value::Void => Cell::ZERO,
+        engine::Value::Bool(value) => Cell::bool(*value),
+        engine::Value::Int { value, width } => Cell::int(*value as i64, *width as u8),
+        engine::Value::UInt { value, width } => Cell::uint(*value as u64, *width as u8),
+        engine::Value::Float16 { bits } => Cell::from_bits(u64::from(*bits)),
+        engine::Value::Bfloat16 { bits } => Cell::from_bits(u64::from(*bits)),
+        engine::Value::Float32 { bits } => Cell::float32(f32::from_bits(*bits)),
+        engine::Value::Float64 { bits } => Cell::float64(f64::from_bits(*bits)),
+        engine::Value::Char(value) => Cell::char(*value),
+        engine::Value::HeapReference(reference) => Cell::heap_reference(*reference),
+        engine::Value::SharedHeapReference(reference) => Cell::shared_heap_reference(*reference),
+        engine::Value::Address(address) => Cell::address(*address),
     };
 
-    Ok(FrameValue::word(ty, word))
+    Ok(FrameValue::cell(ty, cell))
 }
 
 /// Dematerialize one engine boundary value into frame bytes.
@@ -587,20 +587,20 @@ fn dematerialize_bytes(
     let layout = program.layout(ty).ok_or(Error::invalid_instruction())?;
     let mut bytes = vec![0u8; layout.byte_len];
 
-    match (boundary_pointer_class(program, ty), value) {
-        (PointerClass::Heap, engine::Value::HeapReference(reference)) => {
+    match (boundary_address_space(program, ty), value) {
+        (AddressSpace::Local, engine::Value::HeapReference(reference)) => {
             let address = heap.heap_base_address() + reference.offset();
 
             copy_address_to_slice(address, &mut bytes);
         }
-        (PointerClass::SharedHeap, engine::Value::SharedHeapReference(reference)) => {
+        (AddressSpace::Shared, engine::Value::SharedHeapReference(reference)) => {
             let address = shared.heap_base_address() + reference.offset();
 
             copy_address_to_slice(address, &mut bytes);
         }
-        (pointer_class, value) => {
+        (address_space, value) => {
             return Err(Error::type_mismatch(
-                format!("{pointer_class:?} frame-backed value"),
+                format!("{address_space:?} frame-backed value"),
                 format!("{value:?}"),
             ));
         }
@@ -661,67 +661,67 @@ fn copy_address_to_slice(address: usize, destination: &mut [u8]) {
     }
 }
 
-/// Materialize one word into one engine boundary value.
-pub(crate) fn materialize_word(
+/// Materialize one cell into one engine boundary value.
+pub(crate) fn materialize_cell(
     program: &Program,
     ty: mir::LocalNodeId<mir::Type>,
-    value: Word,
+    value: Cell,
 ) -> Result<engine::Value, Error> {
-    match value_layout_from_type(&program.tree, ty) {
-        ValueLayout::Void => Ok(engine::Value::Void),
-        ValueLayout::Bool => Ok(engine::Value::Bool(value.as_bool())),
-        ValueLayout::Int {
+    match value_shape_from_type(&program.tree, ty) {
+        Some(ValueShape::Void) => Ok(engine::Value::Void),
+        Some(ValueShape::Bool) => Ok(engine::Value::Bool(value.as_bool())),
+        Some(ValueShape::Int {
             width,
             signed: true,
-        } => Ok(engine::Value::Int {
-            value: value.as_int() as i128,
+        }) => Ok(engine::Value::Int {
+            value: value.as_i64() as i128,
             width,
         }),
-        ValueLayout::Int {
+        Some(ValueShape::Int {
             width,
             signed: false,
-        } => Ok(engine::Value::UInt {
-            value: value.as_uint() as u128,
+        }) => Ok(engine::Value::UInt {
+            value: value.as_u64() as u128,
             width,
         }),
-        ValueLayout::Float {
+        Some(ValueShape::Float {
             format: mir::FloatType::Float16,
-        } => Ok(engine::Value::float16_bits(value.bits() as u16)),
-        ValueLayout::Float {
+        }) => Ok(engine::Value::float16_bits(value.bits() as u16)),
+        Some(ValueShape::Float {
             format: mir::FloatType::Bfloat16,
-        } => Ok(engine::Value::bfloat16_bits(value.bits() as u16)),
-        ValueLayout::Float {
+        }) => Ok(engine::Value::bfloat16_bits(value.bits() as u16)),
+        Some(ValueShape::Float {
             format: mir::FloatType::Float32,
-        } => Ok(engine::Value::Float32 {
-            bits: value.as_float32().to_bits(),
+        }) => Ok(engine::Value::Float32 {
+            bits: value.as_f32().to_bits(),
         }),
-        ValueLayout::Float {
+        Some(ValueShape::Float {
             format: mir::FloatType::Float64,
-        } => Ok(engine::Value::Float64 {
-            bits: value.as_float64().to_bits(),
+        }) => Ok(engine::Value::Float64 {
+            bits: value.as_f64().to_bits(),
         }),
-        ValueLayout::Char => {
+        Some(ValueShape::Char) => {
             let value = value.as_char().ok_or(Error::invalid_instruction())?;
 
             Ok(engine::Value::Char(value))
         }
-        ValueLayout::Pointer {
-            pointer_class: PointerClass::Heap,
+        Some(ValueShape::Pointer {
+            address_space: AddressSpace::Local,
             ..
-        } => Ok(engine::Value::HeapReference(value.as_heap_reference())),
-        ValueLayout::Pointer {
-            pointer_class: PointerClass::SharedHeap,
+        }) => Ok(engine::Value::HeapReference(value.as_heap_reference())),
+        Some(ValueShape::Pointer {
+            address_space: AddressSpace::Shared,
             ..
-        } => Ok(engine::Value::SharedHeapReference(
+        }) => Ok(engine::Value::SharedHeapReference(
             value.as_shared_heap_reference(),
         )),
-        ValueLayout::Pointer {
-            pointer_class: PointerClass::Address,
+        Some(ValueShape::Pointer {
+            address_space: AddressSpace::Raw,
             ..
-        } => Ok(engine::Value::Address(value.as_address())),
+        }) => Ok(engine::Value::Address(value.as_address())),
         _ => Err(Error::type_mismatch(
-            "word value",
-            format!("{:?}", value_layout_from_type(&program.tree, ty)),
+            "cell value",
+            format!("{:?}", value_shape_from_type(&program.tree, ty)),
         )),
     }
 }
@@ -748,19 +748,19 @@ pub(crate) fn move_frame_value(
         .value(destination.0)
         .ok_or(Error::invalid_instruction())?;
 
-    if source_slot.byte_len != dest_slot.byte_len || source_slot.is_word != dest_slot.is_word {
+    if source_slot.byte_len != dest_slot.byte_len || source_slot.is_cell != dest_slot.is_cell {
         return Err(Error::type_mismatch(
-            format!("{} bytes, word={}", dest_slot.byte_len, dest_slot.is_word),
+            format!("{} bytes, cell={}", dest_slot.byte_len, dest_slot.is_cell),
             format!(
-                "{} bytes, word={}",
-                source_slot.byte_len, source_slot.is_word
+                "{} bytes, cell={}",
+                source_slot.byte_len, source_slot.is_cell
             ),
         ));
     }
 
-    if dest_slot.is_word {
-        let value = source_frame.read_word(source_slot);
-        dest_frame.write_word(dest_slot, value);
+    if dest_slot.is_cell {
+        let value = source_frame.read_cell(source_slot);
+        dest_frame.write_cell(dest_slot, value);
 
         return Ok(());
     }
@@ -778,19 +778,19 @@ fn move_frame_slot(
     dest_frame: &mut Frame,
     destination: MoveSlot,
 ) -> Result<(), Error> {
-    if source.byte_len != destination.byte_len || source.is_word != destination.is_word {
+    if source.byte_len != destination.byte_len || source.is_cell != destination.is_cell {
         return Err(Error::type_mismatch(
             format!(
-                "{} bytes, word={}",
-                destination.byte_len, destination.is_word
+                "{} bytes, cell={}",
+                destination.byte_len, destination.is_cell
             ),
-            format!("{} bytes, word={}", source.byte_len, source.is_word),
+            format!("{} bytes, cell={}", source.byte_len, source.is_cell),
         ));
     }
 
-    if destination.is_word {
-        let value = source_frame.read_word_at(source.offset);
-        dest_frame.write_word_at(destination.offset, value);
+    if destination.is_cell {
+        let value = source_frame.read_cell_at(source.offset);
+        dest_frame.write_cell_at(destination.offset, value);
 
         return Ok(());
     }
@@ -814,8 +814,8 @@ fn store_void_value(
         .value(destination.0)
         .ok_or(Error::invalid_instruction())?;
 
-    if slot.is_word {
-        frame.write_word(slot, Word::VOID);
+    if slot.is_cell {
+        frame.write_cell(slot, Cell::ZERO);
 
         return Ok(());
     }
@@ -827,8 +827,8 @@ fn store_void_value(
 
 /// Write void into one lowered frame slot.
 fn store_void_slot(frame: &mut Frame, destination: MoveSlot) {
-    if destination.is_word {
-        frame.write_word_at(destination.offset, Word::VOID);
+    if destination.is_cell {
+        frame.write_cell_at(destination.offset, Cell::ZERO);
 
         return;
     }
@@ -911,30 +911,30 @@ pub(crate) fn move_values_within_frame(
         return Ok(());
     }
 
-    // keep scalar edge moves on the word-only path
-    let mut is_word_move = true;
+    // keep scalar edge moves on the cell-only path
+    let mut is_cell_move = true;
     for pair in pairs {
-        if !pair.dest.is_word {
-            is_word_move = false;
+        if !pair.dest.is_cell {
+            is_cell_move = false;
             break;
         }
 
         if let MoveSource::Slot(source) = pair.source
-            && !source.is_word
+            && !source.is_cell
         {
-            is_word_move = false;
+            is_cell_move = false;
             break;
         }
     }
 
-    if is_word_move {
-        let mut values = SmallVec::<[Word; 16]>::with_capacity(pairs.len());
+    if is_cell_move {
+        let mut values = SmallVec::<[Cell; 16]>::with_capacity(pairs.len());
 
         // collect sources before writing destinations
         for pair in pairs {
             let value = match pair.source {
-                MoveSource::Slot(source) => frame.read_word_at(source.offset),
-                MoveSource::Void => Word::VOID,
+                MoveSource::Slot(source) => frame.read_cell_at(source.offset),
+                MoveSource::Void => Cell::ZERO,
             };
 
             values.push(value);
@@ -942,7 +942,7 @@ pub(crate) fn move_values_within_frame(
 
         // store destinations after preserving parallel move semantics
         for (pair, value) in pairs.iter().zip(values) {
-            frame.write_word_at(pair.dest.offset, value);
+            frame.write_cell_at(pair.dest.offset, value);
         }
 
         return Ok(());
@@ -954,15 +954,15 @@ pub(crate) fn move_values_within_frame(
     for pair in pairs {
         let value = match pair.source {
             MoveSource::Slot(source) => {
-                if source.byte_len != pair.dest.byte_len || source.is_word != pair.dest.is_word {
+                if source.byte_len != pair.dest.byte_len || source.is_cell != pair.dest.is_cell {
                     return Err(Error::type_mismatch(
-                        format!("{} bytes, word={}", pair.dest.byte_len, pair.dest.is_word),
-                        format!("{} bytes, word={}", source.byte_len, source.is_word),
+                        format!("{} bytes, cell={}", pair.dest.byte_len, pair.dest.is_cell),
+                        format!("{} bytes, cell={}", source.byte_len, source.is_cell),
                     ));
                 }
 
-                if source.is_word {
-                    BufferedSlotValue::Word(frame.read_word_at(source.offset))
+                if source.is_cell {
+                    BufferedSlotValue::Cell(frame.read_cell_at(source.offset))
                 } else {
                     let mut bytes = SmallVec::<[u8; 32]>::with_capacity(source.byte_len as usize);
                     bytes.extend_from_slice(move_slot_bytes(frame, source));
@@ -971,8 +971,8 @@ pub(crate) fn move_values_within_frame(
                 }
             }
             MoveSource::Void => {
-                if pair.dest.is_word {
-                    BufferedSlotValue::Word(Word::VOID)
+                if pair.dest.is_cell {
+                    BufferedSlotValue::Cell(Cell::ZERO)
                 } else {
                     let mut bytes =
                         SmallVec::<[u8; 32]>::with_capacity(pair.dest.byte_len as usize);
@@ -989,8 +989,8 @@ pub(crate) fn move_values_within_frame(
     // store destinations after preserving parallel move semantics
     for (pair, value) in pairs.iter().zip(values) {
         match value {
-            BufferedSlotValue::Word(value) => {
-                frame.write_word_at(pair.dest.offset, value);
+            BufferedSlotValue::Cell(value) => {
+                frame.write_cell_at(pair.dest.offset, value);
             }
             BufferedSlotValue::Bytes(bytes) => {
                 move_slot_bytes_mut(frame, pair.dest).copy_from_slice(&bytes);
@@ -1033,9 +1033,9 @@ pub(crate) fn load_moved_arguments(
         let value = match pair.source {
             MoveSource::Slot(source) => load_frame_slot_value(program, frame, source),
             MoveSource::Void => {
-                let destination_type = program.type_for_value_layout(pair.dest.layout);
+                let destination_type = program.type_for_storage_id(pair.dest.layout);
 
-                FrameValue::word(destination_type, Word::VOID)
+                FrameValue::cell(destination_type, Cell::ZERO)
             }
         };
 
@@ -1060,7 +1060,7 @@ pub(crate) fn store_parameters(
             Some(value) => value,
             None => {
                 let ty = frame_value_type(program, frame, *param)?;
-                FrameValue::word(ty, Word::VOID)
+                FrameValue::cell(ty, Cell::ZERO)
             }
         };
 

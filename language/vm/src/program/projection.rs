@@ -1,6 +1,6 @@
 use destack_mir as mir;
 
-use super::WordLayout;
+use super::CellLayout;
 
 /// Compiled projection from a base address to one value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -15,8 +15,8 @@ pub(crate) struct Projection {
     pub length: u64,
     /// The byte width of the projected value.
     pub byte_len: usize,
-    /// The word representation for scalar projections.
-    pub word_layout: Option<WordLayout>,
+    /// The cell representation for scalar projections.
+    pub cell_layout: Option<CellLayout>,
 }
 
 impl Projection {
@@ -25,7 +25,7 @@ impl Projection {
         value_type: mir::LocalNodeId<mir::Type>,
         byte_offset: usize,
         byte_len: usize,
-        word_layout: Option<WordLayout>,
+        cell_layout: Option<CellLayout>,
     ) -> Self {
         Self {
             value_type,
@@ -33,7 +33,7 @@ impl Projection {
             byte_stride: 0,
             length: 0,
             byte_len,
-            word_layout,
+            cell_layout,
         }
     }
 
@@ -43,7 +43,7 @@ impl Projection {
         length: u64,
         byte_stride: usize,
         byte_len: usize,
-        word_layout: Option<WordLayout>,
+        cell_layout: Option<CellLayout>,
     ) -> Self {
         Self {
             value_type,
@@ -51,14 +51,14 @@ impl Projection {
             byte_stride,
             length,
             byte_len,
-            word_layout,
+            cell_layout,
         }
     }
 
-    /// Return whether this projection fits in one VM word.
+    /// Return whether this projection fits in one VM cell.
     #[inline(always)]
-    pub(crate) fn is_word(self) -> bool {
-        self.word_layout.is_some()
+    pub(crate) fn is_cell(self) -> bool {
+        self.cell_layout.is_some()
     }
 
     /// Return this projection at a fixed byte offset.
@@ -77,24 +77,24 @@ impl Projection {
     }
 }
 
-/// Compiled projection from a base address to one physical word slot.
+/// Compiled projection from a base address to one physical cell slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct SlotProjection {
     /// The fixed byte offset from the base address.
     pub byte_offset: usize,
     /// The byte width of the slot payload.
     pub byte_len: usize,
-    /// The word representation for this slot.
-    pub word_layout: WordLayout,
+    /// The cell representation for this slot.
+    pub cell_layout: CellLayout,
 }
 
 impl SlotProjection {
     /// Return a fixed slot projection.
-    pub(crate) fn fixed(byte_offset: usize, byte_len: usize, word_layout: WordLayout) -> Self {
+    pub(crate) fn fixed(byte_offset: usize, byte_len: usize, cell_layout: CellLayout) -> Self {
         Self {
             byte_offset,
             byte_len,
-            word_layout,
+            cell_layout,
         }
     }
 }

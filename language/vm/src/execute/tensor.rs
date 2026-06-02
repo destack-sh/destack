@@ -11,23 +11,22 @@ use destack_core::float_from_bits;
 use destack_mir as mir;
 
 use super::access;
-use super::index::word_to_u64;
+use super::index::cell_to_u64;
 use super::scalar::{
     convert_scalar_exact, convert_scalar_round_ceil, convert_scalar_round_floor,
     convert_scalar_round_ties_even, convert_scalar_round_toward_zero, convert_scalar_saturate,
     reduce_add, reduce_and, reduce_max, reduce_min, reduce_multiply, reduce_or, reduce_xor,
 };
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::Error;
 use crate::machine::Activation;
 use crate::program::{
-    ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout, TensorAddress,
-    TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary, TensorContiguousUnary,
-    TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract, TensorFill,
-    TensorGather, TensorIndexReduce, TensorLayout, TensorLayoutId, TensorLoad, TensorPad,
-    TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
-    TensorTranspose, TensorUnary, TensorView, TensorViewCast, U32RangeId, WordLayout,
-    tensor_element_span_len,
+    CellLayout, ElementBinaryKernel, ElementUnaryKernel, Instruction, Projection, ScalarLayout,
+    TensorAddress, TensorBinary, TensorBroadcast, TensorConcat, TensorContiguousBinary,
+    TensorContiguousUnary, TensorConvert, TensorConvolution, TensorCopy, TensorDot, TensorExtract,
+    TensorFill, TensorGather, TensorIndexReduce, TensorLayout, TensorLayoutId, TensorLoad,
+    TensorPad, TensorReduce, TensorReshape, TensorScatter, TensorSelect, TensorSlice, TensorStore,
+    TensorTranspose, TensorUnary, TensorView, TensorViewCast, U32RangeId, tensor_element_span_len,
 };
 
 const POINTER_BYTE_LEN: usize = usize::BITS as usize / 8;
@@ -40,8 +39,8 @@ fn tensor_layout<'run>(activation: &Activation<'_>, id: TensorLayoutId) -> &'run
 
 /// Return a frame value address by byte offset.
 #[inline(always)]
-fn frame_value(activation: &Activation<'_>, offset: u32) -> Word {
-    Word::frame_pointer(activation.frame_pointer_at(offset))
+fn frame_value(activation: &Activation<'_>, offset: u32) -> Cell {
+    Cell::frame_pointer(activation.frame_pointer_at(offset))
 }
 
 /// Return one frame offset range.
@@ -54,7 +53,7 @@ fn frame_offsets<'run>(activation: &Activation<'_>, range: U32RangeId) -> &'run 
 fn tensor_view_stride_offset(view_offset: u32, axis: usize) -> Result<u32, Error> {
     let slot = axis.checked_add(1).ok_or(Error::invalid_instruction())?;
     let byte_offset = slot
-        .checked_mul(Word::BYTE_LEN)
+        .checked_mul(Cell::BYTE_LEN)
         .ok_or(Error::invalid_instruction())?;
     let byte_offset = u32::try_from(byte_offset).map_err(|_| Error::invalid_instruction())?;
 
@@ -65,8 +64,8 @@ fn tensor_view_stride_offset(view_offset: u32, axis: usize) -> Result<u32, Error
 
 /// Load one tensor view base pointer.
 #[inline(always)]
-fn load_tensor_view_pointer(activation: &Activation<'_>, view_offset: u32) -> Word {
-    activation.load_word_at(view_offset)
+fn load_tensor_view_pointer(activation: &Activation<'_>, view_offset: u32) -> Cell {
+    activation.load_cell_at(view_offset)
 }
 
 /// Load one tensor view runtime stride list.
@@ -79,8 +78,8 @@ fn load_tensor_view_strides(
 
     for axis in 0..layout.shape.len() {
         let offset = tensor_view_stride_offset(view_offset, axis)?;
-        let stride = activation.load_word_at(offset);
-        strides.push(word_to_u64(stride)?);
+        let stride = activation.load_cell_at(offset);
+        strides.push(cell_to_u64(stride)?);
     }
 
     Ok(strides)
@@ -90,25 +89,25 @@ fn load_tensor_view_strides(
 fn store_tensor_view_descriptor(
     activation: &mut Activation<'_>,
     view_offset: u32,
-    pointer: Word,
+    pointer: Cell,
     strides: &[u64],
 ) -> Result<(), Error> {
-    activation.store_word_at(view_offset, pointer);
+    activation.store_cell_at(view_offset, pointer);
 
     for (axis, stride) in strides.iter().copied().enumerate() {
         let offset = tensor_view_stride_offset(view_offset, axis)?;
-        activation.store_word_at(offset, Word::uint(stride, Word::BIT_LEN));
+        activation.store_cell_at(offset, Cell::uint(stride, Cell::BIT_LEN));
     }
 
     Ok(())
 }
 
-/// Read one tensor index vector from word frame offsets.
+/// Read one tensor index vector from cell frame offsets.
 fn tensor_index_values(activation: &Activation<'_>, offsets: &[u32]) -> Result<Vec<u64>, Error> {
     let mut values = Vec::with_capacity(offsets.len());
     for offset in offsets {
-        let value = activation.load_word_at(*offset);
-        values.push(word_to_u64(value)?);
+        let value = activation.load_cell_at(*offset);
+        values.push(cell_to_u64(value)?);
     }
 
     Ok(values)
@@ -119,7 +118,7 @@ fn clear_tensor_result(
     activation: &mut Activation<'_>,
     offset: u32,
     layout: &TensorLayout,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let pointer = activation.frame_pointer_at(offset);
 
     // SAFETY: pointer addresses layout.byte_len writable bytes in the current frame
@@ -127,7 +126,7 @@ fn clear_tensor_result(
         ptr::write_bytes(pointer.address() as *mut u8, 0, layout.byte_len);
     }
 
-    Ok(Word::frame_pointer(pointer))
+    Ok(Cell::frame_pointer(pointer))
 }
 
 /// Store one tensor result into frame bytes.
@@ -138,7 +137,7 @@ fn store_tensor_elements<F>(
     mut element_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut Activation<'_>, usize) -> Result<Word, Error>,
+    F: FnMut(&mut Activation<'_>, usize) -> Result<Cell, Error>,
 {
     let result = clear_tensor_result(activation, dest_offset, layout)?;
 
@@ -155,9 +154,9 @@ where
 #[inline(always)]
 fn load_heap_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let access = element;
 
     Ok(access::load_heap_scalar_by_layout(
@@ -169,9 +168,9 @@ fn load_heap_tensor_element(
 #[inline(always)]
 fn load_shared_heap_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let access = element;
 
     Ok(access::load_shared_heap_scalar_by_layout(
@@ -183,9 +182,9 @@ fn load_shared_heap_tensor_element(
 #[inline(always)]
 fn load_raw_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let access = element;
 
     Ok(access::load_raw_scalar_by_layout(
@@ -197,9 +196,9 @@ fn load_raw_tensor_element(
 #[inline(always)]
 fn load_stack_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let access = element;
 
     Ok(access::load_stack_scalar_by_layout(
@@ -213,9 +212,9 @@ fn load_stack_tensor_element(
 #[inline(always)]
 fn load_frame_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let access = element;
 
     Ok(access::load_frame_scalar_by_layout(
@@ -229,25 +228,21 @@ fn load_frame_tensor_element(
 #[inline(always)]
 fn load_static_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let access = element;
 
-    Ok(access::load_static_scalar_by_layout(
-        activation,
-        pointer.as_static_pointer(),
-        access,
-    ))
+    access::load_static_scalar_by_layout(activation, pointer.as_static_address(), access)
 }
 
 /// Store one tensor-view element through local heap memory.
 #[inline(always)]
 fn store_heap_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-    value: Word,
+    value: Cell,
 ) -> Result<(), Error> {
     let access = element;
 
@@ -260,9 +255,9 @@ fn store_heap_tensor_element(
 #[inline(always)]
 fn store_shared_heap_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-    value: Word,
+    value: Cell,
 ) -> Result<(), Error> {
     let access = element;
 
@@ -275,9 +270,9 @@ fn store_shared_heap_tensor_element(
 #[inline(always)]
 fn store_raw_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-    value: Word,
+    value: Cell,
 ) -> Result<(), Error> {
     let access = element;
 
@@ -290,9 +285,9 @@ fn store_raw_tensor_element(
 #[inline(always)]
 fn store_stack_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-    value: Word,
+    value: Cell,
 ) -> Result<(), Error> {
     let access = element;
 
@@ -305,9 +300,9 @@ fn store_stack_tensor_element(
 #[inline(always)]
 fn store_frame_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-    value: Word,
+    value: Cell,
 ) -> Result<(), Error> {
     let access = element;
 
@@ -320,25 +315,23 @@ fn store_frame_tensor_element(
 #[inline(always)]
 fn store_static_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-    value: Word,
+    value: Cell,
 ) -> Result<(), Error> {
     let access = element;
 
-    access::store_static_scalar_by_layout(activation, pointer.as_static_pointer(), access, value);
-
-    Ok(())
+    access::store_static_scalar_by_layout(activation, pointer.as_static_address(), access, value)
 }
 
 /// Load one tensor-view element through selected memory.
 #[inline(always)]
 fn load_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
     address: TensorAddress,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     match address {
         TensorAddress::Heap => load_heap_tensor_element(activation, pointer, element),
         TensorAddress::SharedHeap => load_shared_heap_tensor_element(activation, pointer, element),
@@ -353,9 +346,9 @@ fn load_tensor_element(
 #[inline(always)]
 fn store_tensor_element(
     activation: &mut Activation<'_>,
-    pointer: Word,
+    pointer: Cell,
     element: Projection,
-    value: Word,
+    value: Cell,
     address: TensorAddress,
 ) -> Result<(), Error> {
     match address {
@@ -372,15 +365,15 @@ fn store_tensor_element(
 
 /// Return one frame tensor element pointer.
 fn frame_tensor_element_pointer(
-    tensor: Word,
+    tensor: Cell,
     element: Projection,
     element_index: usize,
     element_count: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let byte_offset = element_byte_offset(element, element_index, element_count)?;
     let pointer = tensor.as_frame_pointer().add_bytes(byte_offset);
 
-    Ok(Word::frame_pointer(pointer))
+    Ok(Cell::frame_pointer(pointer))
 }
 
 /// Return one tensor element byte offset.
@@ -396,10 +389,10 @@ fn element_byte_offset(element: Projection, offset: usize, length: usize) -> Res
 /// Store one tensor element into one frame tensor value.
 fn store_frame_tensor_element_at(
     activation: &mut Activation<'_>,
-    tensor: Word,
+    tensor: Cell,
     layout: &TensorLayout,
     element_index: usize,
-    value: Word,
+    value: Cell,
 ) -> Result<(), Error> {
     let pointer = frame_tensor_element_pointer(
         tensor,
@@ -426,7 +419,7 @@ fn store_tensor_indexed_elements<F>(
     mut index_value: F,
 ) -> Result<(), Error>
 where
-    F: FnMut(&mut Activation<'_>, &[u64]) -> Result<Word, Error>,
+    F: FnMut(&mut Activation<'_>, &[u64]) -> Result<Cell, Error>,
 {
     let result = clear_tensor_result(activation, dest_offset, layout)?;
     let mut error = None;
@@ -505,10 +498,10 @@ pub(crate) fn tensor_linear_index(
 /// Load one tensor element from one frame tensor value.
 pub(crate) fn load_frame_tensor_element_at(
     activation: &mut Activation<'_>,
-    tensor: Word,
+    tensor: Cell,
     layout: &TensorLayout,
     element_index: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let pointer = frame_tensor_element_pointer(
         tensor,
         layout.element,
@@ -527,7 +520,7 @@ pub(crate) fn load_frame_tensor_element_at(
 fn execute_tensor_binary_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
+    operation: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode side record
     let TensorBinary {
@@ -586,7 +579,7 @@ pub(crate) fn execute_tensor_binary(
 /// Return the scalar operation for one tensor binary kernel.
 fn tensor_binary_operation(
     kernel: ElementBinaryKernel,
-) -> fn(ScalarLayout, Word, Word) -> Result<Word, Error> {
+) -> fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error> {
     match kernel {
         ElementBinaryKernel::AndBool => super::scalar::and_bool,
         ElementBinaryKernel::OrBool => super::scalar::or_bool,
@@ -678,7 +671,7 @@ pub(crate) fn execute_tensor_contiguous_binary(
 fn execute_tensor_unary_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Word) -> Result<Word, Error>,
+    operation: fn(ScalarLayout, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode fixed fields
     let TensorUnary {
@@ -736,7 +729,7 @@ pub(crate) fn execute_tensor_unary(
 /// Return the scalar operation for one tensor unary kernel.
 fn tensor_unary_operation(
     kernel: ElementUnaryKernel,
-) -> fn(ScalarLayout, Word) -> Result<Word, Error> {
+) -> fn(ScalarLayout, Cell) -> Result<Cell, Error> {
     match kernel {
         ElementUnaryKernel::NotBool => super::scalar::not_bool,
         ElementUnaryKernel::NegInt => super::scalar::neg_int,
@@ -747,30 +740,30 @@ fn tensor_unary_operation(
     }
 }
 
-/// Return the word layout for one tensor scalar layout.
-fn tensor_word_layout(layout: ScalarLayout) -> Result<WordLayout, Error> {
+/// Return the cell layout for one tensor scalar layout.
+fn tensor_cell_layout(layout: ScalarLayout) -> Result<CellLayout, Error> {
     let layout = match layout {
         ScalarLayout::Int {
             width,
             is_signed: true,
-        } if width <= u64::BITS as u16 => WordLayout::Int { width: width as u8 },
+        } if width <= u64::BITS as u16 => CellLayout::Int { width: width as u8 },
         ScalarLayout::Int {
             width,
             is_signed: false,
-        } if width <= u64::BITS as u16 => WordLayout::Uint { width: width as u8 },
+        } if width <= u64::BITS as u16 => CellLayout::Uint { width: width as u8 },
         ScalarLayout::Float {
             format: mir::FloatType::Float16,
-        } => WordLayout::Float16,
+        } => CellLayout::Float16,
         ScalarLayout::Float {
             format: mir::FloatType::Bfloat16,
-        } => WordLayout::Bfloat16,
+        } => CellLayout::Bfloat16,
         ScalarLayout::Float {
             format: mir::FloatType::Float32,
-        } => WordLayout::Float32,
+        } => CellLayout::Float32,
         ScalarLayout::Float {
             format: mir::FloatType::Float64,
-        } => WordLayout::Float64,
-        ScalarLayout::Bool => WordLayout::Bool,
+        } => CellLayout::Float64,
+        ScalarLayout::Bool => CellLayout::Bool,
         _ => return Err(Error::invalid_instruction()),
     };
 
@@ -1561,9 +1554,9 @@ fn execute_contiguous_tensor_binary_elements(
 ) -> Result<(), Error> {
     let dest_layout = layout
         .element
-        .word_layout
+        .cell_layout
         .ok_or(Error::invalid_instruction())?;
-    let element_word_layout = tensor_word_layout(element_layout)?;
+    let element_cell_layout = tensor_cell_layout(element_layout)?;
     let addresses = contiguous_binary_addresses(activation, offsets);
 
     // use direct typed loops for activation-natural element layouts
@@ -1581,17 +1574,17 @@ fn execute_contiguous_tensor_binary_elements(
 
     // resolve generic element strides
     let dest_stride = dest_layout.byte_len(POINTER_BYTE_LEN);
-    let element_stride = element_word_layout.byte_len(POINTER_BYTE_LEN);
+    let element_stride = element_cell_layout.byte_len(POINTER_BYTE_LEN);
 
     // walk contiguous elements without recomputing logical indices
     for index in 0..layout.element_span_len {
         let left = access::load_scalar_by_layout_at_address(
             left as usize + index * element_stride,
-            element_word_layout,
+            element_cell_layout,
         );
         let right = access::load_scalar_by_layout_at_address(
             right as usize + index * element_stride,
-            element_word_layout,
+            element_cell_layout,
         );
         let value = operation(element_layout, left, right)?;
         access::store_scalar_by_layout_at_address(
@@ -1674,9 +1667,9 @@ fn execute_contiguous_tensor_unary_elements(
 ) -> Result<(), Error> {
     let dest_layout = layout
         .element
-        .word_layout
+        .cell_layout
         .ok_or(Error::invalid_instruction())?;
-    let element_word_layout = tensor_word_layout(element_layout)?;
+    let element_cell_layout = tensor_cell_layout(element_layout)?;
     let addresses = contiguous_unary_addresses(activation, offsets);
 
     // use direct typed loops for activation-natural element layouts
@@ -1694,13 +1687,13 @@ fn execute_contiguous_tensor_unary_elements(
 
     // resolve generic element strides
     let dest_stride = dest_layout.byte_len(POINTER_BYTE_LEN);
-    let element_stride = element_word_layout.byte_len(POINTER_BYTE_LEN);
+    let element_stride = element_cell_layout.byte_len(POINTER_BYTE_LEN);
 
     // walk contiguous elements without recomputing logical indices
     for index in 0..layout.element_span_len {
         let value = access::load_scalar_by_layout_at_address(
             argument as usize + index * element_stride,
-            element_word_layout,
+            element_cell_layout,
         );
         let value = operation(element_layout, value)?;
         access::store_scalar_by_layout_at_address(
@@ -1748,7 +1741,7 @@ pub(crate) fn execute_tensor_splat(
 
     // resolve compiled tensor descriptor
     let layout = tensor_layout(activation, layout);
-    let value = activation.load_word_at(value);
+    let value = activation.load_cell_at(value);
 
     // store the same value into each active index
     store_tensor_indexed_elements(activation, dest_offset, layout, |_machine, _index| {
@@ -1782,7 +1775,7 @@ pub(crate) fn execute_tensor_extract(
     // load the tensor value
     let tensor_value = frame_value(activation, *tensor_offset);
     let value = load_frame_tensor_element_at(activation, tensor_value, layout, element_index)?;
-    activation.store_word_at(*dest_offset, value);
+    activation.store_cell_at(*dest_offset, value);
 
     Ok(())
 }
@@ -1822,96 +1815,98 @@ pub(crate) fn for_each_index<F: FnMut(&[u64])>(shape: &[u64], mut f: F) {
 
 /// Offset a local heap tensor view pointer by one element index.
 pub(crate) fn offset_heap_view_pointer(
-    value: Word,
+    value: Cell,
     element: Projection,
     offset: usize,
     length: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let byte_offset = element_byte_offset(element, offset, length)?;
     let reference = value.as_heap_reference();
     let reference = reference.add_bytes(byte_offset);
 
-    Ok(Word::heap_reference(reference))
+    Ok(Cell::heap_reference(reference))
 }
 
 /// Offset a shared heap tensor view pointer by one element index.
 pub(crate) fn offset_shared_heap_view_pointer(
-    value: Word,
+    value: Cell,
     element: Projection,
     offset: usize,
     length: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let byte_offset = element_byte_offset(element, offset, length)?;
     let reference = value.as_shared_heap_reference();
     let reference = reference.add_bytes(byte_offset);
 
-    Ok(Word::shared_heap_reference(reference))
+    Ok(Cell::shared_heap_reference(reference))
 }
 
 /// Offset a raw tensor view pointer by one element index.
 pub(crate) fn offset_raw_view_pointer(
-    value: Word,
+    value: Cell,
     element: Projection,
     offset: usize,
     length: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let byte_offset = element_byte_offset(element, offset, length)?;
     let address = value.as_address() + byte_offset;
 
-    Ok(Word::address(address))
+    Ok(Cell::address(address))
 }
 
 /// Offset a stack tensor view pointer by one element index.
 pub(crate) fn offset_stack_view_pointer(
-    value: Word,
+    value: Cell,
     element: Projection,
     offset: usize,
     length: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let byte_offset = element_byte_offset(element, offset, length)?;
     let pointer = value.as_stack_pointer();
     let pointer = pointer.add_bytes(byte_offset);
 
-    Ok(Word::stack_pointer(pointer))
+    Ok(Cell::stack_pointer(pointer))
 }
 
 /// Offset a frame tensor view pointer by one element index.
 pub(crate) fn offset_frame_view_pointer(
-    value: Word,
+    value: Cell,
     element: Projection,
     offset: usize,
     length: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let byte_offset = element_byte_offset(element, offset, length)?;
     let pointer = value.as_frame_pointer();
     let pointer = pointer.add_bytes(byte_offset);
 
-    Ok(Word::frame_pointer(pointer))
+    Ok(Cell::frame_pointer(pointer))
 }
 
 /// Offset a static tensor view pointer by one element index.
 pub(crate) fn offset_static_view_pointer(
-    value: Word,
+    value: Cell,
     element: Projection,
     offset: usize,
     length: usize,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     let byte_offset = element_byte_offset(element, offset, length)?;
-    let pointer = value.as_static_pointer();
-    let pointer = pointer.add_bytes(byte_offset);
+    let pointer = value
+        .as_static_address()
+        .add_bytes(byte_offset)
+        .ok_or(Error::invalid_instruction())?;
 
-    Ok(Word::static_pointer(pointer))
+    Ok(Cell::static_address(pointer))
 }
 
 /// Offset a tensor view pointer through selected memory.
 #[inline(always)]
 fn offset_tensor_view_pointer(
-    value: Word,
+    value: Cell,
     element: Projection,
     offset: usize,
     length: usize,
     address: TensorAddress,
-) -> Result<Word, Error> {
+) -> Result<Cell, Error> {
     match address {
         TensorAddress::Heap => offset_heap_view_pointer(value, element, offset, length),
         TensorAddress::SharedHeap => {
@@ -1927,17 +1922,17 @@ fn offset_tensor_view_pointer(
 /// Fill a tensor view through one concrete pointer space.
 fn fill_tensor_view<O, S>(
     activation: &mut Activation<'_>,
-    base_pointer: Word,
+    base_pointer: Cell,
     layout: &TensorLayout,
     strides: &[u64],
     element: Projection,
-    fill_value: Word,
+    fill_value: Cell,
     mut offset_pointer: O,
     mut store_element: S,
 ) -> Result<(), Error>
 where
-    O: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
-    S: FnMut(&mut Activation<'_>, Word, Projection, Word) -> Result<(), Error>,
+    O: FnMut(Cell, Projection, usize, usize) -> Result<Cell, Error>,
+    S: FnMut(&mut Activation<'_>, Cell, Projection, Cell) -> Result<(), Error>,
 {
     let span_len = tensor_element_span_len(&layout.shape, strides)?;
     let mut error = None;
@@ -1978,8 +1973,8 @@ where
 /// Copy tensor elements through one concrete address pair.
 fn copy_tensor_view<TO, SO, L, S>(
     activation: &mut Activation<'_>,
-    target_pointer: Word,
-    mir_pointer: Word,
+    target_pointer: Cell,
+    mir_pointer: Cell,
     target_layout: &TensorLayout,
     source_layout: &TensorLayout,
     target_strides: &[u64],
@@ -1992,10 +1987,10 @@ fn copy_tensor_view<TO, SO, L, S>(
     mut store_element: S,
 ) -> Result<(), Error>
 where
-    TO: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
-    SO: FnMut(Word, Projection, usize, usize) -> Result<Word, Error>,
-    L: FnMut(&mut Activation<'_>, Word, Projection) -> Result<Word, Error>,
-    S: FnMut(&mut Activation<'_>, Word, Projection, Word) -> Result<(), Error>,
+    TO: FnMut(Cell, Projection, usize, usize) -> Result<Cell, Error>,
+    SO: FnMut(Cell, Projection, usize, usize) -> Result<Cell, Error>,
+    L: FnMut(&mut Activation<'_>, Cell, Projection) -> Result<Cell, Error>,
+    S: FnMut(&mut Activation<'_>, Cell, Projection, Cell) -> Result<(), Error>,
 {
     let target_span_len = tensor_element_span_len(&target_layout.shape, target_strides)?;
     let source_span_len = tensor_element_span_len(&source_layout.shape, source_strides)?;
@@ -2075,7 +2070,7 @@ pub(crate) fn execute_tensor_view_cast(
     } = activation.side::<TensorViewCast>(instruction);
 
     let layout = tensor_layout(activation, *view_layout);
-    let pointer = activation.load_word_at(*pointer_offset);
+    let pointer = activation.load_cell_at(*pointer_offset);
 
     store_tensor_view_descriptor(activation, *dest_offset, pointer, &layout.strides)
 }
@@ -2109,7 +2104,7 @@ pub(crate) fn execute_tensor_load(
     let pointer = offset_tensor_view_pointer(view_value, element, offset, span_len, *address)?;
 
     let value = load_tensor_element(activation, pointer, element, *address)?;
-    activation.store_word_at(*dest_offset, value);
+    activation.store_cell_at(*dest_offset, value);
 
     Ok(())
 }
@@ -2142,7 +2137,7 @@ pub(crate) fn execute_tensor_store(
     let element = activation.projection(*element);
     let pointer = offset_tensor_view_pointer(view_value, element, offset, span_len, *address)?;
 
-    let value = activation.load_word_at(*value_offset);
+    let value = activation.load_cell_at(*value_offset);
     store_tensor_element(activation, pointer, element, value, *address)?;
 
     Ok(())
@@ -2164,7 +2159,7 @@ pub(crate) fn execute_tensor_fill(
 
     // resolve the repeated value and base view once
     let layout = tensor_layout(activation, *view_layout);
-    let fill_value = activation.load_word_at(*value_offset);
+    let fill_value = activation.load_cell_at(*value_offset);
     let strides = load_tensor_view_strides(activation, *view_offset, layout)?;
     let base_pointer = load_tensor_view_pointer(activation, *view_offset);
 
@@ -2326,8 +2321,8 @@ pub(crate) fn execute_tensor_reshape(
     let shape_values = frame_offsets(activation, *shape);
     let mut shape_len = 1u64;
     for offset in shape_values {
-        let value = activation.load_word_at(*offset);
-        let size = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let size = cell_to_u64(value)?;
         shape_len *= size;
     }
     if shape_values.is_empty() {
@@ -2492,18 +2487,18 @@ pub(crate) fn execute_tensor_slice(
     let mut sizes = Vec::with_capacity(size_values.len());
     let mut strides = Vec::with_capacity(stride_values.len());
     for offset in offset_values {
-        let value = activation.load_word_at(*offset);
-        let value = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let value = cell_to_u64(value)?;
         offsets.push(value);
     }
     for offset in size_values {
-        let value = activation.load_word_at(*offset);
-        let value = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let value = cell_to_u64(value)?;
         sizes.push(value);
     }
     for offset in stride_values {
-        let value = activation.load_word_at(*offset);
-        let value = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let value = cell_to_u64(value)?;
         strides.push(value);
     }
 
@@ -2586,18 +2581,18 @@ pub(crate) fn execute_tensor_pad(
     let mut high = Vec::with_capacity(high_values.len());
     let mut interior = Vec::with_capacity(interior_values.len());
     for offset in low_values {
-        let value = activation.load_word_at(*offset);
-        let value = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let value = cell_to_u64(value)?;
         low.push(value);
     }
     for offset in high_values {
-        let value = activation.load_word_at(*offset);
-        let value = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let value = cell_to_u64(value)?;
         high.push(value);
     }
     for offset in interior_values {
-        let value = activation.load_word_at(*offset);
-        let value = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let value = cell_to_u64(value)?;
         interior.push(value);
     }
 
@@ -2609,7 +2604,7 @@ pub(crate) fn execute_tensor_pad(
 
     // resolve source tensor
     let tensor_value = frame_value(activation, *tensor_offset);
-    let pad_value = activation.load_word_at(*value_offset);
+    let pad_value = activation.load_cell_at(*value_offset);
     let mut input_index = vec![0u64; source_layout.shape.len()];
 
     // store result
@@ -2743,7 +2738,7 @@ pub(crate) fn execute_tensor_reduce(
 fn execute_tensor_reduce_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    operation: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
+    operation: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode side records
     let TensorReduce {
@@ -2764,7 +2759,7 @@ fn execute_tensor_reduce_elements(
 
     // resolve source tensor
     let tensor_value = frame_value(activation, *tensor_offset);
-    let init_value = activation.load_word_at(*initial_offset);
+    let init_value = activation.load_cell_at(*initial_offset);
     let reduction = tensor_reduction(&source_layout.shape, axes)?;
     if dest_layout.shape.as_ref() != reduction.output_shape.as_slice() {
         return Err(Error::invalid_instruction());
@@ -2851,7 +2846,7 @@ fn execute_tensor_reduce_elements(
 /// Return the scalar kernel for one tensor reduction.
 fn tensor_reduce_operation(
     kernel: mir::TensorReduceOperator,
-) -> fn(ScalarLayout, Word, Word) -> Result<Word, Error> {
+) -> fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error> {
     match kernel {
         mir::TensorReduceOperator::Add => reduce_add,
         mir::TensorReduceOperator::Multiply => reduce_multiply,
@@ -3032,7 +3027,7 @@ pub(crate) fn execute_tensor_index_reduce(
                 return Err(error);
             }
 
-            Ok(Word::uint(best_index, Word::BIT_LEN))
+            Ok(Cell::uint(best_index, Cell::BIT_LEN))
         },
     )?;
 
@@ -3060,10 +3055,10 @@ fn tensor_index_reduce_select(
     layout: ScalarLayout,
     operator: mir::TensorIndexReduceOperator,
     tie_break: mir::TensorIndexTieBreak,
-    current: Word,
-    candidate: Word,
+    current: Cell,
+    candidate: Cell,
 ) -> Result<bool, Error> {
-    let comparison = compare_tensor_words(layout, current, candidate)?;
+    let comparison = compare_tensor_cells(layout, current, candidate)?;
     let is_equal_last =
         comparison == Ordering::Equal && tie_break == mir::TensorIndexTieBreak::Last;
     let is_better = match operator {
@@ -3074,8 +3069,8 @@ fn tensor_index_reduce_select(
     Ok(is_better || is_equal_last)
 }
 
-/// Compare two tensor scalar words.
-fn compare_tensor_words(layout: ScalarLayout, left: Word, right: Word) -> Result<Ordering, Error> {
+/// Compare two tensor scalar cells.
+fn compare_tensor_cells(layout: ScalarLayout, left: Cell, right: Cell) -> Result<Ordering, Error> {
     let ordering = match layout {
         ScalarLayout::Int {
             is_signed: true, ..
@@ -3605,7 +3600,7 @@ pub(crate) fn execute_tensor_gather(
                     indices_layout,
                     element_index,
                 )?;
-                index_vec[i] = word_to_u64(value)?;
+                index_vec[i] = cell_to_u64(value)?;
                 indices_index[dimensions.index_vector_dim as usize] = index_vec[i];
             }
 
@@ -3665,7 +3660,7 @@ pub(crate) fn execute_tensor_scatter(
 fn execute_tensor_scatter_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    combine: fn(ScalarLayout, Word, Word) -> Result<Word, Error>,
+    combine: fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode side records
     let TensorScatter {
@@ -3757,7 +3752,7 @@ fn execute_tensor_scatter_elements(
                 scatter_error = Some(Error::invalid_instruction());
                 return;
             };
-            if let Ok(coord) = word_to_u64(value) {
+            if let Ok(coord) = cell_to_u64(value) {
                 scatter_indices.push(coord);
             } else {
                 scatter_error = Some(Error::invalid_instruction());
@@ -3840,7 +3835,7 @@ fn execute_tensor_scatter_elements(
 /// Return the scalar kernel for one tensor scatter.
 fn tensor_scatter_operation(
     mode: mir::TensorScatterMode,
-) -> fn(ScalarLayout, Word, Word) -> Result<Word, Error> {
+) -> fn(ScalarLayout, Cell, Cell) -> Result<Cell, Error> {
     match mode {
         mir::TensorScatterMode::Replace => scatter_replace,
         mir::TensorScatterMode::Add => reduce_add,
@@ -3854,7 +3849,7 @@ fn tensor_scatter_operation(
 }
 
 /// Return the replacement scatter value.
-fn scatter_replace(_layout: ScalarLayout, _current: Word, update: Word) -> Result<Word, Error> {
+fn scatter_replace(_layout: ScalarLayout, _current: Cell, update: Cell) -> Result<Cell, Error> {
     Ok(update)
 }
 
@@ -3873,7 +3868,7 @@ pub(crate) fn execute_tensor_convert(
 fn execute_tensor_convert_elements(
     activation: &mut Activation<'_>,
     instruction: &Instruction,
-    convert: fn(Word, ScalarLayout, ScalarLayout) -> Result<Word, Error>,
+    convert: fn(Cell, ScalarLayout, ScalarLayout) -> Result<Cell, Error>,
 ) -> Result<(), Error> {
     // decode side records
     let TensorConvert {
@@ -3924,7 +3919,7 @@ fn execute_tensor_convert_elements(
 /// Return the scalar kernel for one tensor conversion.
 fn tensor_convert_operation(
     mode: mir::TensorConvertMode,
-) -> fn(Word, ScalarLayout, ScalarLayout) -> Result<Word, Error> {
+) -> fn(Cell, ScalarLayout, ScalarLayout) -> Result<Cell, Error> {
     match mode {
         mir::TensorConvertMode::Exact => convert_scalar_exact,
         mir::TensorConvertMode::RoundTiesEven => convert_scalar_round_ties_even,
@@ -4026,18 +4021,18 @@ pub(crate) fn execute_tensor_view(
     let mut sizes = Vec::with_capacity(size_values.len());
     let mut strides = Vec::with_capacity(stride_values.len());
     for offset in offset_values {
-        let value = activation.load_word_at(*offset);
-        let value = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let value = cell_to_u64(value)?;
         offsets.push(value);
     }
     for offset in size_values {
-        let value = activation.load_word_at(*offset);
-        let value = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let value = cell_to_u64(value)?;
         sizes.push(value);
     }
     for offset in stride_values {
-        let value = activation.load_word_at(*offset);
-        let value = word_to_u64(value)?;
+        let value = activation.load_cell_at(*offset);
+        let value = cell_to_u64(value)?;
         strides.push(value);
     }
 

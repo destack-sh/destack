@@ -1,36 +1,39 @@
 use destack_mir as mir;
 
-use crate::ReferenceMeta;
+use crate::{Error, ReferenceMeta};
 
 use crate::program::{
-    PointerClass, ValueLayout, pointer_class_from_reference, repr_type, value_layout_from_type,
+    AddressSpace, ValueShape, address_space_from_reference, repr_type, value_shape_from_type,
 };
 
-/// One dense map from SSA value id to lowered layout.
-pub(super) struct ValueLayoutMap {
-    /// Layout for each SSA value id.
-    layouts: Vec<Option<ValueLayout>>,
+/// One dense map from SSA value id to lowered shape.
+pub(super) struct ValueShapeMap {
+    /// Shape for each SSA value id.
+    shapes: Vec<Option<ValueShape>>,
 }
 
-impl ValueLayoutMap {
-    /// Create a new value layout table.
+impl ValueShapeMap {
+    /// Create a new value shape table.
     pub(super) fn new(value_count: usize) -> Self {
         Self {
-            layouts: vec![None; value_count],
+            shapes: vec![None; value_count],
         }
     }
 
-    /// Get the layout for a value.
-    pub(super) fn get(&self, value: mir::Value) -> Option<ValueLayout> {
-        self.layouts
-            .get(value.0 as usize)
-            .and_then(|layout| *layout)
+    /// Get the shape for a value.
+    pub(super) fn get(&self, value: mir::Value) -> Option<ValueShape> {
+        self.shapes.get(value.0 as usize).and_then(|shape| *shape)
     }
 
-    /// Set the layout for a value.
-    pub(super) fn set(&mut self, value: mir::Value, layout: ValueLayout) {
-        if let Some(entry) = self.layouts.get_mut(value.0 as usize) {
-            *entry = Some(layout);
+    /// Set the shape for a value.
+    pub(super) fn set(&mut self, value: mir::Value, shape: ValueShape) {
+        self.replace(value, Some(shape));
+    }
+
+    /// Replace the shape for a value.
+    fn replace(&mut self, value: mir::Value, shape: Option<ValueShape>) {
+        if let Some(entry) = self.shapes.get_mut(value.0 as usize) {
+            *entry = shape;
         }
     }
 }
@@ -43,8 +46,8 @@ pub(super) fn value_type_for_value(
     value_types.get(value.0 as usize).copied()
 }
 
-/// One value layout builder for one function.
-pub(super) struct ValueLayoutMapBuilder<'a> {
+/// One value shape builder for one function.
+pub(super) struct ValueShapeMapBuilder<'a> {
     /// The MIR node tree.
     tree: &'a mir::Tree,
     /// The MIR function being lowered.
@@ -53,12 +56,12 @@ pub(super) struct ValueLayoutMapBuilder<'a> {
     mir_block: &'a [mir::LocalNodeId<mir::Block>],
     /// The lowered value types by SSA value id.
     value_type: &'a [mir::LocalNodeId<mir::Type>],
-    /// The lowered value layout map.
-    value_layout_map: ValueLayoutMap,
+    /// The lowered value shape map.
+    value_shape_map: ValueShapeMap,
 }
 
-impl<'a> ValueLayoutMapBuilder<'a> {
-    /// Create one value layout builder.
+impl<'a> ValueShapeMapBuilder<'a> {
+    /// Create one value shape builder.
     pub(super) fn new(
         tree: &'a mir::Tree,
         func: &'a mir::Function,
@@ -71,20 +74,21 @@ impl<'a> ValueLayoutMapBuilder<'a> {
             func,
             mir_block,
             value_type,
-            value_layout_map: ValueLayoutMap::new(value_count),
+            value_shape_map: ValueShapeMap::new(value_count),
         }
     }
 
-    /// Build the lowered value layout map.
-    pub(super) fn build(mut self) -> ValueLayoutMap {
+    /// Build the lowered value shape map.
+    pub(super) fn build(mut self) -> ValueShapeMap {
         // seed explicit value types
         for (index, ty) in self.value_type.iter().enumerate() {
             let value = mir::Value(index as u32);
-            self.value_layout_map
-                .set(value, value_layout_from_type(self.tree, *ty));
+            if let Some(shape) = value_shape_from_type(self.tree, *ty) {
+                self.value_shape_map.set(value, shape);
+            }
         }
 
-        // seed function parameter layouts
+        // seed function parameter shapes
         for param in &self.func.parameters {
             let Some(value) = param.value.value() else {
                 continue;
@@ -93,11 +97,12 @@ impl<'a> ValueLayoutMapBuilder<'a> {
                 continue;
             };
 
-            self.value_layout_map
-                .set(value, value_layout_from_type(self.tree, ty));
+            if let Some(shape) = value_shape_from_type(self.tree, ty) {
+                self.value_shape_map.set(value, shape);
+            }
         }
 
-        // seed block parameter layouts
+        // seed block parameter shapes
         for block_id in self.mir_block {
             let block = self.tree.get(*block_id);
             for param in &block.parameters {
@@ -107,28 +112,30 @@ impl<'a> ValueLayoutMapBuilder<'a> {
                 let Some(ty) = param.ty.ty() else {
                     continue;
                 };
-                let layout = value_layout_from_type(self.tree, ty);
-                let block_layout = layout_for_block_parameter(layout);
-                let next_layout = match self.value_layout_map.get(value) {
-                    Some(existing) => merge_block_parameter_layout(existing, block_layout),
-                    None => block_layout,
+                let Some(shape) = value_shape_from_type(self.tree, ty) else {
+                    continue;
+                };
+                let block_shape = shape_for_block_parameter(shape);
+                let next_shape = match self.value_shape_map.get(value) {
+                    Some(existing) => merge_block_parameter_shape(existing, block_shape),
+                    None => Some(block_shape),
                 };
 
-                self.value_layout_map.set(value, next_layout);
+                self.value_shape_map.replace(value, next_shape);
             }
         }
 
-        // iteratively infer instruction result layouts
+        // iteratively infer instruction result shapes
         let mut is_changed = true;
         while is_changed {
             // reset iteration state
             is_changed = false;
 
-            // propagate block parameter layouts from control flow edges
-            if propagate_block_parameter_layouts(
+            // propagate block parameter shapes from control flow edges
+            if propagate_block_parameter_shapes(
                 self.tree,
                 self.mir_block,
-                &mut self.value_layout_map,
+                &mut self.value_shape_map,
             ) {
                 is_changed = true;
             }
@@ -145,40 +152,40 @@ impl<'a> ValueLayoutMapBuilder<'a> {
                     let Some(destination) = destination.value() else {
                         continue;
                     };
-                    let Some(layout) = infer_instruction_layout(
+                    let Some(shape) = infer_instruction_shape(
                         self.tree,
                         inst,
-                        &self.value_layout_map,
+                        &self.value_shape_map,
                         self.value_type,
                     ) else {
                         continue;
                     };
-                    let next_layout = match self.value_layout_map.get(destination) {
-                        Some(existing) => merge_block_parameter_layout(existing, layout),
-                        None => layout,
+                    let next_shape = match self.value_shape_map.get(destination) {
+                        Some(existing) => merge_block_parameter_shape(existing, shape),
+                        None => Some(shape),
                     };
 
-                    if self.value_layout_map.get(destination) != Some(next_layout) {
-                        self.value_layout_map.set(destination, next_layout);
+                    if self.value_shape_map.get(destination) != next_shape {
+                        self.value_shape_map.replace(destination, next_shape);
                         is_changed = true;
                     }
                 }
             }
         }
 
-        self.value_layout_map
+        self.value_shape_map
     }
 }
 
-/// Get the pointer class for a value when available.
-pub(super) fn pointer_class_for_value(
-    value_layout_map: &ValueLayoutMap,
+/// Get the address space for a value when available.
+pub(super) fn address_space_for_value(
+    value_shape_map: &ValueShapeMap,
     value: mir::Value,
-) -> PointerClass {
-    match value_layout_map.get(value) {
-        Some(ValueLayout::Pointer { pointer_class, .. }) => pointer_class,
-        Some(ValueLayout::FrameBytes { .. } | ValueLayout::Array { .. }) => PointerClass::Frame,
-        _ => PointerClass::Unknown,
+) -> Result<AddressSpace, Error> {
+    match value_shape_map.get(value) {
+        Some(ValueShape::Pointer { address_space, .. }) => Ok(address_space),
+        Some(ValueShape::FrameBytes { .. } | ValueShape::Array { .. }) => Ok(AddressSpace::Frame),
+        _ => Err(Error::invalid_pointer_type(format!("{value:?}"))),
     }
 }
 
@@ -187,25 +194,21 @@ pub(super) fn reference_meta_for_type(
     tree: &mir::Tree,
     ty: mir::LocalNodeId<mir::Type>,
 ) -> ReferenceMeta {
-    match value_layout_from_type(tree, ty) {
-        ValueLayout::Pointer { reference, .. } => reference,
+    match value_shape_from_type(tree, ty) {
+        Some(ValueShape::Pointer { reference, .. }) => reference,
         _ => ReferenceMeta::NONE,
     }
 }
 
 /// Resolve one heap pointee type from a pointer value when available.
-pub(super) fn heap_pointee_type_for_value_layout(
-    value_layout_map: &ValueLayoutMap,
+pub(super) fn heap_pointee_type_for_storage_id(
+    value_shape_map: &ValueShapeMap,
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    match value_layout_map.get(value) {
-        Some(ValueLayout::Pointer {
+    match value_shape_map.get(value) {
+        Some(ValueShape::Pointer {
             pointee,
-            pointer_class:
-                PointerClass::Heap
-                | PointerClass::SharedHeap
-                | PointerClass::HeapAddress
-                | PointerClass::SharedHeapAddress,
+            address_space: AddressSpace::Local | AddressSpace::Shared,
             ..
         }) => Some(pointee),
         _ => None,
@@ -213,15 +216,15 @@ pub(super) fn heap_pointee_type_for_value_layout(
 }
 
 /// Resolve one raw pointee type from a pointer value when available.
-pub(super) fn raw_pointee_type_for_value_layout(
-    value_layout_map: &ValueLayoutMap,
+pub(super) fn raw_pointee_type_for_storage_id(
+    value_shape_map: &ValueShapeMap,
     value: mir::Value,
 ) -> Option<mir::LocalNodeId<mir::Type>> {
-    match value_layout_map.get(value) {
-        Some(ValueLayout::Pointer {
+    match value_shape_map.get(value) {
+        Some(ValueShape::Pointer {
             pointee,
-            pointer_class:
-                PointerClass::Address | PointerClass::Stack | PointerClass::Frame | PointerClass::Static,
+            address_space:
+                AddressSpace::Raw | AddressSpace::Stack | AddressSpace::Frame | AddressSpace::Static,
             ..
         }) => Some(pointee),
         _ => None,
@@ -246,11 +249,8 @@ pub(super) fn heap_pointee_type_for_value(
             pointee,
             ..
         } if matches!(
-            pointer_class_from_reference(space.clone(), *kind),
-            PointerClass::Heap
-                | PointerClass::SharedHeap
-                | PointerClass::HeapAddress
-                | PointerClass::SharedHeapAddress
+            address_space_from_reference(space.clone(), *kind),
+            AddressSpace::Local | AddressSpace::Shared
         ) =>
         {
             pointee.ty()
@@ -274,8 +274,8 @@ pub(super) fn raw_pointee_type_for_value(
             pointee,
             ..
         } if matches!(
-            pointer_class_from_reference(space.clone(), *kind),
-            PointerClass::Address | PointerClass::Stack | PointerClass::Frame
+            address_space_from_reference(space.clone(), *kind),
+            AddressSpace::Raw | AddressSpace::Stack | AddressSpace::Frame
         ) =>
         {
             pointee.ty()
@@ -284,59 +284,29 @@ pub(super) fn raw_pointee_type_for_value(
     }
 }
 
-/// Normalize one block parameter layout.
-fn layout_for_block_parameter(layout: ValueLayout) -> ValueLayout {
-    match layout {
-        ValueLayout::Pointer {
-            pointee, reference, ..
-        } => ValueLayout::Pointer {
-            pointee,
-            pointer_class: PointerClass::Unknown,
-            reference,
-        },
-        _ => layout,
-    }
+/// Normalize one block parameter shape.
+fn shape_for_block_parameter(shape: ValueShape) -> ValueShape {
+    shape
 }
 
-/// Merge pointer classes when propagating block parameter layouts.
-fn merge_pointer_class(existing: PointerClass, incoming: PointerClass) -> PointerClass {
+/// Merge one block parameter shape with one incoming argument shape.
+fn merge_block_parameter_shape(existing: ValueShape, incoming: ValueShape) -> Option<ValueShape> {
     match (existing, incoming) {
-        (PointerClass::Unknown, other) => other,
-        (other, PointerClass::Unknown) => other,
-        (left, right) if left == right => left,
-        _ => PointerClass::Unknown,
+        (left @ ValueShape::Pointer { .. }, right @ ValueShape::Pointer { .. })
+            if left == right =>
+        {
+            Some(left)
+        }
+        (ValueShape::Pointer { .. }, ValueShape::Pointer { .. }) => None,
+        (other, _) => Some(other),
     }
 }
 
-/// Merge one block parameter layout with one incoming argument layout.
-fn merge_block_parameter_layout(existing: ValueLayout, incoming: ValueLayout) -> ValueLayout {
-    match (existing, incoming) {
-        (
-            ValueLayout::Pointer {
-                pointee,
-                pointer_class,
-                reference,
-            },
-            ValueLayout::Pointer {
-                pointer_class: incoming_pointer_class,
-                ..
-            },
-        ) => ValueLayout::Pointer {
-            pointee,
-            pointer_class: merge_pointer_class(pointer_class, incoming_pointer_class),
-            reference,
-        },
-        (ValueLayout::Unknown, other) => other,
-        (other, ValueLayout::Unknown) => other,
-        (other, _) => other,
-    }
-}
-
-/// Propagate value layouts into block parameters from control flow edges.
-fn propagate_block_parameter_layouts(
+/// Propagate value shapes into block parameters from control flow edges.
+fn propagate_block_parameter_shapes(
     tree: &mir::Tree,
     mir_blocks: &[mir::LocalNodeId<mir::Block>],
-    value_layout_map: &mut ValueLayoutMap,
+    value_shape_map: &mut ValueShapeMap,
 ) -> bool {
     let mut is_changed = false;
 
@@ -347,21 +317,21 @@ fn propagate_block_parameter_layouts(
 
         match terminator {
             mir::Terminator::Jump { target } => {
-                is_changed |= propagate_target_edge(tree, value_layout_map, target);
+                is_changed |= propagate_target_edge(tree, value_shape_map, target);
             }
             mir::Terminator::Branch {
                 then_target,
                 else_target,
                 ..
             } => {
-                is_changed |= propagate_target_edge(tree, value_layout_map, then_target);
-                is_changed |= propagate_target_edge(tree, value_layout_map, else_target);
+                is_changed |= propagate_target_edge(tree, value_shape_map, then_target);
+                is_changed |= propagate_target_edge(tree, value_shape_map, else_target);
             }
             mir::Terminator::Check {
                 success, failure, ..
             } => {
-                is_changed |= propagate_target_edge(tree, value_layout_map, success);
-                is_changed |= propagate_target_edge(tree, value_layout_map, failure);
+                is_changed |= propagate_target_edge(tree, value_shape_map, success);
+                is_changed |= propagate_target_edge(tree, value_shape_map, failure);
             }
             mir::Terminator::NewZeroedTry {
                 success, failure, ..
@@ -369,8 +339,8 @@ fn propagate_block_parameter_layouts(
             | mir::Terminator::NewUninitTry {
                 success, failure, ..
             } => {
-                is_changed |= propagate_allocation_target_edge(tree, value_layout_map, success);
-                is_changed |= propagate_target_edge(tree, value_layout_map, failure);
+                is_changed |= propagate_allocation_target_edge(tree, value_shape_map, success);
+                is_changed |= propagate_target_edge(tree, value_shape_map, failure);
             }
             mir::Terminator::NewSliceZeroedTry {
                 success, failure, ..
@@ -378,26 +348,26 @@ fn propagate_block_parameter_layouts(
             | mir::Terminator::NewSliceUninitTry {
                 success, failure, ..
             } => {
-                is_changed |= propagate_allocation_target_edge(tree, value_layout_map, success);
-                is_changed |= propagate_target_edge(tree, value_layout_map, failure);
+                is_changed |= propagate_allocation_target_edge(tree, value_shape_map, success);
+                is_changed |= propagate_target_edge(tree, value_shape_map, failure);
             }
             mir::Terminator::Switch { default, cases, .. } => {
-                is_changed |= propagate_target_edge(tree, value_layout_map, default);
+                is_changed |= propagate_target_edge(tree, value_shape_map, default);
 
                 for case in cases {
-                    is_changed |= propagate_target_edge(tree, value_layout_map, &case.target);
+                    is_changed |= propagate_target_edge(tree, value_shape_map, &case.target);
                 }
             }
             mir::Terminator::Yield { resume, .. } => {
-                is_changed |= propagate_target_edge(tree, value_layout_map, resume);
+                is_changed |= propagate_target_edge(tree, value_shape_map, resume);
             }
             mir::Terminator::Call { target, unwind, .. }
             | mir::Terminator::CallIndirect { target, unwind, .. }
             | mir::Terminator::CallVirtual { target, unwind, .. }
             | mir::Terminator::CallDynamic { target, unwind, .. } => {
-                is_changed |= propagate_target_edge(tree, value_layout_map, target);
+                is_changed |= propagate_target_edge(tree, value_shape_map, target);
                 if let Some(unwind) = unwind {
-                    is_changed |= propagate_target_edge(tree, value_layout_map, unwind);
+                    is_changed |= propagate_target_edge(tree, value_shape_map, unwind);
                 }
             }
             mir::Terminator::Error => {}
@@ -419,7 +389,7 @@ fn propagate_block_parameter_layouts(
 /// Update one target block from one control flow edge.
 fn propagate_allocation_target_edge(
     tree: &mir::Tree,
-    value_layout_map: &mut ValueLayoutMap,
+    value_shape_map: &mut ValueShapeMap,
     target: &mir::BlockTarget,
 ) -> bool {
     let Some(target_block) = target.block.block() else {
@@ -437,9 +407,9 @@ fn propagate_allocation_target_edge(
     let Some(result_type) = result_parameter.ty.ty() else {
         return false;
     };
-    let result_layout = value_layout_from_type(tree, result_type);
-    if value_layout_map.get(result_value) != Some(result_layout) {
-        value_layout_map.set(result_value, result_layout);
+    let result_shape = value_shape_from_type(tree, result_type);
+    if value_shape_map.get(result_value) != result_shape {
+        value_shape_map.replace(result_value, result_shape);
         is_changed = true;
     }
 
@@ -454,20 +424,20 @@ fn propagate_allocation_target_edge(
     let parameters = block.parameters.iter().skip(1);
 
     for (parameter, argument) in parameters.zip(arguments.iter()) {
-        let Some(argument_layout) = value_layout_map.get(*argument) else {
+        let Some(argument_shape) = value_shape_map.get(*argument) else {
             continue;
         };
         let Some(parameter_value) = parameter.value.value() else {
             continue;
         };
-        let existing = value_layout_map.get(parameter_value);
-        let next_layout = match existing {
-            Some(layout) => merge_block_parameter_layout(layout, argument_layout),
-            None => argument_layout,
+        let existing = value_shape_map.get(parameter_value);
+        let next_shape = match existing {
+            Some(shape) => merge_block_parameter_shape(shape, argument_shape),
+            None => Some(argument_shape),
         };
 
-        if existing != Some(next_layout) {
-            value_layout_map.set(parameter_value, next_layout);
+        if existing != next_shape {
+            value_shape_map.replace(parameter_value, next_shape);
             is_changed = true;
         }
     }
@@ -478,7 +448,7 @@ fn propagate_allocation_target_edge(
 /// Update one target block from one control flow edge.
 fn propagate_target_edge(
     tree: &mir::Tree,
-    value_layout_map: &mut ValueLayoutMap,
+    value_shape_map: &mut ValueShapeMap,
     target: &mir::BlockTarget,
 ) -> bool {
     let Some(target_block) = target.block.block() else {
@@ -494,13 +464,13 @@ fn propagate_target_edge(
         return false;
     };
 
-    propagate_target_layout(tree, value_layout_map, target_block, &arguments)
+    propagate_target_shape(tree, value_shape_map, target_block, &arguments)
 }
 
-/// Update one target block from incoming argument layouts.
-fn propagate_target_layout(
+/// Update one target block from incoming argument shapes.
+fn propagate_target_shape(
     tree: &mir::Tree,
-    value_layout_map: &mut ValueLayoutMap,
+    value_shape_map: &mut ValueShapeMap,
     target: mir::LocalNodeId<mir::Block>,
     arguments: &[mir::Value],
 ) -> bool {
@@ -508,20 +478,20 @@ fn propagate_target_layout(
     let target_block = tree.get(target);
 
     for (parameter, argument) in target_block.parameters.iter().zip(arguments.iter()) {
-        let Some(argument_layout) = value_layout_map.get(*argument) else {
+        let Some(argument_shape) = value_shape_map.get(*argument) else {
             continue;
         };
         let Some(parameter_value) = parameter.value.value() else {
             continue;
         };
-        let existing = value_layout_map.get(parameter_value);
-        let next_layout = match existing {
-            Some(layout) => merge_block_parameter_layout(layout, argument_layout),
-            None => argument_layout,
+        let existing = value_shape_map.get(parameter_value);
+        let next_shape = match existing {
+            Some(shape) => merge_block_parameter_shape(shape, argument_shape),
+            None => Some(argument_shape),
         };
 
-        if existing != Some(next_layout) {
-            value_layout_map.set(parameter_value, next_layout);
+        if existing != next_shape {
+            value_shape_map.replace(parameter_value, next_shape);
             is_changed = true;
         }
     }
@@ -529,23 +499,23 @@ fn propagate_target_layout(
     is_changed
 }
 
-/// Infer the value layout for a MIR instruction.
-fn infer_instruction_layout(
+/// Infer the value shape for a MIR instruction.
+fn infer_instruction_shape(
     tree: &mir::Tree,
     inst: &mir::Instruction,
-    value_layout_map: &ValueLayoutMap,
+    value_shape_map: &ValueShapeMap,
     value_types: &[mir::LocalNodeId<mir::Type>],
-) -> Option<ValueLayout> {
+) -> Option<ValueShape> {
     match inst {
         mir::Instruction::Error => None,
         mir::Instruction::Const { destination, value } => {
             if matches!(value, mir::Constant::Null) {
                 let destination = destination.value()?;
                 let ty = value_type_for_value(destination, value_types)?;
-                return Some(value_layout_from_type(tree, ty));
+                return value_shape_from_type(tree, ty);
             }
 
-            Some(layout_from_constant(value))
+            shape_from_constant(value)
         }
         mir::Instruction::Binary {
             operator,
@@ -556,16 +526,16 @@ fn infer_instruction_layout(
             let left = left.value()?;
             let right = right.value()?;
             if operator.is_comparison() {
-                return Some(ValueLayout::Bool);
+                return Some(ValueShape::Bool);
             }
 
-            let left_layout = value_layout_map.get(left);
-            let right_layout = value_layout_map.get(right);
-            let input_layout = left_layout.or(right_layout);
+            let left_shape = value_shape_map.get(left);
+            let right_shape = value_shape_map.get(right);
+            let input_shape = left_shape.or(right_shape);
 
-            match (operator.is_float(), input_layout) {
-                (true, Some(ValueLayout::Float { format })) => Some(ValueLayout::Float { format }),
-                (false, Some(ValueLayout::Bool))
+            match (operator.is_float(), input_shape) {
+                (true, Some(ValueShape::Float { format })) => Some(ValueShape::Float { format }),
+                (false, Some(ValueShape::Bool))
                     if matches!(
                         operator,
                         mir::BinaryOperator::And
@@ -573,39 +543,21 @@ fn infer_instruction_layout(
                             | mir::BinaryOperator::Xor
                     ) =>
                 {
-                    Some(ValueLayout::Bool)
+                    Some(ValueShape::Bool)
                 }
-                (false, Some(ValueLayout::Int { width, signed })) => {
-                    Some(ValueLayout::Int { width, signed })
+                (false, Some(ValueShape::Int { width, signed })) => {
+                    Some(ValueShape::Int { width, signed })
                 }
                 _ => None,
             }
         }
-        mir::Instruction::Unary { argument, .. } => value_layout_map.get(argument.value()?),
-        mir::Instruction::Cast {
-            argument, to_type, ..
-        } => {
+        mir::Instruction::Unary { argument, .. } => value_shape_map.get(argument.value()?),
+        mir::Instruction::Cast { to_type, .. } => {
             let to_type = to_type.ty()?;
-            let result_layout = value_layout_from_type(tree, to_type);
-            let argument_layout = value_layout_map.get(argument.value()?);
 
-            match (result_layout, argument_layout) {
-                (
-                    ValueLayout::Pointer {
-                        pointee,
-                        pointer_class: PointerClass::Unknown,
-                        reference,
-                    },
-                    Some(ValueLayout::Pointer { pointer_class, .. }),
-                ) => Some(ValueLayout::Pointer {
-                    pointee,
-                    pointer_class,
-                    reference,
-                }),
-                (result_layout, _) => Some(result_layout),
-            }
+            value_shape_from_type(tree, to_type)
         }
-        mir::Instruction::Select { then_value, .. } => value_layout_map.get(then_value.value()?),
+        mir::Instruction::Select { then_value, .. } => value_shape_map.get(then_value.value()?),
         mir::Instruction::Call {
             destination,
             function,
@@ -613,7 +565,7 @@ fn infer_instruction_layout(
         } => {
             (*destination)?.value()?;
             let function = tree.get(function.function()?);
-            Some(value_layout_from_type(tree, function.return_type.ty()?))
+            value_shape_from_type(tree, function.return_type.ty()?)
         }
         mir::Instruction::CallVirtual {
             destination, call, ..
@@ -630,85 +582,85 @@ fn infer_instruction_layout(
                 return None;
             };
 
-            Some(value_layout_from_type(tree, result.ty()?))
+            value_shape_from_type(tree, result.ty()?)
         }
         mir::Instruction::LocalGet { local, .. } => {
             let local = tree.get(local.local()?);
-            Some(value_layout_from_type(tree, local.ty.ty()?))
+            value_shape_from_type(tree, local.ty.ty()?)
         }
         mir::Instruction::LocalAddr { result_type, .. } => {
-            let mut layout = value_layout_from_type(tree, result_type.ty()?);
-            let ValueLayout::Pointer { pointer_class, .. } = &mut layout else {
+            let mut shape = value_shape_from_type(tree, result_type.ty()?)?;
+            let ValueShape::Pointer { address_space, .. } = &mut shape else {
                 return None;
             };
-            *pointer_class = PointerClass::Frame;
-            Some(layout)
+            *address_space = AddressSpace::Frame;
+            Some(shape)
         }
         mir::Instruction::GlobalAddr { result_type, .. } => {
-            let mut layout = value_layout_from_type(tree, result_type.ty()?);
-            let ValueLayout::Pointer { pointer_class, .. } = &mut layout else {
+            let mut shape = value_shape_from_type(tree, result_type.ty()?)?;
+            let ValueShape::Pointer { address_space, .. } = &mut shape else {
                 return None;
             };
-            *pointer_class = PointerClass::Static;
-            Some(layout)
+            *address_space = AddressSpace::Static;
+            Some(shape)
         }
         mir::Instruction::FunctionAddr { function, .. } => {
             let function = tree.get(function.function()?);
-            Some(ValueLayout::FunctionPointer {
+            Some(ValueShape::FunctionPointer {
                 result: function.return_type.ty()?,
             })
         }
         mir::Instruction::ClosureBind { destination, .. } => {
             let destination = destination.value()?;
             let ty = value_type_for_value(destination, value_types)?;
-            Some(value_layout_from_type(tree, ty))
+            value_shape_from_type(tree, ty)
         }
         mir::Instruction::ClosureEnvironment { destination } => {
-            value_layout_map.get(destination.value()?)
+            value_shape_map.get(destination.value()?)
         }
         mir::Instruction::Load { result_type, .. } => {
-            Some(value_layout_from_type(tree, result_type.ty()?))
+            value_shape_from_type(tree, result_type.ty()?)
         }
         mir::Instruction::FieldGet {
             aggregate: base,
             index,
             ..
         } => {
-            let base_layout = value_layout_map.get(base.value()?)?;
-            layout_from_field(tree, base_layout, *index)
+            let base_shape = value_shape_map.get(base.value()?)?;
+            shape_from_field(tree, base_shape, *index)
         }
         mir::Instruction::FieldAddr {
             aggregate: base,
             result_type,
             ..
         } => {
-            let source_layout = value_layout_map.get(base.value()?)?;
-            pointer_result_layout_from_source(tree, result_type.ty()?, source_layout)
+            let source_shape = value_shape_map.get(base.value()?)?;
+            pointer_result_shape_from_source(tree, result_type.ty()?, source_shape)
         }
         mir::Instruction::FieldSet {
             aggregate: base, ..
-        } => value_layout_map.get(base.value()?),
+        } => value_shape_map.get(base.value()?),
         mir::Instruction::ElementGet { array, .. } => {
-            let array_layout = value_layout_map.get(array.value()?)?;
-            layout_from_element(tree, array_layout)
+            let array_shape = value_shape_map.get(array.value()?)?;
+            shape_from_element(tree, array_shape)
         }
         mir::Instruction::ElementAddr {
             array, result_type, ..
         } => {
-            let source_layout = value_layout_map.get(array.value()?)?;
-            pointer_result_layout_from_source(tree, result_type.ty()?, source_layout)
+            let source_shape = value_shape_map.get(array.value()?)?;
+            pointer_result_shape_from_source(tree, result_type.ty()?, source_shape)
         }
-        mir::Instruction::ElementSet { array, .. } => value_layout_map.get(array.value()?),
+        mir::Instruction::ElementSet { array, .. } => value_shape_map.get(array.value()?),
         mir::Instruction::Struct { ty, .. }
         | mir::Instruction::Tuple { ty, .. }
-        | mir::Instruction::Array { ty, .. } => Some(value_layout_from_type(tree, ty.ty()?)),
+        | mir::Instruction::Array { ty, .. } => value_shape_from_type(tree, ty.ty()?),
         mir::Instruction::Slice { result_type, .. } => {
-            Some(value_layout_from_type(tree, result_type.ty()?))
+            value_shape_from_type(tree, result_type.ty()?)
         }
         mir::Instruction::TensorExtract { destination, .. } => {
             let destination = destination.value()?;
             let ty = value_type_for_value(destination, value_types)?;
-            Some(value_layout_from_type(tree, ty))
+            value_shape_from_type(tree, ty)
         }
         mir::Instruction::VectorSplat { .. }
         | mir::Instruction::VectorExtract { .. }
@@ -742,12 +694,12 @@ fn infer_instruction_layout(
         | mir::Instruction::TensorConvert { .. } => None,
         mir::Instruction::FrameAllocZeroed { result_type, .. }
         | mir::Instruction::FrameAllocUninit { result_type, .. } => {
-            let mut layout = value_layout_from_type(tree, result_type.ty()?);
-            let ValueLayout::Pointer { pointer_class, .. } = &mut layout else {
+            let mut shape = value_shape_from_type(tree, result_type.ty()?)?;
+            let ValueShape::Pointer { address_space, .. } = &mut shape else {
                 return None;
             };
-            *pointer_class = PointerClass::Stack;
-            Some(layout)
+            *address_space = AddressSpace::Stack;
+            Some(shape)
         }
         mir::Instruction::NewZeroed { result_type, .. }
         | mir::Instruction::NewUninit { result_type, .. }
@@ -755,19 +707,19 @@ fn infer_instruction_layout(
         | mir::Instruction::NewSliceZeroed { result_type, .. }
         | mir::Instruction::NewSliceUninit { result_type, .. }
         | mir::Instruction::AtomicLoad { result_type, .. } => {
-            Some(value_layout_from_type(tree, result_type.ty()?))
+            value_shape_from_type(tree, result_type.ty()?)
         }
         mir::Instruction::AtomicCompareExchange { destination, .. }
         | mir::Instruction::AtomicRmw { destination, .. } => {
             let destination = destination.value()?;
             let ty = value_type_for_value(destination, value_types)?;
-            Some(value_layout_from_type(tree, ty))
+            value_shape_from_type(tree, ty)
         }
         mir::Instruction::Intrinsic {
             intrinsic,
             arguments,
             ..
-        } => infer_intrinsic_layout(tree, *intrinsic, *arguments, value_layout_map),
+        } => infer_intrinsic_shape(tree, *intrinsic, *arguments, value_shape_map),
         mir::Instruction::LocalSet { .. }
         | mir::Instruction::Store { .. }
         | mir::Instruction::AtomicStore { .. }
@@ -781,77 +733,77 @@ fn infer_instruction_layout(
     }
 }
 
-/// Infer the value layout for one intrinsic call.
-fn infer_intrinsic_layout(
+/// Infer the value shape for one intrinsic call.
+fn infer_intrinsic_shape(
     tree: &mir::Tree,
     intrinsic: mir::Intrinsic,
     arguments: mir::ArgumentSlice,
-    value_layout_map: &ValueLayoutMap,
-) -> Option<ValueLayout> {
+    value_shape_map: &ValueShapeMap,
+) -> Option<ValueShape> {
     let argument = tree.get_arguments(arguments);
 
     match intrinsic.result_type() {
         mir::IntrinsicResultType::Void => None,
-        mir::IntrinsicResultType::Boolean => Some(ValueLayout::Bool),
-        mir::IntrinsicResultType::I32 => Some(ValueLayout::Int {
+        mir::IntrinsicResultType::Boolean => Some(ValueShape::Bool),
+        mir::IntrinsicResultType::I32 => Some(ValueShape::Int {
             width: 32,
             signed: true,
         }),
-        mir::IntrinsicResultType::Isize => Some(ValueLayout::Int {
+        mir::IntrinsicResultType::Isize => Some(ValueShape::Int {
             width: usize::BITS as u16,
             signed: true,
         }),
-        mir::IntrinsicResultType::Usize => Some(ValueLayout::Int {
+        mir::IntrinsicResultType::Usize => Some(ValueShape::Int {
             width: usize::BITS as u16,
             signed: false,
         }),
         mir::IntrinsicResultType::SameAsArgument(index) => {
             let argument = argument.get(index as usize)?;
-            value_layout_map.get(argument.value()?)
+            value_shape_map.get(argument.value()?)
         }
         mir::IntrinsicResultType::Pointee(index) => {
             let argument = argument.get(index as usize)?;
-            let pointer_layout = value_layout_map.get(argument.value()?)?;
-            layout_from_pointer(tree, pointer_layout)
+            let pointer_shape = value_shape_map.get(argument.value()?)?;
+            shape_from_pointer(tree, pointer_shape)
         }
         mir::IntrinsicResultType::OverflowingArithmetic
         | mir::IntrinsicResultType::PointeeAndBool(_)
         | mir::IntrinsicResultType::TypeDescriptor
-        | mir::IntrinsicResultType::Explicit => Some(ValueLayout::Unknown),
+        | mir::IntrinsicResultType::Explicit => None,
     }
 }
 
-/// Get the layout for one constant value.
-fn layout_from_constant(constant: &mir::Constant) -> ValueLayout {
+/// Get the shape for one constant value.
+fn shape_from_constant(constant: &mir::Constant) -> Option<ValueShape> {
     match constant {
-        mir::Constant::Null => ValueLayout::Unknown,
-        mir::Constant::Boolean { .. } => ValueLayout::Bool,
+        mir::Constant::Null => None,
+        mir::Constant::Boolean { .. } => Some(ValueShape::Bool),
         mir::Constant::Int {
             width, is_signed, ..
-        } => ValueLayout::Int {
+        } => Some(ValueShape::Int {
             width: *width,
             signed: *is_signed,
-        },
-        mir::Constant::UInt { width, .. } => ValueLayout::Int {
+        }),
+        mir::Constant::UInt { width, .. } => Some(ValueShape::Int {
             width: *width,
             signed: false,
-        },
-        mir::Constant::Float { format, .. } => ValueLayout::Float { format: *format },
-        mir::Constant::Char { .. } => ValueLayout::Char,
+        }),
+        mir::Constant::Float { format, .. } => Some(ValueShape::Float { format: *format }),
+        mir::Constant::Char { .. } => Some(ValueShape::Char),
     }
 }
 
-/// Resolve one pointee layout from one pointer-like value.
-fn layout_from_pointer(tree: &mir::Tree, layout: ValueLayout) -> Option<ValueLayout> {
-    match layout {
-        ValueLayout::Pointer { pointee, .. } => Some(value_layout_from_type(tree, pointee)),
+/// Resolve one pointee shape from one addressable value.
+fn shape_from_pointer(tree: &mir::Tree, shape: ValueShape) -> Option<ValueShape> {
+    match shape {
+        ValueShape::Pointer { pointee, .. } => value_shape_from_type(tree, pointee),
         _ => None,
     }
 }
 
-/// Resolve the field layout for one payload value.
-fn layout_from_field(tree: &mir::Tree, layout: ValueLayout, index: u32) -> Option<ValueLayout> {
-    let ValueLayout::FrameBytes { ty } = layout else {
+/// Resolve the field shape for one payload value.
+fn shape_from_field(tree: &mir::Tree, shape: ValueShape, index: u32) -> Option<ValueShape> {
+    let ValueShape::FrameBytes { ty } = shape else {
         return None;
     };
 
@@ -859,48 +811,48 @@ fn layout_from_field(tree: &mir::Tree, layout: ValueLayout, index: u32) -> Optio
         mir::Type::Struct { fields, copy: _ } => {
             let field = fields.get(index as usize)?;
             let field = tree.get(*field);
-            Some(value_layout_from_type(tree, field.ty.ty()?))
+            value_shape_from_type(tree, field.ty.ty()?)
         }
         mir::Type::Tuple { elements, copy: _ } => {
             let field = elements.get(index as usize)?;
-            Some(value_layout_from_type(tree, field.ty()?))
+            value_shape_from_type(tree, field.ty()?)
         }
         _ => None,
     }
 }
 
-/// Resolve the element layout for one array value.
-fn layout_from_element(tree: &mir::Tree, layout: ValueLayout) -> Option<ValueLayout> {
-    match layout {
-        ValueLayout::Array { element, .. } => Some(value_layout_from_type(tree, element)),
-        ValueLayout::FrameBytes { ty } => match tree.get(ty) {
-            mir::Type::Array { element, .. } => Some(value_layout_from_type(tree, element.ty()?)),
+/// Resolve the element shape for one array value.
+fn shape_from_element(tree: &mir::Tree, shape: ValueShape) -> Option<ValueShape> {
+    match shape {
+        ValueShape::Array { element, .. } => value_shape_from_type(tree, element),
+        ValueShape::FrameBytes { ty } => match tree.get(ty) {
+            mir::Type::Array { element, .. } => value_shape_from_type(tree, element.ty()?),
             _ => None,
         },
         _ => None,
     }
 }
 
-/// Rebuild one address-producing result layout from the MIR pointer class.
-fn pointer_result_layout_from_source(
+/// Rebuild one address-producing result shape from the MIR address space.
+fn pointer_result_shape_from_source(
     tree: &mir::Tree,
     result_type: mir::LocalNodeId<mir::Type>,
-    source_layout: ValueLayout,
-) -> Option<ValueLayout> {
-    let ValueLayout::Pointer { pointer_class, .. } = source_layout else {
-        return Some(value_layout_from_type(tree, result_type));
+    source_shape: ValueShape,
+) -> Option<ValueShape> {
+    let ValueShape::Pointer { address_space, .. } = source_shape else {
+        return value_shape_from_type(tree, result_type);
     };
 
-    let ValueLayout::Pointer {
+    let ValueShape::Pointer {
         pointee, reference, ..
-    } = value_layout_from_type(tree, result_type)
+    } = value_shape_from_type(tree, result_type)?
     else {
         return None;
     };
 
-    Some(ValueLayout::Pointer {
+    Some(ValueShape::Pointer {
         pointee,
-        pointer_class,
+        address_space,
         reference,
     })
 }

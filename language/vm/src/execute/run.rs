@@ -4,7 +4,7 @@ use engine::StaticSpace;
 
 use super::frame::{dematerialize_value, frame_value_type};
 use super::{dispatch_block, dispatch_block_counted};
-use crate::Word;
+use crate::Cell;
 use crate::diagnostic::{Error, RuntimeError, RuntimeResult};
 use crate::machine::{Activation, Continuation, Frame, Machine, Outcome};
 use crate::options::LimitOptions;
@@ -16,7 +16,7 @@ impl Machine {
     ///
     /// Uses the lowered op loop for maximum performance.
     /// Functions are lowered when the machine is created.
-    pub(crate) fn execute_function_words(
+    pub(crate) fn execute_function_cells(
         &mut self,
         program: &Program,
         limits: LimitOptions,
@@ -26,9 +26,9 @@ impl Machine {
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Word],
+        arguments: &[Cell],
     ) -> RuntimeResult<engine::Value> {
-        let outcome = self.execute_function_words_yielding(
+        let outcome = self.execute_function_cells_yielding(
             program,
             limits,
             statics,
@@ -49,7 +49,7 @@ impl Machine {
     /// Execute a function by id with yield support.
     ///
     /// Returns a yielded value when the coroutine suspends.
-    pub(crate) fn execute_function_words_yielding(
+    pub(crate) fn execute_function_cells_yielding(
         &mut self,
         program: &Program,
         limits: LimitOptions,
@@ -59,7 +59,7 @@ impl Machine {
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Word],
+        arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
         self.reset_stack(limits)?;
 
@@ -199,7 +199,7 @@ impl Machine {
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
         function_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Word],
+        arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
         // resolve the lowered entry metadata
         let function = program
@@ -245,11 +245,11 @@ impl Machine {
             .map_err(RuntimeError::new)?;
         for (index, param) in parameter_slice.iter().enumerate() {
             let value = arguments[index];
-            let is_word = activation
-                .value_is_word(*param)
+            let is_cell = activation
+                .value_is_cell(*param)
                 .map_err(RuntimeError::new)?;
-            if is_word {
-                activation.store_value_word(*param, value);
+            if is_cell {
+                activation.store_value_cell(*param, value);
                 continue;
             }
 

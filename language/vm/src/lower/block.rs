@@ -7,7 +7,7 @@ use destack_mir as mir;
 use crate::program::{CallTarget, Layout};
 use crate::{Error, Result};
 
-use super::value::ValueLayoutMap;
+use super::value::ValueShapeMap;
 
 /// One lowered block traversal order.
 pub(super) struct BlockOrder {
@@ -179,8 +179,8 @@ pub(super) struct FunctionContext<'a> {
     pub(super) call_targets: &'a HashMap<mir::LocalNodeId<mir::Function>, CallTarget>,
     /// The byte layout for this lowered function frame.
     pub(super) frame_layout: &'a engine::FrameLayout,
-    /// The lowered value layout by SSA value id.
-    pub(super) value_layout_map: ValueLayoutMap,
+    /// The lowered value shape by SSA value id.
+    pub(super) value_shape_map: ValueShapeMap,
     /// The lowered value type by SSA value id.
     pub(super) value_type: Vec<mir::LocalNodeId<mir::Type>>,
     /// The lowered VM layout by MIR type id.

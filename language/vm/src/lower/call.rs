@@ -2,19 +2,19 @@ use destack_engine as engine;
 use destack_mir as mir;
 
 use crate::program::{
-    Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect, CallIndirectBranch,
-    CallVirtual, CallVirtualBranch, ClosureBind, ClosureEnvironment, Instruction, Op, PointerClass,
-    TailCall, TailCallDynamic, TailCallIndirect, TailCallVirtual, closure_object_layout, repr_type,
-    word_layout_from_type,
+    AddressSpace, Call, CallBranch, CallDynamic, CallDynamicBranch, CallIndirect,
+    CallIndirectBranch, CallVirtual, CallVirtualBranch, ClosureBind, ClosureEnvironment,
+    Instruction, Op, TailCall, TailCallDynamic, TailCallIndirect, TailCallVirtual,
+    cell_layout_from_type, closure_object_layout, repr_type,
 };
 use crate::{Error, Result};
 
-use super::frame::{value_offset, word_offset};
+use super::frame::{cell_offset, value_offset};
 use super::lower::BlockLowerer;
 use super::pool::Pool;
 use super::projection::{dynamic_table_projection, virtual_table_projection};
 use super::value::{
-    heap_pointee_type_for_value, heap_pointee_type_for_value_layout, pointer_class_for_value,
+    address_space_for_value, heap_pointee_type_for_storage_id, heap_pointee_type_for_value,
 };
 
 impl<'a> BlockLowerer<'a> {
@@ -124,7 +124,7 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| Error::invalid_program("virtual call receiver"))?;
 
         // compile the receiver table access
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
+        let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = virtual_table_projection(
             self.tree,
             self.layouts(),
@@ -135,9 +135,9 @@ impl<'a> BlockLowerer<'a> {
 
         // emit the receiver-space-specific opcode
         Ok(pool.instruction_with_side(
-            virtual_call_op(pointer_class)?,
+            virtual_call_op(address_space)?,
             CallVirtual {
-                receiver_offset: word_offset(self, receiver)?,
+                receiver_offset: cell_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
                 arguments,
@@ -164,7 +164,7 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| Error::invalid_program("dynamic call receiver"))?;
 
         // compile the receiver table access
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
+        let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = dynamic_table_projection(
             self.tree,
             self.layouts(),
@@ -175,9 +175,9 @@ impl<'a> BlockLowerer<'a> {
 
         // emit the receiver-space-specific opcode
         Ok(pool.instruction_with_side(
-            dynamic_call_op(pointer_class)?,
+            dynamic_call_op(address_space)?,
             CallDynamic {
-                receiver_offset: word_offset(self, receiver)?,
+                receiver_offset: cell_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
                 arguments,
@@ -240,11 +240,11 @@ impl<'a> BlockLowerer<'a> {
         let environment_type = self.value_type_for_value(environment)?;
         let environment_layout = self.layout_for_type(environment_type)?;
 
-        let (op, environment_repr) = if environment_layout.is_word() {
-            let layout = word_layout_from_type(self.tree, environment_type)
+        let (op, environment_repr) = if environment_layout.is_cell() {
+            let layout = cell_layout_from_type(self.tree, environment_type)
                 .ok_or(Error::invalid_instruction())?;
 
-            (Op::BindClosureWord, ClosureEnvironment::Word { layout })
+            (Op::BindClosureCell, ClosureEnvironment::Cell { layout })
         } else {
             (
                 Op::BindClosureAddress,
@@ -266,7 +266,7 @@ impl<'a> BlockLowerer<'a> {
         // put the hot operands in the instruction payload
         Ok(Instruction::new(
             op,
-            word_offset(self, destination)?,
+            cell_offset(self, destination)?,
             function.id,
             value_offset(self, environment)?,
             closure,
@@ -284,7 +284,7 @@ impl<'a> BlockLowerer<'a> {
 
         Ok(Instruction::new(
             Op::LoadClosureEnvironment,
-            word_offset(self, destination)?,
+            cell_offset(self, destination)?,
             0,
             0,
             0,
@@ -324,7 +324,7 @@ impl<'a> BlockLowerer<'a> {
             _ => return Err(Error::invalid_instruction()),
         };
 
-        let offset = word_offset(self, callee)?;
+        let offset = cell_offset(self, callee)?;
 
         Ok(IndirectCallee {
             offset,
@@ -398,7 +398,7 @@ impl<'a> BlockLowerer<'a> {
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "call virtual argument")?;
         let target_state = self.call_target_state()?;
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
+        let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = virtual_table_projection(
             self.tree,
             self.layouts(),
@@ -408,9 +408,9 @@ impl<'a> BlockLowerer<'a> {
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            virtual_call_branch_op(pointer_class)?,
+            virtual_call_branch_op(address_space)?,
             CallVirtualBranch {
-                receiver_offset: word_offset(self, receiver)?,
+                receiver_offset: cell_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
                 arguments,
@@ -433,7 +433,7 @@ impl<'a> BlockLowerer<'a> {
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "call dynamic argument")?;
         let target_state = self.call_target_state()?;
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
+        let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = dynamic_table_projection(
             self.tree,
             self.layouts(),
@@ -443,9 +443,9 @@ impl<'a> BlockLowerer<'a> {
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            dynamic_call_branch_op(pointer_class)?,
+            dynamic_call_branch_op(address_space)?,
             CallDynamicBranch {
-                receiver_offset: word_offset(self, receiver)?,
+                receiver_offset: cell_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
                 arguments,
@@ -537,19 +537,19 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| Error::invalid_program("tail virtual receiver"))?;
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "tail virtual argument")?;
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
+        let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = virtual_table_projection(
             self.tree,
             self.layouts(),
-            heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
+            heap_pointee_type_for_storage_id(self.value_shape_map(), receiver),
         )
         .ok_or_else(|| Error::invalid_program("tail virtual table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            virtual_tail_call_op(pointer_class)?,
+            virtual_tail_call_op(address_space)?,
             TailCallVirtual {
-                receiver_offset: word_offset(self, receiver)?,
+                receiver_offset: cell_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
                 arguments,
@@ -570,19 +570,19 @@ impl<'a> BlockLowerer<'a> {
             .ok_or_else(|| Error::invalid_program("tail dynamic receiver"))?;
         let arguments =
             pool.argument_reference_range(call.arguments.as_slice(), "tail dynamic argument")?;
-        let pointer_class = pointer_class_for_value(self.value_layout_map(), receiver);
+        let address_space = address_space_for_value(self.value_shape_map(), receiver)?;
         let table_field = dynamic_table_projection(
             self.tree,
             self.layouts(),
-            heap_pointee_type_for_value_layout(self.value_layout_map(), receiver),
+            heap_pointee_type_for_storage_id(self.value_shape_map(), receiver),
         )
         .ok_or_else(|| Error::invalid_program("tail dynamic table field"))?;
         let table_field = pool.projection(table_field);
 
         Ok(pool.instruction_with_side(
-            dynamic_tail_call_op(pointer_class)?,
+            dynamic_tail_call_op(address_space)?,
             TailCallDynamic {
-                receiver_offset: word_offset(self, receiver)?,
+                receiver_offset: cell_offset(self, receiver)?,
                 table_field,
                 slot: method.0,
                 arguments,
@@ -593,7 +593,7 @@ impl<'a> BlockLowerer<'a> {
 
 /// Static callee shape for one indirect call.
 struct IndirectCallee {
-    /// Word offset of the closure value in the current frame.
+    /// Cell offset of the closure value in the current frame.
     offset: u32,
     /// Expected function signature.
     signature: mir::LocalNodeId<mir::Type>,
@@ -601,57 +601,57 @@ struct IndirectCallee {
     has_environment: bool,
 }
 
-/// Return the virtual call op for one receiver pointer class.
-fn virtual_call_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap => Ok(Op::CallVirtualHeap),
-        PointerClass::SharedHeap => Ok(Op::CallVirtualSharedHeap),
-        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
+/// Return the virtual call op for one receiver address space.
+fn virtual_call_op(address_space: AddressSpace) -> Result<Op> {
+    match address_space {
+        AddressSpace::Local => Ok(Op::CallVirtualHeap),
+        AddressSpace::Shared => Ok(Op::CallVirtualSharedHeap),
+        _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
 
-/// Return the virtual call terminator op for one receiver pointer class.
-fn virtual_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap => Ok(Op::CallVirtualHeapBranch),
-        PointerClass::SharedHeap => Ok(Op::CallVirtualSharedHeapBranch),
-        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
+/// Return the virtual call terminator op for one receiver address space.
+fn virtual_call_branch_op(address_space: AddressSpace) -> Result<Op> {
+    match address_space {
+        AddressSpace::Local => Ok(Op::CallVirtualHeapBranch),
+        AddressSpace::Shared => Ok(Op::CallVirtualSharedHeapBranch),
+        _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
 
-/// Return the virtual tail call op for one receiver pointer class.
-fn virtual_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap => Ok(Op::TailCallVirtualHeap),
-        PointerClass::SharedHeap => Ok(Op::TailCallVirtualSharedHeap),
-        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
+/// Return the virtual tail call op for one receiver address space.
+fn virtual_tail_call_op(address_space: AddressSpace) -> Result<Op> {
+    match address_space {
+        AddressSpace::Local => Ok(Op::TailCallVirtualHeap),
+        AddressSpace::Shared => Ok(Op::TailCallVirtualSharedHeap),
+        _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
 
-/// Return the dynamic call op for one receiver pointer class.
-fn dynamic_call_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap => Ok(Op::CallDynamicHeap),
-        PointerClass::SharedHeap => Ok(Op::CallDynamicSharedHeap),
-        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
+/// Return the dynamic call op for one receiver address space.
+fn dynamic_call_op(address_space: AddressSpace) -> Result<Op> {
+    match address_space {
+        AddressSpace::Local => Ok(Op::CallDynamicHeap),
+        AddressSpace::Shared => Ok(Op::CallDynamicSharedHeap),
+        _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
 
-/// Return the dynamic call terminator op for one receiver pointer class.
-fn dynamic_call_branch_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap => Ok(Op::CallDynamicHeapBranch),
-        PointerClass::SharedHeap => Ok(Op::CallDynamicSharedHeapBranch),
-        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
+/// Return the dynamic call terminator op for one receiver address space.
+fn dynamic_call_branch_op(address_space: AddressSpace) -> Result<Op> {
+    match address_space {
+        AddressSpace::Local => Ok(Op::CallDynamicHeapBranch),
+        AddressSpace::Shared => Ok(Op::CallDynamicSharedHeapBranch),
+        _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
 
-/// Return the dynamic tail call op for one receiver pointer class.
-fn dynamic_tail_call_op(pointer_class: PointerClass) -> Result<Op> {
-    match pointer_class {
-        PointerClass::Heap => Ok(Op::TailCallDynamicHeap),
-        PointerClass::SharedHeap => Ok(Op::TailCallDynamicSharedHeap),
-        _ => Err(Error::invalid_pointer_type(format!("{pointer_class:?}"))),
+/// Return the dynamic tail call op for one receiver address space.
+fn dynamic_tail_call_op(address_space: AddressSpace) -> Result<Op> {
+    match address_space {
+        AddressSpace::Local => Ok(Op::TailCallDynamicHeap),
+        AddressSpace::Shared => Ok(Op::TailCallDynamicSharedHeap),
+        _ => Err(Error::invalid_pointer_type(format!("{address_space:?}"))),
     }
 }
 

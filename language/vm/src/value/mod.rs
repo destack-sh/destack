@@ -1,7 +1,7 @@
+mod cell;
 mod meta;
 mod pointer;
-mod word;
 
+pub use cell::*;
 pub use meta::*;
 pub use pointer::*;
-pub use word::*;

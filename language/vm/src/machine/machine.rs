@@ -16,9 +16,9 @@ use crate::options::{LimitOptions, MachineOptions};
 #[cfg(test)]
 use crate::program::Layout;
 use crate::program::Program;
-use crate::{Result as VmResult, Word};
+use crate::{Cell, Result as VmResult};
 
-use super::{Continuation, ContinuationImage, Frame, FrameImage, Stack, StackImage};
+use super::{Continuation, ContinuationImage, Frame, FrameSnapshot, Stack, StackImage};
 
 /// Coroutine-capable machine outcome.
 pub type Outcome = engine::Outcome<Continuation, engine::Value>;
@@ -54,7 +54,7 @@ pub struct MachineImage {
     /// The captured stack bytes.
     pub stack: StackImage,
     /// The captured frame stack.
-    pub frames: Vec<FrameImage>,
+    pub frames: Vec<FrameSnapshot>,
 }
 
 impl fmt::Debug for Machine {
@@ -179,9 +179,9 @@ impl Machine {
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[engine::Value],
     ) -> RuntimeResult<engine::Value> {
-        let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
+        let arguments = arguments.iter().map(Cell::from).collect::<Vec<_>>();
 
-        self.run_function_words(
+        self.run_function_cells(
             statics,
             heap,
             shared,
@@ -192,8 +192,8 @@ impl Machine {
         )
     }
 
-    /// Run a function by id with VM words and return its output.
-    pub(crate) fn run_function_words(
+    /// Run a function by id with VM cells and return its output.
+    pub(crate) fn run_function_cells(
         &mut self,
         statics: &mut StaticSpace,
         heap: &mut Heap,
@@ -201,12 +201,12 @@ impl Machine {
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Word],
+        arguments: &[Cell],
     ) -> RuntimeResult<engine::Value> {
         let program = Arc::clone(&self.program);
         let limits = self.options.limits;
 
-        self.execute_function_words(
+        self.execute_function_cells(
             program.as_ref(),
             limits,
             statics,
@@ -230,9 +230,9 @@ impl Machine {
         func_id: mir::LocalNodeId<mir::Function>,
         arguments: &[engine::Value],
     ) -> RuntimeResult<Outcome> {
-        let arguments = arguments.iter().map(Word::from).collect::<Vec<_>>();
+        let arguments = arguments.iter().map(Cell::from).collect::<Vec<_>>();
 
-        self.run_function_words_yielding(
+        self.run_function_cells_yielding(
             statics,
             heap,
             shared,
@@ -243,8 +243,8 @@ impl Machine {
         )
     }
 
-    /// Run a function by id with VM words and allow yielding.
-    pub(crate) fn run_function_words_yielding(
+    /// Run a function by id with VM cells and allow yielding.
+    pub(crate) fn run_function_cells_yielding(
         &mut self,
         statics: &mut StaticSpace,
         heap: &mut Heap,
@@ -252,12 +252,12 @@ impl Machine {
         shared_cache: &mut AllocationCache,
         shared_gc: &GcWorker,
         func_id: mir::LocalNodeId<mir::Function>,
-        arguments: &[Word],
+        arguments: &[Cell],
     ) -> RuntimeResult<Outcome> {
         let program = Arc::clone(&self.program);
         let limits = self.options.limits;
 
-        self.execute_function_words_yielding(
+        self.execute_function_cells_yielding(
             program.as_ref(),
             limits,
             statics,
@@ -433,7 +433,7 @@ impl Machine {
     ) -> RuntimeResult<(usize, usize)> {
         let base = self
             .stack
-            .allocate_zeroed(layout.byte_len as usize, Word::BYTE_LEN)?;
+            .allocate_zeroed(layout.byte_len as usize, Cell::BYTE_LEN)?;
         let frame_base = self.stack.address(base, layout.byte_len as usize)?;
 
         Ok((base, frame_base))
@@ -465,7 +465,7 @@ impl Machine {
     pub(crate) fn restore_stack_and_frames(
         program: &Program,
         stack_image: &StackImage,
-        frame_images: &[FrameImage],
+        frame_images: &[FrameSnapshot],
         options: &MachineOptions,
     ) -> RuntimeResult<(Stack, Vec<Frame>)> {
         let stack = Stack::from_image(stack_image, options.limits.stack_bytes)?;
@@ -540,7 +540,7 @@ impl Machine {
             };
             let was_defined = initialized_statics.define(
                 program.static_id(id),
-                program.value_layout_id(ty),
+                program.storage_layout_id(ty),
                 layout.alignment(),
                 program.tree.get(id).is_mutable(),
                 &bytes,
@@ -610,7 +610,7 @@ impl Machine {
             })?;
 
             program
-                .visit_byte_root_slots(program.type_for_value_layout(region.layout), bytes, visit)
+                .visit_byte_root_slots(program.type_for_storage_id(region.layout), bytes, visit)
                 .map_err(|error| self.runtime_error_with_program(program, error))?;
         }
 

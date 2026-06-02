@@ -1,7 +1,7 @@
 use destack_mir as mir;
 use serde::{Deserialize, Serialize};
 
-use destack_engine::{StaticPointer, Value};
+use destack_engine::{StaticAddress, Value};
 use destack_heap::{HeapReference, SharedHeapReference};
 
 use crate::{FramePointer, FunctionPointer, StackPointer};
@@ -31,34 +31,34 @@ const fn truncate_signed_bits(value: i64, width: u8) -> i64 {
     }
 }
 
-/// One untyped VM word.
+/// One untyped VM cell.
 ///
 /// The type is supplied by MIR metadata, frame maps, and lowered instructions.
 #[derive(Clone, Copy, Default, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[repr(transparent)]
-pub struct Word(u64);
+pub struct Cell(u64);
 
-impl std::fmt::Debug for Word {
+impl std::fmt::Debug for Cell {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Word(0x{:016X})", self.0)
+        write!(f, "Cell(0x{:016X})", self.0)
     }
 }
 
-impl Word {
-    /// The zero word.
-    pub const VOID: Self = Self(0);
-    /// The bit width of one VM word.
+impl Cell {
+    /// The zero cell.
+    pub const ZERO: Self = Self(0);
+    /// The bit width of one VM cell.
     pub const BIT_LEN: u8 = u64::BITS as u8;
-    /// The byte width of one VM word.
+    /// The byte width of one VM cell.
     pub const BYTE_LEN: usize = std::mem::size_of::<Self>();
 
-    /// Create one word from raw bits.
+    /// Create one cell from raw bits.
     #[inline(always)]
     pub const fn from_bits(bits: u64) -> Self {
         Self(bits)
     }
 
-    /// Return this word as raw bits.
+    /// Return this cell as raw bits.
     #[inline(always)]
     pub const fn bits(self) -> u64 {
         self.0
@@ -68,12 +68,6 @@ impl Word {
     #[inline(always)]
     pub const fn as_bool(self) -> bool {
         self.0 != 0
-    }
-
-    /// View this value as a signed integer.
-    #[inline(always)]
-    pub const fn as_int(self) -> i64 {
-        self.as_i64()
     }
 
     /// View this value as a signed integer.
@@ -88,34 +82,16 @@ impl Word {
         self.0
     }
 
-    /// View this value as an unsigned integer.
-    #[inline(always)]
-    pub const fn as_uint(self) -> u64 {
-        self.as_u64()
-    }
-
     /// View this value as a float32.
     #[inline(always)]
     pub const fn as_f32(self) -> f32 {
         f32::from_bits(self.0 as u32)
     }
 
-    /// View this value as a float32.
-    #[inline(always)]
-    pub const fn as_float32(self) -> f32 {
-        self.as_f32()
-    }
-
     /// View this value as a float64.
     #[inline(always)]
     pub const fn as_f64(self) -> f64 {
         f64::from_bits(self.0)
-    }
-
-    /// View this value as a float64.
-    #[inline(always)]
-    pub const fn as_float64(self) -> f64 {
-        self.as_f64()
     }
 
     /// View this value as a character.
@@ -154,10 +130,10 @@ impl Word {
         FramePointer::from_address(self.0 as usize)
     }
 
-    /// View this value as a static pointer.
+    /// View this value as a static address.
     #[inline(always)]
-    pub const fn as_static_pointer(self) -> StaticPointer {
-        StaticPointer::from_bits(self.0 as usize)
+    pub const fn as_static_address(self) -> StaticAddress {
+        StaticAddress::from_bits(self.0)
     }
 
     /// View this value as a function pointer.
@@ -280,10 +256,10 @@ impl Word {
         Self(ptr.bits() as u64)
     }
 
-    /// Create a static pointer value.
+    /// Create a static address value.
     #[inline(always)]
-    pub const fn static_pointer(ptr: StaticPointer) -> Self {
-        Self(ptr.bits() as u64)
+    pub const fn static_address(address: StaticAddress) -> Self {
+        Self(address.bits())
     }
 
     /// Create a function pointer value.
@@ -298,7 +274,7 @@ impl Word {
         self.0.to_le_bytes()
     }
 
-    /// Restore one word from one packed byte slice.
+    /// Restore one cell from one packed byte slice.
     #[inline]
     pub fn from_byte_slice(bytes: &[u8]) -> Option<Self> {
         let bytes: [u8; Self::BYTE_LEN] = bytes.try_into().ok()?;
@@ -307,47 +283,47 @@ impl Word {
     }
 }
 
-impl From<&mir::Constant> for Word {
+impl From<&mir::Constant> for Cell {
     fn from(constant: &mir::Constant) -> Self {
         match constant {
-            mir::Constant::Null => Word::VOID,
-            mir::Constant::Boolean { value } => Word::bool(*value),
+            mir::Constant::Null => Cell::ZERO,
+            mir::Constant::Boolean { value } => Cell::bool(*value),
             mir::Constant::Int {
                 value,
                 width,
                 is_signed: true,
-            } => Word::int(*value as i64, *width as u8),
+            } => Cell::int(*value as i64, *width as u8),
             mir::Constant::Int {
                 value,
                 width,
                 is_signed: false,
-            } => Word::uint(*value as u64, *width as u8),
-            mir::Constant::UInt { value, width } => Word::uint(*value as u64, *width as u8),
+            } => Cell::uint(*value as u64, *width as u8),
+            mir::Constant::UInt { value, width } => Cell::uint(*value as u64, *width as u8),
             mir::Constant::Float { bits, format } => match format {
-                mir::FloatType::Float16 | mir::FloatType::Bfloat16 => Word::from_bits(*bits),
-                mir::FloatType::Float32 => Word::float32(f32::from_bits(*bits as u32)),
-                mir::FloatType::Float64 => Word::float64(f64::from_bits(*bits)),
+                mir::FloatType::Float16 | mir::FloatType::Bfloat16 => Cell::from_bits(*bits),
+                mir::FloatType::Float32 => Cell::float32(f32::from_bits(*bits as u32)),
+                mir::FloatType::Float64 => Cell::float64(f64::from_bits(*bits)),
             },
-            mir::Constant::Char { value } => Word::char(*value),
+            mir::Constant::Char { value } => Cell::char(*value),
         }
     }
 }
 
-impl From<&Value> for Word {
+impl From<&Value> for Cell {
     fn from(value: &Value) -> Self {
         match value {
-            Value::Void => Word::VOID,
-            Value::Bool(value) => Word::bool(*value),
-            Value::Int { value, width } => Word::int(*value as i64, *width as u8),
-            Value::UInt { value, width } => Word::uint(*value as u64, *width as u8),
-            Value::Float16 { bits } => Word::from_bits(u64::from(*bits)),
-            Value::Bfloat16 { bits } => Word::from_bits(u64::from(*bits)),
-            Value::Float32 { bits } => Word::float32(f32::from_bits(*bits)),
-            Value::Float64 { bits } => Word::float64(f64::from_bits(*bits)),
-            Value::Char(value) => Word::char(*value),
-            Value::HeapReference(reference) => Word::heap_reference(*reference),
-            Value::SharedHeapReference(reference) => Word::shared_heap_reference(*reference),
-            Value::Address(address) => Word::address(*address),
+            Value::Void => Cell::ZERO,
+            Value::Bool(value) => Cell::bool(*value),
+            Value::Int { value, width } => Cell::int(*value as i64, *width as u8),
+            Value::UInt { value, width } => Cell::uint(*value as u64, *width as u8),
+            Value::Float16 { bits } => Cell::from_bits(u64::from(*bits)),
+            Value::Bfloat16 { bits } => Cell::from_bits(u64::from(*bits)),
+            Value::Float32 { bits } => Cell::float32(f32::from_bits(*bits)),
+            Value::Float64 { bits } => Cell::float64(f64::from_bits(*bits)),
+            Value::Char(value) => Cell::char(*value),
+            Value::HeapReference(reference) => Cell::heap_reference(*reference),
+            Value::SharedHeapReference(reference) => Cell::shared_heap_reference(*reference),
+            Value::Address(address) => Cell::address(*address),
         }
     }
 }

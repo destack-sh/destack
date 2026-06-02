@@ -10,8 +10,8 @@ use destack_mir::{DataLayout, TraceTable};
 use destack_source::FileId;
 
 use crate::diagnostic::{Error, RuntimeResult};
-use crate::program::{Layout, encode_word_bytes};
-use crate::{Continuation, Machine, MachineOptions, Outcome, Word};
+use crate::program::{Layout, encode_cell_bytes};
+use crate::{Cell, Continuation, Machine, MachineOptions, Outcome};
 
 /// The virtual heap-space width used by ordinary VM tests.
 const TEST_LOCAL_SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;
@@ -147,15 +147,15 @@ impl TestMachine {
     pub(crate) fn materialize_value_for_type(
         &mut self,
         ty: destack_mir::LocalNodeId<destack_mir::Type>,
-        values: Vec<Word>,
-    ) -> Word {
+        values: Vec<Cell>,
+    ) -> Cell {
         let layout = self
             .machine
             .layout(ty)
             .unwrap_or_else(|| panic!("missing layout for type {ty:?}"));
 
-        // scalars travel directly as VM words
-        if layout.is_word() {
+        // scalars travel directly as VM cells
+        if layout.is_cell() {
             assert_eq!(values.len(), 1, "scalar materialization expects one value");
 
             return values[0];
@@ -175,7 +175,7 @@ impl TestMachine {
             .allocate_dynamic_bytes(shape, &bytes)
             .unwrap_or_else(|error| panic!("failed to allocate materialized value: {error}"));
 
-        Word::heap_reference(reference)
+        Cell::heap_reference(reference)
     }
 
     /// Run one MIR function by name with the given arguments.
@@ -216,15 +216,15 @@ impl TestMachine {
         )
     }
 
-    /// Run one MIR function by name with frame words.
+    /// Run one MIR function by name with frame cells.
     pub(crate) fn run_frame_function_by_name(
         &mut self,
         function: &str,
-        arguments: &[Word],
+        arguments: &[Cell],
     ) -> RuntimeResult<Value> {
         let function = self.machine.function_id_by_name(function)?;
 
-        self.machine.run_function_words(
+        self.machine.run_function_cells(
             &mut self.statics,
             &mut self.heap,
             &self.shared_heap,
@@ -305,7 +305,7 @@ fn materialize_value_bytes(
     heap: &Heap,
     ty: destack_mir::LocalNodeId<destack_mir::Type>,
     layout: &Layout,
-    values: &[Word],
+    values: &[Cell],
 ) -> Vec<u8> {
     let mut bytes = vec![0u8; layout.byte_len];
 
@@ -351,7 +351,7 @@ fn write_materialized_value(
     machine: &Machine,
     heap: &Heap,
     ty: destack_mir::LocalNodeId<destack_mir::Type>,
-    value: Word,
+    value: Cell,
     destination: &mut [u8],
 ) {
     let layout = machine
@@ -359,9 +359,9 @@ fn write_materialized_value(
         .unwrap_or_else(|| panic!("missing layout for nested type {ty:?}"));
 
     // scalar values encode inline
-    if layout.is_word() {
-        let encoded = encode_word_bytes(machine.tree(), ty, value)
-            .unwrap_or_else(|error| panic!("failed to encode materialized word: {error}"));
+    if layout.is_cell() {
+        let encoded = encode_cell_bytes(machine.tree(), ty, value)
+            .unwrap_or_else(|error| panic!("failed to encode materialized cell: {error}"));
         destination[..encoded.len()].copy_from_slice(encoded.as_slice());
 
         return;
@@ -444,14 +444,14 @@ pub(crate) fn run_mir(mir: &str, function: &str, arguments: &[Value]) -> Runtime
     machine.run_function_by_name(function, arguments)
 }
 
-/// Run MIR with access to one heap-owning machine and frame words.
+/// Run MIR with access to one heap-owning machine and frame cells.
 pub(crate) fn run_mir_with_frame<F>(
     mir_text: &str,
     function: &str,
     setup: F,
 ) -> RuntimeResult<Value>
 where
-    F: FnOnce(&mut TestMachine) -> Vec<Word>,
+    F: FnOnce(&mut TestMachine) -> Vec<Cell>,
 {
     let mut machine = create_machine(mir_text);
     let args = setup(&mut machine);
@@ -459,10 +459,10 @@ where
     machine.run_frame_function_by_name(function, &args)
 }
 
-/// Run MIR with frame words, expecting success.
+/// Run MIR with frame cells, expecting success.
 pub(crate) fn run_mir_with_frame_ok<F>(mir_text: &str, function: &str, setup: F) -> Value
 where
-    F: FnOnce(&mut TestMachine) -> Vec<Word>,
+    F: FnOnce(&mut TestMachine) -> Vec<Cell>,
 {
     run_mir_with_frame(mir_text, function, setup).expect("execution failed")
 }

@@ -2,10 +2,10 @@ use destack_engine as engine;
 use destack_mir::{self as mir, LayoutId};
 
 use super::{
-    ArgumentRange, AtomicOrder, AtomicShape, CallTarget, ClosureObjectLayout, MoveRange,
-    Projection, ProjectionId, ScalarLayout, TensorAddress, TensorConvolutionId, TensorDotId,
-    TensorGatherId, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId, ValueLayout,
-    WordLayout,
+    ArgumentRange, AtomicOrder, AtomicShape, CallTarget, CellLayout, ClosureObjectLayout,
+    MoveRange, Projection, ProjectionId, ScalarLayout, TensorAddress, TensorConvolutionId,
+    TensorDotId, TensorGatherId, TensorLayoutId, TensorScatterId, TensorWindowId, U32RangeId,
+    ValueShape,
 };
 
 const INTRINSIC_ARGUMENT_CAPACITY: usize = 16;
@@ -15,7 +15,7 @@ const INTRINSIC_ARGUMENT_CAPACITY: usize = 16;
 pub(crate) struct FrameSelect {
     /// The destination frame offset.
     pub(crate) destination_offset: u32,
-    /// The condition word offset.
+    /// The condition cell offset.
     pub(crate) condition_offset: u32,
     /// The true source frame offset.
     pub(crate) then_offset: u32,
@@ -30,11 +30,11 @@ pub(crate) struct FrameSelect {
 pub(crate) struct AtomicCompareExchange {
     /// The aggregate destination value.
     pub(crate) destination: mir::Value,
-    /// The pointer word offset.
+    /// The pointer cell offset.
     pub(crate) pointer_offset: u32,
-    /// The expected value word offset.
+    /// The expected value cell offset.
     pub(crate) expected_offset: u32,
-    /// The replacement value word offset.
+    /// The replacement value cell offset.
     pub(crate) new_value_offset: u32,
     /// The atomic memory shape.
     pub(crate) shape: AtomicShape,
@@ -49,7 +49,7 @@ pub(crate) struct AtomicCompareExchange {
 pub(crate) struct VectorSplat {
     /// The destination frame offset.
     pub(crate) dest_offset: u32,
-    /// The splatted value word offset.
+    /// The splatted value cell offset.
     pub(crate) value_offset: u32,
     /// The destination element projection.
     pub(crate) dest_element: Projection,
@@ -60,11 +60,11 @@ pub(crate) struct VectorSplat {
 /// Vector extract operation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct VectorExtract {
-    /// The destination word offset.
+    /// The destination cell offset.
     pub(crate) dest_offset: u32,
     /// The source vector frame offset.
     pub(crate) vector_offset: u32,
-    /// The index word offset.
+    /// The index cell offset.
     pub(crate) index_offset: u32,
     /// The source element projection.
     pub(crate) vector_element: Projection,
@@ -121,9 +121,9 @@ pub(crate) struct VectorInsert {
     pub(crate) dest_offset: u32,
     /// The source vector frame offset.
     pub(crate) vector_offset: u32,
-    /// The index word offset.
+    /// The index cell offset.
     pub(crate) index_offset: u32,
-    /// The inserted value word offset.
+    /// The inserted value cell offset.
     pub(crate) value_offset: u32,
     /// The destination element projection.
     pub(crate) dest_element: Projection,
@@ -182,7 +182,7 @@ pub(crate) struct VectorSelect {
 /// Vector reduction operation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct VectorReduce {
-    /// The destination word offset.
+    /// The destination cell offset.
     pub(crate) dest_offset: u32,
     /// The source vector frame offset.
     pub(crate) vector_offset: u32,
@@ -220,10 +220,10 @@ pub(crate) struct VectorConvert {
 /// Closure environment representation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ClosureEnvironment {
-    /// Environment stored in one VM word.
-    Word {
-        /// The environment word layout.
-        layout: WordLayout,
+    /// Environment stored in one VM cell.
+    Cell {
+        /// The environment cell layout.
+        layout: CellLayout,
     },
     /// Environment stored in frame bytes.
     Frame {
@@ -274,7 +274,7 @@ pub(crate) struct CallBranch {
 /// Class method call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallVirtual {
-    /// The receiver word offset.
+    /// The receiver cell offset.
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
     pub(crate) table_field: ProjectionId,
@@ -287,7 +287,7 @@ pub(crate) struct CallVirtual {
 /// Class method call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallVirtualBranch {
-    /// The receiver word offset.
+    /// The receiver cell offset.
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
     pub(crate) table_field: ProjectionId,
@@ -302,7 +302,7 @@ pub(crate) struct CallVirtualBranch {
 /// Dynamic method call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallDynamic {
-    /// The receiver word offset.
+    /// The receiver cell offset.
     pub(crate) receiver_offset: u32,
     /// The dynamic table field projection.
     pub(crate) table_field: ProjectionId,
@@ -315,7 +315,7 @@ pub(crate) struct CallDynamic {
 /// Dynamic method call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallDynamicBranch {
-    /// The receiver word offset.
+    /// The receiver cell offset.
     pub(crate) receiver_offset: u32,
     /// The dynamic table field projection.
     pub(crate) table_field: ProjectionId,
@@ -330,7 +330,7 @@ pub(crate) struct CallDynamicBranch {
 /// Indirect function call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallIndirect {
-    /// The callee word offset.
+    /// The callee cell offset.
     pub(crate) callee_offset: u32,
     /// The expected closure signature.
     pub(crate) signature: mir::LocalNodeId<mir::Type>,
@@ -341,7 +341,7 @@ pub(crate) struct CallIndirect {
 /// Indirect call terminator with an explicit continuation.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct CallIndirectBranch {
-    /// The callee word offset.
+    /// The callee cell offset.
     pub(crate) callee_offset: u32,
     /// The expected closure signature.
     pub(crate) signature: mir::LocalNodeId<mir::Type>,
@@ -647,7 +647,7 @@ pub(crate) struct TensorCopy {
 pub(crate) struct TensorViewCast {
     /// The destination tensor view.
     pub(crate) dest_offset: u32,
-    /// The MIR pointer word.
+    /// The MIR pointer cell.
     pub(crate) pointer_offset: u32,
     /// The tensor view layout.
     pub(crate) view_layout: TensorLayoutId,
@@ -734,7 +734,7 @@ pub(crate) struct TensorPad {
     pub(crate) high_count: u16,
     /// The number of interior padding values.
     pub(crate) interior_count: u16,
-    /// The padding value word offset.
+    /// The padding value cell offset.
     pub(crate) value_offset: u32,
     /// The source tensor layout.
     pub(crate) source_layout: TensorLayoutId,
@@ -764,7 +764,7 @@ pub(crate) struct TensorReduce {
     pub(crate) dest_offset: u32,
     /// The source tensor frame offset.
     pub(crate) tensor_offset: u32,
-    /// The initial value word offset.
+    /// The initial value cell offset.
     pub(crate) initial_offset: u32,
     /// The reduced axis range.
     pub(crate) axes: U32RangeId,
@@ -961,8 +961,8 @@ pub(crate) struct TensorView {
 pub(crate) enum IntrinsicDest {
     /// No destination.
     None,
-    /// Word destination frame offset.
-    Word(u32),
+    /// Cell destination frame offset.
+    Cell(u32),
     /// Frame destination value.
     Frame(mir::Value),
 }
@@ -976,8 +976,8 @@ pub(crate) struct Intrinsic {
     pub(crate) dest: IntrinsicDest,
     /// The pooled argument range.
     pub(crate) arguments: ArgumentRange,
-    /// The lowered layout for each argument.
-    pub(crate) layouts: [ValueLayout; INTRINSIC_ARGUMENT_CAPACITY],
+    /// The lowered shape for each argument.
+    pub(crate) layouts: [ValueShape; INTRINSIC_ARGUMENT_CAPACITY],
     /// The argument count.
     pub(crate) layout_count: u8,
 }
@@ -988,13 +988,13 @@ impl Intrinsic {
         kernel: mir::Intrinsic,
         dest: IntrinsicDest,
         arguments: ArgumentRange,
-        layouts: &[ValueLayout],
+        layouts: &[ValueShape],
     ) -> Option<Self> {
         if layouts.len() > INTRINSIC_ARGUMENT_CAPACITY {
             return None;
         }
 
-        let mut stored = [ValueLayout::Void; INTRINSIC_ARGUMENT_CAPACITY];
+        let mut stored = [ValueShape::Void; INTRINSIC_ARGUMENT_CAPACITY];
         stored[..layouts.len()].copy_from_slice(layouts);
 
         Some(Self {
@@ -1007,7 +1007,7 @@ impl Intrinsic {
     }
 
     /// Return the lowered argument layouts.
-    pub(crate) fn layouts(&self) -> &[ValueLayout] {
+    pub(crate) fn layouts(&self) -> &[ValueShape] {
         &self.layouts[..self.layout_count as usize]
     }
 }
@@ -1026,7 +1026,7 @@ pub(crate) struct TailCall {
 /// Class tail call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TailCallVirtual {
-    /// The receiver word offset.
+    /// The receiver cell offset.
     pub(crate) receiver_offset: u32,
     /// The dispatch table field projection.
     pub(crate) table_field: ProjectionId,
@@ -1039,7 +1039,7 @@ pub(crate) struct TailCallVirtual {
 /// Dynamic tail call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TailCallDynamic {
-    /// The receiver word offset.
+    /// The receiver cell offset.
     pub(crate) receiver_offset: u32,
     /// The dynamic table field projection.
     pub(crate) table_field: ProjectionId,
@@ -1052,7 +1052,7 @@ pub(crate) struct TailCallDynamic {
 /// Indirect tail call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct TailCallIndirect {
-    /// The callee word offset.
+    /// The callee cell offset.
     pub(crate) callee_offset: u32,
     /// The expected closure signature.
     pub(crate) signature: mir::LocalNodeId<mir::Type>,
