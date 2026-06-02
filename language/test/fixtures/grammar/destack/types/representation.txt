@@ -22,9 +22,9 @@ enum Color {
     Green = 2,
 }
 
-@align(64)
+@repr({ align: 64 })
 // <- entity.name.function.decorator.ds
-@packed
+@repr({ packed: true })
 // <- entity.name.function.decorator.ds
 struct WireHeader {
     tag: uint8;

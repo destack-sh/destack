@@ -57,14 +57,14 @@ size satisfies 1;
 alignment satisfies 1;
 ```
 
-## alignment
+## representation options
 
-### align raises aggregate alignment
+### repr align raises aggregate alignment
 
-`@align(N)` raises the minimum alignment of an aggregate declaration.
+`@repr({ align: N })` raises the minimum alignment of an aggregate declaration.
 
 ```ds
-@align(64)
+@repr({ align: 64 })
 struct CacheLine {
     value: uint64;
 }
@@ -75,13 +75,12 @@ const isAligned = comptime alignment >= 64;
 isAligned satisfies true;
 ```
 
-### packed lowers field alignment
+### repr packed lowers field alignment
 
-`@packed` is equivalent to `@packed(1)`.
+`@repr({ packed: true })` is equivalent to `@repr({ packed: 1 })`.
 
 ```ds
-@repr("C")
-@packed
+@repr("C", { packed: true })
 struct WireHeader {
     tag: uint8;
     size: uint32;
