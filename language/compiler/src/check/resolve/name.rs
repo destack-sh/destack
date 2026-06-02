@@ -4,31 +4,50 @@ use smallvec::SmallVec;
 
 use crate::check::{CheckState, Condition};
 
-/// One symbol visible to source name lookup.
+/// One target visible to source name lookup.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct SymbolCandidate {
-    /// The visible symbol.
-    pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// The condition under which the symbol exists.
+pub(in crate::check) enum NameTarget {
+    /// A symbol target was resolved.
+    Symbol(dir::GlobalSymbolId),
+    /// A namespace target was resolved.
+    Namespace(ModuleId),
+}
+
+/// One target visible to source name lookup.
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::check) struct NameCandidate {
+    /// The visible target.
+    pub(in crate::check) target: NameTarget,
+    /// The condition under which the target exists.
     pub(in crate::check) condition: Condition,
+}
+
+impl NameCandidate {
+    /// Return the resolved symbol when this is a symbol candidate.
+    pub(in crate::check) fn symbol(&self) -> Option<dir::GlobalSymbolId> {
+        match self.target {
+            NameTarget::Symbol(symbol) => Some(symbol),
+            NameTarget::Namespace(_) => None,
+        }
+    }
 }
 
 /// Result of looking up one source name.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum NameLookup {
-    /// Exactly one visible symbol matched.
-    Found(SymbolCandidate),
-    /// No visible symbol matched.
+    /// Exactly one visible target matched.
+    Found(NameCandidate),
+    /// No visible target matched.
     Missing,
-    /// More than one visible symbol matched.
-    Ambiguous(SmallVec<[SymbolCandidate; 4]>),
+    /// More than one visible target matched.
+    Ambiguous(SmallVec<[NameCandidate; 4]>),
 }
 
 impl NameLookup {
     /// Return the unique symbol when lookup found exactly one target.
     pub(in crate::check) fn unique_symbol(&self) -> Option<dir::GlobalSymbolId> {
         match self {
-            Self::Found(candidate) => Some(candidate.symbol),
+            Self::Found(candidate) => candidate.symbol(),
             Self::Missing | Self::Ambiguous(_) => None,
         }
     }
@@ -158,10 +177,10 @@ impl CheckState<'_> {
         guard: &Condition,
     ) -> Option<dir::GlobalSymbolId> {
         match self
-            .lookup_symbol_by_name(module, source, name, space)
+            .lookup_name_by_name(module, source, name, space)
             .available_under(guard)
         {
-            NameLookup::Found(candidate) => Some(candidate.symbol),
+            NameLookup::Found(candidate) => candidate.symbol(),
             NameLookup::Missing => {
                 let path = dir::Path {
                     segments: smallvec::smallvec![name],
@@ -184,7 +203,7 @@ impl CheckState<'_> {
     }
 
     /// Look up one source name in the requested symbol space.
-    pub(in crate::check) fn lookup_symbol_by_name(
+    pub(in crate::check) fn lookup_name_by_name(
         &self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -198,17 +217,12 @@ impl CheckState<'_> {
         let symbols = self.visible_scope_symbols(module, &bindings, scope, key, space);
 
         // fall back to imported bindings
-        let symbols = if symbols.is_empty() {
-            self.module(module)
-                .resolved
-                .imports
-                .global_symbols(key)
-                .map_or_else(SmallVec::new, SmallVec::from_slice)
+        let candidates = if symbols.is_empty() {
+            self.visible_global_candidates(module, key)
         } else {
-            symbols
+            self.visible_symbol_candidates(symbols)
         };
 
-        let candidates = self.visible_symbol_candidates(symbols);
         match candidates.as_slice() {
             // no visible binding
             [] => NameLookup::Missing,
@@ -223,7 +237,7 @@ impl CheckState<'_> {
     fn visible_symbol_candidates(
         &self,
         symbols: SmallVec<[dir::GlobalSymbolId; 4]>,
-    ) -> SmallVec<[SymbolCandidate; 4]> {
+    ) -> SmallVec<[NameCandidate; 4]> {
         symbols
             .into_iter()
             .filter_map(|symbol| {
@@ -232,7 +246,42 @@ impl CheckState<'_> {
                     return None;
                 }
 
-                Some(SymbolCandidate { symbol, condition })
+                Some(NameCandidate {
+                    target: NameTarget::Symbol(symbol),
+                    condition,
+                })
+            })
+            .collect()
+    }
+
+    /// Return candidates for imported globals that are not statically absent.
+    fn visible_global_candidates(
+        &self,
+        module: ModuleId,
+        key: dir::StaticKey,
+    ) -> SmallVec<[NameCandidate; 4]> {
+        let Some(targets) = self.module(module).resolved.imports.global_targets(key) else {
+            return SmallVec::new();
+        };
+
+        targets
+            .iter()
+            .filter_map(|target| match target {
+                dir::ImportTarget::Symbol(symbol) => {
+                    let condition = self.symbol_availability(*symbol);
+                    if condition.is_never() {
+                        return None;
+                    }
+
+                    Some(NameCandidate {
+                        target: NameTarget::Symbol(*symbol),
+                        condition,
+                    })
+                }
+                dir::ImportTarget::Namespace(module) => Some(NameCandidate {
+                    target: NameTarget::Namespace(*module),
+                    condition: Condition::Always,
+                }),
             })
             .collect()
     }

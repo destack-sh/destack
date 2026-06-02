@@ -452,7 +452,7 @@ impl WalkState<'_, '_> {
         let guard = self.active_static_guard();
         let symbol = self
             .check
-            .lookup_symbol_by_name(tree.module_id, id.into_any(), name, dir::SymbolSpace::Value)
+            .lookup_name_by_name(tree.module_id, id.into_any(), name, dir::SymbolSpace::Value)
             .available_under(&guard)
             .unique_symbol()?;
 
@@ -485,7 +485,7 @@ impl WalkState<'_, '_> {
         let guard = self.active_static_guard();
         let symbol = self
             .check
-            .lookup_symbol_by_name(tree.module_id, id.into_any(), name, dir::SymbolSpace::Type)
+            .lookup_name_by_name(tree.module_id, id.into_any(), name, dir::SymbolSpace::Type)
             .available_under(&guard)
             .unique_symbol()?;
         let item = self.check.environment.language.item(symbol)?;
