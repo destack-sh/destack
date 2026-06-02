@@ -2,8 +2,8 @@
 
 use destack_dir::{
     AssignOperator, AssignPattern, Asynchrony, BlockContext, ConstructorType, Expression,
-    FunctionForm, FunctionPhase, FunctionRole, FunctionSignature, FunctionType, Key, Keyword,
-    LocalNodeId, Member, MethodAbstraction, Name, NodeType, Parameter, Property, StringId,
+    FunctionForm, FunctionPhase, FunctionRole, FunctionSignature, FunctionTypeExpression, Key,
+    Keyword, LocalNodeId, Member, MethodAbstraction, Name, NodeType, Parameter, Property, StringId,
     TokenLiteral, TokenType, TypeExpression, TypeKind, TypeMember, Visibility,
 };
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
@@ -99,10 +99,10 @@ struct ParsedMethodTail {
 }
 
 /// Build one call signature declaration from a parsed function signature.
-fn function_type_from_signature(signature: FunctionSignature) -> FunctionType {
+fn function_type_from_signature(signature: FunctionSignature) -> FunctionTypeExpression {
     debug_assert!(signature.role.is_none() || signature.role == Some(FunctionRole::Call));
 
-    FunctionType {
+    FunctionTypeExpression {
         generic_parameters: signature.generic_parameters,
         where_clauses: signature.where_clauses,
         this_form: signature.this_form,
