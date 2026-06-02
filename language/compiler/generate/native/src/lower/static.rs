@@ -204,9 +204,9 @@ fn array_static_stride(
 ) -> CodegenCraneliftResult<usize> {
     // layout metadata is authoritative when present
     if let Some(layout) = tree.metadata.layout.type_layout(array)
-        && let mir::LayoutShape::Array { element_stride, .. } = layout.shape
+        && let mir::LayoutShape::Array(layout) = &layout.shape
     {
-        return Ok(element_stride as usize);
+        return Ok(layout.stride as usize);
     }
 
     // otherwise use the computed element layout
