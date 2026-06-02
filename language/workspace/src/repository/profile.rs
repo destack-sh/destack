@@ -40,19 +40,19 @@ impl Profile {
 }
 
 impl Repository {
-    /// Get the profile selected by one explicit target.
-    pub fn target_profile(
+    /// Build the profile selected by one target.
+    pub fn profile_for_target(
         &self,
         revision: Revision,
         target_id: TargetId,
-    ) -> Result<Option<Arc<Profile>>, RepositoryError> {
+    ) -> Result<Arc<Profile>, RepositoryError> {
         let revision_state = self.revision(revision)?;
         let package_id = target_id.package_id();
 
         // explicit or built-in target
-        let Some(target) = self.target_or_builtin(revision, target_id)? else {
-            return Ok(None);
-        };
+        let target = self
+            .target_or_builtin(revision, target_id)?
+            .ok_or(RepositoryError::MissingTarget { target: target_id })?;
         let target_name = self.target_name(revision, target_id)?;
 
         // target profile inputs
@@ -73,26 +73,29 @@ impl Repository {
             product_role.as_deref(),
         );
 
-        Ok(Some(profile))
+        Ok(profile)
     }
 
-    /// Get the profile selected by one explicit module target.
-    pub fn module_target_profile(
+    /// Build the profile selected by one module target.
+    pub fn profile_for_module_target(
         &self,
         revision: Revision,
         module_id: ModuleId,
         target_id: TargetId,
-    ) -> Result<Option<Arc<Profile>>, RepositoryError> {
+    ) -> Result<Arc<Profile>, RepositoryError> {
         let Some(module) = self.module(revision, module_id)? else {
             return Err(RepositoryError::MissingModule { module: module_id });
         };
 
         // target must belong to the module package
         if target_id.package_id() != module.package_id {
-            return Ok(None);
+            return Err(RepositoryError::TargetPackageMismatch {
+                module: module_id,
+                target: target_id,
+            });
         }
 
-        self.target_profile(revision, target_id)
+        self.profile_for_target(revision, target_id)
     }
 
     /// Return the exact profiles present in one pinned revision.
@@ -114,9 +117,7 @@ impl Repository {
             let target_ids = self.profile_target_ids(revision, package_id)?;
 
             for target_id in target_ids {
-                let Some(profile) = self.target_profile(revision, target_id)? else {
-                    continue;
-                };
+                let profile = self.profile_for_target(revision, target_id)?;
 
                 profiles.insert(profile.id(), profile);
             }
@@ -139,8 +140,8 @@ impl Repository {
         Ok(profiles.get(&profile_id).cloned())
     }
 
-    /// Return target profile ids addressable in one revision.
-    pub fn target_profile_ids(
+    /// Return profile ids addressable through targets in one revision.
+    pub fn profile_ids_for_targets(
         &self,
         revision: Revision,
     ) -> Result<Vec<ProfileId>, RepositoryError> {
@@ -162,9 +163,7 @@ impl Repository {
         let target_ids = self.profile_target_ids(revision, module.package_id)?;
 
         for target_id in target_ids {
-            let Some(profile) = self.target_profile(revision, target_id)? else {
-                continue;
-            };
+            let profile = self.profile_for_target(revision, target_id)?;
 
             if profile.id() == profile_id {
                 return Ok(Some(profile));

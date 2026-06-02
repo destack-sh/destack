@@ -218,9 +218,8 @@ fn run_compile(session: &Session, compiler: &Compiler, modules: &[ModuleId], mod
         let target_id = TargetId::new(module.package_id, "default");
         let profile_id = compiler
             .repository
-            .target_profile(revision, target_id)
+            .profile_for_target(revision, target_id)
             .unwrap_or_else(|error| panic!("failed to resolve benchmark profile: {error}"))
-            .unwrap_or_else(|| panic!("missing benchmark profile for target {target_id:?}"))
             .id();
 
         // choose the root for this module

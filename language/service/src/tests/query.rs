@@ -275,9 +275,7 @@ fn query_profile_for_module(
         .module(revision, module_id)?
         .unwrap_or_else(|| panic!("expected module for query profile"));
     let target_id = TargetId::new(module.package_id, "default");
-    let profile = repository
-        .target_profile(revision, target_id)?
-        .unwrap_or_else(|| panic!("expected built-in default target profile"));
+    let profile = repository.profile_for_target(revision, target_id)?;
 
     Ok(profile.id())
 }

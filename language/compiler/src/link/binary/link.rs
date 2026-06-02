@@ -57,13 +57,8 @@ impl<'a> BinaryLinker<'a> {
         for module_id in discovered_modules.iter().copied() {
             let profile_id = self
                 .compiler
-                .target_profile_id(self.context.revision(), module_id, self.target_id)
-                .map_err(|error| Compiler::link_error(self.package_id, error))?
-                .ok_or_else(|| LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message: format!("profile not found for target '{}'", self.target_name()),
-                })?;
+                .profile_id_for_target(self.context.revision(), module_id, self.target_id)
+                .map_err(|error| Compiler::link_error(self.package_id, error))?;
             let _ = profile_id;
             let artifacts = self.compiler.artifact_reader(self.context);
             match artifacts.require(ArtifactKey::module_output(module_id, *self.target_id)) {

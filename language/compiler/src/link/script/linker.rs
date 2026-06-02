@@ -104,17 +104,12 @@ impl<'a> ScriptLinker<'a> {
     /// Return the resolved profile for one linked module.
     pub(crate) fn profile_id_for_module(&self, module_id: ModuleId) -> LinkResult<ProfileId> {
         self.compiler
-            .target_profile_id(self.revision(), module_id, self.target_id)
-            .map_err(|error| self.link_error(error))?
-            .ok_or_else(|| LinkError::Internal {
-                anchor: (self.package_id).into(),
-                package: self.package_id,
-                message: format!("profile not found for target '{}'", self.target_name()),
-            })
+            .profile_id_for_target(self.revision(), module_id, self.target_id)
+            .map_err(|error| self.link_error(error))
     }
 
     /// Ensure one linked module resolves under the current target profile.
-    pub(crate) fn ensure_target_profile(&self, module_id: ModuleId) -> LinkResult<()> {
+    pub(crate) fn ensure_profile_for_target(&self, module_id: ModuleId) -> LinkResult<()> {
         let _ = self.profile_id_for_module(module_id)?;
 
         Ok(())

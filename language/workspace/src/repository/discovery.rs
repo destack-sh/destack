@@ -8,7 +8,7 @@ use crate::{DestackFile, Package, Target, TargetDiscovery};
 
 impl Repository {
     /// Discover module ids selected by one target in one pinned revision.
-    pub fn target_module_ids(
+    pub fn modules_for_target(
         &self,
         revision: Revision,
         target_id: TargetId,
@@ -97,6 +97,9 @@ impl Repository {
     ) -> Result<Vec<ModuleId>, RepositoryError> {
         let mut module_ids = Vec::with_capacity(target_paths.len());
         let package_id = target_id.package_id();
+        if target_paths.is_empty() {
+            return Ok(module_ids);
+        }
 
         // package directory
         let package_directory =

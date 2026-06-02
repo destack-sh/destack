@@ -391,14 +391,8 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> LinkResult<js::Module> {
         let profile_id = self
-            .target_profile_id(context.revision(), module_id, target_id)
-            .map_err(|error| Compiler::link_error(package_id, error))?
-            .ok_or_else(|| LinkError::InvalidTarget {
-                anchor: package_id.into(),
-                package: package_id,
-                target: *target_id,
-                message: format!("missing profile for module {module_id:?} target {target_id:?}"),
-            })?;
+            .profile_id_for_target(context.revision(), module_id, target_id)
+            .map_err(|error| Compiler::link_error(package_id, error))?;
 
         self.rewrite_module(
             module_id, script, module_set, target, target_id, package_id, profile_id, context,

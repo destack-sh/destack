@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_source::{
@@ -249,7 +249,7 @@ impl BuiltinFile {
             self.module_id(package),
             self.file_id(),
             Uri::from_string(self.uri),
-            None,
+            Some(PathBuf::from(self.path)),
             package,
             Some(LanguageType::Destack),
             Loader::Destack,

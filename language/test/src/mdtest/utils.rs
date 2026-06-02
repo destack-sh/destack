@@ -138,9 +138,8 @@ pub fn select_profile_for_mdtest(
         .unwrap_or_else(|| panic!("missing mdtest module {module_id:?}"));
     let target_id = TargetId::new(module.package_id, "default");
     let base_profile = repository
-        .target_profile(revision, target_id)
-        .unwrap_or_else(|error| panic!("failed to resolve mdtest profile: {error}"))
-        .unwrap_or_else(|| panic!("missing mdtest profile for target {target_id:?}"));
+        .profile_for_target(revision, target_id)
+        .unwrap_or_else(|error| panic!("failed to resolve mdtest profile: {error}"));
     let overrides = parse_mdtest_profile_overrides(test);
     let lib_override = parse_mdtest_libs(test);
 

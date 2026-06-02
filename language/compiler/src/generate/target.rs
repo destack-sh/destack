@@ -25,13 +25,8 @@ impl Compiler {
             })?;
         let target_name = self.target_name(context.revision(), *target_id)?;
 
-        let resolved_profile = self
-            .target_profile_id(context.revision(), module_id, target_id)?
-            .ok_or_else(|| GenerateError::Internal {
-                anchor: (module_id).into(),
-                module: module_id,
-                message: format!("profile not found for target '{target_name}'"),
-            })?;
+        let resolved_profile =
+            self.profile_id_for_target(context.revision(), module_id, target_id)?;
         if resolved_profile != profile {
             return Err(GenerateError::Internal {
                 anchor: (module_id).into(),

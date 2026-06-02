@@ -162,9 +162,8 @@ const msg = greet("World", "Hello");
         .expect("expected query module entry");
     let target_id = TargetId::new(module_entry.package_id, "native");
     let profile = repository
-        .module_target_profile(view.revision(), module_id, target_id)
-        .expect("expected module target profile lookup")
-        .expect("expected module target profile");
+        .profile_for_module_target(view.revision(), module_id, target_id)
+        .expect("expected module target profile lookup");
     let module = query::QueryModule {
         module_id,
         profile_id: profile.id(),
