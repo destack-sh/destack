@@ -12,6 +12,8 @@ impl WalkState<'_, '_> {
         match tree.get(id) {
             // value
             dir::Expression::Identifier { name } => {
+                let guard = self.active_static_guard();
+
                 // resolve root binding
                 let symbol = self
                     .check.lookup_symbol_by_name(
@@ -20,12 +22,15 @@ impl WalkState<'_, '_> {
                         *name,
                         dir::SymbolSpace::Value,
                     )
+                    .available_under(&guard)
                     .unique_symbol()?;
 
                 Some(FlowPath::symbol(symbol))
             }
             // namespace
             dir::Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
+                let guard = self.active_static_guard();
+
                 // resolve root binding
                 let name = path.segments[0];
                 let symbol = self
@@ -35,6 +40,7 @@ impl WalkState<'_, '_> {
                         name,
                         dir::SymbolSpace::Value,
                     )
+                    .available_under(&guard)
                     .unique_symbol()?;
 
                 Some(FlowPath::symbol(symbol))

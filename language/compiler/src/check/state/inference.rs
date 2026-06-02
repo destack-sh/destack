@@ -8,6 +8,7 @@ use crate::check::{
     OperatorDecision, PatternDecision, ReceiverResolution, Solution, StaticOperand, Term, TermId,
     TermTable, TypeOperand, Variable, VariableId,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Segmented inference graph for one checked component.
 #[derive(Debug)]
@@ -35,6 +36,17 @@ pub(in crate::check) struct InferenceSegment {
     /// Component post-solve obligations.
     obligations: Vec<Obligation>,
 
+    /// Type operands that must be assignable to each variable.
+    type_lower_bounds: IndexMap<VariableId, Vec<TypeOperand>>,
+    /// Type operands that each variable must be assignable to.
+    type_upper_bounds: IndexMap<VariableId, Vec<TypeOperand>>,
+    /// Static operands that must be assignable to each variable.
+    static_lower_bounds: IndexMap<VariableId, Vec<StaticOperand>>,
+    /// Static operands that each variable must be assignable to.
+    static_upper_bounds: IndexMap<VariableId, Vec<StaticOperand>>,
+    /// Solved variable values.
+    solutions: IndexMap<VariableId, Solution>,
+
     /// Generic templates keyed by owning symbol.
     pub(in crate::check::state) generic_templates: IndexMap<dir::GlobalSymbolId, GenericTemplate>,
     /// Generic applications keyed by source node and owner.
@@ -49,17 +61,6 @@ pub(in crate::check) struct InferenceSegment {
     /// Variables that can induce owner generics.
     pub(in crate::check::state) generic_inductions: IndexMap<VariableId, GenericInductionSlot>,
 
-    /// Type operands that must be assignable to each variable.
-    type_lower_bounds: IndexMap<VariableId, Vec<TypeOperand>>,
-    /// Type operands that each variable must be assignable to.
-    type_upper_bounds: IndexMap<VariableId, Vec<TypeOperand>>,
-    /// Static operands that must be assignable to each variable.
-    static_lower_bounds: IndexMap<VariableId, Vec<StaticOperand>>,
-    /// Static operands that each variable must be assignable to.
-    static_upper_bounds: IndexMap<VariableId, Vec<StaticOperand>>,
-
-    /// Solved variable values.
-    solutions: IndexMap<VariableId, Solution>,
     /// Runtime calls resolved or rejected by solve.
     calls: IndexMap<dir::GlobalNodeIdAny, CallDecision>,
     /// Runtime construct expressions resolved or rejected by solve.
@@ -104,7 +105,7 @@ impl InferenceTable {
     }
 
     /// Merge the current speculative segment into its parent.
-    pub(in crate::check) fn commit_probe(&mut self, probe: InferenceProbe) {
+    pub(in crate::check) fn commit_probe(&mut self, probe: InferenceProbe) -> CompilerResult<()> {
         assert_eq!(
             probe.depth + 1,
             self.segments.len(),
@@ -120,7 +121,9 @@ impl InferenceTable {
             .last_mut()
             .unwrap_or_else(|| panic!("inference probe has no parent segment"));
 
-        parent.merge(segment);
+        parent.merge(segment)?;
+
+        Ok(())
     }
 
     /// Drop the current speculative segment.
@@ -537,13 +540,16 @@ impl InferenceTable {
             .find_map(|segment| segment.calls.get(&source).cloned())
     }
 
-    /// Insert one call decision into the current segment.
-    pub(in crate::check) fn insert_call(
+    /// Select one call decision in the current segment.
+    pub(in crate::check) fn select_call(
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: CallDecision,
-    ) {
+    ) -> CompilerResult<()> {
+        self.require_unselected(source, "call", |segment| &segment.calls)?;
         self.current_mut().calls.insert(source, decision);
+
+        Ok(())
     }
 
     /// Return visible construct decision.
@@ -557,125 +563,89 @@ impl InferenceTable {
             .find_map(|segment| segment.constructs.get(&source).cloned())
     }
 
-    /// Insert one construct decision into the current segment.
-    pub(in crate::check) fn insert_construct(
+    /// Select one construct decision in the current segment.
+    pub(in crate::check) fn select_construct(
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: ConstructDecision,
-    ) {
+    ) -> CompilerResult<()> {
+        self.require_unselected(source, "construct", |segment| &segment.constructs)?;
         self.current_mut().constructs.insert(source, decision);
+
+        Ok(())
     }
 
-    /// Return visible operator decision.
-    pub(in crate::check) fn operator(
-        &self,
-        source: dir::GlobalNodeIdAny,
-    ) -> Option<OperatorDecision> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.operators.get(&source).cloned())
-    }
-
-    /// Insert one operator decision into the current segment.
-    pub(in crate::check) fn insert_operator(
+    /// Select one operator decision in the current segment.
+    pub(in crate::check) fn select_operator(
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: OperatorDecision,
-    ) {
+    ) -> CompilerResult<()> {
+        self.require_unselected(source, "operator", |segment| &segment.operators)?;
         self.current_mut().operators.insert(source, decision);
+
+        Ok(())
     }
 
-    /// Return visible identity decision.
-    pub(in crate::check) fn identity(
-        &self,
-        source: dir::GlobalNodeIdAny,
-    ) -> Option<IdentityDecision> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.identities.get(&source).cloned())
-    }
-
-    /// Insert one identity decision into the current segment.
-    pub(in crate::check) fn insert_identity(
+    /// Select one identity decision in the current segment.
+    pub(in crate::check) fn select_identity(
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: IdentityDecision,
-    ) {
+    ) -> CompilerResult<()> {
+        self.require_unselected(source, "identity", |segment| &segment.identities)?;
         self.current_mut().identities.insert(source, decision);
+
+        Ok(())
     }
 
-    /// Return visible layout decision.
-    pub(in crate::check) fn layout(&self, source: dir::GlobalNodeIdAny) -> Option<LayoutDecision> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.layouts.get(&source).cloned())
-    }
-
-    /// Insert one layout decision into the current segment.
-    pub(in crate::check) fn insert_layout(
+    /// Select one layout decision in the current segment.
+    pub(in crate::check) fn select_layout(
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: LayoutDecision,
-    ) {
+    ) -> CompilerResult<()> {
+        self.require_unselected(source, "layout", |segment| &segment.layouts)?;
         self.current_mut().layouts.insert(source, decision);
+
+        Ok(())
     }
 
-    /// Return visible member decision.
-    pub(in crate::check) fn member(&self, source: dir::GlobalNodeIdAny) -> Option<MemberDecision> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.members.get(&source).cloned())
-    }
-
-    /// Insert one member decision into the current segment.
-    pub(in crate::check) fn insert_member(
+    /// Select one member decision in the current segment.
+    pub(in crate::check) fn select_member(
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: MemberDecision,
-    ) {
+    ) -> CompilerResult<()> {
+        self.require_unselected(source, "member", |segment| &segment.members)?;
         self.current_mut().members.insert(source, decision);
+
+        Ok(())
     }
 
-    /// Return visible pattern decision.
-    pub(in crate::check) fn pattern(
-        &self,
-        source: dir::GlobalNodeIdAny,
-    ) -> Option<PatternDecision> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.patterns.get(&source).cloned())
-    }
-
-    /// Insert one pattern decision into the current segment.
-    pub(in crate::check) fn insert_pattern(
+    /// Select one pattern decision in the current segment.
+    pub(in crate::check) fn select_pattern(
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: PatternDecision,
-    ) {
+    ) -> CompilerResult<()> {
+        self.require_unselected(source, "pattern", |segment| &segment.patterns)?;
         self.current_mut().patterns.insert(source, decision);
+
+        Ok(())
     }
 
-    /// Return visible receiver resolution.
-    pub(in crate::check) fn receiver(
-        &self,
-        source: dir::GlobalNodeIdAny,
-    ) -> Option<ReceiverResolution> {
-        self.segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.receivers.get(&source).cloned())
-    }
-
-    /// Insert one receiver resolution into the current segment.
-    pub(in crate::check) fn insert_receiver(&mut self, receiver: ReceiverResolution) {
+    /// Select one receiver resolution in the current segment.
+    pub(in crate::check) fn select_receiver(
+        &mut self,
+        receiver: ReceiverResolution,
+    ) -> CompilerResult<()> {
+        self.require_unselected(receiver.source, "receiver", |segment| &segment.receivers)?;
         self.current_mut()
             .receivers
             .insert(receiver.source, receiver);
+
+        Ok(())
     }
 
     /// Return visible name resolution.
@@ -689,13 +659,16 @@ impl InferenceTable {
             .find_map(|segment| segment.names.get(&source).cloned())
     }
 
-    /// Insert one name resolution into the current segment.
-    pub(in crate::check) fn insert_name(
+    /// Select one name resolution in the current segment.
+    pub(in crate::check) fn select_name(
         &mut self,
         source: dir::GlobalNodeIdAny,
         resolution: dir::NameResolution,
-    ) {
+    ) -> CompilerResult<()> {
+        self.require_unselected(source, "name", |segment| &segment.names)?;
         self.current_mut().names.insert(source, resolution);
+
+        Ok(())
     }
 
     /// Return the total number of decisions.
@@ -798,6 +771,27 @@ impl InferenceTable {
                 .is_some_and(|bounds| bounds.contains(&bound))
         })
     }
+
+    /// Require one source to have no visible selection.
+    fn require_unselected<T>(
+        &self,
+        source: dir::GlobalNodeIdAny,
+        label: &str,
+        select: impl Fn(&InferenceSegment) -> &IndexMap<dir::GlobalNodeIdAny, T>,
+    ) -> CompilerResult<()> {
+        let is_selected = self
+            .segments
+            .iter()
+            .any(|segment| select(segment).contains_key(&source));
+
+        if is_selected {
+            return Err(CompilerError::Internal {
+                message: format!("check {label} {source:?} was selected twice"),
+            });
+        }
+
+        Ok(())
+    }
 }
 
 impl InferenceSegment {
@@ -808,17 +802,17 @@ impl InferenceSegment {
             variables: Vec::new(),
             constraints: Vec::new(),
             obligations: Vec::new(),
+            type_lower_bounds: IndexMap::new(),
+            type_upper_bounds: IndexMap::new(),
+            static_lower_bounds: IndexMap::new(),
+            static_upper_bounds: IndexMap::new(),
+            solutions: IndexMap::new(),
             generic_templates: IndexMap::new(),
             generic_applications: IndexMap::new(),
             generic_slots_by_symbol: IndexMap::new(),
             generic_slots_by_variable: IndexMap::new(),
             generic_induction_roots: Vec::new(),
             generic_inductions: IndexMap::new(),
-            type_lower_bounds: IndexMap::new(),
-            type_upper_bounds: IndexMap::new(),
-            static_lower_bounds: IndexMap::new(),
-            static_upper_bounds: IndexMap::new(),
-            solutions: IndexMap::new(),
             calls: IndexMap::new(),
             constructs: IndexMap::new(),
             operators: IndexMap::new(),
@@ -832,11 +826,17 @@ impl InferenceSegment {
     }
 
     /// Merge one child segment into this segment.
-    fn merge(&mut self, mut child: InferenceSegment) {
+    fn merge(&mut self, mut child: InferenceSegment) -> CompilerResult<()> {
         self.terms.append(child.terms);
         self.variables.append(&mut child.variables);
         self.constraints.append(&mut child.constraints);
         self.obligations.append(&mut child.obligations);
+
+        merge_bounds(&mut self.type_lower_bounds, child.type_lower_bounds);
+        merge_bounds(&mut self.type_upper_bounds, child.type_upper_bounds);
+        merge_bounds(&mut self.static_lower_bounds, child.static_lower_bounds);
+        merge_bounds(&mut self.static_upper_bounds, child.static_upper_bounds);
+        self.solutions.extend(child.solutions);
 
         for (owner, mut template) in child.generic_templates {
             self.generic_templates
@@ -854,22 +854,37 @@ impl InferenceSegment {
             .append(&mut child.generic_induction_roots);
         self.generic_inductions.extend(child.generic_inductions);
 
-        merge_bounds(&mut self.type_lower_bounds, child.type_lower_bounds);
-        merge_bounds(&mut self.type_upper_bounds, child.type_upper_bounds);
-        merge_bounds(&mut self.static_lower_bounds, child.static_lower_bounds);
-        merge_bounds(&mut self.static_upper_bounds, child.static_upper_bounds);
+        merge_selections(&mut self.calls, child.calls, "call")?;
+        merge_selections(&mut self.constructs, child.constructs, "construct")?;
+        merge_selections(&mut self.operators, child.operators, "operator")?;
+        merge_selections(&mut self.identities, child.identities, "identity")?;
+        merge_selections(&mut self.layouts, child.layouts, "layout")?;
+        merge_selections(&mut self.members, child.members, "member")?;
+        merge_selections(&mut self.patterns, child.patterns, "pattern")?;
+        merge_selections(&mut self.receivers, child.receivers, "receiver")?;
+        merge_selections(&mut self.names, child.names, "name")?;
 
-        self.solutions.extend(child.solutions);
-        self.calls.extend(child.calls);
-        self.constructs.extend(child.constructs);
-        self.operators.extend(child.operators);
-        self.identities.extend(child.identities);
-        self.layouts.extend(child.layouts);
-        self.members.extend(child.members);
-        self.patterns.extend(child.patterns);
-        self.receivers.extend(child.receivers);
-        self.names.extend(child.names);
+        Ok(())
     }
+}
+
+/// Merge selected entries without overwriting existing selections.
+fn merge_selections<T>(
+    parent: &mut IndexMap<dir::GlobalNodeIdAny, T>,
+    child: IndexMap<dir::GlobalNodeIdAny, T>,
+    label: &str,
+) -> CompilerResult<()> {
+    for (source, value) in child {
+        if parent.contains_key(&source) {
+            return Err(CompilerError::Internal {
+                message: format!("check {label} {source:?} was selected twice"),
+            });
+        }
+
+        parent.insert(source, value);
+    }
+
+    Ok(())
 }
 
 /// Merge one child bound map into its parent map.
@@ -887,16 +902,12 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) {
         let resolution = dir::NameResolution::new(symbol);
-        if let Some(previous) = self.inference.name(source) {
-            assert_eq!(
-                previous, resolution,
-                "check name {source:?} already has a different decision"
-            );
 
-            return;
+        match self.inference.select_name(source, resolution) {
+            Ok(()) => {}
+            Err(CompilerError::Internal { message }) => self.record_internal_error(message),
+            Err(error) => self.record_internal_error(format!("{error:?}")),
         }
-
-        self.inference.insert_name(source, resolution);
     }
 
     /// Return the selected symbol for one resolved lexical name.
@@ -913,8 +924,11 @@ impl CheckState<'_> {
     }
 
     /// Commit one speculative inference probe.
-    pub(in crate::check) fn commit_inference_probe(&mut self, probe: InferenceProbe) {
-        self.inference.commit_probe(probe);
+    pub(in crate::check) fn commit_inference_probe(
+        &mut self,
+        probe: InferenceProbe,
+    ) -> CompilerResult<()> {
+        self.inference.commit_probe(probe)
     }
 
     /// Drop one speculative inference probe.

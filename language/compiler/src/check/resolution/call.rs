@@ -1,5 +1,6 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::check::{CheckState, FunctionTerm, GenericApplication, TypeOperand};
 
 /// Runtime call target resolved by the solver.
@@ -149,16 +150,7 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: CallDecision,
-    ) {
-        if let Some(previous) = self.inference.call(source) {
-            assert_eq!(
-                previous, decision,
-                "check call {source:?} already has a different decision"
-            );
-
-            return;
-        }
-
-        self.inference.insert_call(source, decision);
+    ) -> CompilerResult<()> {
+        self.inference.select_call(source, decision)
     }
 }

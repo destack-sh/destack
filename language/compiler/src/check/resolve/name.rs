@@ -32,6 +32,33 @@ impl NameLookup {
             Self::Missing | Self::Ambiguous(_) => None,
         }
     }
+
+    /// Return candidates whose availability is guaranteed by one active guard.
+    pub(in crate::check) fn available_under(self, guard: &Condition) -> Self {
+        // collect visible candidates
+        let candidates = match self {
+            Self::Found(candidate) => smallvec::smallvec![candidate],
+            Self::Missing => return Self::Missing,
+            Self::Ambiguous(candidates) => candidates,
+        };
+
+        // remove candidates not guaranteed in this branch
+        let mut candidates = candidates
+            .into_iter()
+            .filter(|candidate| candidate.condition.is_guaranteed_by(guard))
+            .collect::<SmallVec<_>>();
+
+        // preserve lookup cardinality after filtering
+        if candidates.is_empty() {
+            Self::Missing
+        } else if candidates.len() == 1 {
+            let candidate = candidates.remove(0);
+
+            Self::Found(candidate)
+        } else {
+            Self::Ambiguous(candidates)
+        }
+    }
 }
 
 impl CheckState<'_> {
@@ -70,10 +97,12 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         space: dir::SymbolSpace,
     ) -> SmallVec<[dir::GlobalSymbolId; 4]> {
+        // collect hoisted type bindings
         if space == dir::SymbolSpace::Type {
             return self.visible_hoisted_type_symbols(module, bindings, scope, key);
         }
 
+        // collect ordinary lexical bindings
         match bindings.lookup_symbol_from_scope(scope, key, space) {
             dir::SymbolLookup::Found(symbol) => {
                 smallvec::smallvec![symbol.into_global(module)]
@@ -119,15 +148,19 @@ impl CheckState<'_> {
         }
     }
 
-    /// Require one source name in the requested symbol space.
-    pub(in crate::check) fn require_symbol_by_name(
+    /// Require one guarded source name in the requested symbol space.
+    pub(in crate::check) fn require_symbol_by_name_under(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         name: dir::StringId,
         space: dir::SymbolSpace,
+        guard: &Condition,
     ) -> Option<dir::GlobalSymbolId> {
-        match self.lookup_symbol_by_name(module, source, name, space) {
+        match self
+            .lookup_symbol_by_name(module, source, name, space)
+            .available_under(guard)
+        {
             NameLookup::Found(candidate) => Some(candidate.symbol),
             NameLookup::Missing => {
                 let path = dir::Path {
@@ -158,10 +191,13 @@ impl CheckState<'_> {
         name: dir::StringId,
         space: dir::SymbolSpace,
     ) -> NameLookup {
+        // look up local bindings first
         let key = dir::StaticKey::Name(name);
         let bindings = self.module(module).binding_table();
         let scope = self.visible_scope(module, &bindings, source);
         let symbols = self.visible_scope_symbols(module, &bindings, scope, key, space);
+
+        // fall back to imported bindings
         let symbols = if symbols.is_empty() {
             self.module(module)
                 .resolved
@@ -171,8 +207,8 @@ impl CheckState<'_> {
         } else {
             symbols
         };
-        let candidates = self.visible_symbol_candidates(symbols);
 
+        let candidates = self.visible_symbol_candidates(symbols);
         match candidates.as_slice() {
             // no visible binding
             [] => NameLookup::Missing,

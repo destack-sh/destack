@@ -24,16 +24,10 @@ pub(in crate::check) struct ReceiverResolution {
 impl CheckState<'_> {
     /// Select one receiver resolution.
     pub(in crate::check) fn select_receiver(&mut self, receiver: ReceiverResolution) {
-        if let Some(previous) = self.inference.receiver(receiver.source) {
-            assert_eq!(
-                previous, receiver,
-                "check receiver {:?} already has a different decision",
-                receiver.source
-            );
-
-            return;
+        match self.inference.select_receiver(receiver) {
+            Ok(()) => {}
+            Err(crate::CompilerError::Internal { message }) => self.record_internal_error(message),
+            Err(error) => self.record_internal_error(format!("{error:?}")),
         }
-
-        self.inference.insert_receiver(receiver);
     }
 }

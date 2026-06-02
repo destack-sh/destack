@@ -1,5 +1,6 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::check::{CandidateResolution, CheckState, GenericApplication, TypeOperand};
 
 /// Runtime member failure resolved by the solver.
@@ -111,16 +112,7 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: MemberDecision,
-    ) {
-        if let Some(previous) = self.inference.member(source) {
-            assert_eq!(
-                previous, decision,
-                "check member {source:?} already has a different decision"
-            );
-
-            return;
-        }
-
-        self.inference.insert_member(source, decision);
+    ) -> CompilerResult<()> {
+        self.inference.select_member(source, decision)
     }
 }

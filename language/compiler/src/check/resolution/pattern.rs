@@ -454,15 +454,10 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         decision: PatternDecision,
     ) {
-        if let Some(previous) = self.inference.pattern(source) {
-            assert_eq!(
-                previous, decision,
-                "check pattern {source:?} already has a different decision"
-            );
-
-            return;
+        match self.inference.select_pattern(source, decision) {
+            Ok(()) => {}
+            Err(crate::CompilerError::Internal { message }) => self.record_internal_error(message),
+            Err(error) => self.record_internal_error(format!("{error:?}")),
         }
-
-        self.inference.insert_pattern(source, decision);
     }
 }
