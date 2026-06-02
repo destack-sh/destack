@@ -1,6 +1,6 @@
 import { Concrete } from "destack:memory";
 
-import { type Type as DirType } from "./dir/type.ds";
+import { Type as DirType } from "./dir/type.ds";
 
 /// Stable type identifier.
 @languageItem("reflect.TypeId")

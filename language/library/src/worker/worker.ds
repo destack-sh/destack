@@ -1,7 +1,7 @@
-import { type Promise } from "destack:async";
+import { Promise } from "destack:async";
 import { todo } from "destack:error";
-import { type AsyncResult } from "destack:error";
-import { type Send } from "destack:memory";
+import { AsyncResult } from "destack:error";
+import { Send } from "destack:memory";
 
 /// Worker spawn options.
 export interface WorkerOptions {

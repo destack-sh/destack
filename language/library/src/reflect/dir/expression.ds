@@ -1,31 +1,31 @@
-import { type Argument, type GenericArgument, type StaticArgument } from "./argument.ds";
-import { type Block } from "./block.ds";
-import { type Declaration } from "./declaration.ds";
-import { type Declarator } from "./declarator.ds";
+import { Argument, GenericArgument, StaticArgument } from "./argument.ds";
+import { Block } from "./block.ds";
+import { Declaration } from "./declaration.ds";
+import { Declarator } from "./declarator.ds";
 import {
-    type DependencyItem,
-    type DependencyKind,
-    type ExportMode,
-    type ModuleTarget,
-    type SymbolSpaceOrder,
+    DependencyItem,
+    DependencyKind,
+    ExportMode,
+    ModuleTarget,
+    SymbolSpaceOrder,
 } from "./dependency.ds";
-import { type ImportAttributeClause, type ImportSource, type ImportTarget } from "./import.ds";
-import { type ScalarLiteral, type TemplateLiteral } from "./literal.ds";
-import { type MatchCase, type MatchKind, type MatchSource } from "./match.ds";
-import { type Ambientness, type Asynchrony, type Mutability, type Node } from "./node.ds";
+import { ImportAttributeClause, ImportSource, ImportTarget } from "./import.ds";
+import { ScalarLiteral, TemplateLiteral } from "./literal.ds";
+import { MatchCase, MatchKind, MatchSource } from "./match.ds";
+import { Ambientness, Asynchrony, Mutability, Node } from "./node.ds";
 import {
-    type AssignOperator,
-    type BinaryOperator,
-    type CastOperator,
-    type CastSource,
-    type UnaryOperator,
+    AssignOperator,
+    BinaryOperator,
+    CastOperator,
+    CastSource,
     RangeEnd,
+    UnaryOperator,
 } from "./operator.ds";
-import { type AssignPattern, type Pattern } from "./pattern.ds";
-import { type Property, type StaticProperty } from "./property.ds";
-import { type Scope, type Symbol } from "./symbol.ds";
-import { type TypeExpression } from "./type-expression.ds";
-import { type Type, type TypeLiteral, type VarianceBound } from "./type.ds";
+import { AssignPattern, Pattern } from "./pattern.ds";
+import { Property, StaticProperty } from "./property.ds";
+import { Scope, Symbol } from "./symbol.ds";
+import { TypeExpression } from "./type-expression.ds";
+import { Type, TypeLiteral, VarianceBound } from "./type.ds";
 
 /// The kind of a loop expression.
 export enum LoopKind {

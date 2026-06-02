@@ -1,7 +1,7 @@
-import { type Expression } from "./expression.ds";
-import { type Node } from "./node.ds";
-import { type Pattern } from "./pattern.ds";
-import { type TypeExpression } from "./type-expression.ds";
+import { Expression } from "./expression.ds";
+import { Node } from "./node.ds";
+import { Pattern } from "./pattern.ds";
+import { TypeExpression } from "./type-expression.ds";
 
 /// A single variable binding declarator.
 export interface Declarator extends Node {

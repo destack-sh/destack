@@ -1,4 +1,4 @@
-import { type Type } from "destack:reflect/type";
+import { Type } from "destack:reflect/type";
 
 /// Representation policy for a declaration.
 export type Representation = "destack" | "C" | "transparent";

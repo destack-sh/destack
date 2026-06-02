@@ -1,6 +1,6 @@
-import { type Expression } from "./expression.ds";
-import { type Node } from "./node.ds";
-import { type Scope } from "./symbol.ds";
+import { Expression } from "./expression.ds";
+import { Node } from "./node.ds";
+import { Scope } from "./symbol.ds";
 
 /// How a block is defined.
 export enum BlockFormat {

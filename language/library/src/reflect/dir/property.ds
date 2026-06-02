@@ -1,10 +1,10 @@
-import { type GenericParameter } from "./argument.ds";
-import { type Expression, type StaticExpression, type WhereClause } from "./expression.ds";
-import { type FunctionSignature } from "./function.ds";
-import { type Key } from "./key.ds";
-import { type Ambientness, type Mutability, type Node, type Visibility } from "./node.ds";
-import { type Symbol } from "./symbol.ds";
-import { type TypeExpression } from "./type-expression.ds";
+import { GenericParameter } from "./argument.ds";
+import { Expression, StaticExpression, WhereClause } from "./expression.ds";
+import { FunctionSignature } from "./function.ds";
+import { Key } from "./key.ds";
+import { Ambientness, Mutability, Node, Visibility } from "./node.ds";
+import { Symbol } from "./symbol.ds";
+import { TypeExpression } from "./type-expression.ds";
 
 /// Static property in a static context.
 export type StaticProperty =

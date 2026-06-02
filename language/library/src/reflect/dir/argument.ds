@@ -1,9 +1,9 @@
-import { type Expression, type StaticExpression } from "./expression.ds";
-import { type Name } from "./key.ds";
-import { type Node } from "./node.ds";
-import { type Pattern } from "./pattern.ds";
-import { type Symbol } from "./symbol.ds";
-import { type TypeExpression } from "./type-expression.ds";
+import { Expression, StaticExpression } from "./expression.ds";
+import { Name } from "./key.ds";
+import { Node } from "./node.ds";
+import { Pattern } from "./pattern.ds";
+import { Symbol } from "./symbol.ds";
+import { TypeExpression } from "./type-expression.ds";
 
 /// Generic parameter variance.
 export enum VarianceModifier {

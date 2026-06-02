@@ -1,4 +1,4 @@
-import { type Result } from "destack:error";
+import { Result } from "destack:error";
 
 /// Structured value serializer.
 @languageItem("serde.Serializer")

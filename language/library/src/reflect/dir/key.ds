@@ -1,5 +1,5 @@
-import { type Expression } from "./expression.ds";
-import { type Symbol } from "./symbol.ds";
+import { Expression } from "./expression.ds";
+import { Symbol } from "./symbol.ds";
 
 /// A declaration or property name.
 export type Name = IdentifierName | StringName | IndexName;

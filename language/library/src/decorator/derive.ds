@@ -1,4 +1,4 @@
-import { type ExpansionContext, type Macro, type MaterializationContext } from "destack:macro";
+import { ExpansionContext, Macro, MaterializationContext } from "destack:macro";
 
 import { intrinsic } from "./intrinsic.ds";
 

@@ -1,11 +1,11 @@
-import { type StaticArgument } from "./argument.ds";
-import { type FunctionCardinality } from "./function.ds";
-import { type StaticKey } from "./key.ds";
-import { type ScalarLiteral } from "./literal.ds";
-import { type Asynchrony, type Mutability } from "./node.ds";
-import { type Path } from "./path.ds";
-import { type Symbol } from "./symbol.ds";
-import { type TypeExpression } from "./type-expression.ds";
+import { StaticArgument } from "./argument.ds";
+import { FunctionCardinality } from "./function.ds";
+import { StaticKey } from "./key.ds";
+import { ScalarLiteral } from "./literal.ds";
+import { Asynchrony, Mutability } from "./node.ds";
+import { Path } from "./path.ds";
+import { Symbol } from "./symbol.ds";
+import { TypeExpression } from "./type-expression.ds";
 
 /// Session-local identity for one normalized type.
 export newtype TypeId = intrinsic;

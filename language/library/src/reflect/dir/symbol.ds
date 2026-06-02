@@ -1,6 +1,6 @@
-import { type ExportMode } from "./dependency.ds";
-import { type StaticKey } from "./key.ds";
-import { type Mutability, type Node } from "./node.ds";
+import { ExportMode } from "./dependency.ds";
+import { StaticKey } from "./key.ds";
+import { Mutability, Node } from "./node.ds";
 
 /// A module in the DIR graph.
 export newtype Module = intrinsic;
