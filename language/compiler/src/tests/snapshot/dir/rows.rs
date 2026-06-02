@@ -1,4 +1,5 @@
 const CHECK_STATS_ROWS: &[&str] = &["check.stats.solve"];
+const CHECK_EVENT_ROWS: &[&str] = &["check.events"];
 const BIND_STATS_ROWS: &[&str] = &["bind.stats"];
 const IMPORT_STATS_ROWS: &[&str] = &["import.stats"];
 const EXPORT_STATS_ROWS: &[&str] = &["export.stats"];
@@ -47,6 +48,8 @@ pub(crate) struct DirRows {
     pub(super) layout: bool,
     /// Metadata row prefixes to render.
     pub(super) metadata_rows: &'static [&'static str],
+    /// Event row prefixes to render.
+    pub(super) event_rows: &'static [&'static str],
     /// Whether to render summary rows.
     pub(super) summaries: bool,
 }
@@ -76,6 +79,7 @@ impl DirRows {
             macros: false,
             layout: false,
             metadata_rows: &[],
+            event_rows: &[],
             summaries: false,
         }
     }
@@ -198,6 +202,18 @@ impl DirRows {
         self
     }
 
+    /// Include check event rows.
+    pub(crate) const fn with_check_events(mut self) -> Self {
+        self.event_rows = CHECK_EVENT_ROWS;
+        self
+    }
+
+    /// Include selected event row prefixes.
+    pub(crate) const fn with_event_rows(mut self, rows: &'static [&'static str]) -> Self {
+        self.event_rows = rows;
+        self
+    }
+
     /// Include bind stats rows.
     pub(crate) const fn with_bind_stats(mut self) -> Self {
         self.metadata_rows = BIND_STATS_ROWS;
@@ -227,9 +243,19 @@ impl DirRows {
         !self.metadata_rows.is_empty()
     }
 
+    /// Return whether event rows are selected.
+    pub(crate) const fn includes_events(self) -> bool {
+        !self.event_rows.is_empty()
+    }
+
     /// Return selected metadata row prefixes.
     pub(crate) const fn metadata_rows(self) -> &'static [&'static str] {
         self.metadata_rows
+    }
+
+    /// Return selected event row prefixes.
+    pub(crate) const fn event_rows(self) -> &'static [&'static str] {
+        self.event_rows
     }
 
     /// Include coercion table rows.

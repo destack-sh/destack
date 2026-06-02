@@ -63,29 +63,47 @@ impl Compiler {
         let environment = artifacts
             .global_environment(profile)
             .map_err(CompilerError::from)?;
+        let entry_module = self.module(context.revision(), entry)?;
+        let options = self.workspace_compiler_options(context, entry_module.as_ref())?;
 
         // check component
         let mut check = CheckState::new(self, context, profile, environment);
         check.load(component_modules.as_slice())?;
         check.walk()?;
         check.solve()?;
-        let stats = check.stats();
-        context.emit_sidecar(ArtifactSidecar::new(
-            "metadata",
-            iter::once(("phase", "check")),
-            FileContent::Text {
-                content: stats.render_metadata(),
-            },
-        ));
+
+        // track stats
+        if options.emit_stats {
+            let stats = check.stats();
+            context.emit_sidecar(ArtifactSidecar::new(
+                "metadata",
+                iter::once(("phase", "check")),
+                FileContent::Text {
+                    content: stats.render_metadata(),
+                },
+            ));
+        }
+        let events = options.emit_events.then(|| check.events());
 
         // commit checked DIR tables
         let (modules, diagnostics) = check.commit()?;
         context.emit_diagnostics(diagnostics);
+
+        // track events
+        if let Some(events) = events {
+            context.emit_sidecar(ArtifactSidecar::new(
+                "events",
+                iter::once(("phase", "check")),
+                FileContent::Text {
+                    content: events.render(),
+                },
+            ));
+        }
+
         let checked = DirCheckedComponent {
             component: component_id,
             modules,
         };
-
         Ok(ArtifactPayload::DirCheckedComponent(checked))
     }
 

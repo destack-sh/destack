@@ -3,6 +3,7 @@ mod binding;
 mod builder;
 mod capture;
 mod coercion;
+mod event;
 mod export;
 mod extension;
 mod generic;

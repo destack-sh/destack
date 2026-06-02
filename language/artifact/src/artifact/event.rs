@@ -159,12 +159,7 @@ impl ArtifactEvent {
 
     /// Render this event as one stable text line.
     pub fn render(&self) -> String {
-        let mut line = format!(
-            "{} timestamp={} level={}",
-            self.name,
-            self.timestamp,
-            self.level.render()
-        );
+        let mut line = format!("{} timestamp={}", self.name, self.timestamp);
 
         // append fields in insertion order
         for field in &self.fields {
@@ -183,12 +178,7 @@ impl ArtifactEvent {
             .map(|field| format!("{}={}", field.key, field.value.render_raw()))
             .collect::<Vec<_>>()
             .join(" ");
-        let prefix = format!(
-            "{} timestamp={} level={}",
-            self.name,
-            self.timestamp,
-            self.level.render()
-        );
+        let prefix = format!("{} timestamp={}", self.name, self.timestamp);
 
         if fields.is_empty() {
             prefix

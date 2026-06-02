@@ -15,8 +15,8 @@ impl<'a> SnapshotRenderer<'a> {
     /// Sort rows into source, table, entry, and field order.
     pub(super) fn sort_rows(rows: &mut [SnapshotRow]) {
         rows.sort_by(|left, right| {
-            let left_fields = Self::render_fields(&left.fields);
-            let right_fields = Self::render_fields(&right.fields);
+            let left_fields = Self::sort_fields(left);
+            let right_fields = Self::sort_fields(right);
 
             (
                 left.anchor.sort_key(),
@@ -215,12 +215,52 @@ impl<'a> SnapshotRenderer<'a> {
 
     /// Render one snapshot row.
     fn render_row(row: &SnapshotRow) -> String {
+        if row.tag.entry == "events" {
+            return Self::render_event_row(row);
+        }
+
         let fields = Self::render_fields(&row.fields);
         if fields.is_empty() {
             format!("/// @{}.{}", row.tag.table, row.tag.entry)
         } else {
             format!("/// @{}.{} {fields}", row.tag.table, row.tag.entry)
         }
+    }
+
+    /// Render one event row with event name first.
+    fn render_event_row(row: &SnapshotRow) -> String {
+        let event = row
+            .fields
+            .iter()
+            .find(|field| field.key == "event")
+            .map(|field| field.value.as_str())
+            .unwrap_or_else(|| panic!("event row must contain an event field"));
+        let fields = row
+            .fields
+            .iter()
+            .find(|field| field.key == "fields")
+            .map(|field| field.value.as_str())
+            .unwrap_or("");
+
+        if fields.is_empty() {
+            format!("/// @{}.events {event}", row.tag.table)
+        } else {
+            format!("/// @{}.events {event} {fields}", row.tag.table)
+        }
+    }
+
+    /// Return fields used for deterministic row sorting.
+    fn sort_fields(row: &SnapshotRow) -> String {
+        if row.tag.entry == "events" {
+            return row
+                .fields
+                .iter()
+                .find(|field| field.key == "index")
+                .map(|field| format!("{:08}", field.value))
+                .unwrap_or_else(|| panic!("event row must contain an index field"));
+        }
+
+        Self::render_fields(&row.fields)
     }
 
     /// Return table ordering rank inside one anchor.
