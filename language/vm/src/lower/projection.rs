@@ -37,15 +37,11 @@ pub(super) fn virtual_table_projection(
 ) -> Option<Projection> {
     let receiver_type = receiver_type?;
     let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
-    let mir::LayoutShape::Object {
-        table_offset: vtable_offset,
-        ..
-    } = &raw_layout.shape
-    else {
+    let mir::LayoutShape::Object(_) = &raw_layout.shape else {
         return None;
     };
 
-    field_projection_at_offset(tree, layouts, receiver_type, *vtable_offset as usize)
+    field_projection_at_offset(tree, layouts, receiver_type, 0)
 }
 
 /// Build the dispatch-table projection for one dynamic receiver.
@@ -56,9 +52,9 @@ pub(super) fn dynamic_table_projection(
 ) -> Option<Projection> {
     let receiver_type = receiver_type?;
     let raw_layout = tree.type_layout(repr_type(tree, receiver_type))?;
-    let table_offset = raw_layout.dynamic_table_offset()?;
+    let dispatch_offset = raw_layout.dynamic_dispatch_offset()?;
 
-    field_projection_at_offset(tree, layouts, receiver_type, table_offset as usize)
+    field_projection_at_offset(tree, layouts, receiver_type, dispatch_offset as usize)
 }
 
 /// Build one field projection from a lowered byte offset.
