@@ -820,6 +820,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     pub(crate) fn scalar_literal_label(&self, literal: &dir::ScalarLiteral) -> String {
         match literal {
             dir::ScalarLiteral::Null => "null".to_string(),
+            dir::ScalarLiteral::Undefined => "undefined".to_string(),
             dir::ScalarLiteral::Boolean(value) => value.to_string(),
             dir::ScalarLiteral::Integer(value) => value.to_string(),
             dir::ScalarLiteral::Bigint(value) => format!("{value}n"),

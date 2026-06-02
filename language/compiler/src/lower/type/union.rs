@@ -716,6 +716,7 @@ impl TypeLowerer<'_> {
             dir::Type::Literal(scalar) => {
                 let literal = match scalar {
                     dir::ScalarLiteral::Null => DiscriminantValue::Null,
+                    dir::ScalarLiteral::Undefined => DiscriminantValue::Undefined,
                     dir::ScalarLiteral::Boolean(value) => DiscriminantValue::Boolean(*value),
                     dir::ScalarLiteral::Integer(value) => {
                         let (bits, number) = DiscriminantKey::canonical_number_bits(
@@ -916,6 +917,7 @@ impl DiscriminantKey {
     ) -> LowerResult<Option<Self>> {
         let key = match literal {
             dir::ScalarLiteral::Null => DiscriminantKey::Null,
+            dir::ScalarLiteral::Undefined => DiscriminantKey::Undefined,
             dir::ScalarLiteral::Boolean(value) => DiscriminantKey::Boolean(*value),
             dir::ScalarLiteral::Integer(value) => {
                 let (bits, _) = Self::canonical_number_bits(*value as f64, anchor.clone())?;

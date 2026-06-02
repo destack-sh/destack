@@ -585,6 +585,9 @@ impl ModuleLowerer<'_> {
             dir::ScalarLiteral::Null => {
                 format!("{LITERAL_METADATA_PREFIX}null")
             }
+            dir::ScalarLiteral::Undefined => {
+                format!("{LITERAL_METADATA_PREFIX}undefined")
+            }
             dir::ScalarLiteral::Boolean(value) => {
                 format!("{LITERAL_METADATA_PREFIX}bool:{value}")
             }

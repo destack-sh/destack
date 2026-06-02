@@ -248,7 +248,15 @@ fn add_associated(
         let row = SnapshotRow::new(builder.anchor_symbol(owner), "nominal", "associated.type")
             .field("symbol", builder.symbol_path_label(ty.symbol))
             .optional_field("source", builder.node_source(ty.source))
-            .type_field("type", builder.global_type_label(ty.ty));
+            .optional_field(
+                "constraint",
+                ty.constraint
+                    .map(|constraint| builder.global_type_label(constraint)),
+            )
+            .optional_field(
+                "value",
+                ty.value.map(|value| builder.global_type_label(value)),
+            );
 
         builder.push(row);
     }
