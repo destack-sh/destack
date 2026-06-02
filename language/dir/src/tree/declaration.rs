@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ExportKind, Expression, FunctionSignature, GenericArgument, GenericParameter, LocalNodeId,
-    Member, Mutability, Name, Node, NodeType, ScopeKind, SymbolKind, SymbolRole, TypeExpression,
-    TypeMember, WhereClause,
+    ExportKind, Expression, FunctionSignature, GenericParameter, LocalNodeId, Member, Mutability,
+    Name, Node, NodeType, ScopeKind, SymbolKind, SymbolRole, TypeExpression, TypeMember,
+    WhereClause,
 };
 
 /// A global declaration block.
@@ -73,10 +73,8 @@ pub struct ClassDeclaration {
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
-    /// The extended class expression.
-    pub extends_expression: Option<LocalNodeId<Expression>>,
-    /// The generic arguments applied to the extended class expression.
-    pub extends_generic_arguments: Vec<LocalNodeId<GenericArgument>>,
+    /// The extended class type.
+    pub extends_type: Option<LocalNodeId<TypeExpression>>,
     /// The implemented interfaces.
     pub implements_types: Vec<LocalNodeId<TypeExpression>>,
     /// The class members.
@@ -122,15 +120,6 @@ pub struct EnumDeclaration {
     pub is_ambient: bool,
 }
 
-/// One interface heritage clause item.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InterfaceHeritage {
-    /// The extended interface expression.
-    pub expression: LocalNodeId<Expression>,
-    /// The generic arguments applied to the extended interface expression.
-    pub generic_arguments: Vec<LocalNodeId<GenericArgument>>,
-}
-
 /// An interface declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InterfaceDeclaration {
@@ -142,8 +131,8 @@ pub struct InterfaceDeclaration {
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the declaration.
     pub where_clauses: Vec<LocalNodeId<WhereClause>>,
-    /// The extended interfaces.
-    pub extends: Vec<InterfaceHeritage>,
+    /// The extended interface types.
+    pub extends_types: Vec<LocalNodeId<TypeExpression>>,
     /// The interface members.
     pub members: Vec<LocalNodeId<TypeMember>>,
     /// Whether the declaration is ambient.

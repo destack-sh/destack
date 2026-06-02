@@ -1,9 +1,9 @@
 use destack_dir::{
-    Argument, Asynchrony, BlockContext, BlockForm, ClassDeclaration, CommentKind, CommentPosition,
-    Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
-    FunctionRole, GenericArgument, GenericParameter, IntegerType, Mutability, NodeType, Parameter,
-    Pattern, ScalarLiteral, ThisForm, TypeDeclaration, TypeExpression, TypeLiteral,
-    VarianceModifier, WhereClause, YieldCardinality,
+    Argument, Asynchrony, BlockContext, BlockForm, CommentKind, CommentPosition, Declaration,
+    Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase, FunctionRole,
+    GenericArgument, GenericParameter, IntegerType, Mutability, NodeType, Parameter, Pattern,
+    ScalarLiteral, ThisForm, TypeDeclaration, TypeExpression, TypeLiteral, VarianceModifier,
+    WhereClause, YieldCardinality,
 };
 
 use destack_source::{LanguageType, NodeSpanRegion, NodeSpanType};
@@ -1302,43 +1302,6 @@ fn test_recover_function_generator_delegate_before_following_const() {
                 // const value = 1
                 assert_node!(parser.tree, block.leading_expressions[1], Expression::Let { declarators, .. } => {
                     assert_eq!(declarators.len(), 1);
-                });
-            });
-        });
-    });
-}
-
-/// Parse generator yield in class heritage expression.
-#[test]
-fn test_parse_function_generator_yield_in_class_heritage() {
-    // source: function* a(){(class extends (yield) {});}
-    let mut test = TestParser::new_with_language(
-        "function* a(){(class extends (yield) {});}",
-        LanguageType::JavaScript,
-    );
-    let mut parser = test.prepare();
-    let expression_id = parser.eat_expression(parser.flags).unwrap();
-
-    // function* a(){(class extends (yield) {});}
-    assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Function(FunctionDeclaration { signature, body: Some(body), .. }) => {
-            assert!(signature.is_generator);
-            // { (class extends (yield) {}); }
-            assert_node!(parser.tree, *body, Expression::Block(block_id) => {
-                let block = parser.tree.get(*block_id);
-                assert_eq!(block.leading_expressions.len(), 1);
-                assert!(block.tail_expression.is_none());
-                assert_node!(parser.tree, block.leading_expressions[0], Expression::Parenthesized { expression } => {
-                    assert_node!(parser.tree, *expression, Expression::Declaration(class_id) => {
-                        assert_node!(parser.tree, *class_id, Declaration::Class(ClassDeclaration { extends_expression: Some(extends_expression), .. }) => {
-                            assert_node!(parser.tree, *extends_expression, Expression::Parenthesized { expression } => {
-                                assert_node!(parser.tree, *expression, Expression::Yield { cardinality, value } => {
-                                    assert_eq!(*cardinality, YieldCardinality::Scalar);
-                                    assert!(value.is_none());
-                                });
-                            });
-                        });
-                    });
                 });
             });
         });

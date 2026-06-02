@@ -13,7 +13,7 @@ impl Parser {
     /// Eat a struct or class declaration.
     ///
     /// The parser accepts `extends` for classes and `implements` for structs.
-    /// Class declarations treat `extends` as one superclass expression.
+    /// Class declarations treat `extends` as one superclass type.
     /// Struct declarations require a name.
     ///
     /// Struct forms:
@@ -84,7 +84,7 @@ impl Parser {
             None
         };
         let extends_clause = if is_class {
-            self.eat_extends_expressions_if_present()
+            self.eat_extends_types_if_present()
                 .for_node_type(NodeType::Declaration)?
         } else if unexpected_extends_span.is_some() {
             self.eat_extends_types_if_present()
@@ -116,21 +116,19 @@ impl Parser {
 
         // struct or class
         let declaration = if is_class {
-            let extends_clause = extends_clause.and_then(|mut expressions| {
-                if expressions.is_empty() {
+            let extends_type = extends_clause.and_then(|mut types| {
+                if types.is_empty() {
                     None
                 } else {
-                    Some(expressions.remove(0))
+                    if let Some(extra_type) = types.get(1) {
+                        let span = self.tree.get_span(*extra_type);
+
+                        self.error(&ParserError::unexpected_for(span, NodeType::Declaration));
+                    }
+
+                    Some(types.remove(0))
                 }
             });
-            let (extends_expression, extends_generic_arguments) =
-                if let Some(expression_id) = extends_clause {
-                    let (extends_expression, extends_generic_arguments) =
-                        self.split_instantiation_expression(expression_id);
-                    (Some(extends_expression), extends_generic_arguments)
-                } else {
-                    (None, vec![])
-                };
 
             Declaration::Class(ClassDeclaration {
                 name,
@@ -140,8 +138,7 @@ impl Parser {
                 is_final: header.is_final,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses: where_clauses.unwrap_or_default(),
-                extends_expression,
-                extends_generic_arguments,
+                extends_type,
                 implements_types: implements_types.unwrap_or_default(),
                 members,
             })
