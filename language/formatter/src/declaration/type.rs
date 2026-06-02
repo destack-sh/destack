@@ -1,10 +1,9 @@
 use crate::annotation::{
     FormatLeadingComments, FormatTrailingComments, decorator_prefix_annotations,
-    format_dangling_comments, format_node_with_trailing_comments, format_trailing_comments,
-    infix_or_postfix_annotations, postfix_annotations, prefix_annotations,
-    prefix_comments_before_decorators, write_vertical_prefix_annotations,
+    format_dangling_comments, format_trailing_comments, infix_or_postfix_annotations,
+    postfix_annotations, prefix_annotations, prefix_comments_before_decorators,
+    write_vertical_prefix_annotations,
 };
-use crate::chain::transparent_inner_expression;
 use crate::collection::member::format_block_of_members;
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::declaration::declaration::{
@@ -16,13 +15,11 @@ use crate::declaration::signature::{
     write_generic_parameter_list,
 };
 use crate::expression::{expression_needs_parentheses_in_parent, format_type_member_block_list};
-use crate::operator::format_generic_argument_list;
 use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     ClassDeclaration, Declaration, Decorator, EnumDeclaration, EnumField, EnumKind, Expression,
-    GenericArgument, GenericParameter, InterfaceDeclaration, InterfaceHeritage, Keyword,
-    LocalNodeId, LocalNodeIdAny, Member, Node, NodeType, StructDeclaration, TokenSpan, TokenType,
-    Tree, TreeStore, TypeExpression, TypeMember, WhereClause,
+    GenericParameter, InterfaceDeclaration, Keyword, LocalNodeId, LocalNodeIdAny, Member, NodeType,
+    StructDeclaration, TokenSpan, TokenType, TypeExpression, TypeMember, WhereClause,
 };
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
@@ -59,51 +56,6 @@ fn write_declaration_where_clauses<'ast>(
     Ok(())
 }
 
-/// Return one combined span for one node slice.
-fn combined_node_span<T>(
-    context: &DestackFormatContext<'_>,
-    node_ids: &[LocalNodeId<T>],
-) -> Option<Span>
-where
-    T: Node + Clone,
-    Tree: TreeStore<T>,
-{
-    let first_id = node_ids.first().copied()?;
-    let last_id = node_ids.last().copied()?;
-    let first_span = context.span(first_id);
-    let last_span = context.span(last_id);
-
-    Some(Span::new(first_span.file, first_span.start, last_span.end))
-}
-
-/// Return one generic-argument-list span after one expression span.
-fn generic_argument_list_span_after_expression(
-    context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-    generic_arguments: &[LocalNodeId<GenericArgument>],
-) -> Option<Span> {
-    if generic_arguments.is_empty() {
-        return None;
-    }
-
-    let expression_span = context.span(expression_id);
-    let arguments_span = combined_node_span(context, generic_arguments)?;
-    let open_token = context.next_non_trivia_token_after_span(expression_span)?;
-
-    if open_token.token.ty() != TokenType::LessThan {
-        return Some(arguments_span);
-    }
-
-    let close_token = context.next_non_trivia_token_after_span(arguments_span);
-    let close_end = close_token.map_or(arguments_span.end, |token| token.span.end);
-
-    Some(Span::new(
-        expression_span.file,
-        open_token.span.start,
-        close_end,
-    ))
-}
-
 /// Write one class or interface heritage type list.
 fn write_heritage_type_list<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -136,73 +88,6 @@ fn write_heritage_type_list<'ast>(
             write!(f, [soft_line_break_or_space()])?;
         } else {
             write!(f, [FormatNodeWithoutTrailingComments(type_id)])?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Return the full source span for one interface heritage item.
-fn interface_heritage_span(
-    context: &DestackFormatContext<'_>,
-    heritage: &InterfaceHeritage,
-) -> Span {
-    context
-        .tree
-        .get_side_span(
-            heritage.expression,
-            NodeSpanType::Region(NodeSpanRegion::Type),
-        )
-        .unwrap_or_else(|| context.span(heritage.expression))
-}
-
-/// Write one interface heritage item.
-fn write_interface_heritage<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    heritage: &InterfaceHeritage,
-) -> FormatResult<()> {
-    write!(f, [heritage.expression])?;
-
-    if !heritage.generic_arguments.is_empty() {
-        format_generic_argument_list(f, &heritage.generic_arguments)?;
-    }
-
-    Ok(())
-}
-
-/// Write one interface heritage list.
-fn write_interface_heritage_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    enclosing_span: Span,
-    heritage_items: &[InterfaceHeritage],
-) -> FormatResult<()> {
-    for (index, heritage) in heritage_items.iter().enumerate() {
-        let next_heritage = heritage_items.get(index + 1);
-
-        if let Some(next_heritage) = next_heritage {
-            let heritage_span = interface_heritage_span(f.context(), heritage);
-            let next_heritage_start = interface_heritage_span(f.context(), next_heritage).start;
-            let comma_token = f
-                .context()
-                .next_non_trivia_token_after_span(heritage_span)
-                .filter(|token| token.token.ty() == TokenType::Comma)
-                .ok_or(FormatError::SyntaxError {
-                    message: "expected comma between interface heritage items",
-                })?;
-
-            write_interface_heritage(f, heritage)?;
-            write!(f, [token(",")])?;
-            write!(
-                f,
-                [format_trailing_comments(
-                    enclosing_span,
-                    comma_token.span,
-                    next_heritage_start
-                )]
-            )?;
-            write!(f, [soft_line_break_or_space()])?;
-        } else {
-            write_interface_heritage(f, heritage)?;
         }
     }
 
@@ -356,24 +241,23 @@ fn write_type_member_block<'ast>(
     write!(f, [hard_line_break(), token("}")])
 }
 
-/// Return whether one expression is a memberish heritage target without type arguments.
-fn expression_is_memberish_without_type_arguments(
+/// Return whether one type expression contains generic arguments.
+fn type_expression_has_generic_arguments(
     context: &DestackFormatContext<'_>,
-    expression_id: LocalNodeId<Expression>,
-    generic_arguments: &[LocalNodeId<GenericArgument>],
+    type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
-    if !generic_arguments.is_empty() {
-        return false;
-    }
-
-    let expression_id = transparent_inner_expression(context, expression_id);
-
-    match context.tree.get(expression_id) {
-        Expression::QualifiedReference {
-            path,
+    match context.tree.get(type_id) {
+        TypeExpression::Parenthesized { expression } => {
+            type_expression_has_generic_arguments(context, *expression)
+        }
+        TypeExpression::Reference {
+            generic_arguments, ..
+        } => !generic_arguments.is_empty(),
+        TypeExpression::Member {
+            left,
             generic_arguments,
-        } => path.segments.len() > 1 && generic_arguments.is_empty(),
-        Expression::Member { .. } => true,
+            ..
+        } => !generic_arguments.is_empty() || type_expression_has_generic_arguments(context, *left),
         _ => false,
     }
 }
@@ -384,13 +268,18 @@ fn type_is_qualified_without_type_arguments(
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
+        TypeExpression::Parenthesized { expression } => {
+            type_is_qualified_without_type_arguments(context, *expression)
+        }
         TypeExpression::Reference {
             path,
             generic_arguments,
         } => path.segments.len() > 1 && generic_arguments.is_empty(),
         TypeExpression::Member {
-            generic_arguments, ..
-        } => generic_arguments.is_empty(),
+            left,
+            generic_arguments,
+            ..
+        } => generic_arguments.is_empty() && !type_expression_has_generic_arguments(context, *left),
         _ => false,
     }
 }
@@ -402,9 +291,7 @@ fn class_heritage_should_group(
     declaration_expression_id: Option<LocalNodeId<Expression>>,
     declaration: &ClassDeclaration,
 ) -> bool {
-    if usize::from(declaration.extends_expression.is_some()) + declaration.implements_types.len()
-        > 1
-    {
+    if usize::from(declaration.extends_type.is_some()) + declaration.implements_types.len() > 1 {
         return true;
     }
 
@@ -419,13 +306,9 @@ fn class_heritage_should_group(
         });
 
     if ((declaration_expression_id.is_none() || !parent_is_assignment)
-        && declaration.extends_expression.is_some_and(|expression_id| {
-            expression_is_memberish_without_type_arguments(
-                context,
-                expression_id,
-                &declaration.extends_generic_arguments,
-            )
-        }))
+        && declaration
+            .extends_type
+            .is_some_and(|type_id| type_is_qualified_without_type_arguments(context, type_id)))
         || declaration
             .implements_types
             .first()
@@ -441,15 +324,8 @@ fn class_heritage_should_group(
         NodeSpanType::Region(NodeSpanRegion::GenericParameters),
     );
     let extends_span = declaration
-        .extends_expression
-        .map(|expression_id| context.span(expression_id));
-    let extends_generic_arguments_span = declaration.extends_expression.and_then(|expression_id| {
-        generic_argument_list_span_after_expression(
-            context,
-            expression_id,
-            &declaration.extends_generic_arguments,
-        )
-    });
+        .extends_type
+        .map(|type_id| context.span(type_id));
     let implements_span = declaration
         .implements_types
         .first()
@@ -459,7 +335,6 @@ fn class_heritage_should_group(
         name_span,
         generic_parameters_span,
         extends_span,
-        extends_generic_arguments_span,
         implements_span,
     ];
     let mut spans = spans.into_iter().flatten().peekable();
@@ -524,17 +399,16 @@ fn interface_heritage_should_group(
     node_id: LocalNodeId<Declaration>,
     declaration: &InterfaceDeclaration,
 ) -> bool {
-    if declaration.extends.len() > 1 {
+    if declaration.extends_types.len() > 1 {
         return true;
     }
 
-    if declaration.extends.first().is_some_and(|heritage| {
-        expression_is_memberish_without_type_arguments(
-            context,
-            heritage.expression,
-            &heritage.generic_arguments,
-        )
-    }) {
+    if declaration
+        .extends_types
+        .first()
+        .copied()
+        .is_some_and(|type_id| type_is_qualified_without_type_arguments(context, type_id))
+    {
         return true;
     }
 
@@ -546,9 +420,10 @@ fn interface_heritage_should_group(
         )
         .or(context.tree.get_main_span(node_id));
     let extends_span = declaration
-        .extends
+        .extends_types
         .first()
-        .map(|heritage| interface_heritage_span(context, heritage));
+        .copied()
+        .map(|type_id| context.span(type_id));
 
     match (previous_span, extends_span) {
         (Some(previous_span), Some(extends_span)) => context
@@ -659,8 +534,8 @@ pub(crate) fn format_class_declaration<'ast>(
             write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
 
             let following_span_start = declaration
-                .extends_expression
-                .map(|expression_id| f.context().span(expression_id).start)
+                .extends_type
+                .map(|type_id| f.context().span(type_id).start)
                 .or_else(|| {
                     declaration
                         .implements_types
@@ -690,11 +565,11 @@ pub(crate) fn format_class_declaration<'ast>(
                 }
             }
 
-            if let Some(extends_expression) = declaration.extends_expression {
+            if let Some(extends_type) = declaration.extends_type {
                 let comments = f
                     .context()
                     .comments()
-                    .comments_before(f.context().span(extends_expression).start);
+                    .comments_before(f.context().span(extends_type).start);
 
                 if comments.iter().any(|comment| comment.preceded_by_newline()) {
                     write!(
@@ -711,10 +586,8 @@ pub(crate) fn format_class_declaration<'ast>(
             Ok(())
         });
         let heritage = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            if let Some(extends_expression) = declaration.extends_expression {
-                let extends_comments = if !declaration.extends_generic_arguments.is_empty()
-                    || !declaration.implements_types.is_empty()
-                {
+            if let Some(extends_type) = declaration.extends_type {
+                let extends_comments = if !declaration.implements_types.is_empty() {
                     Vec::new()
                 } else {
                     let body_start = class_body_open_brace_token(f, node_id, &declaration.members)
@@ -722,39 +595,15 @@ pub(crate) fn format_class_declaration<'ast>(
 
                     f.context()
                         .comments()
-                        .comments_in_range(f.context().span(extends_expression).end, body_start)
+                        .comments_in_range(f.context().span(extends_type).end, body_start)
                         .to_vec()
                 };
                 let has_trailing_line_comments =
                     extends_comments.iter().any(|comment| comment.is_line());
                 let format_super = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                    let enclosing_span = f.context().span(node_id);
-                    let type_arguments_span = generic_argument_list_span_after_expression(
-                        f.context(),
-                        extends_expression,
-                        &declaration.extends_generic_arguments,
-                    );
                     let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                        if !declaration.extends_generic_arguments.is_empty() {
-                            let Some(type_arguments_span) = type_arguments_span else {
-                                unreachable!("extends generic arguments have a source span");
-                            };
-                            let following_span_start = type_arguments_span.start;
-
-                            write!(
-                                f,
-                                [format_node_with_trailing_comments(
-                                    enclosing_span,
-                                    extends_expression,
-                                    following_span_start
-                                )]
-                            )?;
-                            format_generic_argument_list(
-                                f,
-                                &declaration.extends_generic_arguments,
-                            )?;
-                        } else if declaration.implements_types.is_empty() {
-                            write!(f, [FormatNodeWithoutTrailingComments(extends_expression)])?;
+                        if declaration.implements_types.is_empty() {
+                            write!(f, [FormatNodeWithoutTrailingComments(extends_type)])?;
 
                             if !has_trailing_line_comments {
                                 write!(f, [FormatTrailingComments::Comments(&extends_comments)])?;
@@ -768,12 +617,13 @@ pub(crate) fn format_class_declaration<'ast>(
                             let following_span_start =
                                 f.context().span(*first_implements_type).start;
 
+                            write!(f, [FormatNodeWithoutTrailingComments(extends_type)])?;
                             write!(
                                 f,
-                                [format_node_with_trailing_comments(
-                                    enclosing_span,
-                                    extends_expression,
-                                    following_span_start
+                                [format_trailing_comments(
+                                    f.context().span(node_id),
+                                    f.context().span(extends_type),
+                                    following_span_start,
                                 )]
                             )?;
                         }
@@ -830,7 +680,7 @@ pub(crate) fn format_class_declaration<'ast>(
                     .comments()
                     .comments_before(f.context().span(first_implements).start);
 
-                if usize::from(declaration.extends_expression.is_some())
+                if usize::from(declaration.extends_type.is_some())
                     + declaration.implements_types.len()
                     > 1
                 {
@@ -1073,16 +923,16 @@ pub(crate) fn format_interface_declaration<'ast>(
         });
 
         let heritage = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            let Some(first_extends) = declaration.extends.first() else {
+            let Some(first_extends) = declaration.extends_types.first().copied() else {
                 return Ok(());
             };
 
             let leading_comments = f
                 .context()
                 .comments()
-                .comments_before(interface_heritage_span(f.context(), first_extends).start);
+                .comments_before(f.context().span(first_extends).start);
 
-            if declaration.extends.len() > 1 {
+            if declaration.extends_types.len() > 1 {
                 write!(
                     f,
                     [
@@ -1090,10 +940,10 @@ pub(crate) fn format_interface_declaration<'ast>(
                         Keyword::Extends,
                         group(&soft_line_indent_or_space(&format_with(
                             |f: &mut DestackFormatter<'ast, '_>| {
-                                write_interface_heritage_list(
+                                write_heritage_type_list(
                                     f,
                                     f.context().span(node_id),
-                                    &declaration.extends,
+                                    &declaration.extends_types,
                                 )
                             }
                         )))
@@ -1106,7 +956,7 @@ pub(crate) fn format_interface_declaration<'ast>(
                     }
 
                     write!(f, [Keyword::Extends, space()])?;
-                    write_interface_heritage(f, first_extends)
+                    write!(f, [first_extends])
                 });
 
                 if heritage_group_mode {
