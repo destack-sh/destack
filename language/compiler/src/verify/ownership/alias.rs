@@ -88,7 +88,7 @@ impl PlaceAlias {
 
                 Some((start, end))
             }
-            mir::PlaceProjection::Range { start, length } => {
+            mir::PlaceProjection::Slice { start, length } => {
                 let start = self.constant_index(*start)?;
                 let length = self.constant_index(*length)?;
                 let end = start.checked_add(length)?;

@@ -119,7 +119,11 @@ impl ModuleLowerer<'_> {
             .ensure_display_name(env_type, metadata_name);
 
         // record layout metadata for the env type
-        self.insert_layout_entry(env_type, mir::LayoutShape::Struct { fields: Vec::new() }, &layout);
+        self.insert_layout_entry(
+            env_type,
+            mir::LayoutShape::Struct(mir::StructLayout { fields: Vec::new() }),
+            &layout,
+        );
         self.type_lowerer.set_layout(env_type, layout);
 
         // build the managed env pointer type
@@ -291,7 +295,11 @@ impl ModuleLowerer<'_> {
             .types
             .ensure_display_name(env_type, metadata_name);
 
-        self.insert_layout_entry(env_type, mir::LayoutShape::Struct { fields: Vec::new() }, &layout);
+        self.insert_layout_entry(
+            env_type,
+            mir::LayoutShape::Struct(mir::StructLayout { fields: Vec::new() }),
+            &layout,
+        );
         self.type_lowerer.set_layout(env_type, layout);
         let env_pointer_type = self.builder.type_reference(
             mir::ReferenceKind::Managed,

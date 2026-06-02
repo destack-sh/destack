@@ -194,7 +194,11 @@ impl ModuleLowerer<'_> {
             .type_lowerer
             .create_struct_type(&layout, &mut self.builder);
         self.type_lowerer.set_layout(mir_type, layout.clone());
-        self.insert_layout_entry(mir_type, mir::LayoutShape::Struct { fields: Vec::new() }, &layout);
+        self.insert_layout_entry(
+            mir_type,
+            mir::LayoutShape::Struct(mir::StructLayout { fields: Vec::new() }),
+            &layout,
+        );
 
         let Some(code_field_index) = layout.field_index(code_name) else {
             return Err(LowerError::Internal {
