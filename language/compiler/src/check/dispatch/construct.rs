@@ -54,6 +54,31 @@ impl CheckState<'_> {
             }
             ConstructCandidates::Present(candidates) => candidates,
         };
+
+        self.select_construct_candidate(
+            origin,
+            module,
+            construct.source,
+            candidates,
+            &construct.generic_arguments,
+            &construct.arguments,
+            &[],
+            expected,
+        )
+    }
+
+    /// Select the first applicable construct candidate.
+    pub(in crate::check) fn select_construct_candidate(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        source: dir::GlobalNodeIdAny,
+        candidates: SmallVec<[ConstructCandidate; 4]>,
+        generic_arguments: &[GenericArgument],
+        arguments: &[TypeOperand],
+        argument_values: &[dir::GlobalNodeId<dir::Expression>],
+        expected: Option<VariableId>,
+    ) -> CompilerResult<CallableDispatch> {
         let mut saw_pending = false;
         let candidate_set = CandidateSet::from_len(candidates.len());
 
@@ -66,17 +91,19 @@ impl CheckState<'_> {
             let result = self.select_call_signature(
                 origin,
                 module,
-                construct.source,
+                source,
                 owner,
                 application,
                 candidate.function,
-                &construct.generic_arguments,
-                &construct.arguments,
-                &[],
+                generic_arguments,
+                arguments,
+                argument_values,
                 expected,
                 target,
                 candidate_set,
             )?;
+
+            // keep writes only for selected or uniquely pending candidates
             match result {
                 CallableDispatch::ConstructSelected { .. } => {
                     self.commit_inference_probe(probe)?;
@@ -84,17 +111,16 @@ impl CheckState<'_> {
                     return Ok(result);
                 }
                 CallableDispatch::CallSelected { .. } => {
-                    panic!("construct dispatch produced a call selection");
+                    panic!("construct candidate selection produced a call selection");
+                }
+                CallableDispatch::Pending { .. } if candidate_set.keeps_pending_probe() => {
+                    self.commit_inference_probe(probe)?;
+
+                    return Ok(result);
                 }
                 CallableDispatch::Pending { .. } => {
-                    if candidate_set.keeps_pending_probe() {
-                        self.commit_inference_probe(probe)?;
-
-                        return Ok(result);
-                    } else {
-                        self.drop_inference_probe(probe);
-                        saw_pending = true;
-                    }
+                    self.drop_inference_probe(probe);
+                    saw_pending = true;
                 }
                 CallableDispatch::CallRejected(_) | CallableDispatch::ConstructRejected(_) => {
                     self.drop_inference_probe(probe);
@@ -102,6 +128,7 @@ impl CheckState<'_> {
             }
         }
 
+        // preserve unresolved overload input
         if saw_pending {
             Ok(CallableDispatch::pending())
         } else {

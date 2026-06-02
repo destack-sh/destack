@@ -10,10 +10,9 @@ pub(in crate::check) enum CandidateSet {
 impl CandidateSet {
     /// Return the candidate set shape from a candidate count.
     pub(in crate::check) fn from_len(len: usize) -> Self {
-        if len == 1 {
-            Self::Single
-        } else {
-            Self::Overload
+        match len {
+            1 => Self::Single,
+            _ => Self::Overload,
         }
     }
 
