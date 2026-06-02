@@ -318,7 +318,7 @@ impl FlowState {
     }
 
     /// Return a checkpoint for later branch rollback.
-    pub(in crate::check) fn checkpoint(&self) -> FlowCheckpoint {
+    pub(in crate::check) fn fork(&self) -> FlowCheckpoint {
         FlowCheckpoint {
             mutation_count: self.mutations.len(),
         }

@@ -19,7 +19,7 @@ impl WalkState<'_, '_> {
     ) {
         // capture enclosing flow stack boundaries
         let flow = self.flow();
-        let checkpoint = flow.checkpoint();
+        let checkpoint = flow.fork();
         let target_start = flow.targets.len();
         let try_start = flow.tries.len();
         let function = FunctionFrame {

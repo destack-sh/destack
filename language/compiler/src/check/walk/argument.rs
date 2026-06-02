@@ -38,9 +38,7 @@ impl WalkState<'_, '_> {
             dir::GenericArgument::Value { value }
             | dir::GenericArgument::AssociatedConst { value, .. }
             | dir::GenericArgument::SpreadValue { value } => {
-                // check static argument value in static context
                 let before_value = self.fork_flow();
-
                 self.walk_expression(tree, *value, tree.get(*value));
                 self.restore_flow(before_value);
             }

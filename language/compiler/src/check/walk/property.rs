@@ -74,7 +74,7 @@ impl WalkState<'_, '_> {
                     );
                     let condition = self.active_static_guard();
 
-                    self.check.bind_symbol_type(
+                    self.check.publish_symbol_type(
                         tree.module_id,
                         symbol,
                         TypeTerm::Function(term),
@@ -157,7 +157,7 @@ impl WalkState<'_, '_> {
                     let condition = self.active_static_guard();
 
                     self.check
-                        .bind_symbol_type_operand(symbol, value, condition);
+                        .publish_symbol_type_operand(symbol, value, condition);
                 }
             }
             // const item: T = value
@@ -187,7 +187,7 @@ impl WalkState<'_, '_> {
                             self.check.require_local_node_type(tree.module_id, *declared_type);
                         let condition = self.active_static_guard();
 
-                        self.check.bind_symbol_type_operand(
+                        self.check.publish_symbol_type_operand(
                             symbol,
                             declared_type,
                             condition,
@@ -196,15 +196,15 @@ impl WalkState<'_, '_> {
 
                     // associated const value lives in static space
                     if let Some(value) = value {
-                        let variable = self.check.bind_symbol_static_variable(tree.module_id, symbol);
+                        let variable = self.check.reserve_symbol_static(tree.module_id, symbol);
                         let condition = self.active_static_guard();
-                        let value = self.check.bind_static_expression_variable(
+                        let value = self.check.reserve_static_expression(
                             tree.module_id,
                             *value,
                             condition.clone(),
                         );
-
-                        self.check.equate_static_operand(variable, value.into(), condition);
+                        let origin = self.check.variable(variable).source;
+                        self.check.equate_static(origin, variable, value, condition);
                     }
                 }
             }
@@ -255,7 +255,7 @@ impl WalkState<'_, '_> {
                     }
 
                     self.check
-                        .bind_symbol_type_operand(symbol, declared_type, condition);
+                        .publish_symbol_type_operand(symbol, declared_type, condition);
                 }
 
                 // defaults must fit the declared field type
@@ -321,7 +321,7 @@ impl WalkState<'_, '_> {
                         self.check.push_generic_induction_root(symbol, receiver.ty);
                     }
                     self.check.push_generic_induction_root(symbol, operand);
-                    self.check.bind_symbol_type(
+                    self.check.publish_symbol_type(
                         tree.module_id,
                         symbol,
                         TypeTerm::Function(term),

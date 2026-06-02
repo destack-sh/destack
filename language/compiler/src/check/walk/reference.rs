@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Condition, ExportLookup, GenericArgument, GenericSlotId, Obligation, Origin, ReceiverTerm,
+    Condition, GenericArgument, GenericSlotId, Obligation, Origin, PathLookup, ReceiverTerm,
     TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableKind, WalkState,
 };
 
@@ -20,11 +20,13 @@ impl WalkState<'_, '_> {
         name: dir::StringId,
         tree: &dir::Tree,
     ) -> Option<TypeOperand> {
-        let symbol = self.check.require_symbol_by_name(
+        let guard = self.active_static_guard();
+        let symbol = self.check.require_symbol_by_name_under(
             tree.module_id,
             id.into_any(),
             name,
             dir::SymbolSpace::Value,
+            &guard,
         )?;
         let source = id.into_global_any(tree.module_id);
 
@@ -47,11 +49,13 @@ impl WalkState<'_, '_> {
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
         tree: &dir::Tree,
     ) -> Option<TypeOperand> {
-        let symbol = self.check.require_path_symbol(
+        let guard = self.active_static_guard();
+        let symbol = self.check.require_symbol_by_path_under(
             tree.module_id,
             id.into_any(),
             path,
             dir::SymbolSpace::Value,
+            &guard,
         )?;
         let source = id.into_global_any(tree.module_id);
 
@@ -59,6 +63,65 @@ impl WalkState<'_, '_> {
         self.require_value_read_assigned(source, id.into_any(), symbol);
 
         Some(self.lower_value_reference_term(tree, id, symbol, generic_arguments))
+    }
+
+    /// Bind one namespace path expression when the path root was resolved as a namespace.
+    ///
+    /// Example:
+    /// ```ds
+    /// dep.value
+    /// ```
+    pub(in crate::check) fn bind_namespace_path_reference_term(
+        &mut self,
+        id: dir::LocalNodeId<dir::Expression>,
+        path: &dir::Path,
+        tree: &dir::Tree,
+    ) -> bool {
+        // skip ordinary runtime member expressions
+        if !self
+            .check
+            .path_has_namespace_root(tree.module_id, id.into_any())
+        {
+            return false;
+        }
+
+        // resolve the full namespace path
+        let guard = self.active_static_guard();
+        let lookup = self
+            .check
+            .lookup_path(tree.module_id, id.into_any(), path, dir::SymbolSpace::Value)
+            .unwrap_or_else(|_| panic!("namespace path lookup failed in checked module"))
+            .available_under(&guard);
+
+        match lookup {
+            // bind a resolved value symbol
+            PathLookup::Found(candidate) => {
+                let Some(symbol) = candidate.symbol() else {
+                    self.check
+                        .report_unresolved_reference(tree.module_id, id.into_any(), path);
+
+                    return true;
+                };
+                let source = id.into_global_any(tree.module_id);
+                let operand = self.lower_value_reference_term(tree, id, symbol, &[]);
+
+                self.select_value_reference(source, symbol);
+                self.require_value_read_assigned(source, id.into_any(), symbol);
+                self.publish_node_type_operand(tree.module_id, id, operand);
+            }
+            // report missing namespace member
+            PathLookup::Missing => {
+                self.check
+                    .report_unresolved_reference(tree.module_id, id.into_any(), path);
+            }
+            // report ambiguous namespace member
+            PathLookup::Ambiguous(_) => {
+                self.check
+                    .report_ambiguous_reference(tree.module_id, id.into_any(), path);
+            }
+        }
+
+        true
     }
 
     /// Bind one type receiver from expression syntax and return its type operand.
@@ -102,16 +165,18 @@ impl WalkState<'_, '_> {
         tree: &dir::Tree,
     ) -> Option<TypeOperand> {
         let source = id.into_global_any(tree.module_id);
+        let guard = self.active_static_guard();
         let lookup = self
             .check
-            .lookup_path_symbol(tree.module_id, id.into_any(), path, dir::SymbolSpace::Type)
-            .unwrap_or_else(|_| panic!("type receiver lookup failed in checked module"));
+            .lookup_path(tree.module_id, id.into_any(), path, dir::SymbolSpace::Type)
+            .unwrap_or_else(|_| panic!("type receiver lookup failed in checked module"))
+            .available_under(&guard);
 
         // no type receiver exists
         let symbol = match lookup {
-            ExportLookup::Found(candidate) => candidate.symbol,
-            ExportLookup::Missing => return None,
-            ExportLookup::Ambiguous(_) => {
+            PathLookup::Found(candidate) => candidate.symbol()?,
+            PathLookup::Missing => return None,
+            PathLookup::Ambiguous(_) => {
                 self.check
                     .report_ambiguous_reference(tree.module_id, id.into_any(), path);
 
@@ -135,7 +200,7 @@ impl WalkState<'_, '_> {
             self.lower_type_symbol_reference_term(source, symbol, arguments)
         };
 
-        Some(self.check.bind_node_type(tree.module_id, id, term))
+        Some(self.check.publish_node_type(tree.module_id, id, term))
     }
 
     /// Lower the operand for one resolved value reference.
@@ -179,7 +244,7 @@ impl WalkState<'_, '_> {
     /// value
     /// ```
     fn lower_bare_value_reference_term(
-        &self,
+        &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
@@ -188,7 +253,7 @@ impl WalkState<'_, '_> {
             return narrowed;
         }
 
-        self.check.require_symbol_type(symbol)
+        self.check.require_symbol_type(tree.module_id, symbol)
     }
 
     /// Bind one reference type expression and return its type term.
@@ -415,6 +480,7 @@ impl WalkState<'_, '_> {
             return None;
         };
 
+        let guard = self.active_static_guard();
         let symbol = self
             .check
             .lookup_symbol_by_name(
@@ -423,6 +489,7 @@ impl WalkState<'_, '_> {
                 *name,
                 dir::SymbolSpace::Value,
             )
+            .available_under(&guard)
             .unique_symbol()?;
 
         if self.check.symbol_kind(tree.module_id, symbol)
@@ -451,11 +518,13 @@ impl WalkState<'_, '_> {
         path: &dir::Path,
         tree: &dir::Tree,
     ) -> Option<dir::GlobalSymbolId> {
-        let symbol = self.check.require_path_symbol(
+        let guard = self.active_static_guard();
+        let symbol = self.check.require_symbol_by_path_under(
             tree.module_id,
             id.into_any(),
             path,
             dir::SymbolSpace::Type,
+            &guard,
         )?;
         let source = id.into_global_any(tree.module_id);
         self.check.select_name(source, symbol);
@@ -517,7 +586,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Check one value read against definite assignment flow.
-    fn require_value_read_assigned(
+    pub(in crate::check) fn require_value_read_assigned(
         &mut self,
         source: dir::GlobalNodeIdAny,
         anchor: dir::LocalNodeIdAny,

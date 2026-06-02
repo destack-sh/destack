@@ -3,13 +3,13 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    AwaitTerm, CallCallee, CallTerm, ConstructTerm, ExportLookup, FlowBranch, FlowCheckpoint,
-    FormTerm, GenericArgument, IdentityTerm, ImportMetaTerm, IndexKind, IndexSetTerm, IndexTerm,
+    AwaitTerm, CallCallee, CallTerm, ConstructTerm, FlowBranch, FlowCheckpoint, FormTerm,
+    GenericArgument, IdentityTerm, ImportMetaTerm, IndexKind, IndexSetTerm, IndexTerm,
     InstanceCheckTerm, KeyMembershipTerm, MatchCase, MemberCallSource, MemberCallTerm, MemberTerm,
-    OperatorTerm, OperatorTermKind, Origin, PatternRelation, RangeValueTerm, ShapeMember,
-    SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm, TryTerm, TryTermKind, TupleElement,
-    TypeLiteralTerm, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, TypeValueTerm,
-    VariableId, VariableKind, WalkState, YieldTerm,
+    OperatorTerm, OperatorTermKind, Origin, PathLookup, PatternRelation, RangeValueTerm,
+    ShapeMember, SuperTerm, TaggedTemplateTerm, TemplateTerm, TreeTerm, TryTerm, TryTermKind,
+    TupleElement, TypeLiteralTerm, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm,
+    TypeValueTerm, VariableId, VariableKind, WalkState, YieldTerm,
 };
 
 /// The condition branch being entered.
@@ -322,7 +322,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         items: Option<&[dir::LocalNodeId<dir::DependencyItem>]>,
     ) {
-        self.bind_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+        self.publish_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
 
         // walk imported item bindings
         let Some(items) = items else {
@@ -345,7 +345,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         items: &[dir::LocalNodeId<dir::DependencyItem>],
     ) {
-        self.bind_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+        self.publish_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
 
         // walk exported item bindings
         for item in items {
@@ -366,7 +366,7 @@ impl WalkState<'_, '_> {
         declarators: &[dir::LocalNodeId<dir::Declarator>],
         is_ambient: bool,
     ) {
-        self.bind_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+        self.publish_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
 
         // walk and assign each declared binding
         for declarator in declarators {
@@ -391,7 +391,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         declarators: &[dir::LocalNodeId<dir::Declarator>],
     ) {
-        self.bind_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+        self.publish_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
 
         // walk and assign each resource binding
         for declarator in declarators {
@@ -413,13 +413,13 @@ impl WalkState<'_, '_> {
         declarator: dir::LocalNodeId<dir::Declarator>,
         else_branch: dir::LocalNodeId<dir::Expression>,
     ) {
-        self.bind_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+        self.publish_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
         self.walk_declarator(tree, declarator, tree.get(declarator));
 
         // check else branch without leaking flow
         let before_else = self.fork_flow();
         self.walk_expression(tree, else_branch, tree.get(else_branch));
-        if self.can_expression_fall_through(tree, else_branch) {
+        if self.expression_can_complete_normally(tree, else_branch) {
             self.check.report_invalid_control_flow(
                 tree.module_id,
                 else_branch.into_any(),
@@ -446,7 +446,7 @@ impl WalkState<'_, '_> {
         label: Option<dir::StringId>,
         value: Option<dir::LocalNodeId<dir::Expression>>,
     ) {
-        self.bind_node_type(
+        self.publish_node_type(
             tree.module_id,
             id,
             TypeTerm::Literal(TypeLiteralTerm::Never),
@@ -476,7 +476,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         label: Option<dir::StringId>,
     ) {
-        self.bind_node_type(
+        self.publish_node_type(
             tree.module_id,
             id,
             TypeTerm::Literal(TypeLiteralTerm::Never),
@@ -506,7 +506,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::Await(await_term);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one throw expression.
@@ -521,7 +521,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
     ) {
-        self.bind_node_type(
+        self.publish_node_type(
             tree.module_id,
             id,
             TypeTerm::Literal(TypeLiteralTerm::Never),
@@ -541,7 +541,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         value: Option<dir::LocalNodeId<dir::Expression>>,
     ) {
-        self.bind_node_type(
+        self.publish_node_type(
             tree.module_id,
             id,
             TypeTerm::Literal(TypeLiteralTerm::Never),
@@ -599,7 +599,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::Yield(yield_term);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
         self.constrain_yield_value(id.into_any(), cardinality, value_type, delegate_return_type);
     }
 
@@ -616,7 +616,7 @@ impl WalkState<'_, '_> {
         name: dir::StringId,
     ) {
         if let Some(operand) = self.bind_identifier_reference_term(id, name, tree) {
-            self.bind_node_type_operand(tree.module_id, id, operand);
+            self.publish_node_type_operand(tree.module_id, id, operand);
         }
     }
 
@@ -628,7 +628,7 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_this_expression(&mut self, tree: &dir::Tree, id: dir::LocalNodeId<dir::Expression>) {
         if let Some(term) = self.lower_this_receiver_type_term(id.into_global_any(tree.module_id)) {
-            self.bind_node_type(tree.module_id, id, term);
+            self.publish_node_type(tree.module_id, id, term);
         }
     }
 
@@ -661,7 +661,7 @@ impl WalkState<'_, '_> {
             _ => TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone())),
         };
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one super expression.
@@ -678,7 +678,7 @@ impl WalkState<'_, '_> {
         let super_term = self.check.push_term(SuperTerm { source, receiver });
         let term = TypeTerm::Super(super_term);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one import meta expression.
@@ -697,7 +697,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::ImportMeta(import_meta);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one qualified reference expression.
@@ -715,7 +715,7 @@ impl WalkState<'_, '_> {
     ) {
         if let Some(operand) = self.bind_qualified_reference_term(id, path, generic_arguments, tree)
         {
-            self.bind_node_type_operand(tree.module_id, id, operand);
+            self.publish_node_type_operand(tree.module_id, id, operand);
         }
     }
 
@@ -752,7 +752,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::RangeValue(range);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one template expression.
@@ -777,7 +777,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::Template(template);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one tagged template expression.
@@ -813,7 +813,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::TaggedTemplate(template);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one array expression.
@@ -837,7 +837,7 @@ impl WalkState<'_, '_> {
         let element = self.lower_array_element_type(tree.module_id, id, element_types);
         let term = TypeTerm::Array { element };
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Return the precise element type for one array literal.
@@ -892,7 +892,7 @@ impl WalkState<'_, '_> {
         let condition = self.active_static_guard();
         let length_variable =
             self.check
-                .bind_static_expression_variable(tree.module_id, length, condition);
+                .reserve_static_expression(tree.module_id, length, condition);
         let term = TypeTerm::FixedArray {
             element: self
                 .check
@@ -901,7 +901,7 @@ impl WalkState<'_, '_> {
             length: length_variable.into(),
         };
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one tuple expression.
@@ -927,7 +927,7 @@ impl WalkState<'_, '_> {
             elements: elements_term.into(),
         };
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one sequence expression.
@@ -953,10 +953,10 @@ impl WalkState<'_, '_> {
                     .check
                     .require_local_node_type(tree.module_id, *expression);
 
-                self.bind_node_type_operand(tree.module_id, id, operand);
+                self.publish_node_type_operand(tree.module_id, id, operand);
             }
             None => {
-                self.bind_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void))
+                self.publish_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void))
             }
         }
     }
@@ -1010,7 +1010,7 @@ impl WalkState<'_, '_> {
             }
         }
 
-        self.bind_node_type_operand(tree.module_id, id, owner);
+        self.publish_node_type_operand(tree.module_id, id, owner);
     }
 
     /// Walk one tree expression.
@@ -1065,7 +1065,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::Tree(tree_term);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one parenthesized expression.
@@ -1084,7 +1084,7 @@ impl WalkState<'_, '_> {
 
         let child_type = self.check.require_local_node_type(tree.module_id, child);
 
-        self.bind_node_type_operand(tree.module_id, id, child_type);
+        self.publish_node_type_operand(tree.module_id, id, child_type);
     }
 
     /// Walk one type value expression.
@@ -1108,7 +1108,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::TypeValue(type_value);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one comptime expression.
@@ -1127,7 +1127,7 @@ impl WalkState<'_, '_> {
 
         let body_type = self.check.require_local_node_type(tree.module_id, body);
 
-        self.bind_node_type_operand(tree.module_id, id, body_type);
+        self.publish_node_type_operand(tree.module_id, id, body_type);
     }
 
     /// Walk one cast expression.
@@ -1160,7 +1160,7 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(id.into_global_any(tree.module_id));
         let condition = self.active_static_guard();
 
-        self.bind_node_type_operand(tree.module_id, id, target_type);
+        self.publish_node_type_operand(tree.module_id, id, target_type);
         self.check.relate_type(
             origin,
             TypeRelation::Castable,
@@ -1193,7 +1193,7 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(id.into_global_any(tree.module_id));
         let condition = self.active_static_guard();
 
-        self.bind_node_type_operand(tree.module_id, id, child_type);
+        self.publish_node_type_operand(tree.module_id, id, child_type);
         self.check.relate_type(
             origin,
             TypeRelation::Satisfies,
@@ -1216,7 +1216,7 @@ impl WalkState<'_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
     ) {
-        self.bind_node_type(
+        self.publish_node_type(
             tree.module_id,
             id,
             TypeTerm::Literal(TypeLiteralTerm::boolean()),
@@ -1250,7 +1250,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::InstanceCheck(instance);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one unary expression.
@@ -1284,7 +1284,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::Operator(operator);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
 
         // write after reading the updated place
         if is_update && let Some(place) = self.lower_place(right, tree) {
@@ -1319,7 +1319,7 @@ impl WalkState<'_, '_> {
                 .into(),
         };
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one borrow expression.
@@ -1344,7 +1344,7 @@ impl WalkState<'_, '_> {
             .into();
         let term = self.lower_borrowed_form_type(tree.module_id, source, mutability, payload);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one member expression.
@@ -1360,12 +1360,19 @@ impl WalkState<'_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         name: Option<dir::StringId>,
     ) {
+        // bind namespace paths before runtime member access
+        if let Some(path) = tree.member_path(id)
+            && self.bind_namespace_path_reference_term(id, &path, tree)
+        {
+            return;
+        }
+
         self.walk_expression(tree, left, tree.get(left));
 
         // set member access when the key is present
         if let Some(name) = name {
             if let Some(narrowed) = self.flow_path_narrowing(tree, id) {
-                self.bind_node_type_operand(tree.module_id, id, narrowed);
+                self.publish_node_type_operand(tree.module_id, id, narrowed);
             } else {
                 let owner = self.check.require_local_node_type(tree.module_id, left);
                 let member = self.check.push_term(MemberTerm {
@@ -1375,7 +1382,7 @@ impl WalkState<'_, '_> {
                     arguments: Vec::new().into(),
                 });
 
-                self.bind_node_type(tree.module_id, id, TypeTerm::Member(member));
+                self.publish_node_type(tree.module_id, id, TypeTerm::Member(member));
             }
         }
     }
@@ -1403,7 +1410,7 @@ impl WalkState<'_, '_> {
         // set index access when the index is present
         if let Some(index) = index {
             if let Some(narrowed) = self.flow_path_narrowing(tree, id) {
-                self.bind_node_type_operand(tree.module_id, id, narrowed);
+                self.publish_node_type_operand(tree.module_id, id, narrowed);
             } else {
                 let receiver = self.check.require_local_node_type(tree.module_id, left);
                 let index_type = self.check.require_local_node_type(tree.module_id, index);
@@ -1420,7 +1427,7 @@ impl WalkState<'_, '_> {
                     key: tree.get(index).static_key(),
                 });
 
-                self.bind_node_type(tree.module_id, id, TypeTerm::Index(index_term));
+                self.publish_node_type(tree.module_id, id, TypeTerm::Index(index_term));
             }
         }
     }
@@ -1452,11 +1459,11 @@ impl WalkState<'_, '_> {
                 arguments: arguments.into_vec(),
             };
 
-            self.bind_node_type(tree.module_id, id, term);
+            self.publish_node_type(tree.module_id, id, term);
         } else {
             let operand = self.check.require_local_node_type(tree.module_id, left);
 
-            self.bind_node_type_operand(tree.module_id, id, operand);
+            self.publish_node_type_operand(tree.module_id, id, operand);
         }
     }
 
@@ -1489,7 +1496,7 @@ impl WalkState<'_, '_> {
         };
         let tried = self.check.push_term(term.clone());
 
-        self.bind_node_type(tree.module_id, id, TypeTerm::Try(tried));
+        self.publish_node_type(tree.module_id, id, TypeTerm::Try(tried));
         self.propagate_try(id.into_any(), term.value);
     }
 
@@ -1522,7 +1529,7 @@ impl WalkState<'_, '_> {
         };
         let term = self.check.push_term(term);
 
-        self.bind_node_type(tree.module_id, id, TypeTerm::Try(term));
+        self.publish_node_type(tree.module_id, id, TypeTerm::Try(term));
     }
 
     /// Walk one maybe propagation expression.
@@ -1549,7 +1556,7 @@ impl WalkState<'_, '_> {
         };
         let term = self.check.push_term(tried.clone());
 
-        self.bind_node_type(tree.module_id, id, TypeTerm::Try(term));
+        self.publish_node_type(tree.module_id, id, TypeTerm::Try(term));
         self.propagate_try(id.into_any(), tried.value);
     }
 
@@ -1575,7 +1582,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::Try(term);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one binary expression.
@@ -1610,7 +1617,7 @@ impl WalkState<'_, '_> {
 
         let term = self.lower_binary_expression_type(tree, id, left, operator, right);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one short circuit binary expression.
@@ -1635,7 +1642,7 @@ impl WalkState<'_, '_> {
         self.narrow_expression(tree, left, right_branch);
         self.walk_expression(tree, right, tree.get(right));
         let right_flow = self
-            .can_expression_fall_through(tree, right)
+            .expression_can_complete_normally(tree, right)
             .then(|| self.collect_flow_branch(before_right));
 
         // collect skip branch
@@ -1667,18 +1674,15 @@ impl WalkState<'_, '_> {
         self.walk_assign_pattern(tree, left, tree.get(left));
         self.walk_expression(tree, right, tree.get(right));
 
+        // value
         let value = self.check.require_local_node_type(tree.module_id, right);
         let assigned_value = self.ensure_assigned_value_type(tree, id, left, operator, value);
-
-        // set assignment expression result
         if let Some(assigned_value) = assigned_value {
+            // set assignment expression result
             let result = self.lower_assignment_result_type(tree, id, left, assigned_value);
+            self.publish_node_type_operand(tree.module_id, id, result);
 
-            self.bind_node_type_operand(tree.module_id, id, result);
-        }
-
-        // constrain assigned value against target
-        if let Some(assigned_value) = assigned_value {
+            // constrain assigned value against target
             self.constrain_assignment_target(tree, left, right, assigned_value);
         }
 
@@ -1969,7 +1973,7 @@ impl WalkState<'_, '_> {
     ///
     /// Example:
     /// ```ds
-    /// function value(): number { 1 }
+    /// (value) => value
     /// ```
     fn walk_declaration_expression(
         &mut self,
@@ -1977,55 +1981,51 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         declaration: dir::LocalNodeId<dir::Declaration>,
     ) {
+        let declaration_value = tree.get(declaration);
+        let is_function_value = matches!(
+            declaration_value,
+            dir::Declaration::Function(function)
+                if function.signature.form == dir::FunctionForm::Lambda || function.name.is_none()
+        );
+
+        // bind function values
+        if is_function_value {
+            self.walk_function_value_expression(tree, id, declaration);
+        }
+        // bind declaration statements
+        else {
+            self.walk_declaration(tree, declaration, declaration_value);
+            self.publish_node_type(tree.module_id, id, TypeTerm::Literal(TypeLiteralTerm::Void));
+        }
+    }
+
+    /// Walk one function value expression.
+    ///
+    /// Example:
+    /// ```ds
+    /// function (value: string): string { value }
+    /// ```
+    fn walk_function_value_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+        declaration: dir::LocalNodeId<dir::Declaration>,
+    ) {
         self.walk_declaration(tree, declaration, tree.get(declaration));
 
-        // set type-like declaration expression type from its symbol
-        if tree.get(declaration).symbol_kind().is_some()
-            && let Some(symbol) = self
-                .check
-                .declaration_symbol(tree.module_id, declaration.into_any())
-        {
-            let operand = match tree.get(declaration) {
-                dir::Declaration::Type(declaration)
-                    if !declaration.is_nominal
-                        && self.is_intrinsic_language_item_type_declaration(
-                            symbol,
-                            tree.get(declaration.value),
-                        ) =>
-                {
-                    let term = TypeTerm::Reference {
-                        origin: Origin::Node(id.into_global_any(tree.module_id)),
-                        symbol,
-                        arguments: Default::default(),
-                    };
+        let symbol = self
+            .check
+            .declaration_symbol(tree.module_id, declaration.into_any())
+            .unwrap_or_else(|| {
+                panic!(
+                    "function value declaration {declaration:?} in module {:?} has no symbol",
+                    tree.module_id
+                )
+            });
 
-                    self.check.push_term(term).into()
-                }
-                _ if tree.get(declaration).symbol_kind().is_some_and(|kind| {
-                    matches!(
-                        kind,
-                        dir::SymbolKind::Class
-                            | dir::SymbolKind::Enum
-                            | dir::SymbolKind::Interface
-                            | dir::SymbolKind::Struct
-                            | dir::SymbolKind::Newtype
-                            | dir::SymbolKind::NewtypeInterface
-                    )
-                }) =>
-                {
-                    let term = TypeTerm::Reference {
-                        origin: Origin::Node(id.into_global_any(tree.module_id)),
-                        symbol,
-                        arguments: Default::default(),
-                    };
+        let operand = self.check.require_symbol_type(tree.module_id, symbol);
 
-                    self.check.push_term(term).into()
-                }
-                _ => return,
-            };
-
-            self.bind_node_type_operand(tree.module_id, id, operand);
-        }
+        self.publish_node_type_operand(tree.module_id, id, operand);
     }
 
     /// Walk one block expression.
@@ -2044,7 +2044,7 @@ impl WalkState<'_, '_> {
 
         let operand = self.check.require_local_node_type(tree.module_id, block);
 
-        self.bind_node_type_operand(tree.module_id, id, operand);
+        self.publish_node_type_operand(tree.module_id, id, operand);
     }
 
     /// Walk one object expression.
@@ -2093,7 +2093,7 @@ impl WalkState<'_, '_> {
                     let variable = self
                         .check
                         .declaration_symbol(tree.module_id, (*property).into_any())
-                        .map(|symbol| self.check.require_symbol_type(symbol))
+                        .map(|symbol| self.check.require_symbol_type(tree.module_id, symbol))
                         .unwrap_or_else(|| {
                             self.check
                                 .require_local_node_type(tree.module_id, *property)
@@ -2117,7 +2117,7 @@ impl WalkState<'_, '_> {
         }
         let term = self.check.push_shape_type(members.into());
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one call expression.
@@ -2140,7 +2140,7 @@ impl WalkState<'_, '_> {
             self.walk_argument(tree, *argument, tree.get(*argument));
         }
 
-        // build member call from the receiver, not the member projection
+        // build member call from the receiver
         let (callee, generic_owner) = if let dir::Expression::Member {
             left: receiver,
             name: Some(name),
@@ -2200,7 +2200,7 @@ impl WalkState<'_, '_> {
         });
         let term = TypeTerm::Call(call);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Return one member call receiver type operand.
@@ -2264,12 +2264,14 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
     ) -> bool {
+        let guard = self.active_static_guard();
         let lookup = self
             .check
-            .lookup_path_symbol(tree.module_id, source, path, dir::SymbolSpace::Value)
-            .unwrap_or_else(|_| panic!("value receiver lookup failed in checked module"));
+            .lookup_path(tree.module_id, source, path, dir::SymbolSpace::Value)
+            .unwrap_or_else(|_| panic!("value receiver lookup failed in checked module"))
+            .available_under(&guard);
 
-        matches!(lookup, ExportLookup::Missing)
+        matches!(lookup, PathLookup::Missing)
     }
 
     /// Walk one construct expression.
@@ -2287,7 +2289,7 @@ impl WalkState<'_, '_> {
     ) {
         let term = self.lower_construct_expression_term(tree, id, ty, arguments);
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
     }
 
     /// Walk one fallible construct expression.
@@ -2313,7 +2315,7 @@ impl WalkState<'_, '_> {
         };
         let term = self.check.push_term(tried.clone());
 
-        self.bind_node_type(tree.module_id, id, TypeTerm::Try(term));
+        self.publish_node_type(tree.module_id, id, TypeTerm::Try(term));
         self.propagate_try(id.into_any(), tried.value);
     }
 
@@ -2363,7 +2365,7 @@ impl WalkState<'_, '_> {
     ) {
         let operand = self.lower_const_assertion_type(tree, child);
 
-        self.bind_node_type_operand(tree.module_id, id, operand);
+        self.publish_node_type_operand(tree.module_id, id, operand);
         self.walk_const_assertion_source(tree, child);
     }
 
@@ -2451,7 +2453,7 @@ impl WalkState<'_, '_> {
             | dir::Expression::TupleExpression { elements } => {
                 let term = self.lower_const_assertion_type(tree, id);
 
-                self.bind_node_type_operand(tree.module_id, id, term);
+                self.publish_node_type_operand(tree.module_id, id, term);
 
                 for element in elements {
                     let Some(value) = tree.get(*element).value() else {
@@ -2465,7 +2467,7 @@ impl WalkState<'_, '_> {
             dir::Expression::ObjectExpression { properties } => {
                 let term = self.lower_const_assertion_type(tree, id);
 
-                self.bind_node_type_operand(tree.module_id, id, term);
+                self.publish_node_type_operand(tree.module_id, id, term);
 
                 for property in properties {
                     match tree.get(*property) {
@@ -2570,7 +2572,7 @@ impl WalkState<'_, '_> {
                     let ty = self
                         .check
                         .declaration_symbol(tree.module_id, (*property).into_any())
-                        .map(|symbol| self.check.require_symbol_type(symbol))
+                        .map(|symbol| self.check.require_symbol_type(tree.module_id, symbol))
                         .unwrap_or_else(|| {
                             self.check
                                 .require_local_node_type(tree.module_id, *property)
@@ -2741,7 +2743,7 @@ impl WalkState<'_, '_> {
             } => {
                 let body_type = self.check.require_local_node_type(tree.module_id, body);
 
-                self.bind_node_type_operand(tree.module_id, id, body_type);
+                self.publish_node_type_operand(tree.module_id, id, body_type);
                 if self.push_static_guard_for(tree, body.into_any(), None) {
                     self.check.require_local_node_type(tree.module_id, body);
                     self.walk_while_expression(tree, body, Some(label), *condition, *loop_body);
@@ -2760,7 +2762,7 @@ impl WalkState<'_, '_> {
             } => {
                 let body_type = self.check.require_local_node_type(tree.module_id, body);
 
-                self.bind_node_type_operand(tree.module_id, id, body_type);
+                self.publish_node_type_operand(tree.module_id, id, body_type);
                 if self.push_static_guard_for(tree, body.into_any(), None) {
                     self.check.require_local_node_type(tree.module_id, body);
                     self.walk_for_each_expression(
@@ -2786,7 +2788,7 @@ impl WalkState<'_, '_> {
             } => {
                 let body_type = self.check.require_local_node_type(tree.module_id, body);
 
-                self.bind_node_type_operand(tree.module_id, id, body_type);
+                self.publish_node_type_operand(tree.module_id, id, body_type);
                 if self.push_static_guard_for(tree, body.into_any(), None) {
                     self.check.require_local_node_type(tree.module_id, body);
                     self.walk_for_expression(
@@ -2807,7 +2809,7 @@ impl WalkState<'_, '_> {
             dir::Expression::Loop { body: loop_body } => {
                 let body_type = self.check.require_local_node_type(tree.module_id, body);
 
-                self.bind_node_type_operand(tree.module_id, id, body_type);
+                self.publish_node_type_operand(tree.module_id, id, body_type);
                 if self.push_static_guard_for(tree, body.into_any(), None) {
                     self.check.require_local_node_type(tree.module_id, body);
                     self.walk_loop_expression(tree, body, Some(label), *loop_body);
@@ -2833,7 +2835,7 @@ impl WalkState<'_, '_> {
         // walk body with isolated flow
         let before_body = self.fork_flow();
         self.walk_expression(tree, body, tree.get(body));
-        let fallthrough = if self.can_expression_fall_through(tree, body) {
+        let fallthrough = if self.expression_can_complete_normally(tree, body) {
             self.check
                 .type_operand_term(self.check.require_local_node_type(tree.module_id, body))
                 .ok()
@@ -2868,56 +2870,57 @@ impl WalkState<'_, '_> {
         then_expression: dir::LocalNodeId<dir::Expression>,
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
     ) {
-        let then_type = self
-            .check
-            .require_local_node_type(tree.module_id, then_expression);
-        let else_type = match else_expression {
-            Some(else_expression) => self
-                .check
-                .require_local_node_type(tree.module_id, else_expression)
-                .into(),
-            None => self.void_type_operand(),
-        };
-        let term = TypeTerm::Union {
-            elements: vec![then_type.into(), else_type],
-        };
-
-        self.bind_node_type(tree.module_id, id, term);
-
         // walk branches with isolated flow
         self.walk_if_condition(tree, condition);
         let before = self.fork_flow();
 
+        // walk true branch
         self.restore_flow(before);
         self.narrow_condition(tree, condition, ConditionBranch::True);
         self.walk_expression(tree, then_expression, tree.get(then_expression));
-        let then_flow = self.collect_flow_branch(before);
-        let then_can_fall_through = self.can_expression_fall_through(tree, then_expression);
+        let then_can_complete = self.expression_can_complete_normally(tree, then_expression);
+        let then_type = self
+            .check
+            .require_local_node_type(tree.module_id, then_expression);
+        let mut branches = SmallVec::<[FlowBranch; 2]>::new();
+        if then_can_complete {
+            branches.push(self.collect_flow_branch(before));
+        }
 
         if let Some(else_expression) = else_expression {
+            // walk false branch
             self.restore_flow(before);
             self.narrow_condition(tree, condition, ConditionBranch::False);
             self.walk_expression(tree, else_expression, tree.get(else_expression));
-            let else_flow = self.collect_flow_branch(before);
-            let else_can_fall_through = self.can_expression_fall_through(tree, else_expression);
+            let else_can_complete = self.expression_can_complete_normally(tree, else_expression);
+            let else_type = self
+                .check
+                .require_local_node_type(tree.module_id, else_expression);
+            let term = TypeTerm::Union {
+                elements: vec![then_type.into(), else_type.into()],
+            };
 
-            match (then_can_fall_through, else_can_fall_through) {
-                (true, true) => self.merge_flow_branches(before, &then_flow, &else_flow),
-                (true, false) => self.restore_flow_branch(before, &then_flow),
-                (false, true) => self.restore_flow_branch(before, &else_flow),
-                (false, false) => self.restore_flow(before),
+            self.publish_node_type(tree.module_id, id, term);
+
+            // collect false completion
+            if else_can_complete {
+                branches.push(self.collect_flow_branch(before));
             }
         } else {
+            let term = TypeTerm::Union {
+                elements: vec![then_type.into(), self.void_type_operand()],
+            };
+
+            self.publish_node_type(tree.module_id, id, term);
+
+            // collect implicit false completion
             self.restore_flow(before);
             self.narrow_condition(tree, condition, ConditionBranch::False);
-            let else_flow = self.collect_flow_branch(before);
-
-            if then_can_fall_through {
-                self.merge_flow_branches(before, &else_flow, &then_flow);
-            } else {
-                self.restore_flow_branch(before, &else_flow);
-            }
+            branches.push(self.collect_flow_branch(before));
         }
+
+        // merge normally completed branches
+        self.merge_flow_branches_from(before, &branches);
     }
 
     /// Walk one if condition.
@@ -3025,8 +3028,8 @@ impl WalkState<'_, '_> {
                 left,
                 operator,
                 right,
-            } if Self::is_equality_operator(*operator) => {
-                let branch = if Self::is_negative_equality_operator(*operator) {
+            } if operator.is_equality() => {
+                let branch = if operator.is_negative_equality() {
                     branch.opposite()
                 } else {
                     branch
@@ -3203,12 +3206,6 @@ impl WalkState<'_, '_> {
             dir::Expression::ScalarLiteral(value) => {
                 TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()))
             }
-            // undefined
-            dir::Expression::Identifier { name }
-                if *name == dir::StringId::for_text("undefined") =>
-            {
-                TypeTerm::Literal(TypeLiteralTerm::Undefined)
-            }
             // not a literal equality target
             _ => return None,
         };
@@ -3216,25 +3213,6 @@ impl WalkState<'_, '_> {
         let term = self.check.push_term(term);
 
         Some(term.into())
-    }
-
-    /// Return whether one binary operator tests equality.
-    fn is_equality_operator(operator: dir::BinaryOperator) -> bool {
-        matches!(
-            operator,
-            dir::BinaryOperator::Equal
-                | dir::BinaryOperator::NotEqual
-                | dir::BinaryOperator::EqualStrict
-                | dir::BinaryOperator::NotEqualStrict
-        )
-    }
-
-    /// Return whether one equality operator negates the relation.
-    fn is_negative_equality_operator(operator: dir::BinaryOperator) -> bool {
-        matches!(
-            operator,
-            dir::BinaryOperator::NotEqual | dir::BinaryOperator::NotEqualStrict
-        )
     }
 
     /// Walk one while expression.
@@ -3402,7 +3380,7 @@ impl WalkState<'_, '_> {
         }
         self.walk_block(tree, body, tree.get(body));
         let body_flow = self
-            .can_block_fall_through(tree, tree.get(body))
+            .block_can_complete_normally(tree, tree.get(body))
             .then(|| self.collect_flow_branch(before_body));
         let continue_flows = self.take_current_continue_branches();
         if let Some(increment) = increment {
@@ -3624,13 +3602,13 @@ impl WalkState<'_, '_> {
                 }
             }
             None => {
-                self.bind_node_type_operand(tree.module_id, id, body_type);
+                self.publish_node_type_operand(tree.module_id, id, body_type);
 
                 return;
             }
         };
 
-        self.bind_node_type(tree.module_id, id, term);
+        self.publish_node_type(tree.module_id, id, term);
 
         // walk try branches
         let before = self.fork_flow();
@@ -3643,17 +3621,18 @@ impl WalkState<'_, '_> {
         self.walk_expression(tree, body, tree.get(body));
         let catch_failure = catch.map(|_| self.leave_try_target());
         let body_flow = self.collect_flow_branch(before);
-        let body_can_fall_through = self.can_expression_fall_through(tree, body);
+        let body_can_complete = self.expression_can_complete_normally(tree, body);
 
         // merge only branches that can continue normally
         let has_normal_flow = if let Some(catch) = catch {
-            let can_catch_fall_through = self.can_catch_fall_through(tree, tree.get(catch));
+            let catch_can_complete =
+                self.expression_can_complete_normally(tree, tree.get(catch).body);
 
             self.restore_flow(before);
             self.walk_catch(tree, catch, tree.get(catch), catch_failure);
             let catch_flow = self.collect_flow_branch(before);
 
-            match (body_can_fall_through, can_catch_fall_through) {
+            match (body_can_complete, catch_can_complete) {
                 (true, true) => {
                     self.merge_flow_branches(before, &body_flow, &catch_flow);
 
@@ -3675,7 +3654,7 @@ impl WalkState<'_, '_> {
                     false
                 }
             }
-        } else if body_can_fall_through {
+        } else if body_can_complete {
             self.restore_flow_branch(before, &body_flow);
 
             true
@@ -3689,7 +3668,7 @@ impl WalkState<'_, '_> {
         if let Some(finally) = finally {
             self.walk_expression(tree, finally, tree.get(finally));
 
-            if !has_normal_flow || !self.can_expression_fall_through(tree, finally) {
+            if !has_normal_flow || !self.expression_can_complete_normally(tree, finally) {
                 self.restore_flow(before);
             }
         } else if !has_normal_flow {
@@ -3771,7 +3750,7 @@ impl WalkState<'_, '_> {
                 }
             }
 
-            if !self.can_match_case_fall_through(tree, tree.get(*case)) {
+            if !self.match_case_can_complete_normally(tree, tree.get(*case)) {
                 continue;
             }
             let case_flow = self.collect_flow_branch(before);
@@ -3800,7 +3779,7 @@ impl WalkState<'_, '_> {
             condition,
         );
 
-        self.bind_node_type(tree.module_id, id, TypeTerm::Union { elements });
+        self.publish_node_type(tree.module_id, id, TypeTerm::Union { elements });
     }
 
     /// Walk one catch clause.

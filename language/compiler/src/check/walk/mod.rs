@@ -1,11 +1,11 @@
 mod argument;
 mod block;
+mod completion;
 mod declaration;
 mod declarator;
 mod decorator;
 mod dependency;
 mod expression;
-mod fallthrough;
 mod function;
 mod induce;
 mod intrinsic;

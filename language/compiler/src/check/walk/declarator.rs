@@ -57,17 +57,17 @@ impl WalkState<'_, '_> {
         if let Some(ty) = declarator.ty {
             let operand = self.check.require_local_node_type(tree.module_id, ty);
             self.check
-                .bind_symbol_type_operand(symbol, operand, condition);
+                .publish_symbol_type_operand(symbol, operand, condition);
         } else if let Some(value) = declarator.value {
             let operand = self.check.require_local_node_type(tree.module_id, value);
             if let Some(term) =
                 self.lower_name_declarator_widened_type(symbol, value, operand, tree)
             {
                 self.check
-                    .bind_symbol_type(tree.module_id, symbol, term, condition);
+                    .publish_symbol_type(tree.module_id, symbol, term, condition);
             } else {
                 self.check
-                    .bind_symbol_type_operand(symbol, operand, condition);
+                    .publish_symbol_type_operand(symbol, operand, condition);
             }
         }
 

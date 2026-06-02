@@ -2,8 +2,8 @@ use crate::check::{FlowBranch, FlowCheckpoint, WalkState};
 
 impl WalkState<'_, '_> {
     /// Mark the current flow position for branch rollback.
-    pub(in crate::check) fn checkpoint_flow(&self) -> FlowCheckpoint {
-        self.flow().checkpoint()
+    pub(in crate::check) fn fork_flow(&self) -> FlowCheckpoint {
+        self.flow().fork()
     }
 
     /// Collect the flow changes since one checkpoint.

@@ -14,7 +14,7 @@ impl WalkState<'_, '_> {
         result: VariableId,
     ) {
         // capture flow state before the control body
-        let checkpoint = self.flow().checkpoint();
+        let checkpoint = self.flow().fork();
         let target = ControlTarget {
             label,
             allows_continue,

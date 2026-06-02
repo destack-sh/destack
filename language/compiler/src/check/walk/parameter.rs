@@ -135,7 +135,7 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.bind_symbol_type_variable(module, symbol);
+                let variable = self.check.reserve_symbol_type(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
                 let constraint =
@@ -163,7 +163,7 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.bind_symbol_type_variable(module, symbol);
+                let variable = self.check.reserve_symbol_type(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
                 let constraint =
@@ -190,7 +190,7 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.bind_symbol_static_variable(module, symbol);
+                let variable = self.check.reserve_symbol_static(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
                 let constraint =
@@ -199,7 +199,7 @@ impl WalkState<'_, '_> {
                     let condition = self.active_static_guard();
 
                     self.check
-                        .bind_static_expression_variable(module, id, condition)
+                        .reserve_static_expression(module, id, condition)
                         .into()
                 });
                 let generic = GenericSlot::Static {
@@ -211,8 +211,10 @@ impl WalkState<'_, '_> {
                 self.check.attach_generic_slot(variable, generic);
                 let condition = self.active_static_guard();
                 let term = StaticTerm::Parameter(slot_id);
+                let term = self.check.push_term(term);
+                let origin = self.check.variable(variable).source;
 
-                self.check.equate_static(variable, term, condition);
+                self.check.equate_static(origin, variable, term, condition);
 
                 Some(variable)
             }
@@ -222,7 +224,7 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.bind_symbol_static_variable(module, symbol);
+                let variable = self.check.reserve_symbol_static(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
                 let constraint =
@@ -231,7 +233,7 @@ impl WalkState<'_, '_> {
                     let condition = self.active_static_guard();
 
                     self.check
-                        .bind_static_expression_variable(module, id, condition)
+                        .reserve_static_expression(module, id, condition)
                         .into()
                 });
                 let generic = GenericSlot::VariadicStatic {
@@ -243,8 +245,10 @@ impl WalkState<'_, '_> {
                 self.check.attach_generic_slot(variable, generic);
                 let condition = self.active_static_guard();
                 let term = StaticTerm::Parameter(slot_id);
+                let term = self.check.push_term(term);
+                let origin = self.check.variable(variable).source;
 
-                self.check.equate_static(variable, term, condition);
+                self.check.equate_static(origin, variable, term, condition);
 
                 Some(variable)
             }
@@ -313,7 +317,7 @@ impl WalkState<'_, '_> {
                         let condition = self.active_static_guard();
 
                         self.check
-                            .bind_symbol_type_operand(symbol, parameter_type, condition);
+                            .publish_symbol_type_operand(symbol, parameter_type, condition);
                     }
                 }
 
@@ -357,7 +361,7 @@ impl WalkState<'_, '_> {
                         let condition = self.active_static_guard();
 
                         self.check
-                            .bind_symbol_type_operand(symbol, parameter_type, condition);
+                            .publish_symbol_type_operand(symbol, parameter_type, condition);
                     }
                 }
             }
@@ -464,7 +468,7 @@ impl WalkState<'_, '_> {
     ) -> Option<VariableId> {
         let source = id.into_any();
         let owner = self.check.scope_owner_symbol(module, source)?;
-        let variable = self.check.bind_symbol_static_variable(module, symbol);
+        let variable = self.check.reserve_symbol_static(module, symbol);
         let slot = self
             .check
             .allocate_induced_symbol_generic_slot(owner, symbol);
@@ -473,7 +477,7 @@ impl WalkState<'_, '_> {
             let condition = self.active_static_guard();
 
             self.check
-                .bind_static_expression_variable(module, id, condition)
+                .reserve_static_expression(module, id, condition)
                 .into()
         });
         let generic = if is_variadic {
@@ -493,8 +497,10 @@ impl WalkState<'_, '_> {
         self.check.attach_generic_slot(variable, generic);
         let condition = self.active_static_guard();
         let term = StaticTerm::Parameter(slot_id);
+        let term = self.check.push_term(term);
+        let origin = self.check.variable(variable).source;
 
-        self.check.equate_static(variable, term, condition);
+        self.check.equate_static(origin, variable, term, condition);
 
         Some(variable)
     }
