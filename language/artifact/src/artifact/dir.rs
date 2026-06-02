@@ -246,6 +246,8 @@ pub struct DirCheckedModule {
     pub resolutions: Arc<dir::ResolutionSegment>,
     /// New generic slots and instances.
     pub generics: Arc<dir::GenericSegment>,
+    /// New nominal declaration facts.
+    pub nominals: Arc<dir::NominalSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
     /// New implicit coercions.
@@ -298,6 +300,11 @@ impl DirCheckedModule {
     /// Return the cumulative generic table for checked DIR.
     pub fn generic_table(&self) -> dir::GenericTable<'static> {
         dir::GenericTable::from_segment(self.generics.clone())
+    }
+
+    /// Return the cumulative nominal table for checked DIR.
+    pub fn nominal_table(&self) -> dir::NominalTable<'static> {
+        dir::NominalTable::from_segment(self.nominals.clone())
     }
 
     /// Return the cumulative relation table for checked DIR.
@@ -408,6 +415,11 @@ impl DirMaterialized {
     /// Return the cumulative generic table for materialized DIR.
     pub fn generic_table(&self, checked: &DirCheckedModule) -> dir::GenericTable<'static> {
         dir::GenericTable::from_segments(vec![checked.generics.clone(), self.generics.clone()])
+    }
+
+    /// Return the cumulative nominal table for materialized DIR.
+    pub fn nominal_table(&self, checked: &DirCheckedModule) -> dir::NominalTable<'static> {
+        dir::NominalTable::from_segment(checked.nominals.clone())
     }
 
     /// Return the cumulative relation table for materialized DIR.
@@ -539,6 +551,11 @@ impl DirElaborated {
             materialized.generics.clone(),
             self.generics.clone(),
         ])
+    }
+
+    /// Return the cumulative nominal table for elaborated DIR.
+    pub fn nominal_table(&self, checked: &DirCheckedModule) -> dir::NominalTable<'static> {
+        dir::NominalTable::from_segment(checked.nominals.clone())
     }
 
     /// Return the cumulative relation table for elaborated DIR.
