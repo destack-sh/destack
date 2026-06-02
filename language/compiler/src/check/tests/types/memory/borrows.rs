@@ -30,9 +30,7 @@ struct Node {
 
 function access(read: &readonly Node, write: &Node, exclusive: &exclusive Node): void {
 /// @type.symbol symbol=access type=(Borrowed<Node, access.L0, "readonly">, Borrowed<Node, access.L1, "mutable">, Borrowed<Node, access.L2, "exclusive">) => void
-/// @generic.slot key=access.L0 index=0 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=access.L1 index=1 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=access.L2 index=2 kind=static constraint=memory.lifetime.Lifetime
+/// @generic.template symbol=access parameters=[comptime L0: memory.lifetime.Lifetime, comptime L1: memory.lifetime.Lifetime, comptime L2: memory.lifetime.Lifetime]
 /// @type.symbol symbol=read type=Borrowed<Node, access.L0, "readonly">
 /// @type.symbol symbol=write type=Borrowed<Node, access.L1, "mutable">
 /// @type.symbol symbol=exclusive type=Borrowed<Node, access.L2, "exclusive">
@@ -76,8 +74,7 @@ function project<A: Lifetime, B: Lifetime>(value: Borrowed<int32, A>): void {
         r#"
 function project<A: Lifetime, B: Lifetime>(value: Borrowed<int32, A>): void {
 /// @type.symbol symbol=project type=(Borrowed<int32, project.A, "mutable">) => void
-/// @generic.slot key=project.A index=0 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=project.B index=1 kind=static constraint=memory.lifetime.Lifetime
+/// @generic.template symbol=project parameters=[comptime A: memory.lifetime.Lifetime, comptime B: memory.lifetime.Lifetime]
 /// @type.symbol symbol=value type=Borrowed<int32, project.A, "mutable">
 
     type Later = WithLifetime<typeof value, B>;

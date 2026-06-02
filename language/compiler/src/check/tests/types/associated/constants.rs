@@ -18,7 +18,7 @@ declare const lane: Segment<string>.Lane;
         DirRows::checked().with_statics(),
         r#"
 class Segment<Row> {
-/// @generic.slot symbol=Segment.Row index=0 kind=type
+/// @generic.template symbol=Segment parameters=[Row]
 /// @type.symbol symbol=Segment type=Segment<Row>
 
     comptime const Width: uint = Row extends string ? 8 : 4;
@@ -36,6 +36,6 @@ declare const lane: Segment<string>.Lane;
 /// @generic.application source="Segment<string>" id=Segment<string>
 /// @type.symbol symbol=lane type=[uint8; 8]
 
-/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.application id=Segment<string> symbol=Segment arguments=[string]
 "#);
 }

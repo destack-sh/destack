@@ -44,7 +44,7 @@ struct Circle {
 
 function read<L: Lifetime>(shape: Borrowed<Rectangle | Circle, L>): int32 {
 /// @type.symbol symbol=read type=(Borrowed<Rectangle | Circle, read.L, "mutable">) => int32
-/// @generic.slot key=read.L index=0 kind=static constraint=memory.lifetime.Lifetime
+/// @generic.template symbol=read parameters=[comptime L: memory.lifetime.Lifetime]
 /// @type.symbol symbol=shape type=Borrowed<Rectangle | Circle, read.L, "mutable">
 
     if (shape is Borrowed<Rectangle, L>) {
@@ -115,8 +115,7 @@ struct Number {
 
 function value<L: Lifetime, R: Lifetime>(
 /// @type.symbol symbol=value type=(Borrowed<Text, value.L, "mutable">, Borrowed<Number, value.R, "mutable">, boolean) => Borrowed<string | int32, value.L | value.R, "mutable">
-/// @generic.slot key=value.L index=0 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=value.R index=1 kind=static constraint=memory.lifetime.Lifetime
+/// @generic.template symbol=value parameters=[comptime L: memory.lifetime.Lifetime, comptime R: memory.lifetime.Lifetime]
 
     left: Borrowed<Text, L>,
     /// @type.symbol symbol=left type=Borrowed<Text, value.L, "mutable">

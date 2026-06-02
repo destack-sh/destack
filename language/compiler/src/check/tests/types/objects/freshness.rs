@@ -52,7 +52,7 @@ const extra = value.extra;
         DirRows::checked().with_reference_types(),
         r#"
 function keep<T: { name: string }>(value: T): T {
-/// @generic.slot symbol=keep.T index=0 kind=type constraint={ name: string }
+/// @generic.template symbol=keep parameters=[T: { name: string }]
 /// @type.symbol symbol=keep type=<T: { name: string }>(T) => T
 /// @type.symbol symbol=keep.name type=string
 /// @type.symbol symbol=value#1 type=T
@@ -70,7 +70,7 @@ const value = keep({ name: "Ada", extra: true });
 /// @generic.application source="keep({ name: \"Ada\", extra: true })" id="keep<{ name: string; extra: boolean }>"
 /// @type.node source="keep({ name: \"Ada\", extra: true })" type={ name: string; extra: boolean }
 /// @resolution.name source=keep target=keep
-/// @resolution.call source="keep({ name: \"Ada\", extra: true })" parameters=({ name: string; extra: boolean }) return={ name: string; extra: boolean } kind=symbol target=keep instance="keep<{ name: string; extra: boolean }>"
+/// @resolution.call source="keep({ name: \"Ada\", extra: true })" parameters=({ name: string; extra: boolean }) return={ name: string; extra: boolean } kind=symbol target=keep application="keep<{ name: string; extra: boolean }>"
 /// @type.node source="{ name: \"Ada\", extra: true }" type={ name: string; extra: boolean }
 /// @type.node source="\"Ada\"" type=string
 /// @type.node source=true type=boolean
@@ -81,7 +81,7 @@ const extra = value.extra;
 /// @type.node source=value.extra type=boolean
 /// @resolution.name source=value target=value#2
 /// @resolution.member source=value.extra receiver={ name: string; extra: boolean } kind=field key=extra
-/// @generic.instance id="keep<{ name: string; extra: boolean }>" symbol=keep arguments=[{ name: string; extra: boolean }]
+/// @generic.application id="keep<{ name: string; extra: boolean }>" symbol=keep arguments=[{ name: string; extra: boolean }]
 "#,
     );
 }

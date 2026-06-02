@@ -121,6 +121,6 @@ const sum = left + right;
 /// @resolution.call source="left + right" parameters=(Vector) return=Vector kind=symbol target=VectorAdd.add receiver=Vector
 /// @type.node source=right type=Vector
 /// @resolution.name source=right target=right
-/// @generic.instance id=ops.plus.Add<Vector> symbol=ops.plus.Add arguments=[Vector]
+/// @generic.application id=ops.plus.Add<Vector> symbol=ops.plus.Add arguments=[Vector]
 "#);
 }

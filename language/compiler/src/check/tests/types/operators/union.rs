@@ -97,7 +97,7 @@ type Shape = Rectangle | Circle;
 /// @resolution.name source=Circle target=Circle
 
 function draw(shape: Shape): void {
-/// @generic.slot key=draw.T0 index=0 kind=type constraint=Shape
+/// @generic.template symbol=draw parameters=[T0: Shape]
 /// @type.symbol symbol=draw type=<draw.T0: Shape>(draw.T0) => ()
 /// @type.symbol symbol=shape type=draw.T0
 /// @resolution.name source=Shape target=Shape

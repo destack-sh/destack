@@ -16,7 +16,7 @@ declare const name: Name;
         DirRows::checked(),
         r#"
 type Segment<T> = T extends `/${infer Name}` ? Name : never;
-/// @generic.slot symbol=Segment.T index=0 kind=type
+/// @generic.template symbol=Segment parameters=[T]
 /// @type.symbol symbol=Segment type=T extends `/${infer Name}` ? Name : never
 
 type Name = Segment<"/api">;
@@ -28,7 +28,7 @@ declare const name: Name;
 /// @resolution.name source=Name target=Name
 /// @type.symbol symbol=name type="api"
 
-/// @generic.instance id="Segment<\"/api\">" symbol=Segment arguments=["/api"]
+/// @generic.application id="Segment<\"/api\">" symbol=Segment arguments=["/api"]
 "#,
     );
 }

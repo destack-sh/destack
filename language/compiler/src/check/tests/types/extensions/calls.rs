@@ -41,7 +41,7 @@ interface Readable {
 }
 
 struct Box<T> {
-/// @generic.slot symbol=Box.T index=0 kind=type
+/// @generic.template symbol=Box parameters=[T]
 /// @type.symbol symbol=Box type=Box<T>
 
     value: T;
@@ -59,7 +59,7 @@ struct Document {
 }
 
 extension BoxReadable<T> of Box<T> where T: Readable {
-/// @generic.slot symbol=BoxReadable.T index=0 kind=type constraint=Readable
+/// @generic.template symbol=BoxReadable parameters=[T: Readable]
 /// @resolution.name source=Box target=Box
 /// @extension.entry symbol=BoxReadable form=inherent target=Box<BoxReadable.T>
 
@@ -80,12 +80,12 @@ declare const boxed: Box<Document>;
 
 const text = boxed.read();
 /// @resolution.name source=boxed target=boxed
-/// @resolution.member source=boxed.read receiver=Box<Document> kind=symbol target=BoxReadable.read instance=BoxReadable<Document>
-/// @resolution.call source="boxed.read()" parameters=() return=string kind=symbol target=BoxReadable.read receiver=Box<Document> instance=BoxReadable<Document>
+/// @resolution.member source=boxed.read receiver=Box<Document> kind=symbol target=BoxReadable.read application=BoxReadable<Document>
+/// @resolution.call source="boxed.read()" parameters=() return=string kind=symbol target=BoxReadable.read receiver=Box<Document> application=BoxReadable<Document>
 /// @type.symbol symbol=text type=string
 
-/// @generic.instance id=Box<Document> symbol=Box arguments=[Document]
-/// @generic.instance id=BoxReadable<Document> symbol=BoxReadable arguments=[Document]
+/// @generic.application id=Box<Document> symbol=Box arguments=[Document]
+/// @generic.application id=BoxReadable<Document> symbol=BoxReadable arguments=[Document]
 "#,
     );
 }

@@ -21,16 +21,18 @@ counter = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 import { counter } from "./counter.ds";
-/// @type.symbol symbol=counter type=int32
+/// @type.symbol symbol=counter source=counter type=int32
 
 counter = 1;
 /// @type.node source="counter = 1" type=int32
 /// @type.node source=counter type=int32
-/// @resolution.name source=counter target=counter.counter
-/// @type.node source=1 type=int32
+/// @resolution.name source=counter target=counter
+/// @type.node source=1 type=1
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC204 message="assignment target is not writable"

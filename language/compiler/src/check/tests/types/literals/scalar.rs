@@ -10,15 +10,12 @@ const value = 42;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_check_stats(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value = 42;
 /// @type.symbol symbol=value source=value type=42
 /// @type.node source=42 type=42
-/// @check.stats.solve variables=0 definitions=0 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
-/// @check.stats.output total=3 type_nodes=2 type_symbols=1 static_nodes=0 static_symbols=0
+/// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -33,15 +30,12 @@ let value = 42;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_check_stats(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 let value = 42;
 /// @type.symbol symbol=value source=value type=int32
 /// @type.node source=42 type=42
-/// @check.stats.solve variables=1 definitions=1 constraints=0 obligations=0 solutions=1 bounds=0 decisions=0
-/// @check.stats.output total=3 type_nodes=2 type_symbols=1 static_nodes=0 static_symbols=0
+/// @check.stats.solve variables=0 terms=3 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }
@@ -56,15 +50,12 @@ const value: int32 = 42;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_check_stats(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: int32 = 42;
 /// @type.symbol symbol=value source=value type=int32
 /// @type.node source=42 type=42
-/// @check.stats.solve variables=0 definitions=0 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
-/// @check.stats.output total=4 type_nodes=3 type_symbols=1 static_nodes=0 static_symbols=0
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 "#,
     );
 }

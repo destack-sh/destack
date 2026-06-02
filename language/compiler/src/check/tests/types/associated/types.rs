@@ -18,7 +18,7 @@ declare const value: Box<string>.Item;
         DirRows::checked().with_statics(),
         r#"
 struct Box<T> {
-/// @generic.slot symbol=Box.T index=0 kind=type
+/// @generic.template symbol=Box parameters=[T]
 /// @type.symbol symbol=Box type=Box<T>
 
     type Item = T;
@@ -34,7 +34,7 @@ declare const value: Box<string>.Item;
 /// @generic.application source="Box<string>" id=Box<string>
 /// @type.symbol symbol=value type=string
 
-/// @generic.instance id=Box<string> symbol=Box arguments=[string]
+/// @generic.application id=Box<string> symbol=Box arguments=[string]
 "#,
     );
 }

@@ -16,7 +16,7 @@ declare const value: Actual;
         DirRows::checked(),
         r#"
 type Flags<T> = { [K in keyof T]: boolean };
-/// @generic.slot symbol=Flags.T index=0 kind=type
+/// @generic.template symbol=Flags parameters=[T]
 /// @type.symbol symbol=Flags type={ [K in keyof T]: boolean }
 
 type Actual = Flags<{ name: string; age: int32 }>;
@@ -28,7 +28,7 @@ declare const value: Actual;
 /// @resolution.name source=Actual target=Actual
 /// @type.symbol symbol=value type={ name: boolean; age: boolean }
 
-/// @generic.instance id="Flags<{ name: string; age: int32 }>" symbol=Flags arguments=[{ name: string; age: int32 }]
+/// @generic.application id="Flags<{ name: string; age: int32 }>" symbol=Flags arguments=[{ name: string; age: int32 }]
 "#,
     );
 }

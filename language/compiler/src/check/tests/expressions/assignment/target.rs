@@ -10,11 +10,13 @@ const value: int32 = "text";
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: int32 = "text";
-/// @type.symbol symbol=value type=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @type.node source="\"text\"" type="text"
+
+/// @check.stats.solve variables=0 terms=3 constraints=1 obligations=0 solutions=0 bounds=0 decisions=0
 
 "#,
         r#"
@@ -35,7 +37,7 @@ state.count = 1;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const state: { readonly count: int32 } = { count: 0 };
 /// @type.symbol symbol=state type={ readonly count: int32 }

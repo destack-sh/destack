@@ -101,7 +101,7 @@ interface Readable {
 }
 
 struct Box<T> {
-/// @generic.slot symbol=Box.T index=0 kind=type
+/// @generic.template symbol=Box parameters=[T]
 /// @type.symbol symbol=Box type=Box<T>
 
     value: T;
@@ -112,7 +112,7 @@ struct Token {}
 /// @type.symbol symbol=Token type=Token
 
 extension BoxReadable<T> of Box<T> where T: Readable {
-/// @generic.slot symbol=BoxReadable.T index=0 kind=type constraint=Readable
+/// @generic.template symbol=BoxReadable parameters=[T: Readable]
 /// @resolution.name source=Box target=Box
 /// @extension.entry symbol=BoxReadable form=inherent target=Box<BoxReadable.T>
 
@@ -134,7 +134,7 @@ declare const boxed: Box<Token>;
 boxed.read();
 /// @resolution.name source=boxed target=boxed
 
-/// @generic.instance id=Box<Token> symbol=Box arguments=[Token]
+/// @generic.application id=Box<Token> symbol=Box arguments=[Token]
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="missing member 'read'"

@@ -17,7 +17,7 @@ identity<int32>("x");
         DirRows::checked().with_reference_types(),
         r#"
 function identity<T>(value: T): T {
-/// @generic.slot symbol=identity.T index=0 kind=type
+/// @generic.template symbol=identity parameters=[T]
 /// @type.symbol symbol=identity type=<T>(T) => T
 /// @type.symbol symbol=value type=T
 

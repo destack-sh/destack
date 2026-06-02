@@ -40,7 +40,7 @@ struct WideMeta {}
 /// @type.node source="struct WideMeta {}" type=WideMeta
 
 class Segment<Row> {
-/// @generic.slot symbol=Segment.Row index=0 kind=type
+/// @generic.template symbol=Segment parameters=[Row]
 /// @type.symbol symbol=Segment type=Segment<Row>
 /// @type.node type=Segment<Row>
 
@@ -80,7 +80,7 @@ const narrowMeta = narrow.narrow;
 /// @type.symbol symbol=narrowMeta type=NarrowMeta
 /// @generic.application source=narrow.narrow id=Segment<int32>
 /// @resolution.name source=narrow target=narrow
-/// @resolution.member source=narrow.narrow receiver=Segment<int32> kind=symbol target=Segment.narrow instance=Segment<int32>
+/// @resolution.member source=narrow.narrow receiver=Segment<int32> kind=symbol target=Segment.narrow application=Segment<int32>
 /// @type.node source=narrow type=Segment<int32>
 /// @type.node source=narrow.narrow type=NarrowMeta
 
@@ -95,11 +95,11 @@ const wideMeta = wide.wide;
 /// @type.symbol symbol=wideMeta type=WideMeta
 /// @generic.application source=wide.wide id=Segment<string>
 /// @resolution.name source=wide target=wide
-/// @resolution.member source=wide.wide receiver=Segment<string> kind=symbol target=Segment.wide instance=Segment<string>
+/// @resolution.member source=wide.wide receiver=Segment<string> kind=symbol target=Segment.wide application=Segment<string>
 /// @type.node source=wide type=Segment<string>
 /// @type.node source=wide.wide type=WideMeta
-/// @generic.instance id=Segment<int32> symbol=Segment arguments=[int32]
-/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.application id=Segment<int32> symbol=Segment arguments=[int32]
+/// @generic.application id=Segment<string> symbol=Segment arguments=[string]
 /// @static.entry value=Row
 /// @static.entry value=int32
 /// @static.entry value=string
@@ -143,7 +143,7 @@ struct WideMeta {}
 /// @type.node source="struct WideMeta {}" type=WideMeta
 
 class Segment<Row> {
-/// @generic.slot symbol=Segment.Row index=0 kind=type
+/// @generic.template symbol=Segment parameters=[Row]
 /// @type.symbol symbol=Segment type=Segment<Row>
 /// @type.node type=Segment<Row>
 
@@ -181,7 +181,7 @@ declare const segment: Segment<string>;
 segment.narrow;
 /// @resolution.name source=segment target=segment
 /// @type.node source=segment type=Segment<string>
-/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.application id=Segment<string> symbol=Segment arguments=[string]
 /// @static.entry value=Row
 /// @static.entry value=string
 "#,
