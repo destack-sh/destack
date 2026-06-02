@@ -1,6 +1,6 @@
 use crate::check::{
-    CheckState, Origin, Solution, StaticOperand, StaticSolution, StaticTerm, TypeOperand,
-    TypeSolution, TypeTerm, VariableId, VariableKind,
+    CheckEvent, CheckState, Origin, Solution, StaticOperand, StaticSolution, StaticTerm,
+    TypeOperand, TypeSolution, TypeTerm, VariableId, VariableKind,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -39,6 +39,12 @@ impl CheckState<'_> {
         } else {
             // store the first solution
             self.inference.insert_variable_solution(variable, solution);
+            self.record_trace(CheckEvent::SolutionSet {
+                variable,
+                kind: self.variable(variable).kind,
+                value: solution.trace_operand(),
+            });
+
             Ok(Progress::changed(variable))
         }
     }

@@ -1,7 +1,6 @@
 use crate::CompilerResult;
 use crate::check::{
-    CheckEvent, CheckState, Constraint, Decision, PatternRelation, SolveEvent, SolveProgress,
-    StaticRelation,
+    CheckEvent, CheckState, Constraint, Decision, PatternRelation, SolveProgress, StaticRelation,
 };
 
 use super::Progress;
@@ -9,24 +8,23 @@ use super::Progress;
 impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
     pub(in crate::check) fn solve(&mut self) -> CompilerResult<()> {
-        self.record_trace(CheckEvent::Solve(SolveEvent::Started {
+        self.record_trace(CheckEvent::SolveStart {
             tasks: self.inference.constraint_count() + self.variable_count(),
             variables: self.variable_count(),
-        }));
+        });
 
-        let mut passes = 0;
+        let mut iterations = 0;
         loop {
             let constraints_before = self.inference.constraint_count();
             let variables_before = self.variable_count();
             let progress = self.step_solve_pass()?;
             let progress_summary = SolveProgress::from(&progress);
 
-            passes += 1;
-
-            self.record_trace(CheckEvent::Solve(SolveEvent::PassStepped {
-                pass: passes,
+            self.record_trace(CheckEvent::SolveStep {
+                step: iterations,
                 progress: progress_summary,
-            }));
+            });
+            iterations += 1;
 
             let counts_changed = self.inference.constraint_count() != constraints_before
                 || self.variable_count() != variables_before;
@@ -35,10 +33,10 @@ impl CheckState<'_> {
             }
         }
 
-        self.record_trace(CheckEvent::Solve(SolveEvent::Finished {
-            passes,
+        self.record_trace(CheckEvent::SolveFinish {
+            iterations,
             variables: self.variable_count(),
-        }));
+        });
 
         Ok(())
     }
