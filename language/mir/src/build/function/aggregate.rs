@@ -119,7 +119,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             result_type,
             source,
-            PlaceProjection::Range {
+            PlaceProjection::Slice {
                 start: start.into(),
                 length: length.into(),
             },

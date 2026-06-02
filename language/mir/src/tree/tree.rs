@@ -500,7 +500,7 @@ impl Tree {
                 places.set_projection(
                     value,
                     base,
-                    PlaceProjection::Range {
+                    PlaceProjection::Slice {
                         start: *start,
                         length: *length,
                     },

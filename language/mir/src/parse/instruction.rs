@@ -1332,14 +1332,14 @@ impl Parser {
             return Ok(PlaceProjection::Index { index });
         }
 
-        if self.eat_identifier_text("range") {
+        if self.eat_identifier_text("slice") {
             self.eat_token(TokenType::OpenParenthesis)?;
             let start = self.parse_value()?;
             self.eat_token(TokenType::Comma)?;
             let length = self.parse_value()?;
             self.eat_token(TokenType::CloseParenthesis)?;
 
-            return Ok(PlaceProjection::Range { start, length });
+            return Ok(PlaceProjection::Slice { start, length });
         }
 
         Err(ParseError::invalid("place projection", self.pos()))

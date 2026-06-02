@@ -62,8 +62,8 @@ pub enum PlaceProjection {
         /// The runtime index value.
         index: ValueReference,
     },
-    /// A runtime contiguous range projection.
-    Range {
+    /// A runtime slice projection.
+    Slice {
         /// The runtime start index value.
         start: ValueReference,
         /// The runtime length value.
@@ -77,7 +77,7 @@ impl PlaceProjection {
         match self {
             Self::Field { .. } | Self::Element { .. } => {}
             Self::Index { index } => index.replace_value(from, to),
-            Self::Range { start, length } => {
+            Self::Slice { start, length } => {
                 start.replace_value(from, to);
                 length.replace_value(from, to);
             }
@@ -89,7 +89,7 @@ impl PlaceProjection {
         match self {
             Self::Field { .. } | Self::Element { .. } => {}
             Self::Index { index } => values.push(*index),
-            Self::Range { start, length } => {
+            Self::Slice { start, length } => {
                 values.push(*start);
                 values.push(*length);
             }
@@ -388,9 +388,9 @@ mod tests {
     }
 
     #[test]
-    fn test_range_projection_tracks_operands() {
+    fn test_slice_projection_tracks_operands() {
         let local = LocalNodeId::<Local>::new(0);
-        let place = Place::local(local.into()).with_projection(PlaceProjection::Range {
+        let place = Place::local(local.into()).with_projection(PlaceProjection::Slice {
             start: Value::new(0).into(),
             length: Value::new(1).into(),
         });
