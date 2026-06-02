@@ -105,7 +105,7 @@ impl ScriptLinker<'_> {
         }
 
         // load the bound source context on demand
-        self.ensure_target_profile(module_id)?;
+        self.ensure_profile_for_target(module_id)?;
 
         let profile_id = self.profile_id_for_module(module_id)?;
         let dir = self

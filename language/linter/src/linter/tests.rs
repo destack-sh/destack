@@ -767,9 +767,8 @@ impl TestProgram {
             .expect("linter tests should have one active package");
         let target_id = TargetId::new(package_id, "js");
         let profile = repository
-            .target_profile(revision, target_id)
+            .profile_for_target(revision, target_id)
             .expect("linter test target profile should load")
-            .expect("linter test target profile should exist")
             .as_ref()
             .clone();
 

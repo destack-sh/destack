@@ -376,9 +376,8 @@ impl TestSession {
         // resolve explicit test profile
         let target_id = TargetId::new(module.package_id, "default");
         let profile = repository
-            .target_profile(revision, target_id)
+            .profile_for_target(revision, target_id)
             .expect("test module profile should resolve")
-            .expect("test module profile should exist")
             .id();
 
         Some(TestModule {

@@ -43,7 +43,7 @@ impl Compiler {
                 })?;
         let mut modules = self
             .repository
-            .target_module_ids(context.revision(), *target_id)
+            .modules_for_target(context.revision(), *target_id)
             .map_err(|error| Self::target_module_error(package_id, *target_id, error))?;
         modules.sort_unstable();
         modules.dedup();

@@ -26,6 +26,13 @@ pub enum RepositoryError {
     DuplicatePackageName { name: String },
     /// The requested target does not exist in the given revision.
     MissingTarget { target: TargetId },
+    /// The requested target belongs to a different package than the module.
+    TargetPackageMismatch {
+        /// The requested module.
+        module: ModuleId,
+        /// The requested target.
+        target: TargetId,
+    },
     /// The requested module path does not resolve to a package module.
     MissingModulePath { path: PathBuf },
     /// The requested product does not exist in the given revision.
@@ -99,6 +106,12 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingTarget { target } => {
                 write!(formatter, "missing repository target '{target}'")
+            }
+            Self::TargetPackageMismatch { module, target } => {
+                write!(
+                    formatter,
+                    "repository target '{target}' does not apply to module '{module}'"
+                )
             }
             Self::MissingModulePath { path } => {
                 write!(

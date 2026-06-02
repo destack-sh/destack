@@ -179,7 +179,7 @@ fn collect_profile_target_entry_modules(
             let discovered_modules = ctx
                 .session
                 .repository
-                .target_module_ids(ctx.session.revision, *target_id);
+                .modules_for_target(ctx.session.revision, *target_id);
             let Ok(discovered_modules) = discovered_modules else {
                 continue;
             };

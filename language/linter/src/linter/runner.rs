@@ -466,7 +466,7 @@ impl LintRunner {
             else {
                 continue;
             };
-            let Ok(profile_ids) = repository.target_profile_ids(revision) else {
+            let Ok(profile_ids) = repository.profile_ids_for_targets(revision) else {
                 continue;
             };
 

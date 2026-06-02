@@ -297,14 +297,11 @@ pub fn profile_id_for_target(
     module_id: ModuleId,
     target_id: &TargetId,
 ) -> ProfileId {
-    if let Some(profile) = repository
-        .module_target_profile(revision, module_id, *target_id)
-        .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"))
-    {
-        return profile.id();
-    }
+    let profile = repository
+        .profile_for_module_target(revision, module_id, *target_id)
+        .unwrap_or_else(|error| panic!("failed to resolve target profile: {error}"));
 
-    panic!("missing profile for module {module_id:?} target {target_id:?}")
+    profile.id()
 }
 
 /// Return diagnostics for one module compile slice.

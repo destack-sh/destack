@@ -545,10 +545,7 @@ impl DestackLanguageServer {
         };
 
         let target_id = TargetId::new(package_id, target_name.as_str());
-        let profile = repository
-            .target_profile(revision, target_id)
-            .ok()
-            .flatten()?;
+        let profile = repository.profile_for_target(revision, target_id).ok()?;
 
         Some(profile.id())
     }

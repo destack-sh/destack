@@ -248,7 +248,7 @@ impl Linter {
 
         let runner = Self::cached_runner(&options);
         // run package scoped rules once per addressable profile
-        for profile_id in self.target_profile_ids(revision)? {
+        for profile_id in self.profile_ids_for_targets(revision)? {
             let dir_diagnostics = runner.lint_package_dir(
                 self.repository.clone(),
                 revision,
@@ -276,7 +276,7 @@ impl Linter {
 
         let runner = Self::cached_runner(&options);
         // run workspace scoped rules once per addressable profile
-        for profile_id in self.target_profile_ids(revision)? {
+        for profile_id in self.profile_ids_for_targets(revision)? {
             let dir_diagnostics =
                 runner.lint_workspace_dir(self.repository.clone(), revision, profile_id, &options);
             self.record_lint_diagnostics(context, dir_diagnostics)?;
@@ -399,7 +399,7 @@ impl Linter {
                 continue;
             }
 
-            for profile_id in self.target_profile_ids(revision)? {
+            for profile_id in self.profile_ids_for_targets(revision)? {
                 if self
                     .repository
                     .module_profile_by_id(revision, module_id, profile_id)
@@ -417,9 +417,9 @@ impl Linter {
     }
 
     /// Return exact profile ids addressable in one revision.
-    fn target_profile_ids(&self, revision: Revision) -> Result<Vec<ProfileId>, LinterError> {
+    fn profile_ids_for_targets(&self, revision: Revision) -> Result<Vec<ProfileId>, LinterError> {
         self.repository
-            .target_profile_ids(revision)
+            .profile_ids_for_targets(revision)
             .map_err(|error| LinterError::Repository {
                 message: error.to_string(),
             })

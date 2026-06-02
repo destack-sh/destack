@@ -43,14 +43,7 @@ impl Compiler {
     ) -> CompilerResult<MirOptimized> {
         let package_id = target.package_id();
 
-        let resolved_profile = self
-            .target_profile_id(context.revision(), module, target)?
-            .ok_or_else(|| OptimizeError::InvalidTarget {
-                anchor: package_id.into(),
-                package: package_id,
-                target: *target,
-                message: "target not found for profile resolution".to_string(),
-            })?;
+        let resolved_profile = self.profile_id_for_target(context.revision(), module, target)?;
         if resolved_profile != profile {
             return Err(OptimizeError::InvalidTarget {
                 anchor: package_id.into(),
