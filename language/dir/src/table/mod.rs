@@ -1,3 +1,4 @@
+mod annotation;
 mod binding;
 mod capture;
 mod coercion;
@@ -18,6 +19,7 @@ mod segment;
 mod r#static;
 mod r#type;
 
+pub use annotation::*;
 pub use binding::*;
 pub use capture::*;
 pub use coercion::*;

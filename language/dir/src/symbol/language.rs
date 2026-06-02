@@ -453,12 +453,6 @@ define_language_items! {
 
         /// `destack:decorator/representation`.
         representation {
-            /// `@align` marker.
-            AlignDecorator => (Newtype, "decorator/representation", "align"),
-
-            /// `@packed` marker.
-            PackedDecorator => (Newtype, "decorator/representation", "packed"),
-
             /// `@repr` marker.
             ReprDecorator => (Newtype, "decorator/representation", "repr"),
         }
