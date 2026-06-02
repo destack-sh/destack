@@ -341,7 +341,7 @@ impl<'a> BlockLowerer<'a> {
                 failure,
             } => self.lower_new_try(
                 pool,
-                *layout,
+                layout.clone(),
                 success,
                 failure,
                 AllocationInitialization::Zeroed,
@@ -353,7 +353,7 @@ impl<'a> BlockLowerer<'a> {
                 failure,
             } => self.lower_new_try(
                 pool,
-                *layout,
+                layout.clone(),
                 success,
                 failure,
                 AllocationInitialization::Uninit,
@@ -366,7 +366,7 @@ impl<'a> BlockLowerer<'a> {
                 failure,
             } => self.lower_new_slice_try(
                 pool,
-                *element,
+                element.clone(),
                 *length,
                 success,
                 failure,
@@ -380,7 +380,7 @@ impl<'a> BlockLowerer<'a> {
                 failure,
             } => self.lower_new_slice_try(
                 pool,
-                *element,
+                element.clone(),
                 *length,
                 success,
                 failure,

@@ -891,8 +891,9 @@ fn contains_closure(tree: &mir::Tree, ty: mir::LocalNodeId<mir::Type>) -> Result
         mir::Type::Closure { .. } => Ok(true),
         mir::Type::Struct { fields, .. } => {
             for field_id in fields {
-                let field_type = tree.get(*field_id).ty;
-                let field_type = (field_type)
+                let field_type = tree
+                    .get(*field_id)
+                    .ty
                     .ty()
                     .ok_or_else(|| Error::invalid_program("struct field type"))?;
                 if contains_closure(tree, field_type)? {
