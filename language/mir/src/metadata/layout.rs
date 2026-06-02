@@ -121,90 +121,146 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// Return the byte offset of a dynamic table pointer.
-    pub const fn dynamic_table_offset(&self) -> Option<u32> {
-        match self.shape {
+    /// Return the byte offset of a dynamic dispatch pointer.
+    pub const fn dynamic_dispatch_offset(&self) -> Option<u32> {
+        match &self.shape {
             LayoutShape::Dynamic => Some(self.alignment),
             _ => None,
         }
     }
 }
 
-/// Aggregate layout shape.
+/// Concrete memory layout shape.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LayoutShape {
-    /// Plain struct layout.
-    Struct {
-        /// Field layouts in concrete memory order.
-        fields: Vec<LayoutField>,
-    },
-    /// Tuple layout with ordered elements.
-    Tuple {
-        /// Element layouts in concrete memory order.
-        fields: Vec<LayoutField>,
-    },
-    /// Slice header layout with data and length fields.
-    Slice,
-    /// Array layout with stride and optional fixed count.
-    Array {
-        /// The array element type.
-        element_type: LocalNodeId<Type>,
-        /// The stride between array elements in bytes.
-        element_stride: u32,
-        /// The fixed element count when known.
-        element_count: Option<u32>,
-    },
-    /// Variant layout with tag and storage offsets.
-    Variant {
-        /// The byte offset of the tag field.
-        tag_offset: u32,
-        /// The byte offset of the storage field.
-        storage_offset: u32,
-    },
-    /// Object layout with a virtual dispatch table header.
-    Object {
-        /// The byte offset of the virtual dispatch table pointer.
-        table_offset: u32,
-        /// Field layouts in concrete memory order.
-        fields: Vec<LayoutField>,
-    },
+    /// No runtime storage.
+    None,
+    /// Builtin scalar storage.
+    Scalar,
+    /// Struct storage.
+    Struct(StructLayout),
+    /// Tuple storage.
+    Tuple(TupleLayout),
+    /// Slice header storage.
+    Slice(SliceLayout),
+    /// Array storage.
+    Array(ArrayLayout),
+    /// Variant value storage.
+    Variant(VariantLayout),
+    /// Object storage with a dispatch table header.
+    Object(ObjectLayout),
     /// Runtime dynamic value layout.
     Dynamic,
-    /// Closure object layout.
+    /// Runtime closure storage.
     Closure,
+    /// Transparent nominal storage.
+    Newtype(NewtypeLayout),
 }
 
 impl LayoutShape {
     /// Return field layouts for field-addressable shapes.
     pub fn fields(&self) -> &[LayoutField] {
         match self {
-            Self::Struct { fields } | Self::Tuple { fields } | Self::Object { fields, .. } => {
-                fields
-            }
-            Self::Slice
-            | Self::Array { .. }
-            | Self::Variant { .. }
+            Self::Struct(layout) => &layout.fields,
+            Self::Tuple(layout) => &layout.elements,
+            Self::Object(layout) => &layout.fields,
+            Self::None
+            | Self::Scalar
+            | Self::Slice(_)
+            | Self::Array(_)
+            | Self::Variant(_)
             | Self::Dynamic
-            | Self::Closure => &[],
+            | Self::Closure
+            | Self::Newtype(_) => &[],
         }
     }
 
     /// Return this shape with field layouts attached when supported.
     pub fn with_fields(self, fields: Vec<LayoutField>) -> Self {
         match self {
-            Self::Struct { .. } => Self::Struct { fields },
-            Self::Tuple { .. } => Self::Tuple { fields },
-            Self::Object { table_offset, .. } => Self::Object {
-                table_offset,
-                fields,
-            },
-            Self::Slice
-            | Self::Array { .. }
-            | Self::Variant { .. }
+            Self::Struct(_) => Self::Struct(StructLayout { fields }),
+            Self::Tuple(_) => Self::Tuple(TupleLayout { elements: fields }),
+            Self::Object(_) => Self::Object(ObjectLayout { fields }),
+            Self::None
+            | Self::Scalar
+            | Self::Slice(_)
+            | Self::Array(_)
+            | Self::Variant(_)
             | Self::Dynamic
-            | Self::Closure => self,
+            | Self::Closure
+            | Self::Newtype(_) => self,
         }
     }
+}
+
+/// Concrete layout for a struct.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StructLayout {
+    /// The fields in layout order.
+    pub fields: Vec<LayoutField>,
+}
+
+/// Concrete layout for a tuple.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TupleLayout {
+    /// The tuple elements in layout order.
+    pub elements: Vec<LayoutField>,
+}
+
+/// Concrete layout for a slice header.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct SliceLayout {
+    /// The slice element type.
+    pub element: LocalNodeId<Type>,
+}
+
+/// Concrete layout for an array.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ArrayLayout {
+    /// The array element type.
+    pub element: LocalNodeId<Type>,
+    /// The byte stride between elements.
+    pub stride: u32,
+    /// The fixed element count when known.
+    pub count: Option<u32>,
+}
+
+/// Concrete layout for a variant value.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VariantLayout {
+    /// The tag layout.
+    pub tag: VariantTagLayout,
+    /// The variant payload byte offset.
+    pub payload_offset: u32,
+    /// The variant cases.
+    pub variants: Vec<VariantCaseLayout>,
+}
+
+/// Concrete layout for a variant tag.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct VariantTagLayout {
+    /// The tag type when it has been materialized.
+    pub ty: Option<LocalNodeId<Type>>,
+    /// The tag size in bytes.
+    pub size: u32,
+    /// The tag alignment in bytes.
+    pub alignment: u32,
+}
+
+/// Concrete layout for an object.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ObjectLayout {
+    /// The fields in layout order.
+    pub fields: Vec<LayoutField>,
+}
+
+/// Concrete layout for a nominal newtype.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct NewtypeLayout {
+    /// The backing type.
+    pub backing_type: LocalNodeId<Type>,
+    /// The backing type layout.
+    pub backing_layout: LayoutId,
 }
 
 /// Memory layout for a single field.
@@ -222,4 +278,13 @@ pub struct LayoutField {
     pub alignment: u32,
     /// Original source index for stable mapping.
     pub source_index: Option<u32>,
+}
+
+/// Concrete layout for one variant case.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VariantCaseLayout {
+    /// The logical case type.
+    pub ty: LocalNodeId<Type>,
+    /// The case layout.
+    pub layout: LayoutId,
 }

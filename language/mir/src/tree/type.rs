@@ -308,7 +308,7 @@ pub enum Type {
         /// Copy of this tuple type.
         copy: Copy,
     },
-    /// Struct (anonymous, layout-focused).
+    /// Struct.
     Struct {
         /// The fields of the struct.
         fields: Vec<LocalNodeId<Field>>,
