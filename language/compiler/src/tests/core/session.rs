@@ -6,9 +6,10 @@ use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactStore, ArtifactVersion, DirBound, DirCheckedModule,
     DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryCacheStore,
 };
+use destack_dir as dir;
 use destack_source::{
-    DiagnosticCollection, DiffOptions, FileContent, MemoryFileSystem, ModuleId, TargetId,
-    format_diff,
+    DiagnosticCollection, DiffOptions, FileContent, MemoryFileSystem, ModuleId, ProfileId,
+    TargetId, format_diff,
 };
 use destack_workspace::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, ProviderError, Ref, Repository,
@@ -582,6 +583,11 @@ impl TestSession {
             .iter()
             .map(|(bound, expanded)| expanded.binding_table(bound))
             .collect::<Vec<_>>();
+        let foreign_tables = if selection.uses_type_labels() {
+            self.foreign_checked_tables_for(entry)
+        } else {
+            Vec::new()
+        };
         let mut builder = DirSnapshotBuilder::new(
             &entry.source,
             &parsed.tree,
@@ -589,7 +595,8 @@ impl TestSession {
         )
         .with_bindings(&bindings)
         .with_module_paths(&self.module_path_by_id)
-        .with_foreign_bindings(foreign_bindings);
+        .with_foreign_bindings(foreign_bindings)
+        .with_foreign_tables(foreign_tables);
 
         if selection.includes_expanded() {
             builder.add_expanded(selection, &expanded);
@@ -692,21 +699,26 @@ impl TestSession {
 
     /// Return checked DIR for one module entry.
     fn dir_checked(&self, entry: &TestModule) -> Arc<DirCheckedModule> {
-        let key = ArtifactKey::dir_checked(entry.module.id, entry.profile);
+        self.dir_checked_module(entry.module.id, entry.profile)
+    }
+
+    /// Return checked DIR for one module id.
+    fn dir_checked_module(&self, module_id: ModuleId, profile: ProfileId) -> Arc<DirCheckedModule> {
+        let key = ArtifactKey::dir_checked(module_id, profile);
         let version = self.require_artifact(key);
         let checked = self
             .artifacts()
             .dir_checked(&version)
             .expect("test checked facade should exist");
         let component_key =
-            ArtifactKey::dir_checked_component(checked.entry, checked.component, entry.profile);
+            ArtifactKey::dir_checked_component(checked.entry, checked.component, profile);
         let component_version = self.require_artifact(component_key);
         let component = self
             .artifacts()
             .dir_checked_component(&component_version)
             .expect("test checked component should exist");
         let entry = component
-            .module(entry.module.id)
+            .module(module_id)
             .expect("test checked component should contain module");
 
         Arc::new(entry.checked.clone())
@@ -786,6 +798,57 @@ impl TestSession {
         }
 
         artifacts
+    }
+
+    /// Return foreign checked type and static tables needed for semantic labels.
+    fn foreign_checked_tables_for(
+        &self,
+        entry: &TestModule,
+    ) -> Vec<(dir::TypeTable<'static>, dir::StaticTable<'static>)> {
+        let mut tables = self
+            .modules_by_path
+            .values()
+            .filter(|foreign| foreign.module.id != entry.module.id)
+            .map(|foreign| {
+                let bound = self.dir_bound(foreign);
+                let expanded = self.dir_expanded(foreign);
+                let checked = self.dir_checked(foreign);
+                let types = checked.type_table(&bound, &expanded);
+                let statics = checked.static_table(&bound, &expanded);
+
+                (types, statics)
+            })
+            .collect::<Vec<_>>();
+
+        // include builtin labels for language item references
+        for module_id in self.repository.builtin_package().module_ids() {
+            if module_id == entry.module.id {
+                continue;
+            }
+
+            let key = ArtifactKey::dir_bound(module_id, entry.profile);
+            let bound_version = self.require_artifact(key);
+            let bound = self
+                .artifacts()
+                .dir_bound(&bound_version)
+                .expect("test builtin bound artifact should exist");
+            let key = ArtifactKey::dir_expanded(module_id, entry.profile);
+            let expanded_version = self.require_artifact(key);
+            let expanded = self
+                .artifacts()
+                .dir_expanded(&expanded_version)
+                .expect("test builtin expanded artifact should exist");
+            let types =
+                dir::TypeTable::from_segments(vec![bound.types.clone(), expanded.types.clone()]);
+            let statics = dir::StaticTable::from_segments(vec![
+                bound.statics.clone(),
+                expanded.statics.clone(),
+            ]);
+
+            tables.push((types, statics));
+        }
+
+        tables
     }
 
     /// Return one module entry by path.

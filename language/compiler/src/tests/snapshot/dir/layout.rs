@@ -10,16 +10,26 @@ impl SnapshotTable for dir::LayoutSegment {
 
             add_type_layout_rows(builder, self, type_id, layout);
         }
+        for (_, representation) in self.newtype_representations() {
+            add_newtype_representation_row(builder, representation);
+        }
+        for (_, representation) in self.enum_representations() {
+            add_enum_representation_rows(builder, representation);
+        }
 
         let layout_count = self.layout_count();
         let type_count = self.type_layout_count();
-        if layout_count == 0 && type_count == 0 {
+        let newtype_count = self.newtype_representation_count();
+        let enum_count = self.enum_representation_count();
+        if layout_count == 0 && type_count == 0 && newtype_count == 0 && enum_count == 0 {
             return;
         }
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "layout", "summary")
             .count_field("layouts", layout_count)
-            .count_field("types", type_count);
+            .count_field("types", type_count)
+            .count_field("newtypes", newtype_count)
+            .count_field("enums", enum_count);
         builder.push(row);
     }
 }
@@ -44,6 +54,11 @@ fn add_type_layout_rows(
             "align",
             DirSnapshotBuilder::optional_u32_label(layout.alignment),
         )
+        .optional_field("tag_size", variant_tag_size_label(&layout.shape))
+        .optional_field(
+            "payload_offset",
+            variant_payload_offset_label(&layout.shape),
+        )
         .optional_field("backing", newtype_backing_label(layouts, &layout.shape));
     builder.push(row);
 
@@ -58,6 +73,11 @@ fn add_type_layout_rows(
                 add_layout_field_row(builder, anchor, "element", &ty, field);
             }
         }
+        dir::LayoutShape::Object(layout) => {
+            for field in &layout.fields {
+                add_layout_field_row(builder, anchor, "field", &ty, field);
+            }
+        }
         dir::LayoutShape::Variant(layout) => {
             for variant in &layout.variants {
                 add_variant_case_row(builder, layouts, anchor, &ty, variant);
@@ -65,10 +85,83 @@ fn add_type_layout_rows(
         }
         dir::LayoutShape::None
         | dir::LayoutShape::Scalar
+        | dir::LayoutShape::Slice(_)
+        | dir::LayoutShape::Array(_)
         | dir::LayoutShape::Dynamic
-        | dir::LayoutShape::Newtype(_)
-        | dir::LayoutShape::Function => {}
+        | dir::LayoutShape::Closure
+        | dir::LayoutShape::Newtype(_) => {}
     }
+}
+
+/// Add one newtype representation row.
+fn add_newtype_representation_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    representation: &dir::NewtypeRepresentation,
+) {
+    let row = SnapshotRow::new(
+        builder.anchor_symbol(representation.symbol),
+        "layout",
+        "newtype",
+    )
+    .field("symbol", builder.symbol_path_label(representation.symbol))
+    .type_field("backing", builder.global_type_label(representation.backing));
+
+    builder.push(row);
+}
+
+/// Add rows for one enum representation.
+fn add_enum_representation_rows(
+    builder: &mut DirSnapshotBuilder<'_>,
+    representation: &dir::EnumRepresentation,
+) {
+    let anchor = builder.anchor_symbol(representation.symbol);
+    let row = SnapshotRow::new(anchor, "layout", "enum")
+        .field("symbol", builder.symbol_path_label(representation.symbol))
+        .optional_type_field(
+            "backing",
+            representation
+                .backing
+                .map(|backing| builder.global_type_label(backing)),
+        )
+        .count_field("variants", representation.variants.len());
+    builder.push(row);
+
+    for variant in &representation.variants {
+        add_enum_variant_representation_row(builder, anchor, representation.symbol, variant);
+    }
+}
+
+/// Add one enum variant representation row.
+fn add_enum_variant_representation_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    anchor: SnapshotAnchor,
+    owner: dir::GlobalSymbolId,
+    representation: &dir::EnumVariantRepresentation,
+) {
+    let row = SnapshotRow::new(anchor, "layout", "enum.variant")
+        .field("enum", builder.symbol_path_label(owner))
+        .field("symbol", builder.symbol_path_label(representation.symbol))
+        .optional_field("value", representation.value.map(|value| value.to_string()));
+
+    builder.push(row);
+}
+
+/// Return the variant tag size label.
+fn variant_tag_size_label(shape: &dir::LayoutShape) -> Option<String> {
+    let dir::LayoutShape::Variant(layout) = shape else {
+        return None;
+    };
+
+    DirSnapshotBuilder::optional_u32_label(layout.tag.size)
+}
+
+/// Return the variant payload offset label.
+fn variant_payload_offset_label(shape: &dir::LayoutShape) -> Option<String> {
+    let dir::LayoutShape::Variant(layout) = shape else {
+        return None;
+    };
+
+    DirSnapshotBuilder::optional_u32_label(layout.payload_offset)
 }
 
 /// Return the backing layout label for a newtype layout.
@@ -77,7 +170,7 @@ fn newtype_backing_label(layouts: &dir::LayoutSegment, shape: &dir::LayoutShape)
         return None;
     };
 
-    let backing = layouts.get_layout(layout.backing);
+    let backing = layouts.get_layout(layout.backing_layout);
     let shape = DirSnapshotBuilder::layout_shape_label(&backing.shape);
     let size = backing
         .size

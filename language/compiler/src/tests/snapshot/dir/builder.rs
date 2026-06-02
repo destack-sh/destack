@@ -250,6 +250,10 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(checked.types.as_ref());
         }
 
+        if selection.annotations {
+            self.add_table(checked.annotations.as_ref());
+        }
+
         if selection.statics {
             self.add_table(checked.statics.as_ref());
         }
@@ -260,6 +264,10 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.generics {
             self.add_table(checked.generics.as_ref());
+        }
+
+        if selection.nominals {
+            self.add_table(checked.nominals.as_ref());
         }
 
         if selection.relation {
@@ -682,12 +690,15 @@ impl<'a> DirSnapshotBuilder<'a> {
         match shape {
             dir::LayoutShape::None => "none".to_string(),
             dir::LayoutShape::Scalar => "scalar".to_string(),
-            dir::LayoutShape::Dynamic => "dynamic".to_string(),
             dir::LayoutShape::Struct(_) => "struct".to_string(),
             dir::LayoutShape::Tuple(_) => "tuple".to_string(),
+            dir::LayoutShape::Slice(_) => "slice".to_string(),
+            dir::LayoutShape::Array(_) => "array".to_string(),
             dir::LayoutShape::Variant(_) => "variant".to_string(),
+            dir::LayoutShape::Object(_) => "object".to_string(),
+            dir::LayoutShape::Dynamic => "dynamic".to_string(),
+            dir::LayoutShape::Closure => "closure".to_string(),
             dir::LayoutShape::Newtype(_) => "newtype".to_string(),
-            dir::LayoutShape::Function => "function".to_string(),
         }
     }
 

@@ -13,6 +13,8 @@ pub(crate) struct DirRows {
     pub(super) binding_nodes: bool,
     /// Whether to render type table rows.
     pub(super) types: bool,
+    /// Whether to render annotation table rows.
+    pub(super) annotations: bool,
     /// Whether to render expression node type rows.
     pub(super) type_nodes: bool,
     /// Whether to render identifier type rows.
@@ -23,6 +25,8 @@ pub(crate) struct DirRows {
     pub(super) resolution: bool,
     /// Whether to render generic table rows.
     pub(super) generics: bool,
+    /// Whether to render nominal table rows.
+    pub(super) nominals: bool,
     /// Whether to render relation table rows.
     pub(super) relation: bool,
     /// Whether to render coercion table rows.
@@ -55,11 +59,13 @@ impl DirRows {
             binding: false,
             binding_nodes: false,
             types: false,
+            annotations: false,
             type_nodes: false,
             type_references: false,
             statics: false,
             resolution: false,
             generics: false,
+            nominals: false,
             relation: false,
             coercion: false,
             extension: false,
@@ -122,6 +128,7 @@ impl DirRows {
             type_references: false,
             resolution: true,
             generics: true,
+            nominals: true,
             relation: true,
             extension: true,
             ..Self::none()
@@ -138,6 +145,18 @@ impl DirRows {
     /// Include static table rows.
     pub(crate) const fn with_statics(mut self) -> Self {
         self.statics = true;
+        self
+    }
+
+    /// Include nominal table rows.
+    pub(crate) const fn with_nominals(mut self) -> Self {
+        self.nominals = true;
+        self
+    }
+
+    /// Include annotation table rows.
+    pub(crate) const fn with_annotations(mut self) -> Self {
+        self.annotations = true;
         self
     }
 
@@ -254,9 +273,11 @@ impl DirRows {
     /// Return whether selected rows need semantic type labels.
     pub(crate) const fn uses_type_labels(self) -> bool {
         self.types
+            || self.annotations
             || self.statics
             || self.resolution
             || self.generics
+            || self.nominals
             || self.relation
             || self.coercion
             || self.capture
