@@ -974,11 +974,11 @@ fn raw_fields_from_layout(layout: &mir::Layout) -> Vec<FieldLayout> {
 
 /// Return the raw MIR array stride.
 fn raw_array_stride(layout: &mir::Layout) -> Result<usize> {
-    let mir::LayoutShape::Array { element_stride, .. } = &layout.shape else {
+    let mir::LayoutShape::Array(layout) = &layout.shape else {
         return Err(Error::internal("missing MIR array layout stride"));
     };
 
-    Ok(*element_stride as usize)
+    Ok(layout.stride as usize)
 }
 
 /// Build one VM field layout for one record with closure children.
@@ -1043,7 +1043,7 @@ fn build_trace_map(
     ty: mir::LocalNodeId<mir::Type>,
 ) -> Result<TraceMap> {
     if let Some(layout) = tree.type_layout(ty)
-        && matches!(layout.shape, mir::LayoutShape::Variant { .. })
+        && matches!(layout.shape, mir::LayoutShape::Variant(_))
     {
         return build_variant_trace_map(tree, layouts, ty, layout);
     }
@@ -1080,11 +1080,7 @@ fn build_variant_trace_map(
     ty: mir::LocalNodeId<mir::Type>,
     layout: &mir::Layout,
 ) -> Result<TraceMap> {
-    let mir::LayoutShape::Variant {
-        tag_offset,
-        storage_offset,
-    } = &layout.shape
-    else {
+    let mir::LayoutShape::Variant(layout) = &layout.shape else {
         return Err(Error::internal(
             "trace map requested for non-variant layout",
         ));
@@ -1116,13 +1112,12 @@ fn build_variant_trace_map(
         let map = variant_trace_map(layouts, storage_type, element_type)?;
         trace_variants.push(mir::TraceVariant {
             tag: variant_tag_bits(tree, tag_type, &case.tag)?,
-            storage_offset: *storage_offset,
+            payload_offset: layout.payload_offset,
             map,
         });
     }
 
     Ok(TraceMap::Tagged {
-        tag_offset: *tag_offset,
         tag_bytes,
         variants: trace_variants.into_boxed_slice(),
     })
@@ -1554,10 +1549,15 @@ type Shape = variant<Tag, Storage> { 0uint8 = Ref; 1uint8 = Plain; }"#;
         let (mut tree, strings) = parse_tree_with_layout(mir_text, DataLayout::default());
         let union_type = lookup_type_alias(&tree, &strings, "Shape");
         let layout_id = tree.metadata.layout.layout_table.insert(mir::Layout {
-            shape: mir::LayoutShape::Variant {
-                tag_offset: 0,
-                storage_offset: 8,
-            },
+            shape: mir::LayoutShape::Variant(mir::VariantLayout {
+                tag: mir::VariantTagLayout {
+                    ty: None,
+                    size: 1,
+                    alignment: 1,
+                },
+                payload_offset: 8,
+                variants: Vec::new(),
+            }),
             size: 16,
             alignment: 8,
             trace_map: TraceMap::empty(),
@@ -1577,12 +1577,11 @@ type Shape = variant<Tag, Storage> { 0uint8 = Ref; 1uint8 = Plain; }"#;
         assert_eq!(
             layout.trace_map,
             TraceMap::Tagged {
-                tag_offset: 0,
                 tag_bytes: 1,
                 variants: vec![
                     mir::TraceVariant {
                         tag: 0,
-                        storage_offset: 8,
+                        payload_offset: 8,
                         map: TraceMap::Fixed {
                             local_offsets: vec![0].into_boxed_slice(),
                             shared_offsets: Vec::new().into_boxed_slice(),
@@ -1590,7 +1589,7 @@ type Shape = variant<Tag, Storage> { 0uint8 = Ref; 1uint8 = Plain; }"#;
                     },
                     mir::TraceVariant {
                         tag: 1,
-                        storage_offset: 8,
+                        payload_offset: 8,
                         map: TraceMap::empty(),
                     },
                 ]

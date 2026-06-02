@@ -808,7 +808,7 @@ impl ProgramBuilder {
             .unwrap_or(0);
         let mut table = LayoutTable::new();
         table.layouts.resize_with(max_layout_id, || mir::Layout {
-            shape: LayoutShape::Struct { fields: Vec::new() },
+            shape: LayoutShape::Struct(mir::StructLayout { fields: Vec::new() }),
             size: 0,
             alignment: 1,
             trace_map: TraceMap::empty(),
@@ -833,7 +833,7 @@ impl ProgramBuilder {
                         .table_layout(environment_layout)
                 }
                 _ => mir::Layout {
-                    shape: LayoutShape::Struct { fields: Vec::new() },
+                    shape: LayoutShape::Struct(mir::StructLayout { fields: Vec::new() }),
                     size: layout.byte_len as u32,
                     alignment: layout.alignment() as u32,
                     trace_map: layout.trace_map.clone(),
