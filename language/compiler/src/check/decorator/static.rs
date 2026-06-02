@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, DecoratorCall};
+use crate::check::{CheckState, DecoratorInvocation};
 
 /// Static `@if` decorator attached to one owner node.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -40,29 +40,27 @@ impl StaticIfDecorator {
 }
 
 impl CheckState<'_> {
-    /// Return the static `@if` decorator represented by one call.
-    pub(in crate::check) fn static_if_decorator_from_call(
+    /// Return the static `@if` decorator represented by one invocation.
+    pub(in crate::check) fn static_if_decorator_from_invocation(
         &self,
         module: ModuleId,
-        call: &DecoratorCall,
+        invocation: &DecoratorInvocation,
     ) -> Option<StaticIfDecorator> {
-        if !self.is_static_if_decorator(module, call) {
+        if !self.is_static_if_decorator(module, invocation) {
             return None;
         }
-        let condition = self.static_if_condition(module, &call.arguments);
+        let condition = self.static_if_condition(module, &invocation.arguments);
 
         Some(StaticIfDecorator {
-            decorator: call.decorator,
+            decorator: invocation.decorator,
             condition,
         })
     }
 
     /// Return whether one decorator is the compiler builtin `@if`.
-    fn is_static_if_decorator(&self, module: ModuleId, call: &DecoratorCall) -> bool {
-        let Some(path) = &call.path else {
-            return false;
-        };
-        let [name] = path.segments.as_slice() else {
+    fn is_static_if_decorator(&self, module: ModuleId, invocation: &DecoratorInvocation) -> bool {
+        let view = self.module(module).view();
+        let dir::Expression::Identifier { name } = view.get(invocation.target) else {
             return false;
         };
 

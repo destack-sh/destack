@@ -1,8 +1,9 @@
-mod call;
 mod capture;
-mod decorator;
-mod static_if;
+mod invocation;
+mod representation;
+mod r#static;
+mod target;
 
-pub(in crate::check) use call::*;
-pub(in crate::check) use decorator::*;
-pub(in crate::check) use static_if::*;
+pub(in crate::check) use invocation::*;
+pub(in crate::check) use representation::*;
+pub(in crate::check) use r#static::*;
