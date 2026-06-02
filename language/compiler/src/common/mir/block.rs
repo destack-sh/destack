@@ -665,11 +665,7 @@ impl BlockParamForwarding {
         let mut visited: Vec<mir::Value> = Vec::new();
 
         // follow forwarding links
-        loop {
-            let Some(next) = self.map.get(&current) else {
-                break;
-            };
-
+        while let Some(next) = self.map.get(&current) {
             if visited.contains(&current) {
                 break;
             }
@@ -1466,7 +1462,7 @@ pub fn terminator_substitute_uses(
                 },
                 mir::CheckConstraint::Type { value, expected } => mir::CheckConstraint::Type {
                     value: substitute(*value),
-                    expected: *expected,
+                    expected: expected.clone(),
                 },
                 mir::CheckConstraint::Variant { value, expected } => {
                     mir::CheckConstraint::Variant {
@@ -1477,13 +1473,13 @@ pub fn terminator_substitute_uses(
                 mir::CheckConstraint::ReceiverType { receiver, expected } => {
                     mir::CheckConstraint::ReceiverType {
                         receiver: substitute(*receiver),
-                        expected: *expected,
+                        expected: expected.clone(),
                     }
                 }
                 mir::CheckConstraint::Implements { receiver, expected } => {
                     mir::CheckConstraint::Implements {
                         receiver: substitute(*receiver),
-                        expected: *expected,
+                        expected: expected.clone(),
                     }
                 }
             };
@@ -1509,7 +1505,7 @@ pub fn terminator_substitute_uses(
             success,
             failure,
         } => mir::Terminator::NewZeroedTry {
-            layout: *layout,
+            layout: layout.clone(),
             success: mir::BlockTarget {
                 block: success.block,
                 arguments: success.arguments.iter().copied().map(substitute).collect(),
@@ -1521,7 +1517,7 @@ pub fn terminator_substitute_uses(
             success,
             failure,
         } => mir::Terminator::NewUninitTry {
-            layout: *layout,
+            layout: layout.clone(),
             success: mir::BlockTarget {
                 block: success.block,
                 arguments: success.arguments.iter().copied().map(substitute).collect(),
@@ -1534,7 +1530,7 @@ pub fn terminator_substitute_uses(
             success,
             failure,
         } => mir::Terminator::NewSliceZeroedTry {
-            element: *element,
+            element: element.clone(),
             length: substitute(*length),
             success: mir::BlockTarget {
                 block: success.block,
@@ -1548,7 +1544,7 @@ pub fn terminator_substitute_uses(
             success,
             failure,
         } => mir::Terminator::NewSliceUninitTry {
-            element: *element,
+            element: element.clone(),
             length: substitute(*length),
             success: mir::BlockTarget {
                 block: success.block,
@@ -1637,7 +1633,7 @@ pub fn terminator_substitute_uses(
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            class: *class,
+            class: class.clone(),
             slot: *slot,
             target: mir::BlockTarget {
                 block: target.block,
@@ -1658,7 +1654,7 @@ pub fn terminator_substitute_uses(
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            constraint: *constraint,
+            constraint: constraint.clone(),
             slot: *slot,
             target: mir::BlockTarget {
                 block: target.block,
@@ -1693,7 +1689,7 @@ pub fn terminator_substitute_uses(
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            class: *class,
+            class: class.clone(),
             slot: *slot,
         },
         mir::Terminator::TailCallDynamic {
@@ -1707,7 +1703,7 @@ pub fn terminator_substitute_uses(
                 arguments: call.arguments.iter().copied().map(substitute).collect(),
                 ..call.clone()
             },
-            constraint: *constraint,
+            constraint: constraint.clone(),
             slot: *slot,
         },
         mir::Terminator::TailCallIndirect { callee, call } => mir::Terminator::TailCallIndirect {

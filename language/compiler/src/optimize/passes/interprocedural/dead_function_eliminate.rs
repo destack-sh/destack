@@ -245,7 +245,7 @@ fn call_constraint_from_instruction(
         .functions
         .call(mir::CallSite::Instruction(instruction_id))
         .and_then(|metadata| metadata.target);
-    call_constraint_from_signature(tree, signature, target)
+    call_constraint_from_signature(tree, &signature, target)
 }
 
 /// Resolve a call constraint from a call terminator.
@@ -265,23 +265,23 @@ fn call_constraint_from_terminator(
     match terminator {
         mir::Terminator::Call { .. } => None,
         mir::Terminator::CallIndirect { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, None)
+            call_constraint_from_signature(tree, &call.signature, None)
         }
         mir::Terminator::CallVirtual { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, target)
+            call_constraint_from_signature(tree, &call.signature, target)
         }
         mir::Terminator::CallDynamic { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, target)
+            call_constraint_from_signature(tree, &call.signature, target)
         }
         mir::Terminator::TailCall { .. } => None,
         mir::Terminator::TailCallIndirect { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, None)
+            call_constraint_from_signature(tree, &call.signature, None)
         }
         mir::Terminator::TailCallVirtual { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, target)
+            call_constraint_from_signature(tree, &call.signature, target)
         }
         mir::Terminator::TailCallDynamic { call, .. } => {
-            call_constraint_from_signature(tree, call.signature, target)
+            call_constraint_from_signature(tree, &call.signature, target)
         }
         _ => None,
     }
@@ -290,7 +290,7 @@ fn call_constraint_from_terminator(
 /// Resolve call constraints from a signature type.
 fn call_constraint_from_signature(
     tree: &mir::Tree,
-    signature: mir::TypeReference,
+    signature: &mir::TypeReference,
     target: Option<mir::LocalNodeId<mir::Function>>,
 ) -> Option<CallConstraint> {
     if let Some(signature) = SignatureKey::from_signature_type(tree, signature) {

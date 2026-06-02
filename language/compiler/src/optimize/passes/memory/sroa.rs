@@ -307,7 +307,6 @@ fn get_element_types(
             // collect element types without recursive flattening
             elements
                 .iter()
-                .copied()
                 .map(|element| element.ty())
                 .collect::<Option<_>>()
         }
@@ -368,9 +367,7 @@ fn analyze_uses(
                         index,
                         ..
                     } if aggregate.value() == Some(value) => {
-                        let Some(destination) = destination.value() else {
-                            return None;
-                        };
+                        let destination = destination.value()?;
 
                         uses.push(UseInfo {
                             instruction: inst_id,
@@ -389,15 +386,11 @@ fn analyze_uses(
                         index,
                         ..
                     } if array.value() == Some(value) => {
-                        let Some(index) = index.value() else {
-                            return None;
-                        };
+                        let index = index.value()?;
 
                         // check if index is a constant
                         let const_index = resolve_constant_index(index, block_id, constants)?;
-                        let Some(destination) = destination.value() else {
-                            return None;
-                        };
+                        let destination = destination.value()?;
 
                         uses.push(UseInfo {
                             instruction: inst_id,

@@ -123,11 +123,8 @@ impl SignatureKey {
     }
 
     /// Build a signature key from a function pointer type.
-    fn from_function_type(
-        tree: &mir::Tree,
-        signature: impl Into<mir::TypeReference>,
-    ) -> Option<Self> {
-        let signature = signature.into().ty()?;
+    fn from_function_type(tree: &mir::Tree, signature: &mir::TypeReference) -> Option<Self> {
+        let signature = signature.ty()?;
 
         // load the function pointer signature
         let mir::Type::FunctionSignature {
@@ -887,10 +884,7 @@ fn tarjan_visit(
         let mut scc_members = Vec::new();
 
         // pop the scc nodes from the stack
-        loop {
-            let Some(node) = stack.pop() else {
-                break;
-            };
+        while let Some(node) = stack.pop() {
             on_stack.remove(&node);
             scc_map.function_scc.insert(node, scc_id);
             scc_members.push(node);
@@ -1238,8 +1232,7 @@ impl SymbolCallSite {
         // resolve the signature type
         let signature = instruction
             .call_signature()
-            .and_then(|sig| sig.ty())
-            .and_then(|sig| SignatureKey::from_function_type(tree, sig))
+            .and_then(|sig| SignatureKey::from_function_type(tree, &sig))
             .or_else(|| {
                 resolved_target
                     .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
@@ -1297,7 +1290,7 @@ impl SymbolCallSite {
                 dispatch: mir::CallDispatchKind::Indirect,
                 callee: None,
                 callee_linkage: None,
-                signature: SignatureKey::from_function_type(tree, call.signature),
+                signature: SignatureKey::from_function_type(tree, &call.signature),
                 is_precise: false,
             }),
             mir::Terminator::CallVirtual { slot, call, .. } => {
@@ -1306,7 +1299,7 @@ impl SymbolCallSite {
                     resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
                 let callee_linkage = resolved_target.map(|target| tree.get(target).linkage);
                 let signature =
-                    SignatureKey::from_function_type(tree, call.signature).or_else(|| {
+                    SignatureKey::from_function_type(tree, &call.signature).or_else(|| {
                         resolved_target
                             .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
                     });
@@ -1326,7 +1319,7 @@ impl SymbolCallSite {
                     resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
                 let callee_linkage = resolved_target.map(|target| tree.get(target).linkage);
                 let signature =
-                    SignatureKey::from_function_type(tree, call.signature).or_else(|| {
+                    SignatureKey::from_function_type(tree, &call.signature).or_else(|| {
                         resolved_target
                             .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
                     });
@@ -1365,7 +1358,7 @@ impl SymbolCallSite {
                 dispatch: mir::CallDispatchKind::Indirect,
                 callee: None,
                 callee_linkage: None,
-                signature: SignatureKey::from_function_type(tree, call.signature),
+                signature: SignatureKey::from_function_type(tree, &call.signature),
                 is_precise: false,
             }),
             mir::Terminator::TailCallVirtual { slot, call, .. } => {
@@ -1374,7 +1367,7 @@ impl SymbolCallSite {
                     resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
                 let callee_linkage = resolved_target.map(|target| tree.get(target).linkage);
                 let signature =
-                    SignatureKey::from_function_type(tree, call.signature).or_else(|| {
+                    SignatureKey::from_function_type(tree, &call.signature).or_else(|| {
                         resolved_target
                             .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
                     });
@@ -1394,7 +1387,7 @@ impl SymbolCallSite {
                     resolved_target.and_then(|target| symbols_by_function.get(&target).cloned());
                 let callee_linkage = resolved_target.map(|target| tree.get(target).linkage);
                 let signature =
-                    SignatureKey::from_function_type(tree, call.signature).or_else(|| {
+                    SignatureKey::from_function_type(tree, &call.signature).or_else(|| {
                         resolved_target
                             .and_then(|target| SignatureKey::from_function(tree, tree.get(target)))
                     });

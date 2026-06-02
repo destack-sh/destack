@@ -306,7 +306,7 @@ fn run_pre(
     for (&block_id, placements) in &phi_map {
         let mut block = tree.get(block_id).clone();
         for placement in placements {
-            block.parameters.push(placement.param);
+            block.parameters.push(placement.param.clone());
         }
         tree.replace(block_id, block);
     }
@@ -428,7 +428,7 @@ fn template_from_instruction(instruction: &mir::Instruction) -> ExpressionTempla
             operator, to_type, ..
         } => ExpressionTemplate::Cast {
             operator: *operator,
-            to_type: *to_type,
+            to_type: to_type.clone(),
         },
         mir::Instruction::Select { .. } => ExpressionTemplate::Select,
         mir::Instruction::FieldGet { index, .. } => ExpressionTemplate::FieldGet { index: *index },
@@ -715,7 +715,7 @@ fn build_instruction_from_key(
                 destination: destination.into(),
                 operator: *operator,
                 argument: (*argument).into(),
-                to_type: *to_type,
+                to_type: to_type.clone(),
             }
         }
         (

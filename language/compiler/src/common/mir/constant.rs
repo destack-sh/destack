@@ -128,7 +128,12 @@ pub fn constant_arguments_for_parameters(
         let argument = argument.value()?;
         let constant = constants.get_constant(argument).and_then(|constant| {
             let constant_type = constant_type_of(constant);
-            if constant_matches_type(constant_type, parameter.ty, pointer_width_bits, tree) {
+            if constant_matches_type(
+                constant_type,
+                parameter.ty.clone(),
+                pointer_width_bits,
+                tree,
+            ) {
                 Some(constant.clone())
             } else {
                 None
@@ -408,7 +413,7 @@ pub fn constant_tree_from_global(
     // build constant tree
     Some(constant_tree_from_initializer(
         initializer,
-        global.ty,
+        global.ty.clone(),
         tree,
         max_aggregate_elements,
         pointer_width_bits,
@@ -729,7 +734,7 @@ fn constant_tree_from_scalar(
     let ty = tree.get(ty);
 
     if let mir::Type::Newtype { inner, .. } = ty {
-        return constant_tree_from_scalar(constant, *inner, tree);
+        return constant_tree_from_scalar(constant, inner.clone(), tree);
     }
 
     // accept scalar types only
@@ -787,9 +792,12 @@ fn constant_tree_from_zero(
             bits: 0,
             format: *float_type,
         }),
-        mir::Type::Newtype { inner, .. } => {
-            constant_tree_from_zero(*inner, tree, max_aggregate_elements, pointer_width_bits)
-        }
+        mir::Type::Newtype { inner, .. } => constant_tree_from_zero(
+            inner.clone(),
+            tree,
+            max_aggregate_elements,
+            pointer_width_bits,
+        ),
         mir::Type::Array {
             element, length, ..
         } => {
@@ -802,8 +810,12 @@ fn constant_tree_from_zero(
                 return ConstantTree::Unknown;
             }
 
-            let element_value =
-                constant_tree_from_zero(*element, tree, max_aggregate_elements, pointer_width_bits);
+            let element_value = constant_tree_from_zero(
+                element.clone(),
+                tree,
+                max_aggregate_elements,
+                pointer_width_bits,
+            );
             let elements = (0..length).map(|_| element_value.clone()).collect();
             ConstantTree::Aggregate(elements)
         }
@@ -812,7 +824,7 @@ fn constant_tree_from_zero(
                 .iter()
                 .map(|element| {
                     constant_tree_from_zero(
-                        *element,
+                        element.clone(),
                         tree,
                         max_aggregate_elements,
                         pointer_width_bits,
@@ -824,7 +836,7 @@ fn constant_tree_from_zero(
         mir::Type::Struct { fields, .. } => {
             let elements = fields
                 .iter()
-                .map(|field| tree.get(*field).ty)
+                .map(|field| tree.get(*field).ty.clone())
                 .map(|field_ty| {
                     constant_tree_from_zero(
                         field_ty,
@@ -945,7 +957,7 @@ fn constant_tree_from_aggregate_initializer(
                 .map(|element_init| {
                     constant_tree_from_initializer(
                         element_init,
-                        *element,
+                        element.clone(),
                         tree,
                         max_aggregate_elements,
                         pointer_width_bits,
@@ -968,7 +980,7 @@ fn constant_tree_from_aggregate_initializer(
                 .map(|(element_init, element_ty)| {
                     constant_tree_from_initializer(
                         element_init,
-                        *element_ty,
+                        element_ty.clone(),
                         tree,
                         max_aggregate_elements,
                         pointer_width_bits,
@@ -988,7 +1000,7 @@ fn constant_tree_from_aggregate_initializer(
                 .map(|(element_init, field)| {
                     constant_tree_from_initializer(
                         element_init,
-                        tree.get(*field).ty,
+                        tree.get(*field).ty.clone(),
                         tree,
                         max_aggregate_elements,
                         pointer_width_bits,

@@ -125,14 +125,6 @@ impl TestProgram {
             .0
     }
 
-    /// Set the return lifetime for a named function.
-    pub(crate) fn set_function_lifetime(&mut self, name: &str, lifetime: mir::Lifetime) {
-        // update the target function
-        let function_id = self.function_id_by_name(name);
-        let function = self.tree.get_mut(function_id);
-        function.return_lifetime = lifetime;
-    }
-
     /// Return the entry block id for a function.
     pub(crate) fn entry_block_id(
         &self,
@@ -411,9 +403,9 @@ impl TestProgram {
         let param_tys = callee_function
             .parameters
             .iter()
-            .map(|param| param.ty)
+            .map(|param| param.ty.clone())
             .collect::<Vec<_>>();
-        let return_ty = callee_function.return_type;
+        let return_ty = callee_function.return_type.clone();
 
         // insert the function pointer type
         self.tree.insert_type(mir::Type::FunctionSignature {

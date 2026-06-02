@@ -168,7 +168,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
                     if let Some(signature) = instruction
                         .call_signature()
-                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, &signature))
                     {
                         data.indirect_signatures.insert(signature);
                     }
@@ -191,7 +191,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                 mir::Terminator::CallIndirect { call, .. }
                 | mir::Terminator::CallVirtual { call, .. }
                 | mir::Terminator::CallDynamic { call, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
+                    if let Some(signature) =
+                        SignatureKey::from_signature_type(tree, &call.signature)
                     {
                         data.indirect_signatures.insert(signature);
                     }
@@ -209,7 +210,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                 mir::Terminator::TailCallIndirect { call, .. }
                 | mir::Terminator::TailCallVirtual { call, .. }
                 | mir::Terminator::TailCallDynamic { call, .. } => {
-                    if let Some(signature) = SignatureKey::from_signature_type(tree, call.signature)
+                    if let Some(signature) =
+                        SignatureKey::from_signature_type(tree, &call.signature)
                     {
                         data.indirect_signatures.insert(signature);
                     }
@@ -233,7 +235,7 @@ fn unused_parameter_indices(
 
     // collect parameters that are required by metadata
     let metadata = tree.metadata.functions.function(function_id);
-    let required = required_parameter_indices(function, metadata);
+    let required = required_parameter_indices(function, metadata, tree);
 
     // collect parameters that have no uses
     let mut unused = Vec::new();
@@ -267,9 +269,6 @@ fn apply_parameter_removals(
     let entry_id = {
         let function = tree.get_mut(function_id);
         function.parameters = remap.filter_by_index(&function.parameters);
-        function.return_lifetime = remap
-            .remap_return_lifetime(&function.return_lifetime)
-            .expect("return lifetime parameter must be preserved");
         let Some(entry_id) = function.entry else {
             return;
         };
@@ -318,7 +317,7 @@ fn update_call_sites(
 
                 // refresh the signature when arguments are removed
                 let signature = if unused.is_empty() {
-                    call.signature
+                    call.signature.clone()
                 } else {
                     (*signature_type.get_or_insert_with(|| build_signature_type(function_id, tree)))
                         .into()
@@ -610,8 +609,6 @@ b0(v0: int32, v1: int32):
 
         let mut test = TestProgram::new(input);
         let callee_id = test.function_id_by_name("callee");
-        let callee = test.tree.get_mut(callee_id);
-        callee.return_lifetime = mir::Lifetime::parameter_set([2]);
         test.tree
             .metadata
             .functions
@@ -621,14 +618,12 @@ b0(v0: int32, v1: int32):
         test.run_module_pass(&DeadArgEliminate);
         test.assert_output(expected);
 
-        let callee = test.tree.get(callee_id);
         let metadata = test
             .tree
             .metadata
             .functions
             .function(callee_id)
             .expect("missing function metadata");
-        assert_eq!(callee.return_lifetime, mir::Lifetime::parameter_set([1]));
         assert_eq!(
             metadata.allocation_size,
             Some(mir::AllocationSize::new(1, Some(0)))
@@ -720,27 +715,5 @@ b0(v0: int32):
             .call(callsite)
             .expect("missing call metadata");
         assert_eq!(metadata.allocation_size, None);
-    }
-
-    /// Return-region metadata preserves parameters.
-    #[test]
-    fn test_dead_arg_eliminate_preserves_return_lifetime_param() {
-        let input = r#"
-function callee(v0: int32, v1: int32): int32 {
-b0(v0: int32, v1: int32):
-    return v0
-}"#;
-
-        let mut test = TestProgram::new(input);
-        let callee_id = test.function_id_by_name("callee");
-        let callee = test.tree.get_mut(callee_id);
-        callee.return_lifetime = mir::Lifetime::parameter_set([1]);
-
-        test.run_module_pass(&DeadArgEliminate);
-        test.assert_output(input);
-        assert_eq!(
-            test.tree.get(callee_id).return_lifetime,
-            mir::Lifetime::parameter_set([1])
-        );
     }
 }

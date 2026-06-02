@@ -288,7 +288,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
 
                     if let Some(signature) = instruction
                         .call_signature()
-                        .and_then(|signature| SignatureKey::from_signature_type(tree, signature))
+                        .and_then(|signature| SignatureKey::from_signature_type(tree, &signature))
                     {
                         data.indirect_signatures.insert(signature);
                     }
@@ -534,7 +534,7 @@ fn removable_constant_parameters(
 ) -> Vec<usize> {
     // collect required parameter indices
     let metadata = tree.metadata.functions.function(function_id);
-    let required = required_parameter_indices(function, metadata);
+    let required = required_parameter_indices(function, metadata, tree);
 
     // collect removable indices
     let mut removable = Vec::new();
@@ -565,9 +565,6 @@ fn apply_parameter_removals(
     let entry_id = {
         let function = tree.get_mut(function_id);
         function.parameters = remap.filter_by_index(&function.parameters);
-        function.return_lifetime = remap
-            .remap_return_lifetime(&function.return_lifetime)
-            .expect("return lifetime parameter must be preserved");
         function.entry.expect("defined function has entry block")
     };
 
@@ -753,8 +750,12 @@ entry0:
                 .expect("call signature should be concrete"),
         );
         let expected_signature = mir::Type::FunctionSignature {
-            parameters: callee.parameters.iter().map(|param| param.ty).collect(),
-            result: callee.return_type,
+            parameters: callee
+                .parameters
+                .iter()
+                .map(|param| param.ty.clone())
+                .collect(),
+            result: callee.return_type.clone(),
             borrow_obligations: Vec::new(),
         };
 

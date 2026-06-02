@@ -20,35 +20,30 @@ impl SignatureKey {
         let parameters = function
             .parameters
             .iter()
-            .map(|param| Some(TypeKey::from_type(param.ty.ty()?, tree)))
-            .collect::<Option<Vec<_>>>()?;
+            .map(|param| TypeKey::from_type_reference(&param.ty, tree))
+            .collect();
 
         // collect result type key
-        let result = TypeKey::from_type(function.return_type.ty()?, tree);
+        let result = TypeKey::from_type_reference(&function.return_type, tree);
 
         Some(Self { parameters, result })
     }
 
     /// Build a signature key from a function pointer type.
-    pub fn from_signature_type(
-        tree: &mir::Tree,
-        signature: impl Into<mir::TypeReference>,
-    ) -> Option<Self> {
-        let signature = signature.into().ty()?;
+    pub fn from_signature_type(tree: &mir::Tree, signature: &mir::TypeReference) -> Option<Self> {
+        let signature = signature.ty()?;
 
         // resolve the function pointer signature
-        let Some((parameters, result)) = mir::function_signature_parts(tree.get(signature)) else {
-            return None;
-        };
+        let (parameters, result) = mir::function_signature_parts(tree.get(signature))?;
 
         // collect parameter type keys
         let parameters = parameters
             .iter()
-            .map(|param| Some(TypeKey::from_type(param.ty()?, tree)))
-            .collect::<Option<Vec<_>>>()?;
+            .map(|param| TypeKey::from_type_reference(param, tree))
+            .collect();
 
         // collect result type key
-        let result = TypeKey::from_type(result.ty()?, tree);
+        let result = TypeKey::from_type_reference(&result, tree);
 
         Some(Self { parameters, result })
     }
@@ -122,27 +117,6 @@ impl ParameterRemap {
         Some((index - shift) as u32)
     }
 
-    /// Remap return lifetime parameter indices after removals.
-    pub fn remap_return_lifetime(&self, lifetime: &mir::Lifetime) -> Option<mir::Lifetime> {
-        let mut origins = Vec::with_capacity(lifetime.origins.len());
-
-        for origin in &lifetime.origins {
-            match *origin {
-                mir::LifetimeOrigin::Static => origins.push(mir::LifetimeOrigin::Static),
-                mir::LifetimeOrigin::Parameter(index) => {
-                    let index = self.remap_parameter_index(index)?;
-                    origins.push(mir::LifetimeOrigin::Parameter(index));
-                }
-            }
-        }
-
-        if origins.is_empty() && !lifetime.is_empty() {
-            return None;
-        }
-
-        Some(mir::Lifetime::new(origins))
-    }
-
     /// Remap allocation size parameter indices after removals.
     pub fn remap_allocation_size(
         &self,
@@ -171,12 +145,16 @@ pub fn build_signature_type(
 ) -> mir::LocalNodeId<mir::Type> {
     // collect parameter types from the function signature
     let function = tree.get(function_id);
-    let parameters = function.parameters.iter().map(|param| param.ty).collect();
+    let parameters = function
+        .parameters
+        .iter()
+        .map(|param| param.ty.clone())
+        .collect();
 
     // insert the function pointer type
     tree.insert_type(mir::Type::FunctionSignature {
         parameters,
-        result: function.return_type,
+        result: function.return_type.clone(),
         borrow_obligations: function.borrow_obligations.clone(),
     })
 }
@@ -185,13 +163,24 @@ pub fn build_signature_type(
 pub fn required_parameter_indices(
     function: &mir::Function,
     metadata: Option<&mir::FunctionMetadata>,
+    tree: &mir::Tree,
 ) -> HashSet<usize> {
     // gather required indices from metadata
     let mut required = HashSet::new();
 
-    // include return lifetime parameters
-    for index in function.return_lifetime.parameter_indices() {
-        required.insert(index as usize);
+    // include return type lifetime slots
+    if let Some(lifetime) = tree.type_reference_lifetime(&function.return_type) {
+        for index in lifetime.slot_indices() {
+            required.insert(index as usize);
+        }
+    }
+
+    // include borrow obligation lifetime slots
+    for obligation in &function.borrow_obligations {
+        let mir::BorrowObligation::SuspensionStable { lifetime } = obligation;
+        for index in lifetime.slot_indices() {
+            required.insert(index as usize);
+        }
     }
 
     // include allocation size indices
