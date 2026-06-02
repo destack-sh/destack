@@ -21,18 +21,12 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Lower one interface heritage item from DIR into JS AST.
+    /// Lower one interface heritage type from DIR into JS AST.
     pub(crate) fn lower_interface_heritage(
         &mut self,
-        heritage: &dir::InterfaceHeritage,
+        extends_type: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CodegenJsResult<js::InterfaceHeritage> {
-        let expression = self
-            .lower_expression(heritage.expression)
-            .expect_node::<js::Expression>(
-                heritage.expression.into_global_any(self.module.id),
-                self,
-            )?;
-        let type_arguments = self.lower_static_type_arguments(&heritage.generic_arguments)?;
+        let (expression, type_arguments) = self.lower_type_callee(extends_type)?;
 
         Ok(js::InterfaceHeritage {
             expression,
@@ -140,18 +134,14 @@ impl ModuleLowerer<'_> {
                     self.lower_generic_parameters(&declaration.generic_parameters)?;
 
                 // extends
-                let extends_expression = declaration
-                    .extends_expression
-                    .map(|expression_id| {
-                        self.lower_expression(expression_id)
-                            .expect_node::<js::Expression>(
-                                expression_id.into_global_any(self.module.id),
-                                self,
-                            )
-                    })
+                let extends = declaration
+                    .extends_type
+                    .map(|extends_type| self.lower_type_callee(extends_type))
                     .transpose()?;
-                let extends_generic_arguments =
-                    self.lower_static_type_arguments(&declaration.extends_generic_arguments)?;
+                let (extends_expression, extends_generic_arguments) = extends
+                    .map_or((None, Vec::new()), |(expression, generic_arguments)| {
+                        (Some(expression), generic_arguments)
+                    });
 
                 // implements
                 let implements_types =
@@ -187,9 +177,10 @@ impl ModuleLowerer<'_> {
 
                 // extends
                 let extends = declaration
-                    .extends
+                    .extends_types
                     .iter()
-                    .map(|heritage| self.lower_interface_heritage(heritage))
+                    .copied()
+                    .map(|extends_type| self.lower_interface_heritage(extends_type))
                     .collect::<Result<Vec<_>, CodegenJsError>>()?;
 
                 // members

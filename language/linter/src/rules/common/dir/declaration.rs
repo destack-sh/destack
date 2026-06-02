@@ -3,13 +3,13 @@ use destack_dir as dir;
 /// Return true when one declaration has any `extends` heritage entries.
 pub fn declaration_has_extends_heritage(declaration: &dir::Declaration) -> bool {
     match declaration {
-        dir::Declaration::Class(declaration) => declaration.extends_expression.is_some(),
-        dir::Declaration::Interface(declaration) => !declaration.extends.is_empty(),
+        dir::Declaration::Class(declaration) => declaration.extends_type.is_some(),
+        dir::Declaration::Interface(declaration) => !declaration.extends_types.is_empty(),
         _ => false,
     }
 }
 
-/// Return true when one declarataion has any `implements`heritage entries.
+/// Return true when one declaration has any `implements` heritage entries.
 pub fn declaration_has_implements_heritage(declaration: &dir::Declaration) -> bool {
     match declaration {
         dir::Declaration::Class(declaration) => !declaration.implements_types.is_empty(),

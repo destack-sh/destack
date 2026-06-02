@@ -89,7 +89,7 @@ impl CheckState<'_> {
                 let members =
                     self.commit_members(module, output, environment, &declaration.members)?;
                 let extends = declaration
-                    .extends_expression
+                    .extends_type
                     .and_then(|node| self.commit_nominal_target(module, output, node.into_any()));
                 let implements = self.commit_nominal_targets(
                     module,
@@ -119,9 +119,9 @@ impl CheckState<'_> {
                     module,
                     output,
                     declaration
-                        .extends
+                        .extends_types
                         .iter()
-                        .map(|heritage| heritage.expression.into_any()),
+                        .map(|extends_type| extends_type.into_any()),
                 );
 
                 Ok(dir::NominalDefinition::Interface(

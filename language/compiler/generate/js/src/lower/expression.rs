@@ -4,8 +4,8 @@ use destack_js as js;
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsResultExt, ModuleLowerer};
 
 impl ModuleLowerer<'_> {
-    /// Lower a constructor name into a JS callee.
-    fn lower_new_type_callee(
+    /// Lower one reference type into a JS callee.
+    pub(crate) fn lower_type_callee(
         &mut self,
         type_expression_id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CodegenJsResult<(
@@ -17,7 +17,7 @@ impl ModuleLowerer<'_> {
 
         match type_expression {
             dir::TypeExpression::Parenthesized { expression } => {
-                self.lower_new_type_callee(*expression)
+                self.lower_type_callee(*expression)
             }
             dir::TypeExpression::Reference {
                 path,
@@ -41,7 +41,7 @@ impl ModuleLowerer<'_> {
                 generic_arguments,
             } => {
                 let left_source_id = left.into_any();
-                let (left_id, left_generic_arguments) = self.lower_new_type_callee(*left)?;
+                let (left_id, left_generic_arguments) = self.lower_type_callee(*left)?;
                 let left_id = if left_generic_arguments.is_empty() {
                     left_id
                 } else {
@@ -65,7 +65,7 @@ impl ModuleLowerer<'_> {
             }
             _ => Err(CodegenJsError::UnsupportedConstruct {
                 node: type_expression_id.into_global_any(self.module.id),
-                message: Some("new target must be a path or member expression".to_string()),
+                message: Some("type callee must be a path or member expression".to_string()),
             }),
         }
     }
@@ -1047,7 +1047,7 @@ impl ModuleLowerer<'_> {
                     .into_any()
             }
             dir::Expression::New { ty, arguments } => {
-                let (left_id, generic_arguments) = self.lower_new_type_callee(*ty)?;
+                let (left_id, generic_arguments) = self.lower_type_callee(*ty)?;
                 let arguments = arguments
                     .iter()
                     .map(|argument| self.lower_argument(*argument))

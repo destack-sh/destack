@@ -1137,6 +1137,7 @@ impl<'a> ModuleLowerer<'a> {
 
             self.builder.tree_mut().insert(mir::TypeAlias {
                 name: name_id,
+                lifetimes: Vec::new(),
                 ty: mir_type.into(),
             });
             existing_aliases.insert(name_id);

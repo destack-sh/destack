@@ -211,11 +211,9 @@ impl WalkState<'_, '_> {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
         }
 
-        // check superclass expression in declaration context
-        if let Some(extends_expression) = declaration.extends_expression {
-            let before_extends = self.fork_flow();
-            self.walk_expression(tree, extends_expression, tree.get(extends_expression));
-            self.restore_flow(before_extends);
+        // walk superclass type
+        if let Some(extends_type) = declaration.extends_type {
+            self.walk_type_expression(tree, extends_type, tree.get(extends_type));
         }
 
         // walk implemented contracts
@@ -290,15 +288,8 @@ impl WalkState<'_, '_> {
         }
 
         // walk inherited contracts
-        for heritage in &declaration.extends {
-            let before_heritage = self.fork_flow();
-
-            self.walk_expression(tree, heritage.expression, tree.get(heritage.expression));
-            self.restore_flow(before_heritage);
-
-            for argument in &heritage.generic_arguments {
-                self.walk_generic_argument(tree, *argument, tree.get(*argument));
-            }
+        for extends_type in &declaration.extends_types {
+            self.walk_type_expression(tree, *extends_type, tree.get(*extends_type));
         }
 
         for member in &declaration.members {
