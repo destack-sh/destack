@@ -335,6 +335,7 @@ pub fn format_form_type(form: &dir::FormType, ctx: &ModuleQueryContext<'_>) -> S
 pub fn format_scalar_literal(scalar: &dir::ScalarLiteral, strings: &StringPool) -> String {
     match scalar {
         dir::ScalarLiteral::Null => "null".to_string(),
+        dir::ScalarLiteral::Undefined => "undefined".to_string(),
         dir::ScalarLiteral::Boolean(b) => b.to_string(),
         dir::ScalarLiteral::Integer(i) => i.to_string(),
         dir::ScalarLiteral::Bigint(i) => format!("{i}n"),
@@ -380,6 +381,7 @@ pub fn format_inlay_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String
 pub fn widened_scalar_literal_name(value: &dir::ScalarLiteral) -> &'static str {
     match value {
         dir::ScalarLiteral::Null => "null",
+        dir::ScalarLiteral::Undefined => "undefined",
         dir::ScalarLiteral::Boolean(_) => DEFAULT_BOOLEAN_DISPLAY,
         dir::ScalarLiteral::String(_) | dir::ScalarLiteral::RegexString { .. } => {
             DEFAULT_STRING_DISPLAY
