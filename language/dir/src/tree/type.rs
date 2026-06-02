@@ -26,7 +26,10 @@ pub enum TypeMember {
         is_optional: bool,
     },
     /// Call signature declaration.
-    CallSignature { signature: FunctionType },
+    CallSignature {
+        /// The call signature function type expression.
+        signature: FunctionTypeExpression,
+    },
     /// Construct signature declaration.
     ConstructSignature { signature: ConstructorType },
     /// Index signature.
@@ -208,9 +211,9 @@ pub enum MappedTypeModifier {
     None,
 }
 
-/// One function type in type space.
+/// One function type expression in type space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FunctionType {
+pub struct FunctionTypeExpression {
     /// The generic parameters of the function type.
     pub generic_parameters: Vec<LocalNodeId<GenericParameter>>,
     /// The where clauses of the function type.
@@ -367,7 +370,7 @@ pub enum TypeExpression {
     /// (value: T) => U
     /// <T>(value: T): T
     /// ```
-    Function(FunctionType),
+    Function(FunctionTypeExpression),
 
     /// Constructor type.
     ///

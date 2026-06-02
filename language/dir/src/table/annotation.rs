@@ -208,10 +208,10 @@ pub struct AnnotationInvocation {
     pub source: GlobalNodeIdAny,
     /// The node annotated by this invocation.
     pub owner: GlobalNodeIdAny,
-    /// The callee expression.
-    pub callee: GlobalNodeIdAny,
+    /// The decorator target expression.
+    pub target: GlobalNodeIdAny,
     /// The resolved annotation target.
-    pub target: AnnotationTarget,
+    pub resolution: AnnotationTarget,
     /// The invocation arguments.
     pub arguments: Vec<AnnotationArgument>,
 }

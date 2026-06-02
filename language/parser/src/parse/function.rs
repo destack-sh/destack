@@ -7,8 +7,8 @@ use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 use destack_dir::{
     Asynchrony, BlockContext, ConstructorType, Declaration, ExportKind, Expression,
     FunctionDeclaration, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
-    FunctionType, GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType,
-    TypeExpression, WhereClause,
+    FunctionTypeExpression, GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
+    TokenType, TypeExpression, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
@@ -354,7 +354,7 @@ impl Parser {
                 parameters: function.signature.parameters,
                 return_type: function.signature.return_type,
             }),
-            None => TypeExpression::Function(FunctionType {
+            None => TypeExpression::Function(FunctionTypeExpression {
                 generic_parameters: function.signature.generic_parameters,
                 where_clauses: function.signature.where_clauses,
                 this_form: function.signature.this_form,
