@@ -130,7 +130,7 @@ fn environment_layout(
     function_id: mir::LocalNodeId<mir::Function>,
 ) -> Option<WordLayout> {
     let function = tree.get(function_id);
-    let environment = function.environment?;
+    let environment = function.environment.as_ref()?;
     let environment_type = environment.ty()?;
 
     word_layout_from_type(tree, environment_type)

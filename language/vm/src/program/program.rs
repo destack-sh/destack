@@ -1059,6 +1059,7 @@ impl ProgramBuilder {
         let local_count = slot_id - value_count;
         let environment_slot = function
             .environment
+            .as_ref()
             .map(|ty| ty.ty().ok_or_else(|| Error::invalid_program("environment")))
             .transpose()?
             .map(|environment| {

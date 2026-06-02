@@ -78,7 +78,7 @@ impl<'a> BlockLowerer<'a> {
                 operator,
                 argument,
                 to_type,
-            } => self.lower_cast(*destination, *operator, *argument, *to_type, pool)?,
+            } => self.lower_cast(*destination, *operator, *argument, to_type.clone(), pool)?,
 
             mir::Instruction::Select {
                 destination,
@@ -253,7 +253,7 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_new(
                 pool,
                 *destination,
-                *layout,
+                layout.clone(),
                 super::allocation::AllocationInitialization::Zeroed,
             )?,
 
@@ -264,7 +264,7 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_new(
                 pool,
                 *destination,
-                *layout,
+                layout.clone(),
                 super::allocation::AllocationInitialization::Uninit,
             )?,
 
@@ -281,9 +281,9 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_new_slice(
                 pool,
                 *destination,
-                *element,
+                element.clone(),
                 *length,
-                *result_type,
+                result_type.clone(),
                 super::allocation::AllocationInitialization::Zeroed,
             )?,
 
@@ -296,9 +296,9 @@ impl<'a> BlockLowerer<'a> {
             } => self.lower_new_slice(
                 pool,
                 *destination,
-                *element,
+                element.clone(),
                 *length,
-                *result_type,
+                result_type.clone(),
                 super::allocation::AllocationInitialization::Uninit,
             )?,
 
@@ -308,7 +308,7 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_frame_alloc(
                 *destination,
-                *layout,
+                layout.clone(),
                 super::allocation::AllocationInitialization::Zeroed,
             )?,
 
@@ -318,7 +318,7 @@ impl<'a> BlockLowerer<'a> {
                 ..
             } => self.lower_frame_alloc(
                 *destination,
-                *layout,
+                layout.clone(),
                 super::allocation::AllocationInitialization::Uninit,
             )?,
 
