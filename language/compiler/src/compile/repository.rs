@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependency, ArtifactPathState};
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId, Uri};
-use destack_workspace::{DestackFile, Module, Package, Profile, ProviderContext, Revision, Target};
+use destack_workspace::{
+    CompilerOptions, DestackFile, Module, Package, Profile, ProviderContext, Revision, Target,
+};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -103,6 +105,21 @@ impl Compiler {
         }
 
         Ok(config)
+    }
+
+    /// Return workspace compiler options for one module.
+    pub(crate) fn workspace_compiler_options(
+        &self,
+        context: &dyn ProviderContext,
+        module: &Module,
+    ) -> CompilerResult<CompilerOptions> {
+        let config = self.destack_for_package(context, module.package_id)?;
+        let options = config
+            .as_ref()
+            .map(|config| config.compiler.clone())
+            .unwrap_or_default();
+
+        Ok(options)
     }
 
     /// Record one source file content dependency.

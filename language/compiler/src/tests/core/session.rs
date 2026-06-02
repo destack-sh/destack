@@ -16,7 +16,9 @@ use destack_workspace::{
     Revision, Settings,
 };
 
-use crate::tests::snapshot::{DirRows, DirSnapshotBuilder, render_diagnostics};
+use crate::tests::snapshot::{
+    DirRows, DirSnapshotBuilder, render_diagnostics, render_source_diagnostics,
+};
 
 use super::module::{TestModule, parse_module, parsed_dependencies};
 use super::provider::TestProvider;
@@ -55,7 +57,22 @@ impl TestSessionBuilder {
 
     /// Build the test session.
     pub(crate) fn build(self) -> TestSession {
-        TestSession::build(self.files)
+        let mut files = self.files;
+
+        // enable sidecar snapshots in compiler tests
+        files
+            .entry("destack.json".to_string())
+            .or_insert_with(|| FileContent::Text {
+                content: r#"{
+  "compiler": {
+    "emitStats": true,
+    "emitEvents": true
+  }
+}"#
+                .to_string(),
+            });
+
+        TestSession::build(files)
     }
 }
 
@@ -79,6 +96,16 @@ impl TestSession {
     /// Create a new test session builder.
     pub(crate) fn new() -> TestSessionBuilder {
         TestSessionBuilder::default()
+    }
+
+    /// Return the repository under test.
+    pub(crate) fn repository(&self) -> &Repository {
+        &self.repository
+    }
+
+    /// Return the immutable test revision.
+    pub(crate) fn revision(&self) -> Revision {
+        self.revision
     }
 
     /// Build a single-module test session.
@@ -223,6 +250,16 @@ impl TestSession {
             .expect("test diagnostics should be readable");
 
         render_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
+    }
+
+    /// Render diagnostics with source annotations.
+    pub(crate) fn render_diagnostics(&self, key: Option<ArtifactKey>) -> String {
+        let diagnostics = self
+            .repository
+            .diagnostics(self.revision, key)
+            .expect("test diagnostics should be readable");
+
+        render_source_diagnostics(self.repository.as_ref(), self.revision, &diagnostics)
     }
 
     /// Return one text artifact sidecar.
@@ -489,13 +526,26 @@ impl TestSession {
         if selection.includes_metadata() {
             let metadata_rows = selection.metadata_rows();
 
-            for phase in metadata_phases(metadata_rows) {
-                let key = self.metadata_artifact_key(path, phase);
+            for phase in sidecar_phases(metadata_rows) {
+                let key = self.phase_artifact_key(path, phase);
                 let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
                 let metadata = self.artifact_text_sidecar(key, "metadata", &labels);
-                let rows = metadata_rows_for_phase(metadata_rows, phase);
+                let rows = sidecar_rows_for_phase(metadata_rows, phase);
 
                 builder.add_metadata(&rows, &metadata);
+            }
+        }
+
+        if selection.includes_events() {
+            let event_rows = selection.event_rows();
+
+            for phase in sidecar_phases(event_rows) {
+                let key = self.phase_artifact_key(path, phase);
+                let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
+                let events = self.artifact_text_sidecar(key, "events", &labels);
+                let rows = sidecar_rows_for_phase(event_rows, phase);
+
+                builder.add_events(&rows, &events);
             }
         }
 
@@ -617,13 +667,26 @@ impl TestSession {
         if selection.includes_metadata() {
             let metadata_rows = selection.metadata_rows();
 
-            for phase in metadata_phases(metadata_rows) {
-                let key = self.metadata_artifact_key(path, phase);
+            for phase in sidecar_phases(metadata_rows) {
+                let key = self.phase_artifact_key(path, phase);
                 let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
                 let metadata = self.artifact_text_sidecar(key, "metadata", &labels);
-                let rows = metadata_rows_for_phase(metadata_rows, phase);
+                let rows = sidecar_rows_for_phase(metadata_rows, phase);
 
                 builder.add_metadata(&rows, &metadata);
+            }
+        }
+
+        if selection.includes_events() {
+            let event_rows = selection.event_rows();
+
+            for phase in sidecar_phases(event_rows) {
+                let key = self.phase_artifact_key(path, phase);
+                let labels = BTreeMap::from([("phase".to_string(), phase.to_string())]);
+                let events = self.artifact_text_sidecar(key, "events", &labels);
+                let rows = sidecar_rows_for_phase(event_rows, phase);
+
+                builder.add_events(&rows, &events);
             }
         }
 
@@ -736,19 +799,22 @@ impl TestSession {
     }
 
     /// Require one artifact through the test provider.
-    fn require_artifact_result(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError> {
+    pub(crate) fn require_artifact_result(
+        &self,
+        key: ArtifactKey,
+    ) -> Result<ArtifactVersion, ProviderError> {
         self.provider.require(key)
     }
 
-    /// Return the artifact key that owns one phase metadata sidecar.
-    fn metadata_artifact_key(&self, path: &str, phase: &str) -> ArtifactKey {
+    /// Return the artifact key that owns one phase sidecar.
+    fn phase_artifact_key(&self, path: &str, phase: &str) -> ArtifactKey {
         match phase {
             "bind" => self.dir_bound_key(path),
             "import" => self.dir_imported_key(path),
             "export" => self.dir_exported_key(path),
             "resolve" => self.dir_resolved_key(path),
             "check" => self.dir_checked_component_key(path),
-            _ => panic!("unsupported metadata phase `{phase}`"),
+            _ => panic!("unsupported sidecar phase `{phase}`"),
         }
     }
 
@@ -858,28 +924,28 @@ impl TestSession {
     }
 }
 
-/// Return selected metadata phases in stable order.
-fn metadata_phases(rows: &[&'static str]) -> Vec<&'static str> {
+/// Return selected sidecar phases in stable order.
+fn sidecar_phases(rows: &[&'static str]) -> Vec<&'static str> {
     rows.iter()
-        .map(|row| metadata_phase(row))
+        .map(|row| sidecar_phase(row))
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect()
 }
 
-/// Return selected metadata rows for one phase.
-fn metadata_rows_for_phase(rows: &[&'static str], phase: &'static str) -> Vec<&'static str> {
+/// Return selected sidecar rows for one phase.
+fn sidecar_rows_for_phase(rows: &[&'static str], phase: &'static str) -> Vec<&'static str> {
     rows.iter()
         .copied()
-        .filter(|row| metadata_phase(row) == phase)
+        .filter(|row| sidecar_phase(row) == phase)
         .collect()
 }
 
-/// Return the phase prefix for one metadata row.
-fn metadata_phase(row: &'static str) -> &'static str {
+/// Return the phase prefix for one sidecar row.
+fn sidecar_phase(row: &'static str) -> &'static str {
     row.split_once('.')
         .map(|(phase, _)| phase)
-        .unwrap_or_else(|| panic!("metadata row `{row}` must include a phase prefix"))
+        .unwrap_or_else(|| panic!("sidecar row `{row}` must include a phase prefix"))
 }
 
 /// Assert exact multiline text equality.
