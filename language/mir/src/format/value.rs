@@ -191,10 +191,10 @@ fn format_place_projection<'a>(
         PlaceProjection::Index { index } => {
             write!(f, [token("index"), token("("), index, token(")")])
         }
-        PlaceProjection::Range { start, length } => write!(
+        PlaceProjection::Slice { start, length } => write!(
             f,
             [
-                token("range"),
+                token("slice"),
                 token("("),
                 start,
                 token(","),

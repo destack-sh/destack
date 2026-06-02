@@ -166,7 +166,7 @@ fn test_format_projected_drop() {
         r#"
 function cleanup(value0: slice<int32, unique>, value1: int64, value2: int64): void {
 entry0(value0: slice<int32, unique>, value1: int64, value2: int64):
-    drop place(value0, range(value1, value2))
+    drop place(value0, slice(value1, value2))
     return
 }
 "#,
@@ -183,7 +183,7 @@ entry0(value0: slice<int32, unique>, value1: int64, value2: int64):
     drop place(value0, field(0))
     drop place(value0, element(1))
     drop place(value0, index(value1))
-    drop place(value0, range(value1, value2))
+    drop place(value0, slice(value1, value2))
     return
 }
 "#,
