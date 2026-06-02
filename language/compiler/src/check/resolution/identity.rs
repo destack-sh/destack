@@ -1,5 +1,6 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::check::{CheckState, TypeOperand};
 
 /// Runtime identity equality failure resolved by the solver.
@@ -65,16 +66,7 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: IdentityDecision,
-    ) {
-        if let Some(previous) = self.inference.identity(source) {
-            assert_eq!(
-                previous, decision,
-                "check identity {source:?} already has a different decision"
-            );
-
-            return;
-        }
-
-        self.inference.insert_identity(source, decision);
+    ) -> CompilerResult<()> {
+        self.inference.select_identity(source, decision)
     }
 }

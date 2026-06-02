@@ -54,6 +54,35 @@ pub(in crate::check) enum PathLookup {
     Ambiguous(SmallVec<[PathCandidate; 4]>),
 }
 
+impl PathLookup {
+    /// Return candidates whose availability is guaranteed by one active guard.
+    pub(in crate::check) fn available_under(self, guard: &Condition) -> Self {
+        // collect visible candidates
+        let candidates = match self {
+            Self::Found(candidate) => smallvec::smallvec![candidate],
+            Self::Missing => return Self::Missing,
+            Self::Ambiguous(candidates) => candidates,
+        };
+
+        // remove candidates not guaranteed in this branch
+        let mut candidates = candidates
+            .into_iter()
+            .filter(|candidate| candidate.condition().is_guaranteed_by(guard))
+            .collect::<SmallVec<_>>();
+
+        // preserve lookup cardinality after filtering
+        if candidates.is_empty() {
+            Self::Missing
+        } else if candidates.len() == 1 {
+            let candidate = candidates.remove(0);
+
+            Self::Found(candidate)
+        } else {
+            Self::Ambiguous(candidates)
+        }
+    }
+}
+
 impl CheckState<'_> {
     /// Return whether one source path starts from a resolved namespace root.
     pub(in crate::check) fn path_has_namespace_root(
@@ -77,14 +106,19 @@ impl CheckState<'_> {
         path: &dir::Path,
         space: dir::SymbolSpace,
     ) -> CompilerResult<PathLookup> {
+        // split path into lexical root and namespace tail
         let Some((name, tail)) = path.segments.split_first() else {
             return Ok(PathLookup::Missing);
         };
+
+        // resolve multi-segment roots through value space
         let root_space = if tail.is_empty() {
             space
         } else {
             dir::SymbolSpace::Value
         };
+
+        // resolve the root binding before consulting namespace paths
         let root = match self.lookup_symbol_by_name(module, source, *name, root_space) {
             // exactly one root symbol
             NameLookup::Found(candidate) => PathCandidate::Symbol {
@@ -121,17 +155,19 @@ impl CheckState<'_> {
         Ok(self.path_resolution_lookup(root.condition(), resolution))
     }
 
-    /// Require a symbol named by one source path.
-    pub(in crate::check) fn require_symbol_by_path(
+    /// Require a symbol named by one guarded source path.
+    pub(in crate::check) fn require_symbol_by_path_under(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
         space: dir::SymbolSpace,
+        guard: &Condition,
     ) -> Option<dir::GlobalSymbolId> {
         let lookup = self
             .lookup_path(module, source, path, space)
-            .unwrap_or_else(|_| panic!("path lookup failed for checked module {module:?}"));
+            .unwrap_or_else(|_| panic!("path lookup failed for checked module {module:?}"))
+            .available_under(guard);
 
         match lookup {
             PathLookup::Found(candidate) => match candidate.symbol() {

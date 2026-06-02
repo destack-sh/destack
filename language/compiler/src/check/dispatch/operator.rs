@@ -6,9 +6,11 @@ use crate::CompilerResult;
 use crate::check::{
     CallableSignature, CheckState, Decision, FunctionTerm, GenericArgument, MemberProtocol,
     OperatorFailureReason, OperatorProtocol, OperatorProtocolArgument, OperatorTerm,
-    OperatorTermKind, OperatorType, Origin, Progress, StaticTerm, TypeLiteralTerm, TypeOperand,
-    TypeRelation, TypeTerm, VariableId, binary_operator_protocols, unary_operator_protocols,
+    OperatorTermKind, OperatorType, Origin, Progress, StaticTerm, TypeLiteralTerm, TypeRelation,
+    TypeTerm, VariableId, binary_operator_protocols, unary_operator_protocols,
 };
+
+use super::CandidateSet;
 
 /// Transient operator selection while reducing operator syntax.
 pub(in crate::check) enum OperatorCandidateDispatch {
@@ -217,8 +219,10 @@ impl CheckState<'_> {
         };
 
         // choose strict identity comparison
-        if Self::strict_equality_operator(kind) {
-            let is_compatible = self.strict_equality_compatible(receiver, &argument_type)?;
+        if kind.is_strict_equality() {
+            let module = operator.source.module_id;
+            let is_compatible =
+                self.strict_equality_compatible(module, receiver, &argument_type)?;
             let target = Self::boolean_type_term();
 
             if is_compatible && self.decide_expected_type(&target, expected)? != Decision::No {
@@ -247,7 +251,7 @@ impl CheckState<'_> {
         }
 
         // choose boolean logical operators
-        if Self::logical_boolean_operator(kind)
+        if kind.is_logical_boolean()
             && self.is_boolean_assignable(receiver)?
             && self.is_boolean_assignable(&argument_type)?
         {
@@ -260,57 +264,6 @@ impl CheckState<'_> {
         }
 
         Ok(None)
-    }
-
-    /// Return whether one numeric operator returns boolean.
-    pub(in crate::check) fn numeric_boolean_operator(operator: dir::BinaryOperator) -> bool {
-        matches!(
-            operator,
-            dir::BinaryOperator::Equal
-                | dir::BinaryOperator::NotEqual
-                | dir::BinaryOperator::LessThan
-                | dir::BinaryOperator::LessThanOrEqual
-                | dir::BinaryOperator::GreaterThan
-                | dir::BinaryOperator::GreaterThanOrEqual
-        )
-    }
-
-    /// Return whether one operator can use primitive numeric rules.
-    fn primitive_numeric_operator(operator: dir::BinaryOperator) -> bool {
-        matches!(
-            operator,
-            dir::BinaryOperator::Exponent
-                | dir::BinaryOperator::Multiply
-                | dir::BinaryOperator::Divide
-                | dir::BinaryOperator::Remainder
-                | dir::BinaryOperator::Add
-                | dir::BinaryOperator::Subtract
-                | dir::BinaryOperator::ShiftLeft
-                | dir::BinaryOperator::ShiftRight
-                | dir::BinaryOperator::UnsignedShiftRight
-                | dir::BinaryOperator::ElementwiseAnd
-                | dir::BinaryOperator::ElementwiseXor
-                | dir::BinaryOperator::ElementwiseOr
-                | dir::BinaryOperator::Equal
-                | dir::BinaryOperator::NotEqual
-                | dir::BinaryOperator::LessThan
-                | dir::BinaryOperator::LessThanOrEqual
-                | dir::BinaryOperator::GreaterThan
-                | dir::BinaryOperator::GreaterThanOrEqual
-        )
-    }
-
-    /// Return whether one operator is boolean short-circuit logic.
-    pub(in crate::check) fn logical_boolean_operator(operator: dir::BinaryOperator) -> bool {
-        matches!(operator, dir::BinaryOperator::And | dir::BinaryOperator::Or)
-    }
-
-    /// Return whether one operator is strict identity equality.
-    pub(in crate::check) fn strict_equality_operator(operator: dir::BinaryOperator) -> bool {
-        matches!(
-            operator,
-            dir::BinaryOperator::EqualStrict | dir::BinaryOperator::NotEqualStrict
-        )
     }
 
     /// Select one operator method.
@@ -326,6 +279,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
         let mut is_pending = false;
+        let candidate_set = CandidateSet::from_len(protocols.len());
 
         // choose the first protocol candidate that resolves
         for protocol in protocols {
@@ -336,11 +290,17 @@ impl CheckState<'_> {
             match result {
                 OperatorCandidateDispatch::Method { .. }
                 | OperatorCandidateDispatch::Builtin { .. } => {
-                    self.commit_inference_probe(probe);
+                    self.commit_inference_probe(probe)?;
 
                     return Ok(Some(result));
                 }
                 OperatorCandidateDispatch::Pending => {
+                    if candidate_set.keeps_pending_probe() {
+                        self.commit_inference_probe(probe)?;
+
+                        return Ok(Some(result));
+                    }
+
                     self.drop_inference_probe(probe);
                     is_pending = true;
                 }
@@ -366,6 +326,7 @@ impl CheckState<'_> {
         expected: Option<VariableId>,
         protocol: OperatorProtocol,
     ) -> CompilerResult<OperatorCandidateDispatch> {
+        // resolve protocol member on the receiver
         let module = operator.source.module_id;
         let key = protocol.method.key(&self.module(module).strings);
         let member_protocol = self.operator_member_protocol(&protocol)?;
@@ -379,6 +340,8 @@ impl CheckState<'_> {
         else {
             return Ok(Self::operator_no_match());
         };
+
+        // reduce member type to one callable signature
         let reduction = self.reduce_type_term(origin, &member.ty)?;
         let Some(term) = reduction.value else {
             return Ok(OperatorCandidateDispatch::Pending);
@@ -389,11 +352,17 @@ impl CheckState<'_> {
             CallableSignature::Present(function) => function,
         };
 
+        // decide operator method inputs and protocol output
         let arguments = self.decide_operator_method_arguments(operator, &function)?;
         let method_return = self.reduce_operator_type(module, &function, protocol.method_return)?;
-        let expression_type =
-            self.operator_type_term(module, &function, protocol.expression_type)?;
+        let Some(expression_type) =
+            self.operator_type_term(module, &function, protocol.expression_type)?
+        else {
+            return Ok(OperatorCandidateDispatch::Pending);
+        };
         let expected = self.decide_expected_type(&expression_type, expected)?;
+
+        // commit selected method expectations
         match arguments.and(method_return).and(expected) {
             Decision::Yes => {
                 self.expect_operator_type(origin, module, &function, protocol.method_return)?;
@@ -468,8 +437,13 @@ impl CheckState<'_> {
         function: &FunctionTerm,
         operator_type: OperatorType,
     ) -> CompilerResult<Decision> {
-        let source = self.operator_type_term(module, function, OperatorType::MethodReturn)?;
-        let target = self.operator_type_term(module, function, operator_type)?;
+        let Some(source) = self.operator_type_term(module, function, OperatorType::MethodReturn)?
+        else {
+            return Ok(Decision::Undecidable);
+        };
+        let Some(target) = self.operator_type_term(module, function, operator_type)? else {
+            return Ok(Decision::Undecidable);
+        };
 
         self.decide_type_term_relation(TypeRelation::Assignable, &source, &target)
     }
@@ -480,11 +454,16 @@ impl CheckState<'_> {
         module: ModuleId,
         function: &FunctionTerm,
         operator_type: OperatorType,
-    ) -> CompilerResult<TypeTerm> {
+    ) -> CompilerResult<Option<TypeTerm>> {
         let term = match operator_type {
             OperatorType::MethodReturn => match function.return_type {
-                Some(TypeOperand::Variable(return_type)) => TypeTerm::Variable(return_type),
-                Some(TypeOperand::Term(return_type)) => self.term(return_type).clone(),
+                Some(return_type) => {
+                    let Some(term) = self.type_operand_term(return_type)? else {
+                        return Ok(None);
+                    };
+
+                    term
+                }
                 None => TypeTerm::Literal(TypeLiteralTerm::Void),
             },
             OperatorType::Boolean => TypeTerm::Literal(TypeLiteralTerm::boolean()),
@@ -496,7 +475,7 @@ impl CheckState<'_> {
             }
         };
 
-        Ok(term)
+        Ok(Some(term))
     }
 
     /// Apply one operator protocol type to the selected method return.
@@ -513,7 +492,9 @@ impl CheckState<'_> {
         let Some(return_type) = function.return_type else {
             return Ok(Progress::Unchanged);
         };
-        let target = self.operator_type_term(module, function, operator_type)?;
+        let Some(target) = self.operator_type_term(module, function, operator_type)? else {
+            return Ok(Progress::Unchanged);
+        };
         let target = self.push_term(target);
 
         self.relate_contextual_type_assignability(origin, return_type, target)
@@ -532,13 +513,6 @@ impl CheckState<'_> {
     /// Classify one solved type as a builtin numeric operand.
     fn numeric_operand(&self, term: &TypeTerm) -> CompilerResult<Option<NumericOperand>> {
         let operand = match term {
-            TypeTerm::Variable(variable) => {
-                let Some(term) = self.type_solution(*variable)? else {
-                    return Ok(None);
-                };
-
-                return self.numeric_operand(&term);
-            }
             TypeTerm::Literal(TypeLiteralTerm::Scalar(dir::ScalarLiteral::Integer(_))) => {
                 NumericOperand {
                     shape: NumericShape::Integer,
@@ -613,10 +587,10 @@ impl CheckState<'_> {
         right: &NumericOperand,
         expected: Option<VariableId>,
     ) -> CompilerResult<Option<NumericBinaryMatch>> {
-        if !Self::primitive_numeric_operator(operator) {
+        if !operator.has_numeric_builtin() {
             return Ok(None);
         }
-        if Self::integer_operator(operator)
+        if operator.requires_integer_numeric_operands()
             && (left.shape == NumericShape::Float || right.shape == NumericShape::Float)
         {
             return Ok(None);
@@ -626,7 +600,7 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        let return_type = if Self::numeric_boolean_operator(operator) {
+        let return_type = if operator.returns_boolean_for_numeric_operands() {
             Self::boolean_type_term()
         } else {
             operand_type.clone()
@@ -651,12 +625,12 @@ impl CheckState<'_> {
         if left.primitive.is_some() || right.primitive.is_some() {
             return Ok(None);
         }
-        if !Self::numeric_boolean_operator(operator)
+        if !operator.returns_boolean_for_numeric_operands()
             && let Some(expected) = self.expected_numeric_type(expected)?
         {
             return Ok(Some(expected));
         }
-        let literal = if Self::integer_operator(operator) {
+        let literal = if operator.requires_integer_numeric_operands() {
             TypeLiteralTerm::integer()
         } else {
             TypeLiteralTerm::number()
@@ -696,56 +670,39 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return whether one operator is limited to integer numeric operands.
-    fn integer_operator(operator: dir::BinaryOperator) -> bool {
-        matches!(
-            operator,
-            dir::BinaryOperator::ShiftLeft
-                | dir::BinaryOperator::ShiftRight
-                | dir::BinaryOperator::UnsignedShiftRight
-                | dir::BinaryOperator::ElementwiseAnd
-                | dir::BinaryOperator::ElementwiseXor
-                | dir::BinaryOperator::ElementwiseOr
-        )
-    }
-
     /// Return whether strict equality can compare both operands.
     fn strict_equality_compatible(
         &self,
+        module: ModuleId,
         left: &TypeTerm,
         right: &TypeTerm,
     ) -> CompilerResult<bool> {
-        let left = self.supports_strict_identity(left)?;
-        let right = self.supports_strict_identity(right)?;
+        let left = self.supports_strict_identity(module, left)?;
+        let right = self.supports_strict_identity(module, right)?;
 
         Ok(left && right)
     }
 
     /// Return whether one type carries scalar or reference identity.
-    fn supports_strict_identity(&self, term: &TypeTerm) -> CompilerResult<bool> {
+    fn supports_strict_identity(&self, module: ModuleId, term: &TypeTerm) -> CompilerResult<bool> {
         let is_supported = match term {
-            TypeTerm::Variable(variable) => {
-                let Some(term) = self.type_solution(*variable)? else {
-                    return Ok(false);
-                };
-
-                return self.supports_strict_identity(&term);
-            }
             TypeTerm::Literal(literal) => Self::literal_supports_strict_identity(literal),
-            TypeTerm::Reference { symbol, .. } => self.symbol_supports_strict_identity(*symbol)?,
+            TypeTerm::Reference { symbol, .. } => {
+                self.symbol_supports_strict_identity(module, *symbol)?
+            }
             TypeTerm::Form { payload, .. } => {
                 let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(false);
                 };
 
-                return self.supports_strict_identity(&term);
+                return self.supports_strict_identity(module, &term);
             }
             TypeTerm::Union { elements } => {
                 for element in elements {
                     let Some(term) = self.type_operand_term(*element)? else {
                         return Ok(false);
                     };
-                    if !self.supports_strict_identity(&term)? {
+                    if !self.supports_strict_identity(module, &term)? {
                         return Ok(false);
                     }
                 }
@@ -761,24 +718,51 @@ impl CheckState<'_> {
 
     /// Return whether one literal type carries scalar or reference identity.
     fn literal_supports_strict_identity(literal: &TypeLiteralTerm) -> bool {
+        match literal {
+            TypeLiteralTerm::Null | TypeLiteralTerm::Undefined | TypeLiteralTerm::Object => true,
+            TypeLiteralTerm::Scalar(scalar) => Self::scalar_supports_strict_identity(scalar),
+            TypeLiteralTerm::Primitive(primitive) => {
+                Self::primitive_supports_strict_identity(*primitive)
+            }
+            _ => false,
+        }
+    }
+
+    /// Return whether one scalar literal has builtin strict identity.
+    fn scalar_supports_strict_identity(scalar: &dir::ScalarLiteral) -> bool {
         matches!(
-            literal,
-            TypeLiteralTerm::Null
-                | TypeLiteralTerm::Undefined
-                | TypeLiteralTerm::Object
-                | TypeLiteralTerm::Scalar(_)
-                | TypeLiteralTerm::Primitive(_)
+            scalar,
+            dir::ScalarLiteral::Boolean(_)
+                | dir::ScalarLiteral::Integer(_)
+                | dir::ScalarLiteral::Float(_)
+                | dir::ScalarLiteral::Character(_)
+        )
+    }
+
+    /// Return whether one primitive has builtin strict identity.
+    fn primitive_supports_strict_identity(primitive: dir::PrimitiveType) -> bool {
+        matches!(
+            primitive,
+            dir::PrimitiveType::Boolean
+                | dir::PrimitiveType::Character
+                | dir::PrimitiveType::Integer(_)
+                | dir::PrimitiveType::Float(_)
+                | dir::PrimitiveType::Symbol
+                | dir::PrimitiveType::UniqueSymbol
         )
     }
 
     /// Return whether one nominal symbol carries reference identity.
-    fn symbol_supports_strict_identity(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
-        let binding_table = self.module(symbol.module_id).binding_table();
-        let symbol = binding_table.get_symbol(symbol.local_id);
+    fn symbol_supports_strict_identity(
+        &self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        let kind = self.symbol_kind(module, symbol);
 
         Ok(matches!(
-            symbol.kind,
-            dir::SymbolKind::Class | dir::SymbolKind::Function
+            kind,
+            Some(dir::SymbolKind::Class | dir::SymbolKind::Function)
         ))
     }
 

@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 
 use crate::check::{
     CheckDependencyState, CheckEvent, CheckModuleState, CheckTrace, InferenceTable, OperandTable,
-    StaticOperand, VariableId,
+    RepresentationTable, StaticOperand, VariableId,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -32,6 +32,10 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) operands: OperandTable,
     /// Component-wide inference graph.
     pub(in crate::check) inference: InferenceTable,
+    /// Representation facts discovered during checking.
+    pub(in crate::check) representations: RepresentationTable,
+    /// Internal errors discovered in infallible walk paths.
+    pub(in crate::check) internal_errors: Vec<String>,
     /// Trace events emitted during checking.
     pub(in crate::check) trace: CheckTrace,
 }
@@ -53,8 +57,24 @@ impl<'a> CheckState<'a> {
             dependencies: IndexMap::new(),
             operands: OperandTable::new(),
             inference: InferenceTable::new(),
+            representations: RepresentationTable::new(),
+            internal_errors: Vec::new(),
             trace: CheckTrace::new(),
         }
+    }
+
+    /// Record one internal check error.
+    pub(in crate::check) fn record_internal_error(&mut self, message: String) {
+        self.internal_errors.push(message);
+    }
+
+    /// Return an internal check error when one was recorded.
+    fn require_no_internal_errors(&mut self) -> CompilerResult<()> {
+        if let Some(message) = self.internal_errors.pop() {
+            return Err(CompilerError::Internal { message });
+        }
+
+        Ok(())
     }
 
     /// Record one check event.
@@ -84,7 +104,8 @@ impl<'a> CheckState<'a> {
             self.walk_module(module);
         }
 
-        self.propagate_walk_state(modules.as_slice())
+        self.propagate_walk_state(modules.as_slice())?;
+        self.require_no_internal_errors()
     }
 
     /// Load one module.
@@ -174,7 +195,7 @@ impl<'a> CheckState<'a> {
                 let variable = self.ensure_symbol_static_variable(module, target);
                 let operand = variable.into();
 
-                self.bind_symbol_static_operand(symbol, operand);
+                self.publish_symbol_static_operand(symbol, operand);
 
                 return variable;
             }
