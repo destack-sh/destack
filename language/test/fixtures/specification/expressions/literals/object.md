@@ -67,6 +67,54 @@ let point: Point = _ { x: 1 };
 point satisfies Point;
 ```
 
+### struct update spread
+
+Struct expressions can update an existing struct value through spread.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point = Point { x: 1, y: 2 };
+const moved = Point { ...point, x: 3 };
+
+moved satisfies Point;
+```
+
+### object spread from struct
+
+Object literals can spread struct fields into a structural object.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const point = Point { x: 1, y: 2 };
+const object = { ...point, label: "origin" };
+
+object satisfies { x: int32; y: int32; label: string };
+```
+
+### struct spread from object
+
+Struct expressions can spread structural object fields into a nominal struct.
+
+```ds
+struct Point {
+    x: int32;
+    y: int32;
+}
+
+const base = { x: 1, y: 2 };
+const point: Point = _ { ...base };
+
+point satisfies Point;
+```
+
 ## object spreads
 
 ### object spread adds fields
