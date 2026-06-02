@@ -143,8 +143,8 @@ impl Parser {
         start: &ParserSpanStart,
     ) -> ParserResult<LocalNodeId<Expression>> {
         let (name, name_span) = self.eat_identifier_with_span()?;
-        let expression_id =
-            self.insert_node(Expression::Identifier { name }, self.get_span_from(start));
+        let expression = Expression::Identifier { name };
+        let expression_id = self.insert_node(expression, self.get_span_from(start));
         self.tree.set_main_span(expression_id, name_span);
 
         Ok(expression_id)

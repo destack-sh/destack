@@ -3,8 +3,8 @@ use crate::parse::prelude::*;
 use crate::{Parser, ParserError, ParserResult, ParserSpanStart};
 
 use destack_dir::{
-    Expression, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern, PatternField, RangeEnd,
-    ScalarLiteral, TokenLiteral, TokenType, TypeExpression, TypeLiteral,
+    Expression, Keyword, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern, PatternField,
+    RangeEnd, ScalarLiteral, TokenLiteral, TokenType, TypeExpression,
 };
 use destack_source::Span;
 
@@ -147,31 +147,23 @@ impl Parser {
                     )
                 }
             }
-            // null and undefined literals
-            else if self.peek_identifier_str_is("null")
-                || self.peek_identifier_str_is("undefined")
+            // nullish literals
+            else if let Some(keyword @ (Keyword::Null | Keyword::Undefined)) =
+                self.current_keyword()
             {
-                let is_null = self.peek_identifier_str_is("null");
-                self.bump(); // eat literal identifier
-
-                let pattern = if is_null {
-                    let expression_id = self.tree.insert(
-                        Expression::ScalarLiteral(ScalarLiteral::Null),
-                        self.get_span_from(&start),
-                    );
-                    Pattern::Expression {
-                        value: expression_id,
-                    }
+                let literal = if keyword == Keyword::Null {
+                    ScalarLiteral::Null
                 } else {
-                    let expression_id = self.tree.insert(
-                        TypeExpression::Literal {
-                            value: TypeLiteral::Undefined,
-                        },
-                        self.get_span_from(&start),
-                    );
-                    Pattern::TypeExpression {
-                        value: expression_id,
-                    }
+                    ScalarLiteral::Undefined
+                };
+                self.bump();
+
+                let expression_id = self.tree.insert(
+                    Expression::ScalarLiteral(literal),
+                    self.get_span_from(&start),
+                );
+                let pattern = Pattern::Expression {
+                    value: expression_id,
                 };
                 self.insert_node(pattern, self.get_span_from(&start))
             }
@@ -286,34 +278,6 @@ impl Parser {
                         },
                         self.get_span_from(&start),
                     )
-                }
-                // nullish literals in patterns
-                else if path.segments[0] == self.state.type_literal_identifiers.null_
-                    || path.segments[0] == self.state.type_literal_identifiers.undefined
-                {
-                    let is_null = path.segments[0] == self.state.type_literal_identifiers.null_;
-                    let pattern = if is_null {
-                        let expression_id = self.insert_node(
-                            Expression::ScalarLiteral(ScalarLiteral::Null),
-                            self.get_span_from(&start),
-                        );
-                        self.tree.set_main_span(expression_id, last_span);
-                        Pattern::Expression {
-                            value: expression_id,
-                        }
-                    } else {
-                        let expression_id = self.insert_node(
-                            TypeExpression::Literal {
-                                value: TypeLiteral::Undefined,
-                            },
-                            self.get_span_from(&start),
-                        );
-                        self.tree.set_main_span(expression_id, last_span);
-                        Pattern::TypeExpression {
-                            value: expression_id,
-                        }
-                    };
-                    self.insert_node(pattern, self.get_span_from(&start))
                 }
                 // identifier
                 else {

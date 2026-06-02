@@ -143,6 +143,18 @@ fn test_parse_pattern_value() {
 }
 
 #[test]
+fn test_parse_pattern_undefined_literal() {
+    let mut test = TestParser::new("undefined");
+    let mut parser = test.prepare();
+    let pattern_id = parser.eat_pattern().unwrap();
+
+    // undefined
+    assert_node!(parser.tree, pattern_id, Pattern::Expression { value } => {
+        assert_node!(parser.tree, *value, Expression::ScalarLiteral(ScalarLiteral::Undefined));
+    });
+}
+
+#[test]
 fn test_parse_pattern_dereference_binding() {
     let mut test = TestParser::new("*value");
     let mut parser = test.prepare();

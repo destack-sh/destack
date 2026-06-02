@@ -147,6 +147,19 @@ fn test_parse_null_literal() {
     );
 }
 
+/// Parse a bare undefined literal.
+#[test]
+fn test_parse_undefined_literal() {
+    let mut test = TestParser::new("undefined");
+    let mut parser = test.prepare();
+    let expression_id = parser.eat_expression(parser.flags).unwrap();
+    assert_node!(
+        parser.tree,
+        expression_id,
+        Expression::ScalarLiteral(ScalarLiteral::Undefined)
+    );
+}
+
 /// Parse parenthesized expressions with a transparent head span.
 #[test]
 fn test_parse_parenthesized_expression_records_semantic_head_span() {
