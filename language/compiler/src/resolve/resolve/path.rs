@@ -124,12 +124,32 @@ impl ResolveState<'_> {
         let lookup = self
             .bindings
             .lookup_symbol_at(reference.source, key, dir::SymbolSpace::Value);
-        let dir::SymbolLookup::Found(symbol) = lookup else {
+
+        // prefer lexical namespace imports
+        match lookup {
+            dir::SymbolLookup::Found(symbol) => {
+                let Some(dir::ImportTarget::Namespace(module)) = self.imports.symbol_target(symbol)
+                else {
+                    return None;
+                };
+
+                return Some(module);
+            }
+            dir::SymbolLookup::Ambiguous(_) => return None,
+            dir::SymbolLookup::Missing => {}
+        }
+
+        // fall back when no lexical binding shadows the ambient namespace
+        let targets = self.imports.global_targets(key)?;
+        let mut modules = targets.iter().filter_map(|target| match target {
+            dir::ImportTarget::Namespace(module) => Some(*module),
+            dir::ImportTarget::Symbol(_) => None,
+        });
+
+        let module = modules.next()?;
+        if modules.next().is_some() {
             return None;
-        };
-        let Some(dir::ImportTarget::Namespace(module)) = self.imports.symbol_target(symbol) else {
-            return None;
-        };
+        }
 
         Some(module)
     }

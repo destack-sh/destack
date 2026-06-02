@@ -56,7 +56,7 @@ impl ResolveState<'_> {
     /// const value = String(value);
     /// ```
     fn resolve_language_global(&mut self, language: &LanguageEnvironment, key: dir::StaticKey) {
-        if self.imports.global_symbol_by_key.contains_key(&key) {
+        if self.imports.global_target_by_key.contains_key(&key) {
             return;
         }
         let dir::StaticKey::Name(name) = key else {
@@ -67,7 +67,8 @@ impl ResolveState<'_> {
         };
 
         self.imports.push_dependency(symbol.module_id);
-        self.imports.push_global_symbol(key, symbol);
+        self.imports
+            .push_global_target(key, dir::ImportTarget::Symbol(symbol));
     }
 
     /// Resolve one syntax-required language item symbol.
@@ -147,8 +148,10 @@ impl ResolveState<'_> {
                 match entry {
                     dir::GlobalEntry::Local(entry) => {
                         self.imports.push_dependency(module);
-                        self.imports
-                            .push_global_symbol(*key, entry.source.into_global(module));
+                        self.imports.push_global_target(
+                            *key,
+                            dir::ImportTarget::Symbol(entry.source.into_global(module)),
+                        );
                     }
 
                     dir::GlobalEntry::Indirect(entry) => {
@@ -176,6 +179,15 @@ impl ResolveState<'_> {
         let Some(target) = entry.target else {
             return Ok(());
         };
+
+        if entry.imported == dir::ExportSelector::Namespace {
+            self.imports.push_dependency(target);
+            self.imports
+                .push_global_target(key, dir::ImportTarget::Namespace(target));
+
+            return Ok(());
+        }
+
         let Some(export_key) = entry.imported.selected_export_key() else {
             return Ok(());
         };
@@ -183,11 +195,15 @@ impl ResolveState<'_> {
         match self.resolve_export_target(target, export_key)? {
             ExportLookup::Found(ExportTarget::Symbol(symbol)) => {
                 self.imports.push_dependency(symbol.module_id);
-                self.imports.push_global_symbol(key, symbol);
+                self.imports
+                    .push_global_target(key, dir::ImportTarget::Symbol(symbol));
             }
-            ExportLookup::Found(ExportTarget::Namespace(_))
-            | ExportLookup::Ambiguous(_)
-            | ExportLookup::Missing => {}
+            ExportLookup::Found(ExportTarget::Namespace(module)) => {
+                self.imports.push_dependency(module);
+                self.imports
+                    .push_global_target(key, dir::ImportTarget::Namespace(module));
+            }
+            ExportLookup::Ambiguous(_) | ExportLookup::Missing => {}
         }
 
         Ok(())
