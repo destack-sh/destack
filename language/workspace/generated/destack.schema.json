@@ -209,6 +209,8 @@
         "declarationDir": null,
         "declarationMap": false,
         "noEmit": false,
+        "emitStats": false,
+        "emitEvents": false,
         "emitCheckedTypes": false
       }
     },
@@ -1307,6 +1309,16 @@
         },
         "noEmit": {
           "description": "Do not emit output files.",
+          "type": "boolean",
+          "default": false
+        },
+        "emitStats": {
+          "description": "Emit phase stats sidecars.",
+          "type": "boolean",
+          "default": false
+        },
+        "emitEvents": {
+          "description": "Emit phase event sidecars.",
           "type": "boolean",
           "default": false
         },
