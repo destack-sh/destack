@@ -178,7 +178,7 @@ fn walk_reference_offset_union<R: ReferenceClass>(
         }
         TraceMap::Tagged { variants, .. } => {
             for variant in variants {
-                let variant_offset = base_offset + variant.storage_offset as usize;
+                let variant_offset = base_offset + variant.payload_offset as usize;
 
                 if !walk_reference_offset_union::<R>(&variant.map, variant_offset, range, visit) {
                     return false;
@@ -539,14 +539,12 @@ fn walk_trace_map<W: ReferenceWalker>(
             }
         }
         TraceMap::Tagged {
-            tag_offset,
             tag_bytes,
             variants,
         } => {
-            let tag_offset = base_offset + *tag_offset as usize;
-            let Some(tag) = walker.tag(tag_offset, *tag_bytes)? else {
+            let Some(tag) = walker.tag(base_offset, *tag_bytes)? else {
                 for variant in variants {
-                    let variant_offset = base_offset + variant.storage_offset as usize;
+                    let variant_offset = base_offset + variant.payload_offset as usize;
 
                     walk_trace_map(&variant.map, variant_offset, range, walker)?;
                 }
@@ -556,7 +554,7 @@ fn walk_trace_map<W: ReferenceWalker>(
             let Some(variant) = variants.iter().find(|variant| variant.tag == tag) else {
                 return Ok(());
             };
-            let variant_offset = base_offset + variant.storage_offset as usize;
+            let variant_offset = base_offset + variant.payload_offset as usize;
 
             walk_trace_map(&variant.map, variant_offset, range, walker)?;
         }
