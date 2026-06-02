@@ -11,17 +11,19 @@ value = 2;
 
     session.assert_dir_checked_and_diagnostics(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const value: int32 = 1;
-/// @type.symbol symbol=value type=int32
-/// @type.node source=1 type=int32
+/// @type.symbol symbol=value source=value type=int32
+/// @type.node source=1 type=1
 
 value = 2;
 /// @type.node source="value = 2" type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
-/// @type.node source=2 type=int32
+/// @type.node source=2 type=2
+
+/// @check.stats.solve variables=0 terms=4 constraints=2 obligations=1 solutions=0 bounds=0 decisions=1
 "#,
         r#"
 /// @diagnostic.error code=EC204 message="assignment target is not writable"
@@ -41,7 +43,7 @@ state.count = 1;
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types(),
+        DirRows::checked().with_reference_types().with_check_stats(),
         r#"
 const state: { count: int32 } = { count: 0 };
 /// @type.symbol symbol=state type={ count: int32 }

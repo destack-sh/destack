@@ -16,7 +16,7 @@ declare const number: Select<boolean>;
         DirRows::checked(),
         r#"
 type Select<T> = T extends string ? string : int32;
-/// @generic.slot symbol=Select.T index=0 kind=type
+/// @generic.template symbol=Select parameters=[T]
 /// @type.symbol symbol=Select type=T extends string ? string : int32
 
 declare const text: Select<string>;
@@ -29,8 +29,8 @@ declare const number: Select<boolean>;
 /// @generic.application source="Select<boolean>" id=Select<boolean>
 /// @type.symbol symbol=number type=int32
 
-/// @generic.instance id=Select<string> symbol=Select arguments=[string]
-/// @generic.instance id=Select<boolean> symbol=Select arguments=[boolean]
+/// @generic.application id=Select<string> symbol=Select arguments=[string]
+/// @generic.application id=Select<boolean> symbol=Select arguments=[boolean]
 "#,
     );
 }

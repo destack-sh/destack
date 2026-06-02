@@ -58,8 +58,7 @@ fn test_representation_attributes_set_layout_metadata() {
 @repr("transparent")
 newtype FileDescriptor = int32;
 
-@repr("C")
-@packed
+@repr("C", { packed: true })
 struct WireHeader {
     tag: uint8;
     size: uint32;
@@ -72,24 +71,34 @@ struct WireHeader {
         DirRows::checked().with_statics().with_layout(),
         r#"
 @repr("transparent")
-newtype FileDescriptor = int32;
 /// @type.symbol symbol=FileDescriptor type=FileDescriptor
 /// @layout.type type=FileDescriptor shape=newtype size=4 align=4 backing=scalar(4/4)
+/// @layout.newtype symbol=FileDescriptor backing=int32
+/// @nominal.newtype symbol=FileDescriptor
 
-@repr("C")
-@packed
-struct WireHeader {
+newtype FileDescriptor = int32;
+
+@repr("C", { packed: true })
 /// @type.symbol symbol=WireHeader type=WireHeader
 /// @layout.type type=WireHeader shape=struct size=5 align=1
-/// @layout.field parent=WireHeader key=tag type=uint8 offset=0 size=1 align=1
 /// @layout.field parent=WireHeader key=size type=uint32 offset=1 size=4 align=1
+/// @layout.field parent=WireHeader key=tag type=uint8 offset=0 size=1 align=1
+/// @nominal.field symbol=WireHeader.size source="size: uint32" key=size type=uint32
+/// @nominal.field symbol=WireHeader.tag source="tag: uint8" key=tag type=uint8
+/// @nominal.struct symbol=WireHeader
 
+struct WireHeader {
     tag: uint8;
-    /// @type.symbol symbol=WireHeader.tag type=uint8
+    /// @type.symbol symbol=WireHeader.tag source="tag: uint8" type=uint8
 
     size: uint32;
-    /// @type.symbol symbol=WireHeader.size type=uint32
+    /// @type.symbol symbol=WireHeader.size source="size: uint32" type=uint32
+
 }
+
+/// @static.entry value="\"C\""
+/// @static.entry value="\"transparent\""
+/// @static.entry value="{ packed: true }"
 
 "#,
     );

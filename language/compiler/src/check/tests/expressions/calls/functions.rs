@@ -17,29 +17,29 @@ const value = add(1, 2);
         DirRows::checked()
             .with_node_types()
             .without_reference_types()
-            .with_check_solve_stats(),
+            .with_check_stats(),
         r#"
 function add(left: int32, right: int32): int32 {
 /// @type.symbol symbol=add type=(int32, int32) => int32
-/// @type.symbol symbol=left type=int32
-/// @type.symbol symbol=right type=int32
+/// @type.symbol symbol=left source="left: int32" type=int32
+/// @type.symbol symbol=right source="right: int32" type=int32
 
     return left + right;
     /// @type.node source="left + right" type=int32
     /// @resolution.name source=left target=left
-    /// @resolution.call source="left + right" parameters=(int32, int32) return=int32 kind=builtin builtin=binary.add
     /// @resolution.name source=right target=right
 
 }
 
 const value = add(1, 2);
-/// @type.symbol symbol=value type=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @type.node source="add(1, 2)" type=int32
 /// @resolution.name source=add target=add
 /// @resolution.call source="add(1, 2)" parameters=(int32, int32) return=int32 kind=symbol target=add
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
-/// @check.stats.solve variables=0 definitions=0 constraints=1 obligations=0 solutions=0 bounds=0 decisions=2
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
+
+/// @check.stats.solve variables=4 terms=19 constraints=4 obligations=0 solutions=4 bounds=7 decisions=4
 "#);
 }
 
@@ -69,13 +69,14 @@ const value = add(1, 2);
         DirRows::checked().with_node_types().without_reference_types(),
         r#"
 import { add } from "./math.ds";
+/// @type.symbol symbol=add source=add type=(int32, int32) => int32
 
 const value = add(1, 2);
-/// @type.symbol symbol=value type=int32
+/// @type.symbol symbol=value source=value type=int32
 /// @type.node source="add(1, 2)" type=int32
-/// @resolution.name source=add target=math.add
-/// @resolution.call source="add(1, 2)" parameters=(int32, int32) return=int32 kind=symbol target=math.add
-/// @type.node source=1 type=int32
-/// @type.node source=2 type=int32
+/// @resolution.name source=add target=add
+/// @resolution.call source="add(1, 2)" parameters=(int32, int32) return=int32 kind=symbol target=add
+/// @type.node source=1 type=1
+/// @type.node source=2 type=2
 "#);
 }

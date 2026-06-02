@@ -28,9 +28,7 @@ struct Node {
 
 function first(a: &Node, b: &Node): &Node {
 /// @type.symbol symbol=first type=(Borrowed<Node, first.L0, "mutable">, Borrowed<Node, first.L1, "mutable">) => Borrowed<Node, first.L0, "mutable">
-/// @generic.slot key=first.L0 index=0 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=first.L1 index=1 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=first.L2 index=2 kind=static constraint=memory.lifetime.Lifetime
+/// @generic.template symbol=first parameters=[comptime L0: memory.lifetime.Lifetime, comptime L1: memory.lifetime.Lifetime, comptime L2: memory.lifetime.Lifetime]
 /// @type.symbol symbol=a type=Borrowed<Node, first.L0, "mutable">
 /// @type.symbol symbol=b type=Borrowed<Node, first.L1, "mutable">
 
@@ -70,9 +68,7 @@ struct Node {
 
 function choose(a: &Node, b: &Node, flag: boolean): &Node {
 /// @type.symbol symbol=choose type=(Borrowed<Node, choose.L0, "mutable">, Borrowed<Node, choose.L1, "mutable">, boolean) => Borrowed<Node, choose.L0 | choose.L1, "mutable">
-/// @generic.slot key=choose.L0 index=0 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=choose.L1 index=1 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=choose.L2 index=2 kind=static constraint=memory.lifetime.Lifetime
+/// @generic.template symbol=choose parameters=[comptime L0: memory.lifetime.Lifetime, comptime L1: memory.lifetime.Lifetime, comptime L2: memory.lifetime.Lifetime]
 /// @type.symbol symbol=a type=Borrowed<Node, choose.L0, "mutable">
 /// @type.symbol symbol=b type=Borrowed<Node, choose.L1, "mutable">
 /// @type.symbol symbol=flag type=boolean
@@ -116,9 +112,7 @@ struct Node {
 
 declare function choose(a: &Node, b: &Node): &Node;
 /// @type.symbol symbol=choose type=(Borrowed<Node, choose.L0, "mutable">, Borrowed<Node, choose.L1, "mutable">) => Borrowed<Node, choose.L2, "mutable">
-/// @generic.slot key=choose.L0 index=0 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=choose.L1 index=1 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=choose.L2 index=2 kind=static constraint=memory.lifetime.Lifetime
+/// @generic.template symbol=choose parameters=[comptime L0: memory.lifetime.Lifetime, comptime L1: memory.lifetime.Lifetime, comptime L2: memory.lifetime.Lifetime]
 /// @type.symbol symbol=a type=Borrowed<Node, choose.L0, "mutable">
 /// @type.symbol symbol=b type=Borrowed<Node, choose.L1, "mutable">
 
@@ -167,8 +161,7 @@ struct AssetStore {
 
 struct WorldView {
 /// @type.symbol symbol=WorldView type=WorldView<WorldView.L0, WorldView.L1>
-/// @generic.slot key=WorldView.L0 index=0 kind=static constraint=memory.lifetime.Lifetime
-/// @generic.slot key=WorldView.L1 index=1 kind=static constraint=memory.lifetime.Lifetime
+/// @generic.template symbol=WorldView parameters=[comptime L0: memory.lifetime.Lifetime, comptime L1: memory.lifetime.Lifetime]
 
     engine: &Engine;
     /// @type.symbol symbol=WorldView.engine type=Borrowed<Engine, WorldView.L0, "mutable">

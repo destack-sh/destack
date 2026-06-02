@@ -27,7 +27,7 @@ interface Drawable {
 
 function paint(item: Drawable): void {
 /// @type.symbol symbol=paint type=<paint.T0: Drawable>(paint.T0) => void
-/// @generic.slot symbol=paint.T0 index=0 kind=type constraint=Drawable
+/// @generic.template symbol=paint parameters=[T0: Drawable]
 
     item.draw();
     /// @resolution.name source=item target=item
@@ -64,7 +64,7 @@ type Drawable = {
 };
 
 function paint(item: Drawable): void {
-/// @generic.slot key=paint.T0 index=0 kind=type constraint=Drawable
+/// @generic.template symbol=paint parameters=[T0: Drawable]
 /// @type.symbol symbol=paint type=<paint.T0: Drawable>(paint.T0) => void
 /// @type.symbol symbol=item type=paint.T0
 /// @resolution.name source=Drawable target=Drawable
@@ -123,13 +123,12 @@ interface NumberSink {
 }
 
 type SinkFor<T> = T extends string ? TextSink : NumberSink;
-/// @generic.slot symbol=SinkFor.T index=0 kind=type
+/// @generic.template symbol=SinkFor parameters=[T]
 /// @type.symbol symbol=SinkFor type=T extends string ? TextSink : NumberSink
 
 function write<T>(value: T, sink: SinkFor<T>): void {
-/// @generic.slot symbol=write.T index=0 kind=type
+/// @generic.template symbol=write parameters=[T, T0: SinkFor<T>]
 /// @type.symbol symbol=write type=<T, write.T0: SinkFor<T>>(T, write.T0) => void
-/// @generic.slot symbol=write.T0 index=1 kind=type constraint=SinkFor<T>
 
     sink.write(value);
     /// @resolution.name source=sink target=sink
@@ -145,16 +144,16 @@ declare const number: NumberSink;
 
 write("message", text);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(\"message\", text)" parameters=(string, TextSink) return=void kind=symbol target=write instance="write<string, TextSink>"
+/// @resolution.call source="write(\"message\", text)" parameters=(string, TextSink) return=void kind=symbol target=write application="write<string, TextSink>"
 /// @generic.application source="write(\"message\", text)" id="write<string, TextSink>"
 
 write(1, number);
 /// @resolution.name source=write target=write
-/// @resolution.call source="write(1, number)" parameters=(int32, NumberSink) return=void kind=symbol target=write instance="write<int32, NumberSink>"
+/// @resolution.call source="write(1, number)" parameters=(int32, NumberSink) return=void kind=symbol target=write application="write<int32, NumberSink>"
 /// @generic.application source="write(1, number)" id="write<int32, NumberSink>"
 
-/// @generic.instance id="write<string, TextSink>" symbol=write arguments=[string, TextSink]
-/// @generic.instance id="write<int32, NumberSink>" symbol=write arguments=[int32, NumberSink]
+/// @generic.application id="write<string, TextSink>" symbol=write arguments=[string, TextSink]
+/// @generic.application id="write<int32, NumberSink>" symbol=write arguments=[int32, NumberSink]
 "#);
 }
 
@@ -200,13 +199,12 @@ interface NumberSink {
 }
 
 type SinkFor<T> = T extends string ? TextSink : NumberSink;
-/// @generic.slot symbol=SinkFor.T index=0 kind=type
+/// @generic.template symbol=SinkFor parameters=[T]
 /// @type.symbol symbol=SinkFor type=T extends string ? TextSink : NumberSink
 
 function write<T>(value: T, sink: SinkFor<T>): void {
-/// @generic.slot symbol=write.T index=0 kind=type
+/// @generic.template symbol=write parameters=[T, T0: SinkFor<T>]
 /// @type.symbol symbol=write type=<T, write.T0: SinkFor<T>>(T, write.T0) => void
-/// @generic.slot symbol=write.T0 index=1 kind=type constraint=SinkFor<T>
 
     sink.write(value);
     /// @resolution.name source=sink target=sink

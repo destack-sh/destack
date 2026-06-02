@@ -15,12 +15,12 @@ const id: UserId = 42;
         DirRows::checked().with_reference_types(),
         r#"
 newtype UserId = int64;
-/// @type.symbol symbol=UserId type=UserId
+/// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
 
 const id: UserId = 42;
+/// @type.symbol symbol=id source=id type=UserId
 /// @resolution.name source=UserId target=UserId
-/// @type.node source=42 type=int64
-/// @type.symbol symbol=id type=UserId
+/// @type.node source=42 type=42
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type is not assignable"
@@ -44,13 +44,14 @@ const config: Config = { debug: true };
         DirRows::checked().with_reference_types(),
         r#"
 newtype Config = { debug: boolean };
-/// @type.symbol symbol=Config type=Config
-/// @type.symbol symbol=Config.debug type=boolean
+/// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
+/// @type.symbol symbol=Config.debug source="debug: boolean" type=boolean
 
 const config: Config = { debug: true };
-/// @type.symbol symbol=config type=Config
-/// @type.node source="{ debug: true }" type={ debug: boolean }
-/// @type.node source=true type=boolean
+/// @type.symbol symbol=config source=config type=Config
+/// @resolution.name source=Config target=Config
+/// @type.node source="{ debug: true }" type={ debug: true }
+/// @type.node source=true type=true
 "#,
         r#"
 /// @diagnostic.error code=EC200 message="type is not assignable"
