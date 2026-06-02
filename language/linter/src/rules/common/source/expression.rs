@@ -22,6 +22,19 @@ pub fn expression_unwrap_parenthesized_source_form(
     }
 }
 
+/// Return true when one expression is a nullish literal.
+pub fn expression_is_nullish_literal(
+    tree: &dir::Tree,
+    expression_id: dir::LocalNodeId<dir::Expression>,
+) -> bool {
+    let expression_id = expression_unwrap_parenthesized_source_form(tree, expression_id);
+
+    matches!(
+        tree.get(expression_id),
+        dir::Expression::ScalarLiteral(dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined)
+    )
+}
+
 /// Return the source expression id with statement source form unwrapped.
 pub fn expression_unwrap_statement_source_form(
     tree: &dir::Tree,

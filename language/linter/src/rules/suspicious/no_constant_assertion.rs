@@ -183,8 +183,8 @@ fn get_constant_truthiness(
             Some(!s.is_empty())
         }
 
-        // null is falsy
-        Expression::ScalarLiteral(ScalarLiteral::Null) => Some(false),
+        // nullish literals are falsy
+        Expression::ScalarLiteral(ScalarLiteral::Null | ScalarLiteral::Undefined) => Some(false),
 
         // empty optional sentinel types are falsy
         Expression::Type {
