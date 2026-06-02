@@ -2,62 +2,15 @@ use std::fmt;
 use std::sync::Arc;
 
 use destack_engine::{
-    CallContext, Engine as EngineTrait, EngineId, EntryPoint, MemoryContext, Outcome, StaticSpace,
+    Engine as EngineTrait, EngineCall, EngineId, EngineMemory, EntryPoint, Outcome, StaticSpace,
     Value,
 };
 use destack_heap as heap;
 
 use crate::{
-    Continuation, Image, NativeContext, NativeExit, NativeStatus, NativeStatusError, NativeTrap,
-    NativeTrapError, NativeValue, NativeValueError, Program,
+    Continuation, Error, Image, NativeContext, NativeExit, NativeStatus, NativeTrap, NativeValue,
+    Program,
 };
-
-/// Native backend execution error.
-#[derive(Debug)]
-pub enum Error {
-    /// The requested entry is not present in the native program.
-    EntryNotFound {
-        /// The missing entry name.
-        name: String,
-    },
-    /// Native execution yielded without a materialized continuation.
-    YieldedWithoutContinuation {
-        /// The safepoint that yielded.
-        safepoint: u32,
-    },
-    /// Native execution reported a trap.
-    Trapped {
-        /// The reported trap.
-        trap: NativeTrap,
-    },
-    /// Native execution requested deoptimization without materialization.
-    DeoptimizedWithoutMaterialization {
-        /// The safepoint that requested deoptimization.
-        safepoint: u32,
-    },
-    /// Native execution reported a language panic.
-    Panicked {
-        /// The panic payload.
-        payload: Value,
-    },
-    /// A native exit status code could not be decoded.
-    InvalidStatus(NativeStatusError),
-    /// A native trap code could not be decoded.
-    InvalidTrap(NativeTrapError),
-    /// A native ABI value could not be decoded.
-    Value(NativeValueError),
-    /// Native continuation state is not resumable by this engine.
-    ContinuationUnavailable,
-    /// A native image belongs to another engine.
-    ImageEngineMismatch {
-        /// The current engine id.
-        engine_id: EngineId,
-        /// The captured image engine id.
-        image_engine_id: EngineId,
-    },
-    /// Native root metadata is not available.
-    RootMapUnavailable,
-}
 
 /// Worker-local native execution backend.
 pub struct Engine {
@@ -105,13 +58,13 @@ impl EngineTrait for Engine {
     type Error = Error;
     type Image = Image;
 
-    fn initialize(&mut self, _context: MemoryContext<'_>) -> Result<(), Self::Error> {
+    fn initialize(&mut self, _context: EngineMemory<'_>) -> Result<(), Self::Error> {
         Ok(())
     }
 
     fn run(
         &mut self,
-        context: CallContext<'_>,
+        context: EngineCall<'_>,
         entry: EntryPoint,
         args: &[Value],
     ) -> Result<Outcome<Self::Continuation, Value>, Self::Error> {
@@ -125,7 +78,7 @@ impl EngineTrait for Engine {
             .map(NativeValue::from_engine)
             .collect::<Vec<_>>();
         let mut exit = NativeExit::default();
-        let mut context = NativeContext::new(context.runtime.as_ptr(), &mut exit);
+        let mut context = NativeContext::new(context.host.as_ptr(), &mut exit);
         let mut out = NativeValue::VOID;
 
         let status = entry.call(&mut context, &args, &mut out);
@@ -157,24 +110,24 @@ impl EngineTrait for Engine {
 
     fn resume(
         &mut self,
-        _context: CallContext<'_>,
+        _context: EngineCall<'_>,
         _continuation: Self::Continuation,
         _value: Value,
     ) -> Result<Outcome<Self::Continuation, Value>, Self::Error> {
         Err(Error::ContinuationUnavailable)
     }
 
-    fn fork(&self, _context: MemoryContext<'_>) -> Result<Self, Self::Error> {
+    fn fork(&self, _context: EngineMemory<'_>) -> Result<Self, Self::Error> {
         Ok(Self::new(self.engine_id, self.program.clone()))
     }
 
-    fn image(&self, _context: MemoryContext<'_>) -> Result<Self::Image, Self::Error> {
+    fn image(&self, _context: EngineMemory<'_>) -> Result<Self::Image, Self::Error> {
         Ok(Engine::image(self))
     }
 
     fn restore(
         &mut self,
-        _context: MemoryContext<'_>,
+        _context: EngineMemory<'_>,
         image: &Self::Image,
     ) -> Result<(), Self::Error> {
         if image.engine_id == self.engine_id {
@@ -203,50 +156,6 @@ impl EngineTrait for Engine {
         Err(Error::RootMapUnavailable)
     }
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::EntryNotFound { name } => write!(formatter, "native entry not found: {name}"),
-            Self::YieldedWithoutContinuation { safepoint } => {
-                write!(
-                    formatter,
-                    "native execution yielded at safepoint {safepoint} without a continuation"
-                )
-            }
-            Self::Trapped { trap } => {
-                write!(formatter, "native execution trapped: {trap:?}")
-            }
-            Self::DeoptimizedWithoutMaterialization { safepoint } => {
-                write!(
-                    formatter,
-                    "native execution deoptimized at safepoint {safepoint} without materialization"
-                )
-            }
-            Self::Panicked { payload } => {
-                write!(formatter, "native execution panicked with {payload:?}")
-            }
-            Self::InvalidStatus(error) => write!(formatter, "native status error: {error}"),
-            Self::InvalidTrap(error) => write!(formatter, "native trap error: {error}"),
-            Self::Value(error) => write!(formatter, "native value error: {error}"),
-            Self::ContinuationUnavailable => {
-                write!(formatter, "native continuation is not resumable")
-            }
-            Self::ImageEngineMismatch {
-                engine_id,
-                image_engine_id,
-            } => write!(
-                formatter,
-                "native image belongs to engine {}, not {}",
-                image_engine_id.get(),
-                engine_id.get()
-            ),
-            Self::RootMapUnavailable => write!(formatter, "native root map is not available"),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
 
 impl fmt::Debug for Engine {
     /// Format the engine without exposing runtime function pointers.
