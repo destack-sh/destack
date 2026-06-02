@@ -149,3 +149,72 @@ global {
 "#,
     );
 }
+
+#[test]
+fn test_export_records_global_namespace_reexport() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+global {
+    export * as api from "./api.ds";
+}
+"#,
+        )
+        .module(
+            "api.ds",
+            r#"
+export const value = 1;
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_exported(
+        "main.ds",
+        DirRows::exports().with_summaries().with_export_stats(),
+        r#"
+global {
+    export * as api from "./api.ds";
+    /// @global.indirect key=api imported=<namespace> module=api.ds
+
+}
+
+/// @export.summary
+/// @export.stats roots=1 expressions=visibility:2,export:2 symbols=scanned:1
+/// @global.summary keys=1 entries=1
+"#,
+    );
+}
+
+#[test]
+fn test_export_records_global_local_export() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+const value: int32 = 1;
+
+global {
+    export { value as globalValue };
+}
+"#,
+        )
+        .build();
+
+    compiler.assert_dir_exported(
+        "main.ds",
+        DirRows::exports().with_summaries().with_export_stats(),
+        r#"
+const value: int32 = 1;
+/// @global.local key=globalValue source=value
+
+global {
+    export { value as globalValue };
+}
+
+/// @export.summary
+/// @export.stats roots=2 expressions=visibility:3,export:3 symbols=scanned:2
+/// @global.summary keys=1 entries=1
+"#,
+    );
+}

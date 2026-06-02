@@ -59,3 +59,57 @@ export { missing };
 "#,
     );
 }
+
+#[test]
+fn test_export_reports_global_default_key_reexport() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+global {
+    export { value as default } from "./dep.ds";
+}
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export const value = 1;
+"#,
+        )
+        .build();
+    compiler.assert_dir_exported_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error code=ET102 message="global export cannot use default key"
+/// @diagnostic.label line=3 column=14 source="export { value as default } from \"./dep.ds\";"
+"#,
+    );
+}
+
+#[test]
+fn test_export_reports_global_namespace_reexport() {
+    let compiler = TestSession::new()
+        .module(
+            "main.ds",
+            r#"
+global {
+    export * from "./dep.ds";
+}
+"#,
+        )
+        .module(
+            "dep.ds",
+            r#"
+export const value = 1;
+"#,
+        )
+        .build();
+    compiler.assert_dir_exported_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error code=ET107 message="global namespace export requires an alias"
+/// @diagnostic.label line=3 column=5 source="export * from \"./dep.ds\";"
+"#,
+    );
+}
