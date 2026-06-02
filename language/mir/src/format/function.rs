@@ -5,9 +5,9 @@ use destack_fir::write;
 use super::attribute::{write_attribute, write_attributes};
 
 use crate::{
-    FormatMirNode, Function, FunctionHeaderSpans, Linkage, Local, LocalNodeId, MirFormatContext,
-    MirFormatter, Mutability, Ownership, Tree, write_comments_after, write_comments_before,
-    write_inline_comment_after, write_node_leading_comments,
+    FormatMirNode, Function, FunctionHeaderSpans, LifetimeParameter, Linkage, Local, LocalNodeId,
+    MirFormatContext, MirFormatter, Mutability, Ownership, Tree, write_comments_after,
+    write_comments_before, write_inline_comment_after, write_node_leading_comments,
     write_node_leading_comments_after_separator,
 };
 
@@ -25,6 +25,7 @@ impl<'a> FormatMirNode<'a, Function> for Function {
 
         // imported function
         if self.linkage.is_import() {
+            f.context_mut().current_lifetimes = self.lifetimes.clone();
             write!(
                 f,
                 [
@@ -32,14 +33,18 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                     space(),
                     token("function"),
                     space(),
-                    text(&name)
+                    text(&name),
+                    format_with(|f| format_lifetimes(&self.lifetimes, f))
                 ]
             )?;
 
             // external parameters
             format_function_parameters(id, self, true, f)?;
 
-            return write!(f, [token(":"), space(), self.return_type]);
+            write!(f, [token(":"), space(), self.return_type])?;
+            f.context_mut().current_lifetimes.clear();
+
+            return Ok(());
         }
 
         // exported linkage prefix
@@ -55,10 +60,12 @@ impl<'a> FormatMirNode<'a, Function> for Function {
                 context.local_indices.insert(*local_id, i);
             }
             context.current_function = Some(id);
+            context.current_lifetimes = self.lifetimes.clone();
         }
 
         // function header
         write!(f, [token("function"), space(), text(&name)])?;
+        format_lifetimes(&self.lifetimes, f)?;
 
         // parameters
         format_function_parameters(id, self, false, f)?;
@@ -79,8 +86,33 @@ impl<'a> FormatMirNode<'a, Function> for Function {
         format_function_body(self, f)?;
 
         f.context_mut().current_function = None;
+        f.context_mut().current_lifetimes.clear();
         write!(f, [token("}")])
     }
+}
+
+/// Format a declaration lifetime header.
+fn format_lifetimes<'a>(
+    lifetimes: &[LifetimeParameter],
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    if lifetimes.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [token("<")])?;
+    for (index, lifetime) in lifetimes.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        let name = lifetime
+            .name
+            .map(|name| f.context().strings.get(name).to_string())
+            .unwrap_or_else(|| index.to_string());
+        write!(f, [text(&name), token(":"), space(), token("lifetime")])?;
+    }
+    write!(f, [token(">")])
 }
 
 /// Format function attributes and derived metadata.
@@ -117,7 +149,7 @@ pub(super) fn format_function_attributes<'a>(
     }
 
     if !has_attribute(attributes, "environment", f)
-        && let Some(environment) = function.environment
+        && let Some(environment) = &function.environment
     {
         write!(
             f,

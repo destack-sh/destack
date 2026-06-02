@@ -124,10 +124,10 @@ entry0:
         lifetime: Lifetime::empty(),
         space: Space::Local,
         access: Access::Mutable,
-        pointee: TypeReference::Type(int32),
+        pointee: TypeReference::from(int32),
         nullability: Nullability::None,
     });
-    tree.get_mut(function_id).environment = Some(TypeReference::Type(environment));
+    tree.get_mut(function_id).environment = Some(TypeReference::from(environment));
 
     // // detail
     let output = format_tree_with_options(&tree, &strings, MirFormatOptions::default());

@@ -3,9 +3,9 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::build::Variable;
 use crate::{
-    AllocationMode, AllocationSize, Block, Function, FunctionBehavior, Instruction, Lifetime,
-    Linkage, LocalNodeId, MemoryEffect, Parameter, Place, PlaceId, PlaceProjection, PlaceTable,
-    Tree, Type, TypeReference, Value, ValueReference, finalize_function_names,
+    AllocationMode, AllocationSize, Block, Function, FunctionBehavior, Instruction, Linkage,
+    LocalNodeId, MemoryEffect, Parameter, Place, PlaceId, PlaceProjection, PlaceTable, Tree, Type,
+    TypeReference, Value, ValueReference, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -85,7 +85,7 @@ impl<'a> FunctionBuilder<'a> {
                 next_value_id += 1;
                 Parameter {
                     value: ValueReference::Value(value),
-                    ty: TypeReference::Type(ty),
+                    ty: TypeReference::from(ty),
                 }
             })
             .collect();
@@ -95,12 +95,12 @@ impl<'a> FunctionBuilder<'a> {
         let function = Function {
             name,
             parameters,
+            lifetimes: Vec::new(),
             parameter_names: vec![None; parameter_types.len()],
             value_names: vec![None; next_value_id as usize],
             value_types,
             places: PlaceTable::new(),
-            return_type: TypeReference::Type(return_type),
-            return_lifetime: Lifetime::empty(),
+            return_type: TypeReference::from(return_type),
             borrow_obligations: Vec::new(),
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
@@ -112,7 +112,6 @@ impl<'a> FunctionBuilder<'a> {
             next_value_id,
         };
         let function_id = tree.insert(function);
-        tree.infer_and_set_function_return_lifetime(function_id);
 
         Self {
             tree,
@@ -210,12 +209,6 @@ impl<'a> FunctionBuilder<'a> {
     /// Get the function id being built.
     pub fn function_id(&self) -> LocalNodeId<Function> {
         self.function_id
-    }
-
-    /// Set the return lifetime for this function.
-    pub fn set_return_lifetime(&mut self, lifetime: Lifetime) {
-        let function = self.tree.get_mut(self.function_id);
-        function.return_lifetime = lifetime;
     }
 
     /// Get a reference to the underlying tree.

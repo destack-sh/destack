@@ -6,9 +6,10 @@ use super::attribute::{write_attributes, write_attributes_before_anchor, write_i
 
 use crate::{
     Access, Attribute, AttributeIdentifier, BorrowObligation, Copy, Field, FieldSpan,
-    FormatMirNode, Lifetime, LifetimeOrigin, LocalNodeId, MirFormatContext, MirFormatter,
-    Nullability, ReferenceKind, Space, TensorDimension, TensorDimensionOrder, TensorLayout,
-    TensorViewLayout, Type, TypeAlias, TypeDeclarationSpans, TypeReference, write_comments_before,
+    FormatMirNode, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, MirFormatContext,
+    MirFormatter, Nullability, ReferenceKind, Space, TensorDimension, TensorDimensionOrder,
+    TensorLayout, TensorViewLayout, Type, TypeAlias, TypeDeclarationSpans, TypeReference,
+    write_comments_before,
 };
 
 impl<'a> FormatMirNode<'a, Type> for Type {
@@ -36,6 +37,9 @@ pub(super) fn format_type_declaration<'a>(
     let attributes = alias_id
         .map(|alias_id| f.context().tree.attributes(alias_id))
         .unwrap_or(attributes);
+    let lifetimes = alias_id
+        .map(|alias_id| f.context().tree.get(alias_id).lifetimes.clone())
+        .unwrap_or_default();
 
     // synthetic copy marker
     if type_copy(ty) == Some(Copy::No) && !has_copy_marker(attributes, f) {
@@ -63,24 +67,23 @@ pub(super) fn format_type_declaration<'a>(
         write_attributes(attributes, f)?;
     }
 
-    match ty {
-        Type::Struct { fields, .. } => format_struct_type_declaration(name, alias_id, fields, f),
+    let previous_lifetimes =
+        std::mem::replace(&mut f.context_mut().current_lifetimes, lifetimes.clone());
+    let result = match ty {
+        Type::Struct { fields, .. } => {
+            format_struct_type_declaration(name, alias_id, &lifetimes, fields, f)
+        }
         _ => {
-            write!(
-                f,
-                [
-                    token("type"),
-                    space(),
-                    text(name),
-                    space(),
-                    token("="),
-                    space()
-                ]
-            )?;
+            write!(f, [token("type"), space(), text(name)])?;
+            format_lifetimes(&lifetimes, f)?;
+            write!(f, [space(), token("="), space()])?;
             format_type_expanded(f, type_id, ty)?;
             write!(f, [token(";")])
         }
-    }
+    };
+    f.context_mut().current_lifetimes = previous_lifetimes;
+
+    result
 }
 
 /// Return the explicit copy property carried by one aggregate type.
@@ -112,10 +115,13 @@ fn has_copy_marker(attributes: &[Attribute], f: &MirFormatter<'_, '_>) -> bool {
 fn format_struct_type_declaration<'a>(
     name: &str,
     alias_id: Option<LocalNodeId<TypeAlias>>,
+    lifetimes: &[LifetimeParameter],
     fields: &[LocalNodeId<Field>],
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
-    write!(f, [token("type"), space(), text(name), space(), token("{")])?;
+    write!(f, [token("type"), space(), text(name)])?;
+    format_lifetimes(lifetimes, f)?;
+    write!(f, [space(), token("{")])?;
 
     if fields.is_empty() {
         return write!(f, [space(), token("}")]);
@@ -266,7 +272,7 @@ fn format_type_inner<'a>(
                 memory_space.clone(),
                 *access,
                 *nullability,
-                *pointee,
+                pointee,
                 f,
             )?;
             write!(f, [token(">")])
@@ -422,7 +428,7 @@ fn format_type_inner<'a>(
                 memory_space.clone(),
                 *access,
                 *nullability,
-                *element,
+                element,
                 f,
             )?;
             write!(f, [token(","), space()])?;
@@ -450,7 +456,7 @@ fn format_type_inner<'a>(
             format_borrow_obligations(borrow_obligations, f)
         }
         Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
-            if let TypeReference::Type(signature) = *signature {
+            if let Some(signature) = signature.ty() {
                 let signature_type = f.context().tree.get(signature);
                 if let Type::FunctionSignature {
                     parameters,
@@ -556,7 +562,7 @@ fn format_view_header<'a>(
     memory_space: Space,
     access: Access,
     nullability: Nullability,
-    element: TypeReference,
+    element: &TypeReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [element])?;
@@ -635,22 +641,53 @@ pub(super) fn format_borrow_obligations<'a>(
     Ok(())
 }
 
-fn format_lifetime_group<'a>(
+pub(super) fn format_lifetime_group<'a>(
     lifetime: &Lifetime,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("(")])?;
-    for (index, source) in lifetime.origins.iter().enumerate() {
+    for (index, source) in lifetime.terms.iter().enumerate() {
         if index > 0 {
             write!(f, [token(","), space()])?;
         }
 
         match source {
-            LifetimeOrigin::Static => write!(f, [token("static")])?,
-            LifetimeOrigin::Parameter(index) => write!(f, [text(&index.to_string())])?,
+            LifetimeTerm::Static => write!(f, [token("static")])?,
+            LifetimeTerm::Slot(index) => {
+                if let Some(name) = f.context().lifetime_name(*index).map(str::to_string) {
+                    write!(f, [text(&name)])?;
+                } else {
+                    write!(f, [text(&index.0.to_string())])?;
+                }
+            }
         }
     }
     write!(f, [token(")")])
+}
+
+/// Format a declaration lifetime header.
+fn format_lifetimes<'a>(
+    lifetimes: &[LifetimeParameter],
+    f: &mut MirFormatter<'a, '_>,
+) -> FormatResult<()> {
+    if lifetimes.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [token("<")])?;
+    for (index, lifetime) in lifetimes.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+
+        let name = lifetime
+            .name
+            .map(|name| f.context().strings.get(name).to_string())
+            .unwrap_or_else(|| index.to_string());
+        write!(f, [text(&name), token(":"), space(), token("lifetime")])?;
+    }
+
+    write!(f, [token(">")])
 }
 
 fn format_access<'a>(access: Access, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
@@ -670,20 +707,17 @@ impl<'a> FormatMirNode<'a, TypeAlias> for TypeAlias {
         let attributes = f.context().tree.attributes(id);
         let name = f.context().strings.get(self.name);
         let name = f.context().format_alias_name(name);
-        let TypeReference::Type(type_id) = self.ty else {
-            write!(
-                f,
-                [
-                    token("type"),
-                    space(),
-                    text(&name),
-                    space(),
-                    token("="),
-                    space(),
-                    self.ty,
-                    token(";")
-                ]
-            )?;
+        let Some(type_id) = self.ty.ty() else {
+            let previous_lifetimes = std::mem::replace(
+                &mut f.context_mut().current_lifetimes,
+                self.lifetimes.clone(),
+            );
+            write!(f, [token("type"), space(), text(&name)])?;
+            format_lifetimes(&self.lifetimes, f)?;
+            let result = write!(f, [space(), token("="), space(), self.ty, token(";")]);
+            f.context_mut().current_lifetimes = previous_lifetimes;
+            result?;
+
             return Ok(());
         };
         let ty = f.context().tree.get(type_id);

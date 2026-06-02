@@ -8,7 +8,8 @@ use destack_source::{
 
 use crate::source::{Lexer, Token, TokenType};
 use crate::{
-    Block, Field, Function, Global, LocalNodeId, Node, Tree, Type, Value, finalize_function_names,
+    Block, Field, Function, Global, LifetimeParameter, LifetimeSlot, LocalNodeId, Node, Tree, Type,
+    Value, finalize_function_names,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -106,6 +107,8 @@ pub struct Parser {
     pub(super) next_value_id: u32,
     /// The number of blocks parsed in the current function so far.
     pub(super) parsed_block_count: usize,
+    /// Lifetime names visible in the current signature/type body.
+    pub(super) lifetime_scopes: Vec<Vec<(String, LifetimeSlot)>>,
 }
 
 #[allow(clippy::type_complexity)]
@@ -136,6 +139,7 @@ impl Parser {
             current_function: None,
             next_value_id: 0,
             parsed_block_count: 0,
+            lifetime_scopes: Vec::new(),
         }
     }
 
@@ -401,6 +405,67 @@ impl Parser {
         let name = self.tree.source_text(name_span).to_string();
 
         Ok((name, name_start))
+    }
+
+    /// Parse optional lifetime parameters after a declaration name.
+    pub(super) fn parse_lifetimes(&mut self) -> ParseResult<Vec<LifetimeParameter>> {
+        if !self.eat_token_maybe(TokenType::LessThan) {
+            self.lifetime_scopes.push(Vec::new());
+            return Ok(Vec::new());
+        }
+
+        let mut lifetimes = Vec::new();
+        let mut scope = Vec::new();
+        while !self.peek_token(TokenType::GreaterThan) {
+            let name_token = self.eat_token(TokenType::Identifier)?;
+            let name = self.tree.source_text(name_token.span).to_string();
+            if scope.iter().any(|(candidate, _)| candidate == &name) {
+                return Err(ParseError::invalid(
+                    "duplicate lifetime parameter",
+                    name_token.start,
+                ));
+            }
+            self.eat_token(TokenType::Colon)?;
+            if !self.eat_identifier_text("lifetime") {
+                return Err(ParseError::invalid("lifetime parameter", name_token.start));
+            }
+
+            let slot = LifetimeSlot(scope.len() as u32);
+            scope.push((name.clone(), slot));
+            lifetimes.push(LifetimeParameter::new(Some(self.strings.intern(&name))));
+
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::GreaterThan)?;
+        self.lifetime_scopes.push(scope);
+
+        Ok(lifetimes)
+    }
+
+    /// Leave the current lifetime parameter scope.
+    pub(super) fn pop_lifetimes(&mut self) {
+        self.lifetime_scopes.pop();
+    }
+
+    /// Restore the lifetime scope stack to a previous depth.
+    pub(super) fn restore_lifetime_scopes(&mut self, count: usize) {
+        self.lifetime_scopes.truncate(count);
+    }
+
+    /// Resolve one named lifetime in the visible lifetime scopes.
+    pub(super) fn lifetime_slot(&self, name: &str) -> Option<LifetimeSlot> {
+        for scope in self.lifetime_scopes.iter().rev() {
+            for (candidate, slot) in scope {
+                if candidate == name {
+                    return Some(*slot);
+                }
+            }
+        }
+
+        None
     }
 
     /// Scan a symbol name without emitting errors.

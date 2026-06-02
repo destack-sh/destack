@@ -2,9 +2,10 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeOrigin,
-    LocalNodeId, Nullability, ReferenceKind, Space, TensorDimension, TensorDimensionOrder,
-    TensorLayout, TensorViewLayout, Type, TypeDeclarationSpans, TypeReference, VariantCase,
+    Access, Attribute, BorrowObligation, Copy, Field, FieldSpan, Lifetime, LifetimeSlot,
+    LifetimeTerm, LocalNodeId, Nullability, ReferenceKind, Space, TensorDimension,
+    TensorDimensionOrder, TensorLayout, TensorViewLayout, Type, TypeDeclarationSpans,
+    TypeReference, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -87,6 +88,16 @@ impl Parser {
         Ok((ty, span))
     }
 
+    /// Parse a type reference and return its enclosing span.
+    pub(super) fn parse_type_reference_part(&mut self) -> ParseResult<(TypeReference, Span)> {
+        let type_start = self.pos();
+        let ty = self.parse_type()?;
+        let lifetimes = self.parse_type_reference_lifetimes()?;
+        let span = self.span_from_parse_start(type_start);
+
+        Ok((TypeReference::new(ty, lifetimes), span))
+    }
+
     /// Parse a type reference after one required delimiter.
     pub(super) fn parse_type_reference_after(
         &mut self,
@@ -130,9 +141,26 @@ impl Parser {
         let type_start = self.pos();
         match self.parse_type() {
             Ok(ty) => {
+                let lifetimes = match self.parse_type_reference_lifetimes() {
+                    Ok(lifetimes) => lifetimes,
+                    Err(error) => {
+                        self.diagnostics
+                            .insert(error.to_diagnostic(self.content_id, self.file_id));
+
+                        if self.peek().is_some() {
+                            self.bump();
+                        }
+
+                        let error_end = self.pos();
+                        let span =
+                            self.span_at(error.position, error_end.saturating_sub(error.position));
+
+                        return (TypeReference::Error, span);
+                    }
+                };
                 let span = self.span_from_parse_start(type_start);
 
-                (TypeReference::Type(ty), span)
+                (TypeReference::new(ty, lifetimes), span)
             }
             Err(error) => {
                 self.diagnostics
@@ -148,6 +176,42 @@ impl Parser {
                 (TypeReference::Error, span)
             }
         }
+    }
+
+    /// Parse optional lifetime arguments on a type reference.
+    pub(super) fn parse_type_reference_lifetimes(&mut self) -> ParseResult<Vec<Lifetime>> {
+        if !self.peek_type_reference_lifetimes() {
+            return Ok(Vec::new());
+        }
+
+        self.eat_token(TokenType::LessThan)?;
+        let mut lifetimes = Vec::new();
+        while !self.peek_token(TokenType::GreaterThan) {
+            if !self.eat_identifier_text("lifetime") {
+                return Err(ParseError::invalid("type lifetime argument", self.pos()));
+            }
+            lifetimes.push(self.parse_lifetime_group()?);
+
+            if !self.eat_token_maybe(TokenType::Comma) {
+                break;
+            }
+        }
+
+        self.eat_token(TokenType::GreaterThan)?;
+
+        Ok(lifetimes)
+    }
+
+    /// Return whether the next tokens start type-reference lifetime arguments.
+    fn peek_type_reference_lifetimes(&self) -> bool {
+        if !self.peek_token(TokenType::LessThan) {
+            return false;
+        }
+
+        self.peek_nth_token(1).is_some_and(|token| {
+            self.token_type(token) == TokenType::Identifier
+                && self.tree.source_text(token.span) == "lifetime"
+        })
     }
 
     /// Parse a type expression and append its span as one source segment.
@@ -338,14 +402,14 @@ impl Parser {
     fn parse_slice_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let element = self.parse_type()?;
+        let (element, _) = self.parse_type_reference_part()?;
         let (kind, lifetime, space, access, nullability) = self.parse_slice_qualifiers()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Slice {
             kind,
             lifetime,
-            element: element.into(),
+            element,
             space,
             access,
             nullability,
@@ -356,43 +420,37 @@ impl Parser {
     fn parse_atomic_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let value = self.parse_type()?;
+        let (value, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Atomic {
-            value: value.into(),
-        })
+        Ok(Type::Atomic { value })
     }
 
     /// Parse a dynamic erased value type.
     fn parse_dynamic_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let constraint = self.parse_type()?;
+        let (constraint, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Dynamic {
-            constraint: constraint.into(),
-        })
+        Ok(Type::Dynamic { constraint })
     }
 
     /// Parse a linear uninitialized allocation token type.
     fn parse_uninit_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let value = self.parse_type()?;
+        let (value, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Uninit {
-            value: value.into(),
-        })
+        Ok(Type::Uninit { value })
     }
 
     /// Parse a vector type.
     fn parse_vector_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let element = self.parse_type()?;
+        let (element, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::Comma)?;
 
         let token = self.eat_token(TokenType::Integer)?;
@@ -404,7 +462,7 @@ impl Parser {
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Vector {
-            element: element.into(),
+            element,
             lanes,
             copy: Copy::default(),
         })
@@ -414,11 +472,11 @@ impl Parser {
     fn parse_newtype_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let inner = self.parse_type()?;
+        let (inner, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Newtype {
-            inner: inner.into(),
+            inner,
             copy: Copy::default(),
         })
     }
@@ -429,7 +487,8 @@ impl Parser {
         let mut parameters = Vec::new();
 
         while !self.peek_token(TokenType::CloseParenthesis) {
-            parameters.push(self.parse_type()?.into());
+            let (parameter, _) = self.parse_type_reference_part()?;
+            parameters.push(parameter);
             if !self.eat_token_maybe(TokenType::Comma) {
                 break;
             }
@@ -466,11 +525,11 @@ impl Parser {
         &mut self,
         parameters: Vec<TypeReference>,
     ) -> ParseResult<LocalNodeId<Type>> {
-        let result = self.parse_type()?;
+        let (result, _) = self.parse_type_reference_part()?;
         let borrow_obligations = self.parse_borrow_obligations()?;
         self.intern_type(Type::FunctionSignature {
             parameters,
-            result: result.into(),
+            result,
             borrow_obligations,
         })
     }
@@ -478,7 +537,7 @@ impl Parser {
     /// Parse a fixed-size array type.
     fn parse_array_type(&mut self) -> ParseResult<Type> {
         self.bump();
-        let element = self.parse_type()?;
+        let (element, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::Semicolon)?;
 
         let length = self.parse_int_literal()?;
@@ -488,7 +547,7 @@ impl Parser {
         self.eat_token(TokenType::CloseBracket)?;
 
         Ok(Type::Array {
-            element: element.into(),
+            element,
             length,
             copy: Copy::default(),
         })
@@ -555,8 +614,7 @@ impl Parser {
             let (ty, type_span) = if let Some(type_anchor) = type_anchor {
                 self.parse_type_reference_after(type_anchor, "field type")
             } else {
-                let (ty, type_span) = self.parse_type_part()?;
-                (TypeReference::Type(ty), type_span)
+                self.parse_type_reference_part()?
             };
 
             // field node
@@ -624,7 +682,7 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
 
-        let pointee = self.parse_type()?;
+        let (pointee, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::Comma)?;
         let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
 
@@ -635,7 +693,7 @@ impl Parser {
             lifetime: qualifiers.lifetime,
             space: qualifiers.space,
             access: qualifiers.access,
-            pointee: pointee.into(),
+            pointee,
             nullability: qualifiers.nullability,
         })
     }
@@ -645,7 +703,7 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
 
-        let element = self.parse_type()?;
+        let (element, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::Comma)?;
         let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
 
@@ -659,7 +717,7 @@ impl Parser {
             lifetime: qualifiers.lifetime,
             space: qualifiers.space,
             access: qualifiers.access,
-            element: element.into(),
+            element,
             shape,
             layout,
             nullability: qualifiers.nullability,
@@ -673,7 +731,7 @@ impl Parser {
         let tag_type = self.parse_type()?;
         let tag = tag_type.into();
         self.eat_token(TokenType::Comma)?;
-        let storage = self.parse_type()?.into();
+        let (storage, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::GreaterThan)?;
         self.eat_token(TokenType::OpenBrace)?;
 
@@ -681,7 +739,7 @@ impl Parser {
         while !self.peek_token(TokenType::CloseBrace) {
             let tag = self.parse_constant_for_type(tag_type)?;
             self.eat_token(TokenType::Equal)?;
-            let ty = self.parse_type()?.into();
+            let (ty, _) = self.parse_type_reference_part()?;
             cases.push(VariantCase { tag, ty });
 
             if self.eat_token_maybe(TokenType::Semicolon) || self.eat_token_maybe(TokenType::Comma)
@@ -710,14 +768,14 @@ impl Parser {
     fn parse_tensor_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let element = self.parse_type()?;
+        let (element, _) = self.parse_type_reference_part()?;
         self.eat_token(TokenType::Comma)?;
         let shape = self.parse_tensor_shape()?;
         let layout = self.parse_optional_tensor_layout()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Tensor {
-            element: element.into(),
+            element,
             shape,
             layout,
             copy: Copy::default(),
@@ -893,22 +951,35 @@ impl Parser {
     /// Parse a lifetime qualifier group.
     fn parse_lifetime_group(&mut self) -> ParseResult<Lifetime> {
         self.eat_token(TokenType::OpenParenthesis)?;
-        let mut origins = Vec::new();
+        let mut terms = Vec::new();
 
         while !self.peek_token(TokenType::CloseParenthesis) {
             let token = self
                 .peek()
                 .ok_or_else(|| ParseError::unexpected_end("lifetime", self.pos()))?;
             match self.token_type(token) {
-                TokenType::Identifier if self.tree.source_text(token.span) == "static" => {
-                    origins.push(LifetimeOrigin::Static);
-                    self.bump();
-                }
+                TokenType::Identifier => match self.tree.source_text(token.span) {
+                    "static" => {
+                        terms.push(LifetimeTerm::Static);
+                        self.bump();
+                    }
+                    name => {
+                        let slot = self.lifetime_slot(name).ok_or_else(|| {
+                            ParseError::invalid_at_span(
+                                "lifetime name",
+                                token.start,
+                                token.span.end.saturating_sub(token.span.start) as usize,
+                            )
+                        })?;
+                        terms.push(LifetimeTerm::Slot(slot));
+                        self.bump();
+                    }
+                },
                 TokenType::Integer => {
                     let index = self.parse_int_literal()?;
                     let index = u32::try_from(index)
-                        .map_err(|_| ParseError::invalid("lifetime parameter", self.pos()))?;
-                    origins.push(LifetimeOrigin::Parameter(index));
+                        .map_err(|_| ParseError::invalid("lifetime slot", self.pos()))?;
+                    terms.push(LifetimeTerm::Slot(LifetimeSlot(index)));
                 }
                 _ => {
                     return Err(ParseError::unexpected(
@@ -925,11 +996,11 @@ impl Parser {
         }
 
         self.eat_token(TokenType::CloseParenthesis)?;
-        if origins.is_empty() {
+        if terms.is_empty() {
             return Err(ParseError::invalid("lifetime origin", self.pos()));
         }
 
-        Ok(Lifetime::new(origins))
+        Ok(Lifetime::new(terms))
     }
 
     /// Parse function signature borrow obligations.

@@ -43,7 +43,7 @@ impl<'a> FunctionBuilder<'a> {
             destination: destination.into(),
             local: local.into(),
         });
-        let local_ty = concrete_type_reference(self.tree.get(local).ty, "local.get local type");
+        let local_ty = concrete_type_reference(&self.tree.get(local).ty, "local.get local type");
         self.define_value(destination, local_ty);
         destination
     }
@@ -90,7 +90,7 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Load one global value through its address.
     pub fn load_global(&mut self, global: LocalNodeId<Global>) -> Value {
-        let global_ty = concrete_type_reference(self.tree.get(global).ty, "global load type");
+        let global_ty = concrete_type_reference(&self.tree.get(global).ty, "global load type");
         let global_space = self.tree.get(global).space.clone();
         let global_pointer = self.type_reference(
             ReferenceKind::Raw,
@@ -135,17 +135,16 @@ impl<'a> FunctionBuilder<'a> {
             Type::Struct { fields, .. } => fields
                 .get(index as usize)
                 .map(|field_id| {
-                    concrete_type_reference(self.tree.get(*field_id).ty, "struct field type")
+                    concrete_type_reference(&self.tree.get(*field_id).ty, "struct field type")
                 })
                 .unwrap_or_else(|| panic!("field index out of bounds")),
             Type::Tuple { elements, .. } => elements
                 .get(index as usize)
-                .copied()
                 .map(|element| concrete_type_reference(element, "tuple field type"))
                 .unwrap_or_else(|| panic!("field index out of bounds")),
             Type::Variant { tag, storage, .. } => match index {
-                0 => concrete_type_reference(*tag, "variant tag type"),
-                1 => concrete_type_reference(*storage, "variant storage type"),
+                0 => concrete_type_reference(tag, "variant tag type"),
+                1 => concrete_type_reference(storage, "variant storage type"),
                 _ => panic!("field index out of bounds"),
             },
             Type::Closure { .. } => panic!("field access does not support closures"),
@@ -161,7 +160,7 @@ impl<'a> FunctionBuilder<'a> {
         let array = self.tree.get(array_type);
         match array {
             Type::Array { element, .. } | Type::Slice { element, .. } => {
-                concrete_type_reference(*element, "array element type")
+                concrete_type_reference(element, "array element type")
             }
             _ => panic!("element access expects one indexed collection type"),
         }
@@ -174,9 +173,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> LocalNodeId<Type> {
         let vector = self.tree.get(vector_type);
         match vector {
-            Type::Vector { element, .. } => {
-                concrete_type_reference(*element, "vector element type")
-            }
+            Type::Vector { element, .. } => concrete_type_reference(element, "vector element type"),
             _ => panic!("vector access expects vector type"),
         }
     }
@@ -188,9 +185,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> LocalNodeId<Type> {
         let tensor_type = self.tree.get(tensor_type);
         match tensor_type {
-            Type::Tensor { element, .. } => {
-                concrete_type_reference(*element, "tensor element type")
-            }
+            Type::Tensor { element, .. } => concrete_type_reference(element, "tensor element type"),
             _ => panic!("tensor extraction expects tensor type"),
         }
     }
@@ -203,7 +198,7 @@ impl<'a> FunctionBuilder<'a> {
         let reference_type = self.tree.get(reference_type);
         match reference_type {
             Type::TensorView { element, .. } => {
-                concrete_type_reference(*element, "tensor view element type")
+                concrete_type_reference(element, "tensor view element type")
             }
             _ => panic!("tensor access expects tensor view type"),
         }
@@ -219,17 +214,17 @@ impl<'a> FunctionBuilder<'a> {
         let signature_type = self.tree.get(signature);
         match signature_type {
             Type::FunctionSignature { result, .. } => {
-                concrete_type_reference(*result, "function result")
+                concrete_type_reference(result, "function result")
             }
             Type::FunctionPointer { .. } | Type::Closure { .. } => {
                 let signature = callable_signature(signature_type)
-                    .and_then(TypeReference::ty)
+                    .and_then(|signature| signature.ty())
                     .unwrap_or_else(|| panic!("callable must carry a function signature"));
                 let signature_type = self.tree.get(signature);
                 let (_, result) = function_signature_parts(signature_type)
                     .unwrap_or_else(|| panic!("callable must carry a function signature"));
 
-                concrete_type_reference(result, "callable function result")
+                concrete_type_reference(&result, "callable function result")
             }
             _ => panic!("call expects function signature"),
         }
@@ -371,9 +366,9 @@ impl<'a> FunctionBuilder<'a> {
     }
 }
 
-fn concrete_type_reference(reference: TypeReference, context: &str) -> LocalNodeId<Type> {
+fn concrete_type_reference(reference: &TypeReference, context: &str) -> LocalNodeId<Type> {
     match reference {
-        TypeReference::Type(ty) => ty,
+        TypeReference::Type { ty, .. } => *ty,
         TypeReference::Missing => panic!("missing type reference for {context}"),
         TypeReference::Error => panic!("malformed type reference for {context}"),
     }

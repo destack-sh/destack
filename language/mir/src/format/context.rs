@@ -9,8 +9,8 @@ use destack_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::source::TokenType;
 use crate::{
-    Block, Function, Global, Instruction, Local, LocalNodeId, Node, NodeType, Terminator, Tree,
-    TreeImpl, Type, TypeAlias, TypeReference, Value,
+    Block, Function, Global, Instruction, LifetimeParameter, LifetimeSlot, Local, LocalNodeId,
+    Node, NodeType, Terminator, Tree, TreeImpl, Type, TypeAlias, TypeReference, Value,
 };
 
 use super::r#type::{format_type_declaration, format_type_expanded};
@@ -122,6 +122,8 @@ pub struct MirFormatContext<'a> {
     pub synthetic_aliases: Vec<(LocalNodeId<Type>, String)>,
     /// The function currently being formatted.
     pub current_function: Option<LocalNodeId<Function>>,
+    /// Lifetime parameters currently in scope.
+    pub current_lifetimes: Vec<LifetimeParameter>,
 }
 
 impl<'a> std::fmt::Debug for MirFormatContext<'a> {
@@ -139,9 +141,7 @@ impl<'a> MirFormatContext<'a> {
         let type_alias_by_type: HashMap<_, _> = tree
             .iter_nodes::<TypeAlias>()
             .filter_map(|(_, alias)| {
-                let TypeReference::Type(ty) = alias.ty else {
-                    return None;
-                };
+                let ty = alias.ty.ty()?;
 
                 let name = strings.get(alias.name);
                 let name = if options.use_local_names {
@@ -184,6 +184,7 @@ impl<'a> MirFormatContext<'a> {
             type_alias_by_type,
             synthetic_aliases,
             current_function: None,
+            current_lifetimes: Vec::new(),
         }
     }
 
@@ -268,6 +269,14 @@ impl<'a> MirFormatContext<'a> {
     pub fn type_alias_name(&self, ty: LocalNodeId<Type>) -> Option<&str> {
         // resolve the alias name when present
         self.type_alias_by_type.get(&ty).map(|name| name.as_str())
+    }
+
+    /// Get the lifetime parameter name for a slot, if one is in scope.
+    pub fn lifetime_name(&self, slot: LifetimeSlot) -> Option<&str> {
+        let lifetime = self.current_lifetimes.get(slot.0 as usize)?;
+        let name = lifetime.name?;
+
+        Some(self.strings.get(name))
     }
 
     /// Get the type for a value in the current function.
@@ -604,20 +613,20 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
 
     // record global types
     for (_, global) in tree.iter_nodes::<Global>() {
-        record_type_use(tree, global.ty, &mut counts);
+        record_type_use(tree, &global.ty, &mut counts);
     }
 
     // record function signatures
     for (_, function) in tree.iter_nodes::<Function>() {
-        record_type_use(tree, function.return_type, &mut counts);
+        record_type_use(tree, &function.return_type, &mut counts);
         for parameter in &function.parameters {
-            record_type_use(tree, parameter.ty, &mut counts);
+            record_type_use(tree, &parameter.ty, &mut counts);
         }
     }
 
     // record local types
     for (_, local) in tree.iter_nodes::<Local>() {
-        record_type_use(tree, local.ty, &mut counts);
+        record_type_use(tree, &local.ty, &mut counts);
     }
 
     // record block parameter types
@@ -625,7 +634,7 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
         let terminator = tree.get(block.terminator);
 
         for parameter in &block.parameters {
-            record_type_use(tree, parameter.ty, &mut counts);
+            record_type_use(tree, &parameter.ty, &mut counts);
         }
 
         match terminator {
@@ -637,18 +646,18 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
             | Terminator::TailCallIndirect { call, .. }
             | Terminator::TailCallVirtual { call, .. }
             | Terminator::TailCallDynamic { call, .. } => {
-                record_type_use(tree, call.signature, &mut counts);
+                record_type_use(tree, &call.signature, &mut counts);
             }
             _ => {}
         }
 
         match terminator {
             Terminator::CallVirtual { class, .. } | Terminator::TailCallVirtual { class, .. } => {
-                record_type_use(tree, *class, &mut counts);
+                record_type_use(tree, class, &mut counts);
             }
             Terminator::CallDynamic { constraint, .. }
             | Terminator::TailCallDynamic { constraint, .. } => {
-                record_type_use(tree, *constraint, &mut counts);
+                record_type_use(tree, constraint, &mut counts);
             }
             _ => {}
         }
@@ -658,50 +667,50 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
     for (_, instruction) in tree.iter_nodes::<Instruction>() {
         match instruction {
             Instruction::Cast { to_type, .. } => {
-                record_type_use(tree, *to_type, &mut counts);
+                record_type_use(tree, to_type, &mut counts);
             }
             Instruction::LocalAddr { result_type, .. } => {
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::GlobalAddr { result_type, .. } => {
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::Load { result_type, .. } => {
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::FieldAddr { result_type, .. } => {
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::ElementAddr { result_type, .. } => {
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::Slice { result_type, .. } => {
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::Struct { ty, .. } => {
-                record_type_use(tree, *ty, &mut counts);
+                record_type_use(tree, ty, &mut counts);
             }
             Instruction::Tuple { ty, .. } => {
-                record_type_use(tree, *ty, &mut counts);
+                record_type_use(tree, ty, &mut counts);
             }
             Instruction::Array { ty, .. } => {
-                record_type_use(tree, *ty, &mut counts);
+                record_type_use(tree, ty, &mut counts);
             }
             Instruction::Call { call, .. } => {
-                record_type_use(tree, call.signature, &mut counts);
+                record_type_use(tree, &call.signature, &mut counts);
             }
             Instruction::CallVirtual { class, call, .. } => {
-                record_type_use(tree, *class, &mut counts);
-                record_type_use(tree, call.signature, &mut counts);
+                record_type_use(tree, class, &mut counts);
+                record_type_use(tree, &call.signature, &mut counts);
             }
             Instruction::CallDynamic {
                 constraint, call, ..
             } => {
-                record_type_use(tree, *constraint, &mut counts);
-                record_type_use(tree, call.signature, &mut counts);
+                record_type_use(tree, constraint, &mut counts);
+                record_type_use(tree, &call.signature, &mut counts);
             }
             Instruction::CallIndirect { call, .. } => {
-                record_type_use(tree, call.signature, &mut counts);
+                record_type_use(tree, &call.signature, &mut counts);
             }
             Instruction::NewZeroed {
                 layout,
@@ -713,11 +722,11 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 result_type,
                 ..
             } => {
-                record_type_use(tree, *layout, &mut counts);
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, layout, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::NewComplete { result_type, .. } => {
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::NewSliceZeroed {
                 element,
@@ -729,8 +738,8 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 result_type,
                 ..
             } => {
-                record_type_use(tree, *element, &mut counts);
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, element, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::FrameAllocZeroed {
                 layout,
@@ -742,11 +751,11 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
                 result_type,
                 ..
             } => {
-                record_type_use(tree, *layout, &mut counts);
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, layout, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::Pin { result_type, .. } => {
-                record_type_use(tree, *result_type, &mut counts);
+                record_type_use(tree, result_type, &mut counts);
             }
             Instruction::Const { .. }
             | Instruction::Binary { .. }
@@ -773,8 +782,8 @@ fn collect_type_uses(tree: &Tree) -> HashMap<LocalNodeId<Type>, u32> {
 }
 
 /// Record usage of a type and its nested types.
-fn record_type_use(tree: &Tree, ty: TypeReference, counts: &mut HashMap<LocalNodeId<Type>, u32>) {
-    let TypeReference::Type(ty) = ty else {
+fn record_type_use(tree: &Tree, ty: &TypeReference, counts: &mut HashMap<LocalNodeId<Type>, u32>) {
+    let Some(ty) = ty.ty() else {
         return;
     };
 
@@ -783,6 +792,18 @@ fn record_type_use(tree: &Tree, ty: TypeReference, counts: &mut HashMap<LocalNod
 
     // walk the type graph once
     record_type_use_inner(tree, ty, counts, &mut visited);
+}
+
+/// Record usage of one nested type reference.
+fn record_nested_type_use(
+    tree: &Tree,
+    ty: &TypeReference,
+    counts: &mut HashMap<LocalNodeId<Type>, u32>,
+    visited: &mut HashSet<LocalNodeId<Type>>,
+) {
+    if let Some(ty) = ty.ty() {
+        record_type_use_inner(tree, ty, counts, visited);
+    }
 }
 
 /// Record usage of a type once per traversal.
@@ -803,59 +824,35 @@ fn record_type_use_inner(
     // record nested types
     match tree.get(ty) {
         Type::Reference { pointee, .. } => {
-            let TypeReference::Type(pointee) = *pointee else {
-                return;
-            };
-            record_type_use_inner(tree, pointee, counts, visited);
+            record_nested_type_use(tree, pointee, counts, visited);
         }
         Type::Atomic { value } => {
-            let TypeReference::Type(value) = *value else {
-                return;
-            };
-            record_type_use_inner(tree, value, counts, visited);
+            record_nested_type_use(tree, value, counts, visited);
         }
         Type::Dynamic { constraint } => {
-            let TypeReference::Type(constraint) = *constraint else {
-                return;
-            };
-            record_type_use_inner(tree, constraint, counts, visited);
+            record_nested_type_use(tree, constraint, counts, visited);
         }
         Type::Uninit { value } => {
-            let TypeReference::Type(value) = *value else {
-                return;
-            };
-            record_type_use_inner(tree, value, counts, visited);
+            record_nested_type_use(tree, value, counts, visited);
         }
         Type::Array { element, .. } | Type::Slice { element, .. } => {
-            let TypeReference::Type(element) = *element else {
-                return;
-            };
-            record_type_use_inner(tree, element, counts, visited);
+            record_nested_type_use(tree, element, counts, visited);
         }
         Type::Tuple { elements, .. } => {
             // record tuple element types
             for element_id in elements {
-                let TypeReference::Type(element_id) = *element_id else {
-                    continue;
-                };
-                record_type_use_inner(tree, element_id, counts, visited);
+                record_nested_type_use(tree, element_id, counts, visited);
             }
         }
         Type::Struct { fields, .. } => {
             // record struct field types
             for field_id in fields {
                 let field = tree.get(*field_id);
-                let TypeReference::Type(field_ty) = field.ty else {
-                    continue;
-                };
-                record_type_use_inner(tree, field_ty, counts, visited);
+                record_nested_type_use(tree, &field.ty, counts, visited);
             }
         }
         Type::Newtype { inner, .. } => {
-            let TypeReference::Type(inner) = *inner else {
-                return;
-            };
-            record_type_use_inner(tree, inner, counts, visited);
+            record_nested_type_use(tree, inner, counts, visited);
         }
         Type::Variant {
             tag,
@@ -863,69 +860,39 @@ fn record_type_use_inner(
             cases,
             ..
         } => {
-            let TypeReference::Type(tag_id) = *tag else {
-                return;
-            };
-            record_type_use_inner(tree, tag_id, counts, visited);
-            if let TypeReference::Type(storage_id) = *storage {
-                record_type_use_inner(tree, storage_id, counts, visited);
-            }
+            record_nested_type_use(tree, tag, counts, visited);
+            record_nested_type_use(tree, storage, counts, visited);
             for case in cases {
-                let TypeReference::Type(case_id) = case.ty else {
-                    continue;
-                };
-                record_type_use_inner(tree, case_id, counts, visited);
+                record_nested_type_use(tree, &case.ty, counts, visited);
             }
         }
         Type::Vector { element, .. } => {
-            let TypeReference::Type(element) = *element else {
-                return;
-            };
-            record_type_use_inner(tree, element, counts, visited);
+            record_nested_type_use(tree, element, counts, visited);
         }
         Type::Tensor { element, .. } => {
-            let TypeReference::Type(element) = *element else {
-                return;
-            };
-            record_type_use_inner(tree, element, counts, visited);
+            record_nested_type_use(tree, element, counts, visited);
         }
         Type::TensorView { element, .. } => {
-            let TypeReference::Type(element) = *element else {
-                return;
-            };
-            record_type_use_inner(tree, element, counts, visited);
+            record_nested_type_use(tree, element, counts, visited);
         }
         Type::FunctionSignature {
             parameters, result, ..
         } => {
             // record function signature types
             for parameter_id in parameters {
-                let TypeReference::Type(parameter_id) = *parameter_id else {
-                    continue;
-                };
-                record_type_use_inner(tree, parameter_id, counts, visited);
+                record_nested_type_use(tree, parameter_id, counts, visited);
             }
-            let TypeReference::Type(result) = *result else {
-                return;
-            };
-            record_type_use_inner(tree, result, counts, visited);
+            record_nested_type_use(tree, result, counts, visited);
         }
         Type::FunctionPointer { signature } => {
-            let TypeReference::Type(signature) = *signature else {
-                return;
-            };
-            record_type_use_inner(tree, signature, counts, visited);
+            record_nested_type_use(tree, signature, counts, visited);
         }
         Type::Closure {
             signature,
             environment,
         } => {
-            if let TypeReference::Type(signature) = *signature {
-                record_type_use_inner(tree, signature, counts, visited);
-            }
-            if let TypeReference::Type(environment) = *environment {
-                record_type_use_inner(tree, environment, counts, visited);
-            }
+            record_nested_type_use(tree, signature, counts, visited);
+            record_nested_type_use(tree, environment, counts, visited);
         }
         Type::Void
         | Type::Boolean
@@ -1334,39 +1301,33 @@ fn collect_alias_dependencies(
         let ty = tree.get(type_id);
         match ty {
             Type::Reference { pointee, .. } => {
-                record_dependency(*pointee, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(pointee, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Atomic { value } => {
-                record_dependency(*value, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(value, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Dynamic { constraint } => {
-                record_dependency(
-                    *constraint,
-                    root,
-                    alias_types,
-                    &mut dependencies,
-                    &mut stack,
-                );
+                record_dependency(constraint, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Uninit { value } => {
-                record_dependency(*value, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(value, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Array { element, .. } | Type::Slice { element, .. } => {
-                record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Tuple { elements, .. } => {
                 for element in elements {
-                    record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
+                    record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
                 }
             }
             Type::Struct { fields, .. } => {
                 for field_id in fields {
                     let field = tree.get(*field_id);
-                    record_dependency(field.ty, root, alias_types, &mut dependencies, &mut stack);
+                    record_dependency(&field.ty, root, alias_types, &mut dependencies, &mut stack);
                 }
             }
             Type::Newtype { inner, .. } => {
-                record_dependency(*inner, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(inner, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Variant {
                 tag,
@@ -1374,39 +1335,39 @@ fn collect_alias_dependencies(
                 cases,
                 ..
             } => {
-                record_dependency(*tag, root, alias_types, &mut dependencies, &mut stack);
-                record_dependency(*storage, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(tag, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(storage, root, alias_types, &mut dependencies, &mut stack);
                 for case in cases {
-                    record_dependency(case.ty, root, alias_types, &mut dependencies, &mut stack);
+                    record_dependency(&case.ty, root, alias_types, &mut dependencies, &mut stack);
                 }
             }
             Type::Vector { element, .. } => {
-                record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Tensor { element, .. } => {
-                record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::TensorView { element, .. } => {
-                record_dependency(*element, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(element, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::FunctionSignature {
                 parameters, result, ..
             } => {
                 for parameter in parameters {
-                    record_dependency(*parameter, root, alias_types, &mut dependencies, &mut stack);
+                    record_dependency(parameter, root, alias_types, &mut dependencies, &mut stack);
                 }
-                record_dependency(*result, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(result, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::FunctionPointer { signature } => {
-                record_dependency(*signature, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(signature, root, alias_types, &mut dependencies, &mut stack);
             }
             Type::Closure {
                 signature,
                 environment,
             } => {
-                record_dependency(*signature, root, alias_types, &mut dependencies, &mut stack);
+                record_dependency(signature, root, alias_types, &mut dependencies, &mut stack);
                 record_dependency(
-                    *environment,
+                    environment,
                     root,
                     alias_types,
                     &mut dependencies,
@@ -1429,13 +1390,13 @@ fn collect_alias_dependencies(
 
 /// Record a dependency and continue traversal.
 fn record_dependency(
-    type_id: TypeReference,
+    type_id: &TypeReference,
     root: LocalNodeId<Type>,
     alias_types: &HashSet<LocalNodeId<Type>>,
     dependencies: &mut HashSet<LocalNodeId<Type>>,
     stack: &mut Vec<LocalNodeId<Type>>,
 ) {
-    let TypeReference::Type(type_id) = type_id else {
+    let Some(type_id) = type_id.ty() else {
         return;
     };
 

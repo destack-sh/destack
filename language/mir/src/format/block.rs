@@ -189,7 +189,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         } => {
             write!(f, [token("call"), space(), function])?;
             format_value_list(&call.arguments, f)?;
-            format_call_signature_suffix(call.signature, f)?;
+            format_call_signature_suffix(&call.signature, f)?;
             format_call_continuation(target, unwind.as_ref(), f)
         }
 
@@ -202,7 +202,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         } => {
             write!(f, [token("call.indirect"), space(), callee])?;
             format_value_list(&call.arguments, f)?;
-            format_call_signature_suffix(call.signature, f)?;
+            format_call_signature_suffix(&call.signature, f)?;
             format_call_continuation(target, unwind.as_ref(), f)
         }
 
@@ -230,7 +230,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                 ]
             )?;
             format_value_list(&call.arguments, f)?;
-            format_call_signature_suffix(call.signature, f)?;
+            format_call_signature_suffix(&call.signature, f)?;
             format_call_continuation(target, unwind.as_ref(), f)
         }
 
@@ -258,7 +258,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                 ]
             )?;
             format_value_list(&call.arguments, f)?;
-            format_call_signature_suffix(call.signature, f)?;
+            format_call_signature_suffix(&call.signature, f)?;
             format_call_continuation(target, unwind.as_ref(), f)
         }
 
@@ -349,13 +349,13 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
         Terminator::TailCall { function, call } => {
             write!(f, [token("tailCall"), space(), function])?;
             format_value_list(&call.arguments, f)?;
-            format_call_signature_suffix(call.signature, f)
+            format_call_signature_suffix(&call.signature, f)
         }
 
         Terminator::TailCallIndirect { callee, call, .. } => {
             write!(f, [token("tailCall.indirect"), space(), callee])?;
             format_value_list(&call.arguments, f)?;
-            format_call_signature_suffix(call.signature, f)
+            format_call_signature_suffix(&call.signature, f)
         }
 
         Terminator::TailCallVirtual {
@@ -380,7 +380,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                 ]
             )?;
             format_value_list(&call.arguments, f)?;
-            format_call_signature_suffix(call.signature, f)
+            format_call_signature_suffix(&call.signature, f)
         }
 
         Terminator::TailCallDynamic {
@@ -405,7 +405,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut MirFormatter<'a, '_>) -> For
                 ]
             )?;
             format_value_list(&call.arguments, f)?;
-            format_call_signature_suffix(call.signature, f)
+            format_call_signature_suffix(&call.signature, f)
         }
     }
 }
@@ -606,13 +606,13 @@ fn format_value_list<'a>(
 }
 
 fn format_call_signature_suffix<'a>(
-    signature: TypeReference,
+    signature: &TypeReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(":"), space()])?;
 
     match signature {
-        TypeReference::Type(signature) => match f.context().tree.get(signature) {
+        TypeReference::Type { ty: signature, .. } => match f.context().tree.get(*signature) {
             crate::Type::FunctionSignature {
                 parameters,
                 result,
@@ -623,9 +623,9 @@ fn format_call_signature_suffix<'a>(
                     if index > 0 {
                         write!(f, [token(","), space()])?;
                     }
-                    write!(f, [*parameter])?;
+                    write!(f, [parameter])?;
                 }
-                write!(f, [token(")"), space(), token("->"), space(), *result])?;
+                write!(f, [token(")"), space(), token("->"), space(), result])?;
                 format_borrow_obligations(borrow_obligations, f)
             }
             _ => write!(f, [signature]),

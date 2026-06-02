@@ -115,7 +115,7 @@ impl Parser {
         // type values
         if self.peek_type(kind) {
             let ty = self.parse_type()?;
-            return Ok(AttributeValue::Type(TypeReference::Type(ty)));
+            return Ok(AttributeValue::Type(TypeReference::from(ty)));
         }
 
         // scalar and list values

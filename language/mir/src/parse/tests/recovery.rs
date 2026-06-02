@@ -225,6 +225,30 @@ b0:
     assert_eq!(tree.iter_nodes::<Function>().count(), 1);
 }
 
+/// Recovering parse restores lifetime names after a broken type declaration.
+#[test]
+fn test_parse_restores_lifetime_scope_after_type_error() {
+    let source = r#"
+type Broken<L: lifetime> = ref<int32, borrowed, lifetime(Missing)>
+
+type Later = ref<int32, borrowed, lifetime(L)>
+
+function later(): void {
+b0:
+    return
+}
+"#;
+
+    // parse
+    let (tree, diagnostics) = TestParser::new(source).parse_with_diagnostics();
+
+    // both type declarations fail independently
+    assert_eq!(diagnostics.len(), 2);
+    assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
+    assert_eq!(tree.iter_nodes::<TypeAlias>().count(), 0);
+    assert_eq!(tree.iter_nodes::<Function>().count(), 1);
+}
+
 /// Recovering parse keeps struct fields around a missing field type.
 #[test]
 fn test_parse_recovers_after_field_type_hole() {
@@ -244,16 +268,14 @@ type Pair {
     assert!(diagnostics.has_diagnostics_of_severity(DiagnosticSeverity::Error));
 
     // recovered fields
-    let TypeReference::Type(ty) = alias.ty else {
-        panic!("expected recovered type alias");
-    };
+    let ty = alias.ty.ty().expect("expected recovered type alias");
     assert_node!(tree, ty, Type::Struct { fields, .. } => {
         assert_eq!(fields.len(), 2);
         assert_node!(tree, fields[0], Field { ty, .. } => {
             assert_eq!(*ty, TypeReference::Missing);
         });
         assert_node!(tree, fields[1], Field { ty, .. } => {
-            assert!(matches!(ty, TypeReference::Type(_)));
+            assert!(ty.ty().is_some());
         });
     });
 }

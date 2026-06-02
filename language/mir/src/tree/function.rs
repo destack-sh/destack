@@ -2,8 +2,8 @@ use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Block, Lifetime, Linkage, Local, LocalNodeId, Node, NodeType, Parameter, Place, PlaceId,
-    PlaceTable, Tree, Type, TypeReference, Value, ValueReference,
+    Block, Lifetime, LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, Parameter,
+    Place, PlaceId, PlaceTable, Tree, Type, TypeReference, Value, ValueReference,
 };
 
 /// Memory allocation restrictions for a function.
@@ -89,6 +89,8 @@ pub struct Function {
 
     /// Function parameters as typed SSA slots.
     pub parameters: Vec<Parameter>,
+    /// Lifetime parameters in function-local slot order.
+    pub lifetimes: Vec<LifetimeParameter>,
     /// Optional parameter names for diagnostics.
     pub parameter_names: Vec<Option<StringId>>,
 
@@ -103,8 +105,6 @@ pub struct Function {
 
     /// The return type.
     pub return_type: TypeReference,
-    /// Lifetime origins for the return value.
-    pub return_lifetime: Lifetime,
     /// Borrow obligations required by this function body.
     pub borrow_obligations: Vec<BorrowObligation>,
     /// The hidden environment type for this function when present.
@@ -159,7 +159,7 @@ impl Function {
             let ValueReference::Value(value) = parameter.value else {
                 continue;
             };
-            let TypeReference::Type(ty) = parameter.ty else {
+            let Some(ty) = parameter.ty.ty() else {
                 continue;
             };
 
@@ -193,12 +193,12 @@ impl Function {
         Self {
             name,
             parameters,
+            lifetimes: Vec::new(),
             parameter_names,
             value_names: vec![None; next_value_id as usize],
             value_types,
             places: PlaceTable::new(),
             return_type,
-            return_lifetime: Lifetime::empty(),
             borrow_obligations: Vec::new(),
             linkage,
             allocation: AllocationMode::Any,
@@ -289,12 +289,6 @@ impl Function {
     /// Record the place for an SSA value.
     pub fn set_value_place(&mut self, value: Value, place: Place) -> PlaceId {
         self.places.set_value_place(value, place)
-    }
-
-    /// Set the return lifetime and return self.
-    pub fn with_return_lifetime(mut self, lifetime: Lifetime) -> Self {
-        self.return_lifetime = lifetime;
-        self
     }
 
     /// Set the linkage and return self (builder pattern).

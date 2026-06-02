@@ -373,7 +373,7 @@ impl Terminator {
             | Terminator::TailCall { call, .. }
             | Terminator::TailCallIndirect { call, .. }
             | Terminator::TailCallVirtual { call, .. }
-            | Terminator::TailCallDynamic { call, .. } => Some(call.signature),
+            | Terminator::TailCallDynamic { call, .. } => Some(call.signature.clone()),
             _ => None,
         }
     }
