@@ -1,5 +1,5 @@
-import { type Expression } from "./expression.ds";
-import { type Node } from "./node.ds";
+import { Expression } from "./expression.ds";
+import { Node } from "./node.ds";
 
 /// The position of one decorator relative to its owner.
 export enum DecoratorPosition {

@@ -1,4 +1,4 @@
-import { type Argument } from "./argument.ds";
+import { Argument } from "./argument.ds";
 
 /// A scalar literal value.
 export type ScalarLiteral =

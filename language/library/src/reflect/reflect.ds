@@ -1,4 +1,4 @@
-import { type Type } from "./type.ds";
+import { Type } from "./type.ds";
 
 /// Static reflection namespace.
 @languageItem("reflect.Reflect")
