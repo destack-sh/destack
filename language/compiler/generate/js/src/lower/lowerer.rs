@@ -47,6 +47,47 @@ pub struct ModuleLowerer<'a> {
 }
 
 impl<'a> ModuleLowerer<'a> {
+    // TODO #Cleanup: not entirely sure if guarding js::ModuleLowerer only to local operands is right?
+
+    /// Return one checked type visible to this lowering context.
+    pub(crate) fn require_type(&self, type_id: dir::GlobalTypeId) -> CodegenJsResult<&dir::Type> {
+        if type_id.module_id != self.module.id {
+            return Err(CodegenJsError::Internal {
+                message: format!("JS lowering cannot read foreign DIR type {type_id:?}"),
+            });
+        }
+
+        Ok(self.types.get_type(type_id.local_id))
+    }
+
+    /// Return one checked type source visible to this lowering context.
+    pub(crate) fn require_type_source(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> CodegenJsResult<dir::LocalNodeIdAny> {
+        if type_id.module_id != self.module.id {
+            return Err(CodegenJsError::Internal {
+                message: format!("JS lowering cannot read foreign DIR type source {type_id:?}"),
+            });
+        }
+
+        Ok(self.types.get_type_source(type_id.local_id))
+    }
+
+    /// Return one checked static value visible to this lowering context.
+    pub(crate) fn require_static(
+        &self,
+        static_id: dir::GlobalStaticId,
+    ) -> CodegenJsResult<&dir::StaticTerm> {
+        if static_id.module_id != self.module.id {
+            return Err(CodegenJsError::Internal {
+                message: format!("JS lowering cannot read foreign DIR static {static_id:?}"),
+            });
+        }
+
+        Ok(self.statics.get_static(static_id.local_id))
+    }
+
     /// Build one lowered script symbol id from one local DIR symbol.
     pub(crate) fn source_symbol_id(&self, symbol_id: dir::LocalSymbolId) -> ScriptSymbolId {
         ScriptSymbolId::Source(symbol_id.into_global(self.module.id))

@@ -241,7 +241,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         mapping: dir::StringMapping,
-        target: dir::LocalTypeId,
+        target: dir::GlobalTypeId,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
         let mapping_name = match mapping {
             dir::StringMapping::Uppercase => "Uppercase",
@@ -380,7 +380,7 @@ impl ModuleLowerer<'_> {
                 let elements = elements
                     .iter()
                     .map(|element| {
-                        let element = self.statics.get_static(*element).clone();
+                        let element = self.require_static(*element)?.clone();
 
                         self.lower_semantic_static_type_expression(source_id, &element)
                     })
@@ -430,9 +430,9 @@ impl ModuleLowerer<'_> {
         source_id: dir::LocalNodeIdAny,
         argument: &dir::StaticArgument,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
-        let value = self.statics.get_static(argument.value);
+        let value = self.require_static(argument.value)?.clone();
 
-        self.lower_semantic_static_type_expression(source_id, value)
+        self.lower_semantic_static_type_expression(source_id, &value)
     }
 
     /// Lower one normalized static string into a JS string literal type.
@@ -587,7 +587,7 @@ impl ModuleLowerer<'_> {
             Some(modifiers)
         };
         let key = self.lower_static_key(source_id, field.key)?;
-        let field = match self.types.get_type(field.ty) {
+        let field = match self.require_type(field.ty)? {
             dir::Type::Function(_) => {
                 let signature =
                     self.lower_semantic_function_type_declaration(source_id, field.ty)?;
@@ -624,7 +624,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         source_id: dir::LocalNodeIdAny,
         name: String,
-        ty_id: dir::LocalTypeId,
+        ty_id: dir::GlobalTypeId,
     ) -> CodegenJsResult<js::LocalNodeId<js::GenericParameter>> {
         let name = self.strings.intern(&name);
         let constraint = Some(self.lower_type(ty_id)?);
@@ -681,9 +681,9 @@ impl ModuleLowerer<'_> {
     fn lower_semantic_function_type_declaration(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        ty_id: dir::LocalTypeId,
+        ty_id: dir::GlobalTypeId,
     ) -> CodegenJsResult<js::FunctionTypeDeclaration> {
-        let dir::Type::Function(function) = self.types.get_type(ty_id) else {
+        let dir::Type::Function(function) = self.require_type(ty_id)?.clone() else {
             return Err(CodegenJsError::UnsupportedConstruct {
                 node: source_id.into_global(self.module.id),
                 message: Some(
@@ -779,12 +779,12 @@ impl ModuleLowerer<'_> {
     /// Lower a type from DIR into JS AST.
     pub fn lower_type(
         &mut self,
-        ty_id: dir::LocalTypeId,
+        ty_id: dir::GlobalTypeId,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
-        let source_id = self.types.get_type_source(ty_id);
-        let ty = self.types.get_type(ty_id);
+        let source_id = self.require_type_source(ty_id)?;
+        let ty = self.require_type(ty_id)?.clone();
 
-        let ty_id = match ty {
+        let ty_id = match &ty {
             dir::Type::Never => {
                 let ty = js::TypeExpression::Scalar(js::TypeLiteral::Never);
                 self.tree
