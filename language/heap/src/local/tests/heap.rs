@@ -168,11 +168,10 @@ fn test_allocate_heap_routes_tagged_trace_map_to_large() {
         ..HeapOptions::local()
     };
     let trace_map = TraceMap::Tagged {
-        tag_offset: 0,
         tag_bytes: 1,
         variants: vec![TraceVariant {
             tag: 0,
-            storage_offset: 8,
+            payload_offset: 8,
             map: TraceMap::Fixed {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Box::default(),
