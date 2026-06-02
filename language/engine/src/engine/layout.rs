@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{FrameLayout, FrameState, Materialization, Safepoint, StackMap};
 
-/// Runtime value layout id inside one program layout.
+/// Runtime storage layout id inside one program layout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ValueLayoutId(pub u32);
+pub struct StorageLayoutId(pub u32);
 
 /// Runtime layout tables for one compiled program.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

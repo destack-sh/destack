@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{StaticAllocator, StaticId, StaticPointer, StaticRegion};
+use crate::{StaticAddress, StaticAllocator, StaticId, StaticRegion};
 
 /// Static memory.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -72,55 +72,46 @@ impl StaticSpace {
         self.bytes.get_mut(region.offset..end)
     }
 
-    /// Return a stable pointer to one static region.
-    pub fn pointer(&self, id: StaticId) -> Option<StaticPointer> {
-        let region = self.region(id)?;
-        let address = self.bytes.as_ptr() as usize;
-        let address = address + region.offset;
+    /// Return a stable address to one static region.
+    pub fn address(&self, id: StaticId) -> Option<StaticAddress> {
+        self.region(id)?;
 
-        Some(StaticPointer::from_address(address))
+        Some(StaticAddress::new(id, 0))
     }
 
-    /// Return the static region containing one static pointer.
-    pub fn region_for_pointer(&self, pointer: StaticPointer) -> Option<&StaticRegion> {
-        let address = pointer.address();
-        self.regions.iter().find(|region| {
-            let start = self.bytes.as_ptr() as usize + region.offset;
-            let end = start + region.byte_len;
+    /// Return a native address for one static byte range.
+    pub fn native_address(&self, address: StaticAddress, byte_len: usize) -> Option<usize> {
+        let region = self.region(address.id())?;
+        let start = address.byte_offset();
+        let end = start.checked_add(byte_len)?;
+        if end > region.byte_len {
+            return None;
+        }
 
-            start <= address && address < end
-        })
+        Some(self.bytes.as_ptr() as usize + region.offset + start)
+    }
+
+    /// Return a mutable native address for one static byte range.
+    pub fn native_address_mut(&mut self, address: StaticAddress, byte_len: usize) -> Option<usize> {
+        let region = self.region(address.id())?;
+        let region_offset = region.offset;
+        let region_byte_len = region.byte_len;
+        if !region.is_mutable {
+            return None;
+        }
+
+        let start = address.byte_offset();
+        let end = start.checked_add(byte_len)?;
+        if end > region_byte_len {
+            return None;
+        }
+
+        Some(self.bytes.as_mut_ptr() as usize + region_offset + start)
     }
 
     /// Return whether static memory owns one byte range.
-    pub fn owns_pointer_range(&self, pointer: StaticPointer, byte_len: usize) -> bool {
-        let address = pointer.address();
-        let end = address + byte_len;
-
-        self.regions.iter().any(|region| {
-            let start = self.bytes.as_ptr() as usize + region.offset;
-            let region_end = start + region.byte_len;
-
-            start <= address && end <= region_end
-        })
-    }
-
-    /// Return whether static memory owns one mutable byte range.
-    pub fn owns_mutable_pointer_range(&self, pointer: StaticPointer, byte_len: usize) -> bool {
-        let address = pointer.address();
-        let end = address + byte_len;
-
-        // mutable region ownership
-        self.regions.iter().any(|region| {
-            if !region.is_mutable {
-                return false;
-            }
-
-            let start = self.bytes.as_ptr() as usize + region.offset;
-            let region_end = start + region.byte_len;
-
-            start <= address && end <= region_end
-        })
+    pub fn owns_address_range(&self, address: StaticAddress, byte_len: usize) -> bool {
+        self.native_address(address, byte_len).is_some()
     }
 
     /// Return an iterator over static regions.
