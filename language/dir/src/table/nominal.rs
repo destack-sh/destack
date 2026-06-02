@@ -4,7 +4,10 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, SegmentView};
+use crate::{
+    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LocalGenericApplicationId,
+    LocalGenericTemplateId, MemberSlot, SegmentView, StaticKey,
+};
 
 /// Cumulative nominal declarations for one DIR module.
 #[derive(Debug, Clone)]
@@ -119,9 +122,7 @@ impl NominalSegment {
     }
 
     /// Insert one nominal definition.
-    pub fn insert_definition(&mut self, definition: NominalDefinition) {
-        let symbol = definition.symbol();
-
+    pub fn insert_definition(&mut self, symbol: GlobalSymbolId, definition: NominalDefinition) {
         self.definitions.insert(symbol, definition);
     }
 
@@ -145,31 +146,38 @@ impl NominalSegment {
     }
 }
 
-/// Checked declaration facts for one nominal symbol.
+/// Checked declaration data for one nominal symbol.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NominalDefinition {
-    /// Struct declaration facts.
+    /// Struct declaration.
     ///
     /// Example:
     /// ```ds
     /// struct User { name: string }
     /// ```
     Struct(StructDefinition),
-    /// Class declaration facts.
+    /// Class declaration.
     ///
     /// Example:
     /// ```ds
     /// class User { name: string }
     /// ```
     Class(ClassDefinition),
-    /// Enum declaration facts.
+    /// Nominal interface declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// nominal interface Reader { read(): string }
+    /// ```
+    Interface(InterfaceDefinition),
+    /// Enum declaration.
     ///
     /// Example:
     /// ```ds
     /// enum Status { Ready, Done }
     /// ```
     Enum(EnumDefinition),
-    /// Newtype declaration facts.
+    /// Newtype declaration.
     ///
     /// Example:
     /// ```ds
@@ -178,42 +186,186 @@ pub enum NominalDefinition {
     Newtype(NewtypeDefinition),
 }
 
-impl NominalDefinition {
-    /// Return the declaring symbol.
-    pub fn symbol(&self) -> GlobalSymbolId {
-        match self {
-            Self::Struct(definition) => definition.symbol,
-            Self::Class(definition) => definition.symbol,
-            Self::Enum(definition) => definition.symbol,
-            Self::Newtype(definition) => definition.symbol,
-        }
-    }
-}
-
-/// Checked facts for one struct declaration.
+/// Checked declaration data for one nominal struct.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StructDefinition {
-    /// The struct symbol.
-    pub symbol: GlobalSymbolId,
+    /// The source declaration node.
+    pub source: GlobalNodeIdAny,
+    /// The generic template declared by the struct.
+    pub template: Option<LocalGenericTemplateId>,
+    /// The implemented interfaces.
+    pub implements: Vec<NominalTarget>,
+    /// The instance fields.
+    pub fields: Vec<FieldDefinition>,
+    /// The methods.
+    pub methods: Vec<MethodDefinition>,
+    /// The associated types.
+    pub associated_types: Vec<AssociatedTypeDefinition>,
+    /// The associated static values.
+    pub associated_statics: Vec<AssociatedStaticDefinition>,
 }
 
-/// Checked facts for one class declaration.
+/// Checked declaration data for one nominal class.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClassDefinition {
-    /// The class symbol.
-    pub symbol: GlobalSymbolId,
+    /// The source declaration node.
+    pub source: GlobalNodeIdAny,
+    /// The generic template declared by the class.
+    pub template: Option<LocalGenericTemplateId>,
+    /// The extended class.
+    pub extends: Option<NominalTarget>,
+    /// The implemented interfaces.
+    pub implements: Vec<NominalTarget>,
+    /// The instance fields.
+    pub fields: Vec<FieldDefinition>,
+    /// The methods.
+    pub methods: Vec<MethodDefinition>,
+    /// The associated types.
+    pub associated_types: Vec<AssociatedTypeDefinition>,
+    /// The associated static values.
+    pub associated_statics: Vec<AssociatedStaticDefinition>,
 }
 
-/// Checked facts for one enum declaration.
+/// Checked declaration data for one nominal interface.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InterfaceDefinition {
+    /// The source declaration node.
+    pub source: GlobalNodeIdAny,
+    /// The generic template declared by the interface.
+    pub template: Option<LocalGenericTemplateId>,
+    /// The inherited interfaces.
+    pub extends: Vec<NominalTarget>,
+    /// The fields.
+    pub fields: Vec<FieldDefinition>,
+    /// The methods.
+    pub methods: Vec<MethodDefinition>,
+    /// The call signatures.
+    pub call_signatures: Vec<SignatureDefinition>,
+    /// The construct signatures.
+    pub construct_signatures: Vec<SignatureDefinition>,
+    /// The index signatures.
+    pub index_signatures: Vec<SignatureDefinition>,
+    /// The associated types.
+    pub associated_types: Vec<AssociatedTypeDefinition>,
+    /// The associated static values.
+    pub associated_statics: Vec<AssociatedStaticDefinition>,
+}
+
+/// Checked declaration data for one nominal enum.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnumDefinition {
-    /// The enum symbol.
-    pub symbol: GlobalSymbolId,
+    /// The source declaration node.
+    pub source: GlobalNodeIdAny,
+    /// The generic template declared by the enum.
+    pub template: Option<LocalGenericTemplateId>,
+    /// The implemented interfaces.
+    pub implements: Vec<NominalTarget>,
+    /// The enum variants.
+    pub variants: Vec<VariantDefinition>,
+    /// The methods.
+    pub methods: Vec<MethodDefinition>,
+    /// The associated types.
+    pub associated_types: Vec<AssociatedTypeDefinition>,
+    /// The associated static values.
+    pub associated_statics: Vec<AssociatedStaticDefinition>,
 }
 
-/// Checked facts for one newtype declaration.
+/// Checked declaration data for one nominal type alias.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NewtypeDefinition {
-    /// The newtype symbol.
+    /// The source declaration node.
+    pub source: GlobalNodeIdAny,
+    /// The generic template declared by the newtype.
+    pub template: Option<LocalGenericTemplateId>,
+    /// The implemented interfaces.
+    pub implements: Vec<NominalTarget>,
+    /// The methods.
+    pub methods: Vec<MethodDefinition>,
+    /// The associated types.
+    pub associated_types: Vec<AssociatedTypeDefinition>,
+    /// The associated static values.
+    pub associated_statics: Vec<AssociatedStaticDefinition>,
+}
+
+/// One nominal relation target.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NominalTarget {
+    /// The target nominal symbol.
     pub symbol: GlobalSymbolId,
+    /// The generic application used at the relation site.
+    pub application: Option<LocalGenericApplicationId>,
+}
+
+/// One checked nominal instance field.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FieldDefinition {
+    /// The field symbol.
+    pub symbol: GlobalSymbolId,
+    /// The source member node.
+    pub source: GlobalNodeIdAny,
+    /// The field key.
+    pub key: StaticKey,
+    /// The checked field type.
+    pub ty: GlobalTypeId,
+}
+
+/// One checked nominal method.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MethodDefinition {
+    /// The method symbol.
+    pub symbol: Option<GlobalSymbolId>,
+    /// The source member node.
+    pub source: GlobalNodeIdAny,
+    /// The nominal member slot.
+    pub slot: MemberSlot,
+    /// Whether this method belongs to the static side.
+    pub is_static: bool,
+    /// The checked method type.
+    pub ty: GlobalTypeId,
+}
+
+/// One checked associated type.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssociatedTypeDefinition {
+    /// The associated type symbol.
+    pub symbol: GlobalSymbolId,
+    /// The source member node.
+    pub source: GlobalNodeIdAny,
+    /// The checked associated type.
+    pub ty: GlobalTypeId,
+}
+
+/// One checked associated static value.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssociatedStaticDefinition {
+    /// The associated static symbol.
+    pub symbol: GlobalSymbolId,
+    /// The source member node.
+    pub source: GlobalNodeIdAny,
+    /// The checked static type.
+    pub ty: GlobalTypeId,
+    /// The checked static value.
+    pub value: Option<GlobalStaticId>,
+}
+
+/// One checked enum variant.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VariantDefinition {
+    /// The variant symbol.
+    pub symbol: GlobalSymbolId,
+    /// The source enum field node.
+    pub source: GlobalNodeIdAny,
+    /// The variant key.
+    pub key: StaticKey,
+    /// The checked variant value.
+    pub value: Option<GlobalStaticId>,
+}
+
+/// One checked symbol-free signature member.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SignatureDefinition {
+    /// The source member node.
+    pub source: GlobalNodeIdAny,
+    /// The checked signature type.
+    pub ty: GlobalTypeId,
 }
