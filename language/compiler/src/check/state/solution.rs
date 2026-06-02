@@ -1,7 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    CheckState, StaticOperand, StaticTerm, TermId, TypeOperand, TypeTerm, VariableId,
+    CheckEvent, CheckState, StaticOperand, StaticTerm, TermId, TraceOperand, TypeOperand, TypeTerm,
+    VariableId,
 };
 
 /// Solved value for one check variable.
@@ -91,6 +92,16 @@ impl From<StaticSolution> for Solution {
     }
 }
 
+impl Solution {
+    /// Convert this solution into a trace operand.
+    pub(in crate::check) fn trace_operand(self) -> TraceOperand {
+        match self {
+            Self::Type(solution) => TraceOperand::Type(solution.into()),
+            Self::Static(solution) => TraceOperand::Static(solution.into()),
+        }
+    }
+}
+
 impl CheckState<'_> {
     /// Insert one solution known before ordinary solver reduction.
     pub(in crate::check) fn insert_known_solution(
@@ -104,6 +115,12 @@ impl CheckState<'_> {
             previous.is_none(),
             "check variable {variable:?} already has a known solution"
         );
+
+        self.record_trace(CheckEvent::SolutionSet {
+            variable,
+            kind: self.variable(variable).kind,
+            value: solution.trace_operand(),
+        });
     }
 
     /// Return the solved type operand for one variable.

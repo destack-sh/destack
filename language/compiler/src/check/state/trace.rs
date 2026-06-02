@@ -1,147 +1,127 @@
-use std::collections::VecDeque;
+use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 
-use destack_dir as dir;
+use crate::check::{
+    CheckState, DumpContext, Progress, StaticOperand, TypeOperand, VariableId, VariableKind,
+};
 
-use crate::check::{Progress, VariableId};
-
-/// Maximum check trace events kept per component.
-const CHECK_TRACE_LIMIT: usize = 4096;
-
-/// Bounded trace for one check component.
+/// Trace for one check component.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::check) struct CheckTrace {
-    /// The retained check events.
-    pub(in crate::check) events: VecDeque<CheckEvent>,
-    /// The total number of events emitted.
-    pub(in crate::check) total: usize,
-    /// The number of events dropped from the front.
-    pub(in crate::check) dropped: usize,
-    /// Type variables currently being emitted by commit.
-    pub(in crate::check) active_type_commits: Vec<VariableId>,
+    /// The check events in emission order.
+    pub(in crate::check) events: Vec<CheckEvent>,
 }
 
 impl CheckTrace {
     /// Create an empty check trace.
     pub(in crate::check) fn new() -> Self {
-        Self {
-            events: VecDeque::new(),
-            total: 0,
-            dropped: 0,
-            active_type_commits: Vec::new(),
-        }
+        Self { events: Vec::new() }
     }
 
     /// Record one check event.
     pub(in crate::check) fn record(&mut self, event: CheckEvent) {
-        self.total += 1;
-
-        if self.events.len() == CHECK_TRACE_LIMIT {
-            self.events.pop_front();
-            self.dropped += 1;
-        }
-
-        self.events.push_back(event);
+        self.events.push(event);
     }
 
-    /// Enter commit for one type variable.
-    pub(in crate::check) fn enter_type_variable_commit(&mut self, event: CommitEvent) -> bool {
-        let CommitEvent::TypeVariableStarted { variable, .. } = event else {
-            panic!("type variable commit entry requires a start event");
-        };
+    /// Render this trace as stable artifact events.
+    pub(in crate::check) fn render_events(&self, check: &CheckState<'_>) -> ArtifactEventLog {
+        let context = DumpContext::new(check);
+        let mut log = ArtifactEventLog::new();
 
-        self.record(CheckEvent::Commit(event));
-        if self.active_type_commits.contains(&variable) {
-            self.record(CheckEvent::Commit(CommitEvent::CircularTypeVariable {
-                variable,
-            }));
-
-            return false;
-        }
-
-        self.active_type_commits.push(variable);
-
-        true
-    }
-
-    /// Leave commit for one type variable.
-    pub(in crate::check) fn finish_type_variable_commit(&mut self, event: CommitEvent) {
-        let CommitEvent::TypeVariableFinished { variable, .. } = event else {
-            panic!("type variable commit exit requires a finish event");
-        };
-        let active = self
-            .active_type_commits
-            .pop()
-            .unwrap_or_else(|| panic!("type variable commit stack is empty"));
-        assert_eq!(
-            active, variable,
-            "type variable commit finished out of stack order"
+        // summarize retained trace state
+        log.push(
+            ArtifactEvent::new("trace.summary")
+                .info()
+                .usize("events", self.events.len()),
         );
 
-        self.record(CheckEvent::Commit(event));
+        // render retained events in order
+        for event in &self.events {
+            event.render(&context, &mut log);
+        }
+
+        log
+    }
+
+    /// Render this trace as a human readable check dump.
+    pub(in crate::check) fn render_dump(&self, check: &CheckState<'_>) -> String {
+        self.render_events(check)
+            .events
+            .iter()
+            .map(ArtifactEvent::render_raw)
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 }
 
-/// One event emitted by check collection, solving, or commit.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum CheckEvent {
-    /// Solver event.
-    Solve(SolveEvent),
-    /// Commit event.
-    Commit(CommitEvent),
+impl CheckState<'_> {
+    /// Return rendered event rows for this component.
+    pub(in crate::check) fn events(&self) -> ArtifactEventLog {
+        self.trace.render_events(self)
+    }
 }
 
-/// One event emitted by the solver scheduler or reduction loop.
+/// One event emitted by check.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum SolveEvent {
+pub(in crate::check) enum CheckEvent {
     /// The solver started.
-    Started {
+    SolveStart {
         /// The number of queued tasks.
         tasks: usize,
         /// The number of variables present before solving.
         variables: usize,
     },
-    /// One solver pass ran once.
-    PassStepped {
-        /// The pass index.
-        pass: usize,
+    /// One solver step ran once.
+    SolveStep {
+        /// The zero-based step index.
+        step: usize,
         /// The progress produced by the task.
         progress: SolveProgress,
     },
     /// The solver reached an empty queue.
-    Finished {
-        /// The number of passes run.
-        passes: usize,
+    SolveFinish {
+        /// The number of iterations run.
+        iterations: usize,
         /// The final number of variables.
         variables: usize,
     },
+    /// One variable bound was inserted.
+    BoundInsert {
+        /// The constrained variable.
+        variable: VariableId,
+        /// The bound kind.
+        kind: VariableKind,
+        /// The bound side.
+        side: BoundSide,
+        /// The inserted bound operand.
+        value: TraceOperand,
+    },
+    /// One variable solution was set.
+    SolutionSet {
+        /// The solved variable.
+        variable: VariableId,
+        /// The solution kind.
+        kind: VariableKind,
+        /// The solution value.
+        value: TraceOperand,
+    },
 }
 
-/// One event emitted while committing checked output.
+/// One side of a variable bound.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum CommitEvent {
-    /// A type variable started committing.
-    TypeVariableStarted {
-        /// The variable being committed.
-        variable: VariableId,
-        /// The source node receiving the committed type.
-        source: dir::LocalNodeIdAny,
-        /// The symbol output when the variable has one.
-        symbol: Option<dir::GlobalSymbolId>,
-        /// The symbol kind when the variable has one.
-        kind: Option<dir::SymbolKind>,
-    },
-    /// A type variable committed.
-    TypeVariableFinished {
-        /// The variable that was committed.
-        variable: VariableId,
-        /// The resulting type id when one was emitted.
-        ty: Option<dir::GlobalTypeId>,
-    },
-    /// Commit reached a type variable already active on the stack.
-    CircularTypeVariable {
-        /// The variable that closed the cycle.
-        variable: VariableId,
-    },
+pub(in crate::check) enum BoundSide {
+    /// Lower bound.
+    Lower,
+    /// Upper bound.
+    Upper,
+}
+
+/// One type or static operand carried by a trace event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::check) enum TraceOperand {
+    /// Type operand.
+    Type(TypeOperand),
+    /// Static operand.
+    Static(StaticOperand),
 }
 
 /// Compact progress summary for one solver task step.
@@ -164,6 +144,120 @@ impl From<&Progress> for SolveProgress {
             Progress::Changed(variables) => Self::Changed {
                 variables: variables.len(),
             },
+        }
+    }
+}
+
+impl CheckEvent {
+    /// Render this event as stable artifact events.
+    fn render(&self, context: &DumpContext<'_, '_>, log: &mut ArtifactEventLog) {
+        match self {
+            Self::SolveStart { tasks, variables } => {
+                log.push(
+                    ArtifactEvent::new("solve.start")
+                        .info()
+                        .usize("tasks", *tasks)
+                        .usize("variables", *variables),
+                );
+            }
+            Self::SolveStep { step, progress } => {
+                log.push(
+                    ArtifactEvent::new("solve.step")
+                        .info()
+                        .usize("step", *step)
+                        .text("progress", progress.label())
+                        .usize("changed.variables", progress.changed_variables()),
+                );
+            }
+            Self::SolveFinish {
+                iterations,
+                variables,
+            } => {
+                log.push(
+                    ArtifactEvent::new("solve.finish")
+                        .info()
+                        .usize("iterations", *iterations)
+                        .usize("variables", *variables),
+                );
+            }
+            Self::BoundInsert {
+                variable,
+                kind,
+                side,
+                value,
+            } => {
+                let event = format!("bound.insert.{}", side.label());
+
+                log.push(
+                    ArtifactEvent::new(event)
+                        .debug()
+                        .text("kind", kind.label())
+                        .text("variable", context.render(variable))
+                        .text("value", value.render(context)),
+                );
+            }
+            Self::SolutionSet {
+                variable,
+                kind,
+                value,
+            } => {
+                let event = format!("solution.set.{}", kind.label());
+
+                log.push(
+                    ArtifactEvent::new(event)
+                        .debug()
+                        .text("variable", context.render(variable))
+                        .text("value", value.render(context)),
+                );
+            }
+        }
+    }
+}
+
+impl BoundSide {
+    /// Return this bound side's stable label.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Lower => "lower",
+            Self::Upper => "upper",
+        }
+    }
+}
+
+impl TraceOperand {
+    /// Render this trace operand.
+    fn render(self, context: &DumpContext<'_, '_>) -> String {
+        match self {
+            Self::Type(operand) => context.render(&operand),
+            Self::Static(operand) => context.render(&operand),
+        }
+    }
+}
+
+impl SolveProgress {
+    /// Return this progress value's stable label.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Unchanged => "unchanged",
+            Self::Changed { .. } => "changed",
+        }
+    }
+
+    /// Return the number of changed variables.
+    fn changed_variables(self) -> usize {
+        match self {
+            Self::Unchanged => 0,
+            Self::Changed { variables } => variables,
+        }
+    }
+}
+
+impl VariableKind {
+    /// Return this variable kind's stable label.
+    fn label(self) -> &'static str {
+        match self {
+            Self::Type => "type",
+            Self::Static => "static",
         }
     }
 }

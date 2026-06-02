@@ -3,7 +3,10 @@ use destack_source::ModuleId;
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Condition, Origin, StaticOperand, StaticTerm, TypeOperand};
+use crate::check::{
+    BoundSide, CheckEvent, CheckState, Condition, Origin, StaticOperand, StaticTerm, TraceOperand,
+    TypeOperand,
+};
 
 /// Component-valid id for one check variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -119,9 +122,19 @@ impl CheckState<'_> {
         variable: VariableId,
         lower_bound: TypeOperand,
     ) -> CompilerResult<bool> {
-        Ok(self
+        let inserted = self
             .inference
-            .insert_lower_type_bound(variable, lower_bound))
+            .insert_lower_type_bound(variable, lower_bound);
+        if inserted {
+            self.record_trace(CheckEvent::BoundInsert {
+                variable,
+                kind: VariableKind::Type,
+                side: BoundSide::Lower,
+                value: TraceOperand::Type(lower_bound),
+            });
+        }
+
+        Ok(inserted)
     }
 
     /// Insert one upper type bound for a variable.
@@ -130,9 +143,19 @@ impl CheckState<'_> {
         variable: VariableId,
         upper_bound: TypeOperand,
     ) -> CompilerResult<bool> {
-        Ok(self
+        let inserted = self
             .inference
-            .insert_upper_type_bound(variable, upper_bound))
+            .insert_upper_type_bound(variable, upper_bound);
+        if inserted {
+            self.record_trace(CheckEvent::BoundInsert {
+                variable,
+                kind: VariableKind::Type,
+                side: BoundSide::Upper,
+                value: TraceOperand::Type(upper_bound),
+            });
+        }
+
+        Ok(inserted)
     }
 
     /// Insert one lower static bound for a variable.
@@ -141,9 +164,19 @@ impl CheckState<'_> {
         variable: VariableId,
         lower_bound: StaticOperand,
     ) -> CompilerResult<bool> {
-        Ok(self
+        let inserted = self
             .inference
-            .insert_lower_static_bound(variable, lower_bound))
+            .insert_lower_static_bound(variable, lower_bound);
+        if inserted {
+            self.record_trace(CheckEvent::BoundInsert {
+                variable,
+                kind: VariableKind::Static,
+                side: BoundSide::Lower,
+                value: TraceOperand::Static(lower_bound),
+            });
+        }
+
+        Ok(inserted)
     }
 
     /// Insert one upper static bound for a variable.
@@ -152,9 +185,19 @@ impl CheckState<'_> {
         variable: VariableId,
         upper_bound: StaticOperand,
     ) -> CompilerResult<bool> {
-        Ok(self
+        let inserted = self
             .inference
-            .insert_upper_static_bound(variable, upper_bound))
+            .insert_upper_static_bound(variable, upper_bound);
+        if inserted {
+            self.record_trace(CheckEvent::BoundInsert {
+                variable,
+                kind: VariableKind::Static,
+                side: BoundSide::Upper,
+                value: TraceOperand::Static(upper_bound),
+            });
+        }
+
+        Ok(inserted)
     }
 
     /// Return lower type bounds for one variable.

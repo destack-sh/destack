@@ -3,9 +3,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    CheckState, CommitEvent, Constraint, FormTerm, FunctionParameter, FunctionTerm,
-    GenericApplication, GenericArgument, ShapeMember, StaticOperand, StaticTerm, TermId,
-    TupleElement, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
+    CheckState, Constraint, FormTerm, FunctionParameter, FunctionTerm, GenericApplication,
+    GenericArgument, ShapeMember, StaticOperand, StaticTerm, TermId, TupleElement, TypeOperand,
+    TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
 };
 
 use super::CheckModuleOutput;
@@ -46,12 +46,7 @@ impl CheckState<'_> {
             let Some(type_id) =
                 self.commit_type_operand(module, output, environment, operand, node.local_id)
             else {
-                let details = self.unresolved_type_operand_details(operand);
-                let module_uri = &self.module(node.module_id).module.uri;
-
-                panic!(
-                    "check node {node:?} in {module_uri:?} has unresolved checked type {operand:?}{details}"
-                );
+                self.panic_unresolved_checked_node_type(module, node, operand);
             };
 
             output.types.set_node_type(node, type_id);
@@ -63,12 +58,7 @@ impl CheckState<'_> {
             let Some(type_id) =
                 self.commit_type_operand(module, output, environment, operand, source)
             else {
-                let details = self.unresolved_type_operand_details(operand);
-                let module_uri = &self.module(symbol.module_id).module.uri;
-
-                panic!(
-                    "check symbol {symbol:?} in {module_uri:?} has unresolved checked type {operand:?}{details}"
-                );
+                self.panic_unresolved_checked_symbol_type(module, symbol, operand);
             };
 
             output.types.set_symbol_type(symbol, type_id);
@@ -78,11 +68,7 @@ impl CheckState<'_> {
         for (symbol, operand) in symbol_statics {
             let Some(static_id) = self.commit_static_operand(module, output, environment, operand)
             else {
-                let module_uri = &self.module(symbol.module_id).module.uri;
-
-                panic!(
-                    "check symbol {symbol:?} in {module_uri:?} has unresolved checked static {operand:?}"
-                );
+                self.panic_unresolved_checked_symbol_static(module, symbol, operand);
             };
 
             output.statics.set_symbol_static(symbol, static_id);
@@ -145,59 +131,6 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return source details for one unresolved type operand.
-    fn unresolved_type_operand_details(&self, operand: TypeOperand) -> String {
-        match operand {
-            TypeOperand::Variable(variable_id) => {
-                let variable = self.variable(variable_id);
-                let kind = variable.kind;
-                let source = variable.source;
-                let lower_bounds = self
-                    .lower_type_bounds(variable_id)
-                    .into_iter()
-                    .map(|operand| self.type_operand_debug(operand))
-                    .collect::<Vec<_>>();
-                let upper_bounds = self
-                    .upper_type_bounds(variable_id)
-                    .into_iter()
-                    .map(|operand| self.type_operand_debug(operand))
-                    .collect::<Vec<_>>();
-
-                format!(
-                    " with {kind:?} variable from {source:?}, lower bounds {lower_bounds:?}, upper bounds {upper_bounds:?}"
-                )
-            }
-            TypeOperand::Term(term) => {
-                let term = self.term(term);
-
-                format!(" from term {}", self.type_term_debug(term))
-            }
-            TypeOperand::Type(ty) => format!(" from checked DIR type {ty:?}"),
-        }
-    }
-
-    /// Return debug text for one type operand with local term values expanded.
-    fn type_operand_debug(&self, operand: TypeOperand) -> String {
-        match operand {
-            TypeOperand::Term(term) => self.type_term_debug(self.term(term)),
-            TypeOperand::Variable(variable) => format!("{variable:?}"),
-            TypeOperand::Type(ty) => format!("{ty:?}"),
-        }
-    }
-
-    /// Return debug text for one type term with nested term values expanded.
-    fn type_term_debug(&self, term: &TypeTerm) -> String {
-        match term {
-            TypeTerm::Form { form, payload } => {
-                let form = self.term(*form);
-                let payload = self.type_operand_debug(*payload);
-
-                format!("Form {{ form: {form:?}, payload: {payload} }}")
-            }
-            _ => format!("{term:?}"),
-        }
-    }
-
     /// Commit one variable as a type inside one target module.
     fn commit_type_variable(
         &mut self,
@@ -207,52 +140,9 @@ impl CheckState<'_> {
         variable: VariableId,
         source: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
-        self.commit_type_variable_with_trace(module, variable, source, |state| {
-            let term = state.commit_variable_term(variable)?;
+        let term = self.commit_variable_term(variable)?;
 
-            state.commit_type_term(module, output, environment, &term, source)
-        })
-    }
-
-    /// Commit one type variable with cycle tracing.
-    fn commit_type_variable_with_trace(
-        &mut self,
-        module: ModuleId,
-        variable: VariableId,
-        source: dir::LocalNodeIdAny,
-        commit: impl FnOnce(&mut Self) -> Option<dir::GlobalTypeId>,
-    ) -> Option<dir::GlobalTypeId> {
-        let event = self.type_variable_commit_started_event(module, variable, source);
-        if !self.trace.enter_type_variable_commit(event) {
-            let origin = self.variable(variable).source;
-            self.report_circular_type(origin);
-
-            return None;
-        }
-
-        let ty = commit(self);
-        self.trace
-            .finish_type_variable_commit(CommitEvent::TypeVariableFinished { variable, ty });
-
-        ty
-    }
-
-    /// Return the trace event for one type variable commit start.
-    fn type_variable_commit_started_event(
-        &self,
-        module: ModuleId,
-        variable: VariableId,
-        source: dir::LocalNodeIdAny,
-    ) -> CommitEvent {
-        let symbol = self.variable_source_symbol(variable);
-        let kind = symbol.and_then(|symbol| self.symbol_kind(module, symbol));
-
-        CommitEvent::TypeVariableStarted {
-            variable,
-            source,
-            symbol,
-            kind,
-        }
+        self.commit_type_term(module, output, environment, &term, source)
     }
 
     /// Commit the declared type term for one variable.

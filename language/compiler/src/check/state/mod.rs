@@ -10,6 +10,7 @@ mod inference;
 mod module;
 mod operand;
 mod origin;
+mod report;
 mod representation;
 mod solution;
 mod stats;
