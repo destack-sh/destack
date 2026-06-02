@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     CardSet, GcState, HeapPageMapEntry, HeapStorage, LargeBlock, LargeBlockId, LargeBlockImage,
-    SmallSpan, SmallSpanImage, YoungCursor, YoungImage, YoungSpace,
+    SmallSpan, SmallSpanImage, YoungImage, YoungSpace,
 };
 use crate::allocator::{Allocator, PageSpan, PageSpanCache, SizeClassTable};
 use crate::{
@@ -357,7 +357,7 @@ impl HeapStorage {
             spans,
             span_bits,
             span_cache,
-            cursor: YoungCursor::inactive(),
+            cursor: None,
             page_spans,
         })
     }

@@ -210,14 +210,6 @@ pub struct SmallSpanClass {
 }
 
 impl SmallSpanClass {
-    /// The empty inactive small-span class.
-    pub(crate) const EMPTY: Self = Self {
-        size_class: 0,
-        span_size_bytes: 0,
-        trace_id: None,
-        is_noscan: true,
-    };
-
     /// Create one small-span class from a validated size class.
     pub(crate) const fn new(
         size_class: usize,

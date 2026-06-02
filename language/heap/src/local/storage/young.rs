@@ -39,7 +39,7 @@ pub(crate) struct YoungSpace {
     /// The reusable span for each exact small allocation cache index.
     pub(crate) span_cache: Vec<Option<usize>>,
     /// The active fixed-size young cursor.
-    pub(crate) cursor: YoungCursor,
+    pub(crate) cursor: Option<YoungCursor>,
     /// The owning span for each young space page.
     pub(crate) page_spans: Vec<Option<usize>>,
 }
@@ -71,7 +71,7 @@ impl YoungSpace {
             spans: Vec::new(),
             span_bits: Vec::new(),
             span_cache: Vec::new(),
-            cursor: YoungCursor::inactive(),
+            cursor: None,
             page_spans: vec![None; page_count],
         })
     }
@@ -172,8 +172,10 @@ impl YoungSpace {
     /// Return the exact next byte offset for one span.
     #[inline(always)]
     pub(crate) fn span_next_offset(&self, span_index: usize) -> Option<usize> {
-        if self.cursor.is_active() && self.cursor.span_index == span_index {
-            return Some(self.cursor.next_offset);
+        if let Some(cursor) = self.cursor
+            && cursor.span_index == span_index
+        {
+            return Some(cursor.next_offset);
         }
 
         Some(self.span(span_index)?.next_offset)
@@ -191,20 +193,22 @@ impl YoungSpace {
     /// Return the uncommitted usage held by the active span cursor.
     #[inline(always)]
     pub(crate) fn pending_cursor_usage(&self) -> AllocationUsage {
-        self.cursor.pending_usage()
+        self.cursor
+            .map(|cursor| cursor.pending_usage())
+            .unwrap_or_default()
     }
 
     /// Flush the active young cursor into span metadata.
     #[inline(always)]
     pub(crate) fn flush_cursor(&mut self) -> AllocationUsage {
-        if !self.cursor.is_active() {
+        let Some(cursor) = &mut self.cursor else {
             return AllocationUsage::default();
-        }
+        };
 
-        let usage = self.cursor.flush_usage();
-        let span_index = self.cursor.span_index;
+        let usage = cursor.flush_usage();
+        let span_index = cursor.span_index;
         if let Some(span) = self.spans.get_mut(span_index) {
-            span.next_offset = self.cursor.next_offset;
+            span.next_offset = cursor.next_offset;
         }
 
         usage
@@ -214,10 +218,10 @@ impl YoungSpace {
     pub(crate) fn cloned_spans(&self) -> Vec<YoungSpan> {
         let mut spans = self.spans.clone();
 
-        if self.cursor.is_active()
-            && let Some(span) = spans.get_mut(self.cursor.span_index)
+        if let Some(cursor) = self.cursor
+            && let Some(span) = spans.get_mut(cursor.span_index)
         {
-            span.next_offset = self.cursor.next_offset;
+            span.next_offset = cursor.next_offset;
         }
 
         spans
@@ -231,8 +235,10 @@ impl YoungSpace {
         class: SmallSpanClass,
         span_index: usize,
     ) -> Option<()> {
-        if self.cursor.is_active() && self.cursor.span_index == span_index {
-            return self.cursor.matches(class, byte_len).then_some(());
+        if let Some(cursor) = self.cursor
+            && cursor.span_index == span_index
+        {
+            return cursor.matches(class, byte_len).then_some(());
         }
 
         let span = self.span(span_index)?;
@@ -240,14 +246,14 @@ impl YoungSpace {
             return None;
         }
 
-        self.cursor = YoungCursor {
+        self.cursor = Some(YoungCursor {
             byte_len,
             class,
             span_index,
             next_offset: span.next_offset,
             accounted_offset: span.next_offset,
             end_offset: span.end_offset,
-        };
+        });
 
         Some(())
     }
@@ -328,24 +334,6 @@ pub(crate) struct YoungCursor {
 }
 
 impl YoungCursor {
-    /// Return an inactive young cursor.
-    pub(crate) const fn inactive() -> Self {
-        Self {
-            byte_len: 0,
-            class: SmallSpanClass::EMPTY,
-            span_index: 0,
-            next_offset: 0,
-            accounted_offset: 0,
-            end_offset: 0,
-        }
-    }
-
-    /// Return whether this cursor currently owns a span.
-    #[inline(always)]
-    pub(crate) const fn is_active(&self) -> bool {
-        self.class.size_class != 0
-    }
-
     /// Return whether this cursor can allocate the requested byte length.
     #[inline(always)]
     pub(crate) fn matches(&self, class: SmallSpanClass, byte_len: usize) -> bool {
@@ -372,10 +360,6 @@ impl YoungCursor {
     /// Return the uncommitted usage held by this cursor.
     #[inline(always)]
     pub(crate) fn pending_usage(&self) -> AllocationUsage {
-        if !self.is_active() {
-            return AllocationUsage::default();
-        }
-
         let allocated_bytes = self.next_offset - self.accounted_offset;
         let allocation_count = allocated_bytes / self.class.size_class;
 

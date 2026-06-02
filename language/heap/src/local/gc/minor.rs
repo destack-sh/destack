@@ -1,7 +1,7 @@
 use destack_mir::TraceTable;
 
 use crate::local::gc::{DirtyExtent, GC_METADATA_STEP_BYTES, GC_METADATA_WORD_BITS, Phase};
-use crate::local::storage::{GcKind, GcStats, HeapPlace, HeapStorage, LargeBlockId, YoungCursor};
+use crate::local::storage::{GcKind, GcStats, HeapPlace, HeapStorage, LargeBlockId};
 use crate::{
     GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference, HeapResult,
     ReferenceInput, ReferenceRange, RootSlot, TraceQueue, scan_references,
@@ -404,7 +404,7 @@ impl HeapStorage {
         self.young.spans.clear();
         self.young.span_bits.clear();
         self.young.span_cache.fill(None);
-        self.young.cursor = YoungCursor::inactive();
+        self.young.cursor = None;
         self.young.page_spans.fill(None);
     }
 

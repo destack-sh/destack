@@ -47,6 +47,7 @@ impl HeapStorage {
         let reference = self
             .young
             .cursor
+            .as_mut()?
             .reserve_matching_reference(byte_len, class)?;
 
         Some(reference)
@@ -62,6 +63,7 @@ impl HeapStorage {
         let reference = self
             .young
             .cursor
+            .as_mut()?
             .reserve_noscan_reference(byte_len, class)?;
 
         Some(reference)
@@ -136,10 +138,11 @@ impl HeapStorage {
         let cache_index = small.cache_index();
 
         // stay on the active span cursor without consulting metadata
-        if self.young.cursor.matches(class, byte_len)
-            && let Some(reference) = self.young.cursor.reserve_reference()
+        if let Some(cursor) = &mut self.young.cursor
+            && cursor.matches(class, byte_len)
+            && let Some(reference) = cursor.reserve_reference()
         {
-            let span_index = self.young.cursor.span_index;
+            let span_index = cursor.span_index;
             let Some(span) = self.young.span(span_index) else {
                 return Err(HeapError::internal("missing span"));
             };
@@ -240,7 +243,7 @@ impl HeapStorage {
     ) -> Option<YoungSlot> {
         self.flush_young_cursor();
         self.young.activate_cursor(byte_len, class, span_index)?;
-        let reference = self.young.cursor.reserve_reference()?;
+        let reference = self.young.cursor.as_mut()?.reserve_reference()?;
         let span = self.young.span(span_index)?;
         let slot_index = (reference.offset() - span.first_offset) / class.size_class;
 

@@ -63,7 +63,7 @@ impl HeapStorage {
         }
 
         let size_class_cache = &mut cache.small[cache_index];
-        if !size_class_cache.is_active() || size_class_cache.class != small.class {
+        if !size_class_cache.is_active() || size_class_cache.class() != Some(small.class) {
             return None;
         }
 
@@ -95,12 +95,14 @@ impl HeapStorage {
             // partial spans return to the central partial list
             if size_class_cache.has_available_slot() {
                 span.list.store(SpanList::Central);
-                store
-                    .small
-                    .partial_spans
-                    .entry(size_class_cache.class)
-                    .or_default()
-                    .push(size_class_cache.span_index as usize);
+                if let Some(class) = size_class_cache.class() {
+                    store
+                        .small
+                        .partial_spans
+                        .entry(class)
+                        .or_default()
+                        .push(size_class_cache.span_index as usize);
+                }
                 size_class_cache.clear();
 
                 continue;
@@ -115,9 +117,10 @@ impl HeapStorage {
     /// Publish one worker-local cache into shared accounting.
     #[inline(always)]
     fn flush_size_class_cache(&self, size_class_cache: &mut SmallSizeClassCache) {
-        let usage = size_class_cache
-            .cursor
-            .flush_usage(size_class_cache.class.size_class);
+        let Some(class) = size_class_cache.class() else {
+            return;
+        };
+        let usage = size_class_cache.cursor.flush_usage(class.size_class);
         if usage.allocation_count() == 0 {
             return;
         }
@@ -140,7 +143,10 @@ impl HeapStorage {
                 continue;
             }
 
-            let span_size_bytes = size_class_cache.class.size_class * size_class_cache.slot_count;
+            let Some(class) = size_class_cache.class() else {
+                continue;
+            };
+            let span_size_bytes = class.size_class * size_class_cache.slot_count;
             let span_end = size_class_cache.first_offset + span_size_bytes;
             if offset < size_class_cache.first_offset || offset >= span_end {
                 continue;
@@ -417,7 +423,7 @@ impl HeapStorage {
         payload: Payload<'_>,
         should_keep_worker_cache: bool,
     ) -> HeapResult<Slot> {
-        debug_assert_eq!(cache.small[cache_index].class, *class);
+        debug_assert_eq!(cache.small[cache_index].class(), Some(*class));
 
         // reuse the worker-owned span when it still has a matching slot
         if cache.small[cache_index].is_active() {
@@ -437,7 +443,11 @@ impl HeapStorage {
                     }
                     // kept non-dense slots have no cursor flush to publish them
                     else if !block.is_dense {
-                        self.accounting.allocate(size_class_cache.class.size_class);
+                        let Some(class) = size_class_cache.class() else {
+                            return Err(HeapError::internal("missing cache class"));
+                        };
+
+                        self.accounting.allocate(class.size_class);
                     }
                     // active marking cannot leave free slots hidden in the worker
                     else if !should_keep_worker_cache {
@@ -489,7 +499,11 @@ impl HeapStorage {
             size_class_cache.finish();
             size_class_cache.clear();
         } else if !block.is_dense {
-            self.accounting.allocate(size_class_cache.class.size_class);
+            let Some(class) = size_class_cache.class() else {
+                return Err(HeapError::internal("missing cache class"));
+            };
+
+            self.accounting.allocate(class.size_class);
         }
 
         // return published caches to the central partial list
@@ -516,12 +530,14 @@ impl HeapStorage {
         // keep reusable spans on the central partial list
         if size_class_cache.has_available_slot() {
             span.list.store(SpanList::Central);
-            store
-                .small
-                .partial_spans
-                .entry(size_class_cache.class)
-                .or_default()
-                .push(size_class_cache.span_index as usize);
+            if let Some(class) = size_class_cache.class() {
+                store
+                    .small
+                    .partial_spans
+                    .entry(class)
+                    .or_default()
+                    .push(size_class_cache.span_index as usize);
+            }
         } else {
             span.list.store(SpanList::Full);
         }
@@ -535,7 +551,11 @@ impl HeapStorage {
         if block.is_dense {
             self.flush_size_class_cache(size_class_cache);
         } else {
-            self.accounting.allocate(size_class_cache.class.size_class);
+            let Some(class) = size_class_cache.class() else {
+                return;
+            };
+
+            self.accounting.allocate(class.size_class);
         }
     }
 
@@ -576,14 +596,19 @@ impl HeapStorage {
         let slot_index = slot.slot_index;
         let span = size_class_cache.span.as_ref().cloned();
         let span_slot = size_class_cache.span_slot(slot_index);
-        let reference = size_class_cache.reference_for_slot(slot_index);
+        let Some(class) = size_class_cache.class() else {
+            return Err(HeapError::internal("missing cache class"));
+        };
+        let Some(reference) = size_class_cache.reference_for_slot(slot_index) else {
+            return Err(HeapError::internal("missing cache class"));
+        };
 
         // clear only slots that previously held arbitrary bytes
         if let Some(span) = &span
             && !slot.is_dense
             && span.take_needs_zero(slot_index)
         {
-            self.clear_mapped_bytes(reference.offset(), size_class_cache.class.size_class);
+            self.clear_mapped_bytes(reference.offset(), class.size_class);
         }
 
         // publish reused slots immediately
@@ -618,14 +643,19 @@ impl HeapStorage {
         let slot_index = slot.slot_index;
         let span = size_class_cache.span.as_ref().cloned();
         let span_slot = size_class_cache.span_slot(slot_index);
-        let reference = size_class_cache.reference_for_slot(slot_index);
+        let Some(class) = size_class_cache.class() else {
+            return Err(HeapError::internal("missing cache class"));
+        };
+        let Some(reference) = size_class_cache.reference_for_slot(slot_index) else {
+            return Err(HeapError::internal("missing cache class"));
+        };
 
         // clear stale tail bytes before copying short payloads
         if let Some(span) = &span
-            && bytes.len() < size_class_cache.class.size_class
+            && bytes.len() < class.size_class
             && span.take_needs_zero(slot_index)
         {
-            self.clear_mapped_bytes(reference.offset(), size_class_cache.class.size_class);
+            self.clear_mapped_bytes(reference.offset(), class.size_class);
         }
 
         // copy the payload before publishing the initialized slot
@@ -667,12 +697,17 @@ impl HeapStorage {
         let slot_index = slot.slot_index;
         let span = size_class_cache.span.as_ref().cloned();
         let span_slot = size_class_cache.span_slot(slot_index);
-        let reference = size_class_cache.reference_for_slot(slot_index);
+        let Some(class) = size_class_cache.class() else {
+            return Err(HeapError::internal("missing cache class"));
+        };
+        let Some(reference) = size_class_cache.reference_for_slot(slot_index) else {
+            return Err(HeapError::internal("missing cache class"));
+        };
         let mapping_offset = reference.offset();
 
         match payload {
-            Payload::Bytes(bytes) if bytes.len() < size_class_cache.class.size_class => {
-                self.clear_mapped_bytes(mapping_offset, size_class_cache.class.size_class);
+            Payload::Bytes(bytes) if bytes.len() < class.size_class => {
+                self.clear_mapped_bytes(mapping_offset, class.size_class);
                 self.write_mapped_bytes(mapping_offset, bytes);
             }
             Payload::Bytes(bytes) => self.write_mapped_bytes(mapping_offset, bytes),
@@ -680,7 +715,7 @@ impl HeapStorage {
                 if let Some(span) = &span
                     && span.take_needs_zero(slot_index)
                 {
-                    self.clear_mapped_bytes(mapping_offset, size_class_cache.class.size_class);
+                    self.clear_mapped_bytes(mapping_offset, class.size_class);
                 }
             }
             Payload::Uninit => {}

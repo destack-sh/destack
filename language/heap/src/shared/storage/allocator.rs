@@ -18,7 +18,7 @@ unsafe impl Send for AllocationCache {}
 #[derive(Debug)]
 pub(super) struct SmallSizeClassCache {
     /// The homogeneous payload class allocated by this cache.
-    pub(super) class: SmallSpanClass,
+    pub(super) class: Option<SmallSpanClass>,
     /// The dense allocation cursor for fresh spans.
     pub(super) cursor: SpanCursor,
     /// The shared span table index.
@@ -79,11 +79,11 @@ impl AllocationCache {
             self.small.push(SmallSizeClassCache::inactive());
         }
 
-        if self.small[cache_index].class == SmallSpanClass::EMPTY {
-            self.small[cache_index].class = small.class;
+        if self.small[cache_index].class.is_none() {
+            self.small[cache_index].class = Some(small.class);
         }
 
-        debug_assert_eq!(self.small[cache_index].class, small.class);
+        debug_assert_eq!(self.small[cache_index].class, Some(small.class));
     }
 
     /// Return whether this cache owns one unflushed shared heap reference.
@@ -207,7 +207,7 @@ impl SmallSizeClassCache {
     /// Return an inactive small allocation cache.
     pub(super) const fn inactive() -> Self {
         Self {
-            class: SmallSpanClass::EMPTY,
+            class: None,
             cursor: SpanCursor::inactive(),
             span_index: 0,
             span: None,
@@ -222,9 +222,11 @@ impl SmallSizeClassCache {
     pub(super) fn reserve_slot(&mut self) -> Option<SmallSlot> {
         // dense cursor path
         if self.cursor.end_offset > 0 {
+            let class = self.class()?;
+
             return self
                 .cursor
-                .reserve_slot(self.first_offset, self.class.size_class);
+                .reserve_slot(self.first_offset, class.size_class);
         }
 
         // first pass through never-tried slots
@@ -257,7 +259,11 @@ impl SmallSizeClassCache {
     pub(super) fn has_available_slot(&self) -> bool {
         // dense cursor capacity
         if self.cursor.end_offset > 0 {
-            return self.cursor.has_available_slot(self.class.size_class);
+            let Some(class) = self.class() else {
+                return false;
+            };
+
+            return self.cursor.has_available_slot(class.size_class);
         }
 
         // never-tried slots remain
@@ -281,10 +287,11 @@ impl SmallSizeClassCache {
 
         // publish every dense slot reserved so far
         if let Some(span) = &self.span {
-            span.publish_dense_len(
-                self.cursor
-                    .next_slot(self.first_offset, self.class.size_class),
-            );
+            let Some(class) = self.class() else {
+                return;
+            };
+
+            span.publish_dense_len(self.cursor.next_slot(self.first_offset, class.size_class));
         }
     }
 
@@ -302,10 +309,11 @@ impl SmallSizeClassCache {
 
     /// Return the heap reference for one slot.
     #[inline(always)]
-    pub(super) fn reference_for_slot(&self, slot_index: usize) -> SharedHeapReference {
-        let mapping_offset = self.first_offset + self.class.size_class * slot_index;
+    pub(super) fn reference_for_slot(&self, slot_index: usize) -> Option<SharedHeapReference> {
+        let class = self.class()?;
+        let mapping_offset = self.first_offset + class.size_class * slot_index;
 
-        SharedHeapReference::new(mapping_offset)
+        Some(SharedHeapReference::new(mapping_offset))
     }
 
     /// Return whether this cache currently owns a span.
@@ -325,7 +333,7 @@ impl SmallSizeClassCache {
         let next_slot = span.first_free_slot();
 
         self.span_index = span_index as u32;
-        self.class = span.class;
+        self.class = Some(span.class);
         self.span = Some(span.clone());
         self.first_offset = span.first_offset;
         self.slot_count = span.slot_count;
@@ -346,6 +354,7 @@ impl SmallSizeClassCache {
     /// Clear the current shared small span from this cache.
     pub(super) fn clear(&mut self) {
         // clear cache metadata
+        self.class = None;
         self.span = None;
         self.span_index = 0;
         self.first_offset = 0;
@@ -360,5 +369,11 @@ impl SmallSizeClassCache {
     #[inline(always)]
     pub(super) fn span_slot(&self, slot_index: usize) -> Slot {
         Slot::from_raw(self.span_index, slot_index as u32)
+    }
+
+    /// Return the small span class when this cache is initialized.
+    #[inline(always)]
+    pub(super) fn class(&self) -> Option<SmallSpanClass> {
+        self.class
     }
 }
