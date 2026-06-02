@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::resolve::state::{PathReference, ResolveState};
 
@@ -40,7 +39,7 @@ impl ResolveState<'_> {
             }
             dir::Expression::Member { .. } => {
                 if self.member_path_collection_depth == 0
-                    && let Some(path) = self.member_path_reference(tree, id)
+                    && let Some(path) = tree.member_path(id)
                 {
                     self.collect_path_reference(PathReference {
                         source: id.into_global_any(self.module),
@@ -171,59 +170,4 @@ impl ResolveState<'_> {
             _ => dir::walk_type_expression(self, tree, id, ty),
         }
     }
-
-    /// Return one member chain as a namespace path candidate.
-    ///
-    /// Example:
-    /// ```ds
-    /// dep.api.value
-    /// ```
-    fn member_path_reference(
-        &self,
-        tree: &dir::Tree,
-        id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::Path> {
-        let mut segments = SmallVec::new();
-        collect_member_path_segments(tree, id, &mut segments)?;
-
-        (segments.len() > 1).then_some(dir::Path { segments })
-    }
-}
-
-/// Collect source path segments from one expression member chain.
-///
-/// Example:
-/// ```ds
-/// dep.api.value
-/// ```
-fn collect_member_path_segments(
-    tree: &dir::Tree,
-    id: dir::LocalNodeId<dir::Expression>,
-    segments: &mut SmallVec<[dir::StringId; 1]>,
-) -> Option<()> {
-    match tree.get(id) {
-        // collect the path root
-        dir::Expression::Identifier { name } => {
-            segments.push(*name);
-        }
-
-        // collect an already path-shaped root
-        dir::Expression::QualifiedReference { path, .. } => {
-            segments.extend(path.segments.iter().copied());
-        }
-
-        // extend through one member segment
-        dir::Expression::Member {
-            left,
-            name: Some(name),
-        } => {
-            collect_member_path_segments(tree, *left, segments)?;
-            segments.push(*name);
-        }
-
-        // reject dynamic member syntax
-        _ => return None,
-    }
-
-    Some(())
 }

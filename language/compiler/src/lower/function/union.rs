@@ -509,6 +509,9 @@ impl FunctionLowerer<'_> {
             dir::Expression::ScalarLiteral(dir::ScalarLiteral::Null) => {
                 Some(UnionLiteralValue::Null)
             }
+            dir::Expression::ScalarLiteral(dir::ScalarLiteral::Undefined) => {
+                Some(UnionLiteralValue::Undefined)
+            }
             dir::Expression::ScalarLiteral(value) => Some(UnionLiteralValue::Scalar(value.clone())),
             dir::Expression::Type { .. } => {
                 let type_id = self.type_for_expression(expression_id)?;

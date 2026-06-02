@@ -20,6 +20,19 @@ impl ResolveState<'_> {
             let expression = tree.get(*root);
             self.visit_expression(tree, *root, expression);
         }
+
+        let decorators = self
+            .view
+            .get_all_decorators()
+            .into_values()
+            .flatten()
+            .collect::<Vec<_>>();
+
+        // collect references from attached decorator expressions
+        for decorator in decorators {
+            let node = tree.get(decorator);
+            self.visit_decorator(tree, decorator, node);
+        }
     }
 }
 
@@ -156,5 +169,86 @@ impl dir::NodeVisitor for ResolveState<'_> {
         }
 
         dir::walk_member(self, tree, id, member);
+    }
+
+    /// Visit one decorator.
+    ///
+    /// Example:
+    /// ```ds
+    /// @trace
+    /// function f() {}
+    /// ```
+    fn visit_decorator(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Decorator>,
+        decorator: &dir::Decorator,
+    ) {
+        if self.is_static_if_decorator_expression(tree, decorator.expression) {
+            self.walk_static_if_decorator_arguments(tree, decorator.expression);
+
+            return;
+        }
+
+        dir::walk_decorator(self, tree, id, decorator);
+    }
+}
+
+impl ResolveState<'_> {
+    /// Return whether one decorator expression is syntactic `@if`.
+    ///
+    /// Example:
+    /// ```ds
+    /// @if(Target.isNative)
+    /// function f() {}
+    /// ```
+    fn is_static_if_decorator_expression(
+        &self,
+        tree: &dir::Tree,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        match tree.get(expression) {
+            dir::Expression::Parenthesized { expression } => {
+                self.is_static_if_decorator_expression(tree, *expression)
+            }
+            dir::Expression::Call { left, .. } => {
+                self.is_static_if_decorator_expression(tree, *left)
+            }
+            dir::Expression::Identifier { name } => self.strings.get(*name) == "if",
+            dir::Expression::QualifiedReference { path, .. } if path.segments.len() == 1 => {
+                self.strings.get(path.segments[0]) == "if"
+            }
+            _ => false,
+        }
+    }
+
+    /// Walk condition arguments of syntactic `@if`.
+    ///
+    /// Example:
+    /// ```ds
+    /// @if(Target.isNative)
+    /// function f() {}
+    /// ```
+    fn walk_static_if_decorator_arguments(
+        &mut self,
+        tree: &dir::Tree,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) {
+        match tree.get(expression) {
+            dir::Expression::Parenthesized { expression } => {
+                self.walk_static_if_decorator_arguments(tree, *expression);
+            }
+            dir::Expression::Call { arguments, .. } => {
+                for argument in arguments {
+                    let Some(value) = tree.get(*argument).value() else {
+                        continue;
+                    };
+                    let expression = tree.get(value);
+
+                    self.visit_expression(tree, value, expression);
+                }
+            }
+            _ => {}
+        }
     }
 }

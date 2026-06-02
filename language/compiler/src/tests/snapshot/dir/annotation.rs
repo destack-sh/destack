@@ -15,8 +15,11 @@ impl SnapshotTable for dir::AnnotationSegment {
                 SnapshotRow::new(builder.anchor_node(invocation.source), "annotation", "node")
                     .optional_field("source", builder.node_source(invocation.source))
                     .optional_field("owner", builder.node_source(invocation.owner))
-                    .optional_field("callee", builder.node_source(invocation.callee))
-                    .field("target", builder.annotation_target_label(invocation.target))
+                    .optional_field("target", builder.node_source(invocation.target))
+                    .field(
+                        "resolution",
+                        builder.annotation_target_label(invocation.resolution),
+                    )
                     .optional_list_field("arguments", arguments);
 
             builder.push(row);
