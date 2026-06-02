@@ -93,7 +93,7 @@ impl HostPoller for UnixPoller {
         flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
-        if token.is_reserved() {
+        if token.is_internal() {
             return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "token",
                 "token reserved for poller internals",
@@ -129,7 +129,7 @@ impl HostPoller for UnixPoller {
         flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
-        if token.is_reserved() {
+        if token.is_internal() {
             return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "token",
                 "token reserved for poller internals",

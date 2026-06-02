@@ -10,15 +10,12 @@ use crate::diagnostic::{
 use crate::host::poller::{
     HostHandle, HostPoller, HostPollerFlags, PollInterest, PollerEvent, PollerEventFlags,
     PollerEventMask, PollerEventPayload, PollerEventSource, PollerToken, PollerWakeHandle,
+    TIMEOUT_TOKEN_BITS, WAKE_TOKEN_BITS,
 };
 use crate::host::{HostError, ResourceId, core as host_core};
 
 /// Default io_uring queue depth.
 const DEFAULT_QUEUE_DEPTH: u32 = 256;
-/// Reserved token for wake events.
-const WAKE_TOKEN: PollerToken = PollerToken::WAKE;
-/// Reserved token for timeout events.
-const TIMEOUT_TOKEN: PollerToken = PollerToken::TIMEOUT;
 
 /// io_uring backed poller for Linux targets.
 pub(crate) struct IoUringPoller {
@@ -115,7 +112,7 @@ impl IoUringPoller {
 
         // register the wake fd
         poller.submit_poll(
-            WAKE_TOKEN,
+            PollerToken(WAKE_TOKEN_BITS),
             wake_fd,
             PollInterest::READABLE,
             HostPollerFlags::NONE,
@@ -180,9 +177,9 @@ impl IoUringPoller {
     }
 
     fn submit_timeout_remove(&mut self) -> RuntimeResult<()> {
-        let entry = opcode::TimeoutRemove::new(TIMEOUT_TOKEN.0)
+        let entry = opcode::TimeoutRemove::new(TIMEOUT_TOKEN_BITS)
             .build()
-            .user_data(TIMEOUT_TOKEN.0);
+            .user_data(TIMEOUT_TOKEN_BITS);
 
         // SAFETY: the submission queue is only accessed while holding exclusive poller state
         unsafe {
@@ -205,7 +202,7 @@ impl IoUringPoller {
         self.timeout_spec = types::Timespec::new().sec(seconds).nsec(nanos);
         let entry = opcode::Timeout::new(&self.timeout_spec)
             .build()
-            .user_data(TIMEOUT_TOKEN.0);
+            .user_data(TIMEOUT_TOKEN_BITS);
 
         // SAFETY: timeout_spec is stored on self and lives until the submission queue is flushed
         unsafe {
@@ -263,7 +260,7 @@ impl HostPoller for IoUringPoller {
         flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
-        if token.is_reserved() {
+        if token.is_internal() {
             return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "token",
                 "token reserved for poller internals",
@@ -312,7 +309,7 @@ impl HostPoller for IoUringPoller {
         flags: HostPollerFlags,
     ) -> RuntimeResult<()> {
         // reject reserved tokens
-        if token.is_reserved() {
+        if token.is_internal() {
             return Err(RuntimeError::from(HostError::invalid_argument_value(
                 "token",
                 "token reserved for poller internals",
@@ -411,12 +408,12 @@ impl HostPoller for IoUringPoller {
 
         for cqe in self.ring.completion() {
             let user_data = cqe.user_data();
-            if user_data == TIMEOUT_TOKEN.0 {
+            if user_data == TIMEOUT_TOKEN_BITS {
                 self.timeout_pending = false;
                 saw_timeout = true;
                 continue;
             }
-            if user_data == WAKE_TOKEN.0 {
+            if user_data == WAKE_TOKEN_BITS {
                 drain_eventfd(self.wake_fd);
                 self.wake_pending = false;
                 continue;
@@ -475,7 +472,7 @@ impl HostPoller for IoUringPoller {
 
         if !self.wake_pending {
             self.submit_poll(
-                WAKE_TOKEN,
+                PollerToken(WAKE_TOKEN_BITS),
                 self.wake_fd,
                 PollInterest::READABLE,
                 HostPollerFlags::NONE,

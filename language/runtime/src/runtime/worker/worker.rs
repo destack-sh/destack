@@ -9,7 +9,7 @@ use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, Runti
 use crate::host::binding::{BindingAccess, BindingRegistry};
 use crate::host::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
-use crate::runtime::engine::{Continuation, Engine, Image, MemoryContext};
+use crate::runtime::engine::{Continuation, Engine, EngineMemory, Image};
 use crate::runtime::heap::resolve_local_heap_options;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
 use crate::runtime::{RuntimeHeap, ScenarioRunner};
@@ -267,7 +267,7 @@ impl Worker {
         let mut statics = engine::StaticSpace::empty();
         let shared_gc_worker = runtime_heap.register_collector_worker();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
-        let context = MemoryContext {
+        let context = EngineMemory {
             heap: &mut heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
@@ -568,7 +568,7 @@ impl Worker {
                     .boxed()
                 })?,
             statics: self.statics.clone(),
-            engine_image: self.engine.image(engine::MemoryContext {
+            engine_image: self.engine.image(engine::EngineMemory {
                 heap: &mut self.heap,
                 shared_heap: runtime_heap.shared.as_ref(),
                 shared_cache: &mut self.shared_cache,
@@ -609,7 +609,7 @@ impl Worker {
         let mut heap = self.heap.fork(trace_table.as_ref())?;
         let mut statics = self.statics.clone();
         let mut shared_cache = runtime_heap.shared.allocation_cache();
-        let mut engine = self.engine.fork(engine::MemoryContext {
+        let mut engine = self.engine.fork(engine::EngineMemory {
             heap: &mut heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
@@ -688,7 +688,7 @@ impl Worker {
         let mut shared_cache = runtime_heap.shared.allocation_cache();
 
         // restore backend execution state over the restored heap
-        let context = MemoryContext {
+        let context = EngineMemory {
             heap: &mut heap,
             shared_heap: runtime_heap.shared.as_ref(),
             shared_cache: &mut shared_cache,
@@ -698,7 +698,7 @@ impl Worker {
         };
         engine.initialize(context)?;
         engine.restore(
-            engine::MemoryContext {
+            engine::EngineMemory {
                 heap: &mut heap,
                 shared_heap: runtime_heap.shared.as_ref(),
                 shared_cache: &mut shared_cache,

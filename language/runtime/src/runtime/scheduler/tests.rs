@@ -361,7 +361,7 @@ fn test_world_tick_drives_runtime() {
     let runtime = runtimes.get_mut(&runtime_id).expect("runtime should exist");
     let default_worker_id = runtime.default_worker_id();
     runtime
-        .with_worker_context(default_worker_id, |shared, runtime_static, worker| {
+        .with_worker(default_worker_id, |shared, runtime_static, worker| {
             let continuation = start_worker_continuation(
                 worker,
                 host.as_ref(),
@@ -481,8 +481,10 @@ fn schedule_timer(
 
 /// Build one native continuation for mismatch tests.
 fn native_continuation(value: u64) -> Continuation {
-    Continuation::Native(native::Continuation::new(engine::Continuation {
-        engine_id: engine::EngineId::new(value),
-        frames: Vec::new(),
-    }))
+    Continuation::Native(native::Continuation::new(
+        engine::MaterializedContinuation {
+            engine_id: engine::EngineId::new(value),
+            frames: Vec::new(),
+        },
+    ))
 }

@@ -4,6 +4,11 @@ use crate::host::ResourceId;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+/// Kernel user-data value reserved for poller wake events.
+pub(crate) const WAKE_TOKEN_BITS: u64 = u64::MAX;
+/// Kernel user-data value reserved for poller timeout events.
+pub(crate) const TIMEOUT_TOKEN_BITS: u64 = u64::MAX - 1;
+
 /// Opaque token used by the poller for event routing.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -13,14 +18,9 @@ pub struct PollerToken(
 );
 
 impl PollerToken {
-    /// Reserved token for poller wake events.
-    pub const WAKE: Self = Self(u64::MAX);
-    /// Reserved token for poller timeout events.
-    pub const TIMEOUT: Self = Self(u64::MAX - 1);
-
-    /// Return whether this token is reserved.
-    pub const fn is_reserved(self) -> bool {
-        matches!(self, Self::WAKE | Self::TIMEOUT)
+    /// Return whether this token collides with host-poller control events.
+    pub const fn is_internal(self) -> bool {
+        matches!(self.0, WAKE_TOKEN_BITS | TIMEOUT_TOKEN_BITS)
     }
 }
 

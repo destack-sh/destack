@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::host::binding::BindingAffinity;
-use crate::runtime::{ExecutionContext, execution_context_satisfies};
 
 /// Stored resource-affinity requirement for one live resource entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -28,10 +27,5 @@ impl ResourceAffinity {
             Self::Worker => BindingAffinity::Worker,
             Self::Main => BindingAffinity::Main,
         }
-    }
-
-    /// Return whether one execution context satisfies this resource requirement.
-    pub const fn satisfies(self, execution_context: ExecutionContext) -> bool {
-        execution_context_satisfies(execution_context, self.binding_affinity())
     }
 }
