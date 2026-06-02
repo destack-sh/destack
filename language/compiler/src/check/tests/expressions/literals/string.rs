@@ -10,10 +10,12 @@ const value = "hello";
 
     session.assert_dir_checked(
         "main.ds",
-        DirRows::checked().with_reference_types().with_check_stats(),
+        DirRows::checked()
+            .with_reference_types()
+            .with_check_stats()
         r#"
 const value = "hello";
-/// @type.symbol symbol=value type="hello"
+/// @type.symbol symbol=value source=value type="hello"
 /// @type.node source="\"hello\"" type="hello"
 
 /// @check.stats.solve variables=0 terms=2 constraints=0 obligations=0 solutions=0 bounds=0 decisions=0
