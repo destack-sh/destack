@@ -479,6 +479,7 @@ global {
         noUnsafe,
         noUnwind,
         pure,
+        repr,
         safe,
         sink,
         source,
