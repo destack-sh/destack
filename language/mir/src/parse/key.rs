@@ -23,7 +23,7 @@ impl FieldKey {
     pub(super) fn from_field(field: &Field, attributes: &[Attribute]) -> Self {
         Self {
             name: field.name,
-            ty: field.ty,
+            ty: field.ty.clone(),
             attributes: attributes.to_vec(),
         }
     }
@@ -152,11 +152,15 @@ impl TypeKey {
             Type::Float(float_type) => TypeKey::Float(*float_type),
             Type::TypeDescriptor => TypeKey::TypeDescriptor,
             Type::TypeId => TypeKey::TypeId,
-            Type::Atomic { value } => TypeKey::Atomic { value: *value },
-            Type::Dynamic { constraint } => TypeKey::Dynamic {
-                constraint: *constraint,
+            Type::Atomic { value } => TypeKey::Atomic {
+                value: value.clone(),
             },
-            Type::Uninit { value } => TypeKey::Uninit { value: *value },
+            Type::Dynamic { constraint } => TypeKey::Dynamic {
+                constraint: constraint.clone(),
+            },
+            Type::Uninit { value } => TypeKey::Uninit {
+                value: value.clone(),
+            },
 
             Type::Reference {
                 kind,
@@ -170,7 +174,7 @@ impl TypeKey {
                 lifetime: lifetime.clone(),
                 space: space.clone(),
                 access: *access,
-                pointee: *pointee,
+                pointee: pointee.clone(),
                 nullability: *nullability,
             },
 
@@ -179,7 +183,7 @@ impl TypeKey {
                 length,
                 copy,
             } => TypeKey::Array {
-                element: *element,
+                element: element.clone(),
                 length: *length,
                 copy: *copy,
             },
@@ -193,7 +197,7 @@ impl TypeKey {
             } => TypeKey::Slice {
                 kind: *kind,
                 lifetime: lifetime.clone(),
-                element: *element,
+                element: element.clone(),
                 space: space.clone(),
                 access: *access,
                 nullability: *nullability,
@@ -209,7 +213,7 @@ impl TypeKey {
                 copy: *copy,
             },
             Type::Newtype { inner, copy } => TypeKey::Newtype {
-                inner: *inner,
+                inner: inner.clone(),
                 copy: *copy,
             },
             Type::Variant {
@@ -218,8 +222,8 @@ impl TypeKey {
                 cases,
                 copy,
             } => TypeKey::Variant {
-                tag: *tag,
-                storage: *storage,
+                tag: tag.clone(),
+                storage: storage.clone(),
                 cases: cases.clone(),
                 copy: *copy,
             },
@@ -228,7 +232,7 @@ impl TypeKey {
                 lanes,
                 copy,
             } => TypeKey::Vector {
-                element: *element,
+                element: element.clone(),
                 lanes: *lanes,
                 copy: *copy,
             },
@@ -238,7 +242,7 @@ impl TypeKey {
                 layout,
                 copy,
             } => TypeKey::Tensor {
-                element: *element,
+                element: element.clone(),
                 shape: shape.clone(),
                 layout: layout.clone(),
                 copy: *copy,
@@ -257,7 +261,7 @@ impl TypeKey {
                 lifetime: lifetime.clone(),
                 space: space.clone(),
                 access: *access,
-                element: *element,
+                element: element.clone(),
                 shape: shape.clone(),
                 layout: layout.clone(),
                 nullability: *nullability,
@@ -269,18 +273,18 @@ impl TypeKey {
                 borrow_obligations,
             } => TypeKey::FunctionSignature {
                 parameters: parameters.clone(),
-                result: *result,
+                result: result.clone(),
                 borrow_obligations: borrow_obligations.clone(),
             },
             Type::FunctionPointer { signature } => TypeKey::FunctionPointer {
-                signature: *signature,
+                signature: signature.clone(),
             },
             Type::Closure {
                 signature,
                 environment,
             } => TypeKey::Closure {
-                signature: *signature,
-                environment: *environment,
+                signature: signature.clone(),
+                environment: environment.clone(),
             },
         }
     }

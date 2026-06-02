@@ -1317,7 +1317,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 format_function_reference(*function, f)?;
                 let args = f.context().tree.get_arguments(call.arguments);
                 format_value_list(args, f)?;
-                format_call_signature_suffix(call.signature, f)
+                format_call_signature_suffix(&call.signature, f)
             }
 
             Instruction::CallVirtual {
@@ -1348,7 +1348,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 let args = f.context().tree.get_arguments(call.arguments);
                 format_value_list(args, f)?;
-                format_call_signature_suffix(call.signature, f)
+                format_call_signature_suffix(&call.signature, f)
             }
 
             Instruction::CallDynamic {
@@ -1379,7 +1379,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 )?;
                 let args = f.context().tree.get_arguments(call.arguments);
                 format_value_list(args, f)?;
-                format_call_signature_suffix(call.signature, f)
+                format_call_signature_suffix(&call.signature, f)
             }
 
             Instruction::CallIndirect {
@@ -1395,7 +1395,7 @@ impl<'a> FormatMirNode<'a, Instruction> for Instruction {
                 write!(f, [token("call.indirect"), space(), callee])?;
                 let args = f.context().tree.get_arguments(call.arguments);
                 format_value_list(args, f)?;
-                format_call_signature_suffix(call.signature, f)
+                format_call_signature_suffix(&call.signature, f)
             }
 
             Instruction::NewZeroed {
@@ -1705,13 +1705,13 @@ fn format_value_list<'a>(
 
 /// Format a required call signature suffix.
 fn format_call_signature_suffix<'a>(
-    signature: TypeReference,
+    signature: &TypeReference,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(":"), space()])?;
 
     match signature {
-        TypeReference::Type(signature) => match f.context().tree.get(signature) {
+        TypeReference::Type { ty: signature, .. } => match f.context().tree.get(*signature) {
             crate::Type::FunctionSignature {
                 parameters,
                 result,
@@ -1722,9 +1722,9 @@ fn format_call_signature_suffix<'a>(
                     if index > 0 {
                         write!(f, [token(","), space()])?;
                     }
-                    write!(f, [*parameter])?;
+                    write!(f, [parameter])?;
                 }
-                write!(f, [token(")"), space(), token("->"), space(), *result])?;
+                write!(f, [token(")"), space(), token("->"), space(), result])?;
                 format_borrow_obligations(borrow_obligations, f)
             }
             _ => write!(f, [signature]),

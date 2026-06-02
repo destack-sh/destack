@@ -85,6 +85,24 @@ entry0(value0: ref<int32, borrowed, lifetime(static)>):
     );
 }
 
+/// Formats named lifetime parameters and applied lifetime arguments.
+#[test]
+fn test_format_named_lifetimes() {
+    assert_format(
+        r#"
+type Player<LWorld: lifetime, LMesh: lifetime> {
+    world: ref<int32, borrowed, lifetime(LWorld)>;
+    mesh: ref<float64, borrowed, lifetime(LMesh)>;
+}
+
+function tickPlayer<LPlayer: lifetime, LWorld: lifetime, LMesh: lifetime>(value0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer)>): void {
+entry0(value0: ref<Player<lifetime(LWorld), lifetime(LMesh)>, borrowed, lifetime(LPlayer)>):
+    return
+}
+"#,
+    );
+}
+
 /// Formats callable suspension contracts canonically.
 #[test]
 fn test_format_callable_suspension_contract() {
@@ -266,6 +284,7 @@ fn test_format_synthetic_move_only_marker() {
     });
     tree.insert(TypeAlias {
         name: alias_name,
+        lifetimes: Vec::new(),
         ty: struct_type.into(),
     });
 
@@ -316,6 +335,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     });
     tree.insert(TypeAlias {
         name: alias_name,
+        lifetimes: Vec::new(),
         ty: struct_type.into(),
     });
 

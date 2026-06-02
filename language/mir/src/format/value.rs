@@ -2,6 +2,8 @@ use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
+use super::r#type::format_lifetime_group;
+
 use crate::{
     BlockReference, Constant, FunctionReference, GlobalReference, IntegerReference, LocalReference,
     MirFormatContext, MirFormatter, Place, PlaceOrigin, PlaceProjection, TypeReference, Value,
@@ -52,7 +54,20 @@ impl<'a> Format<MirFormatContext<'a>> for Place {
 impl<'a> Format<MirFormatContext<'a>> for TypeReference {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         match self {
-            TypeReference::Type(ty) => ty.format(f),
+            TypeReference::Type { ty, lifetimes } => {
+                if lifetimes.is_empty() {
+                    return ty.format(f);
+                }
+                write!(f, [ty, token("<")])?;
+                for (index, lifetime) in lifetimes.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, [token(","), space()])?;
+                    }
+                    write!(f, [token("lifetime")])?;
+                    format_lifetime_group(lifetime, f)?;
+                }
+                write!(f, [token(">")])
+            }
             TypeReference::Missing => write_recovery_token(true, f),
             TypeReference::Error => write_recovery_token(false, f),
         }

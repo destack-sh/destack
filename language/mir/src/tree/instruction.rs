@@ -1192,7 +1192,7 @@ impl Instruction {
             Instruction::Call { call, .. }
             | Instruction::CallVirtual { call, .. }
             | Instruction::CallDynamic { call, .. }
-            | Instruction::CallIndirect { call, .. } => Some(call.signature),
+            | Instruction::CallIndirect { call, .. } => Some(call.signature.clone()),
             _ => None,
         }
     }

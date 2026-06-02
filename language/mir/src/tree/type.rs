@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 
 use destack_core::{FloatFormat, StringId};
 
-use crate::{BorrowObligation, Constant, Lifetime, LocalNodeId, Node, NodeType, TypeReference};
+use crate::{
+    BorrowObligation, Constant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType,
+    TypeReference,
+};
 
 /// Mutability of a storage binding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -717,7 +720,9 @@ pub fn slice_header_types(
 /// Return the signature reference carried by one callable type.
 pub fn callable_signature(ty: &Type) -> Option<TypeReference> {
     match ty {
-        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => Some(*signature),
+        Type::FunctionPointer { signature } | Type::Closure { signature, .. } => {
+            Some(signature.clone())
+        }
         _ => None,
     }
 }
@@ -727,7 +732,7 @@ pub fn function_signature_parts(ty: &Type) -> Option<(&[TypeReference], TypeRefe
     match ty {
         Type::FunctionSignature {
             parameters, result, ..
-        } => Some((parameters.as_slice(), *result)),
+        } => Some((parameters.as_slice(), result.clone())),
         _ => None,
     }
 }
@@ -737,6 +742,8 @@ pub fn function_signature_parts(ty: &Type) -> Option<(&[TypeReference], TypeRefe
 pub struct TypeAlias {
     /// Alias name (without the leading `@`).
     pub name: StringId,
+    /// Lifetime parameters in type-local slot order.
+    pub lifetimes: Vec<LifetimeParameter>,
     /// The aliased type.
     pub ty: TypeReference,
 }

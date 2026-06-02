@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Block, Function, Global, Local, LocalNodeId, Type, TypedValue, Value};
+use crate::{Block, Function, Global, Lifetime, Local, LocalNodeId, Type, TypedValue, Value};
 
 /// One value reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -45,10 +45,15 @@ impl ValueReference {
 }
 
 /// One type reference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TypeReference {
     /// One concrete type.
-    Type(LocalNodeId<Type>),
+    Type {
+        /// The referenced type.
+        ty: LocalNodeId<Type>,
+        /// The lifetime arguments.
+        lifetimes: Vec<Lifetime>,
+    },
     /// One required type that was omitted.
     Missing,
     /// One malformed type fragment.
@@ -57,23 +62,37 @@ pub enum TypeReference {
 
 impl From<LocalNodeId<Type>> for TypeReference {
     fn from(ty: LocalNodeId<Type>) -> Self {
-        Self::Type(ty)
+        Self::new(ty, Vec::new())
     }
 }
 
 impl From<&LocalNodeId<Type>> for TypeReference {
     fn from(ty: &LocalNodeId<Type>) -> Self {
-        Self::Type(*ty)
+        Self::new(*ty, Vec::new())
     }
 }
 
 impl TypeReference {
+    /// Create a type reference from a type and lifetime arguments.
+    pub fn new(ty: LocalNodeId<Type>, lifetimes: Vec<Lifetime>) -> Self {
+        Self::Type { ty, lifetimes }
+    }
+
     /// Return the concrete type when present.
     #[inline]
-    pub fn ty(self) -> Option<LocalNodeId<Type>> {
+    pub fn ty(&self) -> Option<LocalNodeId<Type>> {
         match self {
-            Self::Type(ty) => Some(ty),
+            Self::Type { ty, .. } => Some(*ty),
             Self::Missing | Self::Error => None,
+        }
+    }
+
+    /// Return the lifetime arguments.
+    #[inline]
+    pub fn lifetimes(&self) -> &[Lifetime] {
+        match self {
+            Self::Type { lifetimes, .. } => lifetimes,
+            Self::Missing | Self::Error => &[],
         }
     }
 }
@@ -249,7 +268,7 @@ impl IntegerReference {
 }
 
 /// One parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Parameter {
     /// The SSA value.
     pub value: ValueReference,
@@ -260,7 +279,7 @@ pub struct Parameter {
 impl Parameter {
     /// Return the concrete typed value when present.
     #[inline]
-    pub fn typed_value(self) -> Option<TypedValue> {
+    pub fn typed_value(&self) -> Option<TypedValue> {
         let value = self.value.value()?;
         let ty = self.ty.ty()?;
 

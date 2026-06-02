@@ -838,7 +838,7 @@ fn test_build_slice_descriptor() {
     let slice_type = module.type_slice_with_lifetime(
         ReferenceKind::Borrowed,
         i32_type,
-        Lifetime::parameter(0),
+        Lifetime::slot(0),
         Access::Mutable,
         Space::Local,
     );

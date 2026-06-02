@@ -1,82 +1,104 @@
+use destack_core::StringId;
 use serde::{Deserialize, Serialize};
 
-/// A root that can keep an escaping borrowed value alive.
+/// One lifetime slot in a MIR lifetime environment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum LifetimeOrigin {
+pub struct LifetimeSlot(pub u32);
+
+/// One declared lifetime parameter.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct LifetimeParameter {
+    /// The source or generated parameter name.
+    pub name: Option<StringId>,
+}
+
+impl LifetimeParameter {
+    /// Create a lifetime parameter with an optional name.
+    pub fn new(name: Option<StringId>) -> Self {
+        Self { name }
+    }
+}
+
+/// One term in a MIR lifetime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum LifetimeTerm {
     /// Global or static storage.
     Static,
-    /// A function parameter by index.
-    Parameter(u32),
+    /// A lifetime slot in the current lifetime environment.
+    Slot(LifetimeSlot),
 }
 
 /// The boundary lifetime for an escaping borrowed value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub struct Lifetime {
-    /// Origins the borrowed value may depend on.
-    pub origins: Vec<LifetimeOrigin>,
+    /// Terms the borrowed value may depend on.
+    pub terms: Vec<LifetimeTerm>,
 }
 
 impl Lifetime {
     /// Create an empty lifetime.
     pub fn empty() -> Self {
-        Self {
-            origins: Vec::new(),
-        }
+        Self { terms: Vec::new() }
     }
 
-    /// Create a lifetime from origins.
-    pub fn new(origins: impl IntoIterator<Item = LifetimeOrigin>) -> Self {
+    /// Create a lifetime from terms.
+    pub fn new(terms: impl IntoIterator<Item = LifetimeTerm>) -> Self {
         let mut unique = Vec::new();
 
-        for origin in origins {
-            if !unique.contains(&origin) {
-                unique.push(origin);
+        for term in terms {
+            if !unique.contains(&term) {
+                unique.push(term);
             }
         }
 
-        Self { origins: unique }
+        Self { terms: unique }
     }
 
     /// Create a lifetime rooted in static storage.
     pub fn static_storage() -> Self {
-        Self::new([LifetimeOrigin::Static])
+        Self::new([LifetimeTerm::Static])
     }
 
-    /// Create a lifetime bound to one parameter.
-    pub fn parameter(index: u32) -> Self {
-        Self::new([LifetimeOrigin::Parameter(index)])
+    /// Create a lifetime bound to one slot.
+    pub fn slot(index: u32) -> Self {
+        Self::new([LifetimeTerm::Slot(LifetimeSlot(index))])
     }
 
-    /// Create a lifetime bound to multiple parameters.
-    pub fn parameter_set(indices: impl IntoIterator<Item = u32>) -> Self {
-        Self::new(indices.into_iter().map(LifetimeOrigin::Parameter))
+    /// Create a lifetime bound to multiple slots.
+    pub fn slot_set(indices: impl IntoIterator<Item = u32>) -> Self {
+        Self::new(
+            indices
+                .into_iter()
+                .map(|index| LifetimeTerm::Slot(LifetimeSlot(index))),
+        )
     }
 
     /// Return whether this lifetime has no escaping borrow source.
     pub fn is_empty(&self) -> bool {
-        self.origins.is_empty()
+        self.terms.is_empty()
     }
 
     /// Return whether this lifetime includes static storage.
     pub fn includes_static(&self) -> bool {
-        self.origins.contains(&LifetimeOrigin::Static)
+        self.terms.contains(&LifetimeTerm::Static)
     }
 
     /// Return whether this lifetime is exactly static storage.
     pub fn is_static(&self) -> bool {
-        self.origins.as_slice() == [LifetimeOrigin::Static]
+        self.terms.as_slice() == [LifetimeTerm::Static]
     }
 
-    /// Return whether this lifetime includes a parameter.
-    pub fn includes_parameter(&self, index: u32) -> bool {
-        self.origins.contains(&LifetimeOrigin::Parameter(index))
+    /// Return whether this lifetime includes a slot.
+    pub fn includes_slot(&self, index: u32) -> bool {
+        self.terms
+            .contains(&LifetimeTerm::Slot(LifetimeSlot(index)))
     }
 
-    /// Return parameter origin indices.
-    pub fn parameter_indices(&self) -> impl Iterator<Item = u32> + '_ {
-        self.origins.iter().filter_map(|origin| match origin {
-            LifetimeOrigin::Parameter(index) => Some(*index),
-            LifetimeOrigin::Static => None,
+    /// Return lifetime slot indices.
+    pub fn slot_indices(&self) -> impl Iterator<Item = u32> + '_ {
+        self.terms.iter().filter_map(|term| match term {
+            LifetimeTerm::Slot(index) => Some(index.0),
+            LifetimeTerm::Static => None,
         })
     }
 }

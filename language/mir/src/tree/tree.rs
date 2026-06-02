@@ -9,9 +9,10 @@ use crate::source::{Token, TokenType};
 use crate::{
     Access, ArgumentSlice, Attribute, Block, CommentSpan, DynamicShape, DynamicTable, Field,
     FieldSpan, FloatType, Function, FunctionHeaderSpans, Global, Instruction, Layout, LayoutId,
-    Lifetime, Local, LocalNodeId, Metadata, Node, NodeType, Nullability, PlaceProjection,
-    PlaceTable, ReferenceKind, Space, Terminator, Type, TypeAlias, TypeDeclarationSpans,
-    TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference, Vtable,
+    Lifetime, LifetimeParameter, Local, LocalNodeId, Metadata, Node, NodeType, Nullability,
+    PlaceProjection, PlaceTable, ReferenceKind, Space, Terminator, Type, TypeAlias,
+    TypeDeclarationSpans, TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference,
+    Vtable,
 };
 
 #[inline]
@@ -134,6 +135,9 @@ pub struct Tree {
     pub(crate) fields: Arena<Field>,
     pub(crate) globals: Arena<Global>,
 
+    /// Lifetime parameters keyed by type node.
+    pub(crate) lifetimes_by_type: HashMap<LocalNodeId<Type>, Vec<LifetimeParameter>>,
+
     // externalized instruction arguments
     /// Flat buffer of instruction arguments (for Call, CallIndirect, Intrinsic).
     /// Instructions reference slices of this buffer via ArgumentSlice.
@@ -202,6 +206,7 @@ impl Tree {
             type_aliases: Arena::new(),
             fields: Arena::new(),
             globals: Arena::new(),
+            lifetimes_by_type: HashMap::new(),
 
             instruction_arguments: Vec::new(),
             metadata: Metadata::default(),
@@ -236,24 +241,24 @@ impl Tree {
     /// Infer the return lifetime for one function signature.
     pub fn infer_function_return_lifetime(&self, function_id: LocalNodeId<Function>) -> Lifetime {
         let function = self.get(function_id);
-        if let Some(lifetime) = self.type_reference_lifetime(function.return_type) {
+        if let Some(lifetime) = self.type_reference_lifetime(&function.return_type) {
             return lifetime;
         }
 
-        if !self.type_reference_contains_borrowed_refs(function.return_type) {
+        if !self.type_reference_contains_borrowed_refs(&function.return_type) {
             return Lifetime::empty();
         }
 
-        let parameter_indices =
+        let lifetime_slots =
             function
                 .parameters
                 .iter()
                 .enumerate()
                 .filter_map(|(index, parameter)| {
-                    self.type_reference_contains_borrowed_refs(parameter.ty)
+                    self.type_reference_contains_borrowed_refs(&parameter.ty)
                         .then_some(index as u32)
                 });
-        let lifetime = Lifetime::parameter_set(parameter_indices);
+        let lifetime = Lifetime::slot_set(lifetime_slots);
 
         if lifetime.is_empty() {
             Lifetime::static_storage()
@@ -262,24 +267,50 @@ impl Tree {
         }
     }
 
-    /// Record the inferred return lifetime for one function.
-    pub fn infer_and_set_function_return_lifetime(&mut self, function_id: LocalNodeId<Function>) {
-        let lifetime = self.infer_function_return_lifetime(function_id);
-        self.get_mut(function_id).return_lifetime = lifetime;
+    /// Substitute type-local lifetime slots with applied lifetimes.
+    pub fn substitute_lifetime(&self, lifetime: &Lifetime, lifetime_args: &[Lifetime]) -> Lifetime {
+        let mut terms = Vec::new();
+        for term in &lifetime.terms {
+            match term {
+                crate::LifetimeTerm::Static => terms.push(crate::LifetimeTerm::Static),
+                crate::LifetimeTerm::Slot(slot) => {
+                    if let Some(lifetime) = lifetime_args.get(slot.0 as usize) {
+                        terms.extend(lifetime.terms.iter().copied());
+                    } else {
+                        terms.push(crate::LifetimeTerm::Slot(*slot));
+                    }
+                }
+            }
+        }
+
+        Lifetime::new(terms)
     }
 
     /// Return the explicit lifetime carried by a type reference.
-    pub fn type_reference_lifetime(&self, ty: TypeReference) -> Option<Lifetime> {
+    pub fn type_reference_lifetime(&self, ty: &TypeReference) -> Option<Lifetime> {
+        let lifetime_args = ty.lifetimes().to_vec();
         let ty = ty.ty()?;
         let mut visited = HashSet::new();
 
-        self.type_lifetime(ty, &mut visited)
+        self.type_lifetime(ty, &lifetime_args, &mut visited)
+    }
+
+    /// Return the explicit lifetime carried by a nested type reference.
+    pub fn type_reference_lifetime_with_lifetimes(
+        &self,
+        ty: &TypeReference,
+        lifetimes: &[Lifetime],
+    ) -> Option<Lifetime> {
+        let mut visited = HashSet::new();
+
+        self.type_reference_lifetime_inner(ty.clone(), lifetimes, &mut visited)
     }
 
     /// Return the explicit lifetime carried by a type.
     fn type_lifetime(
         &self,
         ty: LocalNodeId<Type>,
+        lifetime_args: &[Lifetime],
         visited: &mut HashSet<LocalNodeId<Type>>,
     ) -> Option<Lifetime> {
         if !visited.insert(ty) {
@@ -301,50 +332,55 @@ impl Tree {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 ..
-            } if !lifetime.is_empty() => Some(lifetime.clone()),
+            } if !lifetime.is_empty() => Some(self.substitute_lifetime(lifetime, lifetime_args)),
             Type::Struct { fields, .. } => {
-                let lifetimes = fields.iter().filter_map(|field| {
+                let nested_lifetimes = fields.iter().filter_map(|field| {
                     let field = self.get(*field);
-                    self.type_reference_lifetime_inner(field.ty, visited)
+                    self.type_reference_lifetime_inner(field.ty.clone(), lifetime_args, visited)
                 });
 
                 Some(Lifetime::new(
-                    lifetimes.flat_map(|lifetime| lifetime.origins.into_iter()),
+                    nested_lifetimes.flat_map(|lifetime| lifetime.terms.into_iter()),
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
-            Type::Newtype { inner, .. } => self.type_reference_lifetime_inner(*inner, visited),
-            Type::Dynamic { constraint } => {
-                self.type_reference_lifetime_inner(*constraint, visited)
+            Type::Newtype { inner, .. } => {
+                self.type_reference_lifetime_inner(inner.clone(), lifetime_args, visited)
             }
-            Type::Uninit { value } => self.type_reference_lifetime_inner(*value, visited),
+            Type::Dynamic { constraint } => {
+                self.type_reference_lifetime_inner(constraint.clone(), lifetime_args, visited)
+            }
+            Type::Uninit { value } => {
+                self.type_reference_lifetime_inner(value.clone(), lifetime_args, visited)
+            }
             Type::Variant {
                 tag,
                 storage,
                 cases,
                 ..
             } => {
-                let tag = self.type_reference_lifetime_inner(*tag, visited);
-                let storage = self.type_reference_lifetime_inner(*storage, visited);
-                let lifetimes = cases
-                    .iter()
-                    .filter_map(|case| self.type_reference_lifetime_inner(case.ty, visited));
+                let tag = self.type_reference_lifetime_inner(tag.clone(), lifetime_args, visited);
+                let storage =
+                    self.type_reference_lifetime_inner(storage.clone(), lifetime_args, visited);
+                let nested_lifetimes = cases.iter().filter_map(|case| {
+                    self.type_reference_lifetime_inner(case.ty.clone(), lifetime_args, visited)
+                });
 
                 Some(Lifetime::new(
                     tag.into_iter()
                         .chain(storage)
-                        .chain(lifetimes)
-                        .flat_map(|lifetime| lifetime.origins.into_iter()),
+                        .chain(nested_lifetimes)
+                        .flat_map(|lifetime| lifetime.terms.into_iter()),
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
             Type::Tuple { elements, .. } => {
-                let lifetimes = elements
-                    .iter()
-                    .filter_map(|element| self.type_reference_lifetime_inner(*element, visited));
+                let nested_lifetimes = elements.iter().filter_map(|element| {
+                    self.type_reference_lifetime_inner(element.clone(), lifetime_args, visited)
+                });
 
                 Some(Lifetime::new(
-                    lifetimes.flat_map(|lifetime| lifetime.origins.into_iter()),
+                    nested_lifetimes.flat_map(|lifetime| lifetime.terms.into_iter()),
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
@@ -354,7 +390,7 @@ impl Tree {
             | Type::Tensor { element, .. }
             | Type::TensorView { element, .. }
             | Type::Atomic { value: element } => {
-                self.type_reference_lifetime_inner(*element, visited)
+                self.type_reference_lifetime_inner(element.clone(), lifetime_args, visited)
             }
             _ => None,
         }
@@ -364,15 +400,24 @@ impl Tree {
     fn type_reference_lifetime_inner(
         &self,
         ty: TypeReference,
+        lifetime_args: &[Lifetime],
         visited: &mut HashSet<LocalNodeId<Type>>,
     ) -> Option<Lifetime> {
+        let applied_lifetimes = if ty.lifetimes().is_empty() {
+            lifetime_args.to_vec()
+        } else {
+            ty.lifetimes()
+                .iter()
+                .map(|lifetime| self.substitute_lifetime(lifetime, lifetime_args))
+                .collect()
+        };
         let ty = ty.ty()?;
 
-        self.type_lifetime(ty, visited)
+        self.type_lifetime(ty, &applied_lifetimes, visited)
     }
 
     /// Return whether a type reference may contain borrowed references.
-    pub fn type_reference_contains_borrowed_refs(&self, ty: TypeReference) -> bool {
+    pub fn type_reference_contains_borrowed_refs(&self, ty: &TypeReference) -> bool {
         let Some(ty) = ty.ty() else {
             return true;
         };
@@ -390,33 +435,33 @@ impl Tree {
         match ty {
             Type::Struct { fields, .. } => fields.iter().any(|field| {
                 let field = self.get(*field);
-                self.type_reference_contains_borrowed_refs(field.ty)
+                self.type_reference_contains_borrowed_refs(&field.ty)
             }),
-            Type::Newtype { inner, .. } => self.type_reference_contains_borrowed_refs(*inner),
-            Type::Dynamic { constraint } => self.type_reference_contains_borrowed_refs(*constraint),
-            Type::Uninit { value } => self.type_reference_contains_borrowed_refs(*value),
+            Type::Newtype { inner, .. } => self.type_reference_contains_borrowed_refs(inner),
+            Type::Dynamic { constraint } => self.type_reference_contains_borrowed_refs(constraint),
+            Type::Uninit { value } => self.type_reference_contains_borrowed_refs(value),
             Type::Variant {
                 tag,
                 storage,
                 cases,
                 ..
             } => {
-                self.type_reference_contains_borrowed_refs(*tag)
-                    || self.type_reference_contains_borrowed_refs(*storage)
+                self.type_reference_contains_borrowed_refs(tag)
+                    || self.type_reference_contains_borrowed_refs(storage)
                     || cases
                         .iter()
-                        .any(|case| self.type_reference_contains_borrowed_refs(case.ty))
+                        .any(|case| self.type_reference_contains_borrowed_refs(&case.ty))
             }
             Type::Tuple { elements, .. } => elements
                 .iter()
-                .any(|element| self.type_reference_contains_borrowed_refs(*element)),
+                .any(|element| self.type_reference_contains_borrowed_refs(element)),
             Type::Array { element, .. }
             | Type::Slice { element, .. }
             | Type::Vector { element, .. }
             | Type::Tensor { element, .. }
             | Type::TensorView { element, .. }
             | Type::Atomic { value: element } => {
-                self.type_reference_contains_borrowed_refs(*element)
+                self.type_reference_contains_borrowed_refs(element)
             }
             _ => false,
         }
@@ -628,6 +673,23 @@ impl Tree {
         type_id
     }
 
+    /// Return lifetime parameters declared by one type.
+    pub fn type_lifetimes(&self, ty: LocalNodeId<Type>) -> &[LifetimeParameter] {
+        self.lifetimes_by_type
+            .get(&ty)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Set lifetime parameters declared by one type.
+    pub fn set_type_lifetimes(&mut self, ty: LocalNodeId<Type>, lifetimes: Vec<LifetimeParameter>) {
+        if lifetimes.is_empty() {
+            self.lifetimes_by_type.remove(&ty);
+        } else {
+            self.lifetimes_by_type.insert(ty, lifetimes);
+        }
+    }
+
     /// Return the boolean type id.
     pub fn boolean_type(&self) -> LocalNodeId<Type> {
         // use the primitive type cache when available
@@ -824,7 +886,7 @@ impl Tree {
                     pointee,
                     nullability: Nullability::Null,
                     ..
-                } if *pointee == TypeReference::Type(void_type)
+                } if *pointee == TypeReference::from(void_type)
             )
         }) {
             return type_id;
@@ -855,7 +917,7 @@ impl Tree {
                     pointee,
                     nullability: crate::Nullability::Null,
                     ..
-                } if *pointee == TypeReference::Type(void_type)
+                } if *pointee == TypeReference::from(void_type)
             )
         }) {
             return type_id;
@@ -867,7 +929,7 @@ impl Tree {
             lifetime: Lifetime::empty(),
             space: Space::Local,
             access: Access::Mutable,
-            pointee: TypeReference::Type(void_type),
+            pointee: TypeReference::from(void_type),
             nullability: crate::Nullability::Null,
         })
     }

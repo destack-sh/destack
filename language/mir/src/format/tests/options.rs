@@ -58,6 +58,7 @@ fn test_format_local_names() {
 
     tree.insert(TypeAlias {
         name: status_name,
+        lifetimes: Vec::new(),
         ty: int32_type.into(),
     });
     tree.insert(Global::constant(

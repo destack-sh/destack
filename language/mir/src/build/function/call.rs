@@ -29,7 +29,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Call {
             destination: Some(destination.into()),
             function: FunctionReference::Function(function),
-            call: Call::new(arguments, TypeReference::Type(signature)),
+            call: Call::new(arguments, TypeReference::from(signature)),
         });
         self.define_value(destination, result_type);
         Some(destination)
@@ -46,7 +46,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Call {
             destination: None,
             function: FunctionReference::Function(function),
-            call: Call::new(arguments, TypeReference::Type(signature)),
+            call: Call::new(arguments, TypeReference::from(signature)),
         });
     }
 
@@ -68,7 +68,7 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             class: class.into(),
             slot,
-            call: Call::new(arguments, TypeReference::Type(signature)),
+            call: Call::new(arguments, TypeReference::from(signature)),
         });
         if let Some(target) = target {
             self.tree
@@ -97,7 +97,7 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             class: class.into(),
             slot,
-            call: Call::new(arguments, TypeReference::Type(signature)),
+            call: Call::new(arguments, TypeReference::from(signature)),
         });
         if let Some(target) = target {
             self.tree
@@ -125,7 +125,7 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             constraint: constraint.into(),
             slot,
-            call: Call::new(arguments, TypeReference::Type(signature)),
+            call: Call::new(arguments, TypeReference::from(signature)),
         });
         self.define_value(destination, result_type);
         Some(destination)
@@ -146,7 +146,7 @@ impl<'a> FunctionBuilder<'a> {
             receiver: receiver.into(),
             constraint: constraint.into(),
             slot,
-            call: Call::new(arguments, TypeReference::Type(signature)),
+            call: Call::new(arguments, TypeReference::from(signature)),
         });
     }
 
@@ -187,8 +187,8 @@ impl<'a> FunctionBuilder<'a> {
         // record the hidden environment type on the function metadata
         {
             let function = self.tree.get_mut(self.function_id);
-            match function.environment {
-                Some(existing) if existing != environment_type.into() => {
+            match &function.environment {
+                Some(existing) if existing != &environment_type.into() => {
                     panic!("mismatched environment types for closure.environment");
                 }
                 Some(_) => {}
@@ -219,7 +219,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallIndirect {
             destination: Some(destination.into()),
             callee: callee.into(),
-            call: Call::new(arguments, TypeReference::Type(signature)),
+            call: Call::new(arguments, TypeReference::from(signature)),
         });
         self.define_value(destination, result_type);
         destination
@@ -236,7 +236,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::CallIndirect {
             destination: None,
             callee: callee.into(),
-            call: Call::new(arguments, TypeReference::Type(signature)),
+            call: Call::new(arguments, TypeReference::from(signature)),
         });
     }
 }

@@ -153,7 +153,7 @@ impl<'a> FunctionBuilder<'a> {
         let fields = self.tree.add_arguments(&field_values);
         self.insert_instruction(Instruction::Struct {
             destination: destination.into(),
-            ty: TypeReference::Type(ty),
+            ty: TypeReference::from(ty),
             fields,
         });
         self.define_value(destination, ty);
@@ -172,7 +172,7 @@ impl<'a> FunctionBuilder<'a> {
         let elements = self.tree.add_arguments(&element_values);
         self.insert_instruction(Instruction::Tuple {
             destination: destination.into(),
-            ty: TypeReference::Type(ty),
+            ty: TypeReference::from(ty),
             elements,
         });
         self.define_value(destination, ty);
@@ -191,7 +191,7 @@ impl<'a> FunctionBuilder<'a> {
         let elements = self.tree.add_arguments(&element_values);
         self.insert_instruction(Instruction::Array {
             destination: destination.into(),
-            ty: TypeReference::Type(ty),
+            ty: TypeReference::from(ty),
             elements,
         });
         self.define_value(destination, ty);

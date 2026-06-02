@@ -35,7 +35,7 @@ impl Parser {
                 }
 
                 let env_type = match &attribute.args {
-                    AttributeArgs::Value(AttributeValue::Type(value)) => *value,
+                    AttributeArgs::Value(AttributeValue::Type(value)) => value.clone(),
                     _ => {
                         return Err(ParseError::new(
                             "environment expects a type value",
@@ -67,6 +67,7 @@ impl Parser {
         // function name
         let (name, name_start) = self.parse_symbol_name()?;
         let name_span = self.span_at(name_start, name.len());
+        let lifetimes = self.parse_lifetimes()?;
         let function_id = *self
             .function_map
             .get(&name)
@@ -102,6 +103,7 @@ impl Parser {
         if linkage.is_import() {
             let name_id = self.strings.intern(&name);
             let mut function = Function::import(name_id, parameters, return_type);
+            function.lifetimes = lifetimes;
             function.parameter_names = parameter_names;
             function.environment = environment_type;
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
@@ -129,9 +131,8 @@ impl Parser {
                 ),
             );
             *self.tree.get_mut(function_id) = function;
-            self.tree
-                .infer_and_set_function_return_lifetime(function_id);
             self.current_function = None;
+            self.pop_lifetimes();
 
             // record attributes
             if !attributes.is_empty() {
@@ -164,13 +165,12 @@ impl Parser {
         let function = self.tree.get_mut(id);
         function.name = name_id;
         function.parameters = parameters.clone();
+        function.lifetimes = lifetimes;
         function.parameter_names = parameter_names;
         function.value_types = value_types;
         function.return_type = return_type;
         function.linkage = linkage;
         function.environment = environment_type;
-        self.tree.infer_and_set_function_return_lifetime(id);
-
         // body
         let open_brace_token = self.eat_token(TokenType::OpenBrace)?;
         let open_brace_start = open_brace_token.start;
@@ -242,6 +242,7 @@ impl Parser {
         self.tree.rebuild_function_places(id);
 
         self.current_function = None;
+        self.pop_lifetimes();
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
 
@@ -268,7 +269,7 @@ impl Parser {
             let mut parameter_spans = Vec::new();
             while !self.peek_token(TokenType::CloseParenthesis) {
                 let parameter_start = self.pos();
-                let (ty, type_span) = self.parse_type_part()?;
+                let (ty, type_span) = self.parse_type_reference_part()?;
                 let parameter_span = self.span_from_parse_start(parameter_start);
                 parameter_types.push(ty);
                 parameter_spans.push(TypedValueSpan::new(parameter_span, None, type_span));
@@ -282,7 +283,7 @@ impl Parser {
                 .enumerate()
                 .map(|(index, ty)| Parameter {
                     value: ValueReference::Value(Value::new(index as u32)),
-                    ty: TypeReference::Type(ty),
+                    ty,
                 })
                 .collect();
 
@@ -422,7 +423,8 @@ impl Parser {
 
         // block parameter value types
         for param in &parameters {
-            if let (ValueReference::Value(value), TypeReference::Type(ty)) = (param.value, param.ty)
+            if let ValueReference::Value(value) = param.value
+                && let Some(ty) = param.ty.ty()
             {
                 self.record_value_type(value, ty);
             }
@@ -671,7 +673,7 @@ impl Parser {
             }
 
             self.eat_token(TokenType::Colon)?;
-            let ty = TypeReference::Type(self.parse_type()?);
+            let (ty, _) = self.parse_type_reference_part()?;
             if ty != parameter.ty {
                 return Err(ParseError::new(
                     format!(
@@ -1192,7 +1194,7 @@ impl Parser {
 
                 let value = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let expected = TypeReference::Type(self.parse_type()?);
+                let (expected, _) = self.parse_type_reference_part()?;
 
                 Ok(CheckConstraint::Type { value, expected })
             }
@@ -1220,7 +1222,7 @@ impl Parser {
 
                 let receiver = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let expected = TypeReference::Type(self.parse_type()?);
+                let (expected, _) = self.parse_type_reference_part()?;
 
                 Ok(CheckConstraint::ReceiverType { receiver, expected })
             }
@@ -1234,7 +1236,7 @@ impl Parser {
 
                 let receiver = self.parse_value()?;
                 self.eat_token(TokenType::Comma)?;
-                let expected = TypeReference::Type(self.parse_type()?);
+                let (expected, _) = self.parse_type_reference_part()?;
 
                 Ok(CheckConstraint::Implements { receiver, expected })
             }
