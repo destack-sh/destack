@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::verify::VerifyState;
 use destack_mir as mir;
 
@@ -11,6 +13,8 @@ pub(super) struct OwnershipSolver<'a, 'b> {
     context: &'a mut VerifyState<'b>,
     /// Functions participating in ownership solving.
     functions: Vec<mir::LocalNodeId<mir::Function>>,
+    /// Solved return lifetimes for functions.
+    function_lifetimes: HashMap<mir::LocalNodeId<mir::Function>, mir::Lifetime>,
 }
 
 impl<'a, 'b> OwnershipSolver<'a, 'b> {
@@ -25,6 +29,7 @@ impl<'a, 'b> OwnershipSolver<'a, 'b> {
             tree,
             context,
             functions,
+            function_lifetimes: HashMap::new(),
         }
     }
 
@@ -38,8 +43,6 @@ impl<'a, 'b> OwnershipSolver<'a, 'b> {
     /// Rebuild MIR metadata used by ownership checking.
     fn rebuild_function_metadata(&mut self) {
         for function_id in &self.functions {
-            self.tree
-                .infer_and_set_function_return_lifetime(*function_id);
             self.tree.rebuild_function_places(*function_id);
         }
     }
@@ -83,13 +86,19 @@ impl<'a, 'b> OwnershipSolver<'a, 'b> {
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> Option<FunctionBorrowContract> {
-        if self.tree.get(function_id).entry.is_none() {
-            return None;
-        }
+        self.tree.get(function_id).entry?;
 
         let function = self.tree.get(function_id);
 
-        Some(FunctionVerifyState::for_contract(function, self.tree, self.context).check())
+        Some(
+            FunctionVerifyState::for_contract(
+                function,
+                self.tree,
+                self.context,
+                &self.function_lifetimes,
+            )
+            .check(),
+        )
     }
 
     /// Check one function and emit diagnostics.
@@ -97,13 +106,14 @@ impl<'a, 'b> OwnershipSolver<'a, 'b> {
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
     ) -> Option<FunctionBorrowContract> {
-        if self.tree.get(function_id).entry.is_none() {
-            return None;
-        }
+        self.tree.get(function_id).entry?;
 
         let function = self.tree.get(function_id);
 
-        Some(FunctionVerifyState::new(function, self.tree, self.context).check())
+        Some(
+            FunctionVerifyState::new(function, self.tree, self.context, &self.function_lifetimes)
+                .check(),
+        )
     }
 
     /// Write one function borrow contract and return whether it changed.
@@ -113,14 +123,16 @@ impl<'a, 'b> OwnershipSolver<'a, 'b> {
         contract: FunctionBorrowContract,
     ) -> bool {
         let function = self.tree.get_mut(function_id);
+        let current_lifetime = self.function_lifetimes.get(&function_id);
         if function.borrow_obligations == contract.borrow_obligations
-            && function.return_lifetime == contract.return_lifetime
+            && current_lifetime == Some(&contract.return_lifetime)
         {
             return false;
         }
 
         function.borrow_obligations = contract.borrow_obligations;
-        function.return_lifetime = contract.return_lifetime;
+        self.function_lifetimes
+            .insert(function_id, contract.return_lifetime);
 
         true
     }

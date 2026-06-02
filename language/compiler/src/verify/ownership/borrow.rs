@@ -1,12 +1,12 @@
-use destack_mir as mir;
+use destack_mir::{self as mir, LifetimeSlot};
 
 /// Source that keeps a borrowed value valid.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) enum BorrowSource {
     /// Global or static storage.
     Static,
-    /// Function parameter by index.
-    Parameter(u32),
+    /// Lifetime slot by index.
+    Slot(u32),
     /// Owned storage.
     Owned,
     /// Managed storage.
@@ -37,7 +37,7 @@ impl BorrowSource {
                 space: mir::Space::Shared,
                 ..
             } => !access.is_exclusive(),
-            Self::Static | Self::Parameter(_) | Self::Owned | Self::Managed { .. } => true,
+            Self::Static | Self::Slot(_) | Self::Owned | Self::Managed { .. } => true,
         }
     }
 
@@ -45,9 +45,7 @@ impl BorrowSource {
     fn suspension(&self) -> BorrowSuspension {
         match self {
             Self::Static | Self::Owned => BorrowSuspension::Stable,
-            Self::Parameter(index) => {
-                BorrowSuspension::Requires(vec![mir::Lifetime::parameter(*index)])
-            }
+            Self::Slot(index) => BorrowSuspension::Requires(vec![mir::Lifetime::slot(*index)]),
             Self::Managed { .. } => BorrowSuspension::Rejected,
         }
     }
@@ -57,7 +55,7 @@ impl BorrowSource {
         match self {
             Self::Owned => true,
             Self::Managed { parameter, .. } => parameter.is_none(),
-            Self::Static | Self::Parameter(_) => false,
+            Self::Static | Self::Slot(_) => false,
         }
     }
 
@@ -65,11 +63,11 @@ impl BorrowSource {
     pub(super) fn is_covered_by(&self, required: &mir::Lifetime) -> bool {
         match self {
             Self::Static => required.includes_static(),
-            Self::Parameter(index) => required.includes_parameter(*index),
+            Self::Slot(index) => required.includes_slot(*index),
             Self::Managed {
                 parameter: Some(index),
                 ..
-            } => required.includes_parameter(*index),
+            } => required.includes_slot(*index),
             Self::Owned | Self::Managed { .. } => false,
         }
     }
@@ -183,12 +181,12 @@ impl BorrowSources {
     /// Return the external lifetime covered by these sources.
     pub(super) fn lifetime(&self) -> mir::Lifetime {
         mir::Lifetime::new(self.sources.iter().filter_map(|source| match source {
-            BorrowSource::Static => Some(mir::LifetimeOrigin::Static),
-            BorrowSource::Parameter(index)
+            BorrowSource::Static => Some(mir::LifetimeTerm::Static),
+            BorrowSource::Slot(index)
             | BorrowSource::Managed {
                 parameter: Some(index),
                 ..
-            } => Some(mir::LifetimeOrigin::Parameter(*index)),
+            } => Some(mir::LifetimeTerm::Slot(LifetimeSlot(*index))),
             BorrowSource::Owned
             | BorrowSource::Managed {
                 parameter: None, ..

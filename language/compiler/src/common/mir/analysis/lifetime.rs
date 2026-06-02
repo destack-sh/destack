@@ -4,7 +4,7 @@ use destack_mir as mir;
 
 use crate::common::mir::{
     Analysis, AnalysisId, ModuleAnalyses, ModuleAnalysis, borrowed_parameter_indices_for_signature,
-    signature_return_contains_borrowed_refs, type_contains_borrowed_refs,
+    signature_return_contains_borrowed_refs,
 };
 
 /// Lifetime analysis results for a module.
@@ -30,7 +30,7 @@ impl LifetimeAnalysis {
         function_id: mir::LocalNodeId<mir::Function>,
         param_index: u32,
     ) -> bool {
-        self.get(function_id).includes_parameter(param_index)
+        self.get(function_id).includes_slot(param_index)
     }
 
     /// Resolve a return lifetime from a function signature type.
@@ -39,12 +39,15 @@ impl LifetimeAnalysis {
         tree: &mir::Tree,
     ) -> mir::Lifetime {
         let signature = signature.into();
+        if let Some(lifetime) = explicit_signature_return_lifetime(&signature, tree) {
+            return lifetime;
+        }
 
-        if !signature_return_contains_borrowed_refs(signature, tree) {
+        if !signature_return_contains_borrowed_refs(&signature, tree) {
             return mir::Lifetime::empty();
         }
 
-        let Some(indices) = borrowed_parameter_indices_for_signature(signature, tree) else {
+        let Some(indices) = borrowed_parameter_indices_for_signature(&signature, tree) else {
             return mir::Lifetime::static_storage();
         };
 
@@ -56,42 +59,34 @@ impl LifetimeAnalysis {
             .into_iter()
             .map(|index| index as u32)
             .collect::<Vec<_>>();
-        mir::Lifetime::parameter_set(indices)
+        mir::Lifetime::slot_set(indices)
     }
 
     /// Build lifetime analysis for all functions in the tree.
     fn build(tree: &mir::Tree) -> Self {
         let mut function_lifetimes = HashMap::new();
 
-        for (function_id, function) in tree.iter_nodes::<mir::Function>() {
-            let resolved = Self::resolve_function_lifetime(function_id, function, tree);
+        for (function_id, _) in tree.iter_nodes::<mir::Function>() {
+            let resolved = tree.infer_function_return_lifetime(function_id);
             function_lifetimes.insert(function_id, resolved);
         }
 
         Self { function_lifetimes }
     }
+}
 
-    /// Resolve the effective lifetime for a single function.
-    fn resolve_function_lifetime(
-        function_id: mir::LocalNodeId<mir::Function>,
-        function: &mir::Function,
-        tree: &mir::Tree,
-    ) -> mir::Lifetime {
-        // empty return contracts are exact when the result has no borrowed refs
-        let Some(return_ty) = function.return_type.ty() else {
-            return mir::Lifetime::empty();
-        };
-        let return_ty = tree.get(return_ty);
-        if !type_contains_borrowed_refs(return_ty, tree) {
-            return mir::Lifetime::empty();
-        }
+/// Return the explicit return lifetime carried by one function signature reference.
+fn explicit_signature_return_lifetime(
+    signature: &mir::TypeReference,
+    tree: &mir::Tree,
+) -> Option<mir::Lifetime> {
+    let lifetime_args = signature.lifetimes();
+    let signature = signature.ty()?;
+    let mir::Type::FunctionSignature { result, .. } = tree.get(signature) else {
+        return None;
+    };
 
-        if function.return_lifetime.is_empty() {
-            tree.infer_function_return_lifetime(function_id)
-        } else {
-            function.return_lifetime.clone()
-        }
-    }
+    tree.type_reference_lifetime_with_lifetimes(result, lifetime_args)
 }
 
 impl Analysis for LifetimeAnalysis {
@@ -147,8 +142,8 @@ b0(v0: ref<int32, borrowed>):
         let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         let lifetime = analysis.get(function_id);
-        assert!(lifetime.includes_parameter(0));
-        assert!(!lifetime.includes_parameter(1));
+        assert!(lifetime.includes_slot(0));
+        assert!(!lifetime.includes_slot(1));
     }
 
     /// Multiple borrowed params infers conservatively from all.
@@ -168,8 +163,8 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
         let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         let lifetime = analysis.get(function_id);
-        assert!(lifetime.includes_parameter(0));
-        assert!(lifetime.includes_parameter(1));
+        assert!(lifetime.includes_slot(0));
+        assert!(lifetime.includes_slot(1));
     }
 
     /// Void return yields no lifetime bounds.
@@ -232,56 +227,44 @@ b0(v0: int32, v1: ref<int32, borrowed>, v2: int32):
         let lifetime = analysis.get(function_id);
 
         // only v1 (index 1) is borrowed
-        assert!(!lifetime.includes_parameter(0)); // i32
-        assert!(lifetime.includes_parameter(1)); // ref<int32, borrowed>
-        assert!(!lifetime.includes_parameter(2)); // i32
+        assert!(!lifetime.includes_slot(0)); // i32
+        assert!(lifetime.includes_slot(1)); // ref<int32, borrowed>
+        assert!(!lifetime.includes_slot(2)); // i32
     }
 
     /// Explicit static return lifetime overrides inference.
     #[test]
     fn test_resolve_explicit_static_lifetime() {
-        let mut program = TestProgram::new(
+        let program = TestProgram::new(
             r#"
-function getGlobal(v0: ref<int32, borrowed>): ref<int32, borrowed> {
+function getGlobal(v0: ref<int32, borrowed>): ref<int32, borrowed, lifetime(static)> {
 b0(v0: ref<int32, borrowed>):
     return v0
 }"#,
         );
 
-        // set explicit static lifetime on the function
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        {
-            let function = program.tree.get_mut(function_id);
-            function.return_lifetime = mir::Lifetime::static_storage();
-        }
-
         let _function = program.tree.get(function_id);
         let module_analyses = program.module_analyses();
         let analysis = module_analyses.get::<LifetimeAnalysis>();
 
         let lifetime = analysis.get(function_id);
         assert!(lifetime.is_static());
-        assert!(!lifetime.includes_parameter(0));
+        assert!(!lifetime.includes_slot(0));
     }
 
     /// Explicit parameter return lifetime overrides inference.
     #[test]
     fn test_resolve_explicit_param_lifetime() {
-        let mut program = TestProgram::new(
+        let program = TestProgram::new(
             r#"
-function pickFirst(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed> {
+function pickFirst(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>): ref<int32, borrowed, lifetime(0)> {
 b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
     return v0
 }"#,
         );
 
-        // set explicit lifetime to only borrow from param 0 (not both)
         let function_id = program.tree.iter_nodes::<mir::Function>().next().unwrap().0;
-        {
-            let function = program.tree.get_mut(function_id);
-            function.return_lifetime = mir::Lifetime::parameter(0);
-        }
-
         let _function = program.tree.get(function_id);
         let module_analyses = program.module_analyses();
         let analysis = module_analyses.get::<LifetimeAnalysis>();
@@ -289,8 +272,8 @@ b0(v0: ref<int32, borrowed>, v1: ref<int32, borrowed>):
         let lifetime = analysis.get(function_id);
 
         // explicit annotation: only param 0
-        assert!(lifetime.includes_parameter(0));
-        assert!(!lifetime.includes_parameter(1));
+        assert!(lifetime.includes_slot(0));
+        assert!(!lifetime.includes_slot(1));
     }
 
     /// Borrowed return with no borrowed params infers static lifetime.
@@ -407,8 +390,43 @@ b0:
         });
 
         let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
-        assert!(lifetime.includes_parameter(1));
-        assert!(!lifetime.includes_parameter(0));
+        assert!(lifetime.includes_slot(1));
+        assert!(!lifetime.includes_slot(0));
+    }
+
+    /// Applied signature lifetimes resolve through the return type.
+    #[test]
+    fn test_resolve_applied_signature_lifetime() {
+        let mut program = TestProgram::new(
+            r#"
+function test(): void {
+b0:
+    return
+}"#,
+        );
+
+        let int_ty = program.tree.insert_type(mir::Type::Int {
+            width: 32,
+            is_signed: true,
+        });
+        let borrowed_ref = program.tree.insert_type(mir::Type::Reference {
+            kind: mir::ReferenceKind::Borrowed,
+            lifetime: mir::Lifetime::slot(0),
+            space: mir::Space::Local,
+            access: mir::Access::Readonly,
+            pointee: int_ty.into(),
+            nullability: mir::Nullability::None,
+        });
+        let signature = program.tree.insert_type(mir::Type::FunctionSignature {
+            parameters: vec![borrowed_ref.into()],
+            result: borrowed_ref.into(),
+            borrow_obligations: Vec::new(),
+        });
+        let signature = mir::TypeReference::new(signature, vec![mir::Lifetime::slot(2)]);
+
+        let lifetime = LifetimeAnalysis::resolve_signature(signature, &program.tree);
+        assert!(lifetime.includes_slot(2));
+        assert!(!lifetime.includes_slot(0));
     }
 
     /// Resolved lifetime predicates behave correctly.
@@ -417,22 +435,22 @@ b0:
         let none = mir::Lifetime::empty();
         assert!(none.is_empty());
         assert!(!none.is_static());
-        assert!(none.parameter_indices().next().is_none());
-        assert!(!none.includes_parameter(0));
+        assert!(none.slot_indices().next().is_none());
+        assert!(!none.includes_slot(0));
 
         let static_lt = mir::Lifetime::static_storage();
         assert!(!static_lt.is_empty());
         assert!(static_lt.is_static());
-        assert!(static_lt.parameter_indices().next().is_none());
-        assert!(!static_lt.includes_parameter(0));
+        assert!(static_lt.slot_indices().next().is_none());
+        assert!(!static_lt.includes_slot(0));
 
-        let param_lt = mir::Lifetime::parameter_set([1, 2]);
+        let param_lt = mir::Lifetime::slot_set([1, 2]);
         assert!(!param_lt.is_empty());
         assert!(!param_lt.is_static());
-        assert_eq!(param_lt.parameter_indices().collect::<Vec<_>>(), vec![1, 2]);
-        assert!(!param_lt.includes_parameter(0));
-        assert!(param_lt.includes_parameter(1));
-        assert!(param_lt.includes_parameter(2));
-        assert!(!param_lt.includes_parameter(3));
+        assert_eq!(param_lt.slot_indices().collect::<Vec<_>>(), vec![1, 2]);
+        assert!(!param_lt.includes_slot(0));
+        assert!(param_lt.includes_slot(1));
+        assert!(param_lt.includes_slot(2));
+        assert!(!param_lt.includes_slot(3));
     }
 }
