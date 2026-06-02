@@ -1,65 +1,11 @@
 use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 
-use crate::CompilerResult;
 use destack_source::ModuleId;
 
-use crate::check::{
-    CheckState, Definition, GenericInstance, GenericParameter, Origin, TypeOperand, TypeTerm,
-};
+use crate::check::{CheckState, GenericSlot, TypeOperand};
 
 use super::CheckModuleOutput;
-
-impl CheckState<'_> {
-    /// Commit generic instances from solved type reference definitions.
-    pub(super) fn commit_generic_instance_table(
-        &mut self,
-        module: ModuleId,
-        output: &mut CheckModuleOutput,
-        environment: &GlobalEnvironment,
-    ) -> CompilerResult<()> {
-        let definitions = self
-            .variables
-            .definitions
-            .iter()
-            .filter_map(|definition| {
-                let Definition::Type { term, .. } = definition else {
-                    return None;
-                };
-
-                Some(*term)
-            })
-            .collect::<Vec<_>>();
-
-        // write type expression applications after their arguments are solved
-        for term in definitions {
-            let TypeTerm::Reference {
-                origin: Origin::Node(source),
-                symbol,
-                arguments,
-            } = self.terms.get(term).clone()
-            else {
-                continue;
-            };
-            if arguments.is_empty() {
-                continue;
-            }
-            if source.module_id != module {
-                continue;
-            }
-            let instance = GenericInstance { symbol, arguments };
-
-            if self
-                .commit_generic_instance(module, output, environment, source, &instance)
-                .is_none()
-            {
-                continue;
-            }
-        }
-
-        Ok(())
-    }
-}
 
 impl CheckState<'_> {
     /// Commit generic parameters into the checked generic slot table.
@@ -68,9 +14,10 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-    ) {
+    ) -> dir::GenericSegment {
+        let mut table = dir::GenericSegment::new(module);
         let mut generics = self
-            .generic_parameters()
+            .generic_slots()
             .filter(|(_, generic)| generic.slot().owner.module_id == module)
             .map(|(variable, generic)| {
                 (
@@ -83,12 +30,27 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
         generics.sort_by_key(|(owner, index, _, _)| (*owner, *index));
 
-        // write every generic parameter as a real generic slot
-        for (_, _, _, generic) in generics {
-            let slot = self.commit_generic_slot(module, output, environment, generic);
+        // write each owner as one generic template
+        let mut index = 0;
+        while index < generics.len() {
+            let owner = generics[index].0;
+            let template_id = dir::LocalGenericTemplateId::new(table.template_count());
+            let mut slots = Vec::new();
 
-            output.generics.push_slot(slot);
+            while index < generics.len() && generics[index].0 == owner {
+                let generic = generics[index].3.clone();
+                let slot =
+                    self.commit_generic_slot(module, output, environment, template_id, generic);
+                let slot_id = table.push_slot(slot);
+
+                slots.push(slot_id);
+                index += 1;
+            }
+
+            table.push_template(dir::GenericTemplate { owner, slots });
         }
+
+        table
     }
 
     /// Commit one generic parameter as a generic slot.
@@ -97,16 +59,17 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-        generic: GenericParameter,
+        template: dir::LocalGenericTemplateId,
+        generic: GenericSlot,
     ) -> dir::GenericSlot {
         match generic {
-            GenericParameter::Type {
+            GenericSlot::Type {
                 slot,
                 variance,
                 constraint,
                 default,
             } => dir::GenericSlot::Type {
-                owner: slot.owner,
+                template,
                 key: slot.key,
                 index: slot.index,
                 variance,
@@ -119,18 +82,20 @@ impl CheckState<'_> {
                         constraint,
                     )
                 }),
-                default: default.and_then(|variable| {
-                    self.commit_variable_type(module, output, environment, variable)
+                default: default.and_then(|operand| {
+                    let source = self.symbol_source_node(slot.owner);
+
+                    self.commit_type_operand(module, output, environment, operand, source)
                 }),
                 origin: slot.origin,
             },
-            GenericParameter::VariadicType {
+            GenericSlot::VariadicType {
                 slot,
                 variance,
                 constraint,
                 default,
             } => dir::GenericSlot::VariadicType {
-                owner: slot.owner,
+                template,
                 key: slot.key,
                 index: slot.index,
                 variance,
@@ -143,17 +108,19 @@ impl CheckState<'_> {
                         constraint,
                     )
                 }),
-                default: default.and_then(|variable| {
-                    self.commit_variable_type(module, output, environment, variable)
+                default: default.and_then(|operand| {
+                    let source = self.symbol_source_node(slot.owner);
+
+                    self.commit_type_operand(module, output, environment, operand, source)
                 }),
                 origin: slot.origin,
             },
-            GenericParameter::Static {
+            GenericSlot::Static {
                 slot,
                 constraint,
                 default,
             } => dir::GenericSlot::Static {
-                owner: slot.owner,
+                template,
                 key: slot.key,
                 index: slot.index,
                 constraint: constraint.and_then(|constraint| {
@@ -165,17 +132,17 @@ impl CheckState<'_> {
                         constraint,
                     )
                 }),
-                default: default.and_then(|variable| {
-                    self.commit_variable_static(module, output, environment, variable)
+                default: default.and_then(|operand| {
+                    self.commit_static_operand(module, output, environment, operand)
                 }),
                 origin: slot.origin,
             },
-            GenericParameter::VariadicStatic {
+            GenericSlot::VariadicStatic {
                 slot,
                 constraint,
                 default,
             } => dir::GenericSlot::VariadicStatic {
-                owner: slot.owner,
+                template,
                 key: slot.key,
                 index: slot.index,
                 constraint: constraint.and_then(|constraint| {
@@ -187,8 +154,8 @@ impl CheckState<'_> {
                         constraint,
                     )
                 }),
-                default: default.and_then(|variable| {
-                    self.commit_variable_static(module, output, environment, variable)
+                default: default.and_then(|operand| {
+                    self.commit_static_operand(module, output, environment, operand)
                 }),
                 origin: slot.origin,
             },
@@ -203,17 +170,18 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         owner: dir::GlobalSymbolId,
         constraint: TypeOperand,
-    ) -> Option<dir::LocalTypeId> {
+    ) -> Option<dir::GlobalTypeId> {
         match constraint {
-            TypeOperand::Variable(variable) => self
-                .commit_declared_type_variable(module, output, environment, variable)
-                .or_else(|| self.commit_variable_type(module, output, environment, variable)),
+            TypeOperand::Variable(variable) => {
+                self.commit_declared_type_variable(module, output, environment, variable)
+            }
             TypeOperand::Term(term) => {
-                let term = self.terms.get(term).clone();
+                let term = self.term(term).clone();
                 let source = self.symbol_source_node(owner);
 
                 self.commit_type_term(owner.module_id, output, environment, &term, source)
             }
+            TypeOperand::Type(ty) => Some(ty),
         }
     }
 }

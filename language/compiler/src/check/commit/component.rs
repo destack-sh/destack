@@ -23,7 +23,6 @@ impl CheckState<'_> {
         // commit modules in stable load order
         for module in modules {
             let checked = self.commit_module(module)?.finish();
-
             entries.push(DirCheckedComponentEntry { module, checked });
         }
 
