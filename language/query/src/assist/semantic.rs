@@ -304,7 +304,9 @@ impl ModuleQueryContext<'_> {
                 // literals
                 dir::Expression::ScalarLiteral(value) => {
                     let token_type = match value {
-                        dir::ScalarLiteral::Null => SemanticTokenType::Keyword,
+                        dir::ScalarLiteral::Null | dir::ScalarLiteral::Undefined => {
+                            SemanticTokenType::Keyword
+                        }
                         dir::ScalarLiteral::String(_) | dir::ScalarLiteral::Character(_) => {
                             SemanticTokenType::String
                         }

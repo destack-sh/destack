@@ -767,6 +767,7 @@ impl ModuleQueryContext<'_> {
         let language_item = match literal {
             dir::ScalarLiteral::String(_) => Some(dir::LanguageItem::String),
             dir::ScalarLiteral::Null
+            | dir::ScalarLiteral::Undefined
             | dir::ScalarLiteral::Integer(_)
             | dir::ScalarLiteral::Float(_)
             | dir::ScalarLiteral::Boolean(_)

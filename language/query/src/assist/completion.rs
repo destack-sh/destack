@@ -19,6 +19,7 @@ use crate::dir::{
     matches_import_clause_space_filter, module_name_from_path, visible_symbols,
 };
 use crate::format::format_global_type;
+
 // sort order priorities: lower = higher priority in completion list
 const SORT_LOCAL_SYMBOL: u32 = 10;
 const SORT_BUILTIN: u32 = 20;
@@ -1633,6 +1634,7 @@ fn keyword_completions() -> Vec<Completion> {
         dir::Keyword::Typeof,
         dir::Keyword::Void,
         dir::Keyword::Null,
+        dir::Keyword::Undefined,
         dir::Keyword::Keyof,
         dir::Keyword::Infer,
         dir::Keyword::Any,
@@ -1688,7 +1690,7 @@ fn keyword_completions() -> Vec<Completion> {
         completions.push(completion);
     }
 
-    for literal in ["true", "false", "null", "undefined"] {
+    for literal in ["true", "false"] {
         if !seen.insert(literal) {
             continue;
         }
