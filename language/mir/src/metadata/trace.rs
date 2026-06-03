@@ -117,7 +117,7 @@ impl TraceId {
     pub const fn new(raw: u32) -> Self {
         match NonZeroU32::new(raw) {
             Some(raw) => Self(raw),
-            None => panic!("trace identifiers must be non-zero"),
+            None => unreachable!(),
         }
     }
 

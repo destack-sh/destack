@@ -1237,7 +1237,7 @@ impl Tree {
         let source_text = self
             .source_text
             .as_deref()
-            .expect("MIR tree has no parsed source text");
+            .unwrap_or_else(|| unreachable!("MIR tree has no parsed source text"));
 
         &source_text[start..end]
     }

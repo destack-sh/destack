@@ -563,7 +563,18 @@ impl ModuleLowerer<'_> {
             self.empty_function_environment_pointer_type();
 
         // build the function body
-        let mut builder = self.builder.function_body(function_id);
+        let mut builder = self
+            .builder
+            .function_body(function_id)
+            .map_err(|error| LowerError::Internal {
+                anchor: self.diagnostic_anchor(
+                    declaration_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
+                module: self.module_id,
+                message: error.to_string(),
+            })?;
         for (index, name) in parameter_names.iter().enumerate() {
             if let Some(name_id) = name {
                 builder.set_parameter_name(index, *name_id);
@@ -685,7 +696,19 @@ impl ModuleLowerer<'_> {
         }
 
         // finish the function builder
-        function_lowerer.state.builder.finish();
+        function_lowerer
+            .state
+            .builder
+            .finish()
+            .map_err(|error| LowerError::Internal {
+                anchor: self.diagnostic_anchor(
+                    declaration_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
+                module: self.module_id,
+                message: error.to_string(),
+            })?;
         Ok(function_id)
     }
 
@@ -1196,7 +1219,19 @@ impl ModuleLowerer<'_> {
         }
 
         // finish the function builder
-        function_lowerer.state.builder.finish();
+        function_lowerer
+            .state
+            .builder
+            .finish()
+            .map_err(|error| LowerError::Internal {
+                anchor: self.diagnostic_anchor(
+                    parent_declaration_id
+                        .into_global_any(self.module_id)
+                        .into_anchored(Some(self.profile)),
+                ),
+                module: self.module_id,
+                message: error.to_string(),
+            })?;
 
         Ok(())
     }

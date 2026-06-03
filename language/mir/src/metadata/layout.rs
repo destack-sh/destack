@@ -76,7 +76,7 @@ impl LayoutTable {
         let index = id.index();
         self.layouts
             .get(index)
-            .unwrap_or_else(|| panic!("missing layout entry {index}"))
+            .unwrap_or_else(|| unreachable!("missing layout entry {index}"))
     }
 }
 
@@ -90,7 +90,7 @@ impl LayoutId {
     pub const fn new(raw: u32) -> Self {
         match NonZeroU32::new(raw) {
             Some(raw) => Self(raw),
-            None => panic!("layout identifiers must be non-zero"),
+            None => unreachable!(),
         }
     }
 
