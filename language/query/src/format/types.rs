@@ -40,6 +40,7 @@ pub fn format_type(ty: &dir::Type, ctx: &ModuleQueryContext<'_>) -> String {
         dir::Type::Object => "object".to_string(),
         dir::Type::Primitive(primitive) => format_primitive_type(primitive),
         dir::Type::Literal(literal) => format_scalar_literal(literal, strings),
+        dir::Type::Intrinsic => "intrinsic".to_string(),
         dir::Type::Operation(operation) => format_type_operation(operation, ctx),
         dir::Type::Parameter(parameter) => format_parameter_type(parameter, ctx),
         dir::Type::This => "this".to_string(),
@@ -413,18 +414,18 @@ pub fn format_type_reference(
 
 /// Format one generic parameter reference.
 pub fn format_parameter_type(
-    parameter: &dir::GenericParameterRef,
+    parameter: &dir::GlobalGenericParameterId,
     ctx: &ModuleQueryContext<'_>,
 ) -> String {
-    match parameter.key {
-        dir::GenericSlotKey::Symbol(symbol) => format_symbol_name(symbol, ctx),
-        dir::GenericSlotKey::Generated(name) => {
-            let Some(ctx) = ctx.module_context(parameter.owner.module_id) else {
-                return "<unknown>".to_string();
-            };
+    let Some(ctx) = ctx.module_context(parameter.module_id) else {
+        return "<unknown>".to_string();
+    };
+    let dir = ctx.dir();
+    let generic = dir.generics().get_parameter(parameter.local_id);
 
-            ctx.dir().strings().get(name).to_string()
-        }
+    match generic.key() {
+        dir::GenericParameterKey::Symbol(symbol) => format_symbol_name(symbol, &ctx),
+        dir::GenericParameterKey::Generated(name) => ctx.dir().strings().get(name).to_string(),
     }
 }
 
