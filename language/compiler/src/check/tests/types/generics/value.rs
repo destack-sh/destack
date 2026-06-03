@@ -31,15 +31,15 @@ function take<comptime N: uint>(value: [uint8; N]): [uint8; N] {
 const bytes = take<4>([1, 2, 3, 4]);
 /// @type.symbol symbol=bytes type=[uint8; 4]
 /// @resolution.name source=take target=take
-/// @resolution.call source="take<4>([1, 2, 3, 4])" parameters=([uint8; 4]) return=[uint8; 4] kind=symbol target=take application=take<4>
-/// @generic.application source="take<4>([1, 2, 3, 4])" id=take<4>
+/// @resolution.call source="take<4>([1, 2, 3, 4])" parameters=([uint8; 4]) return=[uint8; 4] kind=symbol target=take instance=take<4>
+/// @generic.instance source="take<4>([1, 2, 3, 4])" id=take<4>
 /// @type.node source="take<4>([1, 2, 3, 4])" type=[uint8; 4]
 /// @type.node source=[1, 2, 3, 4] type=[uint8; 4]
 /// @type.node source=1 type=float64
 /// @type.node source=2 type=float64
 /// @type.node source=3 type=float64
 /// @type.node source=4 type=float64
-/// @generic.application id=take<4> symbol=take arguments=[4]
+/// @generic.instance id=take<4> symbol=take arguments=[4]
 "#);
 }
 
@@ -73,11 +73,11 @@ function choose<comptime Flag: boolean = true>(value: int32): int32 {
 const value = choose(1);
 /// @type.symbol symbol=value#2 type=int32
 /// @resolution.name source=choose target=choose
-/// @resolution.call source=choose(1) parameters=(int32) return=int32 kind=symbol target=choose application=choose<true>
-/// @generic.application source=choose(1) id=choose<true>
+/// @resolution.call source=choose(1) parameters=(int32) return=int32 kind=symbol target=choose instance=choose<true>
+/// @generic.instance source=choose(1) id=choose<true>
 /// @type.node source=choose(1) type=int32
 /// @type.node source=1 type=int32
-/// @generic.application id=choose<true> symbol=choose arguments=[true]
+/// @generic.instance id=choose<true> symbol=choose arguments=[true]
 "#);
 }
 
@@ -108,14 +108,14 @@ type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
 declare const tagged: Tagged<"alpha">;
 /// @type.symbol symbol=tagged type={ tag: "alpha" }
 /// @resolution.name source=Tagged target=Tagged
-/// @generic.application source="Tagged<\"alpha\">" id="Tagged<\"alpha\">"
+/// @generic.instance source="Tagged<\"alpha\">" id="Tagged<\"alpha\">"
 
 declare const flagged: Flagged<{ name: "search"; enabled: true }>;
 /// @type.symbol symbol=flagged type={ name: "search"; enabled: true }
 /// @resolution.name source=Flagged target=Flagged
-/// @generic.application source="Flagged<{ name: \"search\"; enabled: true }>" id="Flagged<{ name: \"search\"; enabled: true }>"
-/// @generic.application id="Flagged<{ name: \"search\"; enabled: true }>" symbol=Flagged arguments=[{ name: "search"; enabled: true }]
-/// @generic.application id="Tagged<\"alpha\">" symbol=Tagged arguments=["alpha"]
+/// @generic.instance source="Flagged<{ name: \"search\"; enabled: true }>" id="Flagged<{ name: \"search\"; enabled: true }>"
+/// @generic.instance id="Flagged<{ name: \"search\"; enabled: true }>" symbol=Flagged arguments=[{ name: "search"; enabled: true }]
+/// @generic.instance id="Tagged<\"alpha\">" symbol=Tagged arguments=["alpha"]
 "#,
     );
 }

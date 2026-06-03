@@ -72,13 +72,13 @@ class Segment<Row> {
 declare const narrow: Segment<int32>;
 /// @type.node source="declare const narrow: Segment<int32>" type=void
 /// @type.symbol symbol=narrow type=Segment<int32>
-/// @generic.application source=Segment<int32> id=Segment<int32>
+/// @generic.instance source=Segment<int32> id=Segment<int32>
 /// @resolution.name source=Segment target=Segment
 
 const narrowMeta = narrow.narrow;
 /// @type.node source="const narrowMeta = narrow.narrow" type=void
 /// @type.symbol symbol=narrowMeta type=NarrowMeta
-/// @generic.application source=narrow.narrow id=Segment<int32>
+/// @generic.instance source=narrow.narrow id=Segment<int32>
 /// @resolution.name source=narrow target=narrow
 /// @resolution.member source=narrow.narrow receiver=Segment<int32> kind=symbol target=Segment.narrow application=Segment<int32>
 /// @type.node source=narrow type=Segment<int32>
@@ -87,19 +87,19 @@ const narrowMeta = narrow.narrow;
 declare const wide: Segment<string>;
 /// @type.node source="declare const wide: Segment<string>" type=void
 /// @type.symbol symbol=wide type=Segment<string>
-/// @generic.application source=Segment<string> id=Segment<string>
+/// @generic.instance source=Segment<string> id=Segment<string>
 /// @resolution.name source=Segment target=Segment
 
 const wideMeta = wide.wide;
 /// @type.node source="const wideMeta = wide.wide" type=void
 /// @type.symbol symbol=wideMeta type=WideMeta
-/// @generic.application source=wide.wide id=Segment<string>
+/// @generic.instance source=wide.wide id=Segment<string>
 /// @resolution.name source=wide target=wide
 /// @resolution.member source=wide.wide receiver=Segment<string> kind=symbol target=Segment.wide application=Segment<string>
 /// @type.node source=wide type=Segment<string>
 /// @type.node source=wide.wide type=WideMeta
-/// @generic.application id=Segment<int32> symbol=Segment arguments=[int32]
-/// @generic.application id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.instance id=Segment<int32> symbol=Segment arguments=[int32]
+/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
 /// @static.entry value=Row
 /// @static.entry value=int32
 /// @static.entry value=string
@@ -175,13 +175,13 @@ class Segment<Row> {
 declare const segment: Segment<string>;
 /// @type.node source="declare const segment: Segment<string>" type=void
 /// @type.symbol symbol=segment type=Segment<string>
-/// @generic.application source=Segment<string> id=Segment<string>
+/// @generic.instance source=Segment<string> id=Segment<string>
 /// @resolution.name source=Segment target=Segment
 
 segment.narrow;
 /// @resolution.name source=segment target=segment
 /// @type.node source=segment type=Segment<string>
-/// @generic.application id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
 /// @static.entry value=Row
 /// @static.entry value=string
 "#,

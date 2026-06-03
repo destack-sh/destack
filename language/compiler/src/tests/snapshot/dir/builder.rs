@@ -300,29 +300,29 @@ impl<'a> DirSnapshotBuilder<'a> {
         self.rows.push(row);
     }
 
-    /// Return the debug label for one checked generic application.
-    pub(super) fn generic_application_label(
+    /// Return the debug label for one checked generic instance.
+    pub(super) fn generic_instance_label(
         &self,
-        application_id: dir::LocalGenericApplicationId,
+        instance_id: dir::LocalGenericInstanceId,
     ) -> String {
         let Some(generics) = &self.generics else {
-            panic!("dir snapshot missing generic table for {application_id:?}");
+            panic!("dir snapshot missing generic table for {instance_id:?}");
         };
 
-        // render the solved semantic application
-        let application = generics.get_application(application_id);
-        let template = generics.get_template(application.template);
-        if application.arguments.is_empty() {
+        // render the solved semantic instance
+        let instance = generics.get_instance(instance_id);
+        let template = generics.get_template(instance.template);
+        if instance.arguments.is_empty() {
             return self.symbol_path_label(template.owner);
         }
 
-        let arguments = application
+        let arguments = instance
             .arguments
             .iter()
             .map(|argument| self.static_argument_label(argument))
             .collect::<Vec<_>>()
             .join(", ");
-        if let Some(label) = self.collection_type_label(template.owner, &application.arguments) {
+        if let Some(label) = self.collection_type_label(template.owner, &instance.arguments) {
             return label;
         }
 
@@ -338,11 +338,11 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
-    /// Return the debug label for one checked generic slot key.
-    pub(super) fn generic_slot_key_label(&self, key: dir::GenericSlotKey) -> String {
+    /// Return the debug label for one checked generic parameter key.
+    pub(super) fn generic_parameter_key_label(&self, key: dir::GenericParameterKey) -> String {
         match key {
-            dir::GenericSlotKey::Symbol(symbol) => self.symbol_path_label(symbol),
-            dir::GenericSlotKey::Generated(name) => self.strings.get(name).to_string(),
+            dir::GenericParameterKey::Symbol(symbol) => self.symbol_path_label(symbol),
+            dir::GenericParameterKey::Generated(name) => self.strings.get(name).to_string(),
         }
     }
 
@@ -1015,7 +1015,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             return None;
         }
 
-        // prefer the referenced path over the full type application
+        // prefer the referenced path over the full type instance
         if node_id.local_id.ty == dir::NodeType::TypeExpression {
             let type_id = dir::LocalNodeId::<dir::TypeExpression>::new(node_id.local_id.id);
             if let dir::TypeExpression::Reference { path, .. } = self.tree.get(type_id) {
@@ -1109,11 +1109,21 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Render one generic parameter label.
-    fn generic_parameter_label(&self, parameter: &dir::GenericParameterRef) -> String {
-        match parameter.key {
-            dir::GenericSlotKey::Symbol(symbol) => self.symbol_path_label(symbol),
-            dir::GenericSlotKey::Generated(name) => {
-                let owner = self.symbol_path_label(parameter.owner);
+    fn generic_parameter_label(&self, parameter: &dir::GlobalGenericParameterId) -> String {
+        let Some(generics) = &self.generics else {
+            return format!("generic#{}", parameter.local_id.0);
+        };
+        if generics.module_id != parameter.module_id {
+            return format!("generic#{}", parameter.local_id.0);
+        }
+
+        let generic = generics.get_parameter(parameter.local_id);
+        let template = generics.get_template(generic.template());
+
+        match generic.key() {
+            dir::GenericParameterKey::Symbol(symbol) => self.symbol_path_label(symbol),
+            dir::GenericParameterKey::Generated(name) => {
+                let owner = self.symbol_path_label(template.owner);
                 let name = self.strings.get(name);
 
                 format!("{owner}.{name}")

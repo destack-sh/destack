@@ -185,9 +185,9 @@ const values = [1, 2, 3] as Slice<_>;
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
-/// @generic.application source=Slice<_> id=collections.slice.Slice<int32>
+/// @generic.instance source=Slice<_> id=collections.slice.Slice<int32>
 /// @resolution.name source=Slice target=collections.slice.Slice
-/// @generic.application id=collections.slice.Slice<int32> symbol=collections.slice.Slice arguments=[int32]
+/// @generic.instance id=collections.slice.Slice<int32> symbol=collections.slice.Slice arguments=[int32]
 "#,
     );
 }

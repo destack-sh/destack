@@ -129,12 +129,12 @@ extension BoxReadable<T> of Box<T> where T: Readable {
 
 declare const boxed: Box<Token>;
 /// @type.symbol symbol=boxed type=Box<Token>
-/// @generic.application source="Box<Token>" id=Box<Token>
+/// @generic.instance source="Box<Token>" id=Box<Token>
 
 boxed.read();
 /// @resolution.name source=boxed target=boxed
 
-/// @generic.application id=Box<Token> symbol=Box arguments=[Token]
+/// @generic.instance id=Box<Token> symbol=Box arguments=[Token]
 "#,
         r#"
 /// @diagnostic.error code=EC300 message="missing member 'read'"

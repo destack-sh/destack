@@ -146,10 +146,10 @@ fn add_member_resolution_row(
             .field("kind", "symbol")
             .field("target", builder.member_candidate_label(candidate))
             .optional_field(
-                "application",
+                "instance",
                 candidate
-                    .application
-                    .map(|id| builder.generic_application_label(id)),
+                    .instance
+                    .map(|id| builder.generic_instance_label(id)),
             ),
         dir::MemberTarget::Union(candidates) => row.field("kind", "union").list_field(
             "targets",
@@ -183,12 +183,10 @@ fn add_call_resolution_row(
         dir::CallTarget::Builtin(builtin) => row
             .field("kind", "builtin")
             .field("builtin", builtin_call_label(*builtin)),
-        dir::CallTarget::Expression { application } => {
-            row.field("kind", "expression").optional_field(
-                "application",
-                application.map(|id| builder.generic_application_label(id)),
-            )
-        }
+        dir::CallTarget::Expression { instance } => row.field("kind", "expression").optional_field(
+            "instance",
+            instance.map(|id| builder.generic_instance_label(id)),
+        ),
         dir::CallTarget::Symbol(candidate) => {
             add_call_candidate_fields(builder, row.field("kind", "symbol"), candidate)
         }
@@ -281,28 +279,28 @@ fn add_pattern_resolution_row(
         dir::PatternResolution::Nominal(nominal) => row
             .field("target", builder.symbol_path_label(nominal.symbol))
             .optional_field(
-                "application",
+                "instance",
                 nominal
-                    .application
-                    .map(|id| builder.generic_application_label(id)),
+                    .instance
+                    .map(|id| builder.generic_instance_label(id)),
             )
             .list_field("fields", pattern_field_labels(builder, &nominal.fields)),
         dir::PatternResolution::Newtype(newtype) => row
             .field("target", builder.symbol_path_label(newtype.symbol))
             .optional_field(
-                "application",
+                "instance",
                 newtype
-                    .application
-                    .map(|id| builder.generic_application_label(id)),
+                    .instance
+                    .map(|id| builder.generic_instance_label(id)),
             )
             .optional_field("value", newtype.value.map(|node| builder.node_label(node))),
         dir::PatternResolution::Variant(variant) => row
             .field("target", builder.symbol_path_label(variant.symbol))
             .optional_field(
-                "application",
+                "instance",
                 variant
-                    .application
-                    .map(|id| builder.generic_application_label(id)),
+                    .instance
+                    .map(|id| builder.generic_instance_label(id)),
             )
             .optional_field(
                 "discriminant",
@@ -398,10 +396,10 @@ fn add_call_candidate_fields(
             candidate.receiver.map(|ty| builder.global_type_label(ty)),
         )
         .optional_field(
-            "application",
+            "instance",
             candidate
-                .application
-                .map(|id| builder.generic_application_label(id)),
+                .instance
+                .map(|id| builder.generic_instance_label(id)),
         )
 }
 
@@ -419,10 +417,10 @@ fn add_class_construct_candidate_fields(
                 .map(|symbol| builder.symbol_path_label(symbol)),
         )
         .optional_field(
-            "application",
+            "instance",
             candidate
-                .application
-                .map(|id| builder.generic_application_label(id)),
+                .instance
+                .map(|id| builder.generic_instance_label(id)),
         )
 }
 
@@ -434,10 +432,10 @@ fn add_construct_candidate_fields(
 ) -> SnapshotRow {
     row.field("target", builder.symbol_path_label(candidate.symbol))
         .optional_field(
-            "application",
+            "instance",
             candidate
-                .application
-                .map(|id| builder.generic_application_label(id)),
+                .instance
+                .map(|id| builder.generic_instance_label(id)),
         )
 }
 

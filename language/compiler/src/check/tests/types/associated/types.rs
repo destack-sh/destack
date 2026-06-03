@@ -31,10 +31,10 @@ struct Box<T> {
 declare const value: Box<string>.Item;
 /// @resolution.name source=Box target=Box
 /// @resolution.member source=Box<string>.Item receiver=Box<string> kind=symbol target=Box.Item
-/// @generic.application source="Box<string>" id=Box<string>
+/// @generic.instance source="Box<string>" id=Box<string>
 /// @type.symbol symbol=value type=string
 
-/// @generic.application id=Box<string> symbol=Box arguments=[string]
+/// @generic.instance id=Box<string> symbol=Box arguments=[string]
 "#,
     );
 }

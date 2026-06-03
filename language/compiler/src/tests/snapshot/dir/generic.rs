@@ -13,31 +13,31 @@ impl SnapshotTable for dir::GenericSegment {
                 .list_field(
                     "parameters",
                     template.slots.iter().map(|slot| {
-                        generic_template_parameter_label(self.get_slot(*slot), builder)
+                        generic_template_parameter_label(self.get_parameter(*slot), builder)
                     }),
                 );
 
             builder.push(row);
         }
 
-        // render generic application sites
-        for (node_id, application_id) in self.node_applications() {
-            let row = SnapshotRow::new(builder.anchor_node(node_id), "generic", "application")
+        // render generic instance sites
+        for (node_id, instance_id) in self.node_instances() {
+            let row = SnapshotRow::new(builder.anchor_node(node_id), "generic", "instance")
                 .optional_field("source", builder.node_source(node_id))
-                .field("id", builder.generic_application_label(application_id));
+                .field("id", builder.generic_instance_label(instance_id));
 
             builder.push(row);
         }
 
-        // render generic applications
-        for (application_id, application) in self.iter_applications() {
-            let template = self.get_template(application.template);
-            let row = SnapshotRow::new(SnapshotAnchor::End, "generic", "application")
-                .field("id", builder.generic_application_label(application_id))
+        // render generic instances
+        for (instance_id, instance) in self.iter_instances() {
+            let template = self.get_template(instance.template);
+            let row = SnapshotRow::new(SnapshotAnchor::End, "generic", "instance")
+                .field("id", builder.generic_instance_label(instance_id))
                 .field("symbol", builder.symbol_path_label(template.owner))
                 .list_field(
                     "arguments",
-                    application
+                    instance
                         .arguments
                         .iter()
                         .map(|argument| builder.static_argument_label(argument)),
@@ -47,12 +47,12 @@ impl SnapshotTable for dir::GenericSegment {
         }
 
         let template_count = self.template_count();
-        let slot_count = self.slot_count();
-        let application_count = self.application_count();
-        let application_site_count = self.node_application_count();
+        let parameter_count = self.parameter_count();
+        let instance_count = self.instance_count();
+        let application_site_count = self.node_instance_count();
         if template_count == 0
-            && slot_count == 0
-            && application_count == 0
+            && parameter_count == 0
+            && instance_count == 0
             && application_site_count == 0
         {
             return;
@@ -60,8 +60,8 @@ impl SnapshotTable for dir::GenericSegment {
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "generic", "summary")
             .count_field("templates", template_count)
-            .count_field("slots", slot_count)
-            .count_field("applications", application_count)
+            .count_field("slots", parameter_count)
+            .count_field("instances", instance_count)
             .count_field("application_sites", application_site_count);
         builder.push(row);
     }
@@ -69,11 +69,11 @@ impl SnapshotTable for dir::GenericSegment {
 
 /// Return one generic template parameter label.
 fn generic_template_parameter_label(
-    slot: &dir::GenericSlot,
+    slot: &dir::GenericParameterBinding,
     builder: &DirSnapshotBuilder<'_>,
 ) -> String {
     match slot {
-        dir::GenericSlot::Type {
+        dir::GenericParameterBinding::Type {
             key,
             variance,
             constraint,
@@ -87,7 +87,7 @@ fn generic_template_parameter_label(
 
             generic_origin_label(label, *origin)
         }
-        dir::GenericSlot::VariadicType {
+        dir::GenericParameterBinding::VariadicType {
             key,
             variance,
             constraint,
@@ -101,7 +101,7 @@ fn generic_template_parameter_label(
 
             generic_origin_label(label, *origin)
         }
-        dir::GenericSlot::Static {
+        dir::GenericParameterBinding::Static {
             key,
             constraint,
             default,
@@ -113,7 +113,7 @@ fn generic_template_parameter_label(
 
             generic_origin_label(label, *origin)
         }
-        dir::GenericSlot::VariadicStatic {
+        dir::GenericParameterBinding::VariadicStatic {
             key,
             constraint,
             default,
@@ -129,10 +129,13 @@ fn generic_template_parameter_label(
 }
 
 /// Return one generic parameter source name.
-fn generic_parameter_name(key: dir::GenericSlotKey, builder: &DirSnapshotBuilder<'_>) -> String {
+fn generic_parameter_name(
+    key: dir::GenericParameterKey,
+    builder: &DirSnapshotBuilder<'_>,
+) -> String {
     match key {
-        dir::GenericSlotKey::Symbol(symbol) => builder.symbol_label(symbol),
-        dir::GenericSlotKey::Generated(_) => builder.generic_slot_key_label(key),
+        dir::GenericParameterKey::Symbol(symbol) => builder.symbol_label(symbol),
+        dir::GenericParameterKey::Generated(_) => builder.generic_parameter_key_label(key),
     }
 }
 
@@ -146,11 +149,11 @@ fn generic_variance_label(variance: Option<dir::VarianceModifier>, name: String)
 }
 
 /// Add one induced origin suffix.
-fn generic_origin_label(name: String, origin: dir::GenericSlotOrigin) -> String {
+fn generic_origin_label(name: String, origin: dir::GenericParameterOrigin) -> String {
     match origin {
-        dir::GenericSlotOrigin::Explicit => name,
-        dir::GenericSlotOrigin::Induced(induction) => {
-            let induction = generic_slot_induction_label(induction);
+        dir::GenericParameterOrigin::Explicit => name,
+        dir::GenericParameterOrigin::Induced(induction) => {
+            let induction = generic_parameter_induction_label(induction);
 
             format!("{name} origin=induced.{induction}")
         }
@@ -158,11 +161,11 @@ fn generic_origin_label(name: String, origin: dir::GenericSlotOrigin) -> String 
 }
 
 /// Return one induced generic reason label.
-fn generic_slot_induction_label(induction: dir::GenericSlotInduction) -> &'static str {
+fn generic_parameter_induction_label(induction: dir::GenericParameterInduction) -> &'static str {
     match induction {
-        dir::GenericSlotInduction::Constraint => "constraint",
-        dir::GenericSlotInduction::Form => "form",
-        dir::GenericSlotInduction::Comptime => "comptime",
+        dir::GenericParameterInduction::Constraint => "constraint",
+        dir::GenericParameterInduction::Form => "form",
+        dir::GenericParameterInduction::Comptime => "comptime",
     }
 }
 

@@ -28,6 +28,7 @@ impl DirSnapshotBuilder<'_> {
             dir::Type::Object => "object".to_string(),
             dir::Type::Primitive(primitive) => Self::primitive_type_label(*primitive),
             dir::Type::Literal(literal) => self.scalar_literal_label(literal),
+            dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::Parameter(parameter) => self.parameter_type_label(parameter),
             dir::Type::Reference(named) => self.reference_type_label(named),
             dir::Type::This => "this".to_string(),
@@ -593,7 +594,7 @@ impl DirSnapshotBuilder<'_> {
         // render parameter symbols with their constraints
         if let dir::Type::Parameter(parameter) = types.get_type(type_id.local_id) {
             let label = self.parameter_type_label(parameter);
-            let suffix = self.generic_slot_signature_suffix(types, parameter);
+            let suffix = self.generic_parameter_signature_suffix(types, parameter);
 
             format!("{label}{suffix}")
         }
@@ -604,11 +605,19 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return one generic parameter label.
-    fn parameter_type_label(&self, parameter: &dir::GenericParameterRef) -> String {
-        match parameter.key {
-            dir::GenericSlotKey::Symbol(symbol) => self.symbol_label(symbol),
-            dir::GenericSlotKey::Generated(name) => {
-                let owner = self.symbol_path_label(parameter.owner);
+    fn parameter_type_label(&self, parameter: &dir::GlobalGenericParameterId) -> String {
+        let Some(generic) = self.generic_parameter_for_parameter(parameter) else {
+            return format!("generic#{}", parameter.local_id.0);
+        };
+        let Some(generics) = self.generics.as_ref() else {
+            return format!("generic#{}", parameter.local_id.0);
+        };
+        let template = generics.get_template(generic.template());
+
+        match generic.key() {
+            dir::GenericParameterKey::Symbol(symbol) => self.symbol_label(symbol),
+            dir::GenericParameterKey::Generated(name) => {
+                let owner = self.symbol_path_label(template.owner);
                 let name = self.strings.get(name);
 
                 format!("{owner}.{name}")
@@ -617,22 +626,22 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return the constraint and default label for one generic parameter.
-    fn generic_slot_signature_suffix(
+    fn generic_parameter_signature_suffix(
         &self,
         types: &dir::TypeTable<'_>,
-        parameter: &dir::GenericParameterRef,
+        parameter: &dir::GlobalGenericParameterId,
     ) -> String {
-        let Some(slot) = self.generic_slot_for_parameter(parameter) else {
+        let Some(slot) = self.generic_parameter_for_parameter(parameter) else {
             return String::new();
         };
 
         match slot {
-            dir::GenericSlot::Type {
+            dir::GenericParameterBinding::Type {
                 constraint,
                 default,
                 ..
             }
-            | dir::GenericSlot::VariadicType {
+            | dir::GenericParameterBinding::VariadicType {
                 constraint,
                 default,
                 ..
@@ -646,12 +655,12 @@ impl DirSnapshotBuilder<'_> {
 
                 format!("{constraint}{default}")
             }
-            dir::GenericSlot::Static {
+            dir::GenericParameterBinding::Static {
                 constraint,
                 default,
                 ..
             }
-            | dir::GenericSlot::VariadicStatic {
+            | dir::GenericParameterBinding::VariadicStatic {
                 constraint,
                 default,
                 ..
@@ -669,20 +678,16 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return the generic slot represented by one parameter type.
-    fn generic_slot_for_parameter(
+    fn generic_parameter_for_parameter(
         &self,
-        parameter: &dir::GenericParameterRef,
-    ) -> Option<&dir::GenericSlot> {
+        parameter: &dir::GlobalGenericParameterId,
+    ) -> Option<&dir::GenericParameterBinding> {
         let generics = self.generics.as_ref()?;
+        if generics.module_id != parameter.module_id {
+            return None;
+        }
 
-        generics.iter_slots().find_map(|(_, slot)| {
-            let template = generics.get_template(slot.template());
-            let is_match = template.owner == parameter.owner
-                && slot.key() == parameter.key
-                && slot.index() == parameter.index;
-
-            is_match.then_some(slot)
-        })
+        Some(generics.get_parameter(parameter.local_id))
     }
 
     /// Return one type id list label.

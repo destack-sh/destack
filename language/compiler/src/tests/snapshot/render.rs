@@ -300,7 +300,7 @@ impl<'a> SnapshotRenderer<'a> {
             "slot" => 5,
             "static" => 6,
             "node" => 7,
-            "application" => 8,
+            "instance" => 8,
             "entry" => 9,
             "edge" => 10,
             "local" => 11,
