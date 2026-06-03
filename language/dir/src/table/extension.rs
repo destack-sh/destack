@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, Extension, GlobalSymbolId, LocalExtensionId, SegmentView};
+use crate::{Arena, Extension, GlobalNodeIdAny, GlobalSymbolId, LocalExtensionId, SegmentView};
 
 /// Cumulative checked extensions for one DIR module.
 #[derive(Debug, Clone)]
@@ -62,6 +62,17 @@ impl<'a> ExtensionTable<'a> {
         panic!("DIR extension {extension_id:?} is not visible")
     }
 
+    /// Return the source declaration node for one extension.
+    pub fn extension_source(&self, extension_id: LocalExtensionId) -> Option<GlobalNodeIdAny> {
+        for segment in self.segments.iter() {
+            if segment.get_local_extension(extension_id).is_some() {
+                return Some(segment.extension_source(extension_id));
+            }
+        }
+
+        None
+    }
+
     /// Get an extension id by its symbol.
     pub fn symbol_extension_id(
         &self,
@@ -115,6 +126,8 @@ pub struct ExtensionSegment {
     pub(crate) first_extension_id: u32,
     /// Extension records.
     pub(crate) extensions: Arena<Extension>,
+    /// Source declaration nodes keyed by extension id.
+    pub(crate) sources: IndexMap<LocalExtensionId, GlobalNodeIdAny>,
     /// Extension ids by declaring symbol.
     pub(crate) extensions_by_symbol: IndexMap<GlobalSymbolId, LocalExtensionId>,
     /// Extension ids by target symbol.
@@ -128,17 +141,23 @@ impl ExtensionSegment {
             module_id,
             first_extension_id: 0,
             extensions: Arena::new(),
+            sources: IndexMap::new(),
             extensions_by_symbol: IndexMap::new(),
             extensions_by_target_symbol: IndexMap::new(),
         }
     }
 
     /// Insert a new extension.
-    pub fn insert_extension(&mut self, extension: Extension) -> LocalExtensionId {
+    pub fn insert_extension(
+        &mut self,
+        source: GlobalNodeIdAny,
+        extension: Extension,
+    ) -> LocalExtensionId {
         let extension_id = LocalExtensionId::new(self.extension_count());
         let extension_symbol = extension.symbol;
         let target_symbol = extension.target_symbol;
 
+        self.sources.insert(extension_id, source);
         self.extensions_by_symbol
             .insert(extension_symbol, extension_id);
         self.extensions_by_target_symbol
@@ -148,6 +167,14 @@ impl ExtensionSegment {
         self.extensions.allocate(extension);
 
         extension_id
+    }
+
+    /// Return the source declaration node for one extension.
+    pub fn extension_source(&self, extension_id: LocalExtensionId) -> GlobalNodeIdAny {
+        *self
+            .sources
+            .get(&extension_id)
+            .unwrap_or_else(|| panic!("DIR extension {extension_id:?} has no source"))
     }
 
     /// Get an extension by its id.

@@ -37,8 +37,6 @@ pub enum Keyword {
     // Context
     // ------------------------------------------------------------
     /// Refer to the containing instance type.
-    Self_,
-    /// Refer to the containing instance type (alias to `self`).
     This,
     /// Super expression (reserved).
     Super,
@@ -245,7 +243,6 @@ impl Keyword {
             Keyword::Default => "default",
 
             // context
-            Keyword::Self_ => "self",
             Keyword::This => "this",
             Keyword::Super => "super",
             Keyword::Package => "package",
@@ -350,7 +347,6 @@ impl FromStr for Keyword {
             "default" => Ok(Keyword::Default),
 
             // context
-            "self" => Ok(Keyword::Self_),
             "this" => Ok(Keyword::This),
             "super" => Ok(Keyword::Super),
             "package" => Ok(Keyword::Package),

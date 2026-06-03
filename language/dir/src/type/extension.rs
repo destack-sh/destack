@@ -3,7 +3,7 @@ use std::fmt::Display;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, GlobalTypeId};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId};
 
 /// Unique identifier for extensions.
 #[repr(transparent)]
@@ -86,6 +86,8 @@ pub struct Extension {
     pub target_symbol: GlobalSymbolId,
     /// The solved target type being extended.
     pub target_type: GlobalTypeId,
+    /// The checked where clauses that gate this extension.
+    pub where_clauses: Vec<ExtensionWhereClause>,
 }
 
 impl Extension {
@@ -95,12 +97,14 @@ impl Extension {
         form: ExtensionForm,
         target_symbol: GlobalSymbolId,
         target_type: GlobalTypeId,
+        where_clauses: Vec<ExtensionWhereClause>,
     ) -> Self {
         Self {
             symbol,
             form,
             target_symbol,
             target_type,
+            where_clauses,
         }
     }
 
@@ -118,4 +122,15 @@ impl Extension {
     pub fn is_local(&self) -> bool {
         matches!(self.form, ExtensionForm::Local)
     }
+}
+
+/// A checked where clause attached to one extension.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExtensionWhereClause {
+    /// The source where clause node.
+    pub source: GlobalNodeIdAny,
+    /// The constrained type.
+    pub left: GlobalTypeId,
+    /// The required constraint type.
+    pub right: GlobalTypeId,
 }
