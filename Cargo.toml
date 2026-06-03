@@ -48,13 +48,12 @@ members = [
 	"language/lsp",
 	"language/lsp/server",
 	"language/lsp/types",
+	"language/daemon",
 	"language/source",
 	"language/test",
 	"language/unicode",
 	"language/workspace",
 	"language/service",
-	# service
-	"service/daemon",
 	# app
 	"app/cli",
 	# bridge
@@ -106,9 +105,7 @@ destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
 destack_service = { path = "language/service" }
 destack_workspace = { path = "language/workspace" }
-
-# service
-destack_daemon = { path = "service/daemon" }
+destack_daemon = { path = "language/daemon" }
 destack_lsp = { path = "language/lsp" }
 destack_lsp_server = { path = "language/lsp/server" }
 destack_lsp_types = { path = "language/lsp/types" }

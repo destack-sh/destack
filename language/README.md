@@ -12,6 +12,7 @@ The language toolchain is split into several Rust crates, each handling a specif
 | Project | Status | Summary |
 |---------|--------|---------|
 | [`compiler`](compiler/README.md) | Alpha | End-to-end compiler from AST through DIR to MIR |
+| [`daemon`](daemon/README.md) | Alpha | Shared language daemon for CLI, LSP, and workspace tooling clients |
 | [`formatter`](formatter/README.md) | Alpha | Canonical source formatter |
 | [`linter`](linter/README.md) | Alpha | Linter rules and linting interface |
 | [`lsp`](lsp/README.md) | Alpha | Language Server Protocol service implementation |
