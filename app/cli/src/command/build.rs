@@ -13,11 +13,11 @@ use crate::pipeline::daemon::{
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::target::target_name_from_args;
 use crate::pipeline::watch::{
-    WatchCompileContext, WatchLoopOptions, build_watch_loop_options, emit_watch_compile_report,
-    run_daemon_watch_command, watch_error,
+    WatchCompileContext, emit_watch_compile_report, run_daemon_watch_command, watch_error,
 };
 use crate::pipeline::workspace::{load_destack_config_for_program, workspace_context};
 use clap::Args;
+use destack_daemon::WatchPolicy;
 
 /// State for build watch mode.
 struct BuildWatchState {
@@ -107,7 +107,7 @@ fn run_build_via_daemon(args: &BuildArgs, target_name: &str) -> i32 {
     // build command options for daemon execution
     let options = CommandOptionsBuilder::new(&args.program)
         .inputs(inputs)
-        .allow_destack_config_fallback(!args.input.has_input())
+        .use_destack_config_inputs(!args.input.has_input())
         .target(target_name.to_string())
         .target_overrides(target_overrides_from_args(&args.target))
         .dry_run(args.dry_run)
@@ -166,7 +166,7 @@ fn run_watch(args: &BuildArgs, target_name: &str) -> i32 {
     run_watch_with_options(
         args,
         target_name,
-        build_watch_loop_options(),
+        WatchPolicy::default(),
         || {},
         |_, _, _| {},
         false,
@@ -177,7 +177,7 @@ fn run_watch(args: &BuildArgs, target_name: &str) -> i32 {
 pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
     args: &BuildArgs,
     target_name: &str,
-    watch_loop_options: WatchLoopOptions,
+    watch_policy: WatchPolicy,
     on_start: StartFn,
     on_compile: ObserveFn,
     is_one_shot: bool,
@@ -225,7 +225,7 @@ where
         let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
         Ok(CommandOptionsBuilder::new(&args.program)
             .inputs(inputs)
-            .allow_destack_config_fallback(!args.input.has_input())
+            .use_destack_config_inputs(!args.input.has_input())
             .target(target_name.to_string())
             .target_overrides(target_overrides.clone())
             .build())
@@ -238,8 +238,7 @@ where
         session,
         &args.program,
         &args.report,
-        None,
-        watch_loop_options,
+        watch_policy,
         &mut watch_state,
         move |_state| on_start(),
         |state, _session| {

@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use destack_source::glob;
-use destack_workspace::TargetDiscovery;
+use destack_workspace::TargetRoot;
 
 use crate::common::{InputArgs, InputSource, ProgramArgs};
 use crate::error::CliResult;
@@ -67,8 +67,8 @@ pub fn collect_sources_from_destack_config(
         .as_deref()
         .and_then(|name| config.targets.get(name));
 
-    // pick discovery rules from target when available
-    let (entries, includes, excludes, discovery) = if let Some(target) = target_options {
+    // pick root inputs from target when available
+    let (entries, includes, excludes, root) = if let Some(target) = target_options {
         let includes = if target.include.is_empty() {
             config.include.clone()
         } else {
@@ -76,13 +76,13 @@ pub fn collect_sources_from_destack_config(
         };
         let mut excludes = config.exclude.clone();
         excludes.extend(target.exclude.iter().cloned());
-        (target.entry.clone(), includes, excludes, target.discovery)
+        (target.entry.clone(), includes, excludes, target.root())
     } else {
         (
             Vec::new(),
             config.include.clone(),
             config.exclude.clone(),
-            TargetDiscovery::Include,
+            TargetRoot::Include,
         )
     };
 
@@ -90,8 +90,8 @@ pub fn collect_sources_from_destack_config(
     let base_dir = config.directory.clone();
     let mut paths = BTreeSet::new();
 
-    // include explicit entry points for entry discovery
-    if discovery == TargetDiscovery::Entry && !entries.is_empty() {
+    // include explicit entry points
+    if root == TargetRoot::Entry {
         for entry in entries {
             let path = if entry.is_absolute() {
                 entry

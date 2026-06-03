@@ -11,7 +11,9 @@ fn test_task_list_reads_tasks() {
     let program = TestProgram::new("task_list");
     program.write_destack_config_with_base(json!({
         "tasks": {
-            "build": "echo build",
+            "build": {
+                "exec": "echo build",
+            },
         },
     }));
 
@@ -40,7 +42,9 @@ fn test_task_run_dry_run() {
     let program = TestProgram::new("task_run_dry");
     program.write_destack_config_with_base(json!({
         "tasks": {
-            "build": "echo build",
+            "build": {
+                "exec": "echo build",
+            },
         },
     }));
 
@@ -69,7 +73,7 @@ fn test_task_run_dry_run_for_workspace_group() {
     let program = TestProgram::new("task_workspace_group");
     program.write_destack_config_with_base(json!({
         "workspace": {
-            "members": ["apps/*"],
+            "packages": ["apps/*"],
             "groups": {
                 "product": ["apps/web"],
             },
@@ -79,7 +83,9 @@ fn test_task_run_dry_run_for_workspace_group() {
         "apps/web/destack.json",
         json!({
             "tasks": {
-                "build": "echo web",
+                "build": {
+                    "exec": "echo web",
+                },
             },
         }),
     );
@@ -87,7 +93,9 @@ fn test_task_run_dry_run_for_workspace_group() {
         "apps/api/destack.json",
         json!({
             "tasks": {
-                "build": "echo api",
+                "build": {
+                    "exec": "echo api",
+                },
             },
         }),
     );

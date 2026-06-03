@@ -9,7 +9,9 @@ fn test_resolve_script_command_reads_destack_config() {
     let program = TestProgram::new("script_destack_config");
     program.write_destack_config_with_base(json!({
         "tasks": {
-            "build": "echo ds",
+            "build": {
+                "exec": "echo ds",
+            },
         },
     }));
 
@@ -24,16 +26,15 @@ fn test_resolve_script_command_reads_destack_config() {
     assert_eq!(script.cwd, program.root);
 }
 
-/// Resolves task working directories relative to destack.json.
+/// Loads task exec commands from destack.json.
 #[test]
-fn test_load_tasks_resolves_relative_cwd() {
+fn test_load_tasks_reads_exec() {
     // setup
     let program = TestProgram::new("script_tasks");
     program.write_destack_config_with_base(json!({
         "tasks": {
             "serve": {
-                "command": "echo ok",
-                "cwd": "scripts",
+                "exec": "echo ok",
             },
         },
     }));
@@ -48,6 +49,6 @@ fn test_load_tasks_resolves_relative_cwd() {
         .find(|task| task.name == "serve")
         .expect("task should be present");
 
-    // assert the cwd was resolved
-    assert_eq!(task.cwd, Some(program.root.join("scripts")));
+    // assert the exec command was loaded
+    assert_eq!(task.command.as_deref(), Some("echo ok"));
 }

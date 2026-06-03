@@ -13,4 +13,3 @@ mod script;
 mod targets;
 mod task;
 mod tests;
-mod watch;

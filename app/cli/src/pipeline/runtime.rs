@@ -1,19 +1,20 @@
 use destack_artifact::ArtifactKey;
+use destack_engine::{EngineId, Value};
 use destack_source::{ModuleId, ProfileId, TargetId};
-use destack_vm::{Isolate, IsolateId, IsolateOptions, Value};
+use destack_vm::{Machine, MachineOptions};
 use destack_workspace::{Environment, Repository, Revision};
 
 use crate::common::InputSource;
 use crate::error::{CliError, CliResult};
 
-/// Create a VM isolate from the module MIR.
-pub fn create_isolate(
+/// Create a VM machine from the module MIR.
+pub fn create_machine(
     repository: &Repository,
     revision: Revision,
     module_id: ModuleId,
     target_id: &TargetId,
-    options: IsolateOptions,
-) -> CliResult<Isolate> {
+    options: MachineOptions,
+) -> CliResult<Machine> {
     // resolve lowered mir for the target
     let profile_id = target_profile_id(repository, revision, module_id, *target_id)?;
     let optimized_key = ArtifactKey::mir_optimized(module_id, profile_id, *target_id);
@@ -42,8 +43,8 @@ pub fn create_isolate(
     };
     let strings = repository.string_pool().as_ref().clone();
 
-    // construct the isolate from mir state
-    Isolate::build_with_options(IsolateId::new(1), tree, strings, options)
+    // construct the machine from mir state
+    Machine::build_with_options(EngineId::new(1), tree, strings, options)
         .map_err(|error| CliError::message(error.to_string()))
 }
 
@@ -101,10 +102,11 @@ pub fn format_value_for_eval(value: &Value) -> String {
         Value::Float32 { bits } => f32::from_bits(*bits).to_string(),
         Value::Float64 { bits } => f64::from_bits(*bits).to_string(),
         Value::Char(value) => value.to_string(),
-        Value::HeapReference(_)
-        | Value::SharedHeapReference(_)
-        | Value::RawPointer(_)
-        | Value::SharedRawPointer(_) => format!("{value:?}"),
+        Value::Float16 { bits } => bits.to_string(),
+        Value::Bfloat16 { bits } => bits.to_string(),
+        Value::HeapReference(_) | Value::SharedHeapReference(_) | Value::Address(_) => {
+            format!("{value:?}")
+        }
     }
 }
 
@@ -116,13 +118,8 @@ fn target_profile_id(
     target_id: TargetId,
 ) -> CliResult<ProfileId> {
     let profile = repository
-        .module_target_profile(revision, module_id, target_id)
+        .profile_for_module_target(revision, module_id, target_id)
         .map_err(|error| CliError::message(error.to_string()))?;
-    let profile = profile.ok_or_else(|| {
-        CliError::message(format!(
-            "target {target_id:?} is not available for {module_id:?}"
-        ))
-    })?;
 
     Ok(profile.id())
 }

@@ -4,7 +4,7 @@ use clap::{Args, Subcommand};
 
 use destack_daemon::protocol::DaemonRequest;
 use destack_daemon::{
-    DaemonConnectOptions, DaemonInstance, DaemonServer, DaemonServerOptions, connect_ipc_daemon,
+    DaemonConnectOptions, DaemonEndpoint, DaemonServer, DaemonServerOptions, connect_ipc_daemon,
 };
 
 use crate::common::diagnostic::DiagnosticArgs;
@@ -24,11 +24,11 @@ pub struct DaemonArgs {
 pub enum DaemonCommand {
     /// Run the daemon server in the foreground.
     Serve(DaemonServeArgs),
-    /// Start the daemon for the workspace.
+    /// Start the language daemon.
     Start(DaemonLifecycleArgs),
-    /// Stop the daemon for the workspace.
+    /// Stop the language daemon.
     Stop(DaemonLifecycleArgs),
-    /// Show daemon status for the workspace.
+    /// Show language daemon status.
     Status(DaemonLifecycleArgs),
 }
 
@@ -69,18 +69,26 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
     // build a repository
     let repository = args.program.setup();
 
-    // resolve daemon instance metadata
-    let mut instance = DaemonInstance::from_repository(&repository);
+    // resolve daemon endpoint metadata
+    let mut endpoint = DaemonEndpoint::new(repository.layout().home.clone());
 
     // override the socket path when requested
     if let Some(socket) = args.socket.as_ref() {
-        instance.socket_path = socket.clone();
+        endpoint.socket_path = socket.clone();
     }
 
     // build server options
-    let mut server_options = DaemonServerOptions::default();
-    server_options.worker_limit = args.program.workers as usize;
-    let server = DaemonServer::with_options(repository, instance, server_options);
+    let server_options = DaemonServerOptions {
+        worker_limit: args.program.workers as usize,
+        ..Default::default()
+    };
+    let server = match DaemonServer::with_options(repository, endpoint, server_options) {
+        Ok(server) => server,
+        Err(error) => {
+            console::error(&format!("failed to start daemon: {error}"));
+            return 1;
+        }
+    };
 
     // serve until shutdown
     if let Err(error) = server.serve() {
@@ -95,11 +103,11 @@ fn run_serve(args: &DaemonServeArgs) -> i32 {
 fn run_start(args: &DaemonLifecycleArgs) -> i32 {
     // build repository metadata
     let repository = args.program.setup();
-    let instance = DaemonInstance::from_repository(&repository);
+    let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
     let launch_context = DaemonLaunchContext::from_program(&args.program);
-    let launch = launch_context.build_launch_config(&instance);
+    let launch = launch_context.build_launch(&endpoint, repository.workspace_root().to_path_buf());
     let options = DaemonConnectOptions::default();
-    let result = connect_ipc_daemon(&instance, options, Some(launch));
+    let result = connect_ipc_daemon(&endpoint, options, Some(launch));
 
     // report connectivity status
     match result {
@@ -118,9 +126,9 @@ fn run_start(args: &DaemonLifecycleArgs) -> i32 {
 fn run_stop(args: &DaemonLifecycleArgs) -> i32 {
     // build repository metadata
     let repository = args.program.setup();
-    let instance = DaemonInstance::from_repository(&repository);
+    let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
     let options = DaemonConnectOptions::default();
-    let connection = match connect_ipc_daemon(&instance, options, None) {
+    let connection = match connect_ipc_daemon(&endpoint, options, None) {
         Ok(connection) => connection,
         Err(error) => {
             console::warn(&format!("daemon not running: {error}"));
@@ -146,25 +154,17 @@ fn run_stop(args: &DaemonLifecycleArgs) -> i32 {
 fn run_status(args: &DaemonLifecycleArgs) -> i32 {
     // build repository metadata
     let repository = args.program.setup();
-    let instance = DaemonInstance::from_repository(&repository);
+    let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
     let options = DaemonConnectOptions::default();
 
     // probe daemon connectivity
-    match connect_ipc_daemon(&instance, options, None) {
+    match connect_ipc_daemon(&endpoint, options, None) {
         Ok(_) => {
             console::info("daemon is running");
             0
         }
         Err(error) => {
-            // fall back to cached metadata when available
-            if let Ok(Some(metadata)) = instance.read_metadata() {
-                console::warn(&format!(
-                    "daemon not responding (pid {}, started at {})",
-                    metadata.pid, metadata.started_at
-                ));
-            } else {
-                console::warn(&format!("daemon not running: {error}"));
-            }
+            console::warn(&format!("daemon not running: {error}"));
             1
         }
     }

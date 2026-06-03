@@ -12,14 +12,13 @@ use crate::pipeline::daemon::{
 };
 use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::watch::{
-    WatchCompileContext, WatchLoopOptions, build_watch_loop_options, emit_watch_compile_report,
-    run_daemon_watch_command, watch_error,
+    WatchCompileContext, emit_watch_compile_report, run_daemon_watch_command, watch_error,
 };
 use clap::{Args, ValueEnum};
+use destack_daemon::WatchPolicy;
 use destack_daemon::protocol::{
     CommandCheckOptions, CommandLintOptions, CommandPayload, CommonCommandOptions,
 };
-use destack_session::SessionEventHandler;
 
 /// State for check watch mode.
 struct CheckWatchState {
@@ -33,8 +32,6 @@ struct CheckExecutionContext {
     format_options: FormatOptions,
     /// Progress reporter for interactive output.
     progress_reporter: Option<ProgressReporter>,
-    /// Compiler event handler for daemon execution.
-    event_handler: Option<SessionEventHandler>,
 }
 
 /// Output format for diagnostics.
@@ -175,12 +172,7 @@ fn run_check_via_daemon(
     };
 
     // execute the daemon command
-    let result = match run_root_command_once(
-        &args.program,
-        common,
-        payload,
-        context.event_handler.clone(),
-    ) {
+    let result = match run_root_command_once(&args.program, common, payload) {
         Ok(result) => result,
         Err(error) => return report_error(command_name, &args.report, &error.to_string()),
     };
@@ -203,10 +195,9 @@ fn run_watch(args: &CheckArgs, command_name: &str, context: &CheckExecutionConte
     run_watch_with_options(
         args,
         command_name,
-        context.event_handler.clone(),
         &context.format_options,
         context.progress_reporter.as_ref(),
-        build_watch_loop_options(),
+        WatchPolicy::default(),
         || {},
         |_, _, _| {},
         false,
@@ -218,10 +209,9 @@ fn run_watch(args: &CheckArgs, command_name: &str, context: &CheckExecutionConte
 pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
     args: &CheckArgs,
     command_name: &str,
-    event_handler: Option<SessionEventHandler>,
     format_options: &FormatOptions,
     progress_reporter: Option<&ProgressReporter>,
-    watch_loop_options: WatchLoopOptions,
+    watch_policy: WatchPolicy,
     on_start: StartFn,
     on_compile: ObserveFn,
     is_one_shot: bool,
@@ -272,8 +262,7 @@ where
         session,
         &args.program,
         &args.report,
-        event_handler,
-        watch_loop_options,
+        watch_policy,
         &mut watch_state,
         move |_state| on_start(),
         |state, _session| refresh_check_watch_sources(args, state),
@@ -339,9 +328,6 @@ impl CheckExecutionContext {
     /// Build the shared execution context for a check command.
     fn new(args: &CheckArgs) -> Self {
         let progress_reporter = ProgressReporter::with_label(progress_mode(args), "Checking");
-        let event_handler = progress_reporter
-            .as_ref()
-            .map(|reporter| reporter.handler());
         let format_options = FormatOptions {
             format: args.format.into(),
             quiet: args.quiet,
@@ -353,7 +339,6 @@ impl CheckExecutionContext {
         Self {
             format_options,
             progress_reporter,
-            event_handler,
         }
     }
 
@@ -500,7 +485,7 @@ fn build_check_command(
     let inputs = command_inputs_from_sources(sources, args.input.file_type())?;
     let common = CommandOptionsBuilder::new(&args.program)
         .inputs(inputs)
-        .allow_destack_config_fallback(!args.input.has_input())
+        .use_destack_config_inputs(!args.input.has_input())
         .build();
     let payload = CommandPayload::Check(CommandCheckOptions {
         lint: !args.no_lint,

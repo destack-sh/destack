@@ -17,11 +17,11 @@ use crate::pipeline::input::{ResolveSourcesError, resolve_sources};
 use crate::pipeline::script::{ScriptSource, resolve_script_command, shell_command};
 use crate::pipeline::target::target_name_from_args;
 use crate::pipeline::watch::{
-    WatchCompileContext, WatchLoopOptions, build_watch_loop_options, emit_watch_compile_report,
-    run_daemon_watch_command, watch_error,
+    WatchCompileContext, emit_watch_compile_report, run_daemon_watch_command, watch_error,
 };
 use crate::pipeline::workspace::default_target_for_repository;
 use clap::Args;
+use destack_daemon::WatchPolicy;
 use destack_daemon::protocol::{
     CommandPayload, CommandRunMode, CommandRunOptions, CommonCommandOptions,
 };
@@ -188,19 +188,13 @@ fn run_via_daemon(request: &RunRequest) -> i32 {
 /// Compile and run a source file in watch mode.
 fn run_watch(request: &RunRequest) -> i32 {
     // run with default watch settings
-    run_watch_with_options(
-        request,
-        build_watch_loop_options(),
-        || {},
-        |_, _, _| {},
-        false,
-    )
+    run_watch_with_options(request, WatchPolicy::default(), || {}, |_, _, _| {}, false)
 }
 
 /// Compile and run a source file in watch mode with injected options.
 pub(crate) fn run_watch_with_options<StartFn, ObserveFn>(
     request: &RunRequest,
-    watch_loop_options: WatchLoopOptions,
+    watch_policy: WatchPolicy,
     on_start: StartFn,
     on_compile: ObserveFn,
     is_one_shot: bool,
@@ -211,7 +205,7 @@ where
 {
     run_watch_with_driver(
         request,
-        watch_loop_options,
+        watch_policy,
         on_start,
         on_compile,
         |request,
@@ -244,7 +238,7 @@ where
 /// Compile and run a source file in watch mode with an injected runner.
 pub(crate) fn run_watch_with_driver<StartFn, ObserveFn, CompileFn>(
     request: &RunRequest,
-    watch_loop_options: WatchLoopOptions,
+    watch_policy: WatchPolicy,
     on_start: StartFn,
     on_compile: ObserveFn,
     mut compile: CompileFn,
@@ -284,8 +278,7 @@ where
         repository,
         &request.program,
         &request.report,
-        None,
-        watch_loop_options,
+        watch_policy,
         &mut state,
         move |_state| on_start(),
         move |state, _repository| {

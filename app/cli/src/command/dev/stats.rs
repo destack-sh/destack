@@ -1439,7 +1439,7 @@ fn render_node(
 
     // sort children by lines (descending) for better visibility of large directories
     let mut sorted_children = children;
-    sorted_children.sort_by(|a, b| b.stats.lines.cmp(&a.stats.lines));
+    sorted_children.sort_by_key(|child| std::cmp::Reverse(child.stats.lines));
 
     for (idx, child) in sorted_children.iter().enumerate() {
         let child_is_last = idx + 1 == child_count;
@@ -1488,7 +1488,7 @@ fn render_extension_breakdown(
     let show_tokens = token_count_mode.shows_tokens();
     // sort extensions by lines (descending)
     let mut extensions: Vec<_> = node.by_extension.iter().collect();
-    extensions.sort_by(|a, b| b.1.lines.cmp(&a.1.lines));
+    extensions.sort_by_key(|extension| std::cmp::Reverse(extension.1.lines));
 
     // extensions are indented under their parent directory (same as child directories)
     let ext_prefix = if depth == 0 {

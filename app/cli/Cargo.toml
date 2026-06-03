@@ -44,10 +44,12 @@ destack_artifact = { workspace = true }
 destack_codegen_js = { workspace = true }
 destack_compiler = { workspace = true }
 destack_dir = { workspace = true }
+destack_engine = { workspace = true }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
 destack_json = { workspace = true }
 destack_linter = { workspace = true }
+destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
 destack_workspace = { workspace = true }

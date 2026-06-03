@@ -3,10 +3,14 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread::{self, JoinHandle};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use destack_artifact::MemoryCacheStore;
-use destack_daemon::WatchPolicy;
+use destack_daemon::Daemon;
+use destack_daemon::protocol::{
+    DaemonRequest, ProtocolClient, ProtocolServer, ProtocolServerError, loopback_transport_pair,
+};
 use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
 use destack_workspace::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Ref, Repository, Revision, Settings,
@@ -14,7 +18,6 @@ use destack_workspace::{
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};
-use crate::pipeline::watch::{WatchLoopOptions, build_watch_options};
 
 static TEMP_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -27,6 +30,10 @@ pub(super) struct TestProgram {
     pub fs: Arc<MemoryFileSystem>,
     /// The repository under test.
     pub repository: Arc<Repository>,
+    /// The daemon client for this test program.
+    daemon_client: Arc<ProtocolClient>,
+    /// The daemon server thread.
+    daemon_server: Option<JoinHandle<Result<(), ProtocolServerError>>>,
 }
 
 impl TestProgram {
@@ -55,11 +62,15 @@ impl TestProgram {
             layout,
         ));
 
-        // return the test harness
+        // start a protocol daemon against the repository
+        let (daemon_client, daemon_server) = start_test_daemon(repository.clone());
+
         Self {
             root,
             fs,
             repository,
+            daemon_client,
+            daemon_server: Some(daemon_server),
         }
     }
 
@@ -88,6 +99,7 @@ impl TestProgram {
             cwd: Some(self.root.clone()),
             workspace: Some(self.root.clone()),
             fs_override: Some(crate::common::FileSystemOverride::new(self.fs.clone())),
+            daemon_client: Some(self.daemon_client.clone()),
             ..ProgramArgs::default()
         }
     }
@@ -196,6 +208,44 @@ impl TestProgram {
     }
 }
 
+impl Drop for TestProgram {
+    /// Shut down the in-process daemon server.
+    fn drop(&mut self) {
+        let _ = self.daemon_client.send_request(DaemonRequest::Shutdown);
+        if let Some(handle) = self.daemon_server.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+/// Start a loopback daemon server for one test program.
+fn start_test_daemon(
+    repository: Arc<Repository>,
+) -> (
+    Arc<ProtocolClient>,
+    JoinHandle<Result<(), ProtocolServerError>>,
+) {
+    // create loopback protocol transports
+    let (client_transport, server_transport) = loopback_transport_pair(16);
+    let client = Arc::new(ProtocolClient::new(Arc::new(client_transport)));
+
+    // build daemon state using the test repository
+    let watcher = Arc::new(MemoryFileWatcher::new());
+    let daemon = Daemon::new_with_watcher(repository, 1, None, watcher)
+        .expect("test daemon should initialize");
+    let daemon = Arc::new(daemon);
+
+    // serve requests on a background thread
+    let server = ProtocolServer::new(daemon);
+    let server_handle = thread::spawn(move || server.serve(&server_transport));
+
+    client
+        .handshake(Default::default())
+        .expect("test daemon handshake should succeed");
+
+    (client, server_handle)
+}
+
 /// Build a unique in memory root path for tests.
 fn temp_path(prefix: &str) -> PathBuf {
     // generate a stable unique suffix
@@ -241,19 +291,6 @@ pub(super) fn assert_exit(code: i32, expected: i32) {
 pub(super) fn assert_success(code: i32) {
     // assert command success
     assert_exit(code, 0);
-}
-
-/// Build watch loop options for tests.
-pub(super) fn watch_loop_options_for_test(watcher: MemoryFileWatcher) -> WatchLoopOptions {
-    // configure the memory watcher with a short coalesce window
-    WatchLoopOptions {
-        watcher: Arc::new(watcher),
-        options: build_watch_options(),
-        policy: WatchPolicy {
-            coalesce_window: std::time::Duration::from_millis(5),
-            max_batch_size: 32,
-        },
-    }
 }
 
 /// Merge compiler options into a base destack.json payload.

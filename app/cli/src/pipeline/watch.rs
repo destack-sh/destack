@@ -3,14 +3,8 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_daemon::{
-    Daemon, DaemonMessage, DaemonMessageKind, WatchBatch, WatchCoordinator, WatchPolicy,
-};
-use destack_session::SessionEventHandler;
-use destack_source::{
-    DiagnosticCollection, File, FileId, FileType, FileWatchFilter, FileWatchOptions,
-    FileWatchRescanReason, FileWatchStatus, FileWatcher, PhysicalFileWatcher,
-};
+use destack_daemon::{DaemonMessageKind, WatchBatch, WatchPolicy};
+use destack_source::{DiagnosticCollection, File, FileId, FileWatchRescanReason, FileWatchStatus};
 use destack_workspace::Repository;
 
 use crate::common::format::{
@@ -26,8 +20,10 @@ use crate::error::CliResult;
 use crate::pipeline::daemon::ProtocolDaemonClient;
 
 /// Summary of watch updates produced by a daemon.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct WatchBatchSummary {
+    /// Watch batch received from the daemon.
+    pub batch: WatchBatch,
     /// Whether updates were produced.
     pub updated: bool,
     /// Messages produced by the daemon.
@@ -45,54 +41,12 @@ pub struct WatchMessage {
 
 /// Daemon interface for watch updates.
 pub trait WatchDaemon {
-    /// Apply a watch batch and return a summary.
-    fn apply_watch_batch(&self, batch: &WatchBatch) -> CliResult<WatchBatchSummary>;
-}
-
-impl WatchMessage {
-    /// Build a watch message from a daemon message.
-    pub fn from_daemon(message: &DaemonMessage) -> Self {
-        Self {
-            kind: message.kind(),
-            message: message.render(),
-        }
-    }
-}
-
-impl WatchDaemon for Daemon {
-    fn apply_watch_batch(&self, batch: &WatchBatch) -> CliResult<WatchBatchSummary> {
-        let result = Daemon::apply_watch_batch(self, batch);
-        Ok(WatchBatchSummary {
-            updated: result.updated(),
-            messages: result
-                .messages
-                .iter()
-                .map(WatchMessage::from_daemon)
-                .collect(),
-        })
-    }
-}
-
-/// Options for the shared watch loop.
-#[derive(Clone)]
-pub struct WatchLoopOptions {
-    /// The watcher implementation to use.
-    pub watcher: Arc<dyn FileWatcher>,
-    /// Options for the watcher backend.
-    pub options: FileWatchOptions,
-    /// Policy for batching watch events.
-    pub policy: WatchPolicy,
-}
-
-impl fmt::Debug for WatchLoopOptions {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("WatchLoopOptions")
-            .field("watcher", &"<file_watcher>")
-            .field("options", &self.options)
-            .field("policy", &self.policy)
-            .finish()
-    }
+    /// Start daemon-owned watching.
+    fn start_watch(&self, policy: &WatchPolicy) -> CliResult<()>;
+    /// Receive and apply the next daemon-owned watch batch.
+    fn next_watch_batch(&self) -> CliResult<Option<WatchBatchSummary>>;
+    /// Stop daemon-owned watching.
+    fn stop_watch(&self);
 }
 
 /// Action returned by a watch compile hook.
@@ -177,39 +131,6 @@ pub fn build_watch_context(
     }
 }
 
-/// Build watch options for CLI watch mode.
-pub fn build_watch_options() -> FileWatchOptions {
-    // filter to relevant file types
-    let filter: FileWatchFilter = Arc::new(|path: &Path| is_source_path(path));
-
-    // build the watcher options
-    FileWatchOptions {
-        filter: Some(filter),
-        ..Default::default()
-    }
-}
-
-/// Build watch loop options for CLI watch mode.
-pub fn build_watch_loop_options() -> WatchLoopOptions {
-    // use the physical watcher with default batching policy
-    WatchLoopOptions {
-        watcher: Arc::new(PhysicalFileWatcher::new()),
-        options: build_watch_options(),
-        policy: WatchPolicy::default(),
-    }
-}
-
-/// Check if a path should be handled by watch mode.
-pub fn is_source_path(path: &Path) -> bool {
-    // skip unknown or non file paths
-    let Some(file_type) = FileType::from_path(path) else {
-        return false;
-    };
-
-    // allow code, data, and text files
-    file_type.is_code() || file_type.is_data() || file_type.is_text()
-}
-
 /// Prefix a message with the watch label.
 pub fn watch_error(message: &str) -> String {
     format!("watch: {message}")
@@ -289,9 +210,7 @@ pub fn emit_watch_compile_report(
 #[allow(clippy::too_many_arguments)]
 pub fn run_watch_loop<State, StartFn, RescanFn, CompileFn>(
     daemon: &dyn WatchDaemon,
-    roots: Vec<PathBuf>,
     reporter: &mut Option<WatchReporter>,
-    loop_options: WatchLoopOptions,
     state: &mut State,
     on_start: StartFn,
     mut on_rescan: RescanFn,
@@ -310,43 +229,31 @@ where
         bool,
     ) -> WatchLoopAction,
 {
-    // start the file watcher
-    let coordinator = WatchCoordinator::new(
-        loop_options.watcher,
-        roots,
-        loop_options.options,
-        loop_options.policy,
-    );
-
     // notify the caller after the watcher is ready
     on_start(state);
 
-    // process watch batches until the watcher stops
+    // process daemon watch batches until the watcher stops
     let mut batch_id = 0_u64;
     loop {
-        let Some(batch) = coordinator.next_batch() else {
-            break;
+        let result = match daemon.next_watch_batch() {
+            Ok(Some(result)) => result,
+            Ok(None) => break,
+            Err(error) => {
+                emit_watch_warning(reporter, &watch_error(&error.to_string()));
+                continue;
+            }
         };
-
-        // skip empty batches
+        let batch = &result.batch;
         if batch.is_empty() {
             continue;
         }
 
         batch_id = batch_id.saturating_add(1);
         if let Some(reporter) = reporter.as_mut() {
-            reporter.emit_batch(batch_id, &batch);
+            reporter.emit_batch(batch_id, batch);
         }
 
-        // apply daemon watch updates
-        let result = match daemon.apply_watch_batch(&batch) {
-            Ok(result) => result,
-            Err(error) => {
-                emit_watch_warning(reporter, &watch_error(&error.to_string()));
-                continue;
-            }
-        };
-        let requires_rescan = batch_requires_rescan(&batch);
+        let requires_rescan = batch_requires_rescan(batch);
         for message in &result.messages {
             emit_watch_message(reporter, message);
         }
@@ -388,8 +295,7 @@ pub fn run_daemon_watch_command<State, StartFn, RescanFn, CompileFn, ObserveFn>(
     repository: Arc<Repository>,
     program: &ProgramArgs,
     report: &ReportArgs,
-    event_handler: Option<SessionEventHandler>,
-    watch_loop_options: WatchLoopOptions,
+    watch_policy: WatchPolicy,
     state: &mut State,
     on_start: StartFn,
     mut on_rescan: RescanFn,
@@ -420,13 +326,7 @@ where
     } = build_watch_context(command_name, program, report, &repository);
 
     // configure the daemon client for incremental updates
-    let daemon = match ProtocolDaemonClient::new(
-        repository.clone(),
-        program.workers as usize,
-        event_handler,
-        roots.clone(),
-        program,
-    ) {
+    let daemon = match ProtocolDaemonClient::new(repository.clone(), roots.clone(), program) {
         Ok(daemon) => daemon,
         Err(error) => {
             let message = watch_error(&error.to_string());
@@ -438,6 +338,20 @@ where
             return report_error(command_name, report, &message);
         }
     };
+
+    // start daemon-owned watching before the initial compile
+    if let Err(error) = daemon.start_watch(&watch_policy) {
+        let message = watch_error(&error.to_string());
+        if let Some(reporter) = reporter.as_mut() {
+            reporter.emit_warning(&message);
+            reporter.emit_stop();
+            return 1;
+        }
+        return report_error(command_name, report, &message);
+    }
+
+    // notify the caller after the daemon watcher is ready
+    on_start(state);
 
     // run the initial compile
     let mut exit_code = compile(
@@ -454,11 +368,9 @@ where
     // run the shared watch loop
     exit_code = run_watch_loop(
         &daemon,
-        roots,
         &mut reporter,
-        watch_loop_options,
         state,
-        on_start,
+        |_| {},
         |state| on_rescan(state, &repository),
         |state, reporter, reason, batch_id, updated, requires_rescan| {
             let next_exit_code = compile(
@@ -482,6 +394,8 @@ where
         },
         exit_code,
     );
+
+    daemon.stop_watch();
 
     if let Some(reporter) = reporter.as_mut() {
         reporter.emit_stop();

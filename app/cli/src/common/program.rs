@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
 use destack_artifact::MemoryCacheStore;
-use destack_daemon::protocol::ManifestOverride;
+use destack_daemon::protocol::{ManifestOverride, ProtocolClient};
 use destack_session::{Session, open_repository_from_fs};
 use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 use destack_workspace::{
@@ -247,6 +247,10 @@ pub struct ProgramArgs {
     /// Test only file system override.
     #[arg(skip)]
     pub fs_override: Option<FileSystemOverride>,
+
+    /// Injected daemon client.
+    #[arg(skip)]
+    pub daemon_client: Option<Arc<ProtocolClient>>,
 
     /// The number of worker threads to use (default: number of CPU cores).
     #[arg(

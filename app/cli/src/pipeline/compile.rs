@@ -23,10 +23,10 @@ pub struct CompileRequest<'a> {
     pub report: &'a ReportArgs,
     /// Compiler mode.
     pub mode: CompilerMode,
-    /// Target name for destack.json fallback, if any.
+    /// Target name for destack.json input resolution.
     pub target_name: Option<&'a str>,
-    /// Whether to resolve sources via destack.json fallback.
-    pub allow_destack_config_fallback: bool,
+    /// Whether to resolve sources through destack.json when explicit inputs are empty.
+    pub use_destack_config_inputs: bool,
     /// Optional compiler event handler.
     pub event_handler: Option<SessionEventHandler>,
 }
@@ -47,9 +47,7 @@ pub fn prepare_compile(request: CompileRequest<'_>) -> Result<CompileSetup, i32>
         return Err(code);
     }
 
-    let program_args = request
-        .allow_destack_config_fallback
-        .then_some(request.program);
+    let program_args = request.use_destack_config_inputs.then_some(request.program);
     let sources = match resolve_sources(request.input, program_args, request.target_name) {
         Ok(sources) => sources,
         Err(ResolveSourcesError::NoInput) => {
@@ -89,10 +87,7 @@ impl fmt::Debug for CompileRequest<'_> {
             .field("report", &self.report)
             .field("mode", &self.mode)
             .field("target_name", &self.target_name)
-            .field(
-                "allow_destack_config_fallback",
-                &self.allow_destack_config_fallback,
-            )
+            .field("use_destack_config_inputs", &self.use_destack_config_inputs)
             .field("event_handler", &"<handler>")
             .finish()
     }

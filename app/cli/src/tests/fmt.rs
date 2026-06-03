@@ -7,39 +7,6 @@ use destack_source::FileSystem;
 
 use super::tests::{TestProgram, assert_exit, assert_success};
 
-/// Formats json files and updates them on disk.
-#[test]
-fn test_fmt_formats_json_file() {
-    // set up a json file with minimal spacing
-    let program = TestProgram::new("fmt_json");
-    let path = program.write_text("config.json", r#"{"a":1}"#);
-
-    // build formatter args
-    let args = FmtArgs {
-        files: vec![path.clone()],
-        eval: None,
-        check: false,
-        program: program.program_args(),
-        diagnostics: DiagnosticArgs::default(),
-        report: ReportArgs::default(),
-    };
-
-    // run the formatter
-    let code = run(&args);
-
-    // assert the file was updated
-    assert_success(code);
-    let formatted = program
-        .fs
-        .read_to_string(&path)
-        .expect("formatted file should be readable");
-    assert_eq!(
-        formatted,
-        r#"{"a": 1}
-"#
-    );
-}
-
 /// Formats destack files and updates them on disk.
 #[test]
 fn test_fmt_formats_destack_file() {
@@ -220,7 +187,7 @@ fn test_fmt_payload_includes_changed_and_error_files() {
     });
 
     // run the daemon command directly so we can inspect payload data
-    let result = run_root_command_once(&program.program_args(), common, payload, None)
+    let result = run_root_command_once(&program.program_args(), common, payload)
         .expect("format command should return a response");
 
     // parse and decode the format payload

@@ -2,23 +2,19 @@ use std::collections::BTreeMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use destack_daemon::protocol::{
     CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
     CommandRequest, CommandResponse, CommandRunPayload, CommandTargetOverrides,
-    CommonCommandOptions, DaemonMessageKind as ProtocolMessageKind, DaemonMessageRecord,
-    DaemonQuery, DaemonQueryResponse, DaemonRequest, DaemonResponse, DiagnosticBatch,
-    FileUpdateImage, ManifestOverride, OpenRootRequest, OutputStream, ProtocolClient,
-    QueryRequestBody, QueryRequestPayload, QueryResponseBody, RootHandleId, RootOpenOptions,
-    WatchBatch as ProtocolWatchBatch, WatchBatchRequest, WatchEvent, WatchStatus,
+    CommonCommandOptions, DaemonMessageRecord, DaemonRequest, DaemonResponse, DiagnosticBatch,
+    FileUpdateImage, ManifestOverride, OutputStream, ProtocolClient, QueryRequestBody,
+    QueryResponseBody, RootHandleId, RootOpenOptions,
 };
 use destack_daemon::{
-    DaemonConnectOptions, DaemonConnection, DaemonInstance, DaemonLaunchConfig, DaemonMessageKind,
-    WatchBatch, connect_in_process_daemon, connect_ipc_daemon,
+    CommandRevision, DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonLaunch,
+    DaemonMessageKind, WatchBatch, connect_ipc_daemon, protocol,
 };
-use destack_session::SessionEventHandler;
-use destack_source::{DiagnosticCollection, File, FileId, FileType, FileWatchStatus};
+use destack_source::{DiagnosticCollection, File, FileId, FileType};
 use destack_workspace::{Repository, Revision};
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
@@ -56,7 +52,7 @@ struct RootHandle {
     handle: RootHandleId,
 }
 
-/// Settings used to build a daemon launch config.
+/// Settings used to build a daemon launch.
 #[derive(Debug, Clone)]
 pub(crate) struct DaemonLaunchContext {
     /// Current working directory for the daemon.
@@ -98,10 +94,10 @@ impl DaemonLaunchContext {
         }
     }
 
-    /// Build a launch config for a daemon instance.
-    pub(crate) fn build_launch_config(&self, instance: &DaemonInstance) -> DaemonLaunchConfig {
-        // build the base launch config from the instance
-        let mut launch = DaemonLaunchConfig::for_instance(instance);
+    /// Build a daemon launch for an endpoint and initial root.
+    pub(crate) fn build_launch(&self, endpoint: &DaemonEndpoint, root: PathBuf) -> DaemonLaunch {
+        // build the base launch from the endpoint
+        let mut launch = DaemonLaunch::for_endpoint(endpoint, root);
 
         // apply overrides from program settings
         launch.home = self.home.clone();
@@ -117,73 +113,46 @@ impl DaemonLaunchContext {
 /// Connector for daemon clients.
 #[derive(Debug)]
 struct DaemonConnector {
-    /// Repository for in process daemons.
-    repository: Arc<Repository>,
     /// Connect options for the daemon.
     options: DaemonConnectOptions,
-    /// Instance metadata for ipc daemons.
-    instance: DaemonInstance,
-    /// Launch configuration for ipc daemons.
-    launch: DaemonLaunchConfig,
-    /// Whether to prefer in process daemons.
-    allow_in_process: bool,
+    /// Endpoint metadata for ipc daemons.
+    endpoint: DaemonEndpoint,
+    /// Launch values for daemon spawn.
+    launch: DaemonLaunch,
+    /// Injected daemon client.
+    daemon_client: Option<Arc<ProtocolClient>>,
 }
 
 impl DaemonConnector {
     /// Create a connector from program settings.
-    fn new(
-        repository: Arc<Repository>,
-        worker_limit: usize,
-        session_event_handler: Option<SessionEventHandler>,
-        program: &ProgramArgs,
-    ) -> Self {
+    fn new(repository: Arc<Repository>, program: &ProgramArgs) -> Self {
         // build connect options
-        let options = DaemonConnectOptions {
-            worker_limit,
-            session_event_handler,
-            ..DaemonConnectOptions::default()
-        };
+        let options = DaemonConnectOptions::default();
 
-        // resolve daemon instance metadata
-        let instance = DaemonInstance::from_repository(&repository);
+        // resolve daemon endpoint metadata
+        let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
         let launch_context = DaemonLaunchContext::from_program(program);
-        let launch = launch_context.build_launch_config(&instance);
-
-        // decide whether to use in process connections
-        let allow_in_process = program.fs_override.is_some();
+        let launch =
+            launch_context.build_launch(&endpoint, repository.workspace_root().to_path_buf());
 
         Self {
-            repository,
             options,
-            instance,
+            endpoint,
             launch,
-            allow_in_process,
+            daemon_client: program.daemon_client.clone(),
         }
     }
 
-    /// Connect to the daemon with the configured mode.
+    /// Connect to the daemon endpoint.
     fn connect(&self) -> CliResult<DaemonConnection> {
-        // prefer in process connections when configured
-        if self.allow_in_process {
-            return self.connect_in_process();
+        // use an injected daemon client
+        if let Some(client) = self.daemon_client.clone() {
+            return Ok(DaemonConnection { client });
         }
 
-        // fall back to ipc connections
-        self.connect_ipc()
-    }
-
-    /// Connect to an in process daemon.
-    fn connect_in_process(&self) -> CliResult<DaemonConnection> {
-        // connect via loopback transport
-        connect_in_process_daemon(self.repository.clone(), self.options.clone())
-            .map_err(|error| CliError::message(format!("daemon connect failed: {error}")))
-    }
-
-    /// Connect to an ipc daemon, spawning when needed.
-    fn connect_ipc(&self) -> CliResult<DaemonConnection> {
         // connect via ipc, spawning when needed
         connect_ipc_daemon(
-            &self.instance,
+            &self.endpoint,
             self.options.clone(),
             Some(self.launch.clone()),
         )
@@ -214,7 +183,7 @@ impl CommandOptionsBuilder {
         // build defaults from program settings
         let options = CommonCommandOptions {
             inputs: Vec::new(),
-            allow_destack_config_fallback: false,
+            use_destack_config_inputs: false,
             cwd: Some(program.effective_cwd()),
             manifest_path: program.manifest.clone(),
             target: None,
@@ -235,9 +204,9 @@ impl CommandOptionsBuilder {
         self
     }
 
-    /// Allow fallback to destack.json discovery.
-    pub fn allow_destack_config_fallback(mut self, allow: bool) -> Self {
-        self.options.allow_destack_config_fallback = allow;
+    /// Use destack.json sources when explicit inputs are empty.
+    pub fn use_destack_config_inputs(mut self, allow: bool) -> Self {
+        self.options.use_destack_config_inputs = allow;
         self
     }
 
@@ -427,43 +396,26 @@ impl ProtocolDaemonClient {
     /// Create a protocol daemon client for the provided roots.
     pub fn new(
         repository: Arc<Repository>,
-        worker_limit: usize,
-        session_event_handler: Option<SessionEventHandler>,
         roots: Vec<PathBuf>,
         program: &ProgramArgs,
     ) -> CliResult<Self> {
         // connect to the daemon
-        let connector = DaemonConnector::new(
-            repository.clone(),
-            worker_limit,
-            session_event_handler,
-            program,
-        );
+        let connector = DaemonConnector::new(repository.clone(), program);
         let connection = connector.connect()?;
         let client = connection.client.clone();
+        let workspace_root = repository.workspace_root().to_path_buf();
 
         // open each root
         let mut handles = Vec::new();
         for root in roots {
-            let request = OpenRootRequest {
-                root: root.clone(),
-                options: RootOpenOptions::default(),
-            };
-            let response = match client.send_request(DaemonRequest::OpenRoot(request)) {
-                Ok(response) => response,
-                Err(error) => {
-                    return Err(CliError::message(format!("open root failed: {error}")));
-                }
-            };
-            let handle = match response {
-                DaemonResponse::RootOpened(response) => response.handle,
-                DaemonResponse::Error(error) => {
-                    return Err(CliError::message(format!("open root failed: {error}")));
-                }
-                other => {
-                    return Err(CliError::message(format!("unexpected response: {other:?}")));
-                }
-            };
+            let response = client
+                .open_root(
+                    workspace_root.clone(),
+                    root.clone(),
+                    RootOpenOptions::default(),
+                )
+                .map_err(|error| CliError::message(format!("open root failed: {error}")))?;
+            let handle = response.handle;
             handles.push(RootHandle { root, handle });
         }
 
@@ -489,6 +441,7 @@ impl ProtocolDaemonClient {
         // send the request to the daemon
         let request = CommandRequest {
             handle: handle.handle,
+            revision: CommandRevision::Current,
             common,
             payload,
         };
@@ -522,44 +475,10 @@ impl ProtocolDaemonClient {
             .root_handle(root)
             .ok_or_else(|| CliError::message(format!("root not opened: {}", root.display())))?;
 
-        // encode the query request
-        let request = QueryRequestPayload::from_body(request)
-            .map_err(|error| CliError::message(format!("query request encode failed: {error}")))?;
-
-        // send the request to the daemon
-        let response = self
-            .client
-            .send_request(DaemonRequest::Query(DaemonQuery::Execute {
-                handle: handle.handle,
-                request,
-            }))
-            .map_err(|error| CliError::message(format!("query request failed: {error}")))?;
-
-        // unwrap the protocol response
-        let response = match response {
-            DaemonResponse::QueryResult(response) => response,
-            DaemonResponse::Error(error) => {
-                return Err(CliError::message(format!("query failed: {error}")));
-            }
-            other => {
-                return Err(CliError::message(format!("unexpected response: {other:?}")));
-            }
-        };
-
-        // unwrap the query response
-        let response = match response {
-            DaemonQueryResponse::Query(response) => response,
-            other => {
-                return Err(CliError::message(format!(
-                    "unexpected query response: {other:?}"
-                )));
-            }
-        };
-
-        // decode the query response
-        response
-            .decode_response()
-            .map_err(|error| CliError::message(format!("query response decode failed: {error}")))
+        // send and decode the query
+        self.client
+            .execute_query(handle.handle, request)
+            .map_err(|error| CliError::message(format!("query failed: {error}")))
     }
 
     /// Resolve the current semantic revision for a root.
@@ -569,36 +488,10 @@ impl ProtocolDaemonClient {
             .root_handle(root)
             .ok_or_else(|| CliError::message(format!("root not opened: {}", root.display())))?;
 
-        // send the revision request to the daemon
-        let response = self
-            .client
-            .send_request(DaemonRequest::Query(DaemonQuery::CurrentRevision {
-                handle: handle.handle,
-            }))
-            .map_err(|error| {
-                CliError::message(format!("current revision request failed: {error}"))
-            })?;
-
-        // unwrap the protocol response
-        let response = match response {
-            DaemonResponse::QueryResult(response) => response,
-            DaemonResponse::Error(error) => {
-                return Err(CliError::message(format!(
-                    "current revision failed: {error}"
-                )));
-            }
-            other => {
-                return Err(CliError::message(format!("unexpected response: {other:?}")));
-            }
-        };
-
-        // unwrap the revision payload
-        match response {
-            DaemonQueryResponse::CurrentRevision(revision) => Ok(revision),
-            other => Err(CliError::message(format!(
-                "unexpected query response: {other:?}"
-            ))),
-        }
+        // send and decode the revision query
+        self.client
+            .current_revision(handle.handle)
+            .map_err(|error| CliError::message(format!("current revision failed: {error}")))
     }
 
     /// Run a batch of queries for a root.
@@ -612,49 +505,10 @@ impl ProtocolDaemonClient {
             .root_handle(root)
             .ok_or_else(|| CliError::message(format!("root not opened: {}", root.display())))?;
 
-        // encode query requests
-        let requests: Vec<QueryRequestPayload> = requests
-            .into_iter()
-            .map(QueryRequestPayload::from_body)
-            .collect::<Result<_, _>>()
-            .map_err(|error| CliError::message(format!("query request encode failed: {error}")))?;
-
-        // send the request to the daemon
-        let response = self
-            .client
-            .send_request(DaemonRequest::Query(DaemonQuery::ExecuteBatch {
-                handle: handle.handle,
-                requests,
-            }))
-            .map_err(|error| CliError::message(format!("query request failed: {error}")))?;
-
-        // unwrap the protocol response
-        let response = match response {
-            DaemonResponse::QueryResult(response) => response,
-            DaemonResponse::Error(error) => {
-                return Err(CliError::message(format!("query failed: {error}")));
-            }
-            other => {
-                return Err(CliError::message(format!("unexpected response: {other:?}")));
-            }
-        };
-
-        // unwrap the query response
-        let response = match response {
-            DaemonQueryResponse::QueryBatch(response) => response,
-            other => {
-                return Err(CliError::message(format!(
-                    "unexpected query response: {other:?}"
-                )));
-            }
-        };
-
-        // decode query responses
-        response
-            .into_iter()
-            .map(|payload| payload.decode_response())
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| CliError::message(format!("query response decode failed: {error}")))
+        // send and decode the query batch
+        self.client
+            .execute_query_batch(handle.handle, requests)
+            .map_err(|error| CliError::message(format!("query batch failed: {error}")))
     }
 
     /// Release the daemon connection.
@@ -667,83 +521,57 @@ impl ProtocolDaemonClient {
         self.handles.iter().find(|handle| handle.root == root)
     }
 
-    /// Build a protocol watch batch for a specific root.
-    fn protocol_batch_for_root(
-        &self,
-        root: &Path,
-        batch: &WatchBatch,
-    ) -> Option<ProtocolWatchBatch> {
-        let events: Vec<WatchEvent> = batch
-            .events
-            .iter()
-            .filter(|event| event.path.starts_with(root))
-            .map(WatchEvent::from)
-            .collect();
-        let status: Vec<WatchStatus> = batch
-            .status
-            .iter()
-            .filter_map(|status| filter_status_for_root(status, root))
-            .map(|status| WatchStatus::from(&status))
-            .collect();
-
-        if events.is_empty() && status.is_empty() {
-            return None;
-        }
-
-        let (started_at_ns, ended_at_ns) = watch_batch_timestamps(batch);
-        Some(ProtocolWatchBatch {
-            events,
-            status,
-            overflowed: batch.overflowed,
-            started_at_ns,
-            ended_at_ns,
-        })
-    }
-
-    /// Apply a protocol watch batch for a handle.
-    fn apply_batch_for_handle(
-        &self,
-        handle: &RootHandle,
-        batch: ProtocolWatchBatch,
-    ) -> CliResult<WatchBatchSummary> {
-        let response = self
-            .client
-            .send_request(DaemonRequest::ApplyWatchBatch(WatchBatchRequest {
-                handle: handle.handle,
-                batch,
-            }))
-            .map_err(|error| CliError::message(format!("apply watch batch failed: {error}")))?;
-
-        match response {
-            DaemonResponse::WatchBatchApplied(response) => Ok(WatchBatchSummary {
-                updated: !response.updates.is_empty(),
-                messages: response
-                    .messages
-                    .iter()
-                    .map(WatchMessage::from_record)
-                    .collect(),
-            }),
-            DaemonResponse::Error(error) => Err(CliError::message(format!(
-                "apply watch batch failed: {error}"
-            ))),
-            other => Err(CliError::message(format!("unexpected response: {other:?}"))),
-        }
+    /// Return the primary watch handle.
+    fn watch_handle(&self) -> CliResult<&RootHandle> {
+        self.handles
+            .first()
+            .ok_or_else(|| CliError::message("no root handle opened for watch"))
     }
 }
 
 impl WatchDaemon for ProtocolDaemonClient {
-    fn apply_watch_batch(&self, batch: &WatchBatch) -> CliResult<WatchBatchSummary> {
-        let mut summary = WatchBatchSummary::default();
-        for handle in &self.handles {
-            let Some(protocol_batch) = self.protocol_batch_for_root(&handle.root, batch) else {
-                continue;
-            };
-            let result = self.apply_batch_for_handle(handle, protocol_batch)?;
-            summary.updated |= result.updated;
-            summary.messages.extend(result.messages);
-        }
+    fn start_watch(&self, policy: &destack_daemon::WatchPolicy) -> CliResult<()> {
+        let handle = self.watch_handle()?;
+        let roots = self
+            .handles
+            .iter()
+            .map(|handle| handle.root.clone())
+            .collect();
+        let options = protocol::WatchStartOptions::from(policy);
 
-        Ok(summary)
+        self.client
+            .start_watch(handle.handle, roots, options)
+            .map_err(|error| CliError::message(format!("start watch failed: {error}")))?;
+
+        Ok(())
+    }
+
+    fn next_watch_batch(&self) -> CliResult<Option<WatchBatchSummary>> {
+        let handle = self.watch_handle()?;
+        let response = self
+            .client
+            .next_watch_batch(handle.handle)
+            .map_err(|error| CliError::message(format!("next watch batch failed: {error}")))?;
+        let Some(batch) = response.batch else {
+            return Ok(None);
+        };
+        let batch = WatchBatch::from(&batch);
+
+        Ok(Some(WatchBatchSummary {
+            batch,
+            updated: !response.updates.is_empty(),
+            messages: response
+                .messages
+                .iter()
+                .map(WatchMessage::from_record)
+                .collect(),
+        }))
+    }
+
+    fn stop_watch(&self) {
+        if let Ok(handle) = self.watch_handle() {
+            let _ = self.client.stop_watch(handle.handle);
+        }
     }
 }
 
@@ -751,9 +579,9 @@ impl WatchMessage {
     /// Build a watch message from a protocol record.
     pub fn from_record(record: &DaemonMessageRecord) -> Self {
         let kind = match record.kind {
-            ProtocolMessageKind::Info => DaemonMessageKind::Info,
-            ProtocolMessageKind::Warning => DaemonMessageKind::Warning,
-            ProtocolMessageKind::Error => DaemonMessageKind::Error,
+            protocol::DaemonMessageKind::Info => DaemonMessageKind::Info,
+            protocol::DaemonMessageKind::Warning => DaemonMessageKind::Warning,
+            protocol::DaemonMessageKind::Error => DaemonMessageKind::Error,
         };
         Self {
             kind,
@@ -816,12 +644,11 @@ pub fn run_root_command_once(
     program: &ProgramArgs,
     common: CommonCommandOptions,
     payload: CommandPayload,
-    event_handler: Option<SessionEventHandler>,
 ) -> CliResult<DaemonCommandResult> {
     // prepare the repository for a one-shot run
     let repository = program.setup();
 
-    run_root_command_with_repository(repository, program, common, payload, event_handler)
+    run_root_command_with_repository(repository, program, common, payload)
 }
 
 /// Run a daemon command using an existing repository.
@@ -830,7 +657,6 @@ pub fn run_root_command_with_repository(
     program: &ProgramArgs,
     common: CommonCommandOptions,
     payload: CommandPayload,
-    event_handler: Option<SessionEventHandler>,
 ) -> CliResult<DaemonCommandResult> {
     // resolve roots for the daemon repository
     let roots = watch_roots(program, &repository);
@@ -838,13 +664,7 @@ pub fn run_root_command_with_repository(
         return Err(CliError::message("roots are empty"));
     };
 
-    let daemon = ProtocolDaemonClient::new(
-        repository.clone(),
-        program.workers as usize,
-        event_handler,
-        roots,
-        program,
-    )?;
+    let daemon = ProtocolDaemonClient::new(repository.clone(), roots, program)?;
 
     // execute the command and shutdown
     let result = daemon.run_root_command(&root, common, payload)?;
@@ -860,7 +680,7 @@ pub fn run_root_command_or_report(
     common: CommonCommandOptions,
     payload: CommandPayload,
 ) -> Result<DaemonCommandResult, i32> {
-    run_root_command_once(program, common, payload, None)
+    run_root_command_once(program, common, payload)
         .map_err(|error| report_error(command, report_args, &error.to_string()))
 }
 
@@ -893,7 +713,7 @@ pub fn run_root_command_with_repository_or_report(
     common: CommonCommandOptions,
     payload: CommandPayload,
 ) -> Result<DaemonCommandResult, i32> {
-    run_root_command_with_repository(repository, program, common, payload, None)
+    run_root_command_with_repository(repository, program, common, payload)
         .map_err(|error| report_error(command, report_args, &error.to_string()))
 }
 
@@ -1238,9 +1058,9 @@ pub fn emit_daemon_messages(messages: &[DaemonMessageRecord]) {
         };
 
         match message.kind {
-            ProtocolMessageKind::Info => console::info(&rendered),
-            ProtocolMessageKind::Warning => console::warn(&rendered),
-            ProtocolMessageKind::Error => console::error(&rendered),
+            protocol::DaemonMessageKind::Info => console::info(&rendered),
+            protocol::DaemonMessageKind::Warning => console::warn(&rendered),
+            protocol::DaemonMessageKind::Error => console::error(&rendered),
         }
     }
 }
@@ -1291,50 +1111,4 @@ fn files_from_update_images(images: &[FileUpdateImage]) -> BTreeMap<FileId, Arc<
         files.insert(image.id, Arc::new(file));
     }
     files
-}
-
-fn filter_status_for_root(status: &FileWatchStatus, root: &Path) -> Option<FileWatchStatus> {
-    match status {
-        FileWatchStatus::Ready { roots } => {
-            let roots: Vec<PathBuf> = roots.iter().filter(|path| path == &root).cloned().collect();
-            if roots.is_empty() {
-                return None;
-            }
-            Some(FileWatchStatus::Ready { roots })
-        }
-        FileWatchStatus::RescanRequested { roots, reason } => {
-            let roots: Vec<PathBuf> = roots.iter().filter(|path| path == &root).cloned().collect();
-            if roots.is_empty() {
-                return None;
-            }
-            Some(FileWatchStatus::RescanRequested {
-                roots,
-                reason: reason.clone(),
-            })
-        }
-        FileWatchStatus::Error { message } => Some(FileWatchStatus::Error {
-            message: message.clone(),
-        }),
-        FileWatchStatus::Stopped => Some(FileWatchStatus::Stopped),
-    }
-}
-
-fn watch_batch_timestamps(batch: &WatchBatch) -> (u64, u64) {
-    let duration = batch.ended_at.saturating_duration_since(batch.started_at);
-    let end = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let start = end
-        .checked_sub(duration)
-        .unwrap_or_else(|| Duration::from_secs(0));
-    (duration_to_ns(start), duration_to_ns(end))
-}
-
-fn duration_to_ns(duration: Duration) -> u64 {
-    let nanos = duration.as_nanos();
-    if nanos > u64::MAX as u128 {
-        u64::MAX
-    } else {
-        nanos as u64
-    }
 }
