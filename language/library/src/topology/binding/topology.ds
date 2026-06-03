@@ -1,0 +1,11 @@
+import { TopologyEdge } from "./edge.ds";
+import { TopologyEntity } from "./entity.ds";
+
+/// Topology binding family.
+@languageItem("topology.Topology")
+export interface Topology {
+    /// Edge bindings.
+    readonly edge: TopologyEdge;
+    /// Entity bindings.
+    readonly entity: TopologyEntity;
+}

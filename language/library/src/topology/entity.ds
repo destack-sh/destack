@@ -6,6 +6,14 @@ export newtype EntityId = string;
 /// Topology entity kind.
 export newtype EntityKind = string;
 
+/// Topology entity-kind record.
+export struct EntityKindRecord {
+    /// Entity kind.
+    kind: EntityKind;
+    /// Kind labels.
+    labels?: LabelSet;
+}
+
 /// Concrete topology entity record.
 export struct EntityRecord {
     /// Entity identifier.

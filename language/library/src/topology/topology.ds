@@ -1,7 +1,10 @@
-import { todo } from "destack:error";
+import { Context } from "destack:context";
+import { HostError } from "destack:error/host";
+import { WorldHandle } from "destack:runtime";
 
-import { Edge, EdgeId, EdgeRecord, EdgeSelector, edgeOf } from "./edge.ds";
-import { Entity, EntityId, EntityRecord, EntitySelector, entityOf } from "./entity.ds";
+import { Edge, EdgeId, EdgeKind, EdgeKindRecord, EdgeRecord, EdgeSelector, edgeOf } from "./edge.ds";
+import { Entity, EntityId, EntityKind, EntityKindRecord, EntityRecord, EntitySelector, entityOf } from "./entity.ds";
+import { LabelSet } from "./label.ds";
 
 /// Registered topology entity reference.
 export newtype EntityRef = EntityId;
@@ -13,48 +16,73 @@ export newtype EdgeRef = EdgeId;
 @derive(Tagged)
 export newtype Record = EntityRecord | EdgeRecord;
 
-/// General software topology graph.
+/// Runtime topology graph.
 export class Topology {
-    /// Create an empty topology.
-    constructor() {}
+    /// World handle.
+    world: WorldHandle;
 
-    /// Add one entity record.
-    addEntity(&exclusive this, entity: EntityRecord): EntityRef {
-        todo("topology.Topology.addEntity")
+    /// Wrap one runtime world topology.
+    constructor(world: WorldHandle) {
+        this.world = world;
     }
 
-    /// Add one edge record.
-    addEdge(&exclusive this, edge: EdgeRecord): EdgeRef {
-        todo("topology.Topology.addEdge")
+    /// Define one entity kind.
+    defineEntityKind(kind: EntityKind, labels?: LabelSet): Result<void, HostError> {
+        Context.current().topology.entity.defineKind(this.world, EntityKindRecord { kind, labels })
+    }
+
+    /// Undefine one entity kind.
+    undefineEntityKind(kind: EntityKind): Result<void, HostError> {
+        Context.current().topology.entity.undefineKind(this.world, kind)
+    }
+
+    /// Define one edge kind.
+    defineEdgeKind(kind: EdgeKind, labels?: LabelSet): Result<void, HostError> {
+        Context.current().topology.edge.defineKind(this.world, EdgeKindRecord { kind, labels })
+    }
+
+    /// Undefine one edge kind.
+    undefineEdgeKind(kind: EdgeKind): Result<void, HostError> {
+        Context.current().topology.edge.undefineKind(this.world, kind)
+    }
+
+    /// Upsert one entity record.
+    upsertEntity(entity: EntityRecord): Result<EntityRef, HostError> {
+        Context.current().topology.entity.upsert(this.world, entity)
+    }
+
+    /// Upsert one edge record.
+    upsertEdge(edge: EdgeRecord): Result<EdgeRef, HostError> {
+        Context.current().topology.edge.upsert(this.world, edge)
     }
 
     /// Observe one entity-like value.
-    observe<T: Entity>(&exclusive this, value: &readonly T): EntityRef {
-        this.addEntity(entityOf(value))
+    observe<T: Entity>(value: &readonly T): Result<EntityRef, HostError> {
+        this.upsertEntity(entityOf(value))
     }
 
     /// Observe one edge-like value.
-    connect<T: Edge>(&exclusive this, value: &readonly T): EdgeRef {
-        this.addEdge(edgeOf(value))
+    connect<T: Edge>(value: &readonly T): Result<EdgeRef, HostError> {
+        this.upsertEdge(edgeOf(value))
     }
 
     /// Remove one entity.
-    removeEntity(&exclusive this, id: EntityId): boolean {
-        todo("topology.Topology.removeEntity")
+    removeEntity(id: EntityId): Result<boolean, HostError> {
+        Context.current().topology.entity.remove(this.world, id)
     }
 
     /// Remove one edge.
-    removeEdge(&exclusive this, id: EdgeId): boolean {
-        todo("topology.Topology.removeEdge")
+    removeEdge(id: EdgeId): Result<boolean, HostError> {
+        Context.current().topology.edge.remove(this.world, id)
     }
 
     /// Return entities matching `selector`.
-    entities(&readonly this, selector?: EntitySelector): [EntityRecord] {
-        todo("topology.Topology.entities")
+    entities(selector?: EntitySelector): Result<[EntityRecord], HostError> {
+        Context.current().topology.entity.list(this.world, selector)
     }
 
     /// Return edges matching `selector`.
-    edges(&readonly this, selector?: EdgeSelector): [EdgeRecord] {
-        todo("topology.Topology.edges")
+    edges(selector?: EdgeSelector): Result<[EdgeRecord], HostError> {
+        Context.current().topology.edge.list(this.world, selector)
     }
 }

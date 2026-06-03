@@ -7,6 +7,14 @@ export newtype EdgeId = string;
 /// Topology edge kind.
 export newtype EdgeKind = string;
 
+/// Topology edge-kind record.
+export struct EdgeKindRecord {
+    /// Edge kind.
+    kind: EdgeKind;
+    /// Kind labels.
+    labels?: LabelSet;
+}
+
 /// Direction selector for directional relationships.
 export enum Direction {
     /// Affect ingress traffic.
