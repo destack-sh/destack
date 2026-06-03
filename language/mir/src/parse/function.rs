@@ -68,10 +68,9 @@ impl Parser {
         let (name, name_start) = self.parse_symbol_name()?;
         let name_span = self.span_at(name_start, name.len());
         let lifetimes = self.parse_lifetimes()?;
-        let function_id = *self
-            .function_map
-            .get(&name)
-            .unwrap_or_else(|| panic!("function {name} should be pre-registered"));
+        let function_id = self.function_map.get(&name).copied().ok_or_else(|| {
+            ParseError::new(format!("function '{name}' is not declared"), name_start)
+        })?;
         self.current_function = Some(function_id);
         self.reset_function_parse_state();
 
@@ -369,12 +368,7 @@ impl Parser {
     /// Parse a basic block into its predeclared block id.
     fn parse_block(&mut self) -> ParseResult<LocalNodeId<Block>> {
         let block_start = self.pos();
-        let Some(&block_id) = self.predeclared_blocks.get(self.parsed_block_count) else {
-            panic!(
-                "missing predeclared block for parsed block {}",
-                self.parsed_block_count
-            );
-        };
+        let block_id = self.current_predeclared_block_id()?;
         let terminator_id = self.tree.get(block_id).terminator;
 
         // block header
@@ -426,7 +420,7 @@ impl Parser {
             if let ValueReference::Value(value) = param.value
                 && let Some(ty) = param.ty.ty()
             {
-                self.record_value_type(value, ty);
+                self.record_value_type(value, ty)?;
             }
         }
 
@@ -547,7 +541,14 @@ impl Parser {
 
     /// Parse one block and recover to the next block boundary on failure.
     fn parse_block_recovering(&mut self) -> LocalNodeId<Block> {
-        let block_id = self.current_predeclared_block_id();
+        let block_id = match self.current_predeclared_block_id() {
+            Ok(block_id) => block_id,
+            Err(error) => {
+                self.diagnostics
+                    .insert(error.to_diagnostic(self.content_id, self.file_id));
+                self.create_error_block(self.pos())
+            }
+        };
         let terminator_id = self.tree.get(block_id).terminator;
         let recovery_pos = self.pos();
 
@@ -582,16 +583,30 @@ impl Parser {
     }
 
     /// Return the predeclared block id for the current source position.
-    fn current_predeclared_block_id(&self) -> LocalNodeId<Block> {
+    fn current_predeclared_block_id(&self) -> ParseResult<LocalNodeId<Block>> {
         self.predeclared_blocks
             .get(self.parsed_block_count)
             .copied()
-            .unwrap_or_else(|| {
-                panic!(
-                    "missing predeclared block for parsed block {}",
-                    self.parsed_block_count
+            .ok_or_else(|| {
+                ParseError::new(
+                    format!(
+                        "missing predeclared block for parsed block {}",
+                        self.parsed_block_count
+                    ),
+                    self.pos(),
                 )
             })
+    }
+
+    /// Create an error block when recovery state is missing.
+    fn create_error_block(&mut self, position: usize) -> LocalNodeId<Block> {
+        let error_span = self.span_at(position, 0);
+        let terminator_id = self.tree.insert(Terminator::Error);
+        let block_id = self.tree.insert(Block::new(terminator_id));
+        self.tree.set_text_span(block_id, error_span);
+        self.tree.set_text_span(terminator_id, error_span);
+
+        block_id
     }
 
     /// Recover to the next block boundary in the current function body.
@@ -655,9 +670,12 @@ impl Parser {
 
     /// Parse the entry block parameter mirror and reuse the function parameters.
     fn parse_entry_block_parameters(&mut self) -> ParseResult<Vec<Parameter>> {
-        let function_id = self
-            .current_function
-            .unwrap_or_else(|| panic!("entry block parameters require a current function"));
+        let function_id = self.current_function.ok_or_else(|| {
+            ParseError::new(
+                "entry block parameters require a current function",
+                self.pos(),
+            )
+        })?;
         let parameters = self.tree.get(function_id).parameters.clone();
 
         for (parameter_index, parameter) in parameters.iter().enumerate() {
