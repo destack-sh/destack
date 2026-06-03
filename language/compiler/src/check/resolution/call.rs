@@ -151,6 +151,16 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         decision: CallDecision,
     ) -> CompilerResult<()> {
-        self.inference.select_call(source, decision)
+        if let Some(existing) = self.inference.call(source) {
+            if existing == decision {
+                return Ok(());
+            }
+
+            return Err(self.selection_conflict_error("call", source, &existing, &decision));
+        }
+
+        self.inference.select_call(source, decision);
+
+        Ok(())
     }
 }

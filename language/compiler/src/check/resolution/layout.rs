@@ -71,6 +71,16 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         decision: LayoutDecision,
     ) -> CompilerResult<()> {
-        self.inference.select_layout(source, decision)
+        if let Some(existing) = self.inference.layout(source) {
+            if existing == decision {
+                return Ok(());
+            }
+
+            return Err(self.selection_conflict_error("layout", source, &existing, &decision));
+        }
+
+        self.inference.select_layout(source, decision);
+
+        Ok(())
     }
 }

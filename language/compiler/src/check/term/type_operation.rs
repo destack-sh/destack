@@ -244,7 +244,7 @@ impl TypeOperationTerm {
             }
             Self::Intrinsic { item: _, arguments } => arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(argument))
+                .flat_map(|argument| argument.referenced_variables(state))
                 .collect(),
         }
     }
@@ -444,7 +444,7 @@ impl CheckState<'_> {
         let Some(term) = self.reduce_type_index_term(origin, module, left, index)? else {
             return Ok(Progress::Unchanged);
         };
-        let term = self.push_term(term);
+        let term = self.inference.push_term(term);
         let progress = self.relate_contextual_type_assignability(origin, term, expected)?;
 
         Ok(progress)
@@ -560,7 +560,7 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::Shape(shape) => {
-                let members = self.term(shape).members.clone();
+                let members = self.inference.term(shape).members.clone();
                 let mut widened = SmallVec::with_capacity(members.len());
 
                 // widen members in source order
@@ -677,7 +677,7 @@ impl CheckState<'_> {
             return Ok(Some(operand));
         }
 
-        let widened = self.push_term(widened);
+        let widened = self.inference.push_term(widened);
 
         Ok(Some(widened.into()))
     }
@@ -703,6 +703,16 @@ impl CheckState<'_> {
                 },
                 is_optional,
                 is_readonly,
+            },
+            ShapeMember::Spread {
+                origin: spread_origin,
+                source,
+            } => ShapeMember::Spread {
+                origin: spread_origin,
+                source: match self.widen_inferred_operand(origin, module, source)? {
+                    Some(source) => source,
+                    None => return Ok(None),
+                },
             },
             ShapeMember::CallSignature { ty } => ShapeMember::CallSignature {
                 ty: match self.widen_inferred_operand(origin, module, ty)? {
@@ -817,7 +827,7 @@ impl CheckState<'_> {
 
         // preserve heterogeneous literal arrays as unions
         for candidate in candidates {
-            let candidate = self.push_term(candidate);
+            let candidate = self.inference.push_term(candidate);
 
             elements.push(candidate.into());
         }
@@ -849,15 +859,16 @@ impl CheckState<'_> {
                     payload: target_value,
                 },
             ) if self
+                .inference
                 .term(*source_form)
-                .same_constructor(self.term(*target_form)) =>
+                .same_constructor(self.inference.term(*target_form)) =>
             {
                 let Some(payload) =
                     self.reduce_exclude_term(module, *source_value, *target_value)?
                 else {
                     return Ok(None);
                 };
-                let payload = self.push_term(payload);
+                let payload = self.inference.push_term(payload);
 
                 TypeTerm::Form {
                     form: source_form.clone(),

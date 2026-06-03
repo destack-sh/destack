@@ -6,9 +6,9 @@ use crate::check::{
     CallCallee, CallDecision, CallFailure, CallTargetResolution, CallTerm, CandidateResolution,
     CheckState, Condition, ConstructCandidates, ConstructDecision, ConstructFailure,
     ConstructTargetResolution, Decision, FunctionParameter, FunctionTerm, GenericApplication,
-    GenericArgument, GenericSlot, GenericSlotHeader, GenericSubstitution, GenericSubstitutionEntry,
+    GenericArgument, GenericSlot, GenericSlotId, GenericSubstitution, GenericSubstitutionEntry,
     MemberCallSource, Origin, Progress, ReceiverSubstitution, ShapeMember, StaticTerm,
-    Substitution, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm, VariableId, VariableKind,
+    Substitution, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm, VariableId,
 };
 use smallvec::SmallVec;
 
@@ -38,7 +38,7 @@ pub(in crate::check) struct FunctionTermApplication {
     /// The substitution used for this application.
     pub(in crate::check) substitution: GenericSubstitution,
     /// The original generic parameters.
-    pub(in crate::check) generic_parameters: Vec<VariableId>,
+    pub(in crate::check) generic_parameters: Vec<GenericSlotId>,
 }
 
 /// Callable function signature extracted from a type term.
@@ -220,7 +220,7 @@ impl CheckState<'_> {
         expected: Option<VariableId>,
     ) -> CompilerResult<CallableDispatch> {
         // return cached call decision
-        if let Some(selection) = self.selected_call(call)? {
+        if let Some(selection) = self.selected_call(call) {
             return Ok(selection);
         }
 
@@ -237,7 +237,7 @@ impl CheckState<'_> {
     }
 
     /// Return the already chosen decision for one call.
-    fn selected_call(&self, call: &CallTerm) -> CompilerResult<Option<CallableDispatch>> {
+    fn selected_call(&self, call: &CallTerm) -> Option<CallableDispatch> {
         // return cached construct decision
         if let Some(decision) = self.inference.construct(call.source) {
             let selection = match decision {
@@ -251,12 +251,12 @@ impl CheckState<'_> {
                 }
             };
 
-            return Ok(Some(selection));
+            return Some(selection);
         }
 
         // return cached call decision
         let Some(decision) = self.inference.call(call.source) else {
-            return Ok(None);
+            return None;
         };
         let selection = match decision {
             CallDecision::Resolved(selection) => CallableDispatch::call_selected(
@@ -267,7 +267,7 @@ impl CheckState<'_> {
             CallDecision::Rejected(failure) => CallableDispatch::call_rejected(failure),
         };
 
-        Ok(Some(selection))
+        Some(selection)
     }
 
     /// Select a call whose callee is an arbitrary callable expression.
@@ -399,7 +399,7 @@ impl CheckState<'_> {
         let CallCallee::Member(member) = call.callee else {
             return Ok(None);
         };
-        let member = self.term(member).clone();
+        let member = self.inference.term(member).clone();
         let Some(receiver) = self.type_operand_term(member.receiver)? else {
             return Ok(Some(CallableDispatch::pending()));
         };
@@ -413,7 +413,7 @@ impl CheckState<'_> {
                 module,
                 &receiver,
                 &member.key,
-                protocol,
+                &protocol,
             )?,
         };
         let Some(member_matches) = member_match else {
@@ -487,7 +487,7 @@ impl CheckState<'_> {
         candidate_set: CandidateSet,
     ) -> CompilerResult<CallableDispatch> {
         // probe one selected signature
-        let probe = self.begin_inference_probe();
+        let probe = self.inference.begin_probe();
         let result = self.reduce_call_signature(
             origin,
             module,
@@ -507,9 +507,9 @@ impl CheckState<'_> {
         match result {
             CallableDispatch::CallSelected { .. }
             | CallableDispatch::ConstructSelected { .. }
-            | CallableDispatch::Pending { .. } => self.commit_inference_probe(probe)?,
+            | CallableDispatch::Pending { .. } => self.inference.commit_probe(probe)?,
             CallableDispatch::CallRejected(_) | CallableDispatch::ConstructRejected(_) => {
-                self.drop_inference_probe(probe);
+                self.inference.drop_probe(probe);
             }
         }
 
@@ -639,11 +639,11 @@ impl CheckState<'_> {
 
         // choose the first compatible declaration order candidate
         for candidate in candidates {
-            let probe = self.begin_inference_probe();
+            let probe = self.inference.begin_probe();
             let reduction = self.reduce_type_term(origin, &candidate.ty)?;
             let Some(term) = reduction.value else {
                 if candidate_set.keeps_pending_probe() {
-                    self.commit_inference_probe(probe)?;
+                    self.inference.commit_probe(probe)?;
 
                     return Ok(CallableDispatch::Pending {
                         progress: reduction.progress,
@@ -651,18 +651,18 @@ impl CheckState<'_> {
                 }
 
                 saw_pending = true;
-                self.drop_inference_probe(probe);
+                self.inference.drop_probe(probe);
 
                 continue;
             };
             let function = match self.call_signature(candidate.module, &term)? {
                 CallableSignature::Pending => {
-                    self.drop_inference_probe(probe);
+                    self.inference.drop_probe(probe);
                     saw_pending = true;
                     continue;
                 }
                 CallableSignature::Absent => {
-                    self.drop_inference_probe(probe);
+                    self.inference.drop_probe(probe);
 
                     continue;
                 }
@@ -686,7 +686,7 @@ impl CheckState<'_> {
 
             match result {
                 CallableDispatch::CallSelected { .. } => {
-                    self.commit_inference_probe(probe)?;
+                    self.inference.commit_probe(probe)?;
 
                     return Ok(result);
                 }
@@ -695,11 +695,11 @@ impl CheckState<'_> {
                 }
                 CallableDispatch::Pending { .. } => {
                     if candidate_set.keeps_pending_probe() {
-                        self.commit_inference_probe(probe)?;
+                        self.inference.commit_probe(probe)?;
 
                         return Ok(result);
                     }
-                    self.drop_inference_probe(probe);
+                    self.inference.drop_probe(probe);
 
                     return Ok(CallableDispatch::pending());
                 }
@@ -707,17 +707,17 @@ impl CheckState<'_> {
                     argument,
                     parameter,
                 }) => {
-                    self.drop_inference_probe(probe);
+                    self.inference.drop_probe(probe);
                     argument_failure.get_or_insert((argument, parameter));
                 }
                 CallableDispatch::CallRejected(CallFailure::NoMatch) => {
-                    self.drop_inference_probe(probe);
+                    self.inference.drop_probe(probe);
                 }
                 CallableDispatch::CallRejected(CallFailure::NotCallable) => {
-                    self.drop_inference_probe(probe);
+                    self.inference.drop_probe(probe);
                 }
                 CallableDispatch::ConstructRejected(_) => {
-                    self.drop_inference_probe(probe);
+                    self.inference.drop_probe(probe);
                 }
             }
         }
@@ -753,7 +753,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<CallableSignature> {
         let callable = match term {
             TypeTerm::Function(function) => {
-                CallableSignature::Present(self.term(*function).clone())
+                CallableSignature::Present(self.inference.term(*function).clone())
             }
             TypeTerm::Type(ty) => self.committed_call_signature(module, *ty)?,
             TypeTerm::Reference {
@@ -762,7 +762,7 @@ impl CheckState<'_> {
                 arguments,
             } => self.named_call_signature(*symbol, arguments)?,
             TypeTerm::Shape(shape) => {
-                let members = self.term(*shape).members.clone();
+                let members = self.inference.term(*shape).members.clone();
 
                 self.shape_call_signature(module, &members)?
             }
@@ -778,7 +778,7 @@ impl CheckState<'_> {
         module: ModuleId,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<CallableSignature> {
-        let function = match self.global_type_value(ty) {
+        let function = match self.r#type(ty) {
             dir::Type::Function(function) => function.clone(),
             _ => return Ok(CallableSignature::Absent),
         };
@@ -797,10 +797,10 @@ impl CheckState<'_> {
         if self.environment.language.item(symbol) != Some(dir::LanguageItem::Function) {
             return Ok(CallableSignature::Absent);
         }
-        let Some(parameters) = self.generic_argument_type_variable(arguments, 0) else {
+        let Some(parameters) = self.type_argument_variable_at(arguments, 0) else {
             return Ok(CallableSignature::Pending);
         };
-        let Some(return_type) = self.generic_argument_type_variable(arguments, 1) else {
+        let Some(return_type) = self.type_argument_variable_at(arguments, 1) else {
             return Ok(CallableSignature::Pending);
         };
 
@@ -905,40 +905,24 @@ impl CheckState<'_> {
         let mut substitution = GenericSubstitution::empty();
         let mut arguments = SmallVec::with_capacity(function.generic_parameters.len());
         let generic_parameters = function.generic_parameters.clone();
-        let application_owner = function.generic_parameters.first().map(|parameter| {
-            let slot = self.generic_parameter_slot(*parameter);
-
-            slot.owner
-        });
+        let application_owner = function.generic_owner();
 
         // use explicit arguments first, then infer the remaining call generics
         for (index, parameter) in function.generic_parameters.iter().enumerate() {
-            let slot = self.generic_parameter_slot(*parameter);
-            if let Some(owner) = application_owner
-                && slot.owner != owner
-            {
-                panic!(
-                    "function signature {source:?} mixes generic owners {owner:?} and {:?}",
-                    slot.owner
-                );
-            }
+            let generic = self.inference.generic_slot(*parameter);
             let argument = if let Some(argument) = generic_arguments.get(index) {
-                self.select_argument_for_static_slot(
-                    argument,
-                    self.generic_parameter_is_static(*parameter),
-                )
+                argument.select_for_static_slot(generic.is_static())
             } else if let Some(argument) = application
                 .as_ref()
-                .filter(|application| application.owner == slot.owner)
-                .and_then(|application| application.arguments.get(slot.index.0 as usize))
+                .filter(|application| application.owner == parameter.owner)
+                .and_then(|application| application.arguments.get(parameter.index.0 as usize))
             {
-                self.select_argument_for_static_slot(
-                    argument,
-                    self.generic_parameter_is_static(*parameter),
-                )
-            } else if let Some(argument) =
-                self.generic_application_argument(source, slot.owner, slot.index)
-            {
+                argument.select_for_static_slot(generic.is_static())
+            } else if let Some(argument) = self.inference.generic_application_argument(
+                source,
+                parameter.owner,
+                parameter.index,
+            ) {
                 argument
             } else if let Some(argument) = self.static_parameter_argument(
                 module,
@@ -950,12 +934,10 @@ impl CheckState<'_> {
             } else {
                 self.instantiation_argument(module, source, *parameter)?
             };
-            let slot = slot.id();
 
             arguments.push(argument.clone());
             substitution.entries.push(GenericSubstitutionEntry {
-                variable: *parameter,
-                slot,
+                slot: *parameter,
                 argument,
             });
         }
@@ -969,7 +951,7 @@ impl CheckState<'_> {
         function.generic_parameters.clear();
         let owner = owner.or(application_owner);
         let application = application.or_else(|| {
-            owner.map(|owner| self.attach_generic_application(source, owner, arguments))
+            owner.map(|owner| self.insert_generic_application(source, owner, arguments))
         });
 
         let instantiation = FunctionTermApplication {
@@ -982,39 +964,20 @@ impl CheckState<'_> {
         Ok(instantiation)
     }
 
-    /// Return the generic slot for one generic parameter.
-    pub(in crate::check) fn generic_parameter_slot(
-        &self,
-        parameter: VariableId,
-    ) -> GenericSlotHeader {
-        let Some(generic) = self.generic_slot(parameter) else {
-            panic!("generic parameter {parameter:?} is not a generic slot");
-        };
-
-        generic.slot().clone()
-    }
-
-    /// Return whether one generic parameter expects a static argument.
-    fn generic_parameter_is_static(&self, parameter: VariableId) -> bool {
-        let Some(generic) = self.generic_slot(parameter) else {
-            panic!("generic parameter {parameter:?} is not a generic slot");
-        };
-
-        generic.is_static()
-    }
-
     /// Create one omitted call instantiation argument.
     fn instantiation_argument(
         &mut self,
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
-        parameter: VariableId,
+        parameter: GenericSlotId,
     ) -> CompilerResult<GenericArgument> {
+        let generic = self.inference.generic_slot(parameter);
+        let is_static = generic.is_static();
         let variable = self.instantiation_variable(module, source, parameter)?;
-        let kind = self.variable(variable).kind;
-        let argument = match kind {
-            VariableKind::Type => GenericArgument::Type(variable.into()),
-            VariableKind::Static => GenericArgument::Static(variable.into()),
+        let argument = if is_static {
+            GenericArgument::Static(variable.into())
+        } else {
+            GenericArgument::Type(variable.into())
         };
 
         Ok(argument)
@@ -1024,13 +987,13 @@ impl CheckState<'_> {
     fn static_parameter_argument(
         &mut self,
         module: ModuleId,
-        parameter: VariableId,
+        parameter: GenericSlotId,
         parameters: &[FunctionParameter],
         argument_values: &[dir::GlobalNodeId<dir::Expression>],
     ) -> CompilerResult<Option<GenericArgument>> {
         let Some(index) = parameters
             .iter()
-            .position(|candidate| candidate.static_slot.as_deref() == Some(&parameter))
+            .position(|candidate| candidate.static_slot == Some(parameter))
         else {
             return Ok(None);
         };
@@ -1038,9 +1001,9 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let origin = Origin::Node(value.clone().into_any());
-        let variable = self.allocate_variable(module, VariableKind::Static, origin);
+        let variable = self.create_static_variable(module, origin);
         let term = StaticTerm::Expression(value);
-        let term = self.push_term(term);
+        let term = self.inference.push_term(term);
 
         self.equate_static(origin, variable, term, Condition::Always);
 
@@ -1052,12 +1015,18 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
-        parameter: VariableId,
+        parameter: GenericSlotId,
     ) -> CompilerResult<VariableId> {
-        let kind = self.variable(parameter).kind;
+        let generic = self.inference.generic_slot(parameter);
         let origin = Origin::Node(source);
 
-        Ok(self.allocate_variable(module, kind, origin))
+        let variable = if generic.is_static() {
+            self.create_static_variable(module, origin)
+        } else {
+            self.create_type_variable(module, origin)
+        };
+
+        Ok(variable)
     }
 
     /// Expect call instantiation arguments to satisfy declared constraints.
@@ -1066,15 +1035,13 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameters: &[VariableId],
+        parameters: &[GenericSlotId],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
         // constrain each substituted generic argument by its declared slot
         for parameter in parameters {
-            let Some(generic) = self.generic_slot(*parameter).cloned() else {
-                panic!("generic parameter {parameter:?} is not a generic slot");
-            };
+            let generic = self.inference.generic_slot(*parameter).clone();
 
             progress = progress.merge(self.expect_call_generic_constraint(
                 origin,
@@ -1094,7 +1061,7 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameter: VariableId,
+        parameter: GenericSlotId,
         generic: &GenericSlot,
     ) -> CompilerResult<Progress> {
         match generic {
@@ -1125,7 +1092,9 @@ impl CheckState<'_> {
                 else {
                     return Ok(Progress::Unchanged);
                 };
-                let source = self.push_term(TypeTerm::StaticValue { value: argument });
+                let source = self
+                    .inference
+                    .push_term(TypeTerm::StaticValue { value: argument });
                 let constraint = self.substitute_type_operand(module, substitution, *constraint)?;
 
                 self.relate_contextual_type_assignability(origin, source, constraint)
@@ -1150,15 +1119,13 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameters: &[VariableId],
+        parameters: &[GenericSlotId],
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::Yes;
 
         // combine each generic slot constraint
         for parameter in parameters {
-            let Some(generic) = self.generic_slot(*parameter).cloned() else {
-                panic!("generic parameter {parameter:?} is not a generic slot");
-            };
+            let generic = self.inference.generic_slot(*parameter).clone();
 
             decision = decision.and(self.reduce_call_generic_constraint(
                 module,
@@ -1176,7 +1143,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameter: VariableId,
+        parameter: GenericSlotId,
         generic: &GenericSlot,
     ) -> CompilerResult<Decision> {
         match generic {
@@ -1207,7 +1174,9 @@ impl CheckState<'_> {
                 else {
                     return Ok(Decision::Undecidable);
                 };
-                let source = self.push_term(TypeTerm::StaticValue { value: argument });
+                let source = self
+                    .inference
+                    .push_term(TypeTerm::StaticValue { value: argument });
                 let constraint = self.substitute_type_operand(module, substitution, *constraint)?;
 
                 self.decide_type_relation(TypeRelation::Assignable, source, constraint)
@@ -1232,7 +1201,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameters: &[VariableId],
+        parameters: &[GenericSlotId],
         explicit_count: usize,
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
@@ -1253,11 +1222,9 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameter: VariableId,
+        parameter: GenericSlotId,
     ) -> CompilerResult<Progress> {
-        let Some(generic) = self.generic_slot(parameter).cloned() else {
-            panic!("generic parameter {parameter:?} is not a generic slot");
-        };
+        let generic = self.inference.generic_slot(parameter).clone();
 
         let progress = match generic {
             GenericSlot::Type {
@@ -1419,7 +1386,7 @@ impl CheckState<'_> {
         };
         let Some(return_type) = function.return_type else {
             let void = TypeTerm::Literal(TypeLiteralTerm::Void);
-            let void = self.push_term(void);
+            let void = self.inference.push_term(void);
 
             return self.relate_contextual_type_assignability(origin, void, expected);
         };

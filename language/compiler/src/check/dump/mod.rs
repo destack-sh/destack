@@ -8,6 +8,7 @@ mod function;
 mod layout;
 mod literal;
 mod operand;
+mod resolution;
 mod shape;
 mod r#static;
 mod term;

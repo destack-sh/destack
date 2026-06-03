@@ -148,6 +148,6 @@ impl CheckState<'_> {
         _module: ModuleId,
         _term: &SuperTerm,
     ) -> CompilerResult<Reduction<TypeTerm>> {
-        Ok(Reduction::pending())
+        todo!("reduce super through class inheritance")
     }
 }

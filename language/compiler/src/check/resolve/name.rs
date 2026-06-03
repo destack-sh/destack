@@ -44,14 +44,6 @@ pub(in crate::check) enum NameLookup {
 }
 
 impl NameLookup {
-    /// Return the unique symbol when lookup found exactly one target.
-    pub(in crate::check) fn unique_symbol(&self) -> Option<dir::GlobalSymbolId> {
-        match self {
-            Self::Found(candidate) => candidate.symbol(),
-            Self::Missing | Self::Ambiguous(_) => None,
-        }
-    }
-
     /// Return candidates whose availability is guaranteed by one active guard.
     pub(in crate::check) fn available_under(self, guard: &Condition) -> Self {
         // collect visible candidates
@@ -82,7 +74,7 @@ impl NameLookup {
 
 impl CheckState<'_> {
     /// Return the nearest lexical scope visible at one node.
-    pub(in crate::check) fn visible_scope(
+    pub(in crate::check) fn lexical_scope(
         &self,
         module: ModuleId,
         bindings: &dir::BindingTable<'_>,
@@ -108,7 +100,7 @@ impl CheckState<'_> {
     }
 
     /// Return lexical symbols visible from one scope.
-    pub(in crate::check) fn visible_scope_symbols(
+    pub(in crate::check) fn scope_symbols(
         &self,
         module: ModuleId,
         bindings: &dir::BindingTable<'_>,
@@ -118,7 +110,7 @@ impl CheckState<'_> {
     ) -> SmallVec<[dir::GlobalSymbolId; 4]> {
         // collect hoisted type bindings
         if space == dir::SymbolSpace::Type {
-            return self.visible_hoisted_type_symbols(module, bindings, scope, key);
+            return self.hoisted_type_symbols(module, bindings, scope, key);
         }
 
         // collect ordinary lexical bindings
@@ -135,7 +127,7 @@ impl CheckState<'_> {
     }
 
     /// Return hoisted type symbols visible from one lexical scope.
-    fn visible_hoisted_type_symbols(
+    fn hoisted_type_symbols(
         &self,
         module: ModuleId,
         bindings: &dir::BindingTable<'_>,
@@ -167,8 +159,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Require one guarded source name in the requested symbol space.
-    pub(in crate::check) fn require_symbol_by_name_under(
+    /// Return one guarded source name in the requested symbol space.
+    pub(in crate::check) fn symbol_by_name_under(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -213,14 +205,14 @@ impl CheckState<'_> {
         // look up local bindings first
         let key = dir::StaticKey::Name(name);
         let bindings = self.module(module).binding_table();
-        let scope = self.visible_scope(module, &bindings, source);
-        let symbols = self.visible_scope_symbols(module, &bindings, scope, key, space);
+        let scope = self.lexical_scope(module, &bindings, source);
+        let symbols = self.scope_symbols(module, &bindings, scope, key, space);
 
         // fall back to imported bindings
         let candidates = if symbols.is_empty() {
-            self.visible_global_candidates(module, key)
+            self.global_candidates(module, key)
         } else {
-            self.visible_symbol_candidates(symbols)
+            self.symbol_candidates(module, symbols)
         };
 
         match candidates.as_slice() {
@@ -234,28 +226,63 @@ impl CheckState<'_> {
     }
 
     /// Return candidates for symbols that are not statically absent.
-    fn visible_symbol_candidates(
+    fn symbol_candidates(
         &self,
+        module: ModuleId,
         symbols: SmallVec<[dir::GlobalSymbolId; 4]>,
     ) -> SmallVec<[NameCandidate; 4]> {
         symbols
             .into_iter()
-            .filter_map(|symbol| {
-                let condition = self.symbol_availability(symbol);
-                if condition.is_never() {
-                    return None;
-                }
-
-                Some(NameCandidate {
-                    target: NameTarget::Symbol(symbol),
-                    condition,
-                })
-            })
+            .filter_map(|symbol| self.symbol_candidate(module, symbol))
             .collect()
     }
 
+    /// Return one name candidate for a lexical symbol.
+    fn symbol_candidate(
+        &self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<NameCandidate> {
+        let condition = self.symbol_availability(symbol);
+        if condition.is_never() {
+            return None;
+        }
+
+        // expose imported targets at lookup time
+        if symbol.module_id == module
+            && let Some(target) = self
+                .module(module)
+                .resolved
+                .imports
+                .symbol_target(symbol.local_id)
+        {
+            return match target {
+                dir::ImportTarget::Symbol(target) => {
+                    let condition = condition.and(self.symbol_availability(target));
+                    if condition.is_never() {
+                        return None;
+                    }
+
+                    Some(NameCandidate {
+                        target: NameTarget::Symbol(target),
+                        condition,
+                    })
+                }
+                dir::ImportTarget::Namespace(namespace) => Some(NameCandidate {
+                    target: NameTarget::Namespace(namespace),
+                    condition,
+                }),
+            };
+        }
+
+        Some(NameCandidate {
+            target: NameTarget::Symbol(symbol),
+            condition,
+        })
+    }
+
     /// Return candidates for imported globals that are not statically absent.
-    fn visible_global_candidates(
+    fn global_candidates(
         &self,
         module: ModuleId,
         key: dir::StaticKey,

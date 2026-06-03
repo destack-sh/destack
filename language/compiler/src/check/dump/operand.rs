@@ -11,7 +11,7 @@ impl Dump for TypeOperand {
             }
             Self::Term(term) => dump_record(
                 "TypeOperand.Term",
-                [("value", context.check.term(*term).dump(context))],
+                [("value", context.check.inference.term(*term).dump(context))],
             ),
             Self::Type(ty) => dump_record("TypeOperand.Type", [("value", context.type_label(*ty))]),
         }
@@ -28,7 +28,7 @@ impl Dump for StaticOperand {
             ),
             Self::Term(term) => dump_record(
                 "StaticOperand.Term",
-                [("value", context.check.term(*term).dump(context))],
+                [("value", context.check.inference.term(*term).dump(context))],
             ),
             Self::Static(value) => dump_record(
                 "StaticOperand.Static",

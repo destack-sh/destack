@@ -85,7 +85,7 @@ impl TaggedTemplateTerm {
         variables.extend(
             self.generic_arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(argument)),
+                .flat_map(|argument| argument.referenced_variables(state)),
         );
         variables.extend(
             self.spans
@@ -132,11 +132,11 @@ impl CheckState<'_> {
     /// Return the lowered call shape for one tagged template.
     fn tagged_template_call(&mut self, template: &TaggedTemplateTerm) -> CompilerResult<CallTerm> {
         let string = TypeTerm::Literal(TypeLiteralTerm::Primitive(dir::PrimitiveType::String));
-        let string = self.push_term(string);
+        let string = self.inference.push_term(string);
         let strings = TypeTerm::Array {
             element: string.into(),
         };
-        let strings = self.push_term(strings);
+        let strings = self.inference.push_term(strings);
         let mut arguments = Vec::with_capacity(template.spans.len() + 1);
 
         arguments.push(strings.into());

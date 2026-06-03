@@ -199,7 +199,7 @@ impl CheckState<'_> {
                 }) => return Ok(Condition::Never),
                 term => remaining.push(ConditionPredicate {
                     origin: condition.origin,
-                    operand: self.push_term(term).into(),
+                    operand: self.inference.push_term(term).into(),
                 }),
             }
         }

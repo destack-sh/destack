@@ -468,7 +468,7 @@ impl CheckState<'_> {
         value: &TypeTerm,
         pattern: TermId<PatternTerm>,
     ) -> CompilerResult<Decision> {
-        let pattern = self.term(pattern).clone();
+        let pattern = self.inference.term(pattern).clone();
         let decision = match pattern.target {
             PatternTarget::Wildcard | PatternTarget::Binding { pattern: None, .. } => Decision::Yes,
             PatternTarget::Must { pattern }
@@ -636,7 +636,7 @@ impl CheckState<'_> {
         let pattern = if let [pattern] = patterns.as_slice() {
             *pattern
         } else {
-            self.push_term(PatternTerm::synthetic(
+            self.inference.push_term(PatternTerm::synthetic(
                 origin,
                 PatternTarget::Union { patterns },
             ))
@@ -675,7 +675,7 @@ impl CheckState<'_> {
             return self.decide_pattern_covers_scalars(origin, module, pattern, &values);
         }
 
-        let pattern = self.term(pattern).clone();
+        let pattern = self.inference.term(pattern).clone();
         let decision = match pattern.target {
             PatternTarget::Wildcard | PatternTarget::Binding { pattern: None, .. } => Decision::Yes,
             PatternTarget::Must { pattern }
@@ -906,7 +906,7 @@ impl CheckState<'_> {
         value: &TypeTerm,
         pattern: TermId<AssignPatternTerm>,
     ) -> CompilerResult<Decision> {
-        let pattern = self.term(pattern).clone();
+        let pattern = self.inference.term(pattern).clone();
         let decision = match pattern {
             AssignPatternTerm::Expression { target } => {
                 self.decide_pattern_term_operand_relation(TypeRelation::Assignable, value, target)?
@@ -1001,7 +1001,7 @@ impl CheckState<'_> {
         pattern: TermId<PatternTerm>,
     ) -> CompilerResult<Progress> {
         let module = origin.module();
-        let pattern = self.term(pattern).clone();
+        let pattern = self.inference.term(pattern).clone();
         let progress = match pattern.target {
             PatternTarget::Wildcard => Progress::Unchanged,
             PatternTarget::Must { pattern }
@@ -1022,7 +1022,7 @@ impl CheckState<'_> {
             }
             PatternTarget::Binding { symbol, pattern } => {
                 let binding = if let Some(symbol) = symbol {
-                    let binding = self.require_symbol_type(module, symbol);
+                    let binding = self.import_symbol_type_operand(module, symbol);
 
                     self.relate_type_relation(origin, TypeRelation::Equal, binding, value)?
                 } else {
@@ -1125,7 +1125,7 @@ impl CheckState<'_> {
                 let Some(ty) = self.pattern_member_type(origin, module, value, &key)? else {
                     return Ok(Progress::Unchanged);
                 };
-                let ty = self.push_term(ty);
+                let ty = self.inference.push_term(ty);
                 let field_type =
                     self.relate_type_equality(origin, TypeOperand::Variable(field), ty)?;
                 let pattern =
@@ -1156,7 +1156,7 @@ impl CheckState<'_> {
         value: TypeOperand,
         pattern: TermId<AssignPatternTerm>,
     ) -> CompilerResult<Progress> {
-        let pattern = self.term(pattern).clone();
+        let pattern = self.inference.term(pattern).clone();
         let progress = match pattern {
             AssignPatternTerm::Expression { target } => {
                 self.relate_type_relation(origin, TypeRelation::Assignable, value, target)?
@@ -1220,7 +1220,7 @@ impl CheckState<'_> {
                 let Some(ty) = self.pattern_member_type(origin, module, value, &key)? else {
                     return Ok(Progress::Unchanged);
                 };
-                let ty = self.push_term(ty);
+                let ty = self.inference.push_term(ty);
                 let field_type =
                     self.relate_type_equality(origin, TypeOperand::Variable(field), ty)?;
                 let pattern =

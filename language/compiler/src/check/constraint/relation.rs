@@ -93,7 +93,7 @@ impl CheckState<'_> {
         condition: Condition,
     ) {
         let origin = self.variable(variable).source;
-        let term = self.push_term(term);
+        let term = self.inference.push_term(term);
 
         self.relate_type(origin, TypeRelation::Equal, variable, term, condition);
     }
@@ -158,7 +158,9 @@ impl CheckState<'_> {
         static_condition: Condition,
     ) {
         let origin = Origin::Node(source.into_global(module));
-        let expected = self.push_term(TypeTerm::Literal(TypeLiteralTerm::boolean()));
+        let expected = self
+            .inference
+            .push_term(TypeTerm::Literal(TypeLiteralTerm::boolean()));
 
         self.relate_type(
             origin,

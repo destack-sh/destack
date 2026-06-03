@@ -8,8 +8,8 @@ use crate::check::{
 };
 
 impl CheckState<'_> {
-    /// Require one binding pattern to cover its matched value type.
-    pub(in crate::check) fn require_irrefutable_pattern(
+    /// Push an obligation for one binding pattern to cover its matched value type.
+    pub(in crate::check) fn push_irrefutable_pattern_obligation(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -24,7 +24,7 @@ impl CheckState<'_> {
             condition,
         };
 
-        self.require(obligation);
+        self.push_obligation(obligation);
     }
 }
 

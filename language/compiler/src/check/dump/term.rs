@@ -72,7 +72,7 @@ impl Dump for TypeTerm {
                 )
             }
             Self::Form { form, payload } => {
-                let form = context.check.term(*form).dump(context);
+                let form = context.check.inference.term(*form).dump(context);
 
                 dump_record(
                     "TypeTerm.Form",
@@ -84,7 +84,7 @@ impl Dump for TypeTerm {
                 [("constraint", constraint.dump(context))],
             ),
             Self::Member(member) => {
-                let member = context.check.term(*member);
+                let member = context.check.inference.term(*member);
                 let key = context.static_key_label(&member.key);
                 let arguments = dump_arguments(&member.arguments, context);
 
@@ -99,7 +99,10 @@ impl Dump for TypeTerm {
             }
             Self::Operation(operation) => dump_record(
                 "TypeTerm.Operation",
-                [("operation", context.check.term(*operation).dump(context))],
+                [(
+                    "operation",
+                    context.check.inference.term(*operation).dump(context),
+                )],
             ),
             Self::Union { elements } => dump_record(
                 "TypeTerm.Union",
@@ -116,18 +119,21 @@ impl Dump for TypeTerm {
                 "TypeTerm.Call",
                 [
                     ("id", call.index().to_string()),
-                    ("term", context.check.term(*call).dump(context)),
+                    ("term", context.check.inference.term(*call).dump(context)),
                 ],
             ),
             Self::Construct(construct) => dump_record(
                 "TypeTerm.Construct",
                 [
                     ("id", construct.index().to_string()),
-                    ("term", context.check.term(*construct).dump(context)),
+                    (
+                        "term",
+                        context.check.inference.term(*construct).dump(context),
+                    ),
                 ],
             ),
             Self::Shape(shape) => {
-                let shape = context.check.term(*shape);
+                let shape = context.check.inference.term(*shape);
                 let members = shape
                     .members
                     .iter()
@@ -138,7 +144,7 @@ impl Dump for TypeTerm {
                 dump_record("TypeTerm.Shape", [("members", dump_members(members))])
             }
             Self::Function(function) => {
-                let function = context.check.term(*function);
+                let function = context.check.inference.term(*function);
 
                 dump_record("TypeTerm.Function", [("term", function.dump(context))])
             }
@@ -166,75 +172,75 @@ impl Dump for TypeTerm {
             ),
             Self::RangeValue(term) => dump_record(
                 "TypeTerm.RangeValue",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Tree(term) => dump_record(
                 "TypeTerm.Tree",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::TypeValue(term) => dump_record(
                 "TypeTerm.TypeValue",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::ImportMeta(term) => dump_record(
                 "TypeTerm.ImportMeta",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Receiver(term) => dump_record(
                 "TypeTerm.Receiver",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Super(term) => dump_record(
                 "TypeTerm.Super",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Operator(term) => dump_record(
                 "TypeTerm.Operator",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Index(term) => dump_record(
                 "TypeTerm.Index",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::IndexSet(term) => dump_record(
                 "TypeTerm.IndexSet",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::KeyMembership(term) => dump_record(
                 "TypeTerm.KeyMembership",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::InstanceCheck(term) => dump_record(
                 "TypeTerm.InstanceCheck",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Identity(term) => dump_record(
                 "TypeTerm.Identity",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Await(term) => dump_record(
                 "TypeTerm.Await",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Try(term) => dump_record(
                 "TypeTerm.Try",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Yield(term) => dump_record(
                 "TypeTerm.Yield",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::TryFailure(term) => dump_record(
                 "TypeTerm.TryFailure",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::Template(term) => dump_record(
                 "TypeTerm.Template",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
             Self::TaggedTemplate(term) => dump_record(
                 "TypeTerm.TaggedTemplate",
-                [("term", context.check.term(*term).dump(context))],
+                [("term", context.check.inference.term(*term).dump(context))],
             ),
         }
     }
@@ -449,11 +455,11 @@ impl Dump for YieldTerm {
             [
                 ("source", context.node_label(self.source)),
                 ("value", self.value.dump(context)),
-                ("yield_type", self.yield_type.dump(context)),
-                ("resume_type", self.resume_type.dump(context)),
+                ("yield_target", self.yield_target.dump(context)),
+                ("resume_target", self.resume_target.dump(context)),
                 (
-                    "delegate_return_type",
-                    self.delegate_return_type.dump(context),
+                    "delegate_return_target",
+                    self.delegate_return_target.dump(context),
                 ),
                 ("cardinality", self.cardinality.dump(context)),
             ],

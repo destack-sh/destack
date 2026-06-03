@@ -63,14 +63,11 @@ impl<'a> CheckState<'a> {
         }
     }
 
-    /// Read all modules in one check component.
-    pub(in crate::check) fn read_component_modules(
-        &mut self,
-        modules: &[ModuleId],
-    ) -> CompilerResult<()> {
-        // read modules in stable component order
+    /// Load all modules in one check component.
+    pub(in crate::check) fn load(&mut self, modules: &[ModuleId]) -> CompilerResult<()> {
+        // load modules in stable component order
         for module in modules {
-            self.read_component_module(*module)?;
+            self.load_module(*module)?;
         }
 
         Ok(())
@@ -91,8 +88,8 @@ impl<'a> CheckState<'a> {
         self.propagate_walk_state(modules.as_slice())
     }
 
-    /// Read one module into component state.
-    fn read_component_module(&mut self, module_id: ModuleId) -> CompilerResult<()> {
+    /// Load one module into component state.
+    fn load_module(&mut self, module_id: ModuleId) -> CompilerResult<()> {
         if self.is_component_module(module_id) {
             return Ok(());
         }

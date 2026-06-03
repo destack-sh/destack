@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, Origin, Progress, ReceiverSubstitution, Substitution, TypeOperand,
-    TypeRelation, VariableId,
+    CheckState, Decision, GenericSlotId, Origin, Progress, ReceiverSubstitution, Substitution,
+    TypeOperand, TypeRelation, VariableId,
 };
 
 /// Function parameter payload.
@@ -18,7 +18,7 @@ pub(in crate::check) struct FunctionParameter {
     /// The parameter type.
     pub(in crate::check) ty: TypeOperand,
     /// The static generic slot supplied by this runtime argument.
-    pub(in crate::check) static_slot: Option<Box<VariableId>>,
+    pub(in crate::check) static_slot: Option<GenericSlotId>,
     /// Whether the parameter may be omitted at the call site.
     pub(in crate::check) is_optional: bool,
     /// Whether the parameter captures the remaining call arguments.
@@ -76,8 +76,8 @@ impl FunctionParameter {
 pub(in crate::check) struct FunctionTerm {
     /// The function asynchrony.
     pub(in crate::check) asynchrony: dir::Asynchrony,
-    /// The generic parameter types.
-    pub(in crate::check) generic_parameters: Vec<VariableId>,
+    /// The generic parameter slots.
+    pub(in crate::check) generic_parameters: Vec<GenericSlotId>,
     /// The optional `this` parameter type.
     pub(in crate::check) this_parameter: Option<TypeOperand>,
     /// The parameter types.
@@ -89,6 +89,22 @@ pub(in crate::check) struct FunctionTerm {
 }
 
 impl FunctionTerm {
+    /// Return the generic owner shared by this function term.
+    pub(in crate::check) fn generic_owner(&self) -> Option<dir::GlobalSymbolId> {
+        let owner = self.generic_parameters.first()?.owner;
+
+        for parameter in &self.generic_parameters {
+            if parameter.owner != owner {
+                panic!(
+                    "function term mixes generic owners {owner:?} and {:?}",
+                    parameter.owner
+                );
+            }
+        }
+
+        Some(owner)
+    }
+
     /// Substitute generic arguments through this function term.
     pub(in crate::check) fn substitute<'a>(
         &self,
@@ -100,8 +116,7 @@ impl FunctionTerm {
         let substitution = substitution.into();
         if let Some(generic) = substitution.generic {
             for parameter in &self.generic_parameters {
-                let slot = state.generic_parameter_slot(*parameter).id();
-                let is_substituted = generic.entries.iter().any(|entry| entry.slot == slot);
+                let is_substituted = generic.entries.iter().any(|entry| entry.slot == *parameter);
                 if !is_substituted {
                     generic_parameters.push(*parameter);
                 }
@@ -170,7 +185,6 @@ impl FunctionTerm {
     ) -> SmallVec<[VariableId; 2]> {
         let mut variables = SmallVec::new();
 
-        variables.extend(self.generic_parameters.iter().copied());
         variables.extend(
             self.this_parameter
                 .into_iter()
@@ -190,7 +204,7 @@ impl FunctionTerm {
 }
 
 impl CheckState<'_> {
-    /// Return a function term from one committed DIR function type.
+    /// Return a function term from one committed function type.
     pub(in crate::check) fn function_type_term(
         &mut self,
         module: ModuleId,
@@ -198,27 +212,24 @@ impl CheckState<'_> {
     ) -> CompilerResult<FunctionTerm> {
         let mut generic_parameters = Vec::with_capacity(function.generic_parameters.len());
         for parameter in function.generic_parameters {
-            let parameter = self.global_type_operand(module, parameter);
-            let TypeOperand::Variable(parameter) = parameter else {
-                panic!("committed function generic parameter is not a check variable");
+            let dir::Type::Parameter(parameter) = self.r#type(parameter) else {
+                panic!("committed function generic parameter is not a parameter type");
             };
 
-            generic_parameters.push(parameter);
+            generic_parameters.push((*parameter).into());
         }
 
         let this_parameter = function
             .this_parameter
-            .map(|parameter| self.global_type_operand(module, parameter));
+            .map(|parameter| self.import_type_operand(module, parameter));
         let parameters = function
             .parameters
             .into_iter()
             .map(|parameter| {
-                let static_slot = parameter
-                    .static_slot
-                    .map(|slot| Box::new(self.generic_parameter_variable(module, slot)));
+                let static_slot = parameter.static_slot.map(GenericSlotId::from);
 
                 FunctionParameter {
-                    ty: self.global_type_operand(module, parameter.ty),
+                    ty: self.import_type_operand(module, parameter.ty),
                     static_slot,
                     is_optional: parameter.is_optional,
                     is_rest: parameter.is_rest,
@@ -227,7 +238,7 @@ impl CheckState<'_> {
             .collect();
         let return_type = function
             .return_type
-            .map(|return_type| self.global_type_operand(module, return_type));
+            .map(|return_type| self.import_type_operand(module, return_type));
 
         Ok(FunctionTerm {
             asynchrony: function.asynchrony,
@@ -288,8 +299,11 @@ impl CheckState<'_> {
             return Ok(Decision::No);
         }
 
-        let generics = self
-            .decide_type_variable_list_equal(&left.generic_parameters, &right.generic_parameters)?;
+        let generics = if left.generic_parameters == right.generic_parameters {
+            Decision::Yes
+        } else {
+            Decision::No
+        };
         let this =
             self.decide_optional_type_operand_equal(left.this_parameter, right.this_parameter)?;
         let parameters =

@@ -7,8 +7,8 @@ use crate::check::{
 };
 
 impl CheckState<'_> {
-    /// Require one match expression to cover every kn^value.
-    pub(in crate::check) fn require_exhaustive_match(
+    /// Push an obligation for one match expression to cover every known value.
+    pub(in crate::check) fn push_exhaustive_match_obligation(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -23,7 +23,7 @@ impl CheckState<'_> {
             condition,
         };
 
-        self.require(obligation);
+        self.push_obligation(obligation);
     }
 
     /// Check whether one match covers every known selector value.

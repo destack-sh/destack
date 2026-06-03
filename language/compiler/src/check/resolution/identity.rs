@@ -67,6 +67,16 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         decision: IdentityDecision,
     ) -> CompilerResult<()> {
-        self.inference.select_identity(source, decision)
+        if let Some(existing) = self.inference.identity(source) {
+            if existing == decision {
+                return Ok(());
+            }
+
+            return Err(self.selection_conflict_error("identity", source, &existing, &decision));
+        }
+
+        self.inference.select_identity(source, decision);
+
+        Ok(())
     }
 }

@@ -142,7 +142,7 @@ impl TypeLiteralTerm {
         Some(literal)
     }
 
-    /// Convert this literal into a committed DIR type.
+    /// Convert this literal into a committed type.
     pub(in crate::check) fn to_type(&self) -> dir::Type {
         match self {
             Self::Error => dir::Type::Error,
@@ -168,7 +168,7 @@ impl TypeLiteralTerm {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum TypeTerm {
-    /// Committed DIR type.
+    /// Committed type.
     ///
     /// ```ds
     /// import { Value } from "./dependency"
@@ -498,7 +498,7 @@ impl TypeTerm {
             Self::StaticValue { value } => variables.extend(value.referenced_variables(state)),
             Self::Form { form, payload } => {
                 variables.extend(payload.referenced_variables(state));
-                variables.extend(state.term(*form).referenced_variables(state));
+                variables.extend(state.inference.term(*form).referenced_variables(state));
             }
             Self::Reference {
                 origin: _,
@@ -508,12 +508,12 @@ impl TypeTerm {
                 variables.extend(
                     arguments
                         .iter()
-                        .flat_map(|argument| state.argument_variables(argument)),
+                        .flat_map(|argument| argument.referenced_variables(state)),
                 );
             }
             Self::Array { element } => variables.extend(element.referenced_variables(state)),
             Self::Member(member) => {
-                variables.extend(state.term(*member).referenced_variables(state));
+                variables.extend(state.inference.term(*member).referenced_variables(state));
             }
             Self::FixedArray { element, length } => {
                 variables.extend(element.referenced_variables(state));
@@ -526,14 +526,14 @@ impl TypeTerm {
                 }
             }
             Self::Shape(shape) => {
-                let members = &state.term(*shape).members;
+                let members = &state.inference.term(*shape).members;
 
                 for member in members {
                     variables.extend(member.referenced_variables(state));
                 }
             }
             Self::Function(function) => {
-                variables.extend(state.term(*function).referenced_variables(state));
+                variables.extend(state.inference.term(*function).referenced_variables(state));
             }
             Self::Range {
                 start: _,
@@ -548,61 +548,76 @@ impl TypeTerm {
                 );
             }
             Self::Operation(operation) => {
-                variables.extend(state.term(*operation).referenced_variables(state));
+                variables.extend(state.inference.term(*operation).referenced_variables(state));
             }
-            Self::Call(call) => variables.extend(state.term(*call).referenced_variables(state)),
+            Self::Call(call) => {
+                variables.extend(state.inference.term(*call).referenced_variables(state))
+            }
             Self::Construct(construct) => {
-                variables.extend(state.term(*construct).referenced_variables(state));
+                variables.extend(state.inference.term(*construct).referenced_variables(state));
             }
             Self::RangeValue(range) => {
-                variables.extend(state.term(*range).referenced_variables(state));
+                variables.extend(state.inference.term(*range).referenced_variables(state));
             }
-            Self::Tree(tree) => variables.extend(state.term(*tree).referenced_variables(state)),
+            Self::Tree(tree) => {
+                variables.extend(state.inference.term(*tree).referenced_variables(state))
+            }
             Self::TypeValue(value) => {
-                variables.extend(state.term(*value).referenced_variables(state));
+                variables.extend(state.inference.term(*value).referenced_variables(state));
             }
             Self::ImportMeta(_) => {}
             Self::Receiver(receiver) => {
-                variables.extend(state.term(*receiver).referenced_variables(state));
+                variables.extend(state.inference.term(*receiver).referenced_variables(state));
             }
             Self::Super(term) => {
-                variables.extend(state.term(*term).referenced_variables(state));
+                variables.extend(state.inference.term(*term).referenced_variables(state));
             }
             Self::Operator(operator) => {
-                variables.extend(state.term(*operator).referenced_variables(state));
+                variables.extend(state.inference.term(*operator).referenced_variables(state));
             }
             Self::Index(index) => {
-                variables.extend(state.term(*index).referenced_variables(state));
+                variables.extend(state.inference.term(*index).referenced_variables(state));
             }
             Self::IndexSet(set) => {
-                variables.extend(state.term(*set).referenced_variables(state));
+                variables.extend(state.inference.term(*set).referenced_variables(state));
             }
             Self::KeyMembership(membership) => {
-                variables.extend(state.term(*membership).referenced_variables(state));
+                variables.extend(
+                    state
+                        .inference
+                        .term(*membership)
+                        .referenced_variables(state),
+                );
             }
             Self::InstanceCheck(instance) => {
-                variables.extend(state.term(*instance).referenced_variables(state));
+                variables.extend(state.inference.term(*instance).referenced_variables(state));
             }
             Self::Identity(identity) => {
-                variables.extend(state.term(*identity).referenced_variables(state));
+                variables.extend(state.inference.term(*identity).referenced_variables(state));
             }
             Self::Await(awaited) => {
-                variables.extend(state.term(*awaited).value.referenced_variables(state));
+                variables.extend(
+                    state
+                        .inference
+                        .term(*awaited)
+                        .value
+                        .referenced_variables(state),
+                );
             }
             Self::Try(tried) => {
-                variables.extend(state.term(*tried).referenced_variables(state));
+                variables.extend(state.inference.term(*tried).referenced_variables(state));
             }
             Self::Yield(yielded) => {
-                variables.extend(state.term(*yielded).referenced_variables(state))
+                variables.extend(state.inference.term(*yielded).referenced_variables(state))
             }
             Self::TryFailure(tried) => {
-                variables.extend(state.term(*tried).referenced_variables(state));
+                variables.extend(state.inference.term(*tried).referenced_variables(state));
             }
             Self::Template(template) => {
-                variables.extend(state.term(*template).referenced_variables(state));
+                variables.extend(state.inference.term(*template).referenced_variables(state));
             }
             Self::TaggedTemplate(template) => {
-                variables.extend(state.term(*template).referenced_variables(state));
+                variables.extend(state.inference.term(*template).referenced_variables(state));
             }
             Self::Dynamic { constraint } => {
                 variables.extend(constraint.referenced_variables(state))
@@ -641,7 +656,7 @@ impl TypeTerm {
             | Self::Closure { .. }
             | Self::Union { .. }
             | Self::Intersection { .. } => true,
-            Self::Operation(operation) => state.term(*operation).is_stable(),
+            Self::Operation(operation) => state.inference.term(*operation).is_stable(),
             Self::StaticValue { .. }
             | Self::Call(_)
             | Self::Construct(_)
@@ -711,13 +726,13 @@ impl CheckState<'_> {
                     }
                 }
                 None => {
-                    let length = self.push_term(length.clone());
+                    let length = self.inference.push_term(length.clone());
 
                     self.relate_static_equality(length, StaticOperand::Variable(target))?
                 }
             },
             StaticOperand::Term(target) => {
-                let target = self.term(target);
+                let target = self.inference.term(target);
                 let decision =
                     self.decide_static_term_relation(StaticRelation::Equal, &length, target)?;
                 if decision == Decision::Yes {
@@ -799,7 +814,7 @@ impl CheckState<'_> {
 
                 term
             }
-            TypeOperand::Term(term) => self.term(term).clone(),
+            TypeOperand::Term(term) => self.inference.term(term).clone(),
             TypeOperand::Type(ty) => TypeTerm::Type(ty),
         };
         let right = match right {
@@ -810,7 +825,7 @@ impl CheckState<'_> {
 
                 term
             }
-            TypeOperand::Term(term) => self.term(term).clone(),
+            TypeOperand::Term(term) => self.inference.term(term).clone(),
             TypeOperand::Type(ty) => TypeTerm::Type(ty),
         };
 
@@ -890,7 +905,7 @@ impl CheckState<'_> {
         let mut progress = Progress::Unchanged;
 
         // push contextual upper bounds into the defining term
-        let upper_bounds = self.upper_type_bounds(result).to_vec();
+        let upper_bounds = self.inference.upper_type_bounds(result);
         for expected in upper_bounds {
             let Some(expected_term) = self.reduce_type_operand(origin, expected)? else {
                 continue;
@@ -918,7 +933,7 @@ impl CheckState<'_> {
         let reduction = match term {
             TypeTerm::Type(_) => Reduction::value(term.clone()),
             TypeTerm::Member(member) => {
-                let member = self.term(*member).clone();
+                let member = self.inference.term(*member).clone();
 
                 match self.reduce_member_term(
                     origin,
@@ -932,7 +947,7 @@ impl CheckState<'_> {
                     None => Reduction::pending(),
                 }
             }
-            TypeTerm::Operation(operation) => match self.term(*operation).clone() {
+            TypeTerm::Operation(operation) => match self.inference.term(*operation).clone() {
                 TypeOperationTerm::Exclude { source, target } => {
                     match self.reduce_exclude_term(module, source, target)? {
                         Some(term) => Reduction::value(term),
@@ -992,47 +1007,47 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::Call(call) => {
-                let call = self.term(*call).clone();
+                let call = self.inference.term(*call).clone();
 
                 self.reduce_call_term(origin, module, &call)?
             }
             TypeTerm::Construct(construct) => {
-                let construct = self.term(*construct).clone();
+                let construct = self.inference.term(*construct).clone();
 
                 self.reduce_construct_term(origin, module, &construct)?
             }
             TypeTerm::RangeValue(range) => {
-                let range = self.term(*range).clone();
+                let range = self.inference.term(*range).clone();
 
                 self.reduce_range_value_term(module, &range)?
             }
             TypeTerm::Tree(tree) => {
-                let tree = self.term(*tree).clone();
+                let tree = self.inference.term(*tree).clone();
 
                 self.reduce_tree_term(module, &tree)?
             }
             TypeTerm::TypeValue(value) => {
-                let value = self.term(*value).clone();
+                let value = self.inference.term(*value).clone();
 
                 self.reduce_type_value_term(module, &value)?
             }
             TypeTerm::ImportMeta(meta) => {
-                let meta = self.term(*meta).clone();
+                let meta = self.inference.term(*meta).clone();
 
                 self.reduce_import_meta_term(module, &meta)?
             }
             TypeTerm::Receiver(receiver) => {
-                let receiver = self.term(*receiver).clone();
+                let receiver = self.inference.term(*receiver).clone();
 
                 self.reduce_receiver_term(&receiver)?
             }
             TypeTerm::Super(term) => {
-                let term = self.term(*term).clone();
+                let term = self.inference.term(*term).clone();
 
                 self.reduce_super_term(module, &term)?
             }
             TypeTerm::Operator(operator) => {
-                let operator = self.term(*operator).clone();
+                let operator = self.inference.term(*operator).clone();
 
                 match self.reduce_operator_term(origin, &operator)? {
                     Some(term) => Reduction::value(term),
@@ -1040,17 +1055,17 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::Index(index) => {
-                let index = self.term(*index).clone();
+                let index = self.inference.term(*index).clone();
 
                 self.reduce_index_term(origin, module, &index)?
             }
             TypeTerm::IndexSet(set) => {
-                let set = self.term(*set).clone();
+                let set = self.inference.term(*set).clone();
 
                 self.reduce_index_set_term(origin, module, &set)?
             }
             TypeTerm::KeyMembership(membership) => {
-                let membership = self.term(*membership).clone();
+                let membership = self.inference.term(*membership).clone();
 
                 match self.reduce_key_membership_term(&membership)? {
                     Some(term) => Reduction::value(term),
@@ -1058,7 +1073,7 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::InstanceCheck(instance) => {
-                let instance = self.term(*instance).clone();
+                let instance = self.inference.term(*instance).clone();
 
                 match self.reduce_instance_check_term(&instance)? {
                     Some(term) => Reduction::value(term),
@@ -1066,7 +1081,7 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::Identity(identity) => {
-                let identity = self.term(*identity).clone();
+                let identity = self.inference.term(*identity).clone();
 
                 match self.reduce_identity_term(&identity)? {
                     Some(term) => Reduction::value(term),
@@ -1074,7 +1089,7 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::Template(template) => {
-                let template = self.term(*template).clone();
+                let template = self.inference.term(*template).clone();
 
                 match self.reduce_template_term(&template)? {
                     Some(term) => Reduction::value(term),
@@ -1082,12 +1097,12 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::TaggedTemplate(template) => {
-                let template = self.term(*template).clone();
+                let template = self.inference.term(*template).clone();
 
                 self.reduce_tagged_template_term(origin, &template)?
             }
             TypeTerm::Await(awaited) => {
-                let awaited = self.term(*awaited).clone();
+                let awaited = self.inference.term(*awaited).clone();
 
                 match self.reduce_await_term(&awaited)? {
                     Some(term) => Reduction::value(term),
@@ -1095,7 +1110,7 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::Try(tried) => {
-                let tried = self.term(*tried).clone();
+                let tried = self.inference.term(*tried).clone();
 
                 match self.reduce_try_term(origin, module, &tried)? {
                     Some(term) => Reduction::value(term),
@@ -1103,7 +1118,7 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::Yield(yielded) => {
-                let yielded = self.term(*yielded).clone();
+                let yielded = self.inference.term(*yielded).clone();
 
                 match self.reduce_yield_term(&yielded)? {
                     Some(term) => Reduction::value(term),
@@ -1111,7 +1126,7 @@ impl CheckState<'_> {
                 }
             }
             TypeTerm::TryFailure(tried) => {
-                let tried = self.term(*tried).clone();
+                let tried = self.inference.term(*tried).clone();
 
                 match self.reduce_try_failure_term(origin, module, &tried)? {
                     Some(term) => Reduction::value(term),
@@ -1186,11 +1201,11 @@ impl CheckState<'_> {
             | TypeTerm::Dynamic { .. }
             | TypeTerm::Closure { .. } => Reduction::value(term.clone()),
             TypeTerm::Shape(shape) => {
-                let members = self.term(*shape).members.clone();
+                let members = self.inference.term(*shape).members.clone();
                 let Some(members) = self.reduce_shape_term(origin, &members)? else {
                     return Ok(Reduction::pending());
                 };
-                if members.as_slice() == self.term(*shape).members.as_slice() {
+                if members.as_slice() == self.inference.term(*shape).members.as_slice() {
                     return Ok(Reduction::value(TypeTerm::Shape(*shape)));
                 }
 
@@ -1282,6 +1297,7 @@ impl CheckState<'_> {
                 is_optional: *is_optional,
                 is_readonly: *is_readonly,
             },
+            ShapeMember::Spread { .. } => return Ok(None),
             ShapeMember::CallSignature { ty } => ShapeMember::CallSignature {
                 ty: match self.reduce_type_operand_to_operand(origin, *ty)? {
                     Some(ty) => ty,
@@ -1327,14 +1343,14 @@ impl CheckState<'_> {
         let TypeOperand::Term(term) = operand else {
             return Ok(Some(operand));
         };
-        let original = self.term(term).clone();
+        let original = self.inference.term(term).clone();
         let Some(reduced) = self.reduce_type_operand_term(origin, original.clone())? else {
             return Ok(None);
         };
         if reduced == original {
             return Ok(Some(operand));
         }
-        let reduced = self.push_term(reduced);
+        let reduced = self.inference.push_term(reduced);
 
         Ok(Some(reduced.into()))
     }
@@ -1363,8 +1379,8 @@ impl CheckState<'_> {
                     payload: right_value,
                 },
             ) => {
-                let left_form = self.term(*left_form).clone();
-                let right_form = self.term(*right_form).clone();
+                let left_form = self.inference.term(*left_form).clone();
+                let right_form = self.inference.term(*right_form).clone();
                 let form = self.constrain_form_equal(&left_form, &right_form)?;
                 let value = self.relate_type_equality(origin, *left_value, *right_value)?;
 
@@ -1418,8 +1434,8 @@ impl CheckState<'_> {
                 }
             }
             (TypeTerm::Shape(left), TypeTerm::Shape(right)) => {
-                let left = self.term(*left).members.clone();
-                let right = self.term(*right).members.clone();
+                let left = self.inference.term(*left).members.clone();
+                let right = self.inference.term(*right).members.clone();
 
                 self.constrain_shape_members_equal(origin, &left, &right)?
             }
@@ -1467,8 +1483,8 @@ impl CheckState<'_> {
                     payload: target_value,
                 },
             ) => {
-                let source_form = self.term(*source_form).clone();
-                let target_form = self.term(*target_form).clone();
+                let source_form = self.inference.term(*source_form).clone();
+                let target_form = self.inference.term(*target_form).clone();
                 let form = self.constrain_form_assignable(&source_form, &target_form)?;
                 let value = self.relate_type_assignability(origin, *source_value, *target_value)?;
 
@@ -1540,8 +1556,8 @@ impl CheckState<'_> {
                 }
             }
             (TypeTerm::Shape(source), TypeTerm::Shape(target)) => {
-                let source = self.term(*source).members.clone();
-                let target = self.term(*target).members.clone();
+                let source = self.inference.term(*source).members.clone();
+                let target = self.inference.term(*target).members.clone();
 
                 self.constrain_shape_members_assignable(origin, &source, &target)?
             }
@@ -1598,9 +1614,9 @@ impl TypeTerm {
             },
             TypeTerm::Form { form, payload } => TypeTerm::Form {
                 form: {
-                    let form = state.term(*form).clone();
+                    let form = state.inference.term(*form).clone();
                     let form = form.substitute(module, substitution, state)?;
-                    state.push_term(form)
+                    state.inference.push_term(form)
                 },
                 payload: state.substitute_type_operand(module, substitution, *payload)?,
             },
@@ -1631,9 +1647,9 @@ impl TypeTerm {
                 element: state.substitute_type_operand(module, substitution, *element)?,
             },
             TypeTerm::Member(member) => {
-                let member = state.term(*member).clone();
+                let member = state.inference.term(*member).clone();
                 let member = member.substitute(module, substitution, state)?;
-                let member = state.push_term(member);
+                let member = state.inference.push_term(member);
 
                 TypeTerm::Member(member)
             }
@@ -1651,7 +1667,7 @@ impl TypeTerm {
                     .into(),
             },
             TypeTerm::Shape(shape) => {
-                let members = state.term(*shape).members.clone();
+                let members = state.inference.term(*shape).members.clone();
                 let members = state
                     .substitute_shape_members(module, substitution, &members)?
                     .into();
@@ -1659,9 +1675,9 @@ impl TypeTerm {
                 state.push_shape_type(members)
             }
             TypeTerm::Function(function) => {
-                let function = state.term(*function).clone();
+                let function = state.inference.term(*function).clone();
                 let function = function.substitute(module, substitution, state)?;
-                let function = state.push_term(function);
+                let function = state.inference.push_term(function);
 
                 TypeTerm::Function(function)
             }
@@ -1672,14 +1688,14 @@ impl TypeTerm {
                 elements: state.substitute_type_operands(module, substitution, elements)?,
             },
             TypeTerm::Operation(operation) => {
-                let operation = state.term(*operation).clone();
+                let operation = state.inference.term(*operation).clone();
                 let operation = operation.substitute(module, substitution, state)?;
-                let operation = state.push_term(operation);
+                let operation = state.inference.push_term(operation);
 
                 TypeTerm::Operation(operation)
             }
             TypeTerm::Call(call) => {
-                let call = state.term(*call).clone();
+                let call = state.inference.term(*call).clone();
                 let callee = match call.callee {
                     CallCallee::Expression(callee) => CallCallee::Expression(
                         state.substitute_type_operand(module, substitution, callee)?,
@@ -1689,7 +1705,7 @@ impl TypeTerm {
                         symbol,
                     },
                     CallCallee::Member(member) => {
-                        let member = state.term(member).clone();
+                        let member = state.inference.term(member).clone();
                         let source = match member.source {
                             MemberCallSource::Expression { source } => {
                                 MemberCallSource::Expression { source }
@@ -1720,7 +1736,7 @@ impl TypeTerm {
                             )?,
                         };
 
-                        CallCallee::Member(state.push_term(member))
+                        CallCallee::Member(state.inference.push_term(member))
                     }
                 };
                 let call = CallTerm {
@@ -1737,10 +1753,10 @@ impl TypeTerm {
                     argument_values: call.argument_values.clone(),
                 };
 
-                TypeTerm::Call(state.push_term(call))
+                TypeTerm::Call(state.inference.push_term(call))
             }
             TypeTerm::Construct(construct) => {
-                let construct = state.term(*construct).clone();
+                let construct = state.inference.term(*construct).clone();
                 let construct = ConstructTerm {
                     source: construct.source,
                     callee: state.substitute_type_operand(
@@ -1757,12 +1773,12 @@ impl TypeTerm {
                         .substitute_type_operands(module, substitution, &construct.arguments)?
                         .into(),
                 };
-                let construct = state.push_term(construct);
+                let construct = state.inference.push_term(construct);
 
                 TypeTerm::Construct(construct)
             }
             TypeTerm::RangeValue(range) => {
-                let range = state.term(*range).clone();
+                let range = state.inference.term(*range).clone();
                 let range = RangeValueTerm {
                     source: range.source,
                     start: range
@@ -1775,12 +1791,12 @@ impl TypeTerm {
                         .transpose()?,
                     end_kind: range.end_kind,
                 };
-                let range = state.push_term(range);
+                let range = state.inference.push_term(range);
 
                 TypeTerm::RangeValue(range)
             }
             TypeTerm::Tree(tree) => {
-                let tree = state.term(*tree).clone();
+                let tree = state.inference.term(*tree).clone();
                 let tree = TreeTerm {
                     source: tree.source,
                     tag: tree
@@ -1803,34 +1819,34 @@ impl TypeTerm {
                         &tree.elements,
                     )?,
                 };
-                let tree = state.push_term(tree);
+                let tree = state.inference.push_term(tree);
 
                 TypeTerm::Tree(tree)
             }
             TypeTerm::TypeValue(value) => {
-                let value = state.term(*value).clone();
+                let value = state.inference.term(*value).clone();
                 let value = TypeValueTerm {
                     source: value.source,
                     ty: state.substitute_type_operand(module, substitution, value.ty)?,
                 };
-                let value = state.push_term(value);
+                let value = state.inference.push_term(value);
 
                 TypeTerm::TypeValue(value)
             }
             TypeTerm::ImportMeta(meta) => TypeTerm::ImportMeta(*meta),
             TypeTerm::Receiver(receiver) => {
-                let receiver = state.term(*receiver).clone();
+                let receiver = state.inference.term(*receiver).clone();
                 let receiver = ReceiverTerm {
                     source: receiver.source,
                     kind: receiver.kind,
                     ty: state.substitute_type_operand(module, substitution, receiver.ty)?,
                 };
-                let receiver = state.push_term(receiver);
+                let receiver = state.inference.push_term(receiver);
 
                 TypeTerm::Receiver(receiver)
             }
             TypeTerm::Super(term) => {
-                let term = state.term(*term).clone();
+                let term = state.inference.term(*term).clone();
                 let term = SuperTerm {
                     source: term.source,
                     receiver: term
@@ -1840,12 +1856,12 @@ impl TypeTerm {
                         })
                         .transpose()?,
                 };
-                let term = state.push_term(term);
+                let term = state.inference.push_term(term);
 
                 TypeTerm::Super(term)
             }
             TypeTerm::Operator(operator) => {
-                let operator = state.term(*operator).clone();
+                let operator = state.inference.term(*operator).clone();
                 let operator = OperatorTerm {
                     source: operator.source,
                     kind: operator.kind,
@@ -1861,12 +1877,12 @@ impl TypeTerm {
                         })
                         .transpose()?,
                 };
-                let operator = state.push_term(operator);
+                let operator = state.inference.push_term(operator);
 
                 TypeTerm::Operator(operator)
             }
             TypeTerm::Index(index) => {
-                let index = state.term(*index).clone();
+                let index = state.inference.term(*index).clone();
                 let index = IndexTerm {
                     source: index.source,
                     kind: index.kind,
@@ -1878,12 +1894,12 @@ impl TypeTerm {
                     index: state.substitute_type_operand(module, substitution, index.index)?,
                     key: index.key,
                 };
-                let index = state.push_term(index);
+                let index = state.inference.push_term(index);
 
                 TypeTerm::Index(index)
             }
             TypeTerm::IndexSet(set) => {
-                let set = state.term(*set).clone();
+                let set = state.inference.term(*set).clone();
                 let set = IndexSetTerm {
                     source: set.source,
                     receiver: state.substitute_type_operand(module, substitution, set.receiver)?,
@@ -1891,12 +1907,12 @@ impl TypeTerm {
                     value: state.substitute_type_operand(module, substitution, set.value)?,
                     key: set.key,
                 };
-                let set = state.push_term(set);
+                let set = state.inference.push_term(set);
 
                 TypeTerm::IndexSet(set)
             }
             TypeTerm::KeyMembership(membership) => {
-                let membership = state.term(*membership).clone();
+                let membership = state.inference.term(*membership).clone();
                 let membership = KeyMembershipTerm {
                     source: membership.source,
                     key: state.substitute_type_operand(module, substitution, membership.key)?,
@@ -1906,103 +1922,103 @@ impl TypeTerm {
                         membership.receiver,
                     )?,
                 };
-                let membership = state.push_term(membership);
+                let membership = state.inference.push_term(membership);
 
                 TypeTerm::KeyMembership(membership)
             }
             TypeTerm::InstanceCheck(instance) => {
-                let instance = state.term(*instance).clone();
+                let instance = state.inference.term(*instance).clone();
                 let instance = InstanceCheckTerm {
                     source: instance.source,
                     value: state.substitute_type_operand(module, substitution, instance.value)?,
                     target: state.substitute_type_operand(module, substitution, instance.target)?,
                 };
-                let instance = state.push_term(instance);
+                let instance = state.inference.push_term(instance);
 
                 TypeTerm::InstanceCheck(instance)
             }
             TypeTerm::Identity(identity) => {
-                let identity = state.term(*identity).clone();
+                let identity = state.inference.term(*identity).clone();
                 let identity = IdentityTerm {
                     source: identity.source,
                     operator: identity.operator,
                     left: state.substitute_type_operand(module, substitution, identity.left)?,
                     right: state.substitute_type_operand(module, substitution, identity.right)?,
                 };
-                let identity = state.push_term(identity);
+                let identity = state.inference.push_term(identity);
 
                 TypeTerm::Identity(identity)
             }
             TypeTerm::Await(awaited) => {
-                let awaited = state.term(*awaited).clone();
+                let awaited = state.inference.term(*awaited).clone();
                 let awaited = AwaitTerm {
                     source: awaited.source,
                     value: state.substitute_type_operand(module, substitution, awaited.value)?,
                 };
-                let awaited = state.push_term(awaited);
+                let awaited = state.inference.push_term(awaited);
 
                 TypeTerm::Await(awaited)
             }
             TypeTerm::Try(tried) => {
-                let tried = state.term(*tried).clone();
+                let tried = state.inference.term(*tried).clone();
                 let tried = TryTerm {
                     source: tried.source,
                     value: state.substitute_type_operand(module, substitution, tried.value)?,
                     kind: tried.kind,
                 };
-                let tried = state.push_term(tried);
+                let tried = state.inference.push_term(tried);
 
                 TypeTerm::Try(tried)
             }
             TypeTerm::Yield(yielded) => {
-                let yielded = state.term(*yielded).clone();
+                let yielded = state.inference.term(*yielded).clone();
                 let yielded = YieldTerm {
                     source: yielded.source,
                     value: yielded
                         .value
                         .map(|value| state.substitute_type_operand(module, substitution, value))
                         .transpose()?,
-                    yield_type: yielded
-                        .yield_type
+                    yield_target: yielded
+                        .yield_target
                         .map(|ty| state.substitute_type_variable(module, substitution, ty))
                         .transpose()?,
-                    resume_type: yielded
-                        .resume_type
+                    resume_target: yielded
+                        .resume_target
                         .map(|ty| state.substitute_type_variable(module, substitution, ty))
                         .transpose()?,
-                    delegate_return_type: yielded
-                        .delegate_return_type
+                    delegate_return_target: yielded
+                        .delegate_return_target
                         .map(|ty| state.substitute_type_variable(module, substitution, ty))
                         .transpose()?,
                     cardinality: yielded.cardinality,
                 };
-                let yielded = state.push_term(yielded);
+                let yielded = state.inference.push_term(yielded);
 
                 TypeTerm::Yield(yielded)
             }
             TypeTerm::TryFailure(tried) => {
-                let tried = state.term(*tried).clone();
+                let tried = state.inference.term(*tried).clone();
                 let tried = TryFailureTerm {
                     source: tried.source,
                     value: state.substitute_type_operand(module, substitution, tried.value)?,
                 };
-                let tried = state.push_term(tried);
+                let tried = state.inference.push_term(tried);
 
                 TypeTerm::TryFailure(tried)
             }
             TypeTerm::Template(template) => {
-                let template = state.term(*template).clone();
+                let template = state.inference.term(*template).clone();
                 let template = TemplateTerm {
                     source: template.source,
                     strings: template.strings.clone(),
                     spans: state.substitute_type_operands(module, substitution, &template.spans)?,
                 };
-                let template = state.push_term(template);
+                let template = state.inference.push_term(template);
 
                 TypeTerm::Template(template)
             }
             TypeTerm::TaggedTemplate(template) => {
-                let template = state.term(*template).clone();
+                let template = state.inference.term(*template).clone();
                 let template = TaggedTemplateTerm {
                     source: template.source,
                     tag: state.substitute_type_operand(module, substitution, template.tag)?,
@@ -2014,7 +2030,7 @@ impl TypeTerm {
                     strings: template.strings.clone(),
                     spans: state.substitute_type_operands(module, substitution, &template.spans)?,
                 };
-                let template = state.push_term(template);
+                let template = state.inference.push_term(template);
 
                 TypeTerm::TaggedTemplate(template)
             }
@@ -2113,8 +2129,8 @@ impl CheckState<'_> {
                 else {
                     return Ok(Progress::Unchanged);
                 };
-                let form_term = self.term(*form).clone();
-                let result_form = self.term(*result_form).clone();
+                let form_term = self.inference.term(*form).clone();
+                let result_form = self.inference.term(*result_form).clone();
                 let form = self.expect_form_term(&form_term, &result_form)?;
                 let payload =
                     self.relate_contextual_type_assignability(origin, *payload, *result_payload)?;
@@ -2191,13 +2207,13 @@ impl CheckState<'_> {
                 let TypeTerm::Shape(result) = expected_term else {
                     return Ok(Progress::Unchanged);
                 };
-                let members = self.term(*shape).members.clone();
-                let result_members = self.term(*result).members.clone();
+                let members = self.inference.term(*shape).members.clone();
+                let result_members = self.inference.term(*result).members.clone();
 
                 self.expect_shape_member_terms(origin, &members, &result_members)?
             }
             TypeTerm::Call(call) => {
-                let call = self.term(*call).clone();
+                let call = self.inference.term(*call).clone();
                 let Some(expected) = expected.variable().or(result) else {
                     return Ok(Progress::Unchanged);
                 };
@@ -2205,7 +2221,7 @@ impl CheckState<'_> {
                 self.expect_call_term(origin, &call, expected)?
             }
             TypeTerm::Construct(construct) => {
-                let construct = self.term(*construct).clone();
+                let construct = self.inference.term(*construct).clone();
                 let Some(expected) = expected.variable().or(result) else {
                     return Ok(Progress::Unchanged);
                 };
@@ -2213,7 +2229,7 @@ impl CheckState<'_> {
                 self.expect_construct_term(origin, &construct, expected)?
             }
             TypeTerm::Operator(operator) => {
-                let operator = self.term(*operator).clone();
+                let operator = self.inference.term(*operator).clone();
                 let Some(expected) = expected.variable().or(result) else {
                     return Ok(Progress::Unchanged);
                 };
@@ -2221,7 +2237,7 @@ impl CheckState<'_> {
                 self.expect_operator_term(origin, &operator, expected)?
             }
             TypeTerm::Index(index) => {
-                let index = self.term(*index).clone();
+                let index = self.inference.term(*index).clone();
                 let Some(expected) = expected.variable().or(result) else {
                     return Ok(Progress::Unchanged);
                 };
@@ -2229,7 +2245,7 @@ impl CheckState<'_> {
                 self.expect_index_term(origin, &index, expected)?
             }
             TypeTerm::IndexSet(set) => {
-                let set = self.term(*set).clone();
+                let set = self.inference.term(*set).clone();
                 let Some(expected) = expected.variable().or(result) else {
                     return Ok(Progress::Unchanged);
                 };
@@ -2241,7 +2257,7 @@ impl CheckState<'_> {
             | TypeTerm::Identity(_)
             | TypeTerm::Template(_) => Progress::Unchanged,
             TypeTerm::TaggedTemplate(template) => {
-                let template = self.term(*template).clone();
+                let template = self.inference.term(*template).clone();
                 let Some(expected) = expected.variable() else {
                     return Ok(Progress::Unchanged);
                 };
@@ -2249,7 +2265,7 @@ impl CheckState<'_> {
                 self.expect_tagged_template_term(origin, &template, expected)?
             }
             TypeTerm::Await(awaited) => {
-                let awaited = self.term(*awaited).clone();
+                let awaited = self.inference.term(*awaited).clone();
                 let Some(expected) = expected.variable() else {
                     return Ok(Progress::Unchanged);
                 };
@@ -2257,7 +2273,7 @@ impl CheckState<'_> {
                 self.expect_await_term(origin, &awaited, expected)?
             }
             TypeTerm::Try(tried) => {
-                let tried = self.term(*tried).clone();
+                let tried = self.inference.term(*tried).clone();
                 let Some(expected) = expected.variable() else {
                     return Ok(Progress::Unchanged);
                 };
@@ -2265,7 +2281,7 @@ impl CheckState<'_> {
                 self.expect_try_term(origin, &tried, expected)?
             }
             TypeTerm::Yield(yielded) => {
-                let yielded = self.term(*yielded).clone();
+                let yielded = self.inference.term(*yielded).clone();
                 let Some(expected) = expected.variable() else {
                     return Ok(Progress::Unchanged);
                 };
@@ -2273,14 +2289,14 @@ impl CheckState<'_> {
                 self.expect_yield_term(origin, &yielded, expected)?
             }
             TypeTerm::TryFailure(tried) => {
-                let tried = self.term(*tried).clone();
+                let tried = self.inference.term(*tried).clone();
                 let Some(expected) = expected.variable() else {
                     return Ok(Progress::Unchanged);
                 };
 
                 self.expect_try_failure_term(origin, &tried, expected)?
             }
-            TypeTerm::Operation(operation) => match self.term(*operation).clone() {
+            TypeTerm::Operation(operation) => match self.inference.term(*operation).clone() {
                 TypeOperationTerm::Exclude { source, target: _ } => {
                     self.relate_contextual_type_assignability(origin, source, expected)?
                 }
@@ -2318,7 +2334,7 @@ impl CheckState<'_> {
                 | TypeOperationTerm::Intrinsic { .. } => Progress::Unchanged,
             },
             TypeTerm::RangeValue(range) => {
-                let range = self.term(*range).clone();
+                let range = self.inference.term(*range).clone();
 
                 self.expect_range_value_term(origin, &range, expected_term)?
             }
@@ -2327,8 +2343,8 @@ impl CheckState<'_> {
                     return Ok(Progress::Unchanged);
                 };
 
-                let function = self.term(*function).clone();
-                let expected_function = self.term(*expected_function).clone();
+                let function = self.inference.term(*function).clone();
+                let expected_function = self.inference.term(*expected_function).clone();
 
                 self.expect_function_term(origin, &function, &expected_function)?
             }
@@ -2392,7 +2408,10 @@ impl CheckState<'_> {
                     payload: right_value,
                 },
             ) => {
-                let form = self.decide_form_equal(self.term(*left_form), self.term(*right_form))?;
+                let form = self.decide_form_equal(
+                    self.inference.term(*left_form),
+                    self.inference.term(*right_form),
+                )?;
                 if form != Decision::Yes {
                     return Ok(form);
                 }
@@ -2468,13 +2487,13 @@ impl CheckState<'_> {
                 }
             }
             (TypeTerm::Shape(left), TypeTerm::Shape(right)) => {
-                let left = &self.term(*left).members;
-                let right = &self.term(*right).members;
+                let left = &self.inference.term(*left).members;
+                let right = &self.inference.term(*right).members;
 
                 self.decide_shape_members_equal(left, right)?
             }
             (TypeTerm::Function(left), TypeTerm::Function(right)) => {
-                self.decide_function_equal(self.term(*left), self.term(*right))?
+                self.decide_function_equal(self.inference.term(*left), self.inference.term(*right))?
             }
             (
                 TypeTerm::Range {
@@ -2531,8 +2550,10 @@ impl CheckState<'_> {
                     payload: target_value,
                 },
             ) => {
-                let form =
-                    self.decide_form_assignable(self.term(*source_form), self.term(*target_form))?;
+                let form = self.decide_form_assignable(
+                    self.inference.term(*source_form),
+                    self.inference.term(*target_form),
+                )?;
                 if form != Decision::Yes {
                     return Ok(form);
                 }
@@ -2603,8 +2624,8 @@ impl CheckState<'_> {
                 }
             }
             (TypeTerm::Shape(source), TypeTerm::Shape(target)) => {
-                let source = &self.term(*source).members;
-                let target = &self.term(*target).members;
+                let source = &self.inference.term(*source).members;
+                let target = &self.inference.term(*target).members;
 
                 self.decide_shape_assignable(source, target)?
             }
@@ -2626,8 +2647,8 @@ impl CheckState<'_> {
 
         let decision = match (source, target) {
             (TypeTerm::Shape(source), TypeTerm::Shape(target)) => {
-                let source = &self.term(*source).members;
-                let target = &self.term(*target).members;
+                let source = &self.inference.term(*source).members;
+                let target = &self.inference.term(*target).members;
 
                 self.decide_shape_satisfies(source, target)?
             }
@@ -2637,70 +2658,20 @@ impl CheckState<'_> {
         Ok(decision)
     }
 
-    /// Reduce one type declaration reference when it names a non-nominal type alias.
+    /// Reduce one type declaration reference.
     fn reduce_reference_term(
         &mut self,
-        origin: Origin,
-        module: ModuleId,
+        _origin: Origin,
+        _module: ModuleId,
         reference_origin: Origin,
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
     ) -> CompilerResult<Reduction<TypeTerm>> {
-        if self.modules.contains_key(&symbol.module_id)
-            && self.symbol_kind(module, symbol) == Some(dir::SymbolKind::Function)
-        {
-            let value = self.require_symbol_type(module, symbol);
-            let Some(term) = self.type_operand_term(value)? else {
-                return Ok(Reduction::pending());
-            };
-            let term = if arguments.is_empty() {
-                term
-            } else {
-                let substitution = self.generic_substitution(module, symbol, arguments)?;
-                let Some(term) = term.substitute(module, &substitution, self)? else {
-                    return Ok(Reduction::pending());
-                };
-
-                term
-            };
-
-            return self.reduce_type_term(origin, &term);
-        }
-
-        let Some(value) = self.type_alias_body(symbol)? else {
-            return Ok(Reduction::value(TypeTerm::Reference {
-                origin: reference_origin,
-                symbol,
-                arguments: arguments.to_vec().into(),
-            }));
-        };
-        let value = self.require_local_node_type(symbol.module_id, value);
-        let Some(term) = self.type_operand_term(value)? else {
-            return Ok(Reduction::pending());
-        };
-        let term = if arguments.is_empty() {
-            term
-        } else {
-            let substitution = self.generic_substitution(module, symbol, arguments)?;
-            let Some(term) = term.substitute(module, &substitution, self)? else {
-                return Ok(Reduction::pending());
-            };
-
-            term
-        };
-
-        let reduction = self.reduce_type_term(origin, &term)?;
-        if reduction.value.is_some() {
-            return Ok(reduction);
-        }
-        if term.is_stable(self) {
-            return Ok(Reduction {
-                value: Some(term),
-                progress: reduction.progress,
-            });
-        }
-
-        Ok(reduction)
+        Ok(Reduction::value(TypeTerm::Reference {
+            origin: reference_origin,
+            symbol,
+            arguments: arguments.to_vec().into(),
+        }))
     }
 
     /// Reduce one static value used as a type.
@@ -2718,12 +2689,12 @@ impl CheckState<'_> {
                 (variable.module, term, Some(self.variable(variable).source))
             }
             StaticOperand::Term(term) => {
-                let term = self.term(term).clone();
+                let term = self.inference.term(term).clone();
 
                 (module, term, None)
             }
             StaticOperand::Static(value) => {
-                let term = self.checked_static_term(value);
+                let term = self.r#static(value).clone();
 
                 (value.module_id, StaticTerm::Literal(term), None)
             }
@@ -2744,18 +2715,6 @@ impl CheckState<'_> {
         Ok(Some(term))
     }
 
-    /// Return one checked static term visible to type reduction.
-    fn checked_static_term(&self, value: dir::GlobalStaticId) -> dir::StaticTerm {
-        if let Some(module) = self.modules.get(&value.module_id) {
-            return module.static_table().get_static(value.local_id).clone();
-        }
-
-        self.dependency(value.module_id)
-            .statics
-            .get_static(value.local_id)
-            .clone()
-    }
-
     /// Return the singleton type described by one static value.
     fn type_from_static_term(
         &mut self,
@@ -2765,7 +2724,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<TypeTerm>> {
         let term = match term {
             StaticTerm::Static(value) => {
-                let term = self.checked_static_term(*value);
+                let term = self.r#static(*value).clone();
 
                 return self.type_from_static_term(
                     module,
@@ -2788,7 +2747,7 @@ impl CheckState<'_> {
                 TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()))
             }
             StaticTerm::Literal(dir::StaticTerm::Type { ty }) => {
-                let operand = self.type_id_operand(*ty);
+                let operand = self.import_type_operand(module, *ty);
                 let Some(term) = self.type_operand_term(operand)? else {
                     return Ok(None);
                 };
@@ -2818,7 +2777,7 @@ impl CheckState<'_> {
                     else {
                         return Ok(None);
                     };
-                    let ty = self.push_term(term);
+                    let ty = self.inference.push_term(term);
 
                     let member = ShapeMember::Field {
                         key: *key,
@@ -2843,47 +2802,6 @@ impl CheckState<'_> {
         };
 
         Ok(Some(term))
-    }
-
-    /// Return the body expression for one reducible type alias.
-    fn type_alias_body(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<dir::LocalNodeId<dir::TypeExpression>>> {
-        if !self.modules.contains_key(&symbol.module_id) {
-            return Ok(None);
-        }
-        let Some(node) = self.local_symbol_source_node(symbol) else {
-            return Ok(None);
-        };
-        if node.ty != dir::NodeType::Declaration {
-            return Ok(None);
-        }
-        let declaration = dir::LocalNodeId::<dir::Declaration>::new(node.id);
-        let declaration = self.module(symbol.module_id).view().get(declaration);
-        let value = match declaration {
-            dir::Declaration::Type(declaration)
-                if !declaration.is_nominal
-                    && !self.type_alias_is_intrinsic_language_item(symbol, declaration) =>
-            {
-                Some(declaration.value)
-            }
-            _ => None,
-        };
-
-        Ok(value)
-    }
-
-    /// Return whether one alias defines an opaque language item.
-    fn type_alias_is_intrinsic_language_item(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        declaration: &dir::TypeDeclaration,
-    ) -> bool {
-        matches!(
-            self.module(symbol.module_id).view().get(declaration.value),
-            dir::TypeExpression::Intrinsic
-        ) && self.environment.language.item(symbol).is_some()
     }
 
     /// Decide exact atom equality.

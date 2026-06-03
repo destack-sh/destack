@@ -4,10 +4,10 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CandidateResolution, CheckState, FunctionTerm, GenericArgument, GenericSlotId,
-    GenericSubstitution, MemberCandidate, MemberDecision, MemberFailure, MemberProtocol,
-    MemberResolution, MemberTargetResolution, Origin, ShapeMember, StaticTerm, Substitution,
-    TermId, TupleElement, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
+    CandidateResolution, CheckState, GenericArgument, GenericSlotId, GenericSubstitution,
+    MemberCandidate, MemberDecision, MemberFailure, MemberProtocol, MemberResolution,
+    MemberTargetResolution, Origin, ShapeMember, StaticTerm, Substitution, TermId, TupleElement,
+    TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
 };
 
 use crate::check::{Decision, Reduction};
@@ -37,7 +37,7 @@ impl MemberTerm {
         variables.extend(
             self.arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(argument)),
+                .flat_map(|argument| argument.referenced_variables(state)),
         );
 
         variables
@@ -59,15 +59,6 @@ impl MemberTerm {
 
         Ok(member)
     }
-}
-
-/// Which member sources are visible to one lookup.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum MemberLookup {
-    /// Only members declared by the receiver type itself.
-    Declared,
-    /// Declared members plus applicable extension members.
-    Extended,
 }
 
 impl CheckState<'_> {
@@ -153,74 +144,21 @@ impl CheckState<'_> {
         key: &dir::StaticKey,
         member_arguments: &[GenericArgument],
     ) -> CompilerResult<Option<TypeTerm>> {
-        self.resolve_member_type_with_lookup(
-            origin,
-            module,
-            term,
-            key,
-            member_arguments,
-            MemberLookup::Extended,
-        )
-    }
-
-    /// Resolve a declared member type from one reduced type term.
-    fn resolve_declared_member_type(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        term: &TypeTerm,
-        key: &dir::StaticKey,
-        member_arguments: &[GenericArgument],
-    ) -> CompilerResult<Option<TypeTerm>> {
-        self.resolve_member_type_with_lookup(
-            origin,
-            module,
-            term,
-            key,
-            member_arguments,
-            MemberLookup::Declared,
-        )
-    }
-
-    /// Resolve a member type with the requested lookup source.
-    fn resolve_member_type_with_lookup(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        term: &TypeTerm,
-        key: &dir::StaticKey,
-        member_arguments: &[GenericArgument],
-        lookup: MemberLookup,
-    ) -> CompilerResult<Option<TypeTerm>> {
         match term {
             TypeTerm::Form { payload, .. } => {
                 let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(None);
                 };
 
-                self.resolve_member_type_with_lookup(
-                    origin,
-                    module,
-                    &term,
-                    key,
-                    member_arguments,
-                    lookup,
-                )
+                self.resolve_member_type(origin, module, &term, key, member_arguments)
             }
             TypeTerm::Reference {
                 origin: _,
                 symbol,
                 arguments,
             } if arguments.is_empty() => {
-                if let Some(parameter) = self.generic_type_reference(module, *symbol)? {
-                    self.parameter_member_type(
-                        module,
-                        origin,
-                        parameter,
-                        key,
-                        member_arguments,
-                        lookup,
-                    )
+                if let Some(parameter) = self.type_generic_slot_for_symbol(*symbol)? {
+                    self.parameter_member_type(module, origin, parameter, key, member_arguments)
                 } else {
                     self.instantiate_symbol_member_type(
                         module,
@@ -228,7 +166,6 @@ impl CheckState<'_> {
                         arguments,
                         *key,
                         member_arguments,
-                        lookup,
                     )
                 }
             }
@@ -242,28 +179,22 @@ impl CheckState<'_> {
                 arguments,
                 *key,
                 member_arguments,
-                lookup,
             ),
             TypeTerm::Tuple { elements, .. } if member_arguments.is_empty() => {
                 self.tuple_member_type(elements, key)
             }
             TypeTerm::Shape(shape) if member_arguments.is_empty() => {
-                self.shape_member_type(&self.term(*shape).members, key)
+                self.shape_member_type(&self.inference.term(*shape).members, key)
             }
             TypeTerm::Union { elements } if member_arguments.is_empty() => {
-                self.union_member_type(origin, module, elements, key, lookup)
+                self.union_member_type(origin, module, elements, key)
             }
             TypeTerm::Operation(operation) if member_arguments.is_empty() => {
-                self.operation_member_type(origin, module, *operation, key, lookup)
+                self.operation_member_type(origin, module, *operation, key)
             }
-            TypeTerm::Parameter(parameter) => self.parameter_member_type(
-                module,
-                origin,
-                *parameter,
-                key,
-                member_arguments,
-                lookup,
-            ),
+            TypeTerm::Parameter(parameter) => {
+                self.parameter_member_type(module, origin, *parameter, key, member_arguments)
+            }
             _ => Ok(None),
         }
     }
@@ -305,19 +236,17 @@ impl CheckState<'_> {
         parameter: GenericSlotId,
         key: &dir::StaticKey,
         member_arguments: &[GenericArgument],
-        lookup: MemberLookup,
     ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(constraint) = self.generic_parameter_type_constraint(module, parameter)? else {
+        let Some(constraint) = self.type_generic_constraint(parameter)? else {
             return Ok(None);
         };
         let Some(term) = self.reduced_generic_type_constraint(origin, constraint)? else {
             return Ok(None);
         };
 
-        self.resolve_member_type_with_lookup(origin, module, &term, key, member_arguments, lookup)
+        self.resolve_member_type(origin, module, &term, key, member_arguments)
     }
 
-    /// Return member candidates through a generic parameter constraint.
     /// Return the reduced type term for one generic constraint variable.
     pub(in crate::check) fn reduced_generic_type_constraint(
         &mut self,
@@ -330,27 +259,12 @@ impl CheckState<'_> {
 
         // expose transparent aliases before member lookup
         let reduction = self.reduce_type_term(origin, &solution)?;
-        let term = reduction.value.unwrap_or(solution);
+        let term = match reduction.value {
+            Some(reduced) => reduced,
+            None => solution,
+        };
 
         Ok(Some(term))
-    }
-
-    /// Return the type operand for one selected member symbol.
-    pub(in crate::check) fn member_type_operand(
-        &mut self,
-        module: ModuleId,
-        member: dir::GlobalSymbolId,
-    ) -> TypeOperand {
-        self.require_symbol_type(module, member)
-    }
-
-    /// Return the solver variable for one selected static member symbol.
-    pub(in crate::check) fn member_static_variable(
-        &mut self,
-        module: ModuleId,
-        member: dir::GlobalSymbolId,
-    ) -> VariableId {
-        self.ensure_symbol_static_variable(module, member)
     }
 
     /// Return a member static from one nominal declaration.
@@ -360,7 +274,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> CompilerResult<Option<StaticTerm>> {
-        let Some(member) = self.visible_member_symbol(symbol, key)? else {
+        let Some(member) = self.lookup_member_symbols(symbol, key).into_iter().next() else {
             return Ok(None);
         };
         let substitution = GenericSubstitution::empty();
@@ -368,9 +282,9 @@ impl CheckState<'_> {
         {
             return Ok(None);
         }
-        let variable = self.member_static_variable(module, member);
+        let operand = self.import_symbol_static_operand(module, member);
 
-        self.static_solution(variable)
+        self.static_operand_term(operand)
     }
 
     /// Instantiate a member type from one applied nominal declaration.
@@ -381,16 +295,15 @@ impl CheckState<'_> {
         arguments: &[GenericArgument],
         key: dir::StaticKey,
         member_arguments: &[GenericArgument],
-        lookup: MemberLookup,
     ) -> CompilerResult<Option<TypeTerm>> {
-        if let Some(member) = self.visible_member_symbol(symbol, key)? {
-            let substitution = self.generic_substitution(module, symbol, arguments)?;
+        for member in self.lookup_member_symbols(symbol, key) {
+            let substitution = self.generic_substitution(symbol, arguments)?;
             if self.reduce_symbol_availability(module, member, (&substitution).into())?
                 != Decision::Yes
             {
                 return Ok(None);
             }
-            let operand = self.member_type_operand(module, member);
+            let operand = self.import_symbol_type_operand(module, member);
             let Some(mut term) = self.type_operand_term(operand)? else {
                 return Ok(None);
             };
@@ -406,10 +319,6 @@ impl CheckState<'_> {
             return self.instantiate_member_type(module, member, member_arguments, term);
         }
 
-        if lookup == MemberLookup::Declared {
-            return Ok(None);
-        }
-
         let Some((_, member, substitution)) =
             self.extension_member(module, symbol, arguments, key, None)?
         else {
@@ -419,7 +328,7 @@ impl CheckState<'_> {
         {
             return Ok(None);
         }
-        let operand = self.member_type_operand(module, member);
+        let operand = self.import_symbol_type_operand(module, member);
         let Some(mut term) = self.type_operand_term(operand)? else {
             return Ok(None);
         };
@@ -443,7 +352,7 @@ impl CheckState<'_> {
         arguments: &[GenericArgument],
         term: TypeTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
-        let substitution = self.generic_substitution(module, member, arguments)?;
+        let substitution = self.generic_substitution(member, arguments)?;
         if substitution.is_empty() {
             return Ok(Some(term));
         }
@@ -459,16 +368,16 @@ impl CheckState<'_> {
         arguments: &[GenericArgument],
         key: dir::StaticKey,
     ) -> CompilerResult<Option<StaticTerm>> {
-        let Some(member) = self.visible_member_symbol(symbol, key)? else {
+        let Some(member) = self.lookup_member_symbols(symbol, key).into_iter().next() else {
             return Ok(None);
         };
-        let substitution = self.generic_substitution(module, symbol, arguments)?;
+        let substitution = self.generic_substitution(symbol, arguments)?;
         if self.reduce_symbol_availability(module, member, (&substitution).into())? != Decision::Yes
         {
             return Ok(None);
         }
-        let variable = self.member_static_variable(module, member);
-        let Some(term) = self.static_solution(variable)? else {
+        let operand = self.import_symbol_static_operand(module, member);
+        let Some(term) = self.static_operand_term(operand)? else {
             return Ok(None);
         };
         if substitution.is_empty() {
@@ -479,35 +388,30 @@ impl CheckState<'_> {
             .map(Some)
     }
 
-    /// Instantiate a member candidate from one applied nominal declaration.
     /// Return the generic slot id for one type parameter symbol.
-    pub(in crate::check) fn generic_type_reference(
+    pub(in crate::check) fn type_generic_slot_for_symbol(
         &mut self,
-        module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<GenericSlotId>> {
-        let variable = self.generic_variable_for_symbol(module, symbol);
-        let Some(variable) = variable else {
+        let Some(slot) = self.inference.generic_slot_id_for_symbol(symbol) else {
             return Ok(None);
         };
-        let Some(generic) = self.generic_slot(variable) else {
-            return Ok(None);
-        };
+        let generic = self.inference.generic_slot(slot);
         if !generic.is_type() {
             return Ok(None);
         }
 
-        Ok(Some(generic.slot().id()))
+        Ok(Some(slot))
     }
 
     /// Return the type constraint for one generic type slot.
-    pub(in crate::check) fn generic_parameter_type_constraint(
+    pub(in crate::check) fn type_generic_constraint(
         &self,
-        module: ModuleId,
         slot_id: GenericSlotId,
     ) -> CompilerResult<Option<TypeOperand>> {
         let constraint = self
-            .generic_slots_for_owner(module, slot_id.owner)
+            .inference
+            .generic_slots_for_owner(slot_id.owner)
             .find_map(|(_, generic)| {
                 if generic.slot().id() == slot_id && generic.is_type() {
                     generic.type_constraint()
@@ -517,371 +421,6 @@ impl CheckState<'_> {
             });
 
         Ok(constraint)
-    }
-
-    /// Return whether one resolved member belongs to an owner implementing a language item.
-    pub(in crate::check) fn member_implements_language_item(
-        &mut self,
-        member: dir::GlobalSymbolId,
-        item: dir::LanguageItem,
-    ) -> CompilerResult<bool> {
-        let Some(owner) = self.member_owner_symbol(member) else {
-            return Ok(false);
-        };
-
-        self.symbol_implements_language_item(owner, item)
-    }
-
-    /// Return whether one language item symbol satisfies a required protocol item.
-    fn language_item_symbol_satisfies(
-        &self,
-        module: ModuleId,
-        actual: dir::GlobalSymbolId,
-        required: dir::LanguageItem,
-    ) -> CompilerResult<bool> {
-        if self.environment.language.item(actual).is_none() {
-            return Ok(false);
-        }
-        let required = self.language_symbol(module, required);
-        let actual = TypeTerm::Reference {
-            origin: Origin::Symbol(actual),
-            symbol: actual,
-            arguments: Vec::new().into(),
-        };
-        let required = TypeTerm::Reference {
-            origin: Origin::Symbol(required),
-            symbol: required,
-            arguments: Vec::new().into(),
-        };
-
-        Ok(
-            self.decide_type_term_relation(TypeRelation::Extends, &actual, &required)?
-                == Decision::Yes,
-        )
-    }
-
-    /// Return the owning declaration symbol for one resolved member.
-    fn member_owner_symbol(&self, member: dir::GlobalSymbolId) -> Option<dir::GlobalSymbolId> {
-        let module_id = member.module_id;
-        let module = self.modules.get(&member.module_id)?;
-        let bindings = module.binding_table();
-        let member = bindings.get_symbol(member.local_id);
-        let scope = bindings.get_scope(member.scope);
-
-        scope
-            .owner
-            .map(|owner: dir::LocalSymbolId| owner.into_global(module_id))
-    }
-
-    /// Return whether one declaration implements a language item.
-    fn symbol_implements_language_item(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        item: dir::LanguageItem,
-    ) -> CompilerResult<bool> {
-        let implemented = self.implemented_type_expressions(symbol);
-
-        for implemented in implemented {
-            let variable = self.require_local_node_type(symbol.module_id, implemented);
-            let Some(term) = self.type_operand_term(variable)? else {
-                continue;
-            };
-            if self.type_term_is_language_item(symbol.module_id, &term, item)? {
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
-    }
-
-    /// Return whether one declaration implements the required protocol.
-    pub(in crate::check) fn symbol_matches_protocol(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        protocol: &MemberProtocol,
-        substitution: &mut GenericSubstitution,
-    ) -> CompilerResult<bool> {
-        let implemented = self.implemented_type_expressions(symbol);
-
-        for implemented in implemented {
-            let variable = self.require_local_node_type(symbol.module_id, implemented);
-            let Some(term) = self.type_operand_term(variable)? else {
-                continue;
-            };
-            let mut candidate = substitution.clone();
-            if self.match_protocol_term(
-                symbol.module_id,
-                symbol,
-                &term,
-                protocol,
-                &mut candidate,
-            )? {
-                *substitution = candidate;
-
-                return Ok(true);
-            }
-        }
-
-        Ok(false)
-    }
-
-    /// Match one implemented protocol type against a required protocol.
-    fn match_protocol_term(
-        &mut self,
-        module: ModuleId,
-        owner: dir::GlobalSymbolId,
-        term: &TypeTerm,
-        protocol: &MemberProtocol,
-        substitution: &mut GenericSubstitution,
-    ) -> CompilerResult<bool> {
-        let is_match = match term {
-            TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.type_operand_term(*payload)? else {
-                    return Ok(false);
-                };
-
-                return self.match_protocol_term(module, owner, &term, protocol, substitution);
-            }
-            TypeTerm::Reference {
-                origin: _,
-                symbol,
-                arguments,
-            } => {
-                self.language_item_symbol_satisfies(module, *symbol, protocol.item)?
-                    && self.match_protocol_arguments(
-                        module,
-                        owner,
-                        arguments,
-                        protocol,
-                        substitution,
-                    )?
-            }
-            _ => false,
-        };
-
-        Ok(is_match)
-    }
-
-    /// Match required protocol generic arguments.
-    fn match_protocol_arguments(
-        &mut self,
-        module: ModuleId,
-        owner: dir::GlobalSymbolId,
-        actual: &[GenericArgument],
-        protocol: &MemberProtocol,
-        substitution: &mut GenericSubstitution,
-    ) -> CompilerResult<bool> {
-        if protocol.arguments.is_empty() {
-            return Ok(true);
-        }
-        if actual.len() != protocol.arguments.len() {
-            return Ok(false);
-        }
-
-        for (actual, required) in actual.iter().zip(&protocol.arguments) {
-            if !self.match_argument_pattern(module, owner, actual, required, substitution)? {
-                return Ok(false);
-            }
-        }
-
-        Ok(true)
-    }
-
-    /// Return implemented type expressions for one declaration symbol.
-    fn implemented_type_expressions(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> Vec<dir::LocalNodeId<dir::TypeExpression>> {
-        let Some(module) = self.modules.get(&symbol.module_id) else {
-            return Vec::new();
-        };
-        let bindings = module.binding_table();
-        let symbol = bindings.get_symbol(symbol.local_id);
-        let Some(declaration) = symbol.declaration else {
-            return Vec::new();
-        };
-        if declaration.module_id != module.module_id
-            || declaration.local_id.ty != dir::NodeType::Declaration
-        {
-            return Vec::new();
-        }
-        let declaration = dir::LocalNodeId::<dir::Declaration>::new(declaration.local_id.id);
-
-        match module.view().get(declaration) {
-            dir::Declaration::Class(declaration) => declaration.implements_types.clone(),
-            dir::Declaration::Struct(declaration) => declaration.implements_types.clone(),
-            dir::Declaration::Enum(declaration) => declaration.implements_types.clone(),
-            dir::Declaration::Extension(declaration) => declaration.implements_types.clone(),
-            _ => Vec::new(),
-        }
-    }
-
-    /// Return whether one type term names a language item.
-    fn type_term_is_language_item(
-        &self,
-        module: ModuleId,
-        term: &TypeTerm,
-        item: dir::LanguageItem,
-    ) -> CompilerResult<bool> {
-        let is_item = match term {
-            TypeTerm::Form { payload, .. } => {
-                let Some(term) = self.type_operand_term(*payload)? else {
-                    return Ok(false);
-                };
-
-                return self.type_term_is_language_item(module, &term, item);
-            }
-            TypeTerm::Reference { symbol, .. } => {
-                self.language_item_symbol_satisfies(module, *symbol, item)?
-            }
-            _ => false,
-        };
-
-        Ok(is_item)
-    }
-
-    /// Decide structural satisfaction after ordinary relation checks are inconclusive.
-    pub(in crate::check) fn reduce_structural_satisfies(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        source: &TypeTerm,
-        target: &TypeTerm,
-    ) -> CompilerResult<Decision> {
-        let target = self.normalize_type_pattern_term(target)?;
-        let decision = match target {
-            TypeTerm::Reference {
-                origin: _,
-                symbol,
-                arguments,
-            } => self.reduce_named_members_satisfied(origin, module, source, symbol, &arguments)?,
-            _ => Decision::Undecidable,
-        };
-
-        Ok(decision)
-    }
-
-    /// Decide whether a source type has every member required by a nominal target.
-    fn reduce_named_members_satisfied(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        source: &TypeTerm,
-        target: dir::GlobalSymbolId,
-        target_arguments: &[GenericArgument],
-    ) -> CompilerResult<Decision> {
-        let members = self.nominal_member_declarations(target)?;
-        let substitution = self.generic_substitution(module, target, target_arguments)?;
-        let mut decision = Decision::Yes;
-
-        for (key, target_member) in members {
-            let Some(source_member) =
-                self.resolve_declared_member_type(origin, module, source, &key, &[])?
-            else {
-                return Ok(Decision::No);
-            };
-            let target_member = self.require_symbol_type(module, target_member);
-            let Some(mut target_member) = self.type_operand_term(target_member)? else {
-                return Ok(Decision::Undecidable);
-            };
-            if !substitution.is_empty() {
-                let Some(term) = target_member.substitute(module, &substitution, self)? else {
-                    return Ok(Decision::Undecidable);
-                };
-
-                target_member = term;
-            }
-            decision = decision.and(self.reduce_member_satisfied(&source_member, &target_member)?);
-            if decision == Decision::No {
-                return Ok(decision);
-            }
-        }
-
-        Ok(decision)
-    }
-
-    /// Return nominal member declarations in source order.
-    fn nominal_member_declarations(
-        &mut self,
-        owner: dir::GlobalSymbolId,
-    ) -> CompilerResult<Vec<(dir::StaticKey, dir::GlobalSymbolId)>> {
-        let binding_table = if self.modules.contains_key(&owner.module_id) {
-            self.module(owner.module_id).binding_table()
-        } else {
-            self.load_dependency(owner.module_id)?.bindings.clone()
-        };
-        let Some(scope) = binding_table.scope_for_owner(owner.local_id) else {
-            return Ok(Vec::new());
-        };
-        let scope = binding_table.get_scope(scope);
-        let members = scope
-            .named_symbols()
-            .map(|(key, symbol)| (key, symbol.into_global(owner.module_id)))
-            .collect();
-
-        Ok(members)
-    }
-
-    /// Decide whether one member can satisfy another.
-    fn reduce_member_satisfied(
-        &mut self,
-        source: &TypeTerm,
-        target: &TypeTerm,
-    ) -> CompilerResult<Decision> {
-        let source = self.normalize_type_pattern_term(source)?;
-        let target = self.normalize_type_pattern_term(target)?;
-        let decision = match (&source, &target) {
-            (TypeTerm::Function(source), TypeTerm::Function(target)) => {
-                self.reduce_member_function_satisfied(*source, *target)?
-            }
-            _ => self.decide_type_term_relation(TypeRelation::Assignable, &source, &target)?,
-        };
-
-        Ok(decision)
-    }
-
-    /// Decide member function satisfaction, ignoring expected `this`.
-    fn reduce_member_function_satisfied(
-        &self,
-        source: TermId<FunctionTerm>,
-        target: TermId<FunctionTerm>,
-    ) -> CompilerResult<Decision> {
-        let source = self.term(source);
-        let target = self.term(target);
-
-        if source.asynchrony != target.asynchrony
-            || source.is_generator != target.is_generator
-            || source.parameters.len() != target.parameters.len()
-        {
-            return Ok(Decision::No);
-        }
-        let mut decision = Decision::Yes;
-
-        for (source, target) in source.parameters.iter().zip(&target.parameters) {
-            if source.is_optional != target.is_optional || source.is_rest != target.is_rest {
-                return Ok(Decision::No);
-            }
-            decision = decision.and(self.decide_type_relation(
-                TypeRelation::Assignable,
-                target.ty,
-                source.ty,
-            )?);
-            if decision == Decision::No {
-                return Ok(decision);
-            }
-        }
-
-        if let (Some(source), Some(target)) = (source.return_type, target.return_type) {
-            decision = decision.and(self.decide_type_relation(
-                TypeRelation::Assignable,
-                source,
-                target,
-            )?);
-        } else if source.return_type != target.return_type {
-            decision = Decision::No;
-        }
-
-        Ok(decision)
     }
 
     /// Return a member type from one check shape term.
@@ -915,7 +454,6 @@ impl CheckState<'_> {
         module: ModuleId,
         elements: &[TypeOperand],
         key: &dir::StaticKey,
-        lookup: MemberLookup,
     ) -> CompilerResult<Option<TypeTerm>> {
         let mut members = Vec::with_capacity(elements.len());
 
@@ -924,9 +462,7 @@ impl CheckState<'_> {
             let Some(term) = self.type_operand_term(*element)? else {
                 return Ok(None);
             };
-            let Some(member) =
-                self.resolve_member_type_with_lookup(origin, module, &term, key, &[], lookup)?
-            else {
+            let Some(member) = self.resolve_member_type(origin, module, &term, key, &[])? else {
                 return Ok(None);
             };
 
@@ -937,7 +473,7 @@ impl CheckState<'_> {
         }
         let members = members
             .into_iter()
-            .map(|member| self.push_term(member).into())
+            .map(|member| self.inference.push_term(member).into())
             .collect();
 
         Ok(Some(TypeTerm::Union { elements: members }))
@@ -981,17 +517,16 @@ impl CheckState<'_> {
         module: ModuleId,
         operation: TermId<TypeOperationTerm>,
         key: &dir::StaticKey,
-        lookup: MemberLookup,
     ) -> CompilerResult<Option<TypeTerm>> {
-        match self.term(operation).clone() {
+        match self.inference.term(operation).clone() {
             TypeOperationTerm::Conditional {
                 left,
                 right,
                 then_type,
                 else_type,
-            } => self.conditional_member_type(
-                origin, module, left, right, then_type, else_type, key, lookup,
-            ),
+            } => {
+                self.conditional_member_type(origin, module, left, right, then_type, else_type, key)
+            }
             _ => Ok(None),
         }
     }
@@ -1005,7 +540,7 @@ impl CheckState<'_> {
         key: &dir::StaticKey,
         protocol: Option<&MemberProtocol>,
     ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
-        match self.term(operation).clone() {
+        match self.inference.term(operation).clone() {
             TypeOperationTerm::Conditional {
                 left,
                 right,
@@ -1028,7 +563,6 @@ impl CheckState<'_> {
         then_type: TypeOperand,
         else_type: TypeOperand,
         key: &dir::StaticKey,
-        lookup: MemberLookup,
     ) -> CompilerResult<Option<TypeTerm>> {
         let decision = self.decide_type_relation(TypeRelation::Extends, left, right)?;
 
@@ -1038,28 +572,14 @@ impl CheckState<'_> {
                 return Ok(None);
             };
 
-            return self.resolve_member_type_with_lookup(
-                origin,
-                module,
-                &then_type,
-                key,
-                &[],
-                lookup,
-            );
+            return self.resolve_member_type(origin, module, &then_type, key, &[]);
         }
         if decision == Decision::No {
             let Some(else_type) = self.type_operand_term(else_type)? else {
                 return Ok(None);
             };
 
-            return self.resolve_member_type_with_lookup(
-                origin,
-                module,
-                &else_type,
-                key,
-                &[],
-                lookup,
-            );
+            return self.resolve_member_type(origin, module, &else_type, key, &[]);
         }
         let Some(then_type) = self.type_operand_term(then_type)? else {
             return Ok(None);
@@ -1067,21 +587,19 @@ impl CheckState<'_> {
         let Some(else_type) = self.type_operand_term(else_type)? else {
             return Ok(None);
         };
-        let Some(then_member) =
-            self.resolve_member_type_with_lookup(origin, module, &then_type, key, &[], lookup)?
+        let Some(then_member) = self.resolve_member_type(origin, module, &then_type, key, &[])?
         else {
             return Ok(None);
         };
-        let Some(else_member) =
-            self.resolve_member_type_with_lookup(origin, module, &else_type, key, &[], lookup)?
+        let Some(else_member) = self.resolve_member_type(origin, module, &else_type, key, &[])?
         else {
             return Ok(None);
         };
         if then_member == else_member {
             return Ok(Some(then_member));
         }
-        let then_member = self.push_term(then_member);
-        let else_member = self.push_term(else_member);
+        let then_member = self.inference.push_term(then_member);
+        let else_member = self.inference.push_term(else_member);
 
         Ok(Some(TypeTerm::Union {
             elements: vec![then_member.into(), else_member.into()],
@@ -1187,7 +705,7 @@ impl CheckState<'_> {
                 self.type_term_has_field(module, &term, key)
             }
             TypeTerm::Shape(shape) => Ok(self
-                .shape_member_type(&self.term(*shape).members, key)?
+                .shape_member_type(&self.inference.term(*shape).members, key)?
                 .is_some()),
             TypeTerm::Union { elements } => {
                 for element in elements {

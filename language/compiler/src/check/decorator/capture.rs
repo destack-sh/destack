@@ -10,7 +10,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Option<dir::CaptureDirective> {
         let module = symbol.module_id;
-        let source = self.symbol_source_node(symbol);
+        let source = self.module(module).symbol_declaration_node(symbol.local_id);
         let invocations = self.decorator_invocations_for_owner(module, source);
         let mut directive = None;
 

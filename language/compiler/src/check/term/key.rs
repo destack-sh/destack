@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, TypeLiteralTerm, TypeOperand, TypeTerm, VariableId};
+use crate::check::{CheckState, TypeOperand, TypeTerm, VariableId};
 
 /// Runtime key membership check term.
 ///
@@ -38,15 +38,8 @@ impl CheckState<'_> {
     /// Reduce one runtime key membership check to boolean.
     pub(in crate::check) fn reduce_key_membership_term(
         &self,
-        membership: &KeyMembershipTerm,
+        _membership: &KeyMembershipTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
-        // wait for both operands so failed operands own their diagnostics
-        if self.type_operand_term(membership.key)?.is_none()
-            || self.type_operand_term(membership.receiver)?.is_none()
-        {
-            return Ok(None);
-        }
-
-        Ok(Some(TypeTerm::Literal(TypeLiteralTerm::boolean())))
+        todo!("reduce key membership through structural and nominal member tables")
     }
 }

@@ -454,10 +454,6 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         decision: PatternDecision,
     ) {
-        match self.inference.select_pattern(source, decision) {
-            Ok(()) => {}
-            Err(crate::CompilerError::Internal { message }) => self.record_internal_error(message),
-            Err(error) => self.record_internal_error(format!("{error:?}")),
-        }
+        self.inference.select_pattern(source, decision);
     }
 }

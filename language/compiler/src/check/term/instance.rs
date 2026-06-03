@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, TypeLiteralTerm, TypeOperand, TypeTerm, VariableId};
+use crate::check::{CheckState, TypeOperand, TypeTerm, VariableId};
 
 /// Runtime nominal instance check term.
 ///
@@ -13,7 +13,7 @@ use crate::check::{CheckState, TypeLiteralTerm, TypeOperand, TypeTerm, VariableI
 pub(in crate::check) struct InstanceCheckTerm {
     /// The source instance check expression.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The checked value type.
+    /// The value type operand.
     pub(in crate::check) value: TypeOperand,
     /// The target constructor or nominal type value.
     pub(in crate::check) target: TypeOperand,
@@ -36,15 +36,8 @@ impl CheckState<'_> {
     /// Reduce one runtime instance check to boolean.
     pub(in crate::check) fn reduce_instance_check_term(
         &self,
-        instance: &InstanceCheckTerm,
+        _instance: &InstanceCheckTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
-        // wait for both operands so failed operands own their diagnostics
-        if self.type_operand_term(instance.value)?.is_none()
-            || self.type_operand_term(instance.target)?.is_none()
-        {
-            return Ok(None);
-        }
-
-        Ok(Some(TypeTerm::Literal(TypeLiteralTerm::boolean())))
+        todo!("reduce instance checks through nominal definitions")
     }
 }

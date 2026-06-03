@@ -39,7 +39,7 @@ impl ConstructTerm {
         variables.extend(
             self.generic_arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(argument)),
+                .flat_map(|argument| argument.referenced_variables(state)),
         );
         variables.extend(
             self.arguments

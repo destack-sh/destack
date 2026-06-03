@@ -46,7 +46,7 @@ impl Dump for CallCallee {
                     ("symbol", context.symbol_label(*symbol)),
                 ],
             ),
-            Self::Member(member) => context.check.term(*member).dump(context),
+            Self::Member(member) => context.check.inference.term(*member).dump(context),
         }
     }
 }
