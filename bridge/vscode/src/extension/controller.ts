@@ -15,12 +15,7 @@ import {
     isServerConfigurationChange,
     resolveServerCommand,
 } from "./config";
-import { DEBUG } from "./constants";
 import { spawnServerProcess, stopServerProcess } from "./process";
-import type { DestackRuntimeState } from "./types";
-
-/** Enable verbose protocol tracing for extension-host and CI diagnostics. */
-const TEST_TRACE_ENABLED = process.env.DESTACK_VSCODE_TEST_TRACE == "1";
 
 /**
  * The extension controller that owns VSCode client lifecycle and commands.
@@ -45,11 +40,6 @@ export class DestackExtensionController {
      * The guard to prevent restart loops during config changes.
      */
     private isConfigurationRestartInFlight = false;
-
-    /**
-     * The latest known language client state.
-     */
-    private languageClientState = State.Stopped;
 
     /**
      * The number of completed restart attempts.
@@ -83,7 +73,6 @@ export class DestackExtensionController {
             clientOptions,
         );
         this.languageClient = languageClient;
-        this.languageClientState = State.Starting;
         this.serverConfigurationFingerprint = this.currentServerConfigurationFingerprint();
 
         // wire state and logging listeners
@@ -120,66 +109,8 @@ export class DestackExtensionController {
             this.languageServerProcess = undefined;
             this.serverLogOutput = undefined;
             this.isConfigurationRestartInFlight = false;
-            this.languageClientState = State.Stopped;
             this.serverConfigurationFingerprint = "";
         }
-    }
-
-    /**
-     * Send a raw LSP request for extension host integration tests.
-     */
-    async sendRequestForTests<T = unknown>(method: string, params: unknown): Promise<T> {
-        const languageClient = this.languageClient;
-        if (!languageClient) {
-            throw new Error("destack language client is not initialized");
-        }
-
-        if (TEST_TRACE_ENABLED) {
-            console.error(
-                `[destack.test.request.start] method=${method} state=${this.clientStateLabel()} restart=${this.isConfigurationRestartInFlight}`,
-            );
-        }
-
-        const startedAt = Date.now();
-        const result = await languageClient.sendRequest<T>(method, params as any);
-
-        if (TEST_TRACE_ENABLED) {
-            console.error(
-                `[destack.test.request.done] method=${method} elapsed_ms=${Date.now() - startedAt}`,
-            );
-        }
-
-        return result;
-    }
-
-    /**
-     * Send a raw LSP notification for extension host integration tests.
-     */
-    async sendNotificationForTests(method: string, params: unknown): Promise<void> {
-        const languageClient = this.languageClient;
-        if (!languageClient) {
-            throw new Error("destack language client is not initialized");
-        }
-
-        if (TEST_TRACE_ENABLED) {
-            console.error(
-                `[destack.test.notification] method=${method} state=${this.clientStateLabel()} restart=${this.isConfigurationRestartInFlight}`,
-            );
-        }
-
-        await languageClient.sendNotification(method, params as any);
-    }
-
-    /**
-     * Return runtime state used by extension host integration tests.
-     */
-    getRuntimeStateForTests(): DestackRuntimeState {
-        return {
-            clientState: this.clientStateLabel(),
-            isConfigurationRestartInFlight: this.isConfigurationRestartInFlight,
-            restartCount: this.restartCount,
-            serverProcessId: this.languageServerProcess?.pid ?? null,
-        };
     }
 
     /**
@@ -226,7 +157,6 @@ export class DestackExtensionController {
                 cwd,
                 workspaceRoot: workspaceFolder?.uri.fsPath,
                 serverLog,
-                debug: DEBUG || TEST_TRACE_ENABLED,
             });
             this.languageServerProcess = spawnedServer.process;
 
@@ -262,7 +192,6 @@ export class DestackExtensionController {
         statusBarItem: vscode.StatusBarItem,
     ): void {
         languageClient.onDidChangeState((event) => {
-            this.languageClientState = event.newState;
             this.updateStatusBarFromState(event.newState, statusBarItem);
 
             // ensure server process is stopped when client reaches stopped state
@@ -302,10 +231,6 @@ export class DestackExtensionController {
         serverLog: vscode.LogOutputChannel,
     ): void {
         languageClient.onNotification(LogMessageNotification.type, (params) => {
-            if (TEST_TRACE_ENABLED) {
-                console.error(`[destack.server.log] type=${params.type} message=${params.message}`);
-            }
-
             // map lsp log message types to vscode log levels
             if (params.type == MessageType.Error) {
                 serverLog.error(`[server] ${params.message}`);
@@ -388,16 +313,6 @@ export class DestackExtensionController {
                 "Destack reindex failed",
             );
         });
-        registerCommand("destack.clearCache", async () => {
-            await this.executeServerCommand(
-                statusBarItem,
-                "Clearing Cache",
-                "destack.clearCache",
-                "Destack cache cleared.",
-                "Destack cache clear failed",
-            );
-        });
-
         // register log reveal commands
         registerCommand("destack.showClientLogs", () => {
             clientLog.show(true);
@@ -520,21 +435,6 @@ export class DestackExtensionController {
         // start client again and notify user
         await languageClient.start();
         vscode.window.showInformationMessage(successMessage);
-    }
-
-    /**
-     * Return a stable label for the current language client state.
-     */
-    private clientStateLabel(): DestackRuntimeState["clientState"] {
-        if (this.languageClientState == State.Starting) {
-            return "starting";
-        }
-
-        if (this.languageClientState == State.Running) {
-            return "running";
-        }
-
-        return "stopped";
     }
 
     /**

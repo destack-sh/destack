@@ -19,7 +19,7 @@ impl DestackExtension {
         let root = worktree.root_path();
         let workspace_candidates = Self::workspace_binary_candidates(worktree).join(", ");
         format!(
-            "could not find Destack LSP binary in worktree `{root}`: checked workspace binaries [{workspace_candidates}] and PATH commands `destack`, `ds`, `dsc`; set lsp.destack-lsp.binary.path to a shared binary path, or build `target/{{debug,release}}/destack` in this worktree"
+            "could not find Destack binary in worktree `{root}`: checked workspace binaries [{workspace_candidates}] and PATH commands `destack`, `ds`, `dsc`; set lsp.destack-lsp.binary.path to a shared binary path, or build `target/{{debug,release}}/destack` in this worktree"
         )
     }
 

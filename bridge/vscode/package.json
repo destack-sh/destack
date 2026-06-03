@@ -54,7 +54,7 @@
                 "destack.server.command": {
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "Command for the Destack LSP. If empty, prefers a workspace-built binary (`target/release/destack` or `target/debug/destack`), then tries `destack`, `ds`, or `dsc` on PATH. Supports `~` and `${workspaceFolder}`."
+                    "markdownDescription": "Command for the Destack binary used by the LSP adapter. If empty, prefers a workspace-built binary (`target/release/destack` or `target/debug/destack`), then tries `destack`, `ds`, or `dsc` on PATH. Supports `~` and `${workspaceFolder}`."
                 },
                 "destack.server.args": {
                     "type": "array",
@@ -62,12 +62,12 @@
                         "type": "string"
                     },
                     "default": [],
-                    "description": "Additional arguments to pass to the language server."
+                    "description": "Additional arguments to pass to the LSP adapter."
                 },
                 "destack.server.cwd": {
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "Working directory for the language server. Supports `~` and `${workspaceFolder}`."
+                    "markdownDescription": "Working directory for the LSP adapter. Supports `~` and `${workspaceFolder}`."
                 },
                 "destack.completion.autoImports": {
                     "type": "boolean",
@@ -98,10 +98,6 @@
             {
                 "command": "destack.reindex",
                 "title": "Destack: Reindex Workspace"
-            },
-            {
-                "command": "destack.clearCache",
-                "title": "Destack: Clear Cache"
             },
             {
                 "command": "destack.showClientLogs",
@@ -262,18 +258,13 @@
         "package": "bun x vsce package --no-dependencies",
         "publish:live": "bun x vsce publish",
         "check:grammar": "node scripts/check-grammar.mjs",
-        "test:grammar": "node scripts/check-grammar.mjs && bun x vscode-tmgrammar-test --grammar destack.tmLanguage.json \"../../language/test/fixtures/grammar/destack/**/*.txt\" && bun x vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"../../language/test/fixtures/grammar/mir/*.txt\"",
-        "test:bridge:build": "node -e \"require('fs').rmSync('out-tests',{recursive:true,force:true})\" && bun run bundle && bun x tsc -p tsconfig.tests.json",
-        "test:bridge": "bun run test:bridge:build && node out-tests/tests-bridge/run.js"
+        "test:grammar": "node scripts/check-grammar.mjs && bun x vscode-tmgrammar-test --grammar destack.tmLanguage.json \"../../language/test/fixtures/grammar/destack/**/*.txt\" && bun x vscode-tmgrammar-test --grammar destack-mir.tmLanguage.json \"../../language/test/fixtures/grammar/mir/*.txt\""
     },
     "dependencies": {},
     "devDependencies": {
-        "@types/mocha": "^10.0.10",
         "@types/node": "^20.11.25",
         "@types/vscode": "^1.90.0",
-        "@vscode/test-electron": "^2.5.2",
         "esbuild": "^0.25.9",
-        "mocha": "^11.7.4",
         "typescript": "~5.5.4",
         "vsce": "^2.15.0",
         "vscode": "^1.1.37",

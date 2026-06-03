@@ -13,7 +13,6 @@
   "virtual"
   "accessor"
   "default"
-  "self"
   "this"
   "super"
   "package"
@@ -46,12 +45,13 @@
   "instanceof"
   "where"
   "typeof"
-  "void"
   "null"
   "keyof"
   "infer"
   "any"
   "never"
+  "void"
+  "undefined"
   "as"
   "is"
   "in"
@@ -74,11 +74,11 @@
   "debugger"
   "return"
   "yield"
-  "goto"
   "try"
   "catch"
   "throw"
   "finally"
+  "goto"
   "async"
   "await"
   "get"
@@ -93,4 +93,4 @@
 ] @type.builtin
  (#match?
   @type.builtin
-  "^(?:unknown|boolean|bool|character|char|string|str|number|symbol|bigint|object|void|isize|usize|int(?:\\d+)?|uint(?:\\d+)?|float(?:\\d+)?|i\\d+|u\\d+|f\\d+)$"))
+  "^(?:unknown|boolean|bool|character|char|string|str|number|symbol|bigint|isize|usize|int(?:\\d+)?|uint(?:\\d+)?|float(?:\\d+)?|i\\d+|u\\d+|f\\d+)$"))

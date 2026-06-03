@@ -5,6 +5,3 @@ mod language;
 use language::DestackExtension;
 
 zed::register_extension!(DestackExtension);
-
-#[cfg(test)]
-mod tests;

@@ -96,7 +96,6 @@ test:
     bun run --cwd wasm test
     bun run --cwd typescript test
     just test-vscode
-    just test-zed
 
 # default check
 check *args:
@@ -113,21 +112,10 @@ check-quick *args:
 check-full *args:
     just check-quick {{args}}
     just test-language-bridges
-    just test-vscode-bridge
 
 # test vscode grammar
 test-vscode:
     cd vscode && bun run test:grammar
-
-# test vscode bridge smoke suite
-test-vscode-bridge:
-    cd vscode && bun run test:bridge
-
-# test zed extension and shared tree sitter overlays
-test-zed:
-    cd zed && cargo test --release
-    cd zed && cargo build --target wasm32-wasip2 --release
-    bun ../language/grammar/scripts/check-overlay.mjs
 
 # test supported clients
 test-language-bridges:

@@ -5,12 +5,12 @@
         "outDir": "out",
         "lib": ["es2020"],
         "sourceMap": true,
-        "rootDir": "typescript",
+        "rootDir": "src",
         "strict": true,
         "noEmit": true,
         "noImplicitAny": true,
         "esModuleInterop": true,
         "skipLibCheck": true
     },
-    "include": ["typescript"]
+    "include": ["src/**/*.ts"]
 }
