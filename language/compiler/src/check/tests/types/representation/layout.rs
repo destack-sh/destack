@@ -73,8 +73,7 @@ struct WireHeader {
 @repr("transparent")
 /// @type.symbol symbol=FileDescriptor type=FileDescriptor
 /// @layout.type type=FileDescriptor shape=newtype size=4 align=4 backing=scalar(4/4)
-/// @layout.newtype symbol=FileDescriptor backing=int32
-/// @nominal.newtype symbol=FileDescriptor
+/// @nominal.newtype symbol=FileDescriptor source="newtype FileDescriptor = int32"
 
 newtype FileDescriptor = int32;
 

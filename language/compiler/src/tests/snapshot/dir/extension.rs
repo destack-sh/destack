@@ -5,13 +5,17 @@ use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
 
 impl SnapshotTable for dir::ExtensionSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
-        for (_, extension) in self.iter_extensions() {
+        for (extension_id, extension) in self.iter_extensions() {
             let row = SnapshotRow::new(
                 builder.anchor_symbol(extension.symbol),
                 "extension",
                 "entry",
             )
             .field("symbol", builder.symbol_path_label(extension.symbol))
+            .optional_field(
+                "source",
+                builder.node_source(self.extension_source(extension_id)),
+            )
             .field("form", DirSnapshotBuilder::variant_label(extension.form))
             .type_field("target", builder.global_type_label(extension.target_type));
             builder.push(row);
