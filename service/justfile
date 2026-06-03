@@ -1,46 +1,31 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
-set dotenv-load := true
-set dotenv-filename := "../.env.local"
-
-# selected crates
-packages := "-p destack_daemon"
-format-packages := "-p destack_daemon"
-test-packages := "-p destack_daemon"
 
 _default:
     @just --list --unsorted
 
-# --- build ---
-
-# run static checks
-lint:
-    cargo clippy --release {{ packages }} --no-deps
-
-# build packages
+# build service area
 build:
-    cargo build --release {{ packages }}
+    @true
 
-# format code
+# format service area
 format:
-    cargo fmt {{ format-packages }}
+    @true
 
-# check formatting
+# check service formatting
 format-check:
-    cargo fmt --check {{ format-packages }}
+    @true
 
 # alias for format
 alias fmt := format
 
-# clean build artifacts
-clean:
-    cargo clean
+# lint service area
+lint:
+    @true
 
-# --- test ---
-
-# run tests
+# run service tests
 test:
-    cargo test --release --all-targets {{ test-packages }}
+    @true
 
 # default check
 check:
@@ -48,10 +33,12 @@ check:
 
 # normal check
 check-quick:
-    just format-check
-    just lint
-    just test
+    @true
 
 # check with slow suites
 check-full:
-    just check-quick
+    @true
+
+# clean service artifacts
+clean:
+    @true

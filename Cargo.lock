@@ -923,11 +923,13 @@ dependencies = [
  "destack_compiler",
  "destack_daemon",
  "destack_dir",
+ "destack_engine",
  "destack_fir",
  "destack_formatter",
  "destack_json",
  "destack_linter",
  "destack_lsp",
+ "destack_mir",
  "destack_parser",
  "destack_query",
  "destack_runtime",
@@ -1095,8 +1097,6 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -1232,6 +1232,7 @@ dependencies = [
  "destack_artifact",
  "destack_compiler",
  "destack_core",
+ "destack_daemon",
  "destack_dir",
  "destack_fir",
  "destack_formatter",
@@ -1243,15 +1244,11 @@ dependencies = [
  "destack_session",
  "destack_source",
  "destack_workspace",
- "futures",
  "libc",
  "parking_lot",
  "serde",
  "serde_json",
  "tokio",
- "tower",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
@@ -1270,7 +1267,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tower",
- "tracing",
 ]
 
 [[package]]
@@ -1476,9 +1472,6 @@ dependencies = [
  "destack_formatter",
  "destack_heap",
  "destack_linter",
- "destack_lsp",
- "destack_lsp_server",
- "destack_lsp_types",
  "destack_mir",
  "destack_parser",
  "destack_query",
@@ -1560,9 +1553,6 @@ name = "destack_zed"
 version = "0.54.0"
 dependencies = [
  "cc",
- "streaming-iterator",
- "tree-sitter",
- "tree-sitter-language",
  "zed_extension_api",
 ]
 
@@ -3459,12 +3449,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9091b6114800a5f2141aee1d1b9d6ca3592ac062dc5decb3764ec5895a47b4eb"
 
 [[package]]
-name = "streaming-iterator"
-version = "0.1.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b2231b7c3057d5e4ad0156fb3dc807d900806020c5ffa3ee6ff2c8c76fb8520"
-
-[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3778,25 +3762,6 @@ dependencies = [
  "tracing-core",
  "tracing-log",
 ]
-
-[[package]]
-name = "tree-sitter"
-version = "0.24.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5387dffa7ffc7d2dae12b50c6f7aab8ff79d6210147c6613561fc3d474c6f75"
-dependencies = [
- "cc",
- "regex",
- "regex-syntax",
- "streaming-iterator",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "tree-sitter-language"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "009994f150cc0cd50ff54917d5bc8bffe8cad10ca10d81c34da2ec421ae61782"
 
 [[package]]
 name = "typenum"
