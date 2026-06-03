@@ -8,16 +8,8 @@ import { WorldHandle } from "./world.ds";
 /// Runtime policy rule cursor.
 export newtype PolicyRuleCursor = uint64;
 
-/// Binding route selected by policy.
-export enum BindingRoute {
-    /// Execute against the real host backend.
-    Host = 1,
-    /// Execute against the simulation backend.
-    Simulation = 2,
-}
-
-/// Runtime policy decision kind.
-export enum PolicyDecisionKind {
+/// Runtime policy decision.
+export enum PolicyDecision {
     /// Allow matching operations.
     Allow = 1,
     /// Deny matching operations.
@@ -90,7 +82,8 @@ export struct ActionSelector {
 }
 
 /// Runtime policy target selector.
-export type TargetSelector =
+@derive(Tagged)
+export newtype TargetSelector =
     | {
           /// Match any target.
           kind: "any";
@@ -107,14 +100,6 @@ export type TargetSelector =
           /// Edge selector.
           selector: EdgeSelector;
       };
-
-/// Runtime policy decision.
-export struct PolicyDecision {
-    /// Access decision.
-    kind: PolicyDecisionKind;
-    /// Binding route for allowed host actions.
-    route?: BindingRoute;
-}
 
 /// Runtime policy rule.
 export struct PolicyRule {
