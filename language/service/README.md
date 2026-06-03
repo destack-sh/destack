@@ -11,7 +11,6 @@ Run these from the repository root.
 # focused local loop
 cargo test -p destack_service
 just language/test-query
-just language/test-lsp
 
 # clean check
 just language/check-quick
