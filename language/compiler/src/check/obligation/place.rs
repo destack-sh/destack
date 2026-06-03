@@ -7,9 +7,13 @@ use crate::check::{
 };
 
 impl CheckState<'_> {
-    /// Require one place to accept a write.
-    pub(in crate::check) fn require_writable_place(&mut self, place: Place, condition: Condition) {
-        self.require(Obligation::WritablePlace { place, condition });
+    /// Push an obligation for one place to accept a write.
+    pub(in crate::check) fn push_writable_place_obligation(
+        &mut self,
+        place: Place,
+        condition: Condition,
+    ) {
+        self.push_obligation(Obligation::WritablePlace { place, condition });
     }
 }
 
@@ -88,7 +92,7 @@ impl CheckState<'_> {
 
         // structural fields carry their write access directly
         if let TypeTerm::Shape(shape) = owner {
-            let members = self.term(shape).members.clone();
+            let members = self.inference.term(shape).members.clone();
             for member in members {
                 if let ShapeMember::Field {
                     key: member_key,

@@ -283,29 +283,29 @@ impl CheckState<'_> {
 
         // choose the first protocol candidate that resolves
         for protocol in protocols {
-            let probe = self.begin_inference_probe();
+            let probe = self.inference.begin_probe();
             let result = self.select_operator_protocol_method_candidate(
                 origin, operator, receiver, expected, protocol,
             )?;
             match result {
                 OperatorCandidateDispatch::Method { .. }
                 | OperatorCandidateDispatch::Builtin { .. } => {
-                    self.commit_inference_probe(probe)?;
+                    self.inference.commit_probe(probe)?;
 
                     return Ok(Some(result));
                 }
                 OperatorCandidateDispatch::Pending => {
                     if candidate_set.keeps_pending_probe() {
-                        self.commit_inference_probe(probe)?;
+                        self.inference.commit_probe(probe)?;
 
                         return Ok(Some(result));
                     }
 
-                    self.drop_inference_probe(probe);
+                    self.inference.drop_probe(probe);
                     is_pending = true;
                 }
                 OperatorCandidateDispatch::NoMatch { reason: _ } => {
-                    self.drop_inference_probe(probe);
+                    self.inference.drop_probe(probe);
                 }
             }
         }
@@ -495,7 +495,7 @@ impl CheckState<'_> {
         let Some(target) = self.operator_type_term(module, function, operator_type)? else {
             return Ok(Progress::Unchanged);
         };
-        let target = self.push_term(target);
+        let target = self.inference.push_term(target);
 
         self.relate_contextual_type_assignability(origin, return_type, target)
     }
@@ -687,9 +687,7 @@ impl CheckState<'_> {
     fn supports_strict_identity(&self, module: ModuleId, term: &TypeTerm) -> CompilerResult<bool> {
         let is_supported = match term {
             TypeTerm::Literal(literal) => Self::literal_supports_strict_identity(literal),
-            TypeTerm::Reference { symbol, .. } => {
-                self.symbol_supports_strict_identity(module, *symbol)?
-            }
+            TypeTerm::Reference { symbol, .. } => self.symbol_supports_strict_identity(*symbol)?,
             TypeTerm::Form { payload, .. } => {
                 let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(false);
@@ -753,16 +751,12 @@ impl CheckState<'_> {
     }
 
     /// Return whether one nominal symbol carries reference identity.
-    fn symbol_supports_strict_identity(
-        &self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<bool> {
-        let kind = self.symbol_kind(module, symbol);
+    fn symbol_supports_strict_identity(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
+        let kind = self.symbol_kind(symbol);
 
         Ok(matches!(
             kind,
-            Some(dir::SymbolKind::Class | dir::SymbolKind::Function)
+            dir::SymbolKind::Class | dir::SymbolKind::Function
         ))
     }
 
@@ -788,8 +782,10 @@ impl CheckState<'_> {
 
     /// Return a nullable protocol return type.
     fn nullable_operator_type_term(&mut self, value: TypeTerm) -> CompilerResult<TypeTerm> {
-        let value = self.push_term(value);
-        let null = self.push_term(TypeTerm::Literal(TypeLiteralTerm::Null));
+        let value = self.inference.push_term(value);
+        let null = self
+            .inference
+            .push_term(TypeTerm::Literal(TypeLiteralTerm::Null));
 
         Ok(TypeTerm::Union {
             elements: vec![value.into(), null.into()],
@@ -807,7 +803,7 @@ impl CheckState<'_> {
             let argument = match argument {
                 OperatorProtocolArgument::Access(access) => {
                     let value = dir::StaticTerm::Access { access: *access };
-                    let value = self.push_term(StaticTerm::Literal(value));
+                    let value = self.inference.push_term(StaticTerm::Literal(value));
 
                     GenericArgument::Static(value.into())
                 }

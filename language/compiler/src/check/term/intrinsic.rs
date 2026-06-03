@@ -34,7 +34,9 @@ impl CheckState<'_> {
                 let Some(place) = self.place_value(module, place)? else {
                     return Ok(None);
                 };
-                let place = self.push_term(StaticTerm::Literal(dir::StaticTerm::Place { place }));
+                let place = self
+                    .inference
+                    .push_term(StaticTerm::Literal(dir::StaticTerm::Place { place }));
 
                 self.memory_with_place_type(module, target, place.into())?
             }
@@ -45,9 +47,11 @@ impl CheckState<'_> {
                 let Some(space) = self.space_value(module, space)? else {
                     return Ok(None);
                 };
-                let place = self.push_term(StaticTerm::Literal(dir::StaticTerm::Place {
-                    place: dir::Place::Space(space),
-                }));
+                let place = self
+                    .inference
+                    .push_term(StaticTerm::Literal(dir::StaticTerm::Place {
+                        place: dir::Place::Space(space),
+                    }));
 
                 self.memory_with_place_type(module, target, place.into())?
             }
@@ -173,7 +177,7 @@ impl CheckState<'_> {
             | TypeTerm::Index(_)
             | TypeTerm::IndexSet(_) => return None,
         };
-        let term = self.push_term(term);
+        let term = self.inference.push_term(term);
 
         Some(term.into())
     }
@@ -202,15 +206,17 @@ impl CheckState<'_> {
         )
     }
 
-    /// Return one type argument.
-    pub(in crate::check) fn generic_argument_type_variable(
+    /// Return one type argument variable by position.
+    pub(in crate::check) fn type_argument_variable_at(
         &self,
         arguments: &[GenericArgument],
         index: usize,
     ) -> Option<VariableId> {
-        arguments
-            .get(index)
-            .and_then(|argument| self.argument_type_variable(argument))
+        arguments.get(index).and_then(|argument| {
+            argument
+                .type_operand()
+                .and_then(|operand| operand.variable())
+        })
     }
 
     /// Return the immediate payload under one memory form.
@@ -270,7 +276,7 @@ impl CheckState<'_> {
                 let Some(payload) = self.memory_with_base_type(module, payload, base)? else {
                     return Ok(None);
                 };
-                let payload = self.push_term(payload);
+                let payload = self.inference.push_term(payload);
 
                 TypeTerm::Form {
                     form,
@@ -308,7 +314,7 @@ impl CheckState<'_> {
                 form: wrapper,
                 payload,
             } if matches!(
-                self.term(wrapper),
+                self.inference.term(wrapper),
                 FormTerm::Placed { .. } | FormTerm::Readonly
             ) =>
             {
@@ -317,7 +323,7 @@ impl CheckState<'_> {
                 else {
                     return Ok(None);
                 };
-                let payload = self.push_term(payload);
+                let payload = self.inference.push_term(payload);
 
                 TypeTerm::Form {
                     form: wrapper,
@@ -327,7 +333,7 @@ impl CheckState<'_> {
             TypeTerm::Form { payload, .. } => TypeTerm::Form { form, payload },
             _ => TypeTerm::Form {
                 form,
-                payload: self.push_term(target).into(),
+                payload: self.inference.push_term(target).into(),
             },
         };
 
@@ -346,14 +352,14 @@ impl CheckState<'_> {
         };
         let payload = match target {
             TypeTerm::Form { form, payload }
-                if matches!(self.term(form), FormTerm::Placed { .. }) =>
+                if matches!(self.inference.term(form), FormTerm::Placed { .. }) =>
             {
                 payload
             }
-            _ => self.push_term(target).into(),
+            _ => self.inference.push_term(target).into(),
         };
 
-        let form = self.push_term(FormTerm::Placed { place });
+        let form = self.inference.push_term(FormTerm::Placed { place });
 
         Ok(Some(TypeTerm::Form { form, payload }))
     }
@@ -369,9 +375,11 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let term = match target {
-            TypeTerm::Form { form, payload } => match self.term(form).clone() {
+            TypeTerm::Form { form, payload } => match self.inference.term(form).clone() {
                 FormTerm::Borrowed { access, .. } => {
-                    let form = self.push_term(FormTerm::Borrowed { lifetime, access });
+                    let form = self
+                        .inference
+                        .push_term(FormTerm::Borrowed { lifetime, access });
 
                     TypeTerm::Form { form, payload }
                 }
@@ -381,7 +389,7 @@ impl CheckState<'_> {
                     else {
                         return Ok(None);
                     };
-                    let payload = self.push_term(payload);
+                    let payload = self.inference.push_term(payload);
 
                     TypeTerm::Form {
                         form,
@@ -407,9 +415,11 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let term = match target {
-            TypeTerm::Form { form, payload } => match self.term(form).clone() {
+            TypeTerm::Form { form, payload } => match self.inference.term(form).clone() {
                 FormTerm::Borrowed { lifetime, .. } => {
-                    let form = self.push_term(FormTerm::Borrowed { lifetime, access });
+                    let form = self
+                        .inference
+                        .push_term(FormTerm::Borrowed { lifetime, access });
 
                     TypeTerm::Form { form, payload }
                 }
@@ -418,7 +428,7 @@ impl CheckState<'_> {
                     else {
                         return Ok(None);
                     };
-                    let payload = self.push_term(payload);
+                    let payload = self.inference.push_term(payload);
 
                     TypeTerm::Form {
                         form,
@@ -454,7 +464,7 @@ impl CheckState<'_> {
             _ => return Ok(None),
         };
 
-        Ok(Some(self.push_term(form)))
+        Ok(Some(self.inference.push_term(form)))
     }
 
     /// Return a memory intrinsic static value.
@@ -545,7 +555,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let value = match target {
-            TypeTerm::Form { form, payload } => match self.term(form) {
+            TypeTerm::Form { form, payload } => match self.inference.term(form) {
                 FormTerm::Managed => Some(self.ownership_static(module, "managed")?),
                 FormTerm::Owned => Some(self.ownership_static(module, "owned")?),
                 FormTerm::Borrowed { .. } => Some(self.ownership_static(module, "borrowed")?),
@@ -570,8 +580,8 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let value = match target {
-            TypeTerm::Form { form, payload } => match self.term(form) {
-                FormTerm::Placed { place } => self.static_value(*place)?,
+            TypeTerm::Form { form, payload } => match self.inference.term(form) {
+                FormTerm::Placed { place } => self.static_literal(*place)?,
                 FormTerm::Readonly => self.memory_place_value(module, payload)?,
                 FormTerm::Managed | FormTerm::Owned | FormTerm::Borrowed { .. } | FormTerm::Raw => {
                     None
@@ -632,8 +642,8 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let value = match target {
-            TypeTerm::Form { form, payload } => match self.term(form) {
-                FormTerm::Borrowed { lifetime, .. } => self.static_value(*lifetime)?,
+            TypeTerm::Form { form, payload } => match self.inference.term(form) {
+                FormTerm::Borrowed { lifetime, .. } => self.static_literal(*lifetime)?,
                 FormTerm::Placed { .. } | FormTerm::Readonly => {
                     self.memory_lifetime_value(module, payload)?
                 }
@@ -655,8 +665,8 @@ impl CheckState<'_> {
             return Ok(None);
         };
         let value = match target {
-            TypeTerm::Form { form, payload } => match self.term(form) {
-                FormTerm::Borrowed { access, .. } => self.static_value(*access)?,
+            TypeTerm::Form { form, payload } => match self.inference.term(form) {
+                FormTerm::Borrowed { access, .. } => self.static_literal(*access)?,
                 FormTerm::Placed { .. } | FormTerm::Readonly => {
                     self.memory_access_value(module, payload)?
                 }
@@ -726,8 +736,8 @@ impl CheckState<'_> {
         Ok(Some(value))
     }
 
-    /// Return one static variable's solved DIR value.
-    pub(in crate::check) fn static_value(
+    /// Return one static operand's solved literal value.
+    pub(in crate::check) fn static_literal(
         &self,
         operand: StaticOperand,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
@@ -761,7 +771,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        self.static_value(operand)
+        self.static_literal(operand)
     }
 
     /// Return one solved ownership spelling.
@@ -770,7 +780,7 @@ impl CheckState<'_> {
         module: ModuleId,
         operand: StaticOperand,
     ) -> CompilerResult<Option<String>> {
-        let Some(term) = self.static_value(operand)? else {
+        let Some(term) = self.static_literal(operand)? else {
             return Ok(None);
         };
         let module = operand
@@ -789,7 +799,7 @@ impl CheckState<'_> {
         module: ModuleId,
         operand: StaticOperand,
     ) -> CompilerResult<Option<dir::Place>> {
-        let Some(term) = self.static_value(operand)? else {
+        let Some(term) = self.static_literal(operand)? else {
             return Ok(None);
         };
         let module = operand
@@ -806,7 +816,7 @@ impl CheckState<'_> {
         module: ModuleId,
         operand: StaticOperand,
     ) -> CompilerResult<Option<dir::Space>> {
-        let Some(term) = self.static_value(operand)? else {
+        let Some(term) = self.static_literal(operand)? else {
             return Ok(None);
         };
         let module = operand
@@ -916,7 +926,7 @@ impl CheckState<'_> {
         let term = StaticTerm::Literal(dir::StaticTerm::Access {
             access: dir::Access::Mutable,
         });
-        let term = self.push_term(term);
+        let term = self.inference.push_term(term);
 
         term.into()
     }

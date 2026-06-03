@@ -80,7 +80,7 @@ impl CheckState<'_> {
         if self.environment.language.item(*symbol) != Some(item) {
             return Ok(Progress::Unchanged);
         }
-        let Some(element) = self.generic_argument_type_variable(arguments, 0) else {
+        let Some(element) = self.type_argument_variable_at(arguments, 0) else {
             return Ok(Progress::Unchanged);
         };
         let mut progress = Progress::Unchanged;
@@ -115,8 +115,10 @@ impl CheckState<'_> {
     /// Return the shared bound type for one range expression.
     fn range_element_type(&mut self, range: &RangeValueTerm) -> TypeOperand {
         let elements = range.start.into_iter().chain(range.end).collect();
-        let operation = self.push_term(TypeOperationTerm::BestCommon { elements });
-        let term = self.push_term(TypeTerm::Operation(operation));
+        let operation = self
+            .inference
+            .push_term(TypeOperationTerm::BestCommon { elements });
+        let term = self.inference.push_term(TypeTerm::Operation(operation));
 
         term.into()
     }

@@ -24,10 +24,6 @@ pub(in crate::check) struct ReceiverResolution {
 impl CheckState<'_> {
     /// Select one receiver resolution.
     pub(in crate::check) fn select_receiver(&mut self, receiver: ReceiverResolution) {
-        match self.inference.select_receiver(receiver) {
-            Ok(()) => {}
-            Err(crate::CompilerError::Internal { message }) => self.record_internal_error(message),
-            Err(error) => self.record_internal_error(format!("{error:?}")),
-        }
+        self.inference.select_receiver(receiver);
     }
 }

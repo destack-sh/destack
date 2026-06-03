@@ -22,7 +22,7 @@ pub(in crate::check) enum TypeOperand {
     /// const known: string = value
     /// ```
     Term(TermId<TypeTerm>),
-    /// A committed DIR type.
+    /// A committed type.
     ///
     /// Examples:
     /// ```ds
@@ -50,7 +50,7 @@ pub(in crate::check) enum StaticOperand {
     /// <4>
     /// ```
     Term(TermId<StaticTerm>),
-    /// A committed DIR static value.
+    /// A committed static value.
     ///
     /// Examples:
     /// ```ds
@@ -80,7 +80,7 @@ impl TypeOperand {
 
         match operand {
             Self::Variable(_) => None,
-            Self::Term(term) => Some(state.term(term).clone()),
+            Self::Term(term) => Some(state.inference.term(term).clone()),
             Self::Type(ty) => Some(TypeTerm::Type(ty)),
         }
     }
@@ -92,7 +92,7 @@ impl TypeOperand {
     ) -> SmallVec<[VariableId; 2]> {
         match self {
             Self::Variable(variable) => smallvec::smallvec![variable],
-            Self::Term(term) => state.term(term).referenced_variables(state),
+            Self::Term(term) => state.inference.term(term).referenced_variables(state),
             Self::Type(_) => SmallVec::new(),
         }
     }
@@ -116,7 +116,7 @@ impl StaticOperand {
 
         match operand {
             Self::Variable(_) => None,
-            Self::Term(term) => Some(state.term(term).clone()),
+            Self::Term(term) => Some(state.inference.term(term).clone()),
             Self::Static(value) => Some(StaticTerm::Static(value)),
         }
     }
@@ -128,7 +128,7 @@ impl StaticOperand {
     ) -> SmallVec<[VariableId; 2]> {
         match self {
             Self::Variable(variable) => smallvec::smallvec![variable],
-            Self::Term(term) => state.term(term).referenced_variables(state),
+            Self::Term(term) => state.inference.term(term).referenced_variables(state),
             Self::Static(_) => SmallVec::new(),
         }
     }

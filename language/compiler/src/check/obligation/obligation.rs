@@ -136,14 +136,14 @@ pub(in crate::check) enum Obligation {
 }
 
 impl CheckState<'_> {
-    /// Require one solved check after reduction.
-    pub(in crate::check) fn require(&mut self, obligation: Obligation) {
+    /// Push one solved check after reduction.
+    pub(in crate::check) fn push_obligation(&mut self, obligation: Obligation) {
         self.inference.push_obligation(obligation);
     }
 
     /// Check solved obligations for diagnostics.
     pub(in crate::check) fn check_obligations(&mut self) -> CompilerResult<Vec<CheckError>> {
-        let obligations = self.inference.obligations_vec();
+        let obligations = self.inference.obligations().cloned().collect::<Vec<_>>();
         let mut diagnostics = Vec::new();
 
         // check obligations in collection order

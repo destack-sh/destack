@@ -128,6 +128,16 @@ impl CheckState<'_> {
             OperatorDecision::Rejected(failure) => failure.source,
         };
 
-        self.inference.select_operator(source, decision)
+        if let Some(existing) = self.inference.operator(source) {
+            if existing == decision {
+                return Ok(());
+            }
+
+            return Err(self.selection_conflict_error("operator", source, &existing, &decision));
+        }
+
+        self.inference.select_operator(source, decision);
+
+        Ok(())
     }
 }

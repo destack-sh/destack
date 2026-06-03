@@ -5,14 +5,14 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, Condition, Decision, GenericArgument, GenericSlotId, LayoutQuery, LayoutTerm,
-    Obligation, Origin, PathLookup, Reduction, StaticOperand, StaticRelation, Substitution,
-    TypeOperand, TypeRelation, VariableId,
+    NameLookup, Obligation, Origin, PathLookup, Reduction, StaticOperand, StaticRelation,
+    Substitution, TypeOperand, TypeRelation, VariableId,
 };
 
 /// Term used to define a static variable.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum StaticTerm {
-    /// Committed DIR static value.
+    /// Committed static value.
     ///
     /// ```ds
     /// import { N } from "./dependency"
@@ -137,7 +137,7 @@ impl StaticTerm {
                 variables.extend(
                     arguments
                         .iter()
-                        .flat_map(|argument| state.argument_variables(argument)),
+                        .flat_map(|argument| argument.referenced_variables(state)),
                 );
             }
             Self::Union { elements } => {
@@ -152,7 +152,7 @@ impl StaticTerm {
                 variables.extend(
                     arguments
                         .iter()
-                        .flat_map(|argument| state.argument_variables(argument)),
+                        .flat_map(|argument| argument.referenced_variables(state)),
                 );
             }
             Self::Equal { left, right, .. } => {
@@ -308,7 +308,7 @@ impl CheckState<'_> {
 
                 term
             }
-            StaticOperand::Term(term) => self.term(term).clone(),
+            StaticOperand::Term(term) => self.inference.term(term).clone(),
             StaticOperand::Static(value) => StaticTerm::Static(value),
         };
         let right = match right.into() {
@@ -319,7 +319,7 @@ impl CheckState<'_> {
 
                 term
             }
-            StaticOperand::Term(term) => self.term(term).clone(),
+            StaticOperand::Term(term) => self.inference.term(term).clone(),
             StaticOperand::Static(value) => StaticTerm::Static(value),
         };
 
@@ -842,7 +842,7 @@ impl CheckState<'_> {
 
             match term {
                 StaticTerm::Union { elements } => reduced.extend(elements),
-                _ => reduced.push(self.push_term(term).into()),
+                _ => reduced.push(self.inference.push_term(term).into()),
             }
         }
 
@@ -888,7 +888,7 @@ impl CheckState<'_> {
                 left,
                 name: Some(name),
             } => {
-                let owner = self.require_node_type(left.into_global_any(module));
+                let owner = self.node_type_operand(left.into_global_any(module));
 
                 Some(StaticTerm::Member {
                     source,
@@ -926,8 +926,8 @@ impl CheckState<'_> {
                 );
 
                 Some(StaticTerm::Equal {
-                    left: self.push_term(left).into(),
-                    right: self.push_term(right).into(),
+                    left: self.inference.push_term(left).into(),
+                    right: self.inference.push_term(right).into(),
                     is_negated,
                 })
             }
@@ -957,9 +957,9 @@ impl CheckState<'_> {
                 };
 
                 Some(StaticTerm::Conditional {
-                    condition: self.push_term(condition).into(),
-                    then_value: self.push_term(then_value).into(),
-                    else_value: self.push_term(else_value).into(),
+                    condition: self.inference.push_term(condition).into(),
+                    then_value: self.inference.push_term(then_value).into(),
+                    else_value: self.inference.push_term(else_value).into(),
                 })
             }
             dir::Expression::Call {
@@ -1001,13 +1001,13 @@ impl CheckState<'_> {
             }
             dir::TypeExpression::Extends { left, right } => StaticTerm::TypeRelation {
                 relation: TypeRelation::Extends,
-                left: self.require_node_type(left.into_global_any(module)),
-                right: self.require_node_type(right.into_global_any(module)),
+                left: self.node_type_operand(left.into_global_any(module)),
+                right: self.node_type_operand(right.into_global_any(module)),
             },
             dir::TypeExpression::Implements { left, right } => StaticTerm::TypeRelation {
                 relation: TypeRelation::Implements,
-                left: self.require_node_type(left.into_global_any(module)),
-                right: self.require_node_type(right.into_global_any(module)),
+                left: self.node_type_operand(left.into_global_any(module)),
+                right: self.node_type_operand(right.into_global_any(module)),
             },
             dir::TypeExpression::Conditional {
                 left,
@@ -1017,8 +1017,8 @@ impl CheckState<'_> {
             } => {
                 let condition = StaticTerm::TypeRelation {
                     relation: TypeRelation::Extends,
-                    left: self.require_node_type(left.into_global_any(module)),
-                    right: self.require_node_type(extends_type.into_global_any(module)),
+                    left: self.node_type_operand(left.into_global_any(module)),
+                    right: self.node_type_operand(extends_type.into_global_any(module)),
                 };
                 let Some(then_value) = self.build_static_type_expression_term(module, then_type)?
                 else {
@@ -1030,9 +1030,9 @@ impl CheckState<'_> {
                 };
 
                 StaticTerm::Conditional {
-                    condition: self.push_term(condition).into(),
-                    then_value: self.push_term(then_value).into(),
-                    else_value: self.push_term(else_value).into(),
+                    condition: self.inference.push_term(condition).into(),
+                    then_value: self.inference.push_term(then_value).into(),
+                    else_value: self.inference.push_term(else_value).into(),
                 }
             }
             _ => return Ok(None),
@@ -1072,14 +1072,26 @@ impl CheckState<'_> {
         expression: dir::LocalNodeId<dir::Expression>,
         name: dir::StringId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(symbol) = self
-            .lookup_name_by_name(module, expression.into_any(), name, dir::SymbolSpace::Value)
-            .unique_symbol()
-        else {
-            return Ok(None);
+        let lookup =
+            self.lookup_name_by_name(module, expression.into_any(), name, dir::SymbolSpace::Value);
+        let symbol = match lookup {
+            NameLookup::Found(candidate) => match candidate.symbol() {
+                Some(symbol) => symbol,
+                None => return Ok(None),
+            },
+            NameLookup::Missing => return Ok(None),
+            NameLookup::Ambiguous(_) => {
+                let path = dir::Path {
+                    segments: smallvec::smallvec![name],
+                };
+
+                self.report_ambiguous_reference(module, expression.into_any(), &path);
+
+                return Ok(None);
+            }
         };
 
-        self.static_symbol_literal(module, symbol)
+        self.static_symbol_literal(symbol)
     }
 
     /// Return one locally concrete static path expression value.
@@ -1090,32 +1102,35 @@ impl CheckState<'_> {
         path: &dir::Path,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
         let symbol =
-            match self.lookup_path(module, expression.into_any(), path, dir::SymbolSpace::Value)? {
+            match self.lookup_path(module, expression.into_any(), path, dir::SymbolSpace::Value) {
                 PathLookup::Found(candidate) => match candidate.symbol() {
                     Some(symbol) => symbol,
                     None => return Ok(None),
                 },
-                PathLookup::Missing | PathLookup::Ambiguous(_) => return Ok(None),
+                PathLookup::Missing => return Ok(None),
+                PathLookup::Ambiguous(_) => {
+                    self.report_ambiguous_reference(module, expression.into_any(), path);
+
+                    return Ok(None);
+                }
             };
 
-        self.static_symbol_literal(module, symbol)
+        self.static_symbol_literal(symbol)
     }
 
     /// Return one locally concrete static symbol expression value.
     fn static_symbol_literal(
         &mut self,
-        module: ModuleId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(variable) = self.generic_static_variable(module, symbol)? else {
+        let Some(slot) = self.inference.generic_slot_id_for_symbol(symbol) else {
             return Ok(None);
         };
-        let term = match self.static_solution(variable)? {
-            Some(StaticTerm::Literal(term)) => Some(term),
-            _ => None,
-        };
+        if !self.inference.generic_slot(slot).is_static() {
+            return Ok(None);
+        }
 
-        Ok(term)
+        Ok(Some(dir::StaticTerm::Parameter(slot.into())))
     }
 
     /// Return one locally concrete static object expression value.
@@ -1182,7 +1197,7 @@ impl CheckState<'_> {
             target,
             query,
         };
-        self.require(Obligation::Concrete {
+        self.push_obligation(Obligation::Concrete {
             source,
             ty: target,
             condition: Condition::Always,
@@ -1199,13 +1214,35 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let left_node = self.module(module).view().get(left).clone();
         let symbol = match left_node {
-            dir::Expression::Identifier { name } => self
-                .lookup_name_by_name(module, left.into_any(), name, dir::SymbolSpace::Value)
-                .unique_symbol(),
+            dir::Expression::Identifier { name } => {
+                match self.lookup_name_by_name(
+                    module,
+                    left.into_any(),
+                    name,
+                    dir::SymbolSpace::Value,
+                ) {
+                    NameLookup::Found(candidate) => candidate.symbol(),
+                    NameLookup::Missing => None,
+                    NameLookup::Ambiguous(_) => {
+                        let path = dir::Path {
+                            segments: smallvec::smallvec![name],
+                        };
+
+                        self.report_ambiguous_reference(module, left.into_any(), &path);
+
+                        None
+                    }
+                }
+            }
             dir::Expression::QualifiedReference { path, .. } => {
-                match self.lookup_path(module, left.into_any(), &path, dir::SymbolSpace::Value)? {
+                match self.lookup_path(module, left.into_any(), &path, dir::SymbolSpace::Value) {
                     PathLookup::Found(candidate) => candidate.symbol(),
-                    PathLookup::Missing | PathLookup::Ambiguous(_) => None,
+                    PathLookup::Missing => None,
+                    PathLookup::Ambiguous(_) => {
+                        self.report_ambiguous_reference(module, left.into_any(), &path);
+
+                        None
+                    }
                 }
             }
             dir::Expression::Parenthesized { expression } => {
@@ -1232,7 +1269,7 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        let target = self.require_local_node_type(module, value);
+        let target = self.node_type_operand(value.into_global_any(module));
 
         Ok(Some(target))
     }

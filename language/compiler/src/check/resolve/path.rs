@@ -2,7 +2,6 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{CheckState, Condition};
 
 use super::name::{NameLookup, NameTarget};
@@ -105,10 +104,10 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
         path: &dir::Path,
         space: dir::SymbolSpace,
-    ) -> CompilerResult<PathLookup> {
+    ) -> PathLookup {
         // split path into lexical root and namespace tail
         let Some((name, tail)) = path.segments.split_first() else {
-            return Ok(PathLookup::Missing);
+            return PathLookup::Missing;
         };
 
         // resolve multi-segment roots through value space
@@ -132,7 +131,7 @@ impl CheckState<'_> {
                 },
             },
             // no root target
-            NameLookup::Missing => return Ok(PathLookup::Missing),
+            NameLookup::Missing => return PathLookup::Missing,
             // multiple root targets
             NameLookup::Ambiguous(candidates) => {
                 let candidates = candidates
@@ -149,26 +148,26 @@ impl CheckState<'_> {
                     })
                     .collect();
 
-                return Ok(PathLookup::Ambiguous(candidates));
+                return PathLookup::Ambiguous(candidates);
             }
         };
 
         // return the root symbol for single segment paths
         if tail.is_empty() {
-            return Ok(PathLookup::Found(root));
+            return PathLookup::Found(root);
         }
 
         // use resolve's namespace path table for imported namespace paths
         let key = dir::PathKey::new(source.into_global(module), path.segments.len() as u32);
         let Some(resolution) = self.module(module).resolved.paths.get(key).cloned() else {
-            return Ok(PathLookup::Missing);
+            return PathLookup::Missing;
         };
 
-        Ok(self.path_resolution_lookup(root.condition(), resolution))
+        self.path_resolution_lookup(root.condition(), resolution)
     }
 
-    /// Require a symbol named by one guarded source path.
-    pub(in crate::check) fn require_symbol_by_path_under(
+    /// Return the symbol named by one guarded source path.
+    pub(in crate::check) fn symbol_by_path_under(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -178,7 +177,6 @@ impl CheckState<'_> {
     ) -> Option<dir::GlobalSymbolId> {
         let lookup = self
             .lookup_path(module, source, path, space)
-            .unwrap_or_else(|_| panic!("path lookup failed for checked module {module:?}"))
             .available_under(guard);
 
         match lookup {

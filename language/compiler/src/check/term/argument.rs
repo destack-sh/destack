@@ -220,39 +220,6 @@ impl GenericArgument {
 }
 
 impl CheckState<'_> {
-    /// Return the variables referenced by one generic argument.
-    pub(in crate::check) fn argument_variables(
-        &self,
-        argument: &GenericArgument,
-    ) -> SmallVec<[VariableId; 2]> {
-        argument.referenced_variables(self)
-    }
-
-    /// Return the type interpretation of one generic argument.
-    pub(in crate::check) fn argument_type_variable(
-        &self,
-        argument: &GenericArgument,
-    ) -> Option<VariableId> {
-        argument.type_operand()?.variable()
-    }
-
-    /// Return the static interpretation of one generic argument.
-    pub(in crate::check) fn argument_static_variable(
-        &self,
-        argument: &GenericArgument,
-    ) -> Option<VariableId> {
-        argument.static_operand()?.variable()
-    }
-
-    /// Select one generic argument for a known generic slot kind.
-    pub(in crate::check) fn select_argument_for_static_slot(
-        &self,
-        argument: &GenericArgument,
-        is_static: bool,
-    ) -> GenericArgument {
-        argument.select_for_static_slot(is_static)
-    }
-
     /// Substitute generic arguments through one generic argument.
     pub(in crate::check) fn substitute_argument(
         &mut self,

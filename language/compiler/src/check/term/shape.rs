@@ -13,6 +13,7 @@ use crate::check::{
 /// Examples:
 /// ```ds
 /// { name: string }
+/// { ...base, name: string }
 /// { (value: string): int32 }
 /// { new (value: string): User }
 /// { [key: string]: int32 }
@@ -34,6 +35,18 @@ pub(in crate::check) enum ShapeMember {
         is_optional: bool,
         /// Whether the field is readonly.
         is_readonly: bool,
+    },
+    /// Spread fields.
+    ///
+    /// Examples:
+    /// ```ds
+    /// { ...base }
+    /// ```
+    Spread {
+        /// The spread property source.
+        origin: Origin,
+        /// The spread source type.
+        source: TypeOperand,
     },
     /// Call signature.
     ///
@@ -99,6 +112,9 @@ impl ShapeMember {
             }
             | Self::CallSignature { ty }
             | Self::ConstructSignature { ty } => variables.extend(ty.referenced_variables(state)),
+            Self::Spread { origin: _, source } => {
+                variables.extend(source.referenced_variables(state))
+            }
             Self::IndexSignature {
                 name: _,
                 key_type,
@@ -133,6 +149,10 @@ impl ShapeMember {
                 is_optional: *is_optional,
                 is_readonly: *is_readonly,
             },
+            Self::Spread { origin, source } => Self::Spread {
+                origin: *origin,
+                source: state.substitute_type_operand(module, substitution, *source)?,
+            },
             Self::CallSignature { ty } => Self::CallSignature {
                 ty: state.substitute_type_operand(module, substitution, *ty)?,
             },
@@ -164,7 +184,7 @@ impl CheckState<'_> {
         &mut self,
         members: SmallVec<[ShapeMember; 2]>,
     ) -> TypeTerm {
-        let shape = self.push_term(ShapeTerm { members });
+        let shape = self.inference.push_term(ShapeTerm { members });
 
         TypeTerm::Shape(shape)
     }
@@ -452,7 +472,12 @@ impl CheckState<'_> {
         match member {
             ShapeMember::Field { is_optional, .. }
             | ShapeMember::IndexSignature { is_optional, .. } => *is_optional,
-            ShapeMember::CallSignature { .. } | ShapeMember::ConstructSignature { .. } => false,
+            ShapeMember::Spread {
+                origin: _,
+                source: _,
+            }
+            | ShapeMember::CallSignature { .. }
+            | ShapeMember::ConstructSignature { .. } => false,
         }
     }
 
@@ -623,6 +648,10 @@ pub(in crate::check) fn shape_field(member: &ShapeMember) -> Option<(dir::Static
             is_optional: _,
             is_readonly: _,
         } => Some((key.clone(), *ty)),
+        ShapeMember::Spread {
+            origin: _,
+            source: _,
+        } => None,
         ShapeMember::CallSignature { ty: _ }
         | ShapeMember::ConstructSignature { ty: _ }
         | ShapeMember::IndexSignature {

@@ -1,3 +1,5 @@
+use destack_dir as dir;
+
 use crate::check::{Dump, DumpContext, GenericSlotId, Origin, VariableId, VariableKind};
 
 use super::format::dump_record;
@@ -75,6 +77,32 @@ impl Dump for GenericSlotId {
                 ("owner_at", context.symbol_source_label(self.owner)),
                 ("key", key),
                 ("index", index.to_string()),
+            ],
+        )
+    }
+}
+
+impl Dump for dir::GlobalNodeIdAny {
+    /// Render one global node id.
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        dump_record(
+            "GlobalNode",
+            [
+                ("value", context.node_label(*self)),
+                ("at", context.node_source_label(*self)),
+            ],
+        )
+    }
+}
+
+impl Dump for dir::GlobalSymbolId {
+    /// Render one global symbol id.
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        dump_record(
+            "GlobalSymbol",
+            [
+                ("value", context.symbol_label(*self)),
+                ("at", context.symbol_source_label(*self)),
             ],
         )
     }

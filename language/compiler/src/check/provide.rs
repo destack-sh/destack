@@ -70,6 +70,7 @@ impl Compiler {
         let mut check = CheckState::new(self, context, profile, environment);
         check.load(component_modules.as_slice())?;
         check.walk()?;
+        check.build()?;
         check.solve()?;
 
         // track stats
@@ -85,7 +86,7 @@ impl Compiler {
         }
         let events = options.emit_events.then(|| check.events());
 
-        // commit checked DIR tables
+        // commit output DIR tables
         let (modules, diagnostics) = check.commit()?;
         context.emit_diagnostics(diagnostics);
 

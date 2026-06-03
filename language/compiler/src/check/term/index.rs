@@ -159,7 +159,7 @@ impl CheckState<'_> {
         result: VariableId,
     ) -> CompilerResult<Progress> {
         if let Some(term) = self.reduce_structural_index_type(origin, result.module, index)? {
-            let term = self.push_term(term);
+            let term = self.inference.push_term(term);
 
             return self.relate_contextual_type_assignability(origin, term, result);
         }
@@ -233,7 +233,7 @@ impl CheckState<'_> {
         let Some(payload) = self.type_operand_term(payload)? else {
             return Ok(None);
         };
-        let is_readonly = matches!(self.term(form), FormTerm::Readonly);
+        let is_readonly = matches!(self.inference.term(form), FormTerm::Readonly);
 
         Ok(Some(IndexReceiver {
             ty: payload,
@@ -259,8 +259,8 @@ impl CheckState<'_> {
 
             let term = TypeTerm::Slice { element };
             if is_readonly {
-                let payload = self.push_term(term);
-                let form = self.push_term(FormTerm::Readonly);
+                let payload = self.inference.push_term(term);
+                let form = self.inference.push_term(FormTerm::Readonly);
 
                 return Ok(Some(TypeTerm::Form {
                     form,
@@ -312,7 +312,7 @@ impl CheckState<'_> {
         let Some(term) = self.resolve_member_type(origin, module, &receiver.ty, &key, &[])? else {
             return Ok(false);
         };
-        let term = self.push_term(term);
+        let term = self.inference.push_term(term);
         self.relate_contextual_type_assignability(origin, set.value, term)?;
 
         Ok(true)
@@ -336,7 +336,7 @@ impl CheckState<'_> {
             key,
             arguments: Vec::new().into(),
         };
-        let member = self.push_term(member);
+        let member = self.inference.push_term(member);
 
         Ok(CallTerm {
             source: index.source,
@@ -365,7 +365,7 @@ impl CheckState<'_> {
             key,
             arguments: Vec::new().into(),
         };
-        let member = self.push_term(member);
+        let member = self.inference.push_term(member);
 
         Ok(CallTerm {
             source: set.source,

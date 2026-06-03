@@ -3,7 +3,7 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CallDecision, CheckState, Constraint, ConstructDecision, GenericApplication,
+    CallDecision, CheckState, Constraint, ConstructDecision, Dump, DumpContext, GenericApplication,
     GenericApplicationKey, GenericArgument, GenericInduction, GenericInductionRoot,
     GenericInductionSlot, GenericSlot, GenericSlotId, GenericTemplate, IdentityDecision,
     LayoutDecision, MemberDecision, Obligation, OperatorDecision, PatternDecision,
@@ -735,6 +735,17 @@ impl InferenceTable {
         self.current_mut().constructs.insert(source, decision);
     }
 
+    /// Return active operator decision.
+    pub(in crate::check) fn operator(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> Option<OperatorDecision> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.operators.get(&source).cloned())
+    }
+
     /// Select one operator decision in the current segment.
     pub(in crate::check) fn select_operator(
         &mut self,
@@ -746,6 +757,17 @@ impl InferenceTable {
         }
 
         self.current_mut().operators.insert(source, decision);
+    }
+
+    /// Return active identity decision.
+    pub(in crate::check) fn identity(
+        &self,
+        source: dir::GlobalNodeIdAny,
+    ) -> Option<IdentityDecision> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.identities.get(&source).cloned())
     }
 
     /// Select one identity decision in the current segment.
@@ -761,6 +783,14 @@ impl InferenceTable {
         self.current_mut().identities.insert(source, decision);
     }
 
+    /// Return active layout decision.
+    pub(in crate::check) fn layout(&self, source: dir::GlobalNodeIdAny) -> Option<LayoutDecision> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.layouts.get(&source).cloned())
+    }
+
     /// Select one layout decision in the current segment.
     pub(in crate::check) fn select_layout(
         &mut self,
@@ -772,6 +802,14 @@ impl InferenceTable {
         }
 
         self.current_mut().layouts.insert(source, decision);
+    }
+
+    /// Return active member decision.
+    pub(in crate::check) fn member(&self, source: dir::GlobalNodeIdAny) -> Option<MemberDecision> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.members.get(&source).cloned())
     }
 
     /// Select one member decision in the current segment.
@@ -1068,6 +1106,27 @@ fn merge_bounds<T>(parent: &mut IndexMap<VariableId, Vec<T>>, child: IndexMap<Va
 }
 
 impl CheckState<'_> {
+    /// Return an internal error for one conflicting checked decision.
+    pub(in crate::check) fn selection_conflict_error<T: Dump>(
+        &self,
+        label: &str,
+        source: dir::GlobalNodeIdAny,
+        existing: &T,
+        incoming: &T,
+    ) -> CompilerError {
+        let context = DumpContext::new(self).with_module(source.module_id);
+        let source_label = context.node_label(source);
+        let source_location = context.node_source_label(source);
+        let existing = existing.dump(&context);
+        let incoming = incoming.dump(&context);
+
+        CompilerError::Internal {
+            message: format!(
+                "check selection conflict kind={label} source={source_label} at={source_location} existing={existing} incoming={incoming}"
+            ),
+        }
+    }
+
     /// Select one lexical name resolution.
     pub(in crate::check) fn select_name(
         &mut self,

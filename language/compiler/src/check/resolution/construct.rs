@@ -165,6 +165,16 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         decision: ConstructDecision,
     ) -> CompilerResult<()> {
-        self.inference.select_construct(source, decision)
+        if let Some(existing) = self.inference.construct(source) {
+            if existing == decision {
+                return Ok(());
+            }
+
+            return Err(self.selection_conflict_error("construct", source, &existing, &decision));
+        }
+
+        self.inference.select_construct(source, decision);
+
+        Ok(())
     }
 }

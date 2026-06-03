@@ -138,21 +138,21 @@ impl CallTerm {
                 variables.extend(value.referenced_variables(state));
             }
             CallCallee::Member(member) => {
-                let member = state.term(member);
+                let member = state.inference.term(member);
 
                 variables.extend(member.receiver.referenced_variables(state));
                 variables.extend(
                     member
                         .arguments
                         .iter()
-                        .flat_map(|argument| state.argument_variables(argument)),
+                        .flat_map(|argument| argument.referenced_variables(state)),
                 );
             }
         }
         variables.extend(
             self.generic_arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(argument)),
+                .flat_map(|argument| argument.referenced_variables(state)),
         );
         variables.extend(
             self.arguments
@@ -344,7 +344,7 @@ impl CheckState<'_> {
         let CallCallee::Member(member) = call.callee else {
             return Ok(());
         };
-        let member = self.term(member);
+        let member = self.inference.term(member);
         let MemberCallSource::Expression { source } = member.source else {
             return Ok(());
         };

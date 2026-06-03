@@ -103,11 +103,11 @@ impl Dump for StaticTerm {
 }
 
 impl Dump for dir::StaticTerm {
-    /// Render one committed DIR static term.
+    /// Render one committed static term.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         match self {
             Self::Parameter(parameter) => dump_record(
-                "DirStaticTerm.Parameter",
+                "CommittedStaticTerm.Parameter",
                 [
                     ("owner", context.symbol_label(parameter.owner)),
                     ("key", context.generic_slot_key(parameter.key)),
@@ -115,72 +115,76 @@ impl Dump for dir::StaticTerm {
                 ],
             ),
             Self::Symbol { symbol } => dump_record(
-                "DirStaticTerm.Symbol",
+                "CommittedStaticTerm.Symbol",
                 [("symbol", context.symbol_label(*symbol))],
             ),
-            Self::Access { access } => {
-                dump_record("DirStaticTerm.Access", [("value", access.dump(context))])
-            }
-            Self::Space { space } => {
-                dump_record("DirStaticTerm.Space", [("value", space.dump(context))])
-            }
-            Self::Place { place } => {
-                dump_record("DirStaticTerm.Place", [("value", place.dump(context))])
-            }
+            Self::Access { access } => dump_record(
+                "CommittedStaticTerm.Access",
+                [("value", access.dump(context))],
+            ),
+            Self::Space { space } => dump_record(
+                "CommittedStaticTerm.Space",
+                [("value", space.dump(context))],
+            ),
+            Self::Place { place } => dump_record(
+                "CommittedStaticTerm.Place",
+                [("value", place.dump(context))],
+            ),
             Self::Lifetime { lifetime } => dump_record(
-                "DirStaticTerm.Lifetime",
+                "CommittedStaticTerm.Lifetime",
                 [("value", lifetime.dump(context))],
             ),
             Self::ScalarLiteral { value } => dump_record(
-                "DirStaticTerm.ScalarLiteral",
+                "CommittedStaticTerm.ScalarLiteral",
                 [("value", value.dump(context))],
             ),
             Self::TypeLiteral { value } => dump_record(
-                "DirStaticTerm.TypeLiteral",
+                "CommittedStaticTerm.TypeLiteral",
                 [("value", value.dump(context))],
             ),
             Self::Declaration {
                 declaration,
                 generic_arguments,
             } => dump_record(
-                "DirStaticTerm.Declaration",
+                "CommittedStaticTerm.Declaration",
                 [
                     ("declaration", declaration.dump(context)),
                     ("generic_arguments", generic_arguments.dump(context)),
                 ],
             ),
-            Self::Type { ty } => {
-                dump_record("DirStaticTerm.Type", [("type", context.type_label(*ty))])
-            }
+            Self::Type { ty } => dump_record(
+                "CommittedStaticTerm.Type",
+                [("type", context.type_label(*ty))],
+            ),
             Self::Array { elements } => dump_record(
-                "DirStaticTerm.Array",
-                [("elements", dump_dir_static_terms(elements, context))],
+                "CommittedStaticTerm.Array",
+                [("elements", dump_committed_static_terms(elements, context))],
             ),
             Self::FixedArray { value, length } => dump_record(
-                "DirStaticTerm.FixedArray",
+                "CommittedStaticTerm.FixedArray",
                 [
                     ("value", value.dump(context)),
                     ("length", length.dump(context)),
                 ],
             ),
             Self::Tuple { elements } => dump_record(
-                "DirStaticTerm.Tuple",
-                [("elements", dump_dir_static_terms(elements, context))],
+                "CommittedStaticTerm.Tuple",
+                [("elements", dump_committed_static_terms(elements, context))],
             ),
             Self::Object { properties } => dump_record(
-                "DirStaticTerm.Object",
+                "CommittedStaticTerm.Object",
                 [(
                     "properties",
-                    dump_dir_static_properties(properties, context),
+                    dump_committed_static_properties(properties, context),
                 )],
             ),
             Self::Struct { ty, properties } => dump_record(
-                "DirStaticTerm.Struct",
+                "CommittedStaticTerm.Struct",
                 [
                     ("type", context.type_label(*ty)),
                     (
                         "properties",
-                        dump_dir_static_properties(properties, context),
+                        dump_committed_static_properties(properties, context),
                     ),
                 ],
             ),
@@ -191,24 +195,27 @@ impl Dump for dir::StaticTerm {
                     .collect::<Vec<_>>()
                     .join(",");
 
-                dump_record("DirStaticTerm.Union", [("elements", dump_list(elements))])
+                dump_record(
+                    "CommittedStaticTerm.Union",
+                    [("elements", dump_list(elements))],
+                )
             }
         }
     }
 }
 
 impl Dump for Vec<dir::StaticArgument> {
-    /// Render one committed DIR static argument vector.
+    /// Render one committed static argument vector.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
-        dump_dir_static_arguments(self, context)
+        dump_committed_static_arguments(self, context)
     }
 }
 
 impl Dump for dir::StaticArgument {
-    /// Render one committed DIR static argument.
+    /// Render one committed static argument.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         dump_record(
-            "DirStaticArgument",
+            "CommittedStaticArgument",
             [
                 ("name", self.name.dump(context)),
                 ("value", context.static_label(self.value)),
@@ -218,11 +225,11 @@ impl Dump for dir::StaticArgument {
 }
 
 impl Dump for dir::StaticProperty {
-    /// Render one committed DIR static property.
+    /// Render one committed static property.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         match self {
             Self::Field { key, value } => dump_record(
-                "DirStaticProperty.Field",
+                "CommittedStaticProperty.Field",
                 [("key", key.dump(context)), ("value", value.dump(context))],
             ),
             Self::Method {
@@ -230,16 +237,17 @@ impl Dump for dir::StaticProperty {
                 signature,
                 body,
             } => dump_record(
-                "DirStaticProperty.Method",
+                "CommittedStaticProperty.Method",
                 [
                     ("key", key.dump(context)),
                     ("signature", signature.dump(context)),
                     ("body", body.dump(context)),
                 ],
             ),
-            Self::Spread { value } => {
-                dump_record("DirStaticProperty.Spread", [("value", value.dump(context))])
-            }
+            Self::Spread { value } => dump_record(
+                "CommittedStaticProperty.Spread",
+                [("value", value.dump(context))],
+            ),
         }
     }
 }
@@ -265,8 +273,8 @@ impl Dump for TypeRelation {
     }
 }
 
-/// Render one DIR static term list.
-fn dump_dir_static_terms(terms: &[dir::StaticTerm], context: &DumpContext<'_, '_>) -> String {
+/// Render one committed static term list.
+fn dump_committed_static_terms(terms: &[dir::StaticTerm], context: &DumpContext<'_, '_>) -> String {
     let terms = terms
         .iter()
         .map(|term| term.dump(context))
@@ -276,8 +284,8 @@ fn dump_dir_static_terms(terms: &[dir::StaticTerm], context: &DumpContext<'_, '_
     dump_list(terms)
 }
 
-/// Render one DIR static argument list.
-fn dump_dir_static_arguments(
+/// Render one committed static argument list.
+fn dump_committed_static_arguments(
     arguments: &[dir::StaticArgument],
     context: &DumpContext<'_, '_>,
 ) -> String {
@@ -290,8 +298,8 @@ fn dump_dir_static_arguments(
     dump_list(arguments)
 }
 
-/// Render one DIR static property list.
-fn dump_dir_static_properties(
+/// Render one committed static property list.
+fn dump_committed_static_properties(
     properties: &[dir::StaticProperty],
     context: &DumpContext<'_, '_>,
 ) -> String {

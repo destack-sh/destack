@@ -38,7 +38,7 @@ impl TreeTerm {
         variables.extend(
             self.generic_arguments
                 .iter()
-                .flat_map(|argument| state.argument_variables(argument)),
+                .flat_map(|argument| argument.referenced_variables(state)),
         );
         variables.extend(
             self.arguments
@@ -62,6 +62,6 @@ impl CheckState<'_> {
         _module: ModuleId,
         _tree: &TreeTerm,
     ) -> CompilerResult<Reduction<TypeTerm>> {
-        Ok(Reduction::pending())
+        todo!("reduce tree expressions through tree dispatch")
     }
 }

@@ -84,12 +84,12 @@ pub(in crate::check) struct YieldTerm {
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The yielded value type.
     pub(in crate::check) value: Option<TypeOperand>,
-    /// The current generator yield channel.
-    pub(in crate::check) yield_type: Option<VariableId>,
-    /// The value received when the generator resumes.
-    pub(in crate::check) resume_type: Option<VariableId>,
-    /// The completion value of a delegated generator.
-    pub(in crate::check) delegate_return_type: Option<VariableId>,
+    /// The current generator yield target.
+    pub(in crate::check) yield_target: Option<VariableId>,
+    /// The current generator resume target.
+    pub(in crate::check) resume_target: Option<VariableId>,
+    /// The completion target of a delegated generator.
+    pub(in crate::check) delegate_return_target: Option<VariableId>,
     /// The yield cardinality.
     pub(in crate::check) cardinality: dir::YieldCardinality,
 }
@@ -105,9 +105,9 @@ impl YieldTerm {
         if let Some(value) = self.value {
             variables.extend(value.referenced_variables(state));
         }
-        variables.extend(self.yield_type);
-        variables.extend(self.resume_type);
-        variables.extend(self.delegate_return_type);
+        variables.extend(self.yield_target);
+        variables.extend(self.resume_target);
+        variables.extend(self.delegate_return_target);
 
         variables
     }
@@ -157,8 +157,8 @@ impl CheckState<'_> {
         yielded: &YieldTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
         let ty = match yielded.cardinality {
-            dir::YieldCardinality::Scalar => yielded.resume_type,
-            dir::YieldCardinality::Generator => yielded.delegate_return_type,
+            dir::YieldCardinality::Scalar => yielded.resume_target,
+            dir::YieldCardinality::Generator => yielded.delegate_return_target,
         };
 
         let Some(ty) = ty else {
@@ -185,7 +185,7 @@ impl CheckState<'_> {
             symbol,
             arguments: vec![argument].into(),
         };
-        let expected = self.push_term(expected);
+        let expected = self.inference.push_term(expected);
 
         self.relate_contextual_type_assignability(origin, awaited.value, expected)
     }
@@ -269,8 +269,8 @@ impl CheckState<'_> {
         result: VariableId,
     ) -> CompilerResult<Progress> {
         let source = match yielded.cardinality {
-            dir::YieldCardinality::Scalar => yielded.resume_type,
-            dir::YieldCardinality::Generator => yielded.delegate_return_type,
+            dir::YieldCardinality::Scalar => yielded.resume_target,
+            dir::YieldCardinality::Generator => yielded.delegate_return_target,
         };
         let Some(source) = source else {
             return Ok(Progress::Unchanged);
@@ -312,7 +312,7 @@ impl CheckState<'_> {
                 symbol,
                 arguments,
             } if self.environment.language.item(*symbol) == Some(dir::LanguageItem::Promise) => {
-                let Some(value) = self.generic_argument_type_variable(arguments, 0) else {
+                let Some(value) = self.type_argument_variable_at(arguments, 0) else {
                     return Ok(None);
                 };
 
@@ -329,24 +329,12 @@ impl CheckState<'_> {
     /// Return one try associated type.
     fn try_associated_type_operand(
         &mut self,
-        origin: Origin,
-        module: ModuleId,
-        value: TypeOperand,
-        name: &str,
+        _origin: Origin,
+        _module: ModuleId,
+        _value: TypeOperand,
+        _name: &str,
     ) -> CompilerResult<Option<TypeOperand>> {
-        let Some(receiver) = self.type_operand_term(value)? else {
-            return Ok(None);
-        };
-        let name = self.module(module).strings.intern(name);
-        let key = dir::StaticKey::Name(name);
-        let Some(member) = self.member_type_candidate(origin, module, &receiver, &key)? else {
-            return Ok(None);
-        };
-        if !self.member_implements_language_item(member.symbol, dir::LanguageItem::Try)? {
-            return Ok(None);
-        }
-
-        Ok(Some(self.push_term(member.ty).into()))
+        todo!("resolve try associated types through nominal protocol table")
     }
 
     /// Return the `FromFailure<F>` protocol type.
