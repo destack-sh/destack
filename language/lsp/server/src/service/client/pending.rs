@@ -6,7 +6,6 @@ use std::future::Future;
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
 use futures::channel::oneshot;
-use tracing::warn;
 
 use crate::jsonrpc::{Id, Response};
 
@@ -24,9 +23,9 @@ impl Pending {
     /// The corresponding `.wait()` future will then resolve to the given value.
     pub fn insert(&self, r: Response) {
         match r.id() {
-            Id::Null => warn!("received response with request ID of `null`, ignoring"),
+            Id::Null => {}
             id => match self.0.entry(id.clone()) {
-                Entry::Vacant(_) => warn!("received response with unknown request ID: {}", id),
+                Entry::Vacant(_) => {}
                 Entry::Occupied(mut entry) => {
                     let tx = match entry.get().len() {
                         1 => entry.remove().remove(0),

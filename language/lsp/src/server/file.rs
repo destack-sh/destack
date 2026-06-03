@@ -1,29 +1,22 @@
 use std::hash::Hash;
-use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
 use destack_core::{StableHasher, StringPool};
+use destack_daemon::protocol::FileUpdateImage;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex};
 use destack_fir::format as fir_format;
-use destack_formatter::{
-    DestackFormatContext, DestackFormatOptions, format_file_source, statement_list,
-};
+use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_lsp_types as lsp;
 use destack_parser::Parser;
 use destack_query as query;
-use destack_service::{FileImage, LanguageService, LanguageServiceError};
-use destack_source::{
-    DiagnosticSeverity, File, FileId, FileType, LanguageType, OverlayFileSystem, Span,
-    WATCHABLE_FILE_TYPES,
-};
-use destack_workspace::{FormatterOptions, Repository, Revision};
+use destack_source::{DiagnosticSeverity, File, FileId, LanguageType, Span, WATCHABLE_FILE_TYPES};
+use destack_workspace::{FormatterOptions, Ref, Repository};
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 1] = ["**/destack.json"];
 
 /// Build a standalone file from an image without mutating the repository.
-pub(super) fn file_from_image_for_diagnostics(image: &FileImage) -> Option<Arc<File>> {
+pub(super) fn file_from_image_for_diagnostics(image: &FileUpdateImage) -> Option<Arc<File>> {
     let content = image.content.as_ref()?;
     let file = file_from_image(image, image.id, content);
 
@@ -31,7 +24,7 @@ pub(super) fn file_from_image_for_diagnostics(image: &FileImage) -> Option<Arc<F
 }
 
 /// Build a file from an image payload.
-fn file_from_image(image: &FileImage, file_id: FileId, content: &str) -> File {
+fn file_from_image(image: &FileUpdateImage, file_id: FileId, content: &str) -> File {
     File::from_text(
         file_id,
         image.name.clone(),
@@ -74,16 +67,6 @@ pub(super) fn tracked_file_globs() -> Vec<&'static str> {
     }
 
     patterns
-}
-
-/// Create the language service for one LSP repository.
-pub(super) fn create_language_service(
-    repository: Arc<Repository>,
-    overlay_fs: Arc<OverlayFileSystem>,
-    roots: Vec<PathBuf>,
-    workers: usize,
-) -> Result<LanguageService, LanguageServiceError> {
-    LanguageService::new(repository, Some(overlay_fs), roots, workers, None)
 }
 
 /// Convert completion kind to LSP completion item kind.
@@ -140,54 +123,40 @@ pub(super) fn diagnostic_result_id(diagnostics: &[destack_source::Diagnostic]) -
 }
 
 /// Format a file and return the formatted content.
-/// Requires parsed DIR state from the repository graph.
-pub(super) fn format_file(
-    repository: &Repository,
-    revision: Revision,
-    file_id: FileId,
-    file: &Arc<File>,
-    formatter: FormatterOptions,
-) -> Option<String> {
-    // dispatch non destack languages through the shared source formatter
-    if matches!(file.ty, FileType::Css | FileType::Html) {
-        return format_file_source(file.as_ref(), file.text(), formatter).ok();
-    }
-
+pub(super) fn format_file(file: &Arc<File>, formatter: FormatterOptions) -> Option<String> {
     let language_type = LanguageType::try_from(file.ty).ok()?;
     let format_options = DestackFormatOptions {
         language_type,
         ..formatter.into()
     };
 
-    // resolve module state for this file
-    let module_id = repository.module_id_for_file(revision, file_id).ok()??;
-    repository.file(revision, file_id).ok().flatten()?;
-    let parsed_key = ArtifactKey::dir_parsed(module_id);
-    let parsed_version = repository
-        .artifact_version(revision, &parsed_key)
-        .ok()
-        .flatten()?;
-    let parsed = repository.artifact_store().dir_parsed(&parsed_version)?;
+    // parse the exact editor image
+    let mut parser = Parser::lex_file(file.clone(), language_type, Arc::new(StringPool::new()));
+    let roots = parser.parse();
+    if parser
+        .diagnostics()
+        .has_diagnostics_of_severity(DiagnosticSeverity::Error)
+    {
+        return None;
+    }
 
-    // build format context from committed semantic state
-    let side_span = Parser::compute_side_span_from_tree(&parsed.tree);
-    let tokens: Vec<_> = parsed.iter_token_spans_for_file(file_id)?.collect();
-    let side_tokens: Vec<_> = parsed.iter_side_token_spans_for_file(file_id)?.collect();
-    let strings = repository.string_pool();
+    // build formatting context
+    let side_span = parser.compute_side_span();
+    let (tokens, side_tokens) = parser.take_token_spans();
+    let strings = parser.strings.as_ref();
+    let parents = NodeParentIndex::from_tree(&parser.tree);
     let context = DestackFormatContext::new(
         format_options,
         file.as_ref(),
-        &parsed.tree,
+        &parser.tree,
         &tokens,
         &side_tokens,
         &side_span,
-        strings.as_ref(),
-        parsed.parents.clone(),
+        strings,
+        parents,
     );
 
-    let roots = parsed.roots_for_file(file_id)?;
-
-    format_expressions(&context, roots)
+    format_expressions(&context, &roots)
 }
 
 /// Format expressions and return the result string.
@@ -214,21 +183,26 @@ fn format_expressions<'ast>(
 /// Resolve formatting options for one path in one revision.
 pub(super) fn formatting_options_for_path(
     repository: &Repository,
-    revision: Revision,
     path: &std::path::Path,
 ) -> FormatterOptions {
+    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let Ok(revision) = repository.current(&reference) else {
+        return FormatterOptions::default();
+    };
+
+    // prefer package-local formatter options
     let package = repository.nearest_package(revision, path).ok().flatten();
     if let Some(package) = package
         && let Ok(Some(config)) = repository.destack_for_package_id(revision, package.id)
     {
-        return config.formatter.clone();
+        return config.formatter;
     }
 
-    repository
-        .destack_for_workspace(revision)
-        .ok()
-        .flatten()
-        .map(|config| config.formatter.clone())
+    // fall back to workspace formatter options
+    let workspace_config = repository.destack_for_workspace(revision).ok().flatten();
+
+    workspace_config
+        .map(|config| config.formatter)
         .unwrap_or_default()
 }
 

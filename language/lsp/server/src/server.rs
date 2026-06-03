@@ -3,7 +3,6 @@ use destack_lsp_types::request::{
     GotoImplementationResponse, GotoTypeDefinitionParams, GotoTypeDefinitionResponse,
 };
 use destack_lsp_types::*;
-use tracing::{error, warn};
 
 use crate::jsonrpc::{Error, Result};
 
@@ -182,7 +181,6 @@ rpc! {
         #[rpc(name = "textDocument/didOpen")]
         async fn did_open(&self, params: DidOpenTextDocumentParams) {
             let _ = params;
-            warn!("got a `textDocument/didOpen` notification, but it is not implemented");
         }
 
         /// The [`textDocument/didChange`] notification is sent from the client to the server to signal
@@ -195,7 +193,6 @@ rpc! {
         #[rpc(name = "textDocument/didChange")]
         async fn did_change(&self, params: DidChangeTextDocumentParams) {
             let _ = params;
-            warn!("got a `textDocument/didChange` notification, but it is not implemented");
         }
 
         /// The [`textDocument/willSave`] notification is sent from the client to the server before the
@@ -205,7 +202,6 @@ rpc! {
         #[rpc(name = "textDocument/willSave")]
         async fn will_save(&self, params: WillSaveTextDocumentParams) {
             let _ = params;
-            warn!("got a `textDocument/willSave` notification, but it is not implemented");
         }
 
         /// The [`textDocument/willSaveWaitUntil`] request is sent from the client to the server before
@@ -224,7 +220,6 @@ rpc! {
             params: WillSaveTextDocumentParams,
         ) -> Result<Option<Vec<TextEdit>>> {
             let _ = params;
-            error!("got a `textDocument/willSaveWaitUntil` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -235,7 +230,6 @@ rpc! {
         #[rpc(name = "textDocument/didSave")]
         async fn did_save(&self, params: DidSaveTextDocumentParams) {
             let _ = params;
-            warn!("got a `textDocument/didSave` notification, but it is not implemented");
         }
 
         /// The [`textDocument/didClose`] notification is sent from the client to the server when the
@@ -248,7 +242,6 @@ rpc! {
         #[rpc(name = "textDocument/didClose")]
         async fn did_close(&self, params: DidCloseTextDocumentParams) {
             let _ = params;
-            warn!("got a `textDocument/didClose` notification, but it is not implemented");
         }
 
         // notebook document synchronization
@@ -260,7 +253,6 @@ rpc! {
         #[rpc(name = "notebookDocument/didOpen")]
         async fn notebook_did_open(&self, params: DidOpenNotebookDocumentParams) {
             let _ = params;
-            warn!("got a `notebookDocument/didOpen` notification, but it is not implemented");
         }
 
         /// The [`notebookDocument/didChange`] notification is sent from the client to the server when a notebook document changes.
@@ -270,7 +262,6 @@ rpc! {
         #[rpc(name = "notebookDocument/didChange")]
         async fn notebook_did_change(&self, params: DidChangeNotebookDocumentParams) {
             let _ = params;
-            warn!("got a `notebookDocument/didChange` notification, but it is not implemented");
         }
 
         /// The [`notebookDocument/didSave`] notification is sent from the client to the server when a notebook document is saved.
@@ -280,7 +271,6 @@ rpc! {
         #[rpc(name = "notebookDocument/didSave")]
         async fn notebook_did_save(&self, params: DidSaveNotebookDocumentParams) {
             let _ = params;
-            warn!("got a `notebookDocument/didSave` notification, but it is not implemented");
         }
 
         /// The [`notebookDocument/didClose`] notification is sent from the client to the server when a notebook document is closed.
@@ -290,7 +280,6 @@ rpc! {
         #[rpc(name = "notebookDocument/didClose")]
         async fn notebook_did_close(&self, params: DidCloseNotebookDocumentParams) {
             let _ = params;
-            warn!("got a `notebookDocument/didClose` notification, but it is not implemented");
         }
 
         // language features
@@ -318,7 +307,6 @@ rpc! {
             params: GotoDeclarationParams,
         ) -> Result<Option<GotoDeclarationResponse>> {
             let _ = params;
-            error!("got a `textDocument/declaration` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -343,7 +331,6 @@ rpc! {
             params: GotoDefinitionParams,
         ) -> Result<Option<GotoDefinitionResponse>> {
             let _ = params;
-            error!("got a `textDocument/definition` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -370,7 +357,6 @@ rpc! {
             params: GotoTypeDefinitionParams,
         ) -> Result<Option<GotoTypeDefinitionResponse>> {
             let _ = params;
-            error!("got a `textDocument/typeDefinition` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -397,7 +383,6 @@ rpc! {
             params: GotoImplementationParams,
         ) -> Result<Option<GotoImplementationResponse>> {
             let _ = params;
-            error!("got a `textDocument/implementation` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -408,7 +393,6 @@ rpc! {
         #[rpc(name = "textDocument/references")]
         async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
             let _ = params;
-            error!("got a `textDocument/references` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -436,7 +420,6 @@ rpc! {
             params: CallHierarchyPrepareParams,
         ) -> Result<Option<Vec<CallHierarchyItem>>> {
             let _ = params;
-            error!("got a `textDocument/prepareCallHierarchy` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -458,7 +441,6 @@ rpc! {
             params: CallHierarchyIncomingCallsParams,
         ) -> Result<Option<Vec<CallHierarchyIncomingCall>>> {
             let _ = params;
-            error!("got a `callHierarchy/incomingCalls` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -480,7 +462,6 @@ rpc! {
             params: CallHierarchyOutgoingCallsParams,
         ) -> Result<Option<Vec<CallHierarchyOutgoingCall>>> {
             let _ = params;
-            error!("got a `callHierarchy/outgoingCalls` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -506,7 +487,6 @@ rpc! {
             params: TypeHierarchyPrepareParams,
         ) -> Result<Option<Vec<TypeHierarchyItem>>> {
             let _ = params;
-            error!("got a `textDocument/prepareTypeHierarchy` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -527,7 +507,6 @@ rpc! {
             params: TypeHierarchySupertypesParams,
         ) -> Result<Option<Vec<TypeHierarchyItem>>> {
             let _ = params;
-            error!("got a `typeHierarchy/supertypes` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -548,7 +527,6 @@ rpc! {
             params: TypeHierarchySubtypesParams,
         ) -> Result<Option<Vec<TypeHierarchyItem>>> {
             let _ = params;
-            error!("got a `typeHierarchy/subtypes` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -568,7 +546,6 @@ rpc! {
             params: DocumentHighlightParams,
         ) -> Result<Option<Vec<DocumentHighlight>>> {
             let _ = params;
-            error!("got a `textDocument/documentHighlight` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -592,7 +569,6 @@ rpc! {
         #[rpc(name = "textDocument/documentLink")]
         async fn document_link(&self, params: DocumentLinkParams) -> Result<Option<Vec<DocumentLink>>> {
             let _ = params;
-            error!("got a `textDocument/documentLink` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -606,7 +582,6 @@ rpc! {
         #[rpc(name = "documentLink/resolve")]
         async fn document_link_resolve(&self, params: DocumentLink) -> Result<DocumentLink> {
             let _ = params;
-            error!("got a `documentLink/resolve` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -620,7 +595,6 @@ rpc! {
         #[rpc(name = "textDocument/hover")]
         async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
             let _ = params;
-            error!("got a `textDocument/hover` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -631,7 +605,6 @@ rpc! {
         #[rpc(name = "textDocument/codeLens")]
         async fn code_lens(&self, params: CodeLensParams) -> Result<Option<Vec<CodeLens>>> {
             let _ = params;
-            error!("got a `textDocument/codeLens` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -642,7 +615,6 @@ rpc! {
         #[rpc(name = "codeLens/resolve")]
         async fn code_lens_resolve(&self, params: CodeLens) -> Result<CodeLens> {
             let _ = params;
-            error!("got a `codeLens/resolve` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -657,7 +629,6 @@ rpc! {
         #[rpc(name = "textDocument/foldingRange")]
         async fn folding_range(&self, params: FoldingRangeParams) -> Result<Option<Vec<FoldingRange>>> {
             let _ = params;
-            error!("got a `textDocument/foldingRange` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -679,7 +650,6 @@ rpc! {
             params: SelectionRangeParams,
         ) -> Result<Option<Vec<SelectionRange>>> {
             let _ = params;
-            error!("got a `textDocument/selectionRange` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -701,7 +671,6 @@ rpc! {
             params: DocumentSymbolParams,
         ) -> Result<Option<DocumentSymbolResponse>> {
             let _ = params;
-            error!("got a `textDocument/documentSymbol` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -726,7 +695,6 @@ rpc! {
             params: SemanticTokensParams,
         ) -> Result<Option<SemanticTokensResult>> {
             let _ = params;
-            error!("got a `textDocument/semanticTokens/full` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -747,7 +715,6 @@ rpc! {
             params: SemanticTokensDeltaParams,
         ) -> Result<Option<SemanticTokensFullDeltaResult>> {
             let _ = params;
-            error!("got a `textDocument/semanticTokens/full/delta` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -773,7 +740,6 @@ rpc! {
             params: SemanticTokensRangeParams,
         ) -> Result<Option<SemanticTokensRangeResult>> {
             let _ = params;
-            error!("got a `textDocument/semanticTokens/range` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -789,7 +755,6 @@ rpc! {
         #[rpc(name = "textDocument/inlineValue")]
         async fn inline_value(&self, params: InlineValueParams) -> Result<Option<Vec<InlineValue>>> {
             let _ = params;
-            error!("got a `textDocument/inlineValue` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -805,7 +770,6 @@ rpc! {
         #[rpc(name = "textDocument/inlayHint")]
         async fn inlay_hint(&self, params: InlayHintParams) -> Result<Option<Vec<InlayHint>>> {
             let _ = params;
-            error!("got a `textDocument/inlayHint` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -834,7 +798,6 @@ rpc! {
         #[rpc(name = "inlayHint/resolve")]
         async fn inlay_hint_resolve(&self, params: InlayHint) -> Result<InlayHint> {
             let _ = params;
-            error!("got a `inlayHint/resolve` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -864,7 +827,6 @@ rpc! {
         #[rpc(name = "textDocument/moniker")]
         async fn moniker(&self, params: MonikerParams) -> Result<Option<Vec<Moniker>>> {
             let _ = params;
-            error!("got a `textDocument/moniker` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -889,7 +851,6 @@ rpc! {
         #[rpc(name = "textDocument/completion")]
         async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
             let _ = params;
-            error!("got a `textDocument/completion` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -900,7 +861,6 @@ rpc! {
         #[rpc(name = "completionItem/resolve")]
         async fn completion_resolve(&self, params: CompletionItem) -> Result<CompletionItem> {
             let _ = params;
-            error!("got a `completionItem/resolve` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -924,7 +884,6 @@ rpc! {
             params: DocumentDiagnosticParams,
         ) -> Result<DocumentDiagnosticReportResult> {
             let _ = params;
-            error!("got a `textDocument/diagnostic` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -962,7 +921,6 @@ rpc! {
             params: WorkspaceDiagnosticParams,
         ) -> Result<WorkspaceDiagnosticReportResult> {
             let _ = params;
-            error!("got a `workspace/diagnostic` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -973,7 +931,6 @@ rpc! {
         #[rpc(name = "textDocument/signatureHelp")]
         async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
             let _ = params;
-            error!("got a `textDocument/signatureHelp` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1033,7 +990,6 @@ rpc! {
         #[rpc(name = "textDocument/codeAction")]
         async fn code_action(&self, params: CodeActionParams) -> Result<Option<CodeActionResponse>> {
             let _ = params;
-            error!("got a `textDocument/codeAction` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1051,7 +1007,6 @@ rpc! {
         #[rpc(name = "codeAction/resolve")]
         async fn code_action_resolve(&self, params: CodeAction) -> Result<CodeAction> {
             let _ = params;
-            error!("got a `codeAction/resolve` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1072,7 +1027,6 @@ rpc! {
         #[rpc(name = "textDocument/documentColor")]
         async fn document_color(&self, params: DocumentColorParams) -> Result<Vec<ColorInformation>> {
             let _ = params;
-            error!("got a `textDocument/documentColor` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1098,7 +1052,6 @@ rpc! {
             params: ColorPresentationParams,
         ) -> Result<Vec<ColorPresentation>> {
             let _ = params;
-            error!("got a `textDocument/colorPresentation` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1109,7 +1062,6 @@ rpc! {
         #[rpc(name = "textDocument/formatting")]
         async fn formatting(&self, params: DocumentFormattingParams) -> Result<Option<Vec<TextEdit>>> {
             let _ = params;
-            error!("got a `textDocument/formatting` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1123,7 +1075,6 @@ rpc! {
             params: DocumentRangeFormattingParams,
         ) -> Result<Option<Vec<TextEdit>>> {
             let _ = params;
-            error!("got a `textDocument/rangeFormatting` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1137,7 +1088,6 @@ rpc! {
             params: DocumentOnTypeFormattingParams,
         ) -> Result<Option<Vec<TextEdit>>> {
             let _ = params;
-            error!("got a `textDocument/onTypeFormatting` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1149,7 +1099,6 @@ rpc! {
         #[rpc(name = "textDocument/rename")]
         async fn rename(&self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
             let _ = params;
-            error!("got a `textDocument/rename` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1167,7 +1116,6 @@ rpc! {
             params: TextDocumentPositionParams,
         ) -> Result<Option<PrepareRenameResponse>> {
             let _ = params;
-            error!("got a `textDocument/prepareRename` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1192,7 +1140,6 @@ rpc! {
             params: LinkedEditingRangeParams,
         ) -> Result<Option<LinkedEditingRanges>> {
             let _ = params;
-            error!("got a `textDocument/linkedEditingRange` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1220,7 +1167,6 @@ rpc! {
             params: WorkspaceSymbolParams,
         ) -> Result<Option<OneOf<Vec<SymbolInformation>, Vec<WorkspaceSymbol>>>> {
             let _ = params;
-            error!("got a `workspace/symbol` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1237,7 +1183,6 @@ rpc! {
         #[rpc(name = "workspaceSymbol/resolve")]
         async fn symbol_resolve(&self, params: WorkspaceSymbol) -> Result<WorkspaceSymbol> {
             let _ = params;
-            error!("got a `workspaceSymbol/resolve` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1248,7 +1193,6 @@ rpc! {
         #[rpc(name = "workspace/didChangeConfiguration")]
         async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
             let _ = params;
-            warn!("got a `workspace/didChangeConfiguration` notification, but it is not implemented");
         }
 
         /// The [`workspace/didChangeWorkspaceFolders`] notification is sent from the client to the
@@ -1267,7 +1211,6 @@ rpc! {
         #[rpc(name = "workspace/didChangeWorkspaceFolders")]
         async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
             let _ = params;
-            warn!("got a `workspace/didChangeWorkspaceFolders` notification, but it is not implemented");
         }
 
         /// The [`workspace/willCreateFiles`] request is sent from the client to the server before
@@ -1286,7 +1229,6 @@ rpc! {
         #[rpc(name = "workspace/willCreateFiles")]
         async fn will_create_files(&self, params: CreateFilesParams) -> Result<Option<WorkspaceEdit>> {
             let _ = params;
-            error!("got a `workspace/willCreateFiles` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1297,7 +1239,6 @@ rpc! {
         #[rpc(name = "workspace/didCreateFiles")]
         async fn did_create_files(&self, params: CreateFilesParams) {
             let _ = params;
-            warn!("got a `workspace/didCreateFiles` notification, but it is not implemented");
         }
 
         /// The [`workspace/willRenameFiles`] request is sent from the client to the server before
@@ -1316,7 +1257,6 @@ rpc! {
         #[rpc(name = "workspace/willRenameFiles")]
         async fn will_rename_files(&self, params: RenameFilesParams) -> Result<Option<WorkspaceEdit>> {
             let _ = params;
-            error!("got a `workspace/willRenameFiles` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1327,7 +1267,6 @@ rpc! {
         #[rpc(name = "workspace/didRenameFiles")]
         async fn did_rename_files(&self, params: RenameFilesParams) {
             let _ = params;
-            warn!("got a `workspace/didRenameFiles` notification, but it is not implemented");
         }
 
         /// The [`workspace/willDeleteFiles`] request is sent from the client to the server before
@@ -1347,7 +1286,6 @@ rpc! {
         #[rpc(name = "workspace/willDeleteFiles")]
         async fn will_delete_files(&self, params: DeleteFilesParams) -> Result<Option<WorkspaceEdit>> {
             let _ = params;
-            error!("got a `workspace/willDeleteFiles` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1358,7 +1296,6 @@ rpc! {
         #[rpc(name = "workspace/didDeleteFiles")]
         async fn did_delete_files(&self, params: DeleteFilesParams) {
             let _ = params;
-            warn!("got a `workspace/didDeleteFiles` notification, but it is not implemented");
         }
 
         /// The [`workspace/didChangeWatchedFiles`] notification is sent from the client to the server
@@ -1372,7 +1309,6 @@ rpc! {
         #[rpc(name = "workspace/didChangeWatchedFiles")]
         async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
             let _ = params;
-            warn!("got a `workspace/didChangeWatchedFiles` notification, but it is not implemented");
         }
 
         /// The [`workspace/executeCommand`] request is sent from the client to the server to trigger
@@ -1385,7 +1321,6 @@ rpc! {
         #[rpc(name = "workspace/executeCommand")]
         async fn execute_command(&self, params: ExecuteCommandParams) -> Result<Option<LSPAny>> {
             let _ = params;
-            error!("got a `workspace/executeCommand` request, but it is not implemented");
             Err(Error::method_not_found())
         }
 
@@ -1401,7 +1336,6 @@ rpc! {
         #[rpc(name = "window/workDoneProgress/cancel")]
         async fn work_done_progress_cancel(&self, params: WorkDoneProgressCancelParams) {
             let _ = params;
-            warn!("got a `window/workDoneProgress/cancel` notification, but it is not implemented");
         }
     }
 }

@@ -3,24 +3,19 @@ use std::hash::Hash;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, OnceLock, RwLock};
-use std::time::{Duration, Instant};
 
 use dashmap::{DashMap, DashSet};
 #[cfg(test)]
 use destack_artifact::MemoryCacheStore;
 use destack_core::StableHasher;
+use destack_daemon::protocol::DiagnosticSnapshot;
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
-use destack_service::{
-    FileChange, LanguageService, LanguageServiceError, LanguageServiceMessage,
-    LanguageServiceMessageKind as ProtocolMessageKind, LanguageServiceResult, QueryResult,
-    QueryRevision, TextChange, TextPosition, TextRange,
-};
-use destack_session::{Session, open_repository_from_fs};
+use destack_session::open_repository_from_fs;
 use destack_source::{
-    BatchEdit, File, FileId, FileSystem, FileWatchEvent, FileWatchEventKind, ModuleId,
-    OverlayFileSystem, PhysicalFileSystem, ProfileId, Span, TargetId,
+    BatchEdit, File, FileId, FileSystem, ModuleId, OverlayFileSystem, PhysicalFileSystem,
+    ProfileId, Span, TargetId,
 };
 use destack_workspace::{DestackLayoutOverride, Environment, Repository, Revision, Settings};
 use serde::{Deserialize, Serialize};
@@ -39,42 +34,19 @@ use crate::query::navigation::{
 };
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
+use crate::server::daemon::DaemonWorkspace;
 use crate::server::file::{
-    build_file_watchers, completion_kind_to_lsp, create_language_service, diagnostic_result_id,
-    file_from_image_for_diagnostics, format_file, format_range, normalize_line_endings,
-    tracked_file_globs,
+    build_file_watchers, completion_kind_to_lsp, diagnostic_result_id,
+    file_from_image_for_diagnostics, format_file, format_range, formatting_options_for_path,
+    normalize_line_endings, tracked_file_globs,
 };
 use crate::server::progress::WorkDoneProgressTracker;
 use crate::server::token::semantic_tokens_edits;
-use crate::uri::{lsp_uri_for_file, lsp_uri_for_source_uri, source_uri_from_lsp};
+use crate::uri::{lsp_uri_for_file, lsp_uri_for_source_uri};
 
 const PARTIAL_RESULT_CHUNK_SIZE: usize = 128;
 const WORKSPACE_DIAGNOSTIC_PARTIAL_CHUNK_SIZE: usize = 128;
 const AUTO_IMPORT_DETAIL_PREFIX: &str = "Auto import from ";
-const SLOW_DIAGNOSTIC_WARN_DURATION: Duration = Duration::from_secs(2);
-
-/// Convert LSP text changes into service text changes.
-fn text_changes_from_lsp(changes: Vec<lsp::TextDocumentContentChangeEvent>) -> Vec<TextChange> {
-    changes
-        .into_iter()
-        .map(|change| TextChange {
-            range: change.range.map(|range| TextRange {
-                start: text_position_from_lsp(range.start),
-                end: text_position_from_lsp(range.end),
-            }),
-            text: change.text,
-        })
-        .collect()
-}
-
-/// Convert one LSP text position into a service text position.
-fn text_position_from_lsp(position: lsp::Position) -> TextPosition {
-    TextPosition {
-        line: position.line,
-        character: position.character,
-    }
-}
-
 /// Canonicalize a root path for stable dedupe comparisons.
 fn canonical_path(path: &Path) -> PathBuf {
     std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
@@ -231,10 +203,8 @@ pub struct DestackLanguageServer {
     pub(super) client: Client,
     /// The shared repository.
     repository: OnceLock<Arc<Repository>>,
-    /// The language service.
-    language_service: OnceLock<Arc<LanguageService>>,
-    /// Compiler worker count for the owned language service.
-    workers: usize,
+    /// Daemon workspace used for semantic state.
+    daemon_workspace: OnceLock<Arc<DaemonWorkspace>>,
     /// Notification used to wake requests waiting on progress cancellation.
     progress_cancel_notify: Arc<Notify>,
     /// Cached semantic tokens per document.
@@ -263,8 +233,7 @@ impl DestackLanguageServer {
         Self {
             client,
             repository: OnceLock::new(),
-            language_service: OnceLock::new(),
-            workers: Session::default_worker_count(),
+            daemon_workspace: OnceLock::new(),
             progress_cancel_notify: Arc::new(Notify::new()),
             semantic_tokens_cache: DashMap::new(),
             semantic_tokens_counter: AtomicU64::new(1),
@@ -277,27 +246,18 @@ impl DestackLanguageServer {
         }
     }
 
-    /// Create a new language server instance with an explicit worker count.
-    #[cfg(any(test, feature = "test"))]
-    pub(crate) fn with_workers(client: Client, workers: usize) -> Self {
-        let mut server = Self::new(client);
-        server.workers = workers;
-
-        server
-    }
-
     /// Get the repository (must be called after initialize).
     #[inline]
     fn repository(&self) -> &Arc<Repository> {
         self.repository.get().expect("repository not initialized")
     }
 
-    /// Get the language service (must be called after initialize).
+    /// Get the daemon workspace (must be called after initialize).
     #[inline]
-    fn language_service(&self) -> &Arc<LanguageService> {
-        self.language_service
+    fn daemon_workspace(&self) -> &Arc<DaemonWorkspace> {
+        self.daemon_workspace
             .get()
-            .expect("language service not initialized")
+            .expect("daemon workspace not initialized")
     }
 
     /// Allocate the next semantic tokens result id.
@@ -432,62 +392,43 @@ impl DestackLanguageServer {
         ];
         let values = match self.client.configuration(items).await {
             Ok(values) => values,
-            Err(error) => {
-                tracing::debug!(?error, "lsp.config.fetch_failed");
-                return;
-            }
+            Err(_) => return,
         };
         if values.is_empty() {
             return;
         }
 
         // update completion settings when parsing succeeds
-        if let Some(value) = values.first().cloned() {
-            match from_value::<CompletionSettings>(value) {
-                Ok(parsed) => {
-                    if let Some(auto_imports) = parsed.auto_imports {
-                        self.settings
-                            .completion_auto_imports
-                            .store(auto_imports, Ordering::Relaxed);
-                    }
-                }
-                Err(error) => {
-                    tracing::debug!(?error, "lsp.config.parse_completion_failed");
-                }
-            }
+        if let Some(value) = values.first().cloned()
+            && let Ok(parsed) = from_value::<CompletionSettings>(value)
+            && let Some(auto_imports) = parsed.auto_imports
+        {
+            self.settings
+                .completion_auto_imports
+                .store(auto_imports, Ordering::Relaxed);
         }
 
         // update inlay hint settings when parsing succeeds
-        if let Some(value) = values.get(1).cloned() {
-            match from_value::<InlayHintSettings>(value) {
-                Ok(parsed) => {
-                    if let Some(parameter_hints) = parsed.parameter_hints {
-                        self.settings
-                            .parameter_inlay_hints
-                            .store(parameter_hints, Ordering::Relaxed);
-                    }
-                    if let Some(type_hints) = parsed.type_hints {
-                        self.settings
-                            .type_inlay_hints
-                            .store(type_hints, Ordering::Relaxed);
-                    }
-                }
-                Err(error) => {
-                    tracing::debug!(?error, "lsp.config.parse_inlay_failed");
-                }
+        if let Some(value) = values.get(1).cloned()
+            && let Ok(parsed) = from_value::<InlayHintSettings>(value)
+        {
+            if let Some(parameter_hints) = parsed.parameter_hints {
+                self.settings
+                    .parameter_inlay_hints
+                    .store(parameter_hints, Ordering::Relaxed);
+            }
+            if let Some(type_hints) = parsed.type_hints {
+                self.settings
+                    .type_inlay_hints
+                    .store(type_hints, Ordering::Relaxed);
             }
         }
 
         // update query settings when parsing succeeds
-        if let Some(value) = values.get(2).cloned() {
-            match from_value::<QuerySettings>(value) {
-                Ok(parsed) => {
-                    self.set_query_target(parsed.target);
-                }
-                Err(error) => {
-                    tracing::debug!(?error, "lsp.config.parse_query_failed");
-                }
-            }
+        if let Some(value) = values.get(2).cloned()
+            && let Ok(parsed) = from_value::<QuerySettings>(value)
+        {
+            self.set_query_target(parsed.target);
         }
     }
 
@@ -501,22 +442,18 @@ impl DestackLanguageServer {
         self.cancelled_progress_tokens.remove(token);
     }
 
-    /// Execute one query through the language service.
+    /// Execute one query through the daemon.
     fn execute_query(
         &self,
         path: &Path,
         request: query::QueryRequest,
-        revision: QueryRevision,
-    ) -> Option<QueryResult> {
-        let result = self.language_service().query(path, request, revision);
+        revision: Revision,
+    ) -> Option<destack_daemon::protocol::QueryResponseBody> {
+        let result = self
+            .daemon_workspace()
+            .execute_query(path, request, revision);
 
-        match result {
-            Ok(response) => Some(response),
-            Err(error) => {
-                tracing::debug!(?error, path = ?path, "lsp.query.failed");
-                None
-            }
-        }
+        result.ok()
     }
 
     /// Return the selected query profile for one exact revision.
@@ -553,37 +490,38 @@ impl DestackLanguageServer {
     /// Return the exact file state for one LSP query uri.
     fn query_file_for_uri(&self, uri: &lsp::Uri) -> Option<QueryFile> {
         let path = uri.to_file_path().map(|path| path.into_owned())?;
-        let view = self.language_service().file_view(&path).ok()?;
-        let repository = view.repository();
-        let revision = view.revision();
-        let file_id = view.file_id;
-        let module_id = repository
-            .module_id_for_file(revision, file_id)
+        let snapshot = self
+            .daemon_workspace()
+            .file_snapshot(path.clone(), self.query_target())
             .ok()
             .flatten()?;
-        let profile_id = self.query_profile(&path, revision, Some(module_id))?;
-        let module = query::QueryModule {
-            module_id,
-            profile_id,
-        };
+        let file = file_from_image_for_diagnostics(&snapshot.file)?;
+        let module = snapshot.module?;
 
         Some(QueryFile {
             path,
-            revision,
+            revision: snapshot.revision,
             module,
-            file_id,
-            file: Arc::clone(&view.file),
+            file_id: snapshot.file_id,
+            file,
         })
     }
 
     /// Execute one query against an exact file revision.
-    fn query_file(&self, file: &QueryFile, request: query::QueryRequest) -> Option<QueryResult> {
-        self.execute_query(&file.path, request, QueryRevision::Exact(file.revision))
+    fn query_file(
+        &self,
+        file: &QueryFile,
+        request: query::QueryRequest,
+    ) -> Option<destack_daemon::protocol::QueryResponseBody> {
+        self.execute_query(&file.path, request, file.revision)
     }
 
     /// Resolve the current semantic revision for the root that owns a path.
     fn revision_at(&self, path: &Path) -> Option<Revision> {
-        self.language_service().revision_at(path).ok()
+        self.daemon_workspace()
+            .root_snapshot(path, self.query_target())
+            .ok()
+            .map(|snapshot| snapshot.revision)
     }
 
     /// Resolve one local file path from an LSP uri.
@@ -591,23 +529,10 @@ impl DestackLanguageServer {
         uri.to_file_path().map(|path| path.into_owned())
     }
 
-    /// Read normalized text from the repository file system.
-    fn file_system_text(&self, path: &Path) -> Option<String> {
-        self.repository()
-            .file_system()
-            .read_to_string(path)
-            .ok()
-            .map(normalize_line_endings)
-    }
-
     /// Return true when the uri or path belongs to an open editor document.
     fn is_open_document_uri_or_path(&self, uri: &lsp::Uri, path: &Path) -> bool {
-        let Some(language_service) = self.language_service.get() else {
-            return false;
-        };
-
         let _ = uri;
-        language_service.has_open_file(path)
+        self.daemon_workspace().has_open_file(path)
     }
 
     /// Convert an LSP code action kind into service query kinds.
@@ -709,10 +634,7 @@ impl DestackLanguageServer {
         let options = lsp::DidChangeWatchedFilesRegistrationOptions { watchers };
         let register_options = match to_value(options) {
             Ok(value) => Some(value),
-            Err(error) => {
-                tracing::debug!(?error, "lsp.watch.register.serialize_failed");
-                return;
-            }
+            Err(_) => return,
         };
         let registration = lsp::Registration {
             id: "destack.watch".to_string(),
@@ -720,57 +642,57 @@ impl DestackLanguageServer {
             register_options,
         };
 
-        match self.client.register_capability(vec![registration]).await {
-            Ok(()) => {
-                if self
-                    .watch_registration_id
-                    .set("destack.watch".to_string())
-                    .is_err()
-                {
-                    tracing::debug!("lsp.watch.register_id_already_set");
-                }
-            }
-            Err(error) => {
-                tracing::debug!(?error, "lsp.watch.register_failed");
-            }
+        if let Ok(()) = self.client.register_capability(vec![registration]).await {
+            let _ = self.watch_registration_id.set("destack.watch".to_string());
         }
     }
 
-    /// Publish service messages with an explicit client handle.
-    async fn publish_watch_messages_for_command(
-        client: &Client,
-        messages: Vec<LanguageServiceMessage>,
-    ) {
-        for message in messages {
-            let message_type = match message.kind {
-                ProtocolMessageKind::Info => lsp::MessageType::INFO,
-                ProtocolMessageKind::Warning => lsp::MessageType::WARNING,
-                ProtocolMessageKind::Error => lsp::MessageType::ERROR,
-            };
-            client.log_message(message_type, message.message).await;
-        }
-    }
-
-    /// Publish one complete service result.
-    async fn apply_service_result(&self, result: LanguageServiceResult) {
-        let files_by_id = result
-            .updates
+    /// Publish daemon diagnostic snapshots.
+    async fn publish_diagnostic_snapshots(&self, snapshots: Vec<DiagnosticSnapshot>) {
+        let mut files_by_id = snapshots
             .iter()
-            .filter_map(|update| {
-                let image = update.file.as_ref()?;
-                let file = file_from_image_for_diagnostics(image)?;
+            .filter_map(|snapshot| {
+                let file = file_from_image_for_diagnostics(&snapshot.file)?;
 
                 Some((file.id, file))
             })
             .collect::<HashMap<_, _>>();
 
-        // publish diagnostics per updated file
-        for update in result.updates {
-            let file = update
-                .file
-                .as_ref()
-                .and_then(file_from_image_for_diagnostics);
-            let uri = lsp_uri_for_source_uri(&update.diagnostic_uri)
+        // prefetch cross-file diagnostic labels
+        for snapshot in &snapshots {
+            let mut missing_file_ids = HashSet::new();
+            for diagnostic in &snapshot.diagnostics {
+                for label in std::iter::once(&diagnostic.primary).chain(diagnostic.labels.iter()) {
+                    if !files_by_id.contains_key(&label.span.file) {
+                        missing_file_ids.insert(label.span.file);
+                    }
+                }
+            }
+            if missing_file_ids.is_empty() {
+                continue;
+            }
+
+            let Some(path) = snapshot.file.path.as_ref() else {
+                continue;
+            };
+            let Ok(images) = self.daemon_workspace().file_images(
+                path,
+                snapshot.revision,
+                missing_file_ids.into_iter().collect(),
+            ) else {
+                continue;
+            };
+            for image in images {
+                let Some(file) = file_from_image_for_diagnostics(&image) else {
+                    continue;
+                };
+                files_by_id.insert(file.id, file);
+            }
+        }
+
+        for snapshot in snapshots {
+            let file = file_from_image_for_diagnostics(&snapshot.file);
+            let uri = lsp_uri_for_source_uri(&snapshot.diagnostic_uri)
                 .or_else(|| file.as_ref().and_then(|file| lsp_uri_for_file(file)));
             let Some(uri) = uri else {
                 continue;
@@ -784,62 +706,15 @@ impl DestackLanguageServer {
 
                 files_by_id.get(&file_id).cloned()
             };
-            let diagnostics: Vec<lsp::Diagnostic> = update
+            let diagnostics = snapshot
                 .diagnostics
                 .into_iter()
                 .filter_map(|diagnostic| diagnostic_to_lsp_diagnostic(&diagnostic, &file_for_id))
                 .collect();
 
             self.client
-                .publish_diagnostics(uri, diagnostics, update.diagnostic_version)
+                .publish_diagnostics(uri, diagnostics, snapshot.diagnostic_version)
                 .await;
-        }
-
-        Self::publish_watch_messages_for_command(&self.client, result.messages).await;
-    }
-
-    /// Apply one watch-event batch through the language service and publish the result.
-    async fn apply_watch_events(&self, events: Vec<FileWatchEvent>) {
-        if events.is_empty() {
-            return;
-        }
-
-        let result = self
-            .run_service(move |service| service.apply_watch_events(events))
-            .await;
-        let result = match result {
-            Ok(result) => result,
-            Err(error) => {
-                tracing::debug!(?error, "lsp.watch.apply_failed");
-                return;
-            }
-        };
-
-        tracing::trace!(updates = result.updates.len(), "lsp.watch.apply");
-        self.apply_service_result(result).await;
-    }
-
-    /// Yield once so tests can wait for any in-flight service task completion.
-    #[cfg(any(test, feature = "test"))]
-    pub(crate) async fn wait_for_mutation_idle_for_tests(&self) {
-        tokio::task::yield_now().await;
-    }
-
-    /// Run one blocking service operation through the language service.
-    async fn run_service<T, F>(&self, operation: F) -> Result<T, LanguageServiceError>
-    where
-        T: Send + 'static,
-        F: FnOnce(&LanguageService) -> Result<T, LanguageServiceError> + Send + 'static,
-    {
-        // clone service for blocking runtime execution
-        let language_service = self.language_service().clone();
-        let join_result =
-            tokio::task::spawn_blocking(move || operation(language_service.as_ref())).await;
-        match join_result {
-            Ok(result) => result,
-            Err(error) => Err(LanguageServiceError::Internal {
-                detail: format!("service task join failed: {error}"),
-            }),
         }
     }
 
@@ -851,12 +726,10 @@ impl DestackLanguageServer {
         label: &str,
     ) {
         // serialize the partial result
+        let _ = label;
         let value = match to_value(payload) {
             Ok(value) => value,
-            Err(error) => {
-                tracing::debug!(?error, label, "lsp.partial.serialize_failed");
-                return;
-            }
+            Err(_) => return,
         };
 
         // dispatch the progress notification
@@ -894,10 +767,6 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::InitializeParams,
     ) -> jsonrpc::Result<lsp::InitializeResult> {
-        self.client
-            .log_message(lsp::MessageType::INFO, "destack.initialize.start")
-            .await;
-
         // determine root from params
         #[allow(deprecated)]
         let cwd = if let Some(path) = params
@@ -943,19 +812,10 @@ impl LanguageServer for DestackLanguageServer {
             Settings::default(),
             DestackLayoutOverride::default(),
         )
-        .map_err(|error| {
-            tracing::error!("lsp.initialize.repository_import_failed: {error}");
-            jsonrpc::Error::internal_error()
-        })?;
+        .map_err(|_| jsonrpc::Error::internal_error())?;
         #[cfg(test)]
         let repository = repository.with_cache(Arc::new(MemoryCacheStore::new()));
         let root = repository.workspace_root().to_path_buf();
-        self.client
-            .log_message(
-                lsp::MessageType::INFO,
-                format!("destack.initialize.root={}", root.display()),
-            )
-            .await;
 
         // merge discovery root with initialize roots
         let mut opened_roots = vec![root.clone()];
@@ -967,25 +827,17 @@ impl LanguageServer for DestackLanguageServer {
 
         let repository = Arc::new(repository);
         if self.repository.set(repository.clone()).is_err() {
-            tracing::warn!("lsp.initialize.repository_already_set");
             return Err(jsonrpc::Error::internal_error());
         }
 
-        // create the language service for the repository
-        let language_service = match create_language_service(
-            repository.clone(),
-            overlay_fs,
-            opened_roots,
-            self.workers,
-        ) {
-            Ok(language_service) => Arc::new(language_service),
-            Err(error) => {
-                tracing::debug!(?error, "lsp.workspace.init_failed");
-                return Err(jsonrpc::Error::internal_error());
-            }
+        let _ = overlay_fs;
+
+        // connect the editor adapter to the shared daemon
+        let daemon_workspace = match DaemonWorkspace::connect(repository.as_ref(), opened_roots) {
+            Ok(workspace) => Arc::new(workspace),
+            Err(_) => return Err(jsonrpc::Error::internal_error()),
         };
-        if self.language_service.set(language_service).is_err() {
-            tracing::warn!("lsp.initialize.language_service_already_set");
+        if self.daemon_workspace.set(daemon_workspace).is_err() {
             return Err(jsonrpc::Error::internal_error());
         }
 
@@ -1118,11 +970,7 @@ impl LanguageServer for DestackLanguageServer {
             call_hierarchy_provider: Some(lsp::CallHierarchyServerCapability::Simple(true)),
             type_hierarchy_provider: Some(lsp::OneOf::Left(true)),
             execute_command_provider: Some(lsp::ExecuteCommandOptions {
-                commands: vec![
-                    "destack.reload".to_string(),
-                    "destack.reindex".to_string(),
-                    "destack.clearCache".to_string(),
-                ],
+                commands: vec!["destack.reload".to_string(), "destack.reindex".to_string()],
                 work_done_progress_options: Default::default(),
             }),
             workspace: Some(lsp::WorkspaceServerCapabilities {
@@ -1153,10 +1001,6 @@ impl LanguageServer for DestackLanguageServer {
             ..Default::default()
         };
 
-        self.client
-            .log_message(lsp::MessageType::INFO, "destack.initialize.done")
-            .await;
-
         Ok(lsp::InitializeResult {
             capabilities,
             server_info: Some(lsp::ServerInfo {
@@ -1168,10 +1012,6 @@ impl LanguageServer for DestackLanguageServer {
     }
 
     async fn initialized(&self, _: lsp::InitializedParams) {
-        self.client
-            .log_message(lsp::MessageType::INFO, "destack.initialized")
-            .await;
-
         self.register_file_watchers().await;
         self.refresh_configuration().await;
     }
@@ -1180,29 +1020,16 @@ impl LanguageServer for DestackLanguageServer {
         self.refresh_configuration().await;
 
         // reload filesystem state so config changes refresh diagnostics
-        let started_at = Instant::now();
-        let result = self.run_service(|service| service.reload_all()).await;
+        let result = self.daemon_workspace().reload_all();
         let result = match result {
             Ok(result) => result,
-            Err(error) => {
-                tracing::debug!(?error, "lsp.config_reload.failed");
-                return;
-            }
+            Err(_) => return,
         };
 
-        self.apply_service_result(result).await;
-
-        tracing::info!(
-            elapsed_ms = started_at.elapsed().as_millis(),
-            "lsp.config_reload.completed"
-        );
+        self.publish_diagnostic_snapshots(result).await;
     }
 
     async fn shutdown(&self) -> jsonrpc::Result<()> {
-        self.client
-            .log_message(lsp::MessageType::INFO, "destack.shutdown")
-            .await;
-
         Ok(())
     }
 
@@ -1211,39 +1038,22 @@ impl LanguageServer for DestackLanguageServer {
     // ------------------------------------------------------------------------
 
     async fn did_open(&self, params: lsp::DidOpenTextDocumentParams) {
-        let uri_str = params.text_document.uri.to_string();
         let content = normalize_line_endings(params.text_document.text);
         let version = params.text_document.version;
-
-        self.client
-            .log_message(lsp::MessageType::INFO, format!("did_open: {uri_str}"))
-            .await;
 
         let Some(path) = Self::path_from_uri(&params.text_document.uri) else {
             return;
         };
 
-        let query_uri = source_uri_from_lsp(&params.text_document.uri);
-        let path_for_operation = path.clone();
         let result = self
-            .run_service(move |service| {
-                service.open_file(
-                    &path_for_operation,
-                    query_uri,
-                    version,
-                    FileChange::Text { content },
-                )
-            })
-            .await;
+            .daemon_workspace()
+            .open_file(path.clone(), version, content);
         let result = match result {
             Ok(result) => result,
-            Err(error) => {
-                tracing::debug!(?error, path = %path.display(), "lsp.open_document.failed");
-                return;
-            }
+            Err(_) => return,
         };
 
-        self.apply_service_result(result).await;
+        self.publish_diagnostic_snapshots(result).await;
     }
 
     async fn did_change(&self, params: lsp::DidChangeTextDocumentParams) {
@@ -1251,72 +1061,33 @@ impl LanguageServer for DestackLanguageServer {
         if params.content_changes.is_empty() {
             return;
         };
-        let uri_str = params.text_document.uri.to_string();
         let Some(path) = Self::path_from_uri(&params.text_document.uri) else {
             return;
         };
-        let query_uri = source_uri_from_lsp(&params.text_document.uri);
-        let changes = text_changes_from_lsp(params.content_changes);
-
         let version = params.text_document.version;
-        let path_for_operation = path.clone();
-        let result = self
-            .run_service(move |service| {
-                service.patch_text_file(&path_for_operation, query_uri, version, changes)
-            })
-            .await;
+        let result =
+            self.daemon_workspace()
+                .change_file(path.clone(), version, params.content_changes);
         let result = match result {
             Ok(result) => result,
-            Err(LanguageServiceError::StaleOpenFile {
-                incoming, current, ..
-            }) => {
-                tracing::debug!(
-                    uri = %uri_str,
-                    incoming,
-                    current,
-                    "lsp.did_change.stale_version"
-                );
-                return;
-            }
-            Err(error) => {
-                tracing::debug!(?error, path = %path.display(), "lsp.update_document.failed");
-                return;
-            }
+            Err(_) => return,
         };
-        self.apply_service_result(result).await;
+        self.publish_diagnostic_snapshots(result).await;
     }
 
     async fn did_save(&self, params: lsp::DidSaveTextDocumentParams) {
-        let uri_str = params.text_document.uri.to_string();
         let Some(path) = Self::path_from_uri(&params.text_document.uri) else {
             return;
         };
 
-        let content = if let Some(text) = params.text {
-            Some(normalize_line_endings(text))
-        } else {
-            self.file_system_text(&path)
-        };
+        let content = params.text.map(normalize_line_endings);
 
-        let Some(content) = content else {
-            tracing::debug!(uri = %uri_str, "lsp.did_save.read_failed");
-            return;
-        };
-
-        let path_for_operation = path.clone();
-        let result = self
-            .run_service(move |service| {
-                service.save_file(&path_for_operation, FileChange::Text { content })
-            })
-            .await;
+        let result = self.daemon_workspace().save_file(path.clone(), content);
         let result = match result {
             Ok(result) => result,
-            Err(error) => {
-                tracing::debug!(?error, path = %path.display(), "lsp.save_file.failed");
-                return;
-            }
+            Err(_) => return,
         };
-        self.apply_service_result(result).await;
+        self.publish_diagnostic_snapshots(result).await;
     }
 
     async fn did_close(&self, params: lsp::DidCloseTextDocumentParams) {
@@ -1325,99 +1096,33 @@ impl LanguageServer for DestackLanguageServer {
         let Some(path) = Self::path_from_uri(&params.text_document.uri) else {
             return;
         };
-        let path_for_operation = path.clone();
-        let result = self
-            .run_service(move |service| service.close_file(&path_for_operation))
-            .await;
+        let result = self.daemon_workspace().close_file(path.clone());
         let result = match result {
             Ok(result) => result,
-            Err(error) => {
-                tracing::debug!(?error, path = %path.display(), "lsp.close_file.failed");
-                return;
-            }
+            Err(_) => return,
         };
 
-        self.apply_service_result(result).await;
+        self.publish_diagnostic_snapshots(result).await;
     }
 
     async fn did_change_workspace_folders(&self, params: lsp::DidChangeWorkspaceFoldersParams) {
-        let language_service = self.language_service().clone();
-
         for folder in params.event.added {
-            if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
-                let open_result = {
-                    let language_service = language_service.clone();
-                    tokio::task::spawn_blocking(move || language_service.open_root(path)).await
-                };
-
-                let open_result = match open_result {
-                    Ok(result) => result,
-                    Err(error) => {
-                        tracing::debug!(?error, "lsp.workspace.add_join_failed");
-                        continue;
-                    }
-                };
-                if let Err(error) = open_result {
-                    tracing::debug!(?error, "lsp.workspace.add_failed");
-                }
-            }
+            let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) else {
+                continue;
+            };
+            let _ = self.daemon_workspace().open_root(path);
         }
 
         for folder in params.event.removed {
-            if let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) {
-                let close_result = {
-                    let language_service = language_service.clone();
-                    let path_for_close = path.clone();
-                    tokio::task::spawn_blocking(move || {
-                        language_service.close_root(&path_for_close)
-                    })
-                    .await
-                };
-
-                let close_result = match close_result {
-                    Ok(result) => result,
-                    Err(error) => {
-                        tracing::debug!(?error, "lsp.workspace.remove_join_failed");
-                        continue;
-                    }
-                };
-                if let Err(error) = close_result {
-                    tracing::debug!(?error, "lsp.workspace.remove_failed");
-                }
-            }
+            let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) else {
+                continue;
+            };
+            let _ = self.daemon_workspace().close_root(&path);
         }
     }
 
-    async fn did_change_watched_files(&self, params: lsp::DidChangeWatchedFilesParams) {
-        // apply external file changes through the service
-        let mut events = Vec::new();
-        for change in params.changes {
-            // resolve file path
-            let Some(path) = change.uri.to_file_path().map(|path| path.into_owned()) else {
-                continue;
-            };
-
-            // skip updates for files that are still open in the editor
-            if self.is_open_document_uri_or_path(&change.uri, &path) {
-                continue;
-            }
-
-            // translate change into a watch event
-            let kind = match change.typ {
-                lsp::FileChangeType::CREATED => FileWatchEventKind::Created,
-                lsp::FileChangeType::CHANGED => FileWatchEventKind::Modified,
-                lsp::FileChangeType::DELETED => FileWatchEventKind::Deleted,
-                _ => FileWatchEventKind::Modified,
-            };
-            events.push(FileWatchEvent {
-                path,
-                previous_path: None,
-                kind,
-            });
-        }
-
-        // apply watch updates
-        self.apply_watch_events(events).await;
+    async fn did_change_watched_files(&self, _params: lsp::DidChangeWatchedFilesParams) {
+        // daemon-owned watchers observe filesystem changes
     }
 
     async fn will_rename_files(
@@ -1444,8 +1149,8 @@ impl LanguageServer for DestackLanguageServer {
             };
 
             // enforce a single root for rename write consistency
-            let old_root = self.language_service().root_at(&old_path).ok();
-            let new_root = self.language_service().root_at(&new_path).ok();
+            let old_root = self.daemon_workspace().root_for_path(&old_path).ok();
+            let new_root = self.daemon_workspace().root_for_path(&new_path).ok();
             let root = old_root.or(new_root);
             let Some(root) = root else {
                 continue;
@@ -1453,21 +1158,6 @@ impl LanguageServer for DestackLanguageServer {
 
             if let Some(existing_root) = query_root.as_ref() {
                 if existing_root != &root {
-                    self.client
-                        .log_message(
-                            lsp::MessageType::WARNING,
-                            format!(
-                                "destack.will_rename_files.multi_root_rejected first_root={} next_root={}",
-                                existing_root.display(),
-                                root.display()
-                            ),
-                        )
-                        .await;
-                    tracing::warn!(
-                        first_root = %existing_root.display(),
-                        next_root = %root.display(),
-                        "lsp.will_rename_files.multi_root_rejected"
-                    );
                     return Ok(None);
                 }
             } else {
@@ -1498,11 +1188,7 @@ impl LanguageServer for DestackLanguageServer {
             profile_ids: vec![profile_id],
             renames,
         });
-        let response = self.execute_query(
-            &query_root,
-            request,
-            QueryRevision::Current(expected_revision),
-        );
+        let response = self.execute_query(&query_root, request, expected_revision);
         let Some(response) = response else {
             return Ok(None);
         };
@@ -1529,47 +1215,12 @@ impl LanguageServer for DestackLanguageServer {
         Ok(None)
     }
 
-    async fn did_create_files(&self, params: lsp::CreateFilesParams) {
-        // apply created file updates
-        let repository = self.repository().clone();
-        let mut events = Vec::new();
-        for file in params.files {
-            // parse the file uri
-            let Ok(uri) = file.uri.parse::<lsp::Uri>() else {
-                continue;
-            };
-
-            // resolve the file path
-            let Some(path) = uri.to_file_path().map(|path| path.into_owned()) else {
-                continue;
-            };
-
-            // skip updates for files that are still open in the editor
-            if self.is_open_document_uri_or_path(&uri, &path) {
-                continue;
-            }
-
-            // skip files that are not yet visible on disk
-            if repository.file_system().exists(&path).ok() != Some(true) {
-                continue;
-            }
-
-            // record the create event
-            events.push(FileWatchEvent {
-                path,
-                previous_path: None,
-                kind: FileWatchEventKind::Created,
-            });
-        }
-
-        // apply watch updates
-        self.apply_watch_events(events).await;
+    async fn did_create_files(&self, _params: lsp::CreateFilesParams) {
+        // daemon-owned watchers observe filesystem changes
     }
 
     async fn did_rename_files(&self, params: lsp::RenameFilesParams) {
-        // apply renamed file updates
-        let repository = self.repository().clone();
-        let mut events = Vec::new();
+        // clear diagnostics for renamed files
         for file in params.files {
             // parse rename uris
             let Ok(old_uri) = file.old_uri.parse::<lsp::Uri>() else {
@@ -1594,31 +1245,15 @@ impl LanguageServer for DestackLanguageServer {
                 continue;
             }
 
-            // clear diagnostics for the old uri before publishing the renamed path
+            // clear diagnostics for the old uri
             self.client
                 .publish_diagnostics(old_uri.clone(), Vec::new(), None)
                 .await;
-
-            // skip files that are not yet visible on disk
-            if repository.file_system().exists(&new_path).ok() != Some(true) {
-                continue;
-            }
-
-            // record the rename event
-            events.push(FileWatchEvent {
-                path: new_path,
-                previous_path: Some(old_path),
-                kind: FileWatchEventKind::Renamed,
-            });
         }
-
-        // apply watch updates
-        self.apply_watch_events(events).await;
     }
 
     async fn did_delete_files(&self, params: lsp::DeleteFilesParams) {
         // clear diagnostics for deleted files
-        let mut events = Vec::new();
         for file in params.files {
             // parse the file uri
             let Ok(uri) = file.uri.parse::<lsp::Uri>() else {
@@ -1632,17 +1267,11 @@ impl LanguageServer for DestackLanguageServer {
                     continue;
                 }
 
-                // record the delete event
-                events.push(FileWatchEvent {
-                    path,
-                    previous_path: None,
-                    kind: FileWatchEventKind::Deleted,
-                });
+                self.client
+                    .publish_diagnostics(uri.clone(), Vec::new(), None)
+                    .await;
             }
         }
-
-        // apply watch updates
-        self.apply_watch_events(events).await;
     }
 
     // ------------------------------------------------------------------------
@@ -1653,14 +1282,12 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentDiagnosticParams,
     ) -> jsonrpc::Result<lsp::DocumentDiagnosticReportResult> {
-        let uri_str = params.text_document.uri.to_string();
         let tracked_path = params
             .text_document
             .uri
             .to_file_path()
             .map(|path| path.into_owned());
         let Some(path) = tracked_path.as_ref() else {
-            tracing::debug!(uri = %uri_str, "lsp.diagnostic.file_not_found");
             let report =
                 lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
                     related_documents: None,
@@ -1673,19 +1300,11 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         let path = path.clone();
-        let path_for_query = path.clone();
-        let snapshot = match self
-            .run_service(move |service| service.file_diagnostics(&path_for_query))
-            .await
-        {
+        let snapshot = match self.daemon_workspace().file_diagnostics(path.clone()) {
             Ok(snapshot) => snapshot,
-            Err(error) => {
-                tracing::error!(path = %path.display(), ?error, "lsp.diagnostic.snapshot_failed");
-                return Err(jsonrpc::Error::internal_error());
-            }
+            Err(_) => return Err(jsonrpc::Error::internal_error()),
         };
         let Some(snapshot) = snapshot else {
-            tracing::debug!(path = %path.display(), uri = %uri_str, "lsp.diagnostic.query_file_not_found");
             let report =
                 lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
                     related_documents: None,
@@ -1696,7 +1315,9 @@ impl LanguageServer for DestackLanguageServer {
                 });
             return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
         };
-        let file = snapshot.file;
+        let Some(file) = file_from_image_for_diagnostics(&snapshot.file) else {
+            return Err(jsonrpc::Error::internal_error());
+        };
         let diagnostics = snapshot.diagnostics;
         let result_id = diagnostic_result_id(&diagnostics);
 
@@ -1745,7 +1366,6 @@ impl LanguageServer for DestackLanguageServer {
             return Err(jsonrpc::Error::request_cancelled());
         }
 
-        let started_at = Instant::now();
         let previous_ids: std::collections::HashMap<String, String> = params
             .previous_result_ids
             .into_iter()
@@ -1764,12 +1384,9 @@ impl LanguageServer for DestackLanguageServer {
             .check_cancelled(self, "diagnostics cancelled")
             .await?;
 
-        let snapshots = match self.run_service(|service| service.diagnostics()).await {
+        let snapshots = match self.daemon_workspace().diagnostics() {
             Ok(snapshots) => snapshots,
-            Err(error) => {
-                tracing::error!(?error, "lsp.workspace_diagnostic.snapshot_failed");
-                return Err(jsonrpc::Error::internal_error());
-            }
+            Err(_) => return Err(jsonrpc::Error::internal_error()),
         };
 
         // collect partial results when supported
@@ -1779,13 +1396,19 @@ impl LanguageServer for DestackLanguageServer {
         let mut partial_items = Vec::new();
         let files_by_id = snapshots
             .iter()
-            .map(|snapshot| (snapshot.file.id, snapshot.file.clone()))
+            .filter_map(|snapshot| {
+                let file = file_from_image_for_diagnostics(&snapshot.file)?;
+
+                Some((file.id, file))
+            })
             .collect::<HashMap<_, _>>();
 
         // allow cancellation between chunks
         let mut processed = 0usize;
         for snapshot in snapshots {
-            let file = snapshot.file;
+            let Some(file) = file_from_image_for_diagnostics(&snapshot.file) else {
+                continue;
+            };
             let uri = lsp_uri_for_source_uri(&snapshot.diagnostic_uri)
                 .or_else(|| lsp_uri_for_file(&file));
             let Some(uri) = uri else {
@@ -1865,21 +1488,6 @@ impl LanguageServer for DestackLanguageServer {
             .finish_or_cancelled(self, "diagnostics complete", "diagnostics cancelled")
             .await?;
 
-        let elapsed = started_at.elapsed();
-        if elapsed >= SLOW_DIAGNOSTIC_WARN_DURATION {
-            tracing::warn!(
-                files = items.len(),
-                elapsed_ms = elapsed.as_millis(),
-                "lsp.workspace_diagnostic.slow"
-            );
-        } else {
-            tracing::debug!(
-                files = items.len(),
-                elapsed_ms = elapsed.as_millis(),
-                "lsp.workspace_diagnostic.ok"
-            );
-        }
-
         Ok(lsp::WorkspaceDiagnosticReportResult::Report(
             lsp::WorkspaceDiagnosticReport { items },
         ))
@@ -1895,60 +1503,14 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<lsp::LSPAny>> {
         match params.command.as_str() {
             "destack.reload" | "destack.reindex" => {
-                let started_at = Instant::now();
-                let result = self.run_service(|service| service.reload_all()).await;
+                let result = self.daemon_workspace().reload_all();
                 let result = match result {
                     Ok(result) => result,
-                    Err(error) => {
-                        tracing::debug!(
-                            ?error,
-                            command = params.command.as_str(),
-                            "lsp.command.failed"
-                        );
-                        return Ok(None);
-                    }
+                    Err(_) => return Ok(None),
                 };
 
-                let update_count = result.updates.len();
-                let message_count = result.messages.len();
-                self.apply_service_result(result).await;
+                self.publish_diagnostic_snapshots(result).await;
 
-                tracing::info!(
-                    command = params.command.as_str(),
-                    updates = update_count,
-                    messages = message_count,
-                    elapsed_ms = started_at.elapsed().as_millis(),
-                    "lsp.command.completed"
-                );
-                Ok(None)
-            }
-            "destack.clearCache" => {
-                let started_at = Instant::now();
-                let result = self
-                    .run_service(|service| {
-                        service
-                            .clear_cache_all()
-                            .and_then(|()| service.reload_all())
-                    })
-                    .await;
-                let result = match result {
-                    Ok(result) => result,
-                    Err(error) => {
-                        tracing::debug!(?error, "lsp.clear_cache.failed");
-                        return Ok(None);
-                    }
-                };
-
-                let update_count = result.updates.len();
-                let message_count = result.messages.len();
-                self.apply_service_result(result).await;
-
-                tracing::info!(
-                    updates = update_count,
-                    messages = message_count,
-                    elapsed_ms = started_at.elapsed().as_millis(),
-                    "lsp.clear_cache.completed"
-                );
                 Ok(None)
             }
             _ => Ok(None),
@@ -2262,8 +1824,7 @@ impl LanguageServer for DestackLanguageServer {
             profile_ids: vec![profile_id],
             max_results: 100,
         });
-        let Some(response) = self.execute_query(root, request, QueryRevision::Exact(revision))
-        else {
+        let Some(response) = self.execute_query(root, request, revision) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -2873,7 +2434,7 @@ impl LanguageServer for DestackLanguageServer {
         else {
             return Ok(None);
         };
-        if !self.language_service().has_open_file(&path) {
+        if !self.daemon_workspace().has_open_file(&path) {
             return Ok(None);
         }
 
@@ -2982,39 +2543,19 @@ impl LanguageServer for DestackLanguageServer {
         else {
             return Ok(None);
         };
-        let path_for_query = path.clone();
-        let result = self
-            .run_service(move |service| {
-                let file_view = service.file_view(&path_for_query)?;
-                let repository = file_view.repository();
-                let revision = file_view.revision();
-                let file_id = file_view.file_id;
-                let file = file_view.file.clone();
-
-                // format the exact file view
-                {
-                    let formatter =
-                        super::file::formatting_options_for_path(repository, revision, &path);
-                    let Some(formatted) =
-                        format_file(repository, revision, file_id, &file, formatter)
-                    else {
-                        return Err(LanguageServiceError::Internal {
-                            detail: format!("formatting failed for {}", path.display()),
-                        });
-                    };
-
-                    Ok((formatted, file))
-                }
-            })
-            .await;
-        let Ok((formatted, file)) = result else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let formatter = formatting_options_for_path(self.repository(), &path);
+        let Some(formatted) = format_file(&query_file.file, formatter) else {
             return Ok(None);
         };
 
         // return single edit replacing entire document
-        let line_count = file.line_count();
+        let line_count = query_file.file.line_count();
         let last_line_index = line_count.saturating_sub(1);
-        let last_line_len = file
+        let last_line_len = query_file
+            .file
             .get_line_str(last_line_index)
             .map(|l| l.len())
             .unwrap_or(0);
@@ -3046,50 +2587,24 @@ impl LanguageServer for DestackLanguageServer {
         else {
             return Ok(None);
         };
-        let path_for_query = path.clone();
-        let result = self
-            .run_service(move |service| {
-                let file_view = service.file_view(&path_for_query)?;
-                let repository = file_view.repository();
-                let revision = file_view.revision();
-                let file = file_view.file.clone();
-
-                // format the exact file range
-                {
-                    let formatter =
-                        super::file::formatting_options_for_path(repository, revision, &path);
-                    let Some(start_offset) = position_to_byte(&file, &params.range.start) else {
-                        return Err(LanguageServiceError::Internal {
-                            detail:
-                                "range formatting start position is outside the coherent file view"
-                                    .to_string(),
-                        });
-                    };
-                    let Some(end_offset) = position_to_byte(&file, &params.range.end) else {
-                        return Err(LanguageServiceError::Internal {
-                            detail:
-                                "range formatting end position is outside the coherent file view"
-                                    .to_string(),
-                        });
-                    };
-                    let Some((formatted, edit_range)) =
-                        format_range(&file, formatter, start_offset, end_offset)
-                    else {
-                        return Err(LanguageServiceError::Internal {
-                            detail: "range formatting did not produce an edit".to_string(),
-                        });
-                    };
-
-                    Ok((formatted, edit_range, file))
-                }
-            })
-            .await;
-        let Ok((formatted, edit_range, file)) = result else {
+        let Some(query_file) = self.query_file_for_uri(&params.text_document.uri) else {
+            return Ok(None);
+        };
+        let formatter = formatting_options_for_path(self.repository(), &path);
+        let Some(start_offset) = position_to_byte(&query_file.file, &params.range.start) else {
+            return Ok(None);
+        };
+        let Some(end_offset) = position_to_byte(&query_file.file, &params.range.end) else {
+            return Ok(None);
+        };
+        let Some((formatted, edit_range)) =
+            format_range(&query_file.file, formatter, start_offset, end_offset)
+        else {
             return Ok(None);
         };
 
         // convert byte range back to LSP range
-        let lsp_range = byte_span_to_range(&file, edit_range);
+        let lsp_range = byte_span_to_range(&query_file.file, edit_range);
 
         Ok(Some(vec![lsp::TextEdit {
             range: lsp_range,
@@ -3110,46 +2625,27 @@ impl LanguageServer for DestackLanguageServer {
         else {
             return Ok(None);
         };
-        let path_for_query = path.clone();
-        let result = self
-            .run_service(move |service| {
-                let file_view = service.file_view(&path_for_query)?;
-                let repository = file_view.repository();
-                let revision = file_view.revision();
-                let file = file_view.file.clone();
-
-                // format the exact trigger position
-                {
-                    let formatter =
-                        super::file::formatting_options_for_path(repository, revision, &path);
-                    let Some(end_offset) =
-                        position_to_byte(&file, &params.text_document_position.position)
-                    else {
-                        return Err(LanguageServiceError::Internal {
-                            detail: "on-type formatting position is outside the coherent file view"
-                                .to_string(),
-                        });
-                    };
-                    let trigger_width = params.ch.len() as u32;
-                    let start_offset = end_offset.saturating_sub(trigger_width.max(1));
-                    let Some((formatted, edit_range)) =
-                        format_range(&file, formatter, start_offset, end_offset)
-                    else {
-                        return Err(LanguageServiceError::Internal {
-                            detail: "on-type formatting did not produce an edit".to_string(),
-                        });
-                    };
-
-                    Ok((formatted, edit_range, file))
-                }
-            })
-            .await;
-        let Ok((formatted, edit_range, file)) = result else {
+        let Some(query_file) =
+            self.query_file_for_uri(&params.text_document_position.text_document.uri)
+        else {
+            return Ok(None);
+        };
+        let formatter = formatting_options_for_path(self.repository(), &path);
+        let Some(end_offset) =
+            position_to_byte(&query_file.file, &params.text_document_position.position)
+        else {
+            return Ok(None);
+        };
+        let trigger_width = params.ch.len() as u32;
+        let start_offset = end_offset.saturating_sub(trigger_width.max(1));
+        let Some((formatted, edit_range)) =
+            format_range(&query_file.file, formatter, start_offset, end_offset)
+        else {
             return Ok(None);
         };
 
         // convert byte range back to LSP range
-        let lsp_range = byte_span_to_range(&file, edit_range);
+        let lsp_range = byte_span_to_range(&query_file.file, edit_range);
 
         Ok(Some(vec![lsp::TextEdit {
             range: lsp_range,
@@ -3716,11 +3212,7 @@ impl LanguageServer for DestackLanguageServer {
             position,
             new_name: params.new_name.clone(),
         });
-        let Some(response) = self.execute_query(
-            &query_path,
-            request,
-            QueryRevision::Current(query_file.revision),
-        ) else {
+        let Some(response) = self.execute_query(&query_path, request, query_file.revision) else {
             return Ok(None);
         };
         let revision = response.revision;
@@ -3795,8 +3287,7 @@ impl LanguageServer for DestackLanguageServer {
             query::QueryRequest::CallHierarchyIncoming(query::CallHierarchyIncomingRequest {
                 item,
             });
-        let Some(response) = self.execute_query(&path, request, QueryRevision::Exact(revision))
-        else {
+        let Some(response) = self.execute_query(&path, request, revision) else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
@@ -3832,8 +3323,7 @@ impl LanguageServer for DestackLanguageServer {
             query::QueryRequest::CallHierarchyOutgoing(query::CallHierarchyOutgoingRequest {
                 item,
             });
-        let Some(response) = self.execute_query(&path, request, QueryRevision::Exact(revision))
-        else {
+        let Some(response) = self.execute_query(&path, request, revision) else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
@@ -3909,8 +3399,7 @@ impl LanguageServer for DestackLanguageServer {
             query::QueryRequest::TypeHierarchySupertypes(query::TypeHierarchySupertypesRequest {
                 item,
             });
-        let Some(response) = self.execute_query(&path, request, QueryRevision::Exact(revision))
-        else {
+        let Some(response) = self.execute_query(&path, request, revision) else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;
@@ -3946,8 +3435,7 @@ impl LanguageServer for DestackLanguageServer {
             query::QueryRequest::TypeHierarchySubtypes(query::TypeHierarchySubtypesRequest {
                 item,
             });
-        let Some(response) = self.execute_query(&path, request, QueryRevision::Exact(revision))
-        else {
+        let Some(response) = self.execute_query(&path, request, revision) else {
             return Ok(Some(vec![]));
         };
         let revision = response.revision;

@@ -9,8 +9,7 @@ Run these from the repository root.
 
 ```sh
 # focused local loop
-cargo test -p destack_lsp
-just language/test-lsp
+cargo check -p destack_lsp
 
 # clean check
 just language/check-quick

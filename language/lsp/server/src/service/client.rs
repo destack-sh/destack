@@ -13,7 +13,6 @@ use futures::future::BoxFuture;
 use futures::sink::SinkExt;
 use serde::Serialize;
 use tower::Service;
-use tracing::{error, trace};
 
 use self::pending::Pending;
 use self::progress::Progress;
@@ -252,18 +251,17 @@ impl Client {
     /// [`telemetry/event`]: https://microsoft.github.io/language-server-protocol/specification#telemetry_event
     pub async fn telemetry_event<S: Serialize>(&self, data: S) {
         use destack_lsp_types::notification::TelemetryEvent;
-        match serde_json::to_value(data) {
-            Err(e) => error!("invalid JSON in `telemetry/event` notification: {}", e),
-            Ok(value) => {
-                let value = match value {
-                    LSPAny::Object(value) => OneOf::Left(value),
-                    LSPAny::Array(value) => OneOf::Right(value),
-                    value => OneOf::Right(vec![value]),
-                };
-                self.send_notification_unchecked::<TelemetryEvent>(value)
-                    .await;
-            }
-        }
+        let Ok(value) = serde_json::to_value(data) else {
+            return;
+        };
+        let value = match value {
+            LSPAny::Object(value) => OneOf::Left(value),
+            LSPAny::Array(value) => OneOf::Right(value),
+            value => OneOf::Right(vec![value]),
+        };
+
+        self.send_notification_unchecked::<TelemetryEvent>(value)
+            .await;
     }
 
     /// Asks the client to refresh the code lenses currently shown in editors. As a result, the
@@ -588,9 +586,6 @@ impl Client {
     {
         if let State::Initialized | State::ShutDown = self.inner.state.get() {
             self.send_notification_unchecked::<N>(params).await;
-        } else {
-            let msg = Request::from_notification::<N>(params);
-            trace!("server not initialized, supressing message: {}", msg);
         }
     }
 
@@ -599,9 +594,7 @@ impl Client {
         N: destack_lsp_types::notification::Notification,
     {
         let request = Request::from_notification::<N>(params);
-        if self.clone().call(request).await.is_err() {
-            error!("failed to send notification");
-        }
+        let _ = self.clone().call(request).await;
     }
 
     /// Sends a custom request to the client.
@@ -624,9 +617,6 @@ impl Client {
         if let State::Initialized | State::ShutDown = self.inner.state.get() {
             self.send_request_unchecked::<R>(params).await
         } else {
-            let id = i64::from(self.inner.request_id.load(Ordering::SeqCst)) + 1;
-            let msg = Request::from_request::<R>(id.into(), params);
-            trace!("server not initialized, supressing message: {}", msg);
             Err(jsonrpc::not_initialized_error())
         }
     }

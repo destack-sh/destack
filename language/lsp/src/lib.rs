@@ -5,9 +5,6 @@ mod uri;
 pub use query::*;
 pub use server::DestackLanguageServer;
 
-#[cfg(any(test, feature = "test"))]
-pub mod tests;
-
 use destack_lsp_server::{LspService, Server};
 
 /// Run the language server over stdio.

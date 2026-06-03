@@ -7,9 +7,6 @@ authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
-[features]
-test = ["dep:futures", "dep:tower"]
-
 [lib]
 path = "src/lib.rs"
 doctest = false
@@ -23,6 +20,7 @@ path = "src/main.rs"
 destack_artifact = { workspace = true }
 destack_compiler = { workspace = true }
 destack_core = { workspace = true }
+destack_daemon = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
@@ -48,11 +46,3 @@ tokio = { workspace = true, features = [
 	"sync",
 	"time",
 ] }
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-futures = { workspace = true, default-features = false, features = ["std", "async-await"], optional = true }
-tower = { workspace = true, default-features = false, features = ["util"], optional = true }
-
-[dev-dependencies]
-futures = { workspace = true, default-features = false, features = ["std", "async-await"] }
-tower = { workspace = true, default-features = false, features = ["util"] }
