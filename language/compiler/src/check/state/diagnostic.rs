@@ -145,6 +145,30 @@ impl CheckState<'_> {
         self.module_mut(module).diagnostics.push(diagnostic);
     }
 
+    /// Report an intrinsic marker outside a compiler-recognized language item.
+    pub(in crate::check) fn report_invalid_intrinsic_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::InvalidIntrinsicType { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic);
+    }
+
+    /// Report a const marker outside an `as const` assertion.
+    pub(in crate::check) fn report_invalid_const_type(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::InvalidConstType { anchor, module };
+
+        self.module_mut(module).diagnostics.push(diagnostic);
+    }
+
     /// Report an invalid writable place at one source node.
     pub(in crate::check) fn report_not_writable(
         &mut self,
@@ -191,7 +215,9 @@ impl CheckState<'_> {
         let module = origin.module();
         let source = match origin {
             Origin::Node(node) => node.local_id,
-            Origin::Symbol(symbol) => self.symbol_source_node(symbol),
+            Origin::Symbol(symbol) => self
+                .module(symbol.module_id)
+                .symbol_declaration_node(symbol.local_id),
         };
         let anchor = self.diagnostic_anchor(module, source);
 
@@ -203,14 +229,6 @@ impl CheckState<'_> {
         let (module, anchor) = self.diagnostic_anchor_for_origin(origin);
 
         CheckError::CircularType { anchor, module }
-    }
-
-    /// Report a circular type at one origin.
-    pub(in crate::check) fn report_circular_type(&mut self, origin: Origin) {
-        let module = origin.module();
-        let diagnostic = self.circular_type_error(origin);
-
-        self.module_mut(module).diagnostics.push(diagnostic);
     }
 
     /// Return a human readable path label.

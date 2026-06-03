@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{FlowPath, TypeOperand, TypeOperationTerm, TypeTerm, WalkState};
+use crate::check::{FlowPath, NameLookup, TypeOperand, TypeOperationTerm, TypeTerm, WalkState};
 
 impl WalkState<'_, '_> {
     /// Return the stable flow path for one expression.
@@ -15,15 +15,19 @@ impl WalkState<'_, '_> {
                 let guard = self.active_static_guard();
 
                 // resolve root binding
-                let symbol = self
+                let lookup = self
                     .check.lookup_name_by_name(
                         tree.module_id,
                         id.into_any(),
                         *name,
                         dir::SymbolSpace::Value,
                     )
-                    .available_under(&guard)
-                    .unique_symbol()?;
+                    .available_under(&guard);
+                let symbol = match lookup {
+                    NameLookup::Found(candidate) => candidate.symbol()?,
+                    NameLookup::Missing => return None,
+                    NameLookup::Ambiguous(_) => return None,
+                };
 
                 Some(FlowPath::symbol(symbol))
             }
@@ -33,15 +37,19 @@ impl WalkState<'_, '_> {
 
                 // resolve root binding
                 let name = path.segments[0];
-                let symbol = self
+                let lookup = self
                     .check.lookup_name_by_name(
                         tree.module_id,
                         id.into_any(),
                         name,
                         dir::SymbolSpace::Value,
                     )
-                    .available_under(&guard)
-                    .unique_symbol()?;
+                    .available_under(&guard);
+                let symbol = match lookup {
+                    NameLookup::Found(candidate) => candidate.symbol()?,
+                    NameLookup::Missing => return None,
+                    NameLookup::Ambiguous(_) => return None,
+                };
 
                 Some(FlowPath::symbol(symbol))
             }
@@ -91,7 +99,7 @@ impl WalkState<'_, '_> {
         // resolve path before reading narrowing table
         let path = self.flow_path(tree, id)?;
 
-        self.flow().narrowings.get(&path).copied()
+        self.flow().narrowing(&path)
     }
 
     /// Narrow one flow path to an exact type operand.
@@ -111,11 +119,14 @@ impl WalkState<'_, '_> {
         excluded: impl Into<TypeOperand>,
     ) {
         // build exclusion operation lazily
-        let operation = self.check.push_term(TypeOperationTerm::Exclude {
+        let operation = self.check.inference.push_term(TypeOperationTerm::Exclude {
             source: original.into(),
             target: excluded.into(),
         });
-        let narrowed = self.check.push_term(TypeTerm::Operation(operation));
+        let narrowed = self
+            .check
+            .inference
+            .push_term(TypeTerm::Operation(operation));
 
         // store narrowed result on the flow path
         self.flow_mut().narrow(path, narrowed.into());

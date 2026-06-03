@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Condition, GenericArgument, GenericSlot, Origin, TypeOperand, TypeTerm,
+    CheckState, Condition, GenericArgument, Origin, StaticTerm, TypeOperand, TypeTerm,
 };
 
 impl CheckState<'_> {
@@ -29,50 +29,63 @@ impl CheckState<'_> {
         let symbols = binding_table
             .symbol_ids()
             .map(|symbol: dir::LocalSymbolId| symbol.into_global(module))
-            .filter(|symbol| self.symbol_has_declaration_type(module, *symbol))
+            .filter(|symbol| self.symbol_has_declaration_type(*symbol))
             .collect::<Vec<_>>();
 
         // include every explicit and induced slot
         for symbol in symbols {
-            self.equate_declaration_self_type(module, symbol);
+            self.equate_declaration_self_type(symbol);
         }
     }
 
     /// Return whether one symbol owns a declaration type.
-    fn symbol_has_declaration_type(&self, module: ModuleId, symbol: dir::GlobalSymbolId) -> bool {
-        self.symbol_kind(module, symbol).is_some_and(|kind| {
-            matches!(
-                kind,
-                dir::SymbolKind::Class
-                    | dir::SymbolKind::Enum
-                    | dir::SymbolKind::Interface
-                    | dir::SymbolKind::Struct
-                    | dir::SymbolKind::Newtype
-                    | dir::SymbolKind::NewtypeInterface
-            )
-        })
+    fn symbol_has_declaration_type(&self, symbol: dir::GlobalSymbolId) -> bool {
+        matches!(
+            self.symbol_kind(symbol),
+            dir::SymbolKind::Class
+                | dir::SymbolKind::Enum
+                | dir::SymbolKind::Interface
+                | dir::SymbolKind::Struct
+                | dir::SymbolKind::Newtype
+                | dir::SymbolKind::NewtypeInterface
+        )
     }
 
     /// Equate one declaration type variable to its self reference.
-    fn equate_declaration_self_type(&mut self, module: ModuleId, symbol: dir::GlobalSymbolId) {
+    fn equate_declaration_self_type(&mut self, symbol: dir::GlobalSymbolId) {
         let mut parameters = self
-            .generic_slots_for_owner(module, symbol)
-            .map(|(variable, generic)| (generic.slot().index, variable, generic.clone()))
+            .inference
+            .generic_slots_for_owner(symbol)
+            .map(|(slot, generic)| {
+                (
+                    generic.slot().index,
+                    slot,
+                    generic.is_static(),
+                    generic.is_variadic(),
+                )
+            })
             .collect::<Vec<_>>();
-        parameters.sort_by_key(|(index, _, _)| *index);
+        parameters.sort_by_key(|(index, _, _, _)| *index);
 
         let arguments = parameters
             .into_iter()
-            .map(|(_, variable, generic)| match generic {
-                // <T>
-                GenericSlot::Type { .. } => GenericArgument::Type(variable.into()),
-                // <...T>
-                GenericSlot::VariadicType { .. } => GenericArgument::SpreadType(variable.into()),
-                // <comptime C: T>
-                GenericSlot::Static { .. } => GenericArgument::Static(variable.into()),
-                // <comptime ...C: T>
-                GenericSlot::VariadicStatic { .. } => {
-                    GenericArgument::SpreadStatic(variable.into())
+            .map(|(_, slot, is_static, is_variadic)| {
+                if is_static {
+                    let parameter = self.inference.push_term(StaticTerm::Parameter(slot));
+
+                    if is_variadic {
+                        GenericArgument::SpreadStatic(parameter.into())
+                    } else {
+                        GenericArgument::Static(parameter.into())
+                    }
+                } else {
+                    let parameter = self.inference.push_term(TypeTerm::Parameter(slot));
+
+                    if is_variadic {
+                        GenericArgument::SpreadType(parameter.into())
+                    } else {
+                        GenericArgument::Type(parameter.into())
+                    }
                 }
             })
             .collect();
@@ -83,14 +96,17 @@ impl CheckState<'_> {
             arguments,
         };
 
-        match self.require_symbol_type(module, symbol) {
-            TypeOperand::Variable(variable) => {
+        match self.inputs.symbol_type(symbol) {
+            Some(TypeOperand::Variable(variable)) => {
                 self.equate_type(variable, term, Condition::Always);
             }
-            TypeOperand::Term(_) => {
-                panic!("check declaration symbol {symbol:?} already has checked type term")
+            Some(TypeOperand::Term(_)) => {
+                panic!("check declaration symbol {symbol:?} already has a type operand")
             }
-            TypeOperand::Type(_) => {}
+            Some(TypeOperand::Type(_)) => {}
+            None => {
+                panic!("check declaration symbol {symbol:?} has no type operand")
+            }
         }
     }
 }

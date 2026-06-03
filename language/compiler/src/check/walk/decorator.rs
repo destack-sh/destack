@@ -54,7 +54,7 @@ impl WalkState<'_, '_> {
         match tree.get(target) {
             // select bare decorator target
             dir::Expression::Identifier { name } => {
-                if let Some(symbol) = self.check.require_symbol_by_name_under(
+                if let Some(symbol) = self.check.symbol_by_name_under(
                     tree.module_id,
                     target.into_any(),
                     *name,
@@ -67,7 +67,7 @@ impl WalkState<'_, '_> {
 
             // select qualified decorator target
             dir::Expression::QualifiedReference { path, .. } => {
-                if let Some(symbol) = self.check.require_symbol_by_path_under(
+                if let Some(symbol) = self.check.symbol_by_path_under(
                     tree.module_id,
                     target.into_any(),
                     path,

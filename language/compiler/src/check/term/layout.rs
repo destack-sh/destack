@@ -430,7 +430,7 @@ pub(in crate::check) enum LayoutType {
     /// Box<T>
     /// ```
     Operand(TypeOperand),
-    /// Committed DIR type id.
+    /// Committed type id.
     ///
     /// Examples:
     /// ```ds
@@ -530,7 +530,7 @@ impl CheckState<'_> {
                 self.committed_type_layout(module, &ty, pointer_bytes)?
             }
             TypeTerm::Form { form, payload } => {
-                let form = self.term(*form).clone();
+                let form = self.inference.term(*form).clone();
 
                 self.form_term_layout(module, &form, LayoutType::Operand(*payload), pointer_bytes)?
             }
@@ -558,7 +558,7 @@ impl CheckState<'_> {
                 )?
             }
             TypeTerm::Shape(shape) => {
-                let members = &self.term(*shape).members;
+                let members = &self.inference.term(*shape).members;
                 let members = members.clone();
 
                 self.shape_layout(module, &members, pointer_bytes)?
@@ -779,7 +779,8 @@ impl CheckState<'_> {
                     key: Some(key.clone()),
                     ty: LayoutType::Operand(*ty),
                 }),
-                ShapeMember::CallSignature { .. }
+                ShapeMember::Spread { .. }
+                | ShapeMember::CallSignature { .. }
                 | ShapeMember::ConstructSignature { .. }
                 | ShapeMember::IndexSignature { .. } => None,
             })
@@ -940,14 +941,14 @@ impl CheckState<'_> {
         arguments: &[GenericArgument],
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        let Some(representation) = self.newtype_representation(module, symbol)? else {
+        let Some(value) = self.newtype_backing(module, symbol) else {
             return Ok(None);
         };
-        let substitution = self.generic_substitution(module, symbol, arguments)?;
+        let substitution = self.generic_substitution(symbol, arguments)?;
         let backing = if substitution.is_empty() {
-            representation.backing
+            value
         } else {
-            self.substitute_type_operand(module, &substitution, representation.backing)?
+            self.substitute_type_operand(module, &substitution, value)?
         };
         let Some(backing_layout) = self.type_operand_layout(module, backing, pointer_bytes)? else {
             return Ok(None);
@@ -971,67 +972,21 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        if self.symbol_kind(module, symbol) != Some(dir::SymbolKind::Struct) {
+        let Some(fields) = self.nominal_fields(module, symbol) else {
             return Ok(None);
-        }
-        let fields = self.struct_layout_fields(module, symbol);
-        let source = self.symbol_source_node(symbol);
-        let constraint = self.representation_constraint_for_owner(module, source);
+        };
+        let fields = fields.into_iter().map(|(key, ty)| LayoutFieldInput {
+            key: Some(key),
+            ty: LayoutType::Operand(ty),
+        });
 
         self.aggregate_layout(
             module,
             fields,
             AggregateLayoutShape::Struct,
-            constraint,
+            RepresentationConstraint::default(),
             pointer_bytes,
         )
-    }
-
-    /// Return layout fields declared by one struct.
-    fn struct_layout_fields(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> Vec<LayoutFieldInput> {
-        let fields = {
-            let state = self.module(module);
-            let bindings = state.binding_table();
-            let Some(scope) = bindings.scope_for_owner(symbol.local_id) else {
-                return Vec::new();
-            };
-            let scope = bindings.get_scope(scope);
-            let view = state.view();
-            let mut fields = Vec::new();
-
-            // collect instance fields in declaration order
-            for (key, field_symbol) in scope.named_symbols() {
-                let field_symbol_data = bindings.get_symbol(field_symbol);
-                let Some(declaration) = field_symbol_data.declaration else {
-                    continue;
-                };
-                let Ok(member_id) = declaration.local_id.try_into_typed::<dir::Member>() else {
-                    continue;
-                };
-                let dir::Member::Field {
-                    is_static: false, ..
-                } = view.get(member_id)
-                else {
-                    continue;
-                };
-
-                fields.push((key, field_symbol.into_global(module)));
-            }
-
-            fields
-        };
-
-        fields
-            .into_iter()
-            .map(|(key, symbol)| LayoutFieldInput {
-                key: Some(key),
-                ty: LayoutType::Operand(self.require_symbol_type(module, symbol)),
-            })
-            .collect()
     }
 
     /// Return one committed static value as a `usize`.
@@ -1047,14 +1002,14 @@ impl CheckState<'_> {
         Ok(u32::try_from(*value).ok())
     }
 
-    /// Return one checked type visible to layout reduction.
+    /// Return one committed type for layout reduction.
     fn layout_type_value(&self, ty: dir::GlobalTypeId) -> &dir::Type {
-        self.global_type_value(ty)
+        self.r#type(ty)
     }
 
-    /// Return one checked static value visible to layout reduction.
+    /// Return one committed static value for layout reduction.
     fn layout_static_value(&self, value: dir::GlobalStaticId) -> &dir::StaticTerm {
-        self.global_static_value(value)
+        self.r#static(value)
     }
 
     /// Return one static operand as a `usize`.
@@ -1067,7 +1022,7 @@ impl CheckState<'_> {
 
                 value
             }
-            StaticOperand::Term(term) => self.term(term).clone(),
+            StaticOperand::Term(term) => self.inference.term(term).clone(),
             StaticOperand::Static(value) => {
                 StaticTerm::Literal(self.layout_static_value(value).clone())
             }

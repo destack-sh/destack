@@ -1,96 +1,48 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 
-use super::CheckState;
+use super::{CheckModuleState, CheckState};
 
-impl CheckState<'_> {
-    /// Return the imported target behind one local import alias.
-    pub(in crate::check) fn resolve_import_alias(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> dir::GlobalSymbolId {
-        self.import_alias_target(symbol).unwrap_or(symbol)
-    }
-
-    /// Return the imported symbol target behind one local import alias.
-    pub(in crate::check::state) fn import_alias_target(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::GlobalSymbolId> {
-        let module = self.modules.get(&symbol.module_id)?;
-        let target = module.resolved.imports.symbol_target(symbol.local_id)?;
-
-        match target {
-            dir::ImportTarget::Symbol(target) => Some(target),
-            dir::ImportTarget::Namespace(_) => None,
-        }
-    }
-
+impl CheckModuleState {
     /// Return the symbol introduced by a source declaration node.
     pub(in crate::check) fn declaration_symbol(
         &self,
-        module: ModuleId,
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
         let symbol = self
-            .module(module)
             .binding_table()
-            .symbol_for_declaration(node.into_global(module))?;
+            .symbol_for_declaration(node.into_global(self.module.id))?;
 
-        Some(symbol.into_global(module))
+        Some(symbol.into_global(self.module.id))
     }
 
     /// Return the implicit receiver symbol introduced for one member node.
     pub(in crate::check) fn implicit_receiver_symbol(
         &self,
-        module: ModuleId,
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
         let symbol = self
-            .module(module)
             .binding_table()
-            .implicit_receiver_symbol(node.into_global(module))?;
+            .implicit_receiver_symbol(node.into_global(self.module.id))?;
 
-        Some(symbol.into_global(module))
-    }
-
-    /// Return the symbol selected by a nominal member key.
-    pub(in crate::check) fn member_symbol(
-        &self,
-        module: ModuleId,
-        owner: dir::GlobalSymbolId,
-        key: dir::StaticKey,
-    ) -> Option<dir::GlobalSymbolId> {
-        let owner = self.resolve_import_alias(owner);
-        if owner.module_id != module {
-            return None;
-        }
-        let binding_table = self.module(module).binding_table();
-        let lookup = binding_table.lookup_key_member(owner.local_id, key);
-        if let dir::SymbolLookup::Found(symbol) = lookup {
-            return Some(symbol.into_global(module));
-        }
-
-        None
+        Some(symbol.into_global(self.module.id))
     }
 
     /// Return the nearest owner symbol for one source node's scope.
     pub(in crate::check) fn scope_owner_symbol(
         &self,
-        module: ModuleId,
         node: dir::LocalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
-        let binding_table = self.module(module).binding_table();
+        let bindings = self.binding_table();
         let mut current = Some(node);
-        let view = self.module(module).view();
+        let view = self.view();
 
         // walk parents until a scoped symbol owner is found
         while let Some(node) = current {
-            let global = node.into_global(module);
-            if let Some(scope) = binding_table.scope_for_node(global) {
-                let scope = binding_table.get_scope(scope);
+            let global = node.into_global(self.module.id);
+            if let Some(scope) = bindings.scope_for_node(global) {
+                let scope = bindings.get_scope(scope);
                 if let Some(owner) = scope.owner {
-                    return Some(owner.into_global(module));
+                    return Some(owner.into_global(self.module.id));
                 }
             }
 
@@ -100,71 +52,37 @@ impl CheckState<'_> {
         None
     }
 
-    /// Return one symbol's required declaration node.
-    pub(in crate::check) fn symbol_source_node(
+    /// Return one source symbol's declaration node.
+    pub(in crate::check) fn symbol_declaration_node(
         &self,
-        symbol_id: dir::GlobalSymbolId,
+        symbol: dir::LocalSymbolId,
     ) -> dir::LocalNodeIdAny {
-        match self.local_symbol_source_node(symbol_id) {
-            Some(source) => source,
-            None => panic!("check symbol {symbol_id:?} has no source node"),
-        }
-    }
+        let bindings = self.binding_table();
+        let binding = bindings.get_symbol(symbol);
 
-    /// Return one symbol's declaration node when it belongs to a checked source module.
-    pub(in crate::check) fn local_symbol_source_node(
-        &self,
-        symbol_id: dir::GlobalSymbolId,
-    ) -> Option<dir::LocalNodeIdAny> {
-        let module = self.modules.get(&symbol_id.module_id)?;
-        let binding_table = module.binding_table();
-        let symbol = binding_table.get_symbol(symbol_id.local_id);
-        let declaration = symbol.declaration?;
-        if declaration.module_id != symbol_id.module_id {
-            return None;
+        // require source symbols to have local declaration nodes
+        let Some(declaration) = binding.declaration else {
+            panic!("check source symbol {symbol:?} has no declaration node");
+        };
+        if declaration.module_id != self.module.id {
+            panic!("check source symbol {symbol:?} declaration points outside its module");
         }
 
-        Some(declaration.local_id)
+        declaration.local_id
     }
+}
 
-    /// Return whether one local symbol is an imported alias.
-    pub(in crate::check) fn is_import_symbol(
-        &self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> bool {
-        if symbol.module_id != module {
-            return false;
-        }
-
-        self.module(module)
-            .resolved
-            .imports
-            .symbol_target(symbol.local_id)
-            .is_some()
-    }
-
-    /// Return the declaration kind for one visible symbol.
-    pub(in crate::check) fn symbol_kind(
-        &self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<dir::SymbolKind> {
-        let symbol = self.resolve_import_alias(symbol);
-
+impl CheckState<'_> {
+    /// Return the declaration kind for one symbol.
+    pub(in crate::check) fn symbol_kind(&self, symbol: dir::GlobalSymbolId) -> dir::SymbolKind {
         if let Some(state) = self.modules.get(&symbol.module_id) {
             let binding_table = state.binding_table();
             let symbol = binding_table.get_symbol(symbol.local_id);
-
-            return Some(symbol.kind);
+            symbol.kind
+        } else {
+            let dependency = self.dependency(symbol.module_id);
+            let symbol = dependency.bindings.get_symbol(symbol.local_id);
+            symbol.kind
         }
-
-        if !self.module(module).dependencies.contains(&symbol.module_id) {
-            return None;
-        }
-        let dependency = self.dependency(symbol.module_id);
-        let symbol = dependency.bindings.get_symbol(symbol.local_id);
-
-        Some(symbol.kind)
     }
 }

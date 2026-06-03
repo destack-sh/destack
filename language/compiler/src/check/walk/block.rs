@@ -55,13 +55,11 @@ impl WalkState<'_, '_> {
         // set expression block type
         if block.context == dir::BlockContext::Expression {
             if let Some(expression) = block.tail_expression {
-                let tail = self
-                    .check
-                    .require_local_node_type(tree.module_id, expression);
-                self.publish_node_type_operand(tree.module_id, id, tail);
+                let tail = self.allocate_node_type_operand(expression);
+                self.bind_node_type_operand(id, tail);
             } else {
                 let term = TypeTerm::Literal(TypeLiteralTerm::Void);
-                self.publish_node_type(tree.module_id, id, term);
+                self.bind_node_type(id, term);
             }
         }
 

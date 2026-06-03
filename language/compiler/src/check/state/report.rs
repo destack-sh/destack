@@ -5,15 +5,15 @@ use destack_source::ModuleId;
 use crate::check::{CheckState, Dump, DumpContext, Origin, StaticOperand, TypeOperand};
 
 impl CheckState<'_> {
-    /// Panic for one checked node type that cannot be committed.
+    /// Panic for one node type operand that cannot be committed.
     #[track_caller]
-    pub(in crate::check) fn panic_unresolved_checked_node_type(
+    pub(in crate::check) fn panic_unresolved_node_type(
         &self,
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
         operand: TypeOperand,
     ) -> ! {
-        self.panic_unresolved_checked_output(
+        self.panic_unresolved_commit_operand(
             module,
             "node_type",
             "node",
@@ -22,15 +22,15 @@ impl CheckState<'_> {
         )
     }
 
-    /// Panic for one checked symbol type that cannot be committed.
+    /// Panic for one symbol type operand that cannot be committed.
     #[track_caller]
-    pub(in crate::check) fn panic_unresolved_checked_symbol_type(
+    pub(in crate::check) fn panic_unresolved_symbol_type(
         &self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         operand: TypeOperand,
     ) -> ! {
-        self.panic_unresolved_checked_output(
+        self.panic_unresolved_commit_operand(
             module,
             "symbol_type",
             "symbol",
@@ -39,15 +39,15 @@ impl CheckState<'_> {
         )
     }
 
-    /// Panic for one checked symbol static that cannot be committed.
+    /// Panic for one symbol static operand that cannot be committed.
     #[track_caller]
-    pub(in crate::check) fn panic_unresolved_checked_symbol_static(
+    pub(in crate::check) fn panic_unresolved_symbol_static(
         &self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         operand: StaticOperand,
     ) -> ! {
-        self.panic_unresolved_checked_output(
+        self.panic_unresolved_commit_operand(
             module,
             "symbol_static",
             "symbol",
@@ -56,9 +56,9 @@ impl CheckState<'_> {
         )
     }
 
-    /// Panic for one checked output that cannot be committed.
+    /// Panic for one operand that cannot be committed.
     #[track_caller]
-    fn panic_unresolved_checked_output<T: Dump + ?Sized>(
+    fn panic_unresolved_commit_operand<T: Dump + ?Sized>(
         &self,
         module: ModuleId,
         kind: &'static str,
@@ -68,9 +68,9 @@ impl CheckState<'_> {
     ) -> ! {
         let mut log = ArtifactEventLog::new();
 
-        // record failing output
+        // record failing commit operand
         log.push(
-            ArtifactEvent::new("output.fail")
+            ArtifactEvent::new("commit.unresolved")
                 .error()
                 .text("kind", kind)
                 .text("module", DumpContext::new(self).module_label(module))
@@ -88,7 +88,7 @@ impl CheckState<'_> {
         let trace = self.trace.render_dump(self);
 
         panic!(
-            "check crash (oh no)
+            "check crash
 ---------------
 {report}
 ---------------

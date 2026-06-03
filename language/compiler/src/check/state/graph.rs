@@ -61,7 +61,7 @@ impl CheckComponentGraph {
     fn reverse_edges(&self) -> IndexMap<ModuleId, Vec<ModuleId>> {
         let mut reverse_edges = IndexMap::new();
 
-        // ensure every loaded module has a reverse edge list
+        // include every loaded module in the reverse graph
         for module in self.edges.keys().copied() {
             reverse_edges.entry(module).or_insert_with(Vec::new);
         }

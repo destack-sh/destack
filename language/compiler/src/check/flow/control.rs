@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::check::{
     ControlTarget, FlowBranch, Obligation, Origin, TryFailureTerm, TryTarget, TypeLiteralTerm,
-    TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId, VariableKind, WalkState,
+    TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -71,7 +71,7 @@ impl WalkState<'_, '_> {
 
                 // include the fallthrough value as another exit
                 if let Some(fallthrough) = fallthrough {
-                    let term = self.check.push_term(fallthrough);
+                    let term = self.check.inference.push_term(fallthrough);
 
                     elements.push(term.into());
                 }
@@ -79,6 +79,7 @@ impl WalkState<'_, '_> {
                 // compute the common result of every exit
                 let operation = self
                     .check
+                    .inference
                     .push_term(TypeOperationTerm::BestCommon { elements });
 
                 let term = TypeTerm::Operation(operation);
@@ -96,9 +97,7 @@ impl WalkState<'_, '_> {
         // create the failure result variable
         let source = source.into_global(self.module);
         let origin = Origin::Node(source);
-        let failure = self
-            .check
-            .allocate_variable(self.module, VariableKind::Type, origin);
+        let failure = self.check.create_type_variable(self.module, origin);
         let target = TryTarget {
             failure,
             failures: Vec::new(),
@@ -138,9 +137,12 @@ impl WalkState<'_, '_> {
             }
             // multiple propagated failures
             failures => {
-                let operation = self.check.push_term(TypeOperationTerm::BestCommon {
-                    elements: failures.to_vec(),
-                });
+                let operation = self
+                    .check
+                    .inference
+                    .push_term(TypeOperationTerm::BestCommon {
+                        elements: failures.to_vec(),
+                    });
 
                 let term = TypeTerm::Operation(operation);
 
@@ -151,8 +153,8 @@ impl WalkState<'_, '_> {
         target.failure
     }
 
-    /// Record one break on its control target.
-    pub(in crate::check) fn record_break(
+    /// Break to one control target.
+    pub(in crate::check) fn break_to_control_target(
         &mut self,
         source: dir::LocalNodeIdAny,
         label: Option<dir::StringId>,
@@ -165,7 +167,7 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(source.into_global(self.module));
 
         // resolve the selected control target
-        let Some(index) = self.flow().find_break_target_index(label) else {
+        let Some(index) = self.flow().break_target_index(label) else {
             self.check
                 .report_invalid_control_flow(self.module, source, "break has no target");
 
@@ -173,14 +175,11 @@ impl WalkState<'_, '_> {
         };
 
         // capture branch flow at the break site
-        let checkpoint = self.flow().targets[index].checkpoint;
+        let (checkpoint, result) = self.flow().control_target_result(index);
         let branch = self.flow().branch(checkpoint);
-        let result = self.flow().targets[index].result;
 
         // store value and captured branch flow
-        let target = &mut self.flow_mut().targets[index];
-        target.break_values.push(value);
-        target.break_branches.push(branch);
+        self.flow_mut().push_break_branch(index, value, branch);
 
         let condition = self.flow().active_static_guard();
 
@@ -189,14 +188,14 @@ impl WalkState<'_, '_> {
             .relate_type(origin, TypeRelation::Assignable, value, result, condition);
     }
 
-    /// Record one continue on its control target.
-    pub(in crate::check) fn record_continue(
+    /// Continue to one control target.
+    pub(in crate::check) fn continue_to_control_target(
         &mut self,
         source: dir::LocalNodeIdAny,
         label: Option<dir::StringId>,
     ) {
         // resolve the selected loop target
-        let Some(index) = self.flow().find_continue_target_index(label) else {
+        let Some(index) = self.flow().continue_target_index(label) else {
             self.check
                 .report_invalid_control_flow(self.module, source, "continue has no target");
 
@@ -204,22 +203,15 @@ impl WalkState<'_, '_> {
         };
 
         // capture branch flow at the continue site
-        let checkpoint = self.flow().targets[index].checkpoint;
+        let (checkpoint, _) = self.flow().control_target_result(index);
         let branch = self.flow().branch(checkpoint);
 
-        self.flow_mut().targets[index]
-            .continue_branches
-            .push(branch);
+        self.flow_mut().push_continue_branch(index, branch);
     }
 
     /// Take continue branches collected by the current control target.
     pub(in crate::check) fn take_current_continue_branches(&mut self) -> Vec<FlowBranch> {
-        // require a surrounding control target
-        let Some(target) = self.flow_mut().targets.last_mut() else {
-            panic!("continue branch collection requires an active control target");
-        };
-
-        std::mem::take(&mut target.continue_branches)
+        self.flow_mut().take_continue_branches()
     }
 
     /// Propagate one try result to catch or the enclosing return type.
@@ -233,8 +225,11 @@ impl WalkState<'_, '_> {
         // collect local try failure
         if self.flow_mut().current_try_mut().is_some() {
             let source = source.into_global(self.module);
-            let tried = self.check.push_term(TryFailureTerm { source, value });
-            let failure = self.check.push_term(TypeTerm::TryFailure(tried));
+            let tried = self
+                .check
+                .inference
+                .push_term(TryFailureTerm { source, value });
+            let failure = self.check.inference.push_term(TypeTerm::TryFailure(tried));
 
             // record failure on the innermost try target
             if let Some(target) = self.flow_mut().current_try_mut() {
@@ -245,10 +240,10 @@ impl WalkState<'_, '_> {
         }
 
         // propagate to the enclosing function
-        self.check.require(Obligation::TryPropagation {
+        self.check.push_obligation(Obligation::TryPropagation {
             source: source.into_global(self.module),
             value,
-            return_type: self.current_return_type(),
+            return_type: self.current_return_target(),
             condition: self.flow().active_static_guard(),
         });
     }

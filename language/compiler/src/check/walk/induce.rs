@@ -2,9 +2,8 @@ use destack_dir as dir;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
-    CheckState, Condition, FunctionTerm, GenericInductionRoot, GenericInductionSlot, GenericSlot,
-    Origin, StaticSolution, StaticTerm, TermId, TypeOperand, TypeSolution, TypeTerm, VariableId,
-    VariableKind,
+    CheckState, GenericInductionRoot, GenericInductionSlot, GenericSlot, StaticSolution,
+    StaticTerm, TypeOperand, TypeSolution, TypeTerm, VariableId, VariableKind,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -25,10 +24,9 @@ impl CheckState<'_> {
             .generic_induction_roots()
             .cloned()
             .collect::<Vec<_>>();
-        let functions = self.induction_owner_functions(&roots);
         let generics = self.collect_induced_generics(&roots)?;
 
-        self.insert_induced_generics(generics, &functions)
+        self.insert_induced_generics(generics)
     }
 
     /// Collect induced generics from explicit walk roots.
@@ -60,7 +58,7 @@ impl CheckState<'_> {
                 self.collect_induced_variable(owner, variable, visited, generics)
             }
             TypeOperand::Term(term) => {
-                self.collect_induced_term(owner, self.term(term), visited, generics)
+                self.collect_induced_term(owner, self.inference.term(term), visited, generics)
             }
             TypeOperand::Type(_) => Ok(()),
         }
@@ -92,7 +90,7 @@ impl CheckState<'_> {
         if !visited.insert(variable) {
             return Ok(());
         }
-        if let Some(slot) = self.generic_induction_slot(variable) {
+        if let Some(slot) = self.inference.generic_induction_slot(variable) {
             let key = GenericInductionKey { owner, variable };
 
             generics.entry(key).or_insert(slot);
@@ -105,14 +103,13 @@ impl CheckState<'_> {
         self.collect_induced_term(owner, &term, visited, generics)
     }
 
-    /// Insert collected induced generic slots into the type graph.
+    /// Insert collected induced generic slots into the generic table.
     fn insert_induced_generics(
         &mut self,
         generics: IndexMap<GenericInductionKey, GenericInductionSlot>,
-        functions: &IndexMap<dir::GlobalSymbolId, TermId<FunctionTerm>>,
     ) -> CompilerResult<()> {
         for (leaf, generic) in generics {
-            self.insert_induced_generic(leaf, generic, functions)?;
+            self.insert_induced_generic(leaf, generic)?;
         }
 
         Ok(())
@@ -123,15 +120,13 @@ impl CheckState<'_> {
         &mut self,
         key: GenericInductionKey,
         generic: GenericInductionSlot,
-        functions: &IndexMap<dir::GlobalSymbolId, TermId<FunctionTerm>>,
     ) -> CompilerResult<()> {
-        self.assert_induced_generic_is_local(key)?;
+        self.check_induced_generic_module(key)?;
 
         let header =
             self.allocate_generic_induction_slot(key.owner, generic.prefix, generic.induction);
         let slot = header.id();
         let kind = generic.kind;
-        let variable = self.allocate_variable(key.variable.module, kind, Origin::Symbol(key.owner));
 
         match kind {
             VariableKind::Type => {
@@ -141,11 +136,10 @@ impl CheckState<'_> {
                     constraint: generic.constraint,
                     default: None,
                 };
-                let parameter = self.push_term(TypeTerm::Parameter(slot));
+                let parameter = self.inference.push_term(TypeTerm::Parameter(slot));
 
-                self.attach_generic_slot(variable, generic);
-                self.equate_type(variable, TypeTerm::Parameter(slot), Condition::Always);
-                self.insert_known_solution(key.variable, TypeSolution::Term(parameter).into());
+                self.insert_generic_slot(generic);
+                self.set_variable_solution(key.variable, TypeSolution::Term(parameter).into())?;
             }
             VariableKind::Static => {
                 let generic = GenericSlot::Static {
@@ -153,23 +147,18 @@ impl CheckState<'_> {
                     constraint: generic.constraint,
                     default: None,
                 };
-                let parameter = self.push_term(StaticTerm::Parameter(slot));
+                let parameter = self.inference.push_term(StaticTerm::Parameter(slot));
 
-                self.attach_generic_slot(variable, generic);
-                let origin = self.variable(variable).source;
-
-                self.equate_static(origin, variable, parameter, Condition::Always);
-                self.insert_known_solution(key.variable, StaticSolution::Term(parameter).into());
+                self.insert_generic_slot(generic);
+                self.set_variable_solution(key.variable, StaticSolution::Term(parameter).into())?;
             }
         }
-
-        self.insert_induced_generic_into_owner_function(key.owner, variable, functions);
 
         Ok(())
     }
 
-    /// Assert that one induced generic belongs to its owner module.
-    fn assert_induced_generic_is_local(&self, key: GenericInductionKey) -> CompilerResult<()> {
+    /// Check that one induced generic belongs to its owner module.
+    fn check_induced_generic_module(&self, key: GenericInductionKey) -> CompilerResult<()> {
         if key.owner.module_id == key.variable.module {
             return Ok(());
         }
@@ -177,39 +166,5 @@ impl CheckState<'_> {
         Err(CompilerError::Internal {
             message: "induced generic owner and leaf are in different modules".to_string(),
         })
-    }
-
-    /// Return owner function terms that can receive induced generics.
-    fn induction_owner_functions(
-        &self,
-        roots: &[GenericInductionRoot],
-    ) -> IndexMap<dir::GlobalSymbolId, TermId<FunctionTerm>> {
-        roots
-            .iter()
-            .filter_map(|root| match root.operand {
-                TypeOperand::Term(term) => match self.term(term) {
-                    TypeTerm::Function(function) => Some((root.owner, *function)),
-                    _ => None,
-                },
-                TypeOperand::Variable(_) | TypeOperand::Type(_) => None,
-            })
-            .collect()
-    }
-
-    /// Insert one induced generic parameter into an owner function type.
-    fn insert_induced_generic_into_owner_function(
-        &mut self,
-        owner: dir::GlobalSymbolId,
-        variable: VariableId,
-        functions: &IndexMap<dir::GlobalSymbolId, TermId<FunctionTerm>>,
-    ) {
-        let Some(function) = functions.get(&owner).copied() else {
-            return;
-        };
-        let function = self.term_mut(function);
-
-        if !function.generic_parameters.contains(&variable) {
-            function.generic_parameters.push(variable);
-        }
     }
 }

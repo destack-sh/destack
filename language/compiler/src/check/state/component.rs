@@ -7,8 +7,8 @@ use destack_workspace::ProviderContext;
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckDependencyState, CheckEvent, CheckModuleState, CheckTrace, InferenceTable, OperandTable,
-    RepresentationTable, StaticOperand, VariableId,
+    CheckDependencyState, CheckModuleState, CheckTrace, ExtensionTable, InferenceTable, InputTable,
+    NominalTable,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -28,14 +28,14 @@ pub(in crate::check) struct CheckState<'a> {
     /// Loaded out-of-component dependencies keyed by module id.
     pub(in crate::check) dependencies: IndexMap<ModuleId, CheckDependencyState>,
 
-    /// Source operands discovered during checking.
-    pub(in crate::check) operands: OperandTable,
+    /// Input identity to check operand index.
+    pub(in crate::check) inputs: InputTable,
     /// Component-wide inference graph.
     pub(in crate::check) inference: InferenceTable,
-    /// Representation facts discovered during checking.
-    pub(in crate::check) representations: RepresentationTable,
-    /// Internal errors discovered in infallible walk paths.
-    pub(in crate::check) internal_errors: Vec<String>,
+    /// Checked nominal declarations built from walked operands.
+    pub(in crate::check) nominals: NominalTable,
+    /// Checked extension declarations built from walked operands.
+    pub(in crate::check) extensions: ExtensionTable,
     /// Trace events emitted during checking.
     pub(in crate::check) trace: CheckTrace,
 }
@@ -55,38 +55,22 @@ impl<'a> CheckState<'a> {
             environment,
             modules: IndexMap::new(),
             dependencies: IndexMap::new(),
-            operands: OperandTable::new(),
+            inputs: InputTable::new(),
             inference: InferenceTable::new(),
-            representations: RepresentationTable::new(),
-            internal_errors: Vec::new(),
+            nominals: NominalTable::new(),
+            extensions: ExtensionTable::new(),
             trace: CheckTrace::new(),
         }
     }
 
-    /// Record one internal check error.
-    pub(in crate::check) fn record_internal_error(&mut self, message: String) {
-        self.internal_errors.push(message);
-    }
-
-    /// Return an internal check error when one was recorded.
-    fn require_no_internal_errors(&mut self) -> CompilerResult<()> {
-        if let Some(message) = self.internal_errors.pop() {
-            return Err(CompilerError::Internal { message });
-        }
-
-        Ok(())
-    }
-
-    /// Record one check event.
-    pub(in crate::check) fn record_trace(&mut self, event: CheckEvent) {
-        self.trace.record(event);
-    }
-
-    /// Load all modules in one check component.
-    pub(in crate::check) fn load(&mut self, modules: &[ModuleId]) -> CompilerResult<()> {
-        // load modules in stable component order
+    /// Read all modules in one check component.
+    pub(in crate::check) fn read_component_modules(
+        &mut self,
+        modules: &[ModuleId],
+    ) -> CompilerResult<()> {
+        // read modules in stable component order
         for module in modules {
-            self.load_module(*module)?;
+            self.read_component_module(*module)?;
         }
 
         Ok(())
@@ -96,21 +80,20 @@ impl<'a> CheckState<'a> {
     pub(in crate::check) fn walk(&mut self) -> CompilerResult<()> {
         let modules = self.modules.keys().copied().collect::<Vec<_>>();
 
-        // load checked dependency artifacts before walk classifies references
-        self.load_module_dependencies()?;
+        // import checked dependency artifacts before walk classifies references
+        self.import_component_dependencies()?;
 
         // walk modules in stable component order
         for module in modules.iter().copied() {
             self.walk_module(module);
         }
 
-        self.propagate_walk_state(modules.as_slice())?;
-        self.require_no_internal_errors()
+        self.propagate_walk_state(modules.as_slice())
     }
 
-    /// Load one module.
-    fn load_module(&mut self, module_id: ModuleId) -> CompilerResult<()> {
-        if self.modules.contains_key(&module_id) {
+    /// Read one module into component state.
+    fn read_component_module(&mut self, module_id: ModuleId) -> CompilerResult<()> {
+        if self.is_component_module(module_id) {
             return Ok(());
         }
 
@@ -135,7 +118,6 @@ impl<'a> CheckState<'a> {
         let strings = Arc::clone(self.compiler.repository.string_pool());
 
         let module = CheckModuleState::new(
-            module_id,
             module,
             profile,
             strings,
@@ -165,66 +147,6 @@ impl<'a> CheckState<'a> {
                 panic!("language item {item} was not resolved for module {module:?}")
             });
 
-        if self.modules.contains_key(&symbol.module_id) {
-            return symbol;
-        }
-        if self.module(module).dependencies.contains(&symbol.module_id) {
-            return symbol;
-        }
-
-        panic!("language item {item} module was not loaded for module {module:?}")
-    }
-
-    /// Return one checked symbol static variable, importing it when missing.
-    pub(in crate::check) fn ensure_symbol_static_variable(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> VariableId {
-        if self.modules.contains_key(&symbol.module_id) {
-            if let Some(operand) = self.operands.symbol_statics.get(&symbol).copied() {
-                return match operand {
-                    StaticOperand::Variable(variable) => variable,
-                    StaticOperand::Term(_) | StaticOperand::Static(_) => {
-                        panic!("check symbol {symbol:?} has a static operand, not a solver slot")
-                    }
-                };
-            }
-
-            if let Some(target) = self.import_alias_target(symbol) {
-                let variable = self.ensure_symbol_static_variable(module, target);
-                let operand = variable.into();
-
-                self.publish_symbol_static_operand(symbol, operand);
-
-                return variable;
-            }
-
-            return self.require_local_symbol_static_variable(symbol);
-        }
-
-        self.import_symbol_static_variable(module, symbol)
-    }
-
-    /// Return the static generic variable for one symbol visible from a component module.
-    pub(in crate::check) fn generic_static_variable(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<VariableId>> {
-        if !self.modules.contains_key(&symbol.module_id)
-            && !self.module(module).dependencies.contains(&symbol.module_id)
-        {
-            let item = match self.environment.language.item(symbol) {
-                Some(item) => format!(" language_item={item}"),
-                None => String::new(),
-            };
-
-            return Err(CompilerError::Internal {
-                message: format!("symbol {symbol:?}{item} was not loaded for module {module:?}"),
-            });
-        }
-
-        Ok(self.generic_static_variable_for_symbol(module, symbol))
+        symbol
     }
 }

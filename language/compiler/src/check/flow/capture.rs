@@ -58,7 +58,10 @@ impl WalkState<'_, '_> {
         function: dir::GlobalSymbolId,
     ) -> bool {
         symbol.module_id == self.module
-            && !self.check.is_import_symbol(self.module, symbol)
+            && !self
+                .check
+                .module(self.module)
+                .is_import_alias(symbol.local_id)
             && symbol != function
             && !self.is_module_scoped_symbol(symbol)
             && !self.is_symbol_owned_by_function(symbol, function)

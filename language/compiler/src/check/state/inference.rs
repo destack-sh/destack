@@ -1,12 +1,14 @@
 use destack_dir as dir;
 use indexmap::IndexMap;
+use smallvec::SmallVec;
 
 use crate::check::{
     CallDecision, CheckState, Constraint, ConstructDecision, GenericApplication,
-    GenericApplicationKey, GenericInduction, GenericInductionRoot, GenericInductionSlot,
-    GenericSlot, GenericTemplate, IdentityDecision, LayoutDecision, MemberDecision, Obligation,
-    OperatorDecision, PatternDecision, ReceiverResolution, Solution, StaticOperand, Term, TermId,
-    TermTable, TypeOperand, Variable, VariableId,
+    GenericApplicationKey, GenericArgument, GenericInduction, GenericInductionRoot,
+    GenericInductionSlot, GenericSlot, GenericSlotId, GenericTemplate, IdentityDecision,
+    LayoutDecision, MemberDecision, Obligation, OperatorDecision, PatternDecision,
+    ReceiverResolution, Solution, StaticOperand, Term, TermId, TermTable, TypeOperand, Variable,
+    VariableId,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -48,18 +50,17 @@ pub(in crate::check) struct InferenceSegment {
     solutions: IndexMap<VariableId, Solution>,
 
     /// Generic templates keyed by owning symbol.
-    pub(in crate::check::state) generic_templates: IndexMap<dir::GlobalSymbolId, GenericTemplate>,
+    generic_templates: IndexMap<dir::GlobalSymbolId, GenericTemplate>,
     /// Generic applications keyed by source node and owner.
-    pub(in crate::check::state) generic_applications:
-        IndexMap<GenericApplicationKey, GenericApplication>,
-    /// Generic slot variables keyed by parameter symbol.
-    pub(in crate::check::state) generic_slots_by_symbol: IndexMap<dir::GlobalSymbolId, VariableId>,
-    /// Generic slots keyed by variable.
-    pub(in crate::check::state) generic_slots_by_variable: IndexMap<VariableId, GenericSlot>,
+    generic_applications: IndexMap<GenericApplicationKey, GenericApplication>,
+    /// Generic slot ids keyed by parameter symbol.
+    generic_slots_by_symbol: IndexMap<dir::GlobalSymbolId, GenericSlotId>,
+    /// Generic slots keyed by slot id.
+    generic_slots_by_id: IndexMap<GenericSlotId, GenericSlot>,
     /// Declaration operands that can induce owner generics.
-    pub(in crate::check::state) generic_induction_roots: Vec<GenericInductionRoot>,
+    generic_induction_roots: Vec<GenericInductionRoot>,
     /// Variables that can induce owner generics.
-    pub(in crate::check::state) generic_inductions: IndexMap<VariableId, GenericInductionSlot>,
+    generic_inductions: IndexMap<VariableId, GenericInductionSlot>,
 
     /// Runtime calls resolved or rejected by solve.
     calls: IndexMap<dir::GlobalNodeIdAny, CallDecision>,
@@ -106,11 +107,9 @@ impl InferenceTable {
 
     /// Merge the current speculative segment into its parent.
     pub(in crate::check) fn commit_probe(&mut self, probe: InferenceProbe) -> CompilerResult<()> {
-        assert_eq!(
-            probe.depth + 1,
-            self.segments.len(),
-            "inference probes must be committed in LIFO order"
-        );
+        if probe.depth + 1 != self.segments.len() {
+            panic!("inference probes must be committed in LIFO order");
+        }
 
         let segment = self
             .segments
@@ -128,11 +127,9 @@ impl InferenceTable {
 
     /// Drop the current speculative segment.
     pub(in crate::check) fn drop_probe(&mut self, probe: InferenceProbe) {
-        assert_eq!(
-            probe.depth + 1,
-            self.segments.len(),
-            "inference probes must be dropped in LIFO order"
-        );
+        if probe.depth + 1 != self.segments.len() {
+            panic!("inference probes must be dropped in LIFO order");
+        }
 
         self.segments.pop();
     }
@@ -156,23 +153,6 @@ impl InferenceTable {
             let end = base + terms.len();
             if id.index() < end {
                 return &terms[id.index() - base];
-            }
-
-            base = end;
-        }
-
-        panic!("check term {id:?} is not allocated")
-    }
-
-    /// Return one mutable term by id.
-    pub(in crate::check) fn term_mut<T: Term>(&mut self, id: TermId<T>) -> &mut T {
-        let mut base = 0;
-
-        for segment in &mut self.segments {
-            let terms = T::arena_mut(&mut segment.terms);
-            let end = base + terms.len();
-            if id.index() < end {
-                return &mut terms[id.index() - base];
             }
 
             base = end;
@@ -262,22 +242,16 @@ impl InferenceTable {
             .flat_map(|segment| segment.constraints.iter())
     }
 
-    /// Return all constraints in component order.
-    pub(in crate::check) fn constraints_vec(&self) -> Vec<Constraint> {
-        self.constraints().cloned().collect()
-    }
-
     /// Push one obligation into the current segment.
     pub(in crate::check) fn push_obligation(&mut self, obligation: Obligation) {
         self.current_mut().obligations.push(obligation);
     }
 
-    /// Return all obligations in component order.
-    pub(in crate::check) fn obligations_vec(&self) -> Vec<Obligation> {
+    /// Iterate obligations in segment order.
+    pub(in crate::check) fn obligations(&self) -> impl Iterator<Item = &Obligation> {
         self.segments
             .iter()
-            .flat_map(|segment| segment.obligations.iter().cloned())
-            .collect()
+            .flat_map(|segment| segment.obligations.iter())
     }
 
     /// Return the total number of obligations.
@@ -309,14 +283,15 @@ impl InferenceTable {
             .generic_inductions
             .insert(variable.variable, variable.slot);
 
-        assert!(
-            previous.is_none(),
-            "check variable {:?} already has generic induction",
-            variable.variable
-        );
+        if previous.is_some() {
+            panic!(
+                "check variable {:?} already has generic induction",
+                variable.variable
+            );
+        }
     }
 
-    /// Return the visible induced generic slot for one variable.
+    /// Return the active induced generic slot for one variable.
     pub(in crate::check) fn generic_induction_slot(
         &self,
         variable: VariableId,
@@ -327,7 +302,169 @@ impl InferenceTable {
             .find_map(|segment| segment.generic_inductions.get(&variable).cloned())
     }
 
-    /// Return visible lower type bounds for one variable.
+    /// Return generic slots in template order.
+    pub(in crate::check) fn generic_slots(
+        &self,
+    ) -> impl Iterator<Item = (GenericSlotId, &GenericSlot)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.generic_templates.values())
+            .flat_map(|template| template.slots.iter())
+            .filter_map(|slot_id| self.generic_slot_entry(*slot_id))
+    }
+
+    /// Return generic slots owned by one symbol.
+    pub(in crate::check) fn generic_slots_for_owner(
+        &self,
+        owner: dir::GlobalSymbolId,
+    ) -> impl Iterator<Item = (GenericSlotId, &GenericSlot)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(move |segment| segment.generic_templates.get(&owner))
+            .flat_map(|template| template.slots.iter().copied())
+            .filter_map(|slot_id| self.generic_slot_entry(slot_id))
+    }
+
+    /// Return the active generic template for one owner.
+    pub(in crate::check) fn generic_template_for_owner(
+        &self,
+        owner: dir::GlobalSymbolId,
+    ) -> Option<&GenericTemplate> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.generic_templates.get(&owner))
+    }
+
+    /// Return one active generic slot by id.
+    pub(in crate::check) fn generic_slot_by_id(
+        &self,
+        slot_id: GenericSlotId,
+    ) -> Option<&GenericSlot> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.generic_slots_by_id.get(&slot_id))
+    }
+
+    /// Return one required generic slot by id.
+    pub(in crate::check) fn generic_slot(&self, slot_id: GenericSlotId) -> &GenericSlot {
+        self.generic_slot_by_id(slot_id)
+            .unwrap_or_else(|| panic!("generic slot {slot_id:?} does not exist"))
+    }
+
+    /// Return one active generic application.
+    pub(in crate::check) fn generic_application(
+        &self,
+        key: GenericApplicationKey,
+    ) -> Option<&GenericApplication> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.generic_applications.get(&key))
+    }
+
+    /// Return one active generic application argument.
+    pub(in crate::check) fn generic_application_argument(
+        &self,
+        source: dir::GlobalNodeIdAny,
+        owner: dir::GlobalSymbolId,
+        index: dir::GenericSlotIndex,
+    ) -> Option<GenericArgument> {
+        let key = GenericApplicationKey { source, owner };
+
+        self.generic_application(key)
+            .and_then(|application| application.arguments.get(index.0 as usize))
+            .cloned()
+    }
+
+    /// Insert one generic application into the current segment.
+    pub(in crate::check) fn insert_generic_application(
+        &mut self,
+        key: GenericApplicationKey,
+        arguments: SmallVec<[GenericArgument; 2]>,
+    ) -> GenericApplication {
+        if let Some(application) = self.generic_application(key) {
+            if application.arguments != arguments {
+                panic!("check generic application {key:?} already has different arguments");
+            }
+
+            return application.clone();
+        }
+
+        let application = GenericApplication {
+            owner: key.owner,
+            arguments,
+        };
+
+        self.current_mut()
+            .generic_applications
+            .insert(key, application.clone());
+
+        application
+    }
+
+    /// Insert one generic slot into the current segment.
+    pub(in crate::check) fn insert_generic_slot(&mut self, generic: GenericSlot) {
+        let owner = generic.slot().owner;
+        let key = generic.slot().key;
+        let slot_id = generic.slot().id();
+        if self.generic_slot_by_id(slot_id).is_some() {
+            panic!("generic slot {slot_id:?} is already inserted");
+        }
+
+        let segment = self.current_mut();
+        segment.generic_slots_by_id.insert(slot_id, generic);
+        segment
+            .generic_templates
+            .entry(owner)
+            .or_insert_with(|| GenericTemplate::new(owner))
+            .slots
+            .push(slot_id);
+        if let dir::GenericSlotKey::Symbol(symbol) = key {
+            segment.generic_slots_by_symbol.insert(symbol, slot_id);
+        }
+    }
+
+    /// Return the active generic slot id declared by one symbol.
+    pub(in crate::check) fn generic_slot_id_for_symbol(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<GenericSlotId> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.generic_slots_by_symbol.get(&symbol).copied())
+    }
+
+    /// Return one active generic slot mutably.
+    pub(in crate::check) fn generic_slot_by_id_mut(
+        &mut self,
+        slot_id: GenericSlotId,
+    ) -> &mut GenericSlot {
+        self.segments
+            .iter_mut()
+            .rev()
+            .find_map(|segment| segment.generic_slots_by_id.get_mut(&slot_id))
+            .unwrap_or_else(|| panic!("generic slot {slot_id:?} does not exist"))
+    }
+
+    /// Return the next generic slot index for one owner.
+    pub(in crate::check) fn next_generic_slot_index(
+        &self,
+        owner: dir::GlobalSymbolId,
+    ) -> dir::GenericSlotIndex {
+        let index = self
+            .segments
+            .iter()
+            .filter_map(|segment| segment.generic_templates.get(&owner))
+            .map(|template| template.slots.len())
+            .sum::<usize>();
+
+        dir::GenericSlotIndex::new(index as u32)
+    }
+
+    /// Return active lower type bounds for one variable.
     pub(in crate::check) fn lower_type_bounds(&self, variable: VariableId) -> Vec<TypeOperand> {
         self.segments
             .iter()
@@ -342,7 +479,14 @@ impl InferenceTable {
             .collect()
     }
 
-    /// Return visible upper type bounds for one variable.
+    /// Return whether one variable has active lower type bounds.
+    pub(in crate::check) fn has_lower_type_bounds(&self, variable: VariableId) -> bool {
+        self.segments
+            .iter()
+            .any(|segment| segment.type_lower_bounds.contains_key(&variable))
+    }
+
+    /// Return active upper type bounds for one variable.
     pub(in crate::check) fn upper_type_bounds(&self, variable: VariableId) -> Vec<TypeOperand> {
         self.segments
             .iter()
@@ -357,7 +501,7 @@ impl InferenceTable {
             .collect()
     }
 
-    /// Return visible lower static bounds for one variable.
+    /// Return active lower static bounds for one variable.
     pub(in crate::check) fn lower_static_bounds(&self, variable: VariableId) -> Vec<StaticOperand> {
         self.segments
             .iter()
@@ -372,7 +516,14 @@ impl InferenceTable {
             .collect()
     }
 
-    /// Return visible upper static bounds for one variable.
+    /// Return whether one variable has active lower static bounds.
+    pub(in crate::check) fn has_lower_static_bounds(&self, variable: VariableId) -> bool {
+        self.segments
+            .iter()
+            .any(|segment| segment.static_lower_bounds.contains_key(&variable))
+    }
+
+    /// Return active upper static bounds for one variable.
     pub(in crate::check) fn upper_static_bounds(&self, variable: VariableId) -> Vec<StaticOperand> {
         self.segments
             .iter()
@@ -499,7 +650,7 @@ impl InferenceTable {
         true
     }
 
-    /// Return the visible solution for one variable.
+    /// Return the active solution for one variable.
     pub(in crate::check) fn variable_solution(&self, variable: VariableId) -> Option<Solution> {
         for segment in self.segments.iter().rev() {
             if let Some(solution) = segment.solutions.get(&variable) {
@@ -510,18 +661,23 @@ impl InferenceTable {
         None
     }
 
-    /// Insert one variable solution into the current segment.
-    pub(in crate::check) fn insert_variable_solution(
+    /// Set one variable solution in the current segment.
+    pub(in crate::check) fn set_variable_solution(
         &mut self,
         variable: VariableId,
         solution: Solution,
-    ) -> Option<Solution> {
-        let previous = self.variable_solution(variable);
-        if previous.is_none() {
-            self.current_mut().solutions.insert(variable, solution);
+    ) -> CompilerResult<()> {
+        if let Some(existing) = self.variable_solution(variable) {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "check variable {variable:?} already has solution {existing:?}, got {solution:?}"
+                ),
+            });
         }
 
-        previous
+        self.current_mut().solutions.insert(variable, solution);
+
+        Ok(())
     }
 
     /// Return the total number of solved variables.
@@ -532,7 +688,7 @@ impl InferenceTable {
             .sum()
     }
 
-    /// Return visible call decision.
+    /// Return active call decision.
     pub(in crate::check) fn call(&self, source: dir::GlobalNodeIdAny) -> Option<CallDecision> {
         self.segments
             .iter()
@@ -545,14 +701,15 @@ impl InferenceTable {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: CallDecision,
-    ) -> CompilerResult<()> {
-        self.require_unselected(source, "call", |segment| &segment.calls)?;
-        self.current_mut().calls.insert(source, decision);
+    ) {
+        if !self.is_new_selection(source, "call", &decision, |segment| &segment.calls) {
+            return;
+        }
 
-        Ok(())
+        self.current_mut().calls.insert(source, decision);
     }
 
-    /// Return visible construct decision.
+    /// Return active construct decision.
     pub(in crate::check) fn construct(
         &self,
         source: dir::GlobalNodeIdAny,
@@ -568,11 +725,14 @@ impl InferenceTable {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: ConstructDecision,
-    ) -> CompilerResult<()> {
-        self.require_unselected(source, "construct", |segment| &segment.constructs)?;
-        self.current_mut().constructs.insert(source, decision);
+    ) {
+        if !self.is_new_selection(source, "construct", &decision, |segment| {
+            &segment.constructs
+        }) {
+            return;
+        }
 
-        Ok(())
+        self.current_mut().constructs.insert(source, decision);
     }
 
     /// Select one operator decision in the current segment.
@@ -580,11 +740,12 @@ impl InferenceTable {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: OperatorDecision,
-    ) -> CompilerResult<()> {
-        self.require_unselected(source, "operator", |segment| &segment.operators)?;
-        self.current_mut().operators.insert(source, decision);
+    ) {
+        if !self.is_new_selection(source, "operator", &decision, |segment| &segment.operators) {
+            return;
+        }
 
-        Ok(())
+        self.current_mut().operators.insert(source, decision);
     }
 
     /// Select one identity decision in the current segment.
@@ -592,11 +753,12 @@ impl InferenceTable {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: IdentityDecision,
-    ) -> CompilerResult<()> {
-        self.require_unselected(source, "identity", |segment| &segment.identities)?;
-        self.current_mut().identities.insert(source, decision);
+    ) {
+        if !self.is_new_selection(source, "identity", &decision, |segment| &segment.identities) {
+            return;
+        }
 
-        Ok(())
+        self.current_mut().identities.insert(source, decision);
     }
 
     /// Select one layout decision in the current segment.
@@ -604,11 +766,12 @@ impl InferenceTable {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: LayoutDecision,
-    ) -> CompilerResult<()> {
-        self.require_unselected(source, "layout", |segment| &segment.layouts)?;
-        self.current_mut().layouts.insert(source, decision);
+    ) {
+        if !self.is_new_selection(source, "layout", &decision, |segment| &segment.layouts) {
+            return;
+        }
 
-        Ok(())
+        self.current_mut().layouts.insert(source, decision);
     }
 
     /// Select one member decision in the current segment.
@@ -616,11 +779,12 @@ impl InferenceTable {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: MemberDecision,
-    ) -> CompilerResult<()> {
-        self.require_unselected(source, "member", |segment| &segment.members)?;
-        self.current_mut().members.insert(source, decision);
+    ) {
+        if !self.is_new_selection(source, "member", &decision, |segment| &segment.members) {
+            return;
+        }
 
-        Ok(())
+        self.current_mut().members.insert(source, decision);
     }
 
     /// Select one pattern decision in the current segment.
@@ -628,27 +792,28 @@ impl InferenceTable {
         &mut self,
         source: dir::GlobalNodeIdAny,
         decision: PatternDecision,
-    ) -> CompilerResult<()> {
-        self.require_unselected(source, "pattern", |segment| &segment.patterns)?;
-        self.current_mut().patterns.insert(source, decision);
+    ) {
+        if !self.is_new_selection(source, "pattern", &decision, |segment| &segment.patterns) {
+            return;
+        }
 
-        Ok(())
+        self.current_mut().patterns.insert(source, decision);
     }
 
     /// Select one receiver resolution in the current segment.
-    pub(in crate::check) fn select_receiver(
-        &mut self,
-        receiver: ReceiverResolution,
-    ) -> CompilerResult<()> {
-        self.require_unselected(receiver.source, "receiver", |segment| &segment.receivers)?;
+    pub(in crate::check) fn select_receiver(&mut self, receiver: ReceiverResolution) {
+        if !self.is_new_selection(receiver.source, "receiver", &receiver, |segment| {
+            &segment.receivers
+        }) {
+            return;
+        }
+
         self.current_mut()
             .receivers
             .insert(receiver.source, receiver);
-
-        Ok(())
     }
 
-    /// Return visible name resolution.
+    /// Return active name resolution.
     pub(in crate::check) fn name(
         &self,
         source: dir::GlobalNodeIdAny,
@@ -664,11 +829,12 @@ impl InferenceTable {
         &mut self,
         source: dir::GlobalNodeIdAny,
         resolution: dir::NameResolution,
-    ) -> CompilerResult<()> {
-        self.require_unselected(source, "name", |segment| &segment.names)?;
-        self.current_mut().names.insert(source, resolution);
+    ) {
+        if !self.is_new_selection(source, "name", &resolution, |segment| &segment.names) {
+            return;
+        }
 
-        Ok(())
+        self.current_mut().names.insert(source, resolution);
     }
 
     /// Return the total number of decisions.
@@ -689,8 +855,8 @@ impl InferenceTable {
             .sum()
     }
 
-    /// Return visible names in component order.
-    pub(in crate::check) fn names_vec(&self) -> Vec<(dir::GlobalNodeIdAny, dir::NameResolution)> {
+    /// Return active names in component order.
+    pub(in crate::check) fn names(&self) -> Vec<(dir::GlobalNodeIdAny, dir::NameResolution)> {
         self.segments
             .iter()
             .flat_map(|segment| {
@@ -702,63 +868,63 @@ impl InferenceTable {
             .collect()
     }
 
-    /// Return visible receivers in component order.
-    pub(in crate::check) fn receivers_vec(&self) -> Vec<ReceiverResolution> {
+    /// Return active receivers in component order.
+    pub(in crate::check) fn receivers(&self) -> Vec<ReceiverResolution> {
         self.segments
             .iter()
             .flat_map(|segment| segment.receivers.values().copied())
             .collect()
     }
 
-    /// Return visible member decisions in component order.
-    pub(in crate::check) fn members_vec(&self) -> Vec<MemberDecision> {
+    /// Return active member decisions in component order.
+    pub(in crate::check) fn members(&self) -> Vec<MemberDecision> {
         self.segments
             .iter()
             .flat_map(|segment| segment.members.values().cloned())
             .collect()
     }
 
-    /// Return visible pattern decisions in component order.
-    pub(in crate::check) fn patterns_vec(&self) -> Vec<PatternDecision> {
+    /// Return active pattern decisions in component order.
+    pub(in crate::check) fn patterns(&self) -> Vec<PatternDecision> {
         self.segments
             .iter()
             .flat_map(|segment| segment.patterns.values().cloned())
             .collect()
     }
 
-    /// Return visible call decisions in component order.
-    pub(in crate::check) fn calls_vec(&self) -> Vec<CallDecision> {
+    /// Return active call decisions in component order.
+    pub(in crate::check) fn calls(&self) -> Vec<CallDecision> {
         self.segments
             .iter()
             .flat_map(|segment| segment.calls.values().cloned())
             .collect()
     }
 
-    /// Return visible construct decisions in component order.
-    pub(in crate::check) fn constructs_vec(&self) -> Vec<ConstructDecision> {
+    /// Return active construct decisions in component order.
+    pub(in crate::check) fn constructs(&self) -> Vec<ConstructDecision> {
         self.segments
             .iter()
             .flat_map(|segment| segment.constructs.values().cloned())
             .collect()
     }
 
-    /// Return visible operator decisions in component order.
-    pub(in crate::check) fn operators_vec(&self) -> Vec<OperatorDecision> {
+    /// Return active operator decisions in component order.
+    pub(in crate::check) fn operators(&self) -> Vec<OperatorDecision> {
         self.segments
             .iter()
             .flat_map(|segment| segment.operators.values().cloned())
             .collect()
     }
 
-    /// Return visible layout decisions in component order.
-    pub(in crate::check) fn layouts_vec(&self) -> Vec<LayoutDecision> {
+    /// Return active layout decisions in component order.
+    pub(in crate::check) fn layouts(&self) -> Vec<LayoutDecision> {
         self.segments
             .iter()
             .flat_map(|segment| segment.layouts.values().cloned())
             .collect()
     }
 
-    /// Return whether one bound is already visible.
+    /// Return whether one bound is already active.
     fn contains_bound<T: Eq>(
         &self,
         variable: VariableId,
@@ -772,25 +938,33 @@ impl InferenceTable {
         })
     }
 
-    /// Require one source to have no visible selection.
-    fn require_unselected<T>(
+    /// Return whether one source has not selected this value yet.
+    fn is_new_selection<T: PartialEq>(
         &self,
         source: dir::GlobalNodeIdAny,
         label: &str,
+        value: &T,
         select: impl Fn(&InferenceSegment) -> &IndexMap<dir::GlobalNodeIdAny, T>,
-    ) -> CompilerResult<()> {
-        let is_selected = self
-            .segments
-            .iter()
-            .any(|segment| select(segment).contains_key(&source));
+    ) -> bool {
+        for segment in &self.segments {
+            let Some(existing) = select(segment).get(&source) else {
+                continue;
+            };
+            if existing == value {
+                return false;
+            }
 
-        if is_selected {
-            return Err(CompilerError::Internal {
-                message: format!("check {label} {source:?} was selected twice"),
-            });
+            panic!("check {label} {source:?} received two different selections");
         }
 
-        Ok(())
+        true
+    }
+
+    /// Return one generic slot entry with its id.
+    fn generic_slot_entry(&self, slot_id: GenericSlotId) -> Option<(GenericSlotId, &GenericSlot)> {
+        let generic = self.generic_slot_by_id(slot_id)?;
+
+        Some((slot_id, generic))
     }
 }
 
@@ -810,7 +984,7 @@ impl InferenceSegment {
             generic_templates: IndexMap::new(),
             generic_applications: IndexMap::new(),
             generic_slots_by_symbol: IndexMap::new(),
-            generic_slots_by_variable: IndexMap::new(),
+            generic_slots_by_id: IndexMap::new(),
             generic_induction_roots: Vec::new(),
             generic_inductions: IndexMap::new(),
             calls: IndexMap::new(),
@@ -848,8 +1022,7 @@ impl InferenceSegment {
         self.generic_applications.extend(child.generic_applications);
         self.generic_slots_by_symbol
             .extend(child.generic_slots_by_symbol);
-        self.generic_slots_by_variable
-            .extend(child.generic_slots_by_variable);
+        self.generic_slots_by_id.extend(child.generic_slots_by_id);
         self.generic_induction_roots
             .append(&mut child.generic_induction_roots);
         self.generic_inductions.extend(child.generic_inductions);
@@ -903,11 +1076,7 @@ impl CheckState<'_> {
     ) {
         let resolution = dir::NameResolution::new(symbol);
 
-        match self.inference.select_name(source, resolution) {
-            Ok(()) => {}
-            Err(CompilerError::Internal { message }) => self.record_internal_error(message),
-            Err(error) => self.record_internal_error(format!("{error:?}")),
-        }
+        self.inference.select_name(source, resolution);
     }
 
     /// Return the selected symbol for one resolved lexical name.
@@ -916,38 +1085,5 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalSymbolId> {
         Some(self.inference.name(source)?.symbol())
-    }
-
-    /// Begin one speculative inference probe.
-    pub(in crate::check) fn begin_inference_probe(&mut self) -> InferenceProbe {
-        self.inference.begin_probe()
-    }
-
-    /// Commit one speculative inference probe.
-    pub(in crate::check) fn commit_inference_probe(
-        &mut self,
-        probe: InferenceProbe,
-    ) -> CompilerResult<()> {
-        self.inference.commit_probe(probe)
-    }
-
-    /// Drop one speculative inference probe.
-    pub(in crate::check) fn drop_inference_probe(&mut self, probe: InferenceProbe) {
-        self.inference.drop_probe(probe);
-    }
-
-    /// Push one inference term into the current segment.
-    pub(in crate::check) fn push_term<T: Term>(&mut self, term: T) -> TermId<T> {
-        self.inference.push_term(term)
-    }
-
-    /// Return one inference term by id.
-    pub(in crate::check) fn term<T: Term>(&self, id: TermId<T>) -> &T {
-        self.inference.term(id)
-    }
-
-    /// Return one mutable inference term by id.
-    pub(in crate::check) fn term_mut<T: Term>(&mut self, id: TermId<T>) -> &mut T {
-        self.inference.term_mut(id)
     }
 }

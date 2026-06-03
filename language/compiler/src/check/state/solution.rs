@@ -1,5 +1,6 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::check::{
     CheckEvent, CheckState, StaticOperand, StaticTerm, TermId, TraceOperand, TypeOperand, TypeTerm,
     VariableId,
@@ -19,7 +20,7 @@ pub(in crate::check) enum Solution {
 pub(in crate::check) enum TypeSolution {
     /// Check term value.
     Term(TermId<TypeTerm>),
-    /// Committed DIR type value.
+    /// Committed type value.
     Type(dir::GlobalTypeId),
 }
 
@@ -28,34 +29,8 @@ pub(in crate::check) enum TypeSolution {
 pub(in crate::check) enum StaticSolution {
     /// Check term value.
     Term(TermId<StaticTerm>),
-    /// Committed DIR static value.
+    /// Committed static value.
     Static(dir::GlobalStaticId),
-}
-
-impl TryFrom<TypeOperand> for TypeSolution {
-    type Error = VariableId;
-
-    /// Convert a non-variable type operand into a type solution.
-    fn try_from(operand: TypeOperand) -> Result<Self, Self::Error> {
-        match operand {
-            TypeOperand::Variable(variable) => Err(variable),
-            TypeOperand::Term(term) => Ok(Self::Term(term)),
-            TypeOperand::Type(ty) => Ok(Self::Type(ty)),
-        }
-    }
-}
-
-impl TryFrom<StaticOperand> for StaticSolution {
-    type Error = VariableId;
-
-    /// Convert a non-variable static operand into a static solution.
-    fn try_from(operand: StaticOperand) -> Result<Self, Self::Error> {
-        match operand {
-            StaticOperand::Variable(variable) => Err(variable),
-            StaticOperand::Term(term) => Ok(Self::Term(term)),
-            StaticOperand::Static(value) => Ok(Self::Static(value)),
-        }
-    }
 }
 
 impl From<TypeSolution> for TypeOperand {
@@ -103,24 +78,21 @@ impl Solution {
 }
 
 impl CheckState<'_> {
-    /// Insert one solution known before ordinary solver reduction.
-    pub(in crate::check) fn insert_known_solution(
+    /// Set one complete variable solution.
+    pub(in crate::check) fn set_variable_solution(
         &mut self,
         variable: VariableId,
         solution: Solution,
-    ) {
-        let previous = self.inference.insert_variable_solution(variable, solution);
+    ) -> CompilerResult<()> {
+        self.inference.set_variable_solution(variable, solution)?;
 
-        assert!(
-            previous.is_none(),
-            "check variable {variable:?} already has a known solution"
-        );
-
-        self.record_trace(CheckEvent::SolutionSet {
+        self.trace.record(CheckEvent::SolutionSet {
             variable,
             kind: self.variable(variable).kind,
             value: solution.trace_operand(),
         });
+
+        Ok(())
     }
 
     /// Return the solved type operand for one variable.

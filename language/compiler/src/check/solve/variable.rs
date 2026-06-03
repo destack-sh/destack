@@ -1,8 +1,8 @@
+use crate::CompilerResult;
 use crate::check::{
-    CheckEvent, CheckState, Origin, Solution, StaticOperand, StaticSolution, StaticTerm,
-    TypeOperand, TypeSolution, TypeTerm, VariableId, VariableKind,
+    CheckState, Origin, Solution, StaticOperand, StaticSolution, StaticTerm, TypeOperand,
+    TypeSolution, TypeTerm, VariableId, VariableKind,
 };
-use crate::{CompilerError, CompilerResult};
 
 use super::Progress;
 
@@ -22,31 +22,20 @@ enum BoundReduction<T> {
 }
 
 impl CheckState<'_> {
-    /// Insert one solver solution and report conflicting solutions loudly.
-    fn solve_variable(
+    /// Set one complete variable solution.
+    fn solve_complete_variable(
         &mut self,
         variable: VariableId,
         solution: Solution,
     ) -> CompilerResult<Progress> {
-        // reject conflicting writes
-        if let Some(existing) = self.inference.variable_solution(variable) {
-            let origin = self.variable(variable).source;
-            Err(CompilerError::Internal {
-                message: format!(
-                    "check variable {variable:?} from {origin:?} already has solution {existing:?}, got {solution:?}"
-                ),
-            })
-        } else {
-            // store the first solution
-            self.inference.insert_variable_solution(variable, solution);
-            self.record_trace(CheckEvent::SolutionSet {
-                variable,
-                kind: self.variable(variable).kind,
-                value: solution.trace_operand(),
-            });
-
-            Ok(Progress::changed(variable))
+        // wait for complete candidate solutions
+        if !self.solution_is_complete(solution) {
+            return Ok(Progress::Unchanged);
         }
+
+        self.set_variable_solution(variable, solution)?;
+
+        Ok(Progress::changed(variable))
     }
 
     /// Solve one type variable and return solver progress.
@@ -55,9 +44,14 @@ impl CheckState<'_> {
         variable: VariableId,
         term: TypeTerm,
     ) -> CompilerResult<Progress> {
-        let solution = TypeSolution::Term(self.push_term(term));
+        // wait for nested operands to solve
+        if !term.referenced_variables(self).is_empty() {
+            return Ok(Progress::Unchanged);
+        }
 
-        self.solve_variable(variable, solution.into())
+        let solution = TypeSolution::Term(self.inference.push_term(term));
+
+        self.solve_complete_variable(variable, solution.into())
     }
 
     /// Solve one type variable from an omitted generic default.
@@ -67,7 +61,7 @@ impl CheckState<'_> {
         default: TypeOperand,
     ) -> CompilerResult<Progress> {
         // keep real lower bounds stronger than defaults
-        if !self.lower_type_bounds(variable).is_empty()
+        if self.inference.has_lower_type_bounds(variable)
             || self.variable_solution(variable).is_some()
         {
             return Ok(Progress::Unchanged);
@@ -85,11 +79,13 @@ impl CheckState<'_> {
             TypeOperand::Variable(_) => return Ok(Progress::Unchanged),
             TypeOperand::Term(_) | TypeOperand::Type(_) => default,
         };
-        let Ok(solution) = TypeSolution::try_from(default) else {
-            return Ok(Progress::Unchanged);
+        let solution = match default {
+            TypeOperand::Term(term) => TypeSolution::Term(term),
+            TypeOperand::Type(ty) => TypeSolution::Type(ty),
+            TypeOperand::Variable(_) => return Ok(Progress::Unchanged),
         };
 
-        self.solve_variable(variable, solution.into())
+        self.solve_complete_variable(variable, solution.into())
     }
 
     /// Solve one static variable and return solver progress.
@@ -98,9 +94,14 @@ impl CheckState<'_> {
         variable: VariableId,
         term: StaticTerm,
     ) -> CompilerResult<Progress> {
-        let solution = StaticSolution::Term(self.push_term(term));
+        // wait for nested operands to solve
+        if !term.referenced_variables(self).is_empty() {
+            return Ok(Progress::Unchanged);
+        }
 
-        self.solve_variable(variable, solution.into())
+        let solution = StaticSolution::Term(self.inference.push_term(term));
+
+        self.solve_complete_variable(variable, solution.into())
     }
 
     /// Solve one static variable from an omitted generic default.
@@ -110,7 +111,7 @@ impl CheckState<'_> {
         default: StaticOperand,
     ) -> CompilerResult<Progress> {
         // keep real lower bounds stronger than defaults
-        if !self.lower_static_bounds(variable).is_empty()
+        if self.inference.has_lower_static_bounds(variable)
             || self.variable_solution(variable).is_some()
         {
             return Ok(Progress::Unchanged);
@@ -128,15 +129,17 @@ impl CheckState<'_> {
             StaticOperand::Variable(_) => return Ok(Progress::Unchanged),
             StaticOperand::Term(_) | StaticOperand::Static(_) => default,
         };
-        let Ok(solution) = StaticSolution::try_from(default) else {
-            return Ok(Progress::Unchanged);
+        let solution = match default {
+            StaticOperand::Term(term) => StaticSolution::Term(term),
+            StaticOperand::Static(value) => StaticSolution::Static(value),
+            StaticOperand::Variable(_) => return Ok(Progress::Unchanged),
         };
 
-        self.solve_variable(variable, solution.into())
+        self.solve_complete_variable(variable, solution.into())
     }
 
     /// Solve one variable from its collected bounds.
-    pub(in crate::check) fn solve_bound_variable(
+    pub(in crate::check) fn solve_variable_from_bounds(
         &mut self,
         variable: VariableId,
     ) -> CompilerResult<Progress> {
@@ -147,16 +150,18 @@ impl CheckState<'_> {
 
         // dispatch by variable domain
         let kind = self.variable(variable).kind;
-
         match kind {
-            VariableKind::Type => self.solve_bound_type_variable(variable),
-            VariableKind::Static => self.solve_bound_static_variable(variable),
+            VariableKind::Type => self.solve_type_variable_from_bounds(variable),
+            VariableKind::Static => self.solve_static_variable_from_bounds(variable),
         }
     }
 
     /// Solve one type variable from lower bounds.
-    fn solve_bound_type_variable(&mut self, variable: VariableId) -> CompilerResult<Progress> {
-        let lower_bounds = self.lower_type_bounds(variable).to_vec();
+    fn solve_type_variable_from_bounds(
+        &mut self,
+        variable: VariableId,
+    ) -> CompilerResult<Progress> {
+        let lower_bounds = self.inference.lower_type_bounds(variable);
 
         // wait for useful lower bounds
         if lower_bounds.is_empty() {
@@ -207,7 +212,7 @@ impl CheckState<'_> {
 
                 term
             }
-            TypeOperand::Term(term) => self.term(term).clone(),
+            TypeOperand::Term(term) => self.inference.term(term).clone(),
             TypeOperand::Type(ty) => TypeTerm::Type(ty),
         };
 
@@ -231,9 +236,12 @@ impl CheckState<'_> {
     }
 
     /// Solve one static variable from its bounds.
-    fn solve_bound_static_variable(&mut self, variable: VariableId) -> CompilerResult<Progress> {
-        let lower_bounds = self.lower_static_bounds(variable).to_vec();
-        let upper_bounds = self.upper_static_bounds(variable).to_vec();
+    fn solve_static_variable_from_bounds(
+        &mut self,
+        variable: VariableId,
+    ) -> CompilerResult<Progress> {
+        let lower_bounds = self.inference.lower_static_bounds(variable);
+        let upper_bounds = self.inference.upper_static_bounds(variable);
 
         // wait for useful bounds
         if lower_bounds.is_empty() && upper_bounds.is_empty() {
@@ -303,7 +311,7 @@ impl CheckState<'_> {
 
                 term
             }
-            StaticOperand::Term(term) => self.term(term).clone(),
+            StaticOperand::Term(term) => self.inference.term(term).clone(),
             StaticOperand::Static(value) => StaticTerm::Static(value),
         };
 
@@ -343,7 +351,7 @@ impl CheckState<'_> {
         };
         let term = match operand {
             TypeOperand::Variable(_) => return Ok(None),
-            TypeOperand::Term(term) => self.term(term).clone(),
+            TypeOperand::Term(term) => self.inference.term(term).clone(),
             TypeOperand::Type(ty) => TypeTerm::Type(ty),
         };
 
@@ -360,10 +368,29 @@ impl CheckState<'_> {
         };
         let term = match operand {
             StaticOperand::Variable(_) => return Ok(None),
-            StaticOperand::Term(term) => self.term(term).clone(),
+            StaticOperand::Term(term) => self.inference.term(term).clone(),
             StaticOperand::Static(value) => StaticTerm::Static(value),
         };
 
         Ok(Some(term))
+    }
+
+    /// Return whether one candidate solution contains no inference variables.
+    fn solution_is_complete(&self, solution: Solution) -> bool {
+        match solution {
+            Solution::Type(TypeSolution::Term(term)) => self
+                .inference
+                .term(term)
+                .referenced_variables(self)
+                .is_empty(),
+            Solution::Static(StaticSolution::Term(term)) => self
+                .inference
+                .term(term)
+                .referenced_variables(self)
+                .is_empty(),
+            Solution::Type(TypeSolution::Type(_)) | Solution::Static(StaticSolution::Static(_)) => {
+                true
+            }
+        }
     }
 }

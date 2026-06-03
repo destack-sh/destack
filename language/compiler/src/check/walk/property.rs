@@ -57,34 +57,29 @@ impl WalkState<'_, '_> {
                 // walk signature before reading its term inputs
                 self.walk_function_signature(tree, signature);
 
-                let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
-                let return_type = self.ensure_signature_return_type(
-                    tree.module_id,
-                    id.into_any(),
-                    signature,
-                    *body,
-                );
+                let symbol = self
+                    .check
+                    .module(tree.module_id)
+                    .declaration_symbol(id.into_any());
+                let result =
+                    self.function_result_operand(tree.module_id, id.into_any(), signature, *body);
 
                 // commit method property symbol type
                 if let Some(symbol) = symbol {
                     let term = self.lower_function_signature_term(
                         signature,
-                        return_type.map(Into::into),
+                        None,
+                        result.map(Into::into),
                         tree,
                     );
                     let condition = self.active_static_guard();
 
-                    self.check.publish_symbol_type(
-                        tree.module_id,
-                        symbol,
-                        TypeTerm::Function(term),
-                        condition,
-                    );
+                    self.bind_symbol_type(symbol, TypeTerm::Function(term), condition);
                 }
 
-                // walk method body after its return channel exists
-                if let (Some(symbol), Some(body), Some(return_type)) = (symbol, body, return_type) {
-                    self.walk_function_body(tree, symbol, signature, *body, return_type, None);
+                // walk method body after its result operand exists
+                if let (Some(symbol), Some(body), Some(result)) = (symbol, body, result) {
+                    self.walk_function_body(tree, symbol, signature, *body, result, None);
                 }
             }
             // { ...value }
@@ -111,7 +106,7 @@ impl WalkState<'_, '_> {
         member: &dir::Member,
         receiver_context: Option<MemberReceiverContext>,
     ) {
-        let static_receiver = self.find_member_static_guard_receiver(id, receiver_context);
+        let static_receiver = self.member_static_guard_receiver(id, receiver_context);
         if !self.push_static_guard_for(tree, id.into_any(), static_receiver) {
             return;
         }
@@ -151,13 +146,12 @@ impl WalkState<'_, '_> {
 
                 // commit associated type value
                 if let Some(value) = value
-                    && let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any())
+                    && let Some(symbol) = self.check.module(tree.module_id).declaration_symbol(id.into_any())
                 {
-                    let value = self.check.require_local_node_type(tree.module_id, *value);
+                    let value = self.allocate_node_type_operand(*value);
                     let condition = self.active_static_guard();
 
-                    self.check
-                        .publish_symbol_type_operand(symbol, value, condition);
+                    self.bind_symbol_type_operand(symbol, value, condition);
                 }
             }
             // const item: T = value
@@ -180,14 +174,14 @@ impl WalkState<'_, '_> {
                     self.walk_static_expression(tree, *value);
                 }
 
-                if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
+                if let Some(symbol) = self.check.module(tree.module_id).declaration_symbol(id.into_any()) {
                     // associated const type lives in type space
                     if let Some(declared_type) = declared_type {
                         let declared_type =
-                            self.check.require_local_node_type(tree.module_id, *declared_type);
+                            self.allocate_node_type_operand(*declared_type);
                         let condition = self.active_static_guard();
 
-                        self.check.publish_symbol_type_operand(
+                        self.bind_symbol_type_operand(
                             symbol,
                             declared_type,
                             condition,
@@ -196,11 +190,9 @@ impl WalkState<'_, '_> {
 
                     // associated const value lives in static space
                     if let Some(value) = value {
-                        let variable = self.check.reserve_symbol_static(tree.module_id, symbol);
+                        let variable = self.allocate_symbol_static_variable(symbol);
                         let condition = self.active_static_guard();
-                        let value = self.check.reserve_static_expression(
-                            tree.module_id,
-                            *value,
+                        let value = self.allocate_static_expression_variable(*value,
                             condition.clone(),
                         );
                         let origin = self.check.variable(variable).source;
@@ -241,10 +233,10 @@ impl WalkState<'_, '_> {
                 if let Some(declared_type) = declared_type
                     && key.direct_static_key().is_some()
                     && let Some(symbol) =
-                        self.check.declaration_symbol(tree.module_id, id.into_any())
+                        self.check.module(tree.module_id).declaration_symbol(id.into_any())
                 {
                     let declared_type =
-                        self.check.require_local_node_type(tree.module_id, *declared_type);
+                        self.allocate_node_type_operand(*declared_type);
                     let condition = self.active_static_guard();
                     let source = id.into_global_any(tree.module_id);
                     let declared_type =
@@ -254,16 +246,15 @@ impl WalkState<'_, '_> {
                         self.check.push_generic_induction_root(owner, declared_type);
                     }
 
-                    self.check
-                        .publish_symbol_type_operand(symbol, declared_type, condition);
+                    self.bind_symbol_type_operand(symbol, declared_type, condition);
                 }
 
                 // defaults must fit the declared field type
                 if let (Some(declared_type), Some(default)) = (declared_type, default) {
                     let origin = Origin::Node((*default).into_global_any(tree.module_id));
-                    let value = self.check.require_local_node_type(tree.module_id, *default);
+                    let value = self.allocate_node_type_operand(*default);
                     let declared_type =
-                        self.check.require_local_node_type(tree.module_id, *declared_type);
+                        self.allocate_node_type_operand(*declared_type);
                     let condition = self.active_static_guard();
 
                     self.check.relate_type(
@@ -293,49 +284,39 @@ impl WalkState<'_, '_> {
                     }
                 }
 
-                let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
+                let symbol = self.check.module(tree.module_id).declaration_symbol(id.into_any());
 
                 // walk signature before reading its term inputs
                 self.walk_function_signature(tree, signature);
                 let receiver =
                     self.bind_member_receiver(tree, id, signature, *is_static, receiver_context);
+                let result =
+                    self.method_result_operand(tree.module_id, id, signature, *body, receiver);
 
-                // commit method symbol type
+                // bind method symbol type
                 if let Some(symbol) = symbol {
-                    let return_type =
-                        self.ensure_method_return_type(tree.module_id, id, signature, *body, receiver);
                     let term = self.lower_function_signature_term(
                         signature,
-                        return_type.map(Into::into),
+                        receiver
+                            .filter(|_| Self::is_receiver_visible_in_method_type(signature))
+                            .map(|receiver| receiver.ty),
+                        result.map(Into::into),
                         tree,
                     );
-                    let function = self.check.term_mut(term);
-                    if function.this_parameter.is_none() && Self::is_receiver_visible_in_method_type(signature) {
-                        function.this_parameter = receiver.map(|receiver| receiver.ty);
-                    }
                     let condition = self.active_static_guard();
 
-                    let operand = self.check.push_term(TypeTerm::Function(term)).into();
+                    let operand = self.check.inference.push_term(TypeTerm::Function(term)).into();
 
                     if let Some(receiver) = receiver {
                         self.check.push_generic_induction_root(symbol, receiver.ty);
                     }
                     self.check.push_generic_induction_root(symbol, operand);
-                    self.check.publish_symbol_type(
-                        tree.module_id,
-                        symbol,
-                        TypeTerm::Function(term),
-                        condition,
-                    );
+                    self.bind_symbol_type_operand(symbol, operand, condition);
                 }
 
-                // walk method body after its return channel exists
-                if let Some(body) = body
-                    && let Some(symbol) = symbol
-                    && let Some(return_type) =
-                        self.ensure_method_return_type(tree.module_id, id, signature, Some(*body), receiver)
-                {
-                    self.walk_function_body(tree, symbol, signature, *body, return_type, receiver);
+                // walk method body after its result operand exists
+                if let Some(body) = body && let Some(symbol) = symbol && let Some(result) = result {
+                    self.walk_function_body(tree, symbol, signature, *body, result, receiver);
                 }
             }
             // static { ... }
@@ -356,7 +337,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the receiver visible to decorators on one member.
-    fn find_member_static_guard_receiver(
+    fn member_static_guard_receiver(
         &self,
         id: dir::LocalNodeId<dir::Member>,
         receiver_context: Option<MemberReceiverContext>,
@@ -364,7 +345,8 @@ impl WalkState<'_, '_> {
         let context = receiver_context?;
         let symbol = self
             .check
-            .implicit_receiver_symbol(context.module, id.into_any())?;
+            .module(context.module)
+            .implicit_receiver_symbol(id.into_any())?;
 
         Some(ReceiverCapture {
             symbol,
@@ -404,7 +386,8 @@ impl WalkState<'_, '_> {
         };
         let Some(symbol) = self
             .check
-            .implicit_receiver_symbol(tree.module_id, id.into_any())
+            .module(tree.module_id)
+            .implicit_receiver_symbol(id.into_any())
         else {
             return None;
         };
@@ -434,13 +417,13 @@ impl WalkState<'_, '_> {
         )
     }
 
-    /// Ensure one method body or call signature has a checked return type.
+    /// Return one method body or call signature result operand.
     ///
     /// Example:
     /// ```ds
     /// method(): number { 1 }
     /// ```
-    fn ensure_method_return_type(
+    fn method_result_operand(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Member>,
@@ -448,7 +431,7 @@ impl WalkState<'_, '_> {
         body: Option<dir::LocalNodeId<dir::Expression>>,
         receiver: Option<ReceiverCapture>,
     ) -> Option<TypeOperand> {
-        // use the receiver as the constructor return type
+        // use the receiver as the constructor result
         if matches!(
             signature.role,
             Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
@@ -456,7 +439,7 @@ impl WalkState<'_, '_> {
             return receiver.map(|receiver| receiver.ty);
         }
 
-        // ensure regular method return type
-        self.ensure_signature_return_type(module, id.into_any(), signature, body)
+        // return regular method result
+        self.function_result_operand(module, id.into_any(), signature, body)
     }
 }

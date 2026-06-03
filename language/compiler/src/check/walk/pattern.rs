@@ -6,7 +6,7 @@ use crate::check::{
     PatternBorrowResolution, PatternDecision, PatternDereferenceResolution, PatternField,
     PatternFieldResolution, PatternFieldTargetResolution, PatternMoveResolution, PatternResolution,
     PatternShapeResolution, PatternTarget, PatternTargetResolution, PatternTerm,
-    PatternTupleResolution, PatternUnionResolution, TermId, VariableKind, WalkState,
+    PatternTupleResolution, PatternUnionResolution, TermId, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -282,7 +282,7 @@ impl WalkState<'_, '_> {
             // pattern = value
             dir::Pattern::Assign { pattern, value } => PatternTarget::Assign {
                 pattern: self.lower_pattern_term(module, *pattern, tree)?,
-                value: self.check.require_local_node_type(module, *value),
+                value: self.allocate_node_type_operand(*value),
             },
             // &pattern
             dir::Pattern::BorrowOf { mutability, right } => PatternTarget::BorrowOf {
@@ -300,12 +300,15 @@ impl WalkState<'_, '_> {
             },
             // name, name: pattern
             dir::Pattern::Binding { pattern, .. } => PatternTarget::Binding {
-                symbol: self.check.declaration_symbol(tree.module_id, id.into_any()),
+                symbol: self
+                    .check
+                    .module(tree.module_id)
+                    .declaration_symbol(id.into_any()),
                 pattern: pattern.and_then(|pattern| self.lower_pattern_term(module, pattern, tree)),
             },
             // value
             dir::Pattern::Expression { value } => PatternTarget::Expression {
-                value: self.check.require_local_node_type(module, *value),
+                value: self.allocate_node_type_operand(*value),
             },
             // start..end
             dir::Pattern::Range {
@@ -313,13 +316,13 @@ impl WalkState<'_, '_> {
                 end,
                 end_kind,
             } => PatternTarget::Range {
-                start: start.map(|start| self.check.require_local_node_type(module, start)),
-                end: end.map(|end| self.check.require_local_node_type(module, end)),
+                start: start.map(|start| self.allocate_node_type_operand(start)),
+                end: end.map(|end| self.allocate_node_type_operand(end)),
                 end_kind: *end_kind,
             },
             // value is T
             dir::Pattern::TypeExpression { value } => PatternTarget::Type {
-                ty: self.check.require_local_node_type(module, *value),
+                ty: self.allocate_node_type_operand(*value),
             },
             // [a, b]
             dir::Pattern::Tuple { fields } => PatternTarget::Tuple {
@@ -330,7 +333,7 @@ impl WalkState<'_, '_> {
             },
             // T(a, b)
             dir::Pattern::Newtype { ty, fields } => PatternTarget::Newtype {
-                ty: self.check.require_local_node_type(module, *ty),
+                ty: self.allocate_node_type_operand(*ty),
                 fields: fields
                     .iter()
                     .filter_map(|field| self.lower_pattern_field_term(module, *field, tree))
@@ -352,7 +355,7 @@ impl WalkState<'_, '_> {
             },
             // T { name }
             dir::Pattern::NominalObject { ty, fields } => PatternTarget::NominalObject {
-                ty: self.check.require_local_node_type(module, *ty),
+                ty: self.allocate_node_type_operand(*ty),
                 fields: fields
                     .iter()
                     .filter_map(|field| self.lower_pattern_field_term(module, *field, tree))
@@ -369,7 +372,10 @@ impl WalkState<'_, '_> {
 
         // immediately decide patterns when possible
         let source = id.into_global_any(module);
-        let term = self.check.push_term(PatternTerm::node(source, term));
+        let term = self
+            .check
+            .inference
+            .push_term(PatternTerm::node(source, term));
         if let Some(target) = self.lower_pattern_resolution(module, id, tree) {
             let selection = PatternResolution { source, target };
 
@@ -397,7 +403,10 @@ impl WalkState<'_, '_> {
             dir::Pattern::Wildcard => Some(PatternTargetResolution::Wildcard),
             // name, name: pattern
             dir::Pattern::Binding { pattern, .. } => {
-                let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
+                let symbol = self
+                    .check
+                    .module(tree.module_id)
+                    .declaration_symbol(id.into_any());
                 let pattern = pattern.map(|pattern| pattern.into_global_any(module));
 
                 Some(PatternTargetResolution::Binding(PatternBindingResolution {
@@ -573,11 +582,8 @@ impl WalkState<'_, '_> {
                 let pattern =
                     pattern.and_then(|pattern| self.lower_pattern_term(module, pattern, tree));
                 let value = pattern.map(|_| {
-                    self.check.allocate_variable(
-                        module,
-                        VariableKind::Type,
-                        Origin::Node(id.into_global_any(module)),
-                    )
+                    self.check
+                        .create_type_variable(module, Origin::Node(id.into_global_any(module)))
                 });
 
                 PatternField::Named {
@@ -588,7 +594,7 @@ impl WalkState<'_, '_> {
             }
             // { [key]: pattern }
             dir::PatternField::Computed { key, pattern } => PatternField::Computed {
-                key: self.check.require_local_node_type(module, *key),
+                key: self.allocate_node_type_operand(*key),
                 pattern: self.lower_pattern_term(module, *pattern, tree)?,
             },
             // [pattern]
@@ -626,7 +632,7 @@ impl WalkState<'_, '_> {
             // target = value
             dir::AssignPattern::Assign { pattern, value } => AssignPatternTerm::Assign {
                 pattern: self.lower_assign_pattern_term(module, *pattern, tree)?,
-                value: self.check.require_local_node_type(module, *value),
+                value: self.allocate_node_type_operand(*value),
             },
             // [a, b]
             dir::AssignPattern::Sequence { fields } => AssignPatternTerm::Sequence {
@@ -644,7 +650,7 @@ impl WalkState<'_, '_> {
             },
         };
 
-        Some(self.check.push_term(term))
+        Some(self.check.inference.push_term(term))
     }
 
     /// Return one assignment pattern field term from syntax.
@@ -665,11 +671,8 @@ impl WalkState<'_, '_> {
                 let pattern = pattern
                     .and_then(|pattern| self.lower_assign_pattern_term(module, pattern, tree));
                 let value = pattern.map(|_| {
-                    self.check.allocate_variable(
-                        module,
-                        VariableKind::Type,
-                        Origin::Node(id.into_global_any(module)),
-                    )
+                    self.check
+                        .create_type_variable(module, Origin::Node(id.into_global_any(module)))
                 });
 
                 AssignPatternField::Named {
@@ -680,7 +683,7 @@ impl WalkState<'_, '_> {
             }
             // { [key]: pattern }
             dir::AssignPatternField::Computed { key, pattern } => AssignPatternField::Computed {
-                key: self.check.require_local_node_type(module, *key),
+                key: self.allocate_node_type_operand(*key),
                 pattern: self.lower_assign_pattern_term(module, *pattern, tree)?,
             },
             // [pattern]

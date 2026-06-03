@@ -35,7 +35,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
     ) {
         // mark direct declaration symbol first
-        if let Some(symbol) = self.check.declaration_symbol(tree.module_id, source) {
+        if let Some(symbol) = self.check.module(tree.module_id).declaration_symbol(source) {
             self.flow_mut().mark_assigned(symbol);
         }
 

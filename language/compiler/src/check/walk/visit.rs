@@ -1,7 +1,7 @@
-use destack_source::ModuleId;
 use std::sync::Arc;
 
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::check::{CheckState, WalkState};
 
@@ -88,16 +88,18 @@ impl WalkState<'_, '_> {
             | dir::Declaration::Enum(_)
             | dir::Declaration::Interface(_)
             | dir::Declaration::Function(_) => {
-                let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any())
+                let Some(symbol) = self
+                    .check
+                    .module(tree.module_id)
+                    .declaration_symbol(id.into_any())
                 else {
                     return;
                 };
-                if self.check.operands.symbol_types.contains_key(&symbol) {
+                if self.check.inputs.symbol_type(symbol).is_some() {
                     return;
                 }
 
-                self.check
-                    .reserve_symbol_type_if_missing(tree.module_id, symbol);
+                self.allocate_symbol_type_variable(symbol);
             }
         }
     }

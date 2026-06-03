@@ -1,6 +1,6 @@
 use crate::check::{
-    Condition, ConditionPredicate, Origin, ReceiverCapture, StaticIfCondition, StaticOperand,
-    StaticTerm, VariableId, VariableKind, WalkState,
+    Condition, ConditionPredicate, NameLookup, Origin, ReceiverCapture, StaticIfCondition,
+    StaticOperand, StaticTerm, VariableId, WalkState,
 };
 use crate::common::dir::r#static::{StaticContext, StaticFailure};
 use destack_dir as dir;
@@ -84,9 +84,10 @@ impl WalkState<'_, '_> {
         let condition = self.active_static_guard().and(owner_condition.clone());
 
         // store symbol availability after combining guards
-        if let Some(symbol) = self.check.declaration_symbol(tree.module_id, owner) {
+        if let Some(symbol) = self.check.module(tree.module_id).declaration_symbol(owner) {
             self.check
-                .availability_mut(tree.module_id)
+                .module_mut(tree.module_id)
+                .availability
                 .insert(symbol, condition.clone());
         }
 
@@ -138,11 +139,8 @@ impl WalkState<'_, '_> {
                 }
                 Err(StaticFailure::NotStatic(expression)) => {
                     let condition_guard = this.active_static_guard();
-                    let variable = this.check.reserve_static_expression(
-                        tree.module_id,
-                        condition,
-                        condition_guard,
-                    );
+                    let variable =
+                        this.allocate_static_expression_variable(condition, condition_guard);
 
                     // walk static guard leaves without runtime condition constraints
                     this.walk_static_expression(tree, expression);
@@ -196,7 +194,7 @@ impl WalkState<'_, '_> {
             dir::Expression::This => {
                 let source = expression.into_global_any(tree.module_id);
                 if let Some(term) = self.lower_this_receiver_type_term(source) {
-                    self.publish_node_type(tree.module_id, expression, term);
+                    self.bind_node_type(expression, term);
                 }
             }
             // this.X
@@ -264,13 +262,13 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Lower one static expression operand without committing a checked node operand.
+    /// Walk one static expression and return its operand.
     ///
     /// Example:
     /// ```ds
     /// <Size + 1>
     /// ```
-    pub(in crate::check) fn lower_static_expression_operand(
+    pub(in crate::check) fn walk_static_expression_operand(
         &mut self,
         tree: &dir::Tree,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -285,7 +283,7 @@ impl WalkState<'_, '_> {
         let condition = self.active_static_guard();
         let variable =
             self.check
-                .allocate_static_expression_variable(tree.module_id, expression, condition);
+                .create_static_expression_variable(tree.module_id, expression, condition);
 
         variable.into()
     }
@@ -304,9 +302,7 @@ impl WalkState<'_, '_> {
         let module = tree.module_id;
         let source = id.into_global_any(module);
         let origin = Origin::Node(source);
-        let variable = self
-            .check
-            .allocate_variable(module, VariableKind::Static, origin);
+        let variable = self.check.create_static_variable(module, origin);
 
         if let Some(operand) = self.lower_direct_static_argument_operand(id, tree) {
             let condition = self.active_static_guard();
@@ -384,11 +380,11 @@ impl WalkState<'_, '_> {
                 name,
                 generic_arguments,
             } => {
-                let arguments = self.lower_generic_arguments(None, generic_arguments, tree);
+                let arguments = self.walk_generic_arguments(None, generic_arguments, tree);
 
                 StaticTerm::Member {
                     source: id.into_global_any(tree.module_id),
-                    owner: self.check.require_local_node_type(tree.module_id, *left),
+                    owner: self.allocate_node_type_operand(*left),
                     key: dir::StaticKey::Name(*name),
                     arguments: arguments.into_vec(),
                 }
@@ -397,7 +393,7 @@ impl WalkState<'_, '_> {
             _ => return None,
         };
 
-        Some(self.check.push_term(term).into())
+        Some(self.check.inference.push_term(term).into())
     }
 
     /// Lower one static reference argument operand.
@@ -417,9 +413,9 @@ impl WalkState<'_, '_> {
             return None;
         };
 
-        // ensure bare static parameter
+        // bind bare static parameter
         let term = if generic_arguments.is_empty()
-            && let Some(operand) = self.ensure_static_parameter_argument_operand(id, *name, tree)
+            && let Some(operand) = self.static_parameter_argument_operand(id, *name, tree)
         {
             operand
         }
@@ -427,7 +423,7 @@ impl WalkState<'_, '_> {
         else if let Some(term) =
             self.lower_static_intrinsic_argument_term(id, *name, generic_arguments, tree)
         {
-            self.check.push_term(term).into()
+            self.check.inference.push_term(term).into()
         }
         // not a static reference argument
         else {
@@ -437,36 +433,46 @@ impl WalkState<'_, '_> {
         Some(term)
     }
 
-    /// Ensure one static parameter argument operand.
+    /// Return one static parameter argument operand.
     ///
     /// Example:
     /// ```ds
     /// <Size>
     /// ```
-    fn ensure_static_parameter_argument_operand(
+    fn static_parameter_argument_operand(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         name: dir::StringId,
         tree: &dir::Tree,
     ) -> Option<StaticOperand> {
         let guard = self.active_static_guard();
-        let symbol = self
+        let lookup = self
             .check
             .lookup_name_by_name(tree.module_id, id.into_any(), name, dir::SymbolSpace::Value)
-            .available_under(&guard)
-            .unique_symbol()?;
+            .available_under(&guard);
+        let symbol = match lookup {
+            NameLookup::Found(candidate) => candidate.symbol()?,
+            NameLookup::Missing => return None,
+            NameLookup::Ambiguous(_) => {
+                let path = dir::Path {
+                    segments: smallvec::smallvec![name],
+                };
 
-        if self.check.symbol_kind(tree.module_id, symbol)
-            != Some(dir::SymbolKind::GenericValueParameter)
-        {
+                self.check
+                    .report_ambiguous_reference(tree.module_id, id.into_any(), &path);
+
+                return None;
+            }
+        };
+
+        if self.check.symbol_kind(symbol) != dir::SymbolKind::GenericValueParameter {
             return None;
         }
 
-        let variable = self
-            .check
-            .ensure_symbol_static_variable(tree.module_id, symbol);
-
-        Some(variable.into())
+        Some(
+            self.check
+                .import_symbol_static_operand(tree.module_id, symbol),
+        )
     }
 
     /// Lower one static intrinsic argument term.
@@ -483,18 +489,31 @@ impl WalkState<'_, '_> {
         tree: &dir::Tree,
     ) -> Option<StaticTerm> {
         let guard = self.active_static_guard();
-        let symbol = self
+        let lookup = self
             .check
             .lookup_name_by_name(tree.module_id, id.into_any(), name, dir::SymbolSpace::Type)
-            .available_under(&guard)
-            .unique_symbol()?;
+            .available_under(&guard);
+        let symbol = match lookup {
+            NameLookup::Found(candidate) => candidate.symbol()?,
+            NameLookup::Missing => return None,
+            NameLookup::Ambiguous(_) => {
+                let path = dir::Path {
+                    segments: smallvec::smallvec![name],
+                };
+
+                self.check
+                    .report_ambiguous_reference(tree.module_id, id.into_any(), &path);
+
+                return None;
+            }
+        };
         let item = self.check.environment.language.item(symbol)?;
 
         if !Self::is_memory_static_intrinsic(item) {
             return None;
         }
 
-        let arguments = self.lower_generic_arguments(Some(symbol), generic_arguments, tree);
+        let arguments = self.walk_generic_arguments(Some(symbol), generic_arguments, tree);
 
         Some(StaticTerm::Intrinsic {
             item,
