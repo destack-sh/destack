@@ -12,13 +12,21 @@ build:
     bun x vinxi build
     bun scripts/postbuild.mjs
 
-# regenerate generated files
+# format source
 format:
+    @echo "No site formatter defined"
+
+# check source formatting
+format-check:
+    @echo "No site formatter defined"
+
+# regenerate generated files
+generate:
     bun scripts/generate-snippets.mjs
     bun scripts/generate-posts.mjs
 
 # check generated files
-format-check:
+generate-check:
     bun scripts/generate-snippets.mjs --check
     bun scripts/generate-posts.mjs --check
 
@@ -41,7 +49,7 @@ check:
 
 # normal check
 check-quick:
-    just format-check
+    just generate-check
     just lint
 
 # check with slow suites
