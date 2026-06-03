@@ -647,6 +647,7 @@ fn evaluate_terminal_boolean_type_query(
             | dir::Type::Reference(_)
             | dir::Type::Member(_)
             | dir::Type::This
+            | dir::Type::Intrinsic
             | dir::Type::Union(_)
             | dir::Type::Intersection(_)
             | dir::Type::Form(_)
@@ -1416,6 +1417,7 @@ fn type_truthiness_inner(
             | dir::Type::Function(_) => TypeTruthiness::AlwaysTruthy,
             dir::Type::Parameter(_)
             | dir::Type::This
+            | dir::Type::Intrinsic
             | dir::Type::Dynamic(_)
             | dir::Type::Range(_)
             | dir::Type::Error => TypeTruthiness::Unknown,
@@ -1481,6 +1483,7 @@ fn type_nullishness_inner(
             | dir::Type::Function(_) => TypeNullishness::Never,
             dir::Type::Parameter(_)
             | dir::Type::This
+            | dir::Type::Intrinsic
             | dir::Type::Dynamic(_)
             | dir::Type::Operation(_)
             | dir::Type::Error => TypeNullishness::Maybe,
