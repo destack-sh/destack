@@ -5,12 +5,8 @@ use destack_source::FileType;
 use destack_workspace::Ref;
 
 use crate::{
-    FileChange, FileSystemSource, FileUpdate, FileUpdateKind, RepositorySource,
-    RepositorySourceFilter, Session, SessionError,
+    FileChange, FileSystemSource, FileUpdate, FileUpdateKind, Session, SessionError, Source,
 };
-
-/// Directory names excluded by filesystem reload scans.
-pub(crate) const RELOAD_EXCLUDED_DIRECTORY_NAMES: &[&str] = &[".git", "target"];
 
 /// Return true when filesystem reload should track one path.
 pub(crate) fn is_reload_path(path: &Path) -> bool {
@@ -33,12 +29,9 @@ impl Session {
         let before = self.revision(reference)?;
 
         // collect filesystem source truth
-        let mut source = FileSystemSource::new(repository.as_ref(), self.root())
-            .with_excluded_directory_names(RELOAD_EXCLUDED_DIRECTORY_NAMES)
-            .with_include_path(is_reload_path);
-
-        // apply repository source changes
-        let change = source.poll(repository.as_ref(), before, RepositorySourceFilter::All)?;
+        let mut source = FileSystemSource::new(repository.as_ref(), self.root());
+        let snapshot = source.snapshot()?;
+        let change = snapshot.change(repository.as_ref(), before)?;
         let file_ids = change.file_ids().to_vec();
         let before_pin = repository.pin(before)?;
         let revision = repository.commit_change(before, change)?;
