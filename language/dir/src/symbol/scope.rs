@@ -126,9 +126,10 @@ impl Scope {
 }
 
 /// A compact name index for one lexical scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub enum ScopeIndex {
     /// No named bindings.
+    #[default]
     Empty,
     /// A small inline table for common tiny scopes.
     Small {
@@ -140,12 +141,6 @@ pub enum ScopeIndex {
         /// Binding indices grouped by key.
         table: Box<IndexMap<StaticKey, SmallVec<[u32; 1]>>>,
     },
-}
-
-impl Default for ScopeIndex {
-    fn default() -> Self {
-        Self::Empty
-    }
 }
 
 impl ScopeIndex {

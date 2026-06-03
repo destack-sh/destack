@@ -181,6 +181,15 @@ impl SymbolKind {
         matches!(self, Self::Interface | Self::NewtypeInterface)
     }
 
+    /// Check whether this kind declares a nominal type.
+    #[inline]
+    pub fn is_nominal(self) -> bool {
+        matches!(
+            self,
+            Self::Class | Self::Enum | Self::Newtype | Self::NewtypeInterface | Self::Struct
+        )
+    }
+
     /// Check whether this kind satisfies one requested kind.
     pub fn matches_kind(self, kind: SymbolKind) -> bool {
         if kind == Self::Interface {
