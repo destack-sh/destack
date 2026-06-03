@@ -12,8 +12,8 @@ impl<'a> FunctionBuilder<'a> {
     /// Extract a field from a struct or tuple.
     pub fn field_get(&mut self, aggregate: Value, index: u32) -> Value {
         let destination = self.allocate_value();
-        let aggregate_type = self.value_type_or_panic(aggregate, "field.get aggregate");
-        let field_type = self.field_type_for_aggregate(aggregate_type, index);
+        let aggregate_type = self.expect_value_type(aggregate, "field.get aggregate");
+        let field_type = self.expect_build(self.field_type_for_aggregate(aggregate_type, index));
         self.insert_instruction(Instruction::FieldGet {
             destination: destination.into(),
             aggregate: aggregate.into(),
@@ -49,7 +49,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a value into a struct or tuple field.
     pub fn field_set(&mut self, aggregate: Value, index: u32, value: Value) -> Value {
         let destination = self.allocate_value();
-        let aggregate_type = self.value_type_or_panic(aggregate, "field.set aggregate");
+        let aggregate_type = self.expect_value_type(aggregate, "field.set aggregate");
         self.insert_instruction(Instruction::FieldSet {
             destination: destination.into(),
             aggregate: aggregate.into(),
@@ -63,8 +63,8 @@ impl<'a> FunctionBuilder<'a> {
     /// Extract an element from an array.
     pub fn element_get(&mut self, array: Value, index: u32) -> Value {
         let destination = self.allocate_value();
-        let array_type = self.value_type_or_panic(array, "element.get array");
-        let element_type = self.element_type_for_array(array_type);
+        let array_type = self.expect_value_type(array, "element.get array");
+        let element_type = self.expect_build(self.element_type_for_array(array_type));
         self.insert_instruction(Instruction::ElementGet {
             destination: destination.into(),
             array: array.into(),
@@ -130,7 +130,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a value into an array element.
     pub fn element_set(&mut self, array: Value, index: u32, value: Value) -> Value {
         let destination = self.allocate_value();
-        let array_type = self.value_type_or_panic(array, "element.set array");
+        let array_type = self.expect_value_type(array, "element.set array");
         self.insert_instruction(Instruction::ElementSet {
             destination: destination.into(),
             array: array.into(),
@@ -214,8 +214,8 @@ impl<'a> FunctionBuilder<'a> {
     /// Extract a lane from a vector.
     pub fn vector_extract(&mut self, vector: Value, index: Value) -> Value {
         let destination = self.allocate_value();
-        let vector_type = self.value_type_or_panic(vector, "vector.extract vector");
-        let element_type = self.element_type_for_vector(vector_type);
+        let vector_type = self.expect_value_type(vector, "vector.extract vector");
+        let element_type = self.expect_build(self.element_type_for_vector(vector_type));
         self.insert_instruction(Instruction::VectorExtract {
             destination: destination.into(),
             vector: vector.into(),
@@ -228,7 +228,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a lane into a vector.
     pub fn vector_insert(&mut self, vector: Value, index: Value, value: Value) -> Value {
         let destination = self.allocate_value();
-        let vector_type = self.value_type_or_panic(vector, "vector.insert vector");
+        let vector_type = self.expect_value_type(vector, "vector.insert vector");
         self.insert_instruction(Instruction::VectorInsert {
             destination: destination.into(),
             vector: vector.into(),
@@ -261,7 +261,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Select vector lanes based on a boolean mask.
     pub fn vector_select(&mut self, mask: Value, then_value: Value, else_value: Value) -> Value {
         let destination = self.allocate_value();
-        let vector_type = self.value_type_or_panic(then_value, "vector.select then_value");
+        let vector_type = self.expect_value_type(then_value, "vector.select then_value");
         self.insert_instruction(Instruction::VectorSelect {
             destination: destination.into(),
             mask: mask.into(),
@@ -275,8 +275,8 @@ impl<'a> FunctionBuilder<'a> {
     /// Reduce a vector to a scalar.
     pub fn vector_reduce(&mut self, operator: VectorReduceOperator, vector: Value) -> Value {
         let destination = self.allocate_value();
-        let vector_type = self.value_type_or_panic(vector, "vector.reduce vector");
-        let element_type = self.element_type_for_vector(vector_type);
+        let vector_type = self.expect_value_type(vector, "vector.reduce vector");
+        let element_type = self.expect_build(self.element_type_for_vector(vector_type));
         self.insert_instruction(Instruction::VectorReduce {
             destination: destination.into(),
             operator,
@@ -338,7 +338,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Select tensor elements based on a boolean mask.
     pub fn tensor_select(&mut self, mask: Value, then_value: Value, else_value: Value) -> Value {
         let destination = self.allocate_value();
-        let tensor_type = self.value_type_or_panic(then_value, "tensor.select then_value");
+        let tensor_type = self.expect_value_type(then_value, "tensor.select then_value");
         self.insert_instruction(Instruction::TensorSelect {
             destination: destination.into(),
             mask: mask.into(),
@@ -352,8 +352,8 @@ impl<'a> FunctionBuilder<'a> {
     /// Load a tensor element from a tensor reference.
     pub fn tensor_load(&mut self, view: Value, indices: Vec<Value>) -> Value {
         let destination = self.allocate_value();
-        let view_type = self.value_type_or_panic(view, "tensor.load view");
-        let element_type = self.element_type_for_tensor_view(view_type);
+        let view_type = self.expect_value_type(view, "tensor.load view");
+        let element_type = self.expect_build(self.element_type_for_tensor_view(view_type));
         let indices = indices
             .into_iter()
             .map(ValueReference::from)
@@ -371,8 +371,8 @@ impl<'a> FunctionBuilder<'a> {
     /// Extract a tensor element from a tensor value.
     pub fn tensor_extract(&mut self, tensor: Value, indices: Vec<Value>) -> Value {
         let destination = self.allocate_value();
-        let tensor_type = self.value_type_or_panic(tensor, "tensor.extract tensor");
-        let element_type = self.element_type_for_tensor(tensor_type);
+        let tensor_type = self.expect_value_type(tensor, "tensor.extract tensor");
+        let element_type = self.expect_build(self.element_type_for_tensor(tensor_type));
         let indices = indices
             .into_iter()
             .map(ValueReference::from)
@@ -494,9 +494,9 @@ impl<'a> FunctionBuilder<'a> {
         strides: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
-        let offsets_count = self.to_u16_count(offsets.len(), "offsets count");
-        let sizes_count = self.to_u16_count(sizes.len(), "sizes count");
-        let strides_count = self.to_u16_count(strides.len(), "strides count");
+        let offsets_count = self.expect_build(self.to_u16_count(offsets.len(), "offsets count"));
+        let sizes_count = self.expect_build(self.to_u16_count(sizes.len(), "sizes count"));
+        let strides_count = self.expect_build(self.to_u16_count(strides.len(), "strides count"));
         let mut values = Vec::with_capacity(offsets.len() + sizes.len() + strides.len());
         values.extend_from_slice(&offsets);
         values.extend_from_slice(&sizes);
@@ -528,9 +528,9 @@ impl<'a> FunctionBuilder<'a> {
         strides: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
-        let offsets_count = self.to_u16_count(offsets.len(), "offsets count");
-        let sizes_count = self.to_u16_count(sizes.len(), "sizes count");
-        let strides_count = self.to_u16_count(strides.len(), "strides count");
+        let offsets_count = self.expect_build(self.to_u16_count(offsets.len(), "offsets count"));
+        let sizes_count = self.expect_build(self.to_u16_count(sizes.len(), "sizes count"));
+        let strides_count = self.expect_build(self.to_u16_count(strides.len(), "strides count"));
         let mut values = Vec::with_capacity(offsets.len() + sizes.len() + strides.len());
         values.extend_from_slice(&offsets);
         values.extend_from_slice(&sizes);
@@ -563,9 +563,10 @@ impl<'a> FunctionBuilder<'a> {
         interior: Vec<Value>,
     ) -> Value {
         let destination = self.allocate_value();
-        let low_count = self.to_u16_count(low.len(), "low padding count");
-        let high_count = self.to_u16_count(high.len(), "high padding count");
-        let interior_count = self.to_u16_count(interior.len(), "interior padding count");
+        let low_count = self.expect_build(self.to_u16_count(low.len(), "low padding count"));
+        let high_count = self.expect_build(self.to_u16_count(high.len(), "high padding count"));
+        let interior_count =
+            self.expect_build(self.to_u16_count(interior.len(), "interior padding count"));
         let mut values = Vec::with_capacity(low.len() + high.len() + interior.len());
         values.extend_from_slice(&low);
         values.extend_from_slice(&high);

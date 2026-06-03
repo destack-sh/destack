@@ -1,4 +1,4 @@
-use crate::build::{FunctionBuilder, Variable};
+use crate::build::{BuildError, FunctionBuilder, Variable};
 use crate::{
     Block, BlockReference, LocalNodeId, Parameter, Terminator, Type, Value, ValueReference,
 };
@@ -34,14 +34,18 @@ impl<'a> FunctionBuilder<'a> {
     ///
     /// Panics if no current block is set.
     pub fn current_block(&self) -> LocalNodeId<Block> {
-        self.current_block.expect("no current block set")
+        self.current_block
+            .unwrap_or_else(|| self.expect_build(Err(BuildError::MissingCurrentBlock)))
     }
 
     /// Get a function parameter value.
     pub fn function_parameter(&self, index: usize) -> Value {
         let function = self.tree.get(self.function_id);
-        let ValueReference::Value(value) = function.parameters[index].value else {
-            panic!("missing concrete function parameter value");
+        let Some(parameter) = function.parameters.get(index) else {
+            return self.expect_build(Err(BuildError::MissingConcreteFunctionParameter { index }));
+        };
+        let ValueReference::Value(value) = parameter.value else {
+            return self.expect_build(Err(BuildError::MissingConcreteFunctionParameter { index }));
         };
         value
     }
@@ -122,7 +126,9 @@ impl<'a> FunctionBuilder<'a> {
         let value = if !self.sealed_blocks.contains(&block) {
             // block not sealed yet: create an incomplete phi (block parameter)
             // (that will be resolved when the block is sealed)
-            let ty = self.variable_types[&variable];
+            let Some(&ty) = self.variable_types.get(&variable) else {
+                return self.expect_build(Err(BuildError::MissingVariableType { variable }));
+            };
             let phi_value = self.add_block_parameter(block, ty);
             self.incomplete_phis
                 .entry(block)
@@ -133,17 +139,15 @@ impl<'a> FunctionBuilder<'a> {
             let predecessors = self.predecessors.get(&block).cloned().unwrap_or_default();
 
             if predecessors.is_empty() {
-                // no predecessors: compiler bug! (all variables should be defined before use)
-                panic!(
-                    "use of undefined variable {variable} in block {block:?} with no predecessors \
-                     (this indicates a bug in the frontend - all variables must be defined before use)",
-                );
+                self.expect_build(Err(BuildError::UndefinedVariable { variable, block }))
             } else if predecessors.len() == 1 {
                 // single predecessor: no phi needed, just recurse
                 self.read_variable(variable, predecessors[0])
             } else {
                 // multiple predecessors: may need a phi (block parameter)
-                let ty = self.variable_types[&variable];
+                let Some(&ty) = self.variable_types.get(&variable) else {
+                    return self.expect_build(Err(BuildError::MissingVariableType { variable }));
+                };
                 let phi_value = self.add_block_parameter(block, ty);
 
                 // record the definition BEFORE recursing to break cycles
@@ -314,11 +318,11 @@ impl<'a> FunctionBuilder<'a> {
                     target.arguments.push(value.into());
                 }
             }
-            other => {
-                panic!(
-                    "missing phi predecessor edge from block {from_block:?} to block {to_block:?} \
-                     for terminator {other:?}",
-                );
+            _ => {
+                self.expect_build::<()>(Err(BuildError::MissingPhiPredecessorEdge {
+                    from: from_block,
+                    to: to_block,
+                }));
             }
         }
     }

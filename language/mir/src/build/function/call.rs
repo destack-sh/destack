@@ -1,4 +1,4 @@
-use crate::build::FunctionBuilder;
+use crate::build::{BuildError, FunctionBuilder};
 use crate::{
     Call, CallSite, DispatchSlot, Function, FunctionReference, Instruction, LocalNodeId, Type,
     TypeReference, Value, ValueReference,
@@ -25,6 +25,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Option<Value> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
+        let result_type = self.expect_build(result_type);
         let arguments = self.add_call_arguments(argument_values);
         self.insert_instruction(Instruction::Call {
             destination: Some(destination.into()),
@@ -62,6 +63,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Option<Value> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
+        let result_type = self.expect_build(result_type);
         let arguments = self.add_call_arguments(argument_values);
         let instruction = self.insert_instruction(Instruction::CallVirtual {
             destination: Some(destination.into()),
@@ -119,6 +121,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Option<Value> {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
+        let result_type = self.expect_build(result_type);
         let arguments = self.add_call_arguments(argument_values);
         self.insert_instruction(Instruction::CallDynamic {
             destination: Some(destination.into()),
@@ -185,17 +188,23 @@ impl<'a> FunctionBuilder<'a> {
     /// Load the hidden environment pointer for the current function.
     pub fn closure_environment(&mut self, environment_type: LocalNodeId<Type>) -> Value {
         // record the hidden environment type on the function metadata
-        {
+        let existing_environment = {
+            let requested_environment = TypeReference::from(environment_type);
             let function = self.tree.get_mut(self.function_id);
             match &function.environment {
-                Some(existing) if existing != &environment_type.into() => {
-                    panic!("mismatched environment types for closure.environment");
-                }
-                Some(_) => {}
+                Some(existing) if existing != &requested_environment => Some(existing.clone()),
+                Some(_) => None,
                 None => {
-                    function.environment = Some(environment_type.into());
+                    function.environment = Some(requested_environment);
+                    None
                 }
             }
+        };
+        if let Some(existing) = existing_environment {
+            self.expect_build::<()>(Err(BuildError::MismatchedClosureEnvironment {
+                existing,
+                requested: environment_type,
+            }));
         }
 
         let destination = self.allocate_value();
@@ -215,6 +224,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Value {
         let destination = self.allocate_value();
         let result_type = self.signature_result_type(signature);
+        let result_type = self.expect_build(result_type);
         let arguments = self.add_call_arguments(args);
         self.insert_instruction(Instruction::CallIndirect {
             destination: Some(destination.into()),
