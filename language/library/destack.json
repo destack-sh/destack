@@ -2,6 +2,14 @@
   "name": "destack",
   "private": true,
   "description": "Destack standard library.",
+  "targets": {
+    "default": {
+      "include": [
+        "src/**/*.ds"
+      ]
+    }
+  },
+  "defaultTarget": "default",
   "exports": {
     ".": {
       "path": "./src/index.ds"
