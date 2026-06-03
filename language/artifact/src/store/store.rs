@@ -1,16 +1,19 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use destack_core::StringPool;
 use destack_source::DiagnosticCollection;
+use serde::Serialize;
 
 use super::entry::{ArtifactEntry, ArtifactOutcome, ArtifactSidecar};
 use super::pin::ArtifactPin;
+use super::record::ArtifactRecord;
 use crate::{
-    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion, Data,
-    DependencyIndex, DirBound, DirChecked, DirCheckedComponent, DirElaborated, DirExpanded,
-    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, GlobalEnvironment,
-    MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput, ModuleQueryIndex,
-    PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
+    ArtifactDependency, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactPayloadRef,
+    ArtifactVersion, Data, DependencyIndex, DirBound, DirChecked, DirCheckedComponent,
+    DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
+    GlobalEnvironment, MirLowered, MirOptimized, MirVerified, ModuleLinted, ModuleOutput,
+    ModuleQueryIndex, PackageLinted, PackageOutput, WorkspaceLinted, WorkspaceQueryIndex,
 };
 
 /// One versioned artifact family map.
@@ -189,6 +192,352 @@ impl ArtifactStore {
             ArtifactKey::PackageLinted { .. } => self.package_linted.contains_key(version),
             ArtifactKey::WorkspaceLinted => self.workspace_linted.contains_key(version),
         }
+    }
+
+    /// Return one self-contained artifact record.
+    pub fn record(
+        &self,
+        version: &ArtifactVersion,
+        strings: &StringPool,
+    ) -> Result<Option<ArtifactRecord>, crate::ArtifactImageError> {
+        let Some(dependencies) = self.dependencies(version) else {
+            return Ok(None);
+        };
+        let Some(diagnostics) = self.diagnostics(version) else {
+            return Ok(None);
+        };
+        let Some(sidecars) = self.sidecars(version) else {
+            return Ok(None);
+        };
+
+        match &version.key {
+            ArtifactKey::GlobalEnvironment { .. } => self
+                .global_environment(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::GlobalEnvironment(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DependencyIndex { .. } => self
+                .dependency_index(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DependencyIndex(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirParsed { .. } => self
+                .dir_parsed(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirParsed(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::Data { .. } => self
+                .data(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::Data(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirBound { .. } => self
+                .dir_bound(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirBound(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirImported { .. } => self
+                .dir_imported(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirImported(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirExpanded { .. } => self
+                .dir_expanded(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirExpanded(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirExported { .. } => self
+                .dir_exported(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirExported(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirResolved { .. } => self
+                .dir_resolved(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirResolved(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirCheckedComponent { .. } => self
+                .dir_checked_component(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirCheckedComponent(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirChecked { .. } => self
+                .dir_checked(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirChecked(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirMaterialized { .. } => self
+                .dir_materialized(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirMaterialized(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::DirElaborated { .. } => self
+                .dir_elaborated(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::DirElaborated(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::MirLowered { .. } => self
+                .mir_lowered(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::MirLowered(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::MirVerified { .. } => self
+                .mir_verified(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::MirVerified(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::MirOptimized { .. } => self
+                .mir_optimized(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::MirOptimized(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::ModuleQueryIndex { .. } => self
+                .module_query_index(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::ModuleQueryIndex(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::WorkspaceQueryIndex { .. } => self
+                .workspace_query_index(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::WorkspaceQueryIndex(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::ModuleOutput { .. } => self
+                .module_output(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::ModuleOutput(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::PackageOutput { .. } => self
+                .package_output(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::PackageOutput(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::ModuleLinted { .. } => self
+                .module_linted(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::ModuleLinted(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::PackageLinted { .. } => self
+                .package_linted(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::PackageLinted(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+            ArtifactKey::WorkspaceLinted => self
+                .workspace_linted(version)
+                .map(|payload| {
+                    Self::record_from_payload(
+                        version,
+                        ArtifactPayloadRef::WorkspaceLinted(payload.as_ref()),
+                        strings,
+                        &dependencies,
+                        &diagnostics,
+                        &sidecars,
+                    )
+                })
+                .transpose(),
+        }
+    }
+
+    /// Build one artifact record from a borrowed payload.
+    fn record_from_payload<T>(
+        version: &ArtifactVersion,
+        payload: T,
+        strings: &StringPool,
+        dependencies: &Arc<[ArtifactDependency]>,
+        diagnostics: &Arc<DiagnosticCollection>,
+        sidecars: &Arc<[ArtifactSidecar]>,
+    ) -> Result<ArtifactRecord, crate::ArtifactImageError>
+    where
+        T: Serialize,
+    {
+        let dependencies = dependencies.iter().cloned().collect();
+        let diagnostics = diagnostics.as_ref().clone();
+        let sidecars = sidecars.iter().cloned().collect();
+        let record = ArtifactRecord::new(
+            *version,
+            payload,
+            strings.clone(),
+            dependencies,
+            diagnostics,
+            sidecars,
+        )?;
+
+        Ok(record)
     }
 
     /// Insert one typed artifact payload into its family map.

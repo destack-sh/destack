@@ -1,8 +1,8 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use std::collections::BTreeMap;
-
 use destack_source::{DiagnosticCollection, FileContent};
+use serde::{Deserialize, Serialize};
 
 use crate::{ArtifactDependency, ArtifactFailure};
 
@@ -51,7 +51,7 @@ impl ArtifactEntry {
 }
 
 /// One named artifact sidecar.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArtifactSidecar {
     /// The sidecar name.
     pub name: String,
