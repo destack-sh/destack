@@ -48,11 +48,6 @@ path = "src/query/main.rs"
 harness = false
 
 [[test]]
-name = "lsp"
-path = "src/lsp/main.rs"
-harness = false
-
-[[test]]
 name = "conformance-ecma"
 path = "src/conformance/bin/ecma.rs"
 harness = false
@@ -74,9 +69,6 @@ destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
 destack_heap = { workspace = true }
 destack_linter = { workspace = true }
-destack_lsp = { workspace = true, features = ["test"] }
-destack_lsp_server = { workspace = true }
-destack_lsp_types = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }

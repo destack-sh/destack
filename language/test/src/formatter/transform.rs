@@ -152,8 +152,8 @@ fn normalize_output(s: &str) -> String {
 /// Format a list of expressions.
 fn format_expressions(
     parser: &Parser,
-    tokens: &Vec<TokenSpan>,
-    side_tokens: &Vec<TokenSpan>,
+    tokens: &[TokenSpan],
+    side_tokens: &[TokenSpan],
     expressions: &[destack_dir::LocalNodeId<destack_dir::Expression>],
     file: &File,
     language_type: LanguageType,

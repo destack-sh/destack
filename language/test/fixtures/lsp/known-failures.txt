@@ -1,6 +1,0 @@
-destack_test::lsp::assist/semantic_tokens.md/delta-churn/keep-token-deltas-exact-after-a-cross-file-type-rename-and-helper-split
-destack_test::lsp::assist/semantic_tokens.md/delta-churn/keep-token-deltas-exact-across-two-cross-file-type-renames
-destack_test::lsp::assist/semantic_tokens.md/delta-churn/keep-token-deltas-exact-after-a-barrel-type-retarget-and-helper-split
-destack_test::lsp::assist/semantic_tokens.md/delta-churn/keep-token-deltas-exact-after-command-churn-on-a-cross-file-type-rename
-destack_test::lsp::assist/semantic_tokens.md/delta-churn/keep-token-deltas-exact-after-clear-cache-churn-on-a-cross-file-type-rename
-destack_test::lsp::assist/semantic_tokens.md/delta-churn/keep-code-lens-counts-and-token-deltas-exact-through-one-shared-churn-sequence

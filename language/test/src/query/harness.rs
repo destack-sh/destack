@@ -210,7 +210,7 @@ impl QueryTestSession {
 
         for profile_id in &self.profile_ids {
             let key = ArtifactKey::workspace_query_index(*profile_id);
-            self.require_artifact(key.clone());
+            self.require_artifact(key);
             let version = self
                 .repository
                 .artifact_version(self.revision, &key)

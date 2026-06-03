@@ -380,7 +380,6 @@ fn parse_file_with_compiler(
     let diagnostics = module_artifact_diagnostics(&program, revision, module_id, profile);
     let errors: Vec<_> = diagnostics
         .iter()
-        .into_iter()
         .filter(|d| d.severity == DiagnosticSeverity::Error)
         .collect();
     let has_relevant_error = errors
