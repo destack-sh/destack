@@ -21,14 +21,14 @@ type Segment<T> = T extends `/${infer Name}` ? Name : never;
 
 type Name = Segment<"/api">;
 /// @resolution.name source=Segment target=Segment
-/// @generic.application source="Segment<\"/api\">" id="Segment<\"/api\">"
+/// @generic.instance source="Segment<\"/api\">" id="Segment<\"/api\">"
 /// @type.symbol symbol=Name type="api"
 
 declare const name: Name;
 /// @resolution.name source=Name target=Name
 /// @type.symbol symbol=name type="api"
 
-/// @generic.application id="Segment<\"/api\">" symbol=Segment arguments=["/api"]
+/// @generic.instance id="Segment<\"/api\">" symbol=Segment arguments=["/api"]
 "#,
     );
 }

@@ -21,16 +21,16 @@ type Select<T> = T extends string ? string : int32;
 
 declare const text: Select<string>;
 /// @resolution.name source=Select target=Select
-/// @generic.application source="Select<string>" id=Select<string>
+/// @generic.instance source="Select<string>" id=Select<string>
 /// @type.symbol symbol=text type=string
 
 declare const number: Select<boolean>;
 /// @resolution.name source=Select target=Select
-/// @generic.application source="Select<boolean>" id=Select<boolean>
+/// @generic.instance source="Select<boolean>" id=Select<boolean>
 /// @type.symbol symbol=number type=int32
 
-/// @generic.application id=Select<string> symbol=Select arguments=[string]
-/// @generic.application id=Select<boolean> symbol=Select arguments=[boolean]
+/// @generic.instance id=Select<string> symbol=Select arguments=[string]
+/// @generic.instance id=Select<boolean> symbol=Select arguments=[boolean]
 "#,
     );
 }

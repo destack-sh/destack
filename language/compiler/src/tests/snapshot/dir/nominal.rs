@@ -171,10 +171,10 @@ fn add_one_heritage(
         .optional_field("source", builder.node_source(heritage.source))
         .field("target", builder.symbol_path_label(heritage.symbol))
         .optional_field(
-            "application",
+            "instance",
             heritage
-                .application
-                .map(|application| builder.generic_application_label(application)),
+                .instance
+                .map(|instance| builder.generic_instance_label(instance)),
         );
 
     builder.push(row);

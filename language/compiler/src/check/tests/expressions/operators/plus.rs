@@ -67,7 +67,7 @@ struct Vector {
 extension VectorAdd of Vector implements Add<Vector> {
 /// @relation.entry symbol=VectorAdd kind=implements type=ops.plus.Add<Vector>
 /// @extension.entry symbol=VectorAdd form=inherent target=Vector
-/// @generic.application source=Add<Vector> id=ops.plus.Add<Vector>
+/// @generic.instance source=Add<Vector> id=ops.plus.Add<Vector>
 
     type Output = Vector;
     /// @type.symbol symbol=VectorAdd.Output type=Vector
@@ -121,6 +121,6 @@ const sum = left + right;
 /// @resolution.call source="left + right" parameters=(Vector) return=Vector kind=symbol target=VectorAdd.add receiver=Vector
 /// @type.node source=right type=Vector
 /// @resolution.name source=right target=right
-/// @generic.application id=ops.plus.Add<Vector> symbol=ops.plus.Add arguments=[Vector]
+/// @generic.instance id=ops.plus.Add<Vector> symbol=ops.plus.Add arguments=[Vector]
 "#);
 }

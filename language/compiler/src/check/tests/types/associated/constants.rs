@@ -33,9 +33,9 @@ class Segment<Row> {
 declare const lane: Segment<string>.Lane;
 /// @resolution.name source=Segment target=Segment
 /// @resolution.member source=Segment<string>.Lane receiver=Segment<string> kind=symbol target=Segment.Lane
-/// @generic.application source="Segment<string>" id=Segment<string>
+/// @generic.instance source="Segment<string>" id=Segment<string>
 /// @type.symbol symbol=lane type=[uint8; 8]
 
-/// @generic.application id=Segment<string> symbol=Segment arguments=[string]
+/// @generic.instance id=Segment<string> symbol=Segment arguments=[string]
 "#);
 }

@@ -76,16 +76,16 @@ extension BoxReadable<T> of Box<T> where T: Readable {
 
 declare const boxed: Box<Document>;
 /// @type.symbol symbol=boxed type=Box<Document>
-/// @generic.application source="Box<Document>" id=Box<Document>
+/// @generic.instance source="Box<Document>" id=Box<Document>
 
 const text = boxed.read();
 /// @resolution.name source=boxed target=boxed
-/// @resolution.member source=boxed.read receiver=Box<Document> kind=symbol target=BoxReadable.read application=BoxReadable<Document>
-/// @resolution.call source="boxed.read()" parameters=() return=string kind=symbol target=BoxReadable.read receiver=Box<Document> application=BoxReadable<Document>
+/// @resolution.member source=boxed.read receiver=Box<Document> kind=symbol target=BoxReadable.read instance=BoxReadable<Document>
+/// @resolution.call source="boxed.read()" parameters=() return=string kind=symbol target=BoxReadable.read receiver=Box<Document> instance=BoxReadable<Document>
 /// @type.symbol symbol=text type=string
 
-/// @generic.application id=Box<Document> symbol=Box arguments=[Document]
-/// @generic.application id=BoxReadable<Document> symbol=BoxReadable arguments=[Document]
+/// @generic.instance id=Box<Document> symbol=Box arguments=[Document]
+/// @generic.instance id=BoxReadable<Document> symbol=BoxReadable arguments=[Document]
 "#,
     );
 }
