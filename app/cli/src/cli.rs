@@ -4,19 +4,18 @@ use clap::{CommandFactory, Parser};
 
 use crate::{
     bench, build, cache, check, clean, completions, console, daemon, doc, doctor, eval, explain,
-    fmt, info, init, lint, lsp, manifest, repl, run, settings, targets, task, test, update,
+    fmt, info, init, inspect, lint, lsp, manifest, run, settings, targets, task, test, update,
     version,
 };
 
 #[cfg(feature = "dev")]
 use crate::command::DevCommand;
 #[cfg(feature = "dev")]
-use crate::command::dev::{VersionCommands, release, stats, version as dev_version};
+use crate::command::dev::{VersionCommands, release, stats};
 use crate::command::{
     BenchArgs, BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, DaemonArgs, DocArgs,
-    DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs,
-    ManifestArgs, ReplArgs, RunArgs, SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs,
-    VersionArgs,
+    DoctorArgs, EvalArgs, ExplainArgs, FmtArgs, InfoArgs, InitArgs, InspectArgs, LintArgs, LspArgs,
+    ManifestArgs, RunArgs, SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
 };
 use crate::common::TracingArgs;
 
@@ -72,6 +71,9 @@ pub enum Command {
 
     /// Lint source files (alias for check).
     Lint(LintArgs),
+
+    /// Inspect compiler artifacts for source files.
+    Inspect(InspectArgs),
 
     /// Format source files.
     #[command(alias = "fmt")]
@@ -129,11 +131,8 @@ pub enum Command {
     /// Start the language server (for editor integration).
     Lsp(LspArgs),
 
-    /// Start the daemon service (for CLI integration).
+    /// Start the language daemon.
     Daemon(DaemonArgs),
-
-    /// Start a REPL session.
-    Repl(ReplArgs),
 
     /// Developer commands (compiler inspection, version management).
     #[cfg(feature = "dev")]
@@ -150,6 +149,7 @@ impl Command {
             Self::Run(args) => run::run(&args),
             Self::Eval(args) => eval::run(&args),
             Self::Lint(args) => lint::run(&args),
+            Self::Inspect(args) => inspect::run(&args),
             Self::Format(args) => fmt::run(&args),
             Self::Init(args) => init::run(&args),
             Self::Clean(args) => clean::run(&args),
@@ -169,15 +169,14 @@ impl Command {
             Self::Task(args) => task::run(&args),
             Self::Lsp(args) => lsp::run(&args),
             Self::Daemon(args) => daemon::run(&args),
-            Self::Repl(args) => repl::run(&args),
             #[cfg(feature = "dev")]
             Self::Dev(subcommand) => match subcommand {
                 DevCommand::Stats(args) => stats::run(&args),
                 DevCommand::Release(args) => release::run(&args),
                 DevCommand::Version(cmd) => match cmd {
-                    VersionCommands::Show => dev_version::show(),
-                    VersionCommands::Check => dev_version::check(),
-                    cmd => dev_version::bump(&cmd),
+                    VersionCommands::Show => crate::command::dev::version::show(),
+                    VersionCommands::Check => crate::command::dev::version::check(),
+                    cmd => crate::command::dev::version::bump(&cmd),
                 },
             },
         }
@@ -258,12 +257,6 @@ fn build_commands_help(color_enabled: bool) -> String {
         CommandEntry {
             name: "eval",
             example: "1 + 2",
-            help: None,
-            group: 0,
-        },
-        CommandEntry {
-            name: "repl",
-            example: "",
             help: None,
             group: 0,
         },

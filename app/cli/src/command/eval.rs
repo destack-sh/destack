@@ -88,7 +88,7 @@ pub fn run(args: &EvalArgs) -> i32 {
         return report_error(
             "eval",
             &args.report,
-            "no input provided (use CODE, --eval, --stdin, or repl)",
+            "no input provided (use CODE, --eval, or --stdin)",
         );
     }
 

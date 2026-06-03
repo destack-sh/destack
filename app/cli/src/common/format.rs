@@ -488,7 +488,7 @@ fn compute_statistics(diagnostics: &[Diagnostic]) -> Vec<DiagnosticStatistic> {
         .collect();
 
     // sort by count descending
-    stats.sort_by(|a, b| b.count.cmp(&a.count));
+    stats.sort_by_key(|stat| std::cmp::Reverse(stat.count));
 
     // return the ordered statistics
     stats

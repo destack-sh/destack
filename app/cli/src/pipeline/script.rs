@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use serde_json::Value;
+use destack_workspace::DestackFile;
 
 use crate::common::ProgramArgs;
 use crate::error::{CliError, CliResult};
@@ -35,11 +35,7 @@ pub struct TaskSpec {
     /// The task name.
     pub name: String,
     /// The shell command to execute.
-    pub command: String,
-    /// The task description.
-    pub description: Option<String>,
-    /// The working directory for the task.
-    pub cwd: Option<PathBuf>,
+    pub command: Option<String>,
 }
 
 /// Resolve a script command from destack.json tasks.
@@ -77,64 +73,15 @@ pub fn load_tasks(
         .ok_or_else(|| {
             CliError::message(format!("failed to load {}", destack_config_path.display()))
         })?;
-    let content = file.text();
-
-    // parse the config json
-    let value: Value = serde_json::from_str(content)
+    let config = DestackFile::parse(&file)
         .map_err(|error| CliError::message(format!("invalid destack.json: {error}")))?;
-
-    // extract the task map
-    let Some(tasks_value) = value.get("tasks") else {
-        return Ok(Vec::new());
-    };
-    let tasks_object = tasks_value
-        .as_object()
-        .ok_or_else(|| CliError::message("tasks must be an object"))?;
-
-    // resolve the config directory
-    let config_dir = destack_config_path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| destack_config_path.to_path_buf());
 
     // build task specs from json values
     let mut tasks = Vec::new();
-    for (name, value) in tasks_object {
-        if let Some(command) = value.as_str() {
-            tasks.push(TaskSpec {
-                name: name.clone(),
-                command: command.to_string(),
-                description: None,
-                cwd: None,
-            });
-            continue;
-        }
-
-        // parse object form of the task
-        let Some(command) = value.get("command").and_then(|v| v.as_str()) else {
-            return Err(CliError::message(format!(
-                "task '{name}' is missing a command"
-            )));
-        };
-        let description = value
-            .get("description")
-            .and_then(|v| v.as_str())
-            .map(String::from);
-        let cwd = value.get("cwd").and_then(|v| v.as_str()).map(|path| {
-            let path = PathBuf::from(path);
-            if path.is_absolute() {
-                path
-            } else {
-                config_dir.join(path)
-            }
-        });
-
-        // push the expanded task spec
+    for (name, task) in &config.tasks {
         tasks.push(TaskSpec {
             name: name.clone(),
-            command: command.to_string(),
-            description,
-            cwd,
+            command: task.exec.clone(),
         });
     }
 
@@ -194,12 +141,13 @@ pub(crate) fn resolve_script_command_for_repository(
     if let Some(task) =
         resolve_destack_config_task(program_args, script_name, repository, revision, cwd)?
     {
-        let cwd = task
-            .cwd
-            .unwrap_or_else(|| task_base_dir(program_args, repository, revision, cwd));
+        let command = task
+            .command
+            .ok_or_else(|| CliError::message(format!("task '{}' is missing exec", task.name)))?;
+        let cwd = task_base_dir(program_args, repository, revision, cwd);
         return Ok(Some(ScriptCommand {
             name: task.name,
-            command: task.command,
+            command,
             cwd,
             source: ScriptSource::Destack,
         }));

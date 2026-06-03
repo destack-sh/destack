@@ -322,7 +322,7 @@ impl CompilerContext {
     }
 
     /// Return the current workspace revision for the compiler context.
-    fn current_revision(&self) -> CliResult<Revision> {
+    pub fn current_revision(&self) -> CliResult<Revision> {
         self.session
             .revision(self.session.head())
             .map_err(|error| CliError::message(error.to_string()))
@@ -367,7 +367,11 @@ impl CompilerContext {
     }
 
     /// Return the profile id selected for one module.
-    fn selected_profile_id(&self, revision: Revision, module_id: ModuleId) -> CliResult<ProfileId> {
+    pub fn selected_profile_id(
+        &self,
+        revision: Revision,
+        module_id: ModuleId,
+    ) -> CliResult<ProfileId> {
         let target_id = self.selected_target_id(revision, module_id)?;
 
         self.target_profile_id(revision, module_id, target_id)
@@ -399,7 +403,7 @@ impl CompilerContext {
     }
 
     /// Return the profile id selected for one module target.
-    fn target_profile_id(
+    pub fn target_profile_id(
         &self,
         revision: Revision,
         module_id: ModuleId,
@@ -407,13 +411,8 @@ impl CompilerContext {
     ) -> CliResult<ProfileId> {
         let profile = self
             .repository
-            .module_target_profile(revision, module_id, target_id)
+            .profile_for_module_target(revision, module_id, target_id)
             .map_err(|error| CliError::message(error.to_string()))?;
-        let profile = profile.ok_or_else(|| {
-            CliError::message(format!(
-                "target {target_id:?} is not available for {module_id:?}"
-            ))
-        })?;
 
         Ok(profile.id())
     }
