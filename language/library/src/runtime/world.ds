@@ -43,14 +43,6 @@ export enum Execution {
     Replay = 4,
 }
 
-/// World provider selection.
-export enum WorldProvider {
-    /// Host-backed world.
-    Host = 1,
-    /// Simulation-backed world.
-    Simulation = 2,
-}
-
 /// Worker executor selection.
 export enum WorkerExecutor {
     /// Let the runtime choose the executor.
@@ -77,8 +69,6 @@ export struct WorldCreateOptions {
     engine?: Engine;
     /// Optional execution preference.
     execution?: Execution;
-    /// Optional world provider preference.
-    provider?: WorldProvider;
     /// Optional world labels.
     labels?: [Label];
 }

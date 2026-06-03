@@ -1,7 +1,7 @@
+import { ContextPatch } from "destack:context";
 import { RandomSeed } from "destack:runtime";
 import * as test from "destack:test";
 
-import { HostPatch } from "../host/host.ds";
 import { ScenarioOptions } from "../scenario/scenario.ds";
 
 /// Simulation seed.
@@ -13,6 +13,6 @@ export type Options = test.Options & {
     seed?: Seed;
     /// Initial scenario options.
     scenario?: ScenarioOptions;
-    /// Explicit host overrides.
-    host?: HostPatch;
+    /// Explicit context overrides.
+    context?: ContextPatch;
 };

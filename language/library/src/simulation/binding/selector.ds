@@ -1,6 +1,6 @@
 import { LabelSelector } from "destack:topology";
 
-/// Binding selector for simulated host calls.
+/// Binding selector for simulated binding calls.
 export struct Selector {
     /// Optional binding module name.
     module?: string;

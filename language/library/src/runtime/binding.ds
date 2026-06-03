@@ -253,8 +253,6 @@ export type BindingOptions = {
     replay?: "forbidden";
     /// Execution context required by this binding.
     affinity?: "worker" | "main";
-    /// Whether this binding can execute against a simulated world.
-    simulation?: boolean;
 };
 
 /// Marks one declaration as a runtime binding.
