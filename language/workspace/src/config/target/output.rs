@@ -1,16 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-/// How modules are discovered for a build target.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(rename_all = "camelCase")]
-pub enum TargetDiscovery {
-    /// Start from entry points and follow imports.
-    /// Requires `entry` to be set. Used for bundles/executables.
+/// How one target chooses its root module set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TargetRoot {
+    /// Use explicit entry modules and follow imports.
     Entry,
-    /// Compile all files matching `include` patterns.
-    /// Each file becomes a separate output. Used for libraries.
-    #[default]
+    /// Use source files selected by include patterns.
     Include,
 }
 

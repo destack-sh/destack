@@ -14,6 +14,18 @@ use crate::config::{
     parse_jsonc_file,
 };
 
+/// Default package source include patterns.
+pub const DEFAULT_SOURCE_INCLUDE: &[&str] = &["src/**"];
+
+/// Default package source exclude patterns.
+pub const DEFAULT_SOURCE_EXCLUDE: &[&str] = &[
+    ".destack/**",
+    ".git/**",
+    "node_modules/**",
+    "target/**",
+    "vendor/**",
+];
+
 /// Destack configuration document.
 #[derive(Debug, Deserialize, Clone, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -141,6 +153,17 @@ pub struct DestackFile {
     source: Value,
 }
 
+/// Package source path patterns derived from one `destack.json`.
+#[derive(Debug, Clone)]
+pub struct SourcePatterns {
+    /// Package-relative exact file paths.
+    pub files: Vec<String>,
+    /// Package-relative include patterns.
+    pub include: Vec<String>,
+    /// Package-relative exclude patterns.
+    pub exclude: Vec<String>,
+}
+
 impl std::ops::Deref for DestackFile {
     type Target = Destack;
 
@@ -186,6 +209,32 @@ impl DestackFile {
             .workspace
             .as_ref()
             .and_then(|workspace| workspace.groups.as_ref())
+    }
+
+    /// Return package source patterns with conventional defaults applied.
+    pub fn source_patterns(&self) -> SourcePatterns {
+        let mut include = self.include.clone();
+        let mut exclude = self.exclude.clone();
+
+        if self.files.is_empty() && include.is_empty() {
+            include.extend(
+                DEFAULT_SOURCE_INCLUDE
+                    .iter()
+                    .map(|pattern| pattern.to_string()),
+            );
+        }
+
+        exclude.extend(
+            DEFAULT_SOURCE_EXCLUDE
+                .iter()
+                .map(|pattern| pattern.to_string()),
+        );
+
+        SourcePatterns {
+            files: self.files.clone(),
+            include,
+            exclude,
+        }
     }
 
     /// Inherit settings from one parent configuration.

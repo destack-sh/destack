@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_source::{ModuleId, PackageId, TargetId, matches as glob_matches};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackFile, Package, Target, TargetDiscovery};
+use crate::{DestackFile, Package, Target, TargetRoot};
 
 impl Repository {
     /// Discover module ids selected by one target in one pinned revision.
@@ -14,15 +14,15 @@ impl Repository {
         target_id: TargetId,
     ) -> Result<Vec<ModuleId>, RepositoryError> {
         let package = self.target_package(revision, target_id)?;
-        let target = self.target_or_builtin_for_discovery(revision, target_id)?;
+        let target = self.required_target(revision, target_id)?;
         let config = self.target_config(revision, target_id)?;
 
         // selected roots
-        let mut module_ids = match target.discovery {
-            TargetDiscovery::Entry => {
+        let mut module_ids = match target.root() {
+            TargetRoot::Entry => {
                 self.resolve_target_paths(revision, target_id, &package.path, &target.entry)
             }
-            TargetDiscovery::Include => {
+            TargetRoot::Include => {
                 self.included_module_ids(revision, target_id, &package.path, &target)
             }
         }?;
@@ -68,8 +68,8 @@ impl Repository {
         })
     }
 
-    /// Return one target or built-in.
-    fn target_or_builtin_for_discovery(
+    /// Return one target or built-in target.
+    fn required_target(
         &self,
         revision: Revision,
         target_id: TargetId,
