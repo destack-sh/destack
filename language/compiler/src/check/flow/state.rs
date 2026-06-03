@@ -3,26 +3,26 @@ use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
     Capture, Condition, ControlTarget, FlowPath, FunctionFrame, ReceiverCapture, TryTarget,
-    TypeOperand,
+    TypeOperand, VariableId,
 };
 
 /// Flow state while walking one module.
 #[derive(Debug)]
 pub(in crate::check) struct FlowState {
     /// Function bodies currently being walked.
-    pub(in crate::check) functions: Vec<FunctionFrame>,
+    pub(in crate::check::flow) functions: Vec<FunctionFrame>,
     /// Static guards currently guarding walked work.
-    pub(in crate::check) guards: Vec<Condition>,
+    pub(in crate::check::flow) guards: Vec<Condition>,
     /// Contextual receivers currently visible outside function bodies.
-    pub(in crate::check) receivers: Vec<ReceiverCapture>,
+    pub(in crate::check::flow) receivers: Vec<ReceiverCapture>,
     /// Control targets currently visible to `break` and `continue`.
-    pub(in crate::check) targets: Vec<ControlTarget>,
+    pub(in crate::check::flow) targets: Vec<ControlTarget>,
     /// Try targets currently visible to `?`.
-    pub(in crate::check) tries: Vec<TryTarget>,
+    pub(in crate::check::flow) tries: Vec<TryTarget>,
     /// Local symbols definitely assigned at the current walk point.
-    pub(in crate::check) assigned: IndexSet<dir::GlobalSymbolId>,
+    pub(in crate::check::flow) assigned: IndexSet<dir::GlobalSymbolId>,
     /// Narrowed type operands keyed by flow path.
-    pub(in crate::check) narrowings: IndexMap<FlowPath, TypeOperand>,
+    pub(in crate::check::flow) narrowings: IndexMap<FlowPath, TypeOperand>,
 
     /// Flow mutations made since walking started.
     mutations: Vec<FlowMutation>,
@@ -201,7 +201,7 @@ impl FlowState {
     }
 
     /// Return the target index selected by one break.
-    pub(in crate::check) fn find_break_target_index(
+    pub(in crate::check) fn break_target_index(
         &self,
         label: Option<dir::StringId>,
     ) -> Option<usize> {
@@ -221,7 +221,7 @@ impl FlowState {
     }
 
     /// Return the target index selected by one continue.
-    pub(in crate::check) fn find_continue_target_index(
+    pub(in crate::check) fn continue_target_index(
         &self,
         label: Option<dir::StringId>,
     ) -> Option<usize> {
@@ -238,6 +238,43 @@ impl FlowState {
                     target.allows_continue.then_some(index)
                 }
             })
+    }
+
+    /// Return the control checkpoint and result selected by one target index.
+    pub(in crate::check) fn control_target_result(
+        &self,
+        index: usize,
+    ) -> (FlowCheckpoint, VariableId) {
+        let target = &self.targets[index];
+
+        (target.checkpoint, target.result)
+    }
+
+    /// Push one break branch onto a selected control target.
+    pub(in crate::check) fn push_break_branch(
+        &mut self,
+        index: usize,
+        value: TypeOperand,
+        branch: FlowBranch,
+    ) {
+        let target = &mut self.targets[index];
+
+        target.break_values.push(value);
+        target.break_branches.push(branch);
+    }
+
+    /// Push one continue branch onto a selected control target.
+    pub(in crate::check) fn push_continue_branch(&mut self, index: usize, branch: FlowBranch) {
+        self.targets[index].continue_branches.push(branch);
+    }
+
+    /// Take continue branches collected by the current control target.
+    pub(in crate::check) fn take_continue_branches(&mut self) -> Vec<FlowBranch> {
+        let Some(target) = self.targets.last_mut() else {
+            panic!("continue branch collection requires an active control target");
+        };
+
+        std::mem::take(&mut target.continue_branches)
     }
 
     /// Capture one symbol in the current function body.
@@ -274,18 +311,22 @@ impl FlowState {
 
     /// Return the first control target visible to the current function.
     fn current_target_start(&self) -> usize {
-        self.functions
-            .last()
-            .map(|function| function.target_start)
-            .unwrap_or(0)
+        match self.functions.last() {
+            // restrict control targets to the innermost function
+            Some(function) => function.target_start,
+            // allow every control target at module scope
+            None => 0,
+        }
     }
 
     /// Return the first try target visible to the current function.
     fn current_try_start(&self) -> usize {
-        self.functions
-            .last()
-            .map(|function| function.try_start)
-            .unwrap_or(0)
+        match self.functions.last() {
+            // restrict try targets to the innermost function
+            Some(function) => function.try_start,
+            // allow every try target at module scope
+            None => 0,
+        }
     }
 
     /// Mark one local symbol as definitely assigned.
@@ -303,6 +344,11 @@ impl FlowState {
     /// Return whether one local symbol is definitely assigned.
     pub(in crate::check) fn is_assigned(&self, symbol: dir::GlobalSymbolId) -> bool {
         self.assigned.contains(&symbol)
+    }
+
+    /// Return the current narrowing for one flow path.
+    pub(in crate::check) fn narrowing(&self, path: &FlowPath) -> Option<TypeOperand> {
+        self.narrowings.get(path).copied()
     }
 
     /// Narrow one path at the current walk point.
@@ -439,7 +485,7 @@ impl FlowState {
 
         // keep narrowings with equal final values in both branches
         for path in paths {
-            // recover final value from each branch
+            // read final value from each branch
             let left = left
                 .narrowings
                 .get(&path)

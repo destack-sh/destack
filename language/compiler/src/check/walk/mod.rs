@@ -10,7 +10,6 @@ mod function;
 mod induce;
 mod intrinsic;
 mod r#match;
-mod node;
 mod parameter;
 mod pattern;
 mod place;

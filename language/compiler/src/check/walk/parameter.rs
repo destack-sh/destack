@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    GenericSlot, Origin, PatternRelation, StaticTerm, TypeOperand, TypeRelation, TypeTerm,
-    VariableId, WalkState,
+    GenericSlot, GenericSlotId, Origin, PatternRelation, StaticTerm, TypeOperand, TypeRelation,
+    TypeTerm, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -122,10 +122,10 @@ impl WalkState<'_, '_> {
         module: ModuleId,
         id: dir::LocalNodeId<dir::GenericParameter>,
         generic_parameter: &dir::GenericParameter,
-    ) -> Option<VariableId> {
+    ) -> Option<GenericSlotId> {
         let source = id.into_any();
-        let owner = self.check.scope_owner_symbol(module, source)?;
-        let symbol = self.check.declaration_symbol(module, source)?;
+        let owner = self.check.module(module).scope_owner_symbol(source)?;
+        let symbol = self.check.module(module).declaration_symbol(source)?;
 
         match generic_parameter {
             // <T>
@@ -135,12 +135,10 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.reserve_symbol_type(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
-                let constraint =
-                    constraint.map(|id| self.check.require_local_node_type(module, id).into());
-                let default = default.map(|id| self.check.require_local_node_type(module, id));
+                let constraint = constraint.map(|id| self.allocate_node_type_operand(id).into());
+                let default = default.map(|id| self.allocate_node_type_operand(id));
                 let generic = GenericSlot::Type {
                     slot,
                     variance: *variance,
@@ -148,13 +146,12 @@ impl WalkState<'_, '_> {
                     default,
                 };
 
-                self.check.attach_generic_slot(variable, generic);
+                self.check.insert_generic_slot(generic);
                 let condition = self.active_static_guard();
 
-                self.check
-                    .equate_type(variable, TypeTerm::Parameter(slot_id), condition);
+                self.bind_symbol_type(symbol, TypeTerm::Parameter(slot_id), condition);
 
-                Some(variable)
+                Some(slot_id)
             }
             // <...T>
             dir::GenericParameter::VariadicType {
@@ -163,12 +160,10 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.reserve_symbol_type(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
-                let constraint =
-                    constraint.map(|id| self.check.require_local_node_type(module, id).into());
-                let default = default.map(|id| self.check.require_local_node_type(module, id));
+                let constraint = constraint.map(|id| self.allocate_node_type_operand(id).into());
+                let default = default.map(|id| self.allocate_node_type_operand(id));
                 let generic = GenericSlot::VariadicType {
                     slot,
                     variance: *variance,
@@ -176,13 +171,12 @@ impl WalkState<'_, '_> {
                     default,
                 };
 
-                self.check.attach_generic_slot(variable, generic);
+                self.check.insert_generic_slot(generic);
                 let condition = self.active_static_guard();
 
-                self.check
-                    .equate_type(variable, TypeTerm::Parameter(slot_id), condition);
+                self.bind_symbol_type(symbol, TypeTerm::Parameter(slot_id), condition);
 
-                Some(variable)
+                Some(slot_id)
             }
             // <comptime C: T>
             dir::GenericParameter::Value {
@@ -190,16 +184,13 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.reserve_symbol_static(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
-                let constraint =
-                    declared_type.map(|id| self.check.require_local_node_type(module, id).into());
+                let constraint = declared_type.map(|id| self.allocate_node_type_operand(id).into());
                 let default = default.map(|id| {
                     let condition = self.active_static_guard();
 
-                    self.check
-                        .reserve_static_expression(module, id, condition)
+                    self.allocate_static_expression_variable(id, condition)
                         .into()
                 });
                 let generic = GenericSlot::Static {
@@ -208,15 +199,12 @@ impl WalkState<'_, '_> {
                     default,
                 };
 
-                self.check.attach_generic_slot(variable, generic);
+                self.check.insert_generic_slot(generic);
                 let condition = self.active_static_guard();
-                let term = StaticTerm::Parameter(slot_id);
-                let term = self.check.push_term(term);
-                let origin = self.check.variable(variable).source;
 
-                self.check.equate_static(origin, variable, term, condition);
+                self.bind_symbol_static(symbol, StaticTerm::Parameter(slot_id), condition);
 
-                Some(variable)
+                Some(slot_id)
             }
             // <comptime ...C: T>
             dir::GenericParameter::VariadicValue {
@@ -224,16 +212,13 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let variable = self.check.reserve_symbol_static(module, symbol);
                 let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
                 let slot_id = slot.id();
-                let constraint =
-                    declared_type.map(|id| self.check.require_local_node_type(module, id).into());
+                let constraint = declared_type.map(|id| self.allocate_node_type_operand(id).into());
                 let default = default.map(|id| {
                     let condition = self.active_static_guard();
 
-                    self.check
-                        .reserve_static_expression(module, id, condition)
+                    self.allocate_static_expression_variable(id, condition)
                         .into()
                 });
                 let generic = GenericSlot::VariadicStatic {
@@ -242,15 +227,12 @@ impl WalkState<'_, '_> {
                     default,
                 };
 
-                self.check.attach_generic_slot(variable, generic);
+                self.check.insert_generic_slot(generic);
                 let condition = self.active_static_guard();
-                let term = StaticTerm::Parameter(slot_id);
-                let term = self.check.push_term(term);
-                let origin = self.check.variable(variable).source;
 
-                self.check.equate_static(origin, variable, term, condition);
+                self.bind_symbol_static(symbol, StaticTerm::Parameter(slot_id), condition);
 
-                Some(variable)
+                Some(slot_id)
             }
             // ignore damaged syntax
             dir::GenericParameter::Error => None,
@@ -299,8 +281,11 @@ impl WalkState<'_, '_> {
                     self.restore_flow(before_default);
                 }
 
-                let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
-                let parameter_type = self.ensure_parameter_type(id, tree);
+                let symbol = self
+                    .check
+                    .module(tree.module_id)
+                    .declaration_symbol(id.into_any());
+                let parameter_type = self.parameter_type(id, tree);
 
                 // bind named parameter output
                 if let Some(symbol) = symbol {
@@ -316,8 +301,7 @@ impl WalkState<'_, '_> {
                     } else if let Some(parameter_type) = parameter_type {
                         let condition = self.active_static_guard();
 
-                        self.check
-                            .publish_symbol_type_operand(symbol, parameter_type, condition);
+                        self.bind_symbol_type_operand(symbol, parameter_type, condition);
                     }
                 }
 
@@ -343,8 +327,11 @@ impl WalkState<'_, '_> {
                     self.walk_type_expression(tree, *declared_type, tree.get(*declared_type));
                 }
 
-                let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
-                let parameter_type = self.ensure_parameter_type(id, tree);
+                let symbol = self
+                    .check
+                    .module(tree.module_id)
+                    .declaration_symbol(id.into_any());
+                let parameter_type = self.parameter_type(id, tree);
 
                 // bind variadic parameter output
                 if let Some(symbol) = symbol {
@@ -360,8 +347,7 @@ impl WalkState<'_, '_> {
                     } else if let Some(parameter_type) = parameter_type {
                         let condition = self.active_static_guard();
 
-                        self.check
-                            .publish_symbol_type_operand(symbol, parameter_type, condition);
+                        self.bind_symbol_type_operand(symbol, parameter_type, condition);
                     }
                 }
             }
@@ -390,7 +376,7 @@ impl WalkState<'_, '_> {
                     self.restore_flow(before_default);
                 }
 
-                let parameter_type = self.ensure_parameter_type(id, tree);
+                let parameter_type = self.parameter_type(id, tree);
 
                 // constrain the pattern against the parameter type
                 if let Some(parameter_type) = parameter_type {
@@ -430,7 +416,7 @@ impl WalkState<'_, '_> {
                 }
 
                 // constrain the pattern against the parameter type
-                if let Some(parameter_type) = self.ensure_parameter_type(id, tree) {
+                if let Some(parameter_type) = self.parameter_type(id, tree) {
                     if let Some(term) = self.lower_pattern_term(tree.module_id, *pattern, tree) {
                         let condition = self.active_static_guard();
 
@@ -465,10 +451,9 @@ impl WalkState<'_, '_> {
         parameter_type: Option<TypeOperand>,
         default: Option<dir::LocalNodeId<dir::Expression>>,
         is_variadic: bool,
-    ) -> Option<VariableId> {
+    ) -> Option<GenericSlotId> {
         let source = id.into_any();
-        let owner = self.check.scope_owner_symbol(module, source)?;
-        let variable = self.check.reserve_symbol_static(module, symbol);
+        let owner = self.check.module(module).scope_owner_symbol(source)?;
         let slot = self
             .check
             .allocate_induced_symbol_generic_slot(owner, symbol);
@@ -476,8 +461,7 @@ impl WalkState<'_, '_> {
         let default = default.map(|id| {
             let condition = self.active_static_guard();
 
-            self.check
-                .reserve_static_expression(module, id, condition)
+            self.allocate_static_expression_variable(id, condition)
                 .into()
         });
         let generic = if is_variadic {
@@ -494,15 +478,12 @@ impl WalkState<'_, '_> {
             }
         };
 
-        self.check.attach_generic_slot(variable, generic);
+        self.check.insert_generic_slot(generic);
         let condition = self.active_static_guard();
-        let term = StaticTerm::Parameter(slot_id);
-        let term = self.check.push_term(term);
-        let origin = self.check.variable(variable).source;
 
-        self.check.equate_static(origin, variable, term, condition);
+        self.bind_symbol_static(symbol, StaticTerm::Parameter(slot_id), condition);
 
-        Some(variable)
+        Some(slot_id)
     }
 
     /// Constrain one parameter default value to its declared type.
@@ -517,7 +498,7 @@ impl WalkState<'_, '_> {
         default: dir::LocalNodeId<dir::Expression>,
         declared_type: TypeOperand,
     ) {
-        let value = self.check.require_local_node_type(module, default);
+        let value = self.allocate_node_type_operand(default);
         let origin = Origin::Node(default.into_global_any(module));
         let condition = self.active_static_guard();
 

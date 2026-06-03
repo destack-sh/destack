@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
 use crate::check::{
-    FunctionParameter, FunctionTerm, GenericArgument, Origin, ReceiverCapture, TermId, TypeOperand,
-    TypeRelation, TypeTerm, VariableId, VariableKind, WalkState,
+    FunctionParameter, FunctionTerm, GenericArgument, GenericSlotId, Origin, ReceiverCapture,
+    TermId, TypeOperand, TypeRelation, TypeTerm, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -15,6 +15,7 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn lower_function_signature_term(
         &mut self,
         signature: &dir::FunctionSignature,
+        receiver_type: Option<TypeOperand>,
         return_type: Option<TypeOperand>,
         tree: &dir::Tree,
     ) -> TermId<FunctionTerm> {
@@ -22,17 +23,18 @@ impl WalkState<'_, '_> {
         let mut generic_parameters = signature
             .generic_parameters
             .iter()
-            .filter_map(|parameter| self.require_generic_parameter_variable(*parameter, tree))
+            .filter_map(|parameter| self.generic_slot(*parameter, tree))
             .collect::<Vec<_>>();
         generic_parameters.extend(
             signature
                 .parameters
                 .iter()
-                .filter_map(|parameter| self.require_comptime_parameter_variable(*parameter, tree)),
+                .filter_map(|parameter| self.comptime_parameter_slot(*parameter, tree)),
         );
         let this_parameter = signature
             .this_parameter
-            .and_then(|parameter| self.ensure_parameter_type(parameter, tree));
+            .and_then(|parameter| self.parameter_type(parameter, tree))
+            .or(receiver_type);
 
         // collect runtime parameters
         let parameters = signature
@@ -50,7 +52,7 @@ impl WalkState<'_, '_> {
             is_generator: signature.is_generator,
         };
 
-        self.check.push_term(function)
+        self.check.inference.push_term(function)
     }
 
     /// Return one function type term from a type-space function declaration.
@@ -69,17 +71,17 @@ impl WalkState<'_, '_> {
         let mut generic_parameters = declaration
             .generic_parameters
             .iter()
-            .filter_map(|parameter| self.require_generic_parameter_variable(*parameter, tree))
+            .filter_map(|parameter| self.generic_slot(*parameter, tree))
             .collect::<Vec<_>>();
         generic_parameters.extend(
             declaration
                 .parameters
                 .iter()
-                .filter_map(|parameter| self.require_comptime_parameter_variable(*parameter, tree)),
+                .filter_map(|parameter| self.comptime_parameter_slot(*parameter, tree)),
         );
         let this_parameter = declaration
             .this_parameter
-            .and_then(|parameter| self.ensure_parameter_type(parameter, tree));
+            .and_then(|parameter| self.parameter_type(parameter, tree));
 
         // collect runtime parameters
         let parameters = declaration
@@ -97,7 +99,7 @@ impl WalkState<'_, '_> {
             is_generator: false,
         };
 
-        self.check.push_term(function)
+        self.check.inference.push_term(function)
     }
 
     /// Return one function type term from a type-space constructor declaration.
@@ -116,13 +118,13 @@ impl WalkState<'_, '_> {
         let mut generic_parameters = declaration
             .generic_parameters
             .iter()
-            .filter_map(|parameter| self.require_generic_parameter_variable(*parameter, tree))
+            .filter_map(|parameter| self.generic_slot(*parameter, tree))
             .collect::<Vec<_>>();
         generic_parameters.extend(
             declaration
                 .parameters
                 .iter()
-                .filter_map(|parameter| self.require_comptime_parameter_variable(*parameter, tree)),
+                .filter_map(|parameter| self.comptime_parameter_slot(*parameter, tree)),
         );
 
         // collect constructor runtime parameters
@@ -141,7 +143,7 @@ impl WalkState<'_, '_> {
             is_generator: false,
         };
 
-        self.check.push_term(function)
+        self.check.inference.push_term(function)
     }
 
     /// Walk one function body inside a function flow frame.
@@ -158,20 +160,18 @@ impl WalkState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         signature: &dir::FunctionSignature,
         body: dir::LocalNodeId<dir::Expression>,
-        return_type: TypeOperand,
+        result: TypeOperand,
         receiver: Option<ReceiverCapture>,
     ) {
-        let mut body_return_type = return_type;
-        let mut yield_type = None;
-        let mut resume_type = None;
+        let mut return_target = result;
+        let mut yield_target = None;
+        let mut resume_target = None;
 
         // allocate async result channel
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
             let source = body.into_global_any(tree.module_id);
             let origin = Origin::Node(source);
-            let completed =
-                self.check
-                    .allocate_variable(tree.module_id, VariableKind::Type, origin);
+            let completed = self.check.create_type_variable(tree.module_id, origin);
             let symbol = self
                 .check
                 .language_symbol(tree.module_id, dir::LanguageItem::Promise);
@@ -181,32 +181,26 @@ impl WalkState<'_, '_> {
                 symbol,
                 arguments: vec![argument].into(),
             };
-            let promised = self.check.push_term(promised);
+            let promised = self.check.inference.push_term(promised);
             let condition = self.active_static_guard();
 
             self.check.relate_type(
                 origin,
                 TypeRelation::Assignable,
                 promised,
-                return_type,
+                result,
                 condition,
             );
-            body_return_type = completed.into();
+            return_target = completed.into();
         }
 
         // allocate generator channels
         if signature.is_generator {
             let source = body.into_global_any(tree.module_id);
             let origin = Origin::Node(source);
-            let yielded = self
-                .check
-                .allocate_variable(tree.module_id, VariableKind::Type, origin);
-            let completed =
-                self.check
-                    .allocate_variable(tree.module_id, VariableKind::Type, origin);
-            let resumed = self
-                .check
-                .allocate_variable(tree.module_id, VariableKind::Type, origin);
+            let yielded = self.check.create_type_variable(tree.module_id, origin);
+            let completed = self.check.create_type_variable(tree.module_id, origin);
+            let resumed = self.check.create_type_variable(tree.module_id, origin);
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -223,28 +217,28 @@ impl WalkState<'_, '_> {
                 symbol,
                 arguments: vec![yielded_argument, completed_argument, resumed_argument].into(),
             };
-            let generated = self.check.push_term(generated);
+            let generated = self.check.inference.push_term(generated);
             let condition = self.active_static_guard();
 
             self.check.relate_type(
                 origin,
                 TypeRelation::Assignable,
                 generated,
-                return_type,
+                result,
                 condition,
             );
 
-            body_return_type = completed.into();
-            yield_type = Some(yielded);
-            resume_type = Some(resumed);
+            return_target = completed.into();
+            yield_target = Some(yielded);
+            resume_target = Some(resumed);
         }
 
         // enter function flow
         self.enter_function_frame(
             symbol,
-            body_return_type,
-            yield_type,
-            resume_type,
+            return_target,
+            yield_target,
+            resume_target,
             signature.asynchrony,
             receiver,
         );
@@ -288,7 +282,7 @@ impl WalkState<'_, '_> {
         tree: &dir::Tree,
     ) -> Option<FunctionParameter> {
         let parameter = tree.get(id);
-        let ty = self.ensure_parameter_type(id, tree)?;
+        let ty = self.parameter_type(id, tree)?;
 
         // optionality is only encoded on non variadic parameters
         let is_optional = match parameter {
@@ -314,11 +308,12 @@ impl WalkState<'_, '_> {
             ty,
             static_slot: if parameter.is_comptime() {
                 let source = id.into_any();
-                let symbol = self.check.declaration_symbol(tree.module_id, source)?;
+                let symbol = self
+                    .check
+                    .module(tree.module_id)
+                    .declaration_symbol(source)?;
 
-                self.check
-                    .generic_static_variable_for_symbol(tree.module_id, symbol)
-                    .map(Box::new)
+                self.check.inference.generic_slot_id_for_symbol(symbol)
             } else {
                 None
             },
@@ -329,43 +324,51 @@ impl WalkState<'_, '_> {
         Some(parameter)
     }
 
-    /// Return the variable bound to one generic parameter.
-    fn require_generic_parameter_variable(
+    /// Return the slot bound to one generic parameter.
+    fn generic_slot(
         &mut self,
         id: dir::LocalNodeId<dir::GenericParameter>,
         tree: &dir::Tree,
-    ) -> Option<VariableId> {
+    ) -> Option<GenericSlotId> {
         let source = id.into_any();
-        let symbol = self.check.declaration_symbol(tree.module_id, source)?;
-        let variable = self
+        let symbol = self
             .check
-            .generic_slot_variable_for_symbol(symbol)
+            .module(tree.module_id)
+            .declaration_symbol(source)?;
+        let slot = self
+            .check
+            .inference
+            .generic_slot_id_for_symbol(symbol)
             .unwrap_or_else(|| panic!("generic parameter {symbol:?} was not bound before use"));
 
-        Some(variable)
+        Some(slot)
     }
 
-    /// Return the variable bound to one comptime runtime parameter.
-    fn require_comptime_parameter_variable(
+    /// Return the slot bound to one comptime runtime parameter.
+    fn comptime_parameter_slot(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
         tree: &dir::Tree,
-    ) -> Option<VariableId> {
+    ) -> Option<GenericSlotId> {
         let parameter = tree.get(id);
         if !parameter.is_comptime() {
             return None;
         }
         let source = id.into_any();
-        let symbol = self.check.declaration_symbol(tree.module_id, source)?;
-        let variable = self
+        let symbol = self
             .check
-            .generic_static_variable_for_symbol(tree.module_id, symbol)
+            .module(tree.module_id)
+            .declaration_symbol(source)?;
+        let slot = self
+            .check
+            .inference
+            .generic_slot_id_for_symbol(symbol)
             .unwrap_or_else(|| panic!("comptime parameter {symbol:?} was not bound before use"));
 
-        Some(variable)
+        Some(slot)
     }
 
-    /// Ensure one runtime parameter has a checked type operand.
+    /// Return one runtime parameter type operand.
     ///
     /// Missing annotations use the parameter node variable so contextual lambdas can still receive
     /// an expected type.
@@ -374,7 +377,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// (value: T)
     /// ```
-    pub(in crate::check) fn ensure_parameter_type(
+    pub(in crate::check) fn parameter_type(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
         tree: &dir::Tree,
@@ -385,18 +388,16 @@ impl WalkState<'_, '_> {
         };
         let Some(declared_type) = declared_type else {
             let node = id.into_global_any(tree.module_id);
-            if let Some(ty) = self.check.node_type(node) {
+            if let Some(ty) = self.check.inputs.node_type(node) {
                 return Some(ty);
             }
-            let variable = self.check.reserve_node_type(tree.module_id, node);
+            let variable = self.allocate_node_type_variable(id);
 
             return Some(variable.into());
         };
 
         let source = id.into_global_any(tree.module_id);
-        let operand = self
-            .check
-            .require_local_node_type(tree.module_id, declared_type);
+        let operand = self.allocate_node_type_operand(declared_type);
         let condition = self.active_static_guard();
         let operand = self.induce_transparent_type_operand(source, operand, condition);
 

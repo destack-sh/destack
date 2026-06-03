@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
@@ -42,8 +41,8 @@ pub(in crate::check) struct GenericApplicationKey {
 pub(in crate::check) struct GenericTemplate {
     /// The symbol that owns this generic template.
     pub(in crate::check) owner: dir::GlobalSymbolId,
-    /// The generic slot variables in declaration order.
-    pub(in crate::check) slots: Vec<VariableId>,
+    /// The generic slots in declaration order.
+    pub(in crate::check) slots: Vec<GenericSlotId>,
 }
 
 impl GenericTemplate {
@@ -65,7 +64,7 @@ pub(in crate::check) struct GenericInductionRoot {
     pub(in crate::check) operand: TypeOperand,
 }
 
-/// One variable that may become an induced owner generic.
+/// One escaping inference variable that may become an induced owner generic.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct GenericInduction {
     /// The variable rewritten to the generated parameter.
@@ -89,7 +88,7 @@ pub(in crate::check) struct GenericInductionSlot {
 
 impl GenericInductionSlot {
     /// Create one induced type slot.
-    pub(in crate::check) fn ty(
+    pub(in crate::check) fn r#type(
         prefix: &'static str,
         constraint: Option<TypeOperand>,
         induction: dir::GenericSlotInduction,
@@ -103,7 +102,7 @@ impl GenericInductionSlot {
     }
 
     /// Create one induced static slot.
-    pub(in crate::check) fn static_value(
+    pub(in crate::check) fn r#static(
         prefix: &'static str,
         constraint: Option<TypeOperand>,
         induction: dir::GenericSlotInduction,
@@ -161,7 +160,7 @@ impl From<dir::GenericParameterRef> for GenericSlotId {
     }
 }
 
-/// Generic parameter metadata attached to one check variable.
+/// Generic slot metadata shared by explicit and induced parameters.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) enum GenericSlot {
     /// Type generic slot.
@@ -242,16 +241,6 @@ impl GenericSlot {
             Self::Static { .. } | Self::VariadicStatic { .. } => None,
         }
     }
-
-    /// Return this static parameter's type constraint.
-    pub(in crate::check) fn static_constraint(&self) -> Option<TypeOperand> {
-        match self {
-            Self::Static { constraint, .. } | Self::VariadicStatic { constraint, .. } => {
-                *constraint
-            }
-            Self::Type { .. } | Self::VariadicType { .. } => None,
-        }
-    }
 }
 
 impl CheckState<'_> {
@@ -276,7 +265,7 @@ impl CheckState<'_> {
     ) {
         let generic_induction = GenericInduction {
             variable,
-            slot: GenericInductionSlot::static_value(prefix, constraint, induction),
+            slot: GenericInductionSlot::r#static(prefix, constraint, induction),
         };
 
         self.inference.insert_generic_induction(generic_induction);
@@ -295,7 +284,7 @@ impl CheckState<'_> {
             symbol,
             arguments: Vec::new().into(),
         };
-        let constraint = self.push_term(constraint).into();
+        let constraint = self.inference.push_term(constraint).into();
 
         self.induce_static_generic(
             variable,
@@ -315,92 +304,14 @@ impl CheckState<'_> {
     ) {
         let generic_induction = GenericInduction {
             variable,
-            slot: GenericInductionSlot::ty(prefix, constraint, induction),
+            slot: GenericInductionSlot::r#type(prefix, constraint, induction),
         };
 
         self.inference.insert_generic_induction(generic_induction);
     }
 
-    /// Return the induced generic slot attached to one variable.
-    pub(in crate::check) fn generic_induction_slot(
-        &self,
-        variable: VariableId,
-    ) -> Option<GenericInductionSlot> {
-        self.inference.generic_induction_slot(variable)
-    }
-
-    /// Return an existing static generic parameter variable for one symbol.
-    pub(in crate::check) fn generic_static_variable_for_symbol(
-        &self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<VariableId> {
-        let variable = self.generic_variable_for_symbol(module, symbol)?;
-        let (_, generic) = self.variable_generic_slot(variable)?;
-
-        generic.is_static().then_some(variable)
-    }
-
-    /// Return generic parameters in allocation order.
-    pub(in crate::check) fn generic_slots(
-        &self,
-    ) -> impl Iterator<Item = (VariableId, GenericSlot)> {
-        let parameters = self
-            .inference
-            .segments
-            .iter()
-            .flat_map(|segment| segment.generic_templates.values())
-            .flat_map(|template| template.slots.iter())
-            .filter_map(|variable| self.variable_generic_slot(*variable))
-            .collect::<Vec<_>>();
-
-        parameters.into_iter()
-    }
-
-    /// Return generic parameters owned by one symbol.
-    pub(in crate::check) fn generic_slots_for_owner(
-        &self,
-        module: ModuleId,
-        owner: dir::GlobalSymbolId,
-    ) -> impl Iterator<Item = (VariableId, GenericSlot)> {
-        let variables = if self.modules.contains_key(&owner.module_id) {
-            self.generic_slot_variables_for_owner(owner)
-        } else {
-            self.dependency_generic_variables_for_owner(module, owner)
-        };
-        let parameters = variables
-            .into_iter()
-            .filter_map(|variable| self.variable_generic_slot(variable))
-            .collect::<Vec<_>>();
-
-        parameters.into_iter()
-    }
-
-    /// Return one variable's generic parameter metadata.
-    pub(in crate::check) fn generic_slot(&self, variable: VariableId) -> Option<&GenericSlot> {
-        self.inference
-            .segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.generic_slots_by_variable.get(&variable))
-    }
-
-    /// Return one already attached generic application argument.
-    pub(in crate::check) fn generic_application_argument(
-        &self,
-        source: dir::GlobalNodeIdAny,
-        owner: dir::GlobalSymbolId,
-        index: dir::GenericSlotIndex,
-    ) -> Option<GenericArgument> {
-        let key = GenericApplicationKey { source, owner };
-
-        self.generic_application(key)
-            .and_then(|application| application.arguments.get(index.0 as usize))
-            .cloned()
-    }
-
-    /// Attach or return one generic application for a source node.
-    pub(in crate::check) fn attach_generic_application(
+    /// Insert one generic application for a source node.
+    pub(in crate::check) fn insert_generic_application(
         &mut self,
         source: dir::GlobalNodeIdAny,
         owner: dir::GlobalSymbolId,
@@ -408,37 +319,7 @@ impl CheckState<'_> {
     ) -> GenericApplication {
         let key = GenericApplicationKey { source, owner };
 
-        if let Some(application) = self.generic_application(key) {
-            return application.clone();
-        }
-
-        let application = GenericApplication { owner, arguments };
-
-        self.inference
-            .current_mut()
-            .generic_applications
-            .insert(key, application.clone());
-
-        application
-    }
-
-    /// Return one variable's generic parameter metadata with its id.
-    fn variable_generic_slot(&self, variable: VariableId) -> Option<(VariableId, GenericSlot)> {
-        let generic = self.generic_slot(variable)?;
-
-        Some((variable, generic.clone()))
-    }
-
-    /// Return the generic slot declared by one parameter symbol.
-    pub(in crate::check) fn generic_slot_for_symbol(
-        &self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<GenericSlotId> {
-        let variable = self.generic_variable_for_symbol(module, symbol)?;
-        let (_, generic) = self.variable_generic_slot(variable)?;
-
-        Some(generic.slot().id())
+        self.inference.insert_generic_application(key, arguments)
     }
 
     /// Add one type constraint to an existing generic type slot.
@@ -447,17 +328,14 @@ impl CheckState<'_> {
         slot_id: GenericSlotId,
         constraint: TypeOperand,
     ) {
-        let variable = self.generic_type_slot_variable(slot_id);
-        let current = self
-            .generic_slot(variable)
-            .and_then(GenericSlot::type_constraint);
+        let current = self.inference.generic_slot(slot_id).type_constraint();
         let constraint = match current {
-            Some(current) => TypeOperand::Term(self.push_term(TypeTerm::Intersection {
+            Some(current) => TypeOperand::Term(self.inference.push_term(TypeTerm::Intersection {
                 elements: vec![current, constraint],
             })),
             None => constraint,
         };
-        let generic = self.generic_slot_mut(variable);
+        let generic = self.inference.generic_slot_by_id_mut(slot_id);
 
         match generic {
             GenericSlot::Type {
@@ -474,41 +352,9 @@ impl CheckState<'_> {
         }
     }
 
-    /// Attach one variable to a generic slot.
-    pub(in crate::check) fn attach_generic_slot(
-        &mut self,
-        variable: VariableId,
-        generic: GenericSlot,
-    ) {
-        let owner = generic.slot().owner;
-        let key = generic.slot().key;
-
-        let segment = self.inference.current_mut();
-
-        segment
-            .generic_slots_by_variable
-            .insert(variable, generic.clone());
-        segment
-            .generic_templates
-            .entry(owner)
-            .or_insert_with(|| GenericTemplate::new(owner))
-            .slots
-            .push(variable);
-        if let dir::GenericSlotKey::Symbol(symbol) = key {
-            segment.generic_slots_by_symbol.insert(symbol, variable);
-        }
-    }
-
-    /// Attach one dependency variable to a generic slot.
-    pub(in crate::check::state) fn attach_dependency_generic_slot(
-        &mut self,
-        variable: VariableId,
-        generic: GenericSlot,
-    ) {
-        self.inference
-            .current_mut()
-            .generic_slots_by_variable
-            .insert(variable, generic);
+    /// Insert one generic slot.
+    pub(in crate::check) fn insert_generic_slot(&mut self, generic: GenericSlot) {
+        self.inference.insert_generic_slot(generic);
     }
 
     /// Allocate one explicit generic slot for one owner.
@@ -565,9 +411,7 @@ impl CheckState<'_> {
 
     /// Allocate the next generic slot index for one owner.
     fn next_generic_slot_index(&mut self, owner: dir::GlobalSymbolId) -> dir::GenericSlotIndex {
-        let index = self.generic_slot_variables_for_owner(owner).len();
-
-        dir::GenericSlotIndex::new(index as u32)
+        self.inference.next_generic_slot_index(owner)
     }
 
     /// Allocate one source-symbol generic slot for one owner.
@@ -583,158 +427,5 @@ impl CheckState<'_> {
             index: self.next_generic_slot_index(owner),
             origin,
         }
-    }
-
-    /// Return the visible generic application for one source and owner.
-    fn generic_application(&self, key: GenericApplicationKey) -> Option<&GenericApplication> {
-        self.inference
-            .segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.generic_applications.get(&key))
-    }
-
-    /// Return the visible generic variable declared by one parameter symbol.
-    pub(in crate::check) fn generic_variable_for_symbol(
-        &self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<VariableId> {
-        if self.modules.contains_key(&symbol.module_id) {
-            return self.generic_slot_variable_for_symbol(symbol);
-        }
-
-        self.dependency_generic_variable_for_symbol(module, symbol)
-    }
-
-    /// Return the visible generic variable declared by one local parameter symbol.
-    pub(in crate::check) fn generic_slot_variable_for_symbol(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<VariableId> {
-        self.inference
-            .segments
-            .iter()
-            .rev()
-            .find_map(|segment| segment.generic_slots_by_symbol.get(&symbol).copied())
-    }
-
-    /// Return the visible generic variable declared by one generic slot.
-    pub(in crate::check) fn generic_slot_variable(
-        &self,
-        slot_id: GenericSlotId,
-    ) -> Option<VariableId> {
-        self.inference.segments.iter().rev().find_map(|segment| {
-            segment
-                .generic_slots_by_variable
-                .iter()
-                .find_map(|(variable, generic)| {
-                    (generic.slot().id() == slot_id).then_some(*variable)
-                })
-        })
-    }
-
-    /// Return the visible dependency generic variable declared by one parameter symbol.
-    fn dependency_generic_variable_for_symbol(
-        &self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-    ) -> Option<VariableId> {
-        self.dependency_generic_slot_variable_by(|variable, generic| {
-            variable.module == module && generic.slot().key == dir::GenericSlotKey::Symbol(symbol)
-        })
-    }
-
-    /// Return the visible dependency generic variable for one source slot.
-    pub(in crate::check::state) fn dependency_generic_slot_variable(
-        &self,
-        module: ModuleId,
-        slot_id: GenericSlotId,
-    ) -> Option<VariableId> {
-        self.dependency_generic_slot_variable_by(|variable, generic| {
-            variable.module == module && generic.slot().id() == slot_id
-        })
-    }
-
-    /// Return visible generic variables owned by one symbol.
-    fn generic_slot_variables_for_owner(&self, owner: dir::GlobalSymbolId) -> Vec<VariableId> {
-        self.inference
-            .segments
-            .iter()
-            .flat_map(|segment| {
-                segment
-                    .generic_templates
-                    .get(&owner)
-                    .into_iter()
-                    .flat_map(|template| template.slots.iter().copied())
-            })
-            .collect()
-    }
-
-    /// Return visible dependency generic variables owned by one symbol.
-    fn dependency_generic_variables_for_owner(
-        &self,
-        module: ModuleId,
-        owner: dir::GlobalSymbolId,
-    ) -> Vec<VariableId> {
-        self.dependency_generic_slot_variables_by(|variable, generic| {
-            variable.module == module && generic.slot().owner == owner
-        })
-    }
-
-    /// Return the variable for one visible generic type slot.
-    fn generic_type_slot_variable(&self, slot_id: GenericSlotId) -> VariableId {
-        self.inference
-            .segments
-            .iter()
-            .rev()
-            .find_map(|segment| {
-                segment
-                    .generic_slots_by_variable
-                    .iter()
-                    .find_map(|(variable, generic)| {
-                        (generic.slot().id() == slot_id && generic.is_type()).then_some(*variable)
-                    })
-            })
-            .unwrap_or_else(|| panic!("generic type slot {slot_id:?} does not exist"))
-    }
-
-    /// Return one visible generic slot mutably.
-    fn generic_slot_mut(&mut self, variable: VariableId) -> &mut GenericSlot {
-        self.inference
-            .segments
-            .iter_mut()
-            .rev()
-            .find_map(|segment| segment.generic_slots_by_variable.get_mut(&variable))
-            .unwrap_or_else(|| panic!("generic variable {variable:?} has no slot"))
-    }
-
-    /// Return one visible dependency generic variable matching a predicate.
-    fn dependency_generic_slot_variable_by(
-        &self,
-        matches: impl Fn(VariableId, &GenericSlot) -> bool,
-    ) -> Option<VariableId> {
-        self.dependency_generic_slot_variables_by(matches)
-            .into_iter()
-            .next()
-    }
-
-    /// Return visible dependency generic variables matching a predicate.
-    fn dependency_generic_slot_variables_by(
-        &self,
-        matches: impl Fn(VariableId, &GenericSlot) -> bool,
-    ) -> Vec<VariableId> {
-        self.inference
-            .segments
-            .iter()
-            .flat_map(|segment| {
-                segment
-                    .generic_slots_by_variable
-                    .iter()
-                    .filter_map(|(variable, generic)| {
-                        matches(*variable, generic).then_some(*variable)
-                    })
-            })
-            .collect()
     }
 }

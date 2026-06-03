@@ -52,18 +52,34 @@ pub(in crate::check) enum VariableKind {
 }
 
 impl CheckState<'_> {
-    /// Allocate one solver variable.
-    pub(in crate::check) fn allocate_variable(
+    /// Open one type inference variable.
+    pub(in crate::check) fn create_type_variable(
+        &mut self,
+        module: ModuleId,
+        source: Origin,
+    ) -> VariableId {
+        self.push_variable(module, VariableKind::Type, source)
+    }
+
+    /// Open one static inference variable.
+    pub(in crate::check) fn create_static_variable(
+        &mut self,
+        module: ModuleId,
+        source: Origin,
+    ) -> VariableId {
+        self.push_variable(module, VariableKind::Static, source)
+    }
+
+    /// Push one solver variable.
+    pub(in crate::check::state) fn push_variable(
         &mut self,
         module: ModuleId,
         kind: VariableKind,
         source: Origin,
     ) -> VariableId {
-        assert_eq!(
-            source.module(),
-            module,
-            "check inference variable source must be local"
-        );
+        if source.module() != module {
+            panic!("check inference variable source must be local");
+        }
 
         let id = VariableId::new(module, self.inference.variable_count() as u32);
         let variable = Variable::new(id, kind, source);
@@ -72,8 +88,8 @@ impl CheckState<'_> {
         id
     }
 
-    /// Allocate one static expression variable without committing a checked node operand.
-    pub(in crate::check) fn allocate_static_expression_variable(
+    /// Create one static expression variable without binding a node operand.
+    pub(in crate::check) fn create_static_expression_variable(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Expression>,
@@ -81,9 +97,9 @@ impl CheckState<'_> {
     ) -> VariableId {
         let source = id.into_global_any(module);
         let origin = Origin::Node(source);
-        let variable = self.allocate_variable(module, VariableKind::Static, origin);
+        let variable = self.create_static_variable(module, origin);
         let term = StaticTerm::Expression(id.into_global(module));
-        let term = self.push_term(term);
+        let term = self.inference.push_term(term);
 
         self.equate_static(origin, variable, term, condition);
 
@@ -126,7 +142,7 @@ impl CheckState<'_> {
             .inference
             .insert_lower_type_bound(variable, lower_bound);
         if inserted {
-            self.record_trace(CheckEvent::BoundInsert {
+            self.trace.record(CheckEvent::BoundInsert {
                 variable,
                 kind: VariableKind::Type,
                 side: BoundSide::Lower,
@@ -147,7 +163,7 @@ impl CheckState<'_> {
             .inference
             .insert_upper_type_bound(variable, upper_bound);
         if inserted {
-            self.record_trace(CheckEvent::BoundInsert {
+            self.trace.record(CheckEvent::BoundInsert {
                 variable,
                 kind: VariableKind::Type,
                 side: BoundSide::Upper,
@@ -168,7 +184,7 @@ impl CheckState<'_> {
             .inference
             .insert_lower_static_bound(variable, lower_bound);
         if inserted {
-            self.record_trace(CheckEvent::BoundInsert {
+            self.trace.record(CheckEvent::BoundInsert {
                 variable,
                 kind: VariableKind::Static,
                 side: BoundSide::Lower,
@@ -189,7 +205,7 @@ impl CheckState<'_> {
             .inference
             .insert_upper_static_bound(variable, upper_bound);
         if inserted {
-            self.record_trace(CheckEvent::BoundInsert {
+            self.trace.record(CheckEvent::BoundInsert {
                 variable,
                 kind: VariableKind::Static,
                 side: BoundSide::Upper,
@@ -200,44 +216,23 @@ impl CheckState<'_> {
         Ok(inserted)
     }
 
-    /// Return lower type bounds for one variable.
-    pub(in crate::check) fn lower_type_bounds(&self, variable: VariableId) -> Vec<TypeOperand> {
-        self.inference.lower_type_bounds(variable)
-    }
-
-    /// Return upper type bounds for one variable.
-    pub(in crate::check) fn upper_type_bounds(&self, variable: VariableId) -> Vec<TypeOperand> {
-        self.inference.upper_type_bounds(variable)
-    }
-
-    /// Return lower static bounds for one variable.
-    pub(in crate::check) fn lower_static_bounds(&self, variable: VariableId) -> Vec<StaticOperand> {
-        self.inference.lower_static_bounds(variable)
-    }
-
-    /// Return upper static bounds for one variable.
-    pub(in crate::check) fn upper_static_bounds(&self, variable: VariableId) -> Vec<StaticOperand> {
-        self.inference.upper_static_bounds(variable)
-    }
-
     /// Return one variable's source node for diagnostics.
     pub(in crate::check) fn variable_source_node(&self, id: VariableId) -> dir::LocalNodeIdAny {
         match self.variable(id).source {
             Origin::Node(node) => {
-                assert_eq!(
-                    node.module_id, id.module,
-                    "check variable source node must be local"
-                );
+                if node.module_id != id.module {
+                    panic!("check variable source node must be local");
+                }
 
                 node.local_id
             }
             Origin::Symbol(symbol) => {
-                assert_eq!(
-                    symbol.module_id, id.module,
-                    "check variable source symbol must be local"
-                );
+                if symbol.module_id != id.module {
+                    panic!("check variable source symbol must be local");
+                }
 
-                self.symbol_source_node(symbol)
+                self.module(symbol.module_id)
+                    .symbol_declaration_node(symbol.local_id)
             }
         }
     }

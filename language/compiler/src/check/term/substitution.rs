@@ -5,14 +5,12 @@ use crate::CompilerResult;
 use crate::check::{
     CheckState, Decision, GenericApplication, GenericArgument, GenericSlotId, Origin, Reduction,
     StaticOperand, StaticRelation, StaticTerm, TypeOperand, TypeRelation, TypeSolution, TypeTerm,
-    VariableId, VariableKind,
+    VariableId,
 };
 
 /// One generic argument substitution entry.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct GenericSubstitutionEntry {
-    /// The generic variable being substituted.
-    pub(in crate::check) variable: VariableId,
     /// The generic slot being substituted.
     pub(in crate::check) slot: GenericSlotId,
     /// The applied argument.
@@ -96,17 +94,17 @@ impl<'a> From<ReceiverSubstitution> for Substitution<'a> {
 }
 
 impl CheckState<'_> {
-    /// Return the type argument operand for one generic variable.
+    /// Return the type argument operand for one generic slot.
     pub(in crate::check) fn substitution_type_operand<'a>(
         &self,
         substitution: impl Into<Substitution<'a>>,
-        variable: VariableId,
+        slot: GenericSlotId,
     ) -> Option<TypeOperand> {
         let substitution = substitution.into();
         let substitution = substitution.generic?;
 
         substitution.entries.iter().find_map(|entry| {
-            if entry.variable == variable {
+            if entry.slot == slot {
                 entry.argument.type_operand()
             } else {
                 None
@@ -114,27 +112,27 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return the type argument for one generic variable.
+    /// Return the type argument for one generic slot.
     pub(in crate::check) fn substitution_type_variable<'a>(
         &self,
         substitution: impl Into<Substitution<'a>>,
-        variable: VariableId,
+        slot: GenericSlotId,
     ) -> Option<VariableId> {
-        self.substitution_type_operand(substitution, variable)?
+        self.substitution_type_operand(substitution, slot)?
             .variable()
     }
 
-    /// Return the static argument operand for one generic variable.
+    /// Return the static argument operand for one generic slot.
     pub(in crate::check) fn substitution_static_operand<'a>(
         &self,
         substitution: impl Into<Substitution<'a>>,
-        variable: VariableId,
+        slot: GenericSlotId,
     ) -> Option<StaticOperand> {
         let substitution = substitution.into();
         let substitution = substitution.generic?;
 
         substitution.entries.iter().find_map(|entry| {
-            if entry.variable == variable {
+            if entry.slot == slot {
                 entry.argument.static_operand()
             } else {
                 None
@@ -142,13 +140,13 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return the static argument for one generic variable.
+    /// Return the static argument for one generic slot.
     pub(in crate::check) fn substitution_static_variable<'a>(
         &self,
         substitution: impl Into<Substitution<'a>>,
-        variable: VariableId,
+        slot: GenericSlotId,
     ) -> Option<VariableId> {
-        self.substitution_static_operand(substitution, variable)?
+        self.substitution_static_operand(substitution, slot)?
             .variable()
     }
 
@@ -163,7 +161,10 @@ impl CheckState<'_> {
 
         substitution.entries.iter().find_map(|entry| {
             if entry.slot == slot {
-                self.argument_type_variable(&entry.argument)
+                entry
+                    .argument
+                    .type_operand()
+                    .and_then(|operand| operand.variable())
             } else {
                 None
             }
@@ -181,7 +182,10 @@ impl CheckState<'_> {
 
         substitution.entries.iter().find_map(|entry| {
             if entry.slot == slot {
-                self.argument_static_variable(&entry.argument)
+                entry
+                    .argument
+                    .static_operand()
+                    .and_then(|operand| operand.variable())
             } else {
                 None
             }
@@ -199,7 +203,10 @@ impl CheckState<'_> {
 
         substitution.entries.iter().find_map(|entry| {
             if entry.slot.key == dir::GenericSlotKey::Symbol(symbol) {
-                self.argument_type_variable(&entry.argument)
+                entry
+                    .argument
+                    .type_operand()
+                    .and_then(|operand| operand.variable())
             } else {
                 None
             }
@@ -209,7 +216,6 @@ impl CheckState<'_> {
     /// Return the generic substitution for one applied symbol.
     pub(in crate::check) fn generic_substitution(
         &mut self,
-        module: ModuleId,
         owner: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
     ) -> CompilerResult<GenericSubstitution> {
@@ -217,24 +223,24 @@ impl CheckState<'_> {
             return Ok(GenericSubstitution::empty());
         }
         let mut slots = self
-            .generic_slots_for_owner(module, owner)
-            .map(|(variable, generic)| {
+            .inference
+            .generic_slots_for_owner(owner)
+            .map(|(_, generic)| {
                 let slot = generic.slot().id();
 
-                (generic.slot().index, variable, slot, generic.is_static())
+                (generic.slot().index, slot, generic.is_static())
             })
             .collect::<Vec<_>>();
 
-        slots.sort_by_key(|(index, _, _, _)| *index);
+        slots.sort_by_key(|(index, _, _)| *index);
 
         let entries = slots
             .into_iter()
             .zip(arguments.iter().cloned())
             .map(
-                |((_, variable, slot, is_static), argument)| GenericSubstitutionEntry {
-                    variable,
+                |((_, slot, is_static), argument)| GenericSubstitutionEntry {
                     slot,
-                    argument: self.select_argument_for_static_slot(&argument, is_static),
+                    argument: argument.select_for_static_slot(is_static),
                 },
             )
             .collect();
@@ -245,22 +251,26 @@ impl CheckState<'_> {
     /// Return the generic application described by one substitution.
     pub(in crate::check) fn substitution_application(
         &mut self,
-        module: ModuleId,
         owner: dir::GlobalSymbolId,
         substitution: &GenericSubstitution,
     ) -> CompilerResult<Option<GenericApplication>> {
         let slots = self
-            .generic_slots_for_owner(module, owner)
-            .map(|(variable, generic)| (variable, generic.slot().index, generic.is_type()))
+            .inference
+            .generic_slots_for_owner(owner)
+            .map(|(_, generic)| {
+                let slot = generic.slot().id();
+
+                (slot, generic.slot().index, generic.is_type())
+            })
             .collect::<Vec<_>>();
         let mut arguments = slots
             .into_iter()
-            .filter_map(|(variable, index, is_type)| {
+            .filter_map(|(slot, index, is_type)| {
                 let argument = if is_type {
-                    self.substitution_type_operand(substitution, variable)
+                    self.substitution_type_operand(substitution, slot)
                         .map(GenericArgument::Type)
                 } else {
-                    self.substitution_static_operand(substitution, variable)
+                    self.substitution_static_operand(substitution, slot)
                         .map(GenericArgument::Static)
                 }?;
 
@@ -291,7 +301,7 @@ impl CheckState<'_> {
         variable: VariableId,
     ) -> CompilerResult<VariableId> {
         let operand = self.substitute_type_variable_operand(module, substitution, variable)?;
-        let variable = self.substituted_type_variable(module, variable, operand);
+        let variable = self.substituted_type_variable(module, variable, operand)?;
 
         Ok(variable)
     }
@@ -302,37 +312,30 @@ impl CheckState<'_> {
         module: ModuleId,
         source: VariableId,
         operand: TypeOperand,
-    ) -> VariableId {
+    ) -> CompilerResult<VariableId> {
+        let origin = self.variable(source).source;
+        if origin.module() != module {
+            panic!("substituted type variable origin must be local");
+        }
+
         let term = match operand {
-            TypeOperand::Variable(variable) => return variable,
+            TypeOperand::Variable(variable) => return Ok(variable),
             TypeOperand::Term(term) => term,
             TypeOperand::Type(ty) => {
-                let origin = self.variable(source).source;
-                assert_eq!(
-                    origin.module(),
-                    module,
-                    "substituted type variable origin must be local"
-                );
-                let variable = self.allocate_variable(module, VariableKind::Type, origin);
+                let variable = self.create_type_variable(module, origin);
                 let solution = TypeSolution::Type(ty);
 
-                self.insert_known_solution(variable, solution.into());
+                self.set_variable_solution(variable, solution.into())?;
 
-                return variable;
+                return Ok(variable);
             }
         };
-        let origin = self.variable(source).source;
-        assert_eq!(
-            origin.module(),
-            module,
-            "substituted type variable origin must be local"
-        );
-        let variable = self.allocate_variable(module, VariableKind::Type, origin);
+        let variable = self.create_type_variable(module, origin);
         let solution = TypeSolution::Term(term);
 
-        self.insert_known_solution(variable, solution.into());
+        self.set_variable_solution(variable, solution.into())?;
 
-        variable
+        Ok(variable)
     }
 
     /// Substitute one type variable into an operand.
@@ -344,9 +347,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<TypeOperand> {
         let substitution = substitution.into();
 
-        if let Some(argument) = self.substitution_type_operand(substitution, variable) {
-            return Ok(argument);
-        }
         let Some(term) = self.type_solution(variable)? else {
             return Ok(variable.into());
         };
@@ -367,7 +367,7 @@ impl CheckState<'_> {
                 progress: _,
             } => substituted,
         };
-        let term = self.push_term(substituted);
+        let term = self.inference.push_term(substituted);
 
         Ok(term.into())
     }
@@ -386,11 +386,11 @@ impl CheckState<'_> {
                 self.substitute_type_variable_operand(module, substitution, variable)?
             }
             TypeOperand::Term(term) => {
-                let term = self.term(term).clone();
+                let term = self.inference.term(term).clone();
                 let Some(term) = term.substitute(module, substitution, self)? else {
                     return Ok(operand);
                 };
-                let term = self.push_term(term);
+                let term = self.inference.push_term(term);
 
                 term.into()
             }
@@ -416,7 +416,7 @@ impl CheckState<'_> {
         let Some(term) = term.substitute(module, substitution, self)? else {
             return Ok(operand);
         };
-        let term = self.push_term(term);
+        let term = self.inference.push_term(term);
 
         Ok(term.into())
     }
@@ -445,9 +445,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<StaticOperand> {
         let substitution = substitution.into();
 
-        if let Some(argument) = self.substitution_static_operand(substitution, variable) {
-            return Ok(argument);
-        }
         let Some(term) = self.static_substitution_source(variable)? else {
             return Ok(variable.into());
         };
@@ -455,7 +452,7 @@ impl CheckState<'_> {
         if substituted == term {
             return Ok(variable.into());
         }
-        let term = self.push_term(substituted);
+        let term = self.inference.push_term(substituted);
 
         Ok(term.into())
     }
@@ -496,9 +493,9 @@ impl CheckState<'_> {
                 self.substitute_static_variable_operand(module, substitution, variable)?
             }
             StaticOperand::Term(term) => {
-                let term = self.term(term).clone();
+                let term = self.inference.term(term).clone();
                 let term = term.substitute(module, substitution, self)?;
-                let term = self.push_term(term);
+                let term = self.inference.push_term(term);
 
                 term.into()
             }
@@ -517,18 +514,18 @@ impl CheckState<'_> {
         actual: &TypeTerm,
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
-        if let Some((variable, slot)) = self.type_pattern_generic(module, owner, pattern)? {
+        if let Some(slot) = self.type_pattern_generic(owner, pattern)? {
             let actual = self.type_pattern_term_operand(actual);
 
-            return self.match_type_generic(variable, slot, actual, substitution);
+            return self.match_type_generic(slot, actual, substitution);
         }
 
         let pattern = self.normalize_type_pattern_term(pattern)?;
         let actual = self.normalize_type_pattern_term(actual)?;
-        if let Some((variable, slot)) = self.type_pattern_generic(module, owner, &pattern)? {
+        if let Some(slot) = self.type_pattern_generic(owner, &pattern)? {
             let actual = self.type_pattern_term_operand(&actual);
 
-            return self.match_type_generic(variable, slot, actual, substitution);
+            return self.match_type_generic(slot, actual, substitution);
         }
 
         let is_match = match (&pattern, &actual) {
@@ -569,7 +566,7 @@ impl CheckState<'_> {
 
     /// Return an operand for one type pattern term.
     fn type_pattern_term_operand(&mut self, term: &TypeTerm) -> TypeOperand {
-        self.push_term(term.clone()).into()
+        self.inference.push_term(term.clone()).into()
     }
 
     /// Match one generic argument pattern.
@@ -595,10 +592,8 @@ impl CheckState<'_> {
             }
             (GenericArgument::Static(pattern), GenericArgument::Static(actual))
             | (GenericArgument::SpreadStatic(pattern), GenericArgument::SpreadStatic(actual)) => {
-                if let Some(pattern) = pattern.variable()
-                    && let Some((variable, slot)) = self.variable_static_generic(owner, pattern)?
-                {
-                    self.match_static_generic(variable, slot, *actual, substitution)?
+                if let Some(slot) = self.static_pattern_generic(owner, *pattern)? {
+                    self.match_static_generic(slot, *actual, substitution)?
                 } else {
                     self.decide_static_relation(StaticRelation::Equal, *pattern, *actual)?
                         == Decision::Yes
@@ -621,11 +616,8 @@ impl CheckState<'_> {
                 if let (Some(pattern), Some(actual)) =
                     (pattern.static_operand(), actual.static_operand()) =>
             {
-                if let Some(pattern_variable) = pattern.variable()
-                    && let Some((variable, slot)) =
-                        self.variable_static_generic(owner, pattern_variable)?
-                {
-                    self.match_static_generic(variable, slot, actual, substitution)?
+                if let Some(slot) = self.static_pattern_generic(owner, pattern)? {
+                    self.match_static_generic(slot, actual, substitution)?
                 } else {
                     self.decide_static_relation(StaticRelation::Equal, pattern, actual)?
                         == Decision::Yes
@@ -647,7 +639,7 @@ impl CheckState<'_> {
 
                 term
             }
-            TypeOperand::Term(term) => self.term(term).clone(),
+            TypeOperand::Term(term) => self.inference.term(term).clone(),
             TypeOperand::Type(ty) => TypeTerm::Type(ty),
         };
 
@@ -676,19 +668,17 @@ impl CheckState<'_> {
     /// Match one generic type slot against an actual type.
     fn match_type_generic(
         &mut self,
-        variable: VariableId,
         slot: GenericSlotId,
         actual: TypeOperand,
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
-        if let Some(existing) = self.substitution_type_operand(&*substitution, variable) {
+        if let Some(existing) = self.substitution_type_operand(&*substitution, slot) {
             let decision = self.decide_type_relation(TypeRelation::Equal, existing, actual)?;
 
             return Ok(decision != Decision::No);
         }
 
         substitution.entries.push(GenericSubstitutionEntry {
-            variable,
             slot,
             argument: GenericArgument::Type(actual),
         });
@@ -699,19 +689,17 @@ impl CheckState<'_> {
     /// Match one generic static slot against an actual static value.
     fn match_static_generic(
         &mut self,
-        variable: VariableId,
         slot: GenericSlotId,
         actual: StaticOperand,
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
-        if let Some(existing) = self.substitution_static_operand(&*substitution, variable) {
+        if let Some(existing) = self.substitution_static_operand(&*substitution, slot) {
             let decision = self.decide_static_relation(StaticRelation::Equal, existing, actual)?;
 
             return Ok(decision != Decision::No);
         }
 
         substitution.entries.push(GenericSubstitutionEntry {
-            variable,
             slot,
             argument: GenericArgument::Static(actual),
         });
@@ -722,18 +710,17 @@ impl CheckState<'_> {
     /// Return a generic type slot represented by a pattern term.
     fn type_pattern_generic(
         &self,
-        module: ModuleId,
         owner: dir::GlobalSymbolId,
         term: &TypeTerm,
-    ) -> CompilerResult<Option<(VariableId, GenericSlotId)>> {
+    ) -> CompilerResult<Option<GenericSlotId>> {
         let slot = match term {
             TypeTerm::Reference {
                 origin: _,
                 symbol,
                 arguments,
-            } if arguments.is_empty() => self.symbol_type_generic(module, owner, *symbol)?,
+            } if arguments.is_empty() => self.symbol_type_generic(owner, *symbol)?,
             TypeTerm::Parameter(slot_id) if slot_id.owner == owner => {
-                self.slot_type_generic(module, *slot_id)?
+                self.slot_type_generic(*slot_id)?
             }
             TypeTerm::Parameter(_) => None,
             _ => None,
@@ -742,37 +729,51 @@ impl CheckState<'_> {
         Ok(slot)
     }
 
-    /// Return a generic static slot represented by a variable.
-    fn variable_static_generic(
+    /// Return a generic static slot represented by a static pattern.
+    fn static_pattern_generic(
         &self,
         owner: dir::GlobalSymbolId,
-        variable: VariableId,
-    ) -> CompilerResult<Option<(VariableId, GenericSlotId)>> {
-        let Some(generic) = self.generic_slot(variable) else {
+        operand: StaticOperand,
+    ) -> CompilerResult<Option<GenericSlotId>> {
+        let term = match operand {
+            StaticOperand::Variable(variable) => self.static_substitution_source(variable)?,
+            StaticOperand::Term(term) => Some(self.inference.term(term).clone()),
+            StaticOperand::Static(value) => match self.r#static(value) {
+                dir::StaticTerm::Parameter(parameter) => {
+                    Some(StaticTerm::Parameter((*parameter).into()))
+                }
+                term => Some(StaticTerm::Literal(term.clone())),
+            },
+        };
+        let Some(StaticTerm::Parameter(slot)) = term else {
             return Ok(None);
         };
-        if generic.slot().owner != owner || !generic.is_static() {
-            return Ok(None);
-        }
+        let generic = self.inference.generic_slot(slot);
+        let is_match = generic.slot().owner == owner
+            && generic.is_static()
+            && self
+                .inference
+                .generic_slots_for_owner(owner)
+                .any(|(candidate, _)| candidate == slot);
 
-        Ok(Some((variable, generic.slot().id())))
+        Ok(is_match.then_some(slot))
     }
 
     /// Return a generic type slot represented by a symbol.
     fn symbol_type_generic(
         &self,
-        module: ModuleId,
         owner: dir::GlobalSymbolId,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<(VariableId, GenericSlotId)>> {
+    ) -> CompilerResult<Option<GenericSlotId>> {
         let slot = self
-            .generic_slots_for_owner(module, owner)
-            .find_map(|(variable, generic)| {
+            .inference
+            .generic_slots_for_owner(owner)
+            .find_map(|(slot, generic)| {
                 if generic.slot().owner == owner
                     && generic.slot().key == dir::GenericSlotKey::Symbol(symbol)
                     && generic.is_type()
                 {
-                    Some((variable, generic.slot().id()))
+                    Some(slot)
                 } else {
                     None
                 }
@@ -782,16 +783,13 @@ impl CheckState<'_> {
     }
 
     /// Return a generic type slot represented by a slot id.
-    fn slot_type_generic(
-        &self,
-        module: ModuleId,
-        slot_id: GenericSlotId,
-    ) -> CompilerResult<Option<(VariableId, GenericSlotId)>> {
+    fn slot_type_generic(&self, slot_id: GenericSlotId) -> CompilerResult<Option<GenericSlotId>> {
         let slot = self
-            .generic_slots_for_owner(module, slot_id.owner)
-            .find_map(|(variable, generic)| {
+            .inference
+            .generic_slots_for_owner(slot_id.owner)
+            .find_map(|(slot, generic)| {
                 if generic.slot().id() == slot_id && generic.is_type() {
-                    Some((variable, slot_id))
+                    Some(slot)
                 } else {
                     None
                 }

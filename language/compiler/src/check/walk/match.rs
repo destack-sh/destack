@@ -79,7 +79,7 @@ impl WalkState<'_, '_> {
                 if let Some(guard) = guard {
                     self.walk_expression(tree, *guard, tree.get(*guard));
 
-                    let variable = self.check.require_local_node_type(tree.module_id, *guard);
+                    let variable = self.allocate_node_type_operand(*guard);
                     let condition = self.active_static_guard();
 
                     self.check.constrain_condition(

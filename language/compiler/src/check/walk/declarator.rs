@@ -22,7 +22,7 @@ impl WalkState<'_, '_> {
             return;
         }
 
-        if let Some(symbol) = self.find_declarator_binding_symbol(tree, declarator) {
+        if let Some(symbol) = self.declarator_binding_symbol(tree, declarator) {
             self.walk_name_declarator(tree, symbol, declarator);
         } else {
             self.walk_pattern_declarator(tree, id, declarator);
@@ -43,7 +43,7 @@ impl WalkState<'_, '_> {
         symbol: dir::GlobalSymbolId,
         declarator: &dir::Declarator,
     ) {
-        // walk sources before reading their checked types
+        // walk declared sources before reading operands
         if let Some(ty) = declarator.ty {
             self.walk_type_expression(tree, ty, tree.get(ty));
         }
@@ -55,27 +55,24 @@ impl WalkState<'_, '_> {
 
         // set binding type from annotation or initializer
         if let Some(ty) = declarator.ty {
-            let operand = self.check.require_local_node_type(tree.module_id, ty);
-            self.check
-                .publish_symbol_type_operand(symbol, operand, condition);
+            let operand = self.allocate_node_type_operand(ty);
+            self.bind_symbol_type_operand(symbol, operand, condition);
         } else if let Some(value) = declarator.value {
-            let operand = self.check.require_local_node_type(tree.module_id, value);
+            let operand = self.allocate_node_type_operand(value);
             if let Some(term) =
                 self.lower_name_declarator_widened_type(symbol, value, operand, tree)
             {
-                self.check
-                    .publish_symbol_type(tree.module_id, symbol, term, condition);
+                self.bind_symbol_type(symbol, term, condition);
             } else {
-                self.check
-                    .publish_symbol_type_operand(symbol, operand, condition);
+                self.bind_symbol_type_operand(symbol, operand, condition);
             }
         }
 
         // check initializers against explicit annotations
         if let (Some(ty), Some(value)) = (declarator.ty, declarator.value) {
             let origin = Origin::Node(value.into_global_any(tree.module_id));
-            let value = self.check.require_local_node_type(tree.module_id, value);
-            let target = self.check.require_local_node_type(tree.module_id, ty);
+            let value = self.allocate_node_type_operand(value);
+            let target = self.allocate_node_type_operand(ty);
             let condition = self.active_static_guard();
 
             self.check
@@ -109,12 +106,8 @@ impl WalkState<'_, '_> {
 
         let matched_value = declarator
             .value
-            .map(|value| self.check.require_local_node_type(tree.module_id, value))
-            .or_else(|| {
-                declarator
-                    .ty
-                    .map(|ty| self.check.require_local_node_type(tree.module_id, ty))
-            });
+            .map(|value| self.allocate_node_type_operand(value))
+            .or_else(|| declarator.ty.map(|ty| self.allocate_node_type_operand(ty)));
 
         if let Some(value) = matched_value
             && let Some(pattern) = self.lower_pattern_term(tree.module_id, declarator.pattern, tree)
@@ -122,7 +115,7 @@ impl WalkState<'_, '_> {
             let condition = self.active_static_guard();
 
             if Self::is_irrefutable_declarator_pattern_required(tree, id) {
-                self.check.require_irrefutable_pattern(
+                self.check.push_irrefutable_pattern_obligation(
                     tree.module_id,
                     declarator.pattern.into_any(),
                     pattern,
@@ -142,7 +135,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the symbol bound by a plain name declarator.
-    fn find_declarator_binding_symbol(
+    fn declarator_binding_symbol(
         &self,
         tree: &dir::Tree,
         declarator: &dir::Declarator,
@@ -150,7 +143,8 @@ impl WalkState<'_, '_> {
         match tree.get(declarator.pattern) {
             dir::Pattern::Binding { pattern: None, .. } => self
                 .check
-                .declaration_symbol(tree.module_id, declarator.pattern.into_any()),
+                .module(tree.module_id)
+                .declaration_symbol(declarator.pattern.into_any()),
             _ => None,
         }
     }
@@ -177,7 +171,10 @@ impl WalkState<'_, '_> {
             return Some(TypeTerm::Literal(CheckState::widen_scalar_literal(literal)));
         }
 
-        let operation = self.check.push_term(TypeOperationTerm::Widen { source });
+        let operation = self
+            .check
+            .inference
+            .push_term(TypeOperationTerm::Widen { source });
 
         Some(TypeTerm::Operation(operation))
     }
@@ -298,20 +295,20 @@ impl WalkState<'_, '_> {
             }
             // value
             dir::Pattern::Expression { value } => {
-                let ty = self.check.require_local_node_type(tree.module_id, *value);
+                let ty = self.allocate_node_type_operand(*value);
 
                 self.narrow_flow_path(path, ty);
             }
             // value is T
             dir::Pattern::TypeExpression { value } => {
-                let ty = self.check.require_local_node_type(tree.module_id, *value);
+                let ty = self.allocate_node_type_operand(*value);
 
                 self.narrow_flow_path(path, ty);
             }
             // T(a, b), T { name }
             dir::Pattern::Newtype { ty, fields }
             | dir::Pattern::NominalObject { ty, fields } => {
-                let narrowed = self.check.require_local_node_type(tree.module_id, *ty);
+                let narrowed = self.allocate_node_type_operand(*ty);
 
                 self.narrow_flow_path(path.clone(), narrowed);
                 self.narrow_pattern_fields_success(tree, path, fields);

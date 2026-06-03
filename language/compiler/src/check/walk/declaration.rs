@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use super::property::MemberReceiverContext;
 
-use crate::check::{NewtypeRepresentation, ReceiverCapture, TypeOperand, TypeTerm, WalkState};
+use crate::check::{Condition, Origin, ReceiverCapture, TypeOperand, TypeTerm, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one declaration.
@@ -108,10 +108,11 @@ impl WalkState<'_, '_> {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
         }
 
-        // walk type expression itself
-        self.walk_type_expression(tree, declaration.value, tree.get(declaration.value));
-
-        let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) else {
+        let Some(symbol) = self
+            .check
+            .module(tree.module_id)
+            .declaration_symbol(id.into_any())
+        else {
             return;
         };
         let value_expression = tree.get(declaration.value);
@@ -119,39 +120,36 @@ impl WalkState<'_, '_> {
         let is_language_item =
             is_intrinsic && self.check.environment.language.item(symbol).is_some();
 
-        // transparent aliases publish their right-hand side as the symbol type
-        if !declaration.is_nominal {
-            if is_language_item {
-                return;
-            }
+        // bind legal intrinsic declarations
+        if is_intrinsic && (declaration.is_nominal || is_language_item) {
+            let ty = TypeTerm::Reference {
+                origin: Origin::Symbol(symbol),
+                symbol,
+                arguments: Vec::new(),
+            };
 
-            let value = self
-                .check
-                .require_local_node_type(tree.module_id, declaration.value);
+            self.bind_symbol_type(symbol, ty, Condition::Always);
+
+            return;
+        }
+
+        // walk type expression itself
+        self.walk_type_expression(tree, declaration.value, value_expression);
+
+        // bind transparent aliases to their right-hand side
+        if !declaration.is_nominal {
+            let value = self.allocate_node_type_operand(declaration.value);
             let condition = self.active_static_guard();
 
             self.check.push_generic_induction_root(symbol, value);
-            self.check
-                .publish_symbol_type_operand(symbol, value, condition);
+            self.bind_symbol_type_operand(symbol, value, condition);
         }
-        // nominal declarations reserve a fresh symbol type and optionally back it
+        // bind nominal declarations to a fresh symbol type
         else {
-            if is_intrinsic {
-                self.check
-                    .reserve_symbol_type_if_missing(tree.module_id, symbol);
-                return;
-            }
-
-            let backing = self
-                .check
-                .require_local_node_type(tree.module_id, declaration.value);
+            let backing = self.allocate_node_type_operand(declaration.value);
 
             self.check.push_generic_induction_root(symbol, backing);
-            self.check
-                .reserve_symbol_type_if_missing(tree.module_id, symbol);
-            self.check
-                .representations
-                .insert_newtype(NewtypeRepresentation { symbol, backing });
+            self.allocate_symbol_type_variable(symbol);
         }
     }
 
@@ -167,8 +165,11 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::StructDeclaration,
     ) {
-        let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
-        let receiver = self.ensure_declaration_member_receiver(tree.module_id, symbol);
+        let symbol = self
+            .check
+            .module(tree.module_id)
+            .declaration_symbol(id.into_any());
+        let receiver = self.declaration_member_receiver(tree.module_id, symbol);
 
         // walk generic header
         for parameter in &declaration.generic_parameters {
@@ -200,8 +201,11 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::ClassDeclaration,
     ) {
-        let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
-        let receiver = self.ensure_declaration_member_receiver(tree.module_id, symbol);
+        let symbol = self
+            .check
+            .module(tree.module_id)
+            .declaration_symbol(id.into_any());
+        let receiver = self.declaration_member_receiver(tree.module_id, symbol);
 
         // walk generic header
         for parameter in &declaration.generic_parameters {
@@ -238,8 +242,11 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::EnumDeclaration,
     ) {
-        let symbol = self.check.declaration_symbol(tree.module_id, id.into_any());
-        let receiver = self.ensure_declaration_member_receiver(tree.module_id, symbol);
+        let symbol = self
+            .check
+            .module(tree.module_id)
+            .declaration_symbol(id.into_any());
+        let receiver = self.declaration_member_receiver(tree.module_id, symbol);
 
         // walk generic header
         for parameter in &declaration.generic_parameters {
@@ -274,9 +281,12 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::InterfaceDeclaration,
     ) {
-        if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
-            self.check
-                .reserve_symbol_type_if_missing(tree.module_id, symbol);
+        if let Some(symbol) = self
+            .check
+            .module(tree.module_id)
+            .declaration_symbol(id.into_any())
+        {
+            self.allocate_symbol_type_variable(symbol);
         }
 
         // walk generic header
@@ -329,9 +339,7 @@ impl WalkState<'_, '_> {
         let receiver = Some(MemberReceiverContext {
             module: tree.module_id,
             owner: None,
-            ty: self
-                .check
-                .require_local_node_type(tree.module_id, declaration.target_type),
+            ty: self.allocate_node_type_operand(declaration.target_type),
         });
 
         for member in &declaration.members {
@@ -351,11 +359,15 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::FunctionDeclaration,
     ) {
-        if let Some(symbol) = self.check.declaration_symbol(tree.module_id, id.into_any()) {
+        if let Some(symbol) = self
+            .check
+            .module(tree.module_id)
+            .declaration_symbol(id.into_any())
+        {
             // walk signature before reading its term inputs
             self.walk_function_signature(tree, &declaration.signature);
 
-            let return_type = self.ensure_signature_return_type(
+            let result = self.function_result_operand(
                 tree.module_id,
                 id.into_any(),
                 &declaration.signature,
@@ -365,23 +377,23 @@ impl WalkState<'_, '_> {
             // commit function symbol type
             let term = self.lower_function_signature_term(
                 &declaration.signature,
-                return_type.map(Into::into),
+                None,
+                result.map(Into::into),
                 tree,
             );
             let condition = self.active_static_guard();
 
-            let operand = self.check.push_term(TypeTerm::Function(term)).into();
+            let operand = self
+                .check
+                .inference
+                .push_term(TypeTerm::Function(term))
+                .into();
 
             self.check.push_generic_induction_root(symbol, operand);
-            self.check.publish_symbol_type(
-                tree.module_id,
-                symbol,
-                TypeTerm::Function(term),
-                condition,
-            );
+            self.bind_symbol_type_operand(symbol, operand, condition);
 
-            // walk body after its return channel exists
-            if let (Some(body), Some(return_type)) = (declaration.body, return_type) {
+            // walk body after its result operand exists
+            if let (Some(body), Some(result)) = (declaration.body, result) {
                 let receiver =
                     self.bind_explicit_receiver(declaration.signature.this_parameter, None, tree);
 
@@ -390,7 +402,7 @@ impl WalkState<'_, '_> {
                     symbol,
                     &declaration.signature,
                     body,
-                    return_type,
+                    result,
                     receiver,
                 );
             }
@@ -444,7 +456,7 @@ impl WalkState<'_, '_> {
                 if block.context == dir::BlockContext::Expression
                     && let Some(tail) = block.tail_expression
                 {
-                    let value = self.check.require_local_node_type(tree.module_id, tail);
+                    let value = self.allocate_node_type_operand(tail);
 
                     self.constrain_return_value(tail.into_any(), value);
                 } else {
@@ -453,7 +465,7 @@ impl WalkState<'_, '_> {
             }
             // expression
             _ => {
-                let value = self.check.require_local_node_type(tree.module_id, body);
+                let value = self.allocate_node_type_operand(body);
 
                 self.constrain_return_value(body.into_any(), value);
             }
@@ -517,13 +529,14 @@ impl WalkState<'_, '_> {
         let parameter = this_parameter?;
         let Some(symbol) = self
             .check
-            .declaration_symbol(tree.module_id, parameter.into_any())
+            .module(tree.module_id)
+            .declaration_symbol(parameter.into_any())
         else {
             return None;
         };
 
         // bind the receiver to its parameter type
-        let ty = self.ensure_parameter_type(parameter, tree)?;
+        let ty = self.parameter_type(parameter, tree)?;
         if let Some(owner) = owner {
             self.check.push_generic_induction_root(owner, ty);
         }
@@ -531,13 +544,13 @@ impl WalkState<'_, '_> {
         Some(ReceiverCapture { symbol, owner, ty })
     }
 
-    /// Ensure one function signature has a checked return type operand.
+    /// Return one public function result operand.
     ///
     /// Example:
     /// ```ds
     /// function value(): number { 1 }
     /// ```
-    pub(in crate::check) fn ensure_signature_return_type(
+    pub(in crate::check) fn function_result_operand(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -546,34 +559,34 @@ impl WalkState<'_, '_> {
     ) -> Option<TypeOperand> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            return Some(self.check.require_local_node_type(module, return_type));
+            return Some(self.allocate_node_type_operand(return_type));
         }
 
-        // skip return inference for signatures without bodies
-        body?;
+        // skip ambient signatures
+        let Some(_) = body else {
+            return None;
+        };
 
-        // reserve the source node as the inferred return type
-        let node = source.into_global(module);
+        // allocate the inferred result operand
+        let origin = Origin::Node(source.into_global(module));
+        let variable = self.check.create_type_variable(module, origin);
 
-        Some(self.check.reserve_node_type(module, node).into())
+        Some(TypeOperand::Variable(variable))
     }
 
-    /// Ensure one nominal declaration has a member receiver context.
+    /// Return one nominal declaration member receiver context.
     ///
     /// Example:
     /// ```ds
     /// struct Box { value: number }
     /// ```
-    fn ensure_declaration_member_receiver(
+    fn declaration_member_receiver(
         &mut self,
         module: ModuleId,
         symbol: Option<dir::GlobalSymbolId>,
     ) -> Option<MemberReceiverContext> {
         let symbol = symbol?;
-        let ty = self
-            .check
-            .reserve_symbol_type_if_missing(module, symbol)
-            .into();
+        let ty = self.allocate_symbol_type_variable(symbol).into();
 
         Some(MemberReceiverContext {
             module,

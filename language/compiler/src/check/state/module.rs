@@ -12,8 +12,6 @@ use crate::check::{Capture, CheckError, CheckState, Condition};
 /// State owned by one module inside a checked component.
 pub(in crate::check) struct CheckModuleState {
     // input state
-    /// The requested module id.
-    pub(in crate::check) module_id: ModuleId,
     /// The requested source module.
     pub(in crate::check) module: Arc<Module>,
     /// The active semantic profile.
@@ -43,7 +41,6 @@ pub(in crate::check) struct CheckModuleState {
 impl CheckModuleState {
     /// Create module state from loaded inputs and empty working state.
     pub(in crate::check) fn new(
-        module_id: ModuleId,
         module: Arc<Module>,
         profile: ProfileKey,
         strings: Arc<StringPool>,
@@ -53,7 +50,6 @@ impl CheckModuleState {
         expanded: Arc<DirExpanded>,
     ) -> Self {
         Self {
-            module_id,
             module,
             profile,
             strings,
@@ -91,8 +87,8 @@ impl CheckModuleState {
         self.expanded.static_table(&self.bound)
     }
 
-    /// Return one input type visible to check.
-    pub(in crate::check) fn type_value(&self, type_id: dir::LocalTypeId) -> &dir::Type {
+    /// Return one local input type visible to check.
+    pub(in crate::check) fn r#type(&self, type_id: dir::LocalTypeId) -> &dir::Type {
         if let Some(ty) = self.expanded.types.get_type_maybe(type_id) {
             return ty;
         }
@@ -100,17 +96,27 @@ impl CheckModuleState {
         self.bound.types.get_type(type_id)
     }
 
-    /// Return one input static value visible to check.
-    pub(in crate::check) fn static_value(&self, static_id: dir::LocalStaticId) -> &dir::StaticTerm {
+    /// Return one local input static visible to check.
+    pub(in crate::check) fn r#static(&self, static_id: dir::LocalStaticId) -> &dir::StaticTerm {
         if let Some(value) = self.expanded.statics.get_static_maybe(static_id) {
             return value;
         }
 
         self.bound.statics.get_static(static_id)
     }
+
+    /// Return whether one local symbol is an imported alias.
+    pub(in crate::check) fn is_import_alias(&self, symbol: dir::LocalSymbolId) -> bool {
+        self.resolved.imports.symbol_target(symbol).is_some()
+    }
 }
 
 impl CheckState<'_> {
+    /// Return whether one module belongs to the active checked component.
+    pub(in crate::check) fn is_component_module(&self, module: ModuleId) -> bool {
+        self.modules.contains_key(&module)
+    }
+
     /// Return loaded state for one module.
     pub(in crate::check) fn module(&self, module: ModuleId) -> &CheckModuleState {
         match self.modules.get(&module) {
@@ -127,39 +133,23 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one checked type visible from the active component.
-    pub(in crate::check) fn global_type_value(&self, ty: dir::GlobalTypeId) -> &dir::Type {
+    /// Return one component or dependency type.
+    pub(in crate::check) fn r#type(&self, ty: dir::GlobalTypeId) -> &dir::Type {
         if let Some(module) = self.modules.get(&ty.module_id) {
-            module.type_value(ty.local_id)
+            module.r#type(ty.local_id)
         } else {
             self.dependency(ty.module_id).types.get_type(ty.local_id)
         }
     }
 
-    /// Return one checked static visible from the active component.
-    pub(in crate::check) fn global_static_value(
-        &self,
-        value: dir::GlobalStaticId,
-    ) -> &dir::StaticTerm {
+    /// Return one component or dependency static.
+    pub(in crate::check) fn r#static(&self, value: dir::GlobalStaticId) -> &dir::StaticTerm {
         if let Some(module) = self.modules.get(&value.module_id) {
-            module.static_value(value.local_id)
+            module.r#static(value.local_id)
         } else {
             self.dependency(value.module_id)
                 .statics
                 .get_static(value.local_id)
         }
-    }
-
-    /// Return captures for one module mutably.
-    pub(in crate::check) fn captures_mut(&mut self, module: ModuleId) -> &mut Vec<Capture> {
-        &mut self.module_mut(module).captures
-    }
-
-    /// Return static availability for one module mutably.
-    pub(in crate::check) fn availability_mut(
-        &mut self,
-        module: ModuleId,
-    ) -> &mut indexmap::IndexMap<dir::GlobalSymbolId, Condition> {
-        &mut self.module_mut(module).availability
     }
 }

@@ -8,7 +8,7 @@ use super::Progress;
 impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
     pub(in crate::check) fn solve(&mut self) -> CompilerResult<()> {
-        self.record_trace(CheckEvent::SolveStart {
+        self.trace.record(CheckEvent::SolveStart {
             tasks: self.inference.constraint_count() + self.variable_count(),
             variables: self.variable_count(),
         });
@@ -20,7 +20,7 @@ impl CheckState<'_> {
             let progress = self.step_solve_pass()?;
             let progress_summary = SolveProgress::from(&progress);
 
-            self.record_trace(CheckEvent::SolveStep {
+            self.trace.record(CheckEvent::SolveStep {
                 step: iterations,
                 progress: progress_summary,
             });
@@ -33,7 +33,7 @@ impl CheckState<'_> {
             }
         }
 
-        self.record_trace(CheckEvent::SolveFinish {
+        self.trace.record(CheckEvent::SolveFinish {
             iterations,
             variables: self.variable_count(),
         });
@@ -49,12 +49,11 @@ impl CheckState<'_> {
             progress = progress.merge(self.step_constraint(index)?);
         }
 
-        let mut index = 0;
-        while index < self.variable_count() {
+        let variable_count = self.variable_count();
+        for index in 0..variable_count {
             let variable = self.variable_at(index).id;
 
-            progress = progress.merge(self.solve_bound_variable(variable)?);
-            index += 1;
+            progress = progress.merge(self.solve_variable_from_bounds(variable)?);
         }
 
         Ok(progress)
