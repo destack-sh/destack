@@ -1,5 +1,4 @@
 mod core;
-mod library;
 pub(crate) mod snapshot;
 
 pub(crate) use core::*;

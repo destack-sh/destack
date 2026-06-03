@@ -160,7 +160,6 @@ fn generic_origin_label(name: String, origin: dir::GenericSlotOrigin) -> String 
 /// Return one induced generic reason label.
 fn generic_slot_induction_label(induction: dir::GenericSlotInduction) -> &'static str {
     match induction {
-        dir::GenericSlotInduction::Application => "application",
         dir::GenericSlotInduction::Constraint => "constraint",
         dir::GenericSlotInduction::Form => "form",
         dir::GenericSlotInduction::Comptime => "comptime",

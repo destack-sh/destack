@@ -1,4 +1,8 @@
-use destack_source::{DiagnosticCollection, DiagnosticLabel};
+use std::sync::Arc;
+
+use destack_source::{
+    DiagnosticCollection, DiagnosticLabel, FileId, PrintOptions, print_diagnostics,
+};
 use destack_workspace::{Repository, Revision};
 
 /// Render one diagnostic collection as stable tripleslash rows.
@@ -21,6 +25,27 @@ pub(crate) fn render_diagnostics(
     }
 
     lines.join("\n")
+}
+
+/// Render one diagnostic collection with source annotations.
+pub(crate) fn render_source_diagnostics(
+    repository: &Repository,
+    revision: Revision,
+    diagnostics: &DiagnosticCollection,
+) -> String {
+    let lines = Arc::new(parking_lot::Mutex::new(Vec::new()));
+    let writer_lines = Arc::clone(&lines);
+    let writer = Arc::new(move |line: &str| {
+        writer_lines.lock().push(line.to_string());
+    });
+    let options = PrintOptions::new()
+        .with_color(false)
+        .with_line_writer(writer);
+    let file_for_id = |file_id: FileId| repository.file(revision, file_id).ok().flatten();
+
+    print_diagnostics(&file_for_id, diagnostics, options).expect("diagnostics should render");
+
+    lines.lock().join("\n")
 }
 
 /// Render one diagnostic label.

@@ -12,7 +12,7 @@ const value = "hello";
         "main.ds",
         DirRows::checked()
             .with_reference_types()
-            .with_check_stats()
+            .with_check_stats(),
         r#"
 const value = "hello";
 /// @type.symbol symbol=value source=value type="hello"
