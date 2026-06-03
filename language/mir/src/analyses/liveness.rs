@@ -232,7 +232,7 @@ impl FunctionLiveness {
         let terminator = tree.get(block.terminator);
         let facts = facts
             .get(&block_id)
-            .unwrap_or_else(|| panic!("missing liveness facts for block: {block_id:?}"));
+            .unwrap_or_else(|| unreachable!("missing liveness facts for block: {block_id:?}"));
 
         // successor live-out
         let mut next_value_live_out = HashSet::new();
@@ -272,7 +272,7 @@ impl FunctionLiveness {
             != *liveness
                 .value_live_in
                 .get(&block_id)
-                .unwrap_or_else(|| panic!("missing value live-in for block: {block_id:?}"))
+                .unwrap_or_else(|| unreachable!("missing value live-in for block: {block_id:?}"))
         {
             liveness.value_live_in.insert(block_id, next_value_live_in);
             changed = true;
@@ -283,7 +283,7 @@ impl FunctionLiveness {
             != *liveness
                 .value_live_out
                 .get(&block_id)
-                .unwrap_or_else(|| panic!("missing value live-out for block: {block_id:?}"))
+                .unwrap_or_else(|| unreachable!("missing value live-out for block: {block_id:?}"))
         {
             liveness
                 .value_live_out
@@ -296,7 +296,7 @@ impl FunctionLiveness {
             != *liveness
                 .local_live_in
                 .get(&block_id)
-                .unwrap_or_else(|| panic!("missing local live-in for block: {block_id:?}"))
+                .unwrap_or_else(|| unreachable!("missing local live-in for block: {block_id:?}"))
         {
             liveness.local_live_in.insert(block_id, next_local_live_in);
             changed = true;
@@ -307,7 +307,7 @@ impl FunctionLiveness {
             != *liveness
                 .local_live_out
                 .get(&block_id)
-                .unwrap_or_else(|| panic!("missing local live-out for block: {block_id:?}"))
+                .unwrap_or_else(|| unreachable!("missing local live-out for block: {block_id:?}"))
         {
             liveness
                 .local_live_out

@@ -702,7 +702,7 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing boolean type id in MIR primitive type cache");
+        unreachable!("missing boolean type id in MIR primitive type cache");
     }
 
     /// Return the void type id.
@@ -717,7 +717,7 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing void type id in MIR primitive type cache");
+        unreachable!("missing void type id in MIR primitive type cache");
     }
 
     /// Return the type descriptor type id.
@@ -733,7 +733,7 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing type descriptor type id in MIR primitive type cache");
+        unreachable!("missing type descriptor type id in MIR primitive type cache");
     }
 
     /// Return the type id type id.
@@ -748,7 +748,7 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing type id type in MIR primitive type cache");
+        unreachable!("missing type id type in MIR primitive type cache");
     }
 
     /// Return the isize type id.
@@ -763,7 +763,7 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing isize type id in MIR primitive type cache");
+        unreachable!("missing isize type id in MIR primitive type cache");
     }
 
     /// Return lineage metadata for a type when present.
@@ -823,7 +823,7 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing usize type id in MIR primitive type cache");
+        unreachable!("missing usize type id in MIR primitive type cache");
     }
 
     /// Return an integer type id for width and signedness.
@@ -846,7 +846,7 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing int type id for width {width} signed {signed}");
+        unreachable!("missing int type id for width {width} signed {signed}");
     }
 
     /// Return a float type id for format.
@@ -863,7 +863,7 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing float type id for {}", format.label());
+        unreachable!("missing float type id for {}", format.label());
     }
 
     /// Return the canonical storage type for the hidden environment field in one closure.
@@ -873,7 +873,7 @@ impl Tree {
         } else if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
             type_id
         } else {
-            panic!("missing void type for closure environment storage");
+            unreachable!("missing void type for closure environment storage");
         };
 
         if let Some(type_id) = self.find_type_by_predicate(|ty| {
@@ -892,7 +892,7 @@ impl Tree {
             return type_id;
         }
 
-        panic!("missing canonical closure environment storage type");
+        unreachable!("missing canonical closure environment storage type");
     }
 
     /// Ensure the canonical storage type for the hidden environment field in one closure.
@@ -951,7 +951,7 @@ impl Tree {
                 self.metadata.data_layout.pointer_bytes = pointer_bytes;
             }
             _ => {
-                panic!("unsupported pointer size {pointer_bytes} bytes");
+                unreachable!("unsupported pointer size {pointer_bytes} bytes");
             }
         }
     }
@@ -1026,12 +1026,11 @@ impl Tree {
     pub(crate) fn node_index(&self, node_id: u32) -> usize {
         let index = node_id
             .checked_sub(self.first_global_id)
-            .unwrap_or_else(|| panic!("MIR node id {node_id} is before this tree"));
+            .unwrap_or_else(|| unreachable!("MIR node id {node_id} is before this tree"));
         let index = index as usize;
-        assert!(
-            index < self.node_index_by_node_id.len(),
-            "MIR node id {node_id} is outside this tree"
-        );
+        if index >= self.node_index_by_node_id.len() {
+            unreachable!("MIR node id {node_id} is outside this tree");
+        }
 
         index
     }

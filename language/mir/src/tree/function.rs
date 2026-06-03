@@ -168,7 +168,7 @@ impl Function {
 
             // idempotent duplicates are okay
             if slot.is_some_and(|existing| existing != ty) {
-                panic!("value {value:?} has mismatched parameter types");
+                unreachable!("value {value:?} has mismatched parameter types");
             }
 
             *slot = Some(ty);
@@ -258,7 +258,7 @@ impl Function {
         // ensure value types are always recorded for SSA values
         match self.value_type(value) {
             Some(ty) => ty,
-            None => panic!("missing type for value {value:?}"),
+            None => unreachable!("missing type for value {value:?}"),
         }
     }
 
@@ -277,7 +277,7 @@ impl Function {
         // idempotent set is okay
         if let Some(existing) = self.value_types[index] {
             if existing != ty {
-                panic!("value {value:?} has mismatched types {existing:?} and {ty:?}");
+                unreachable!("value {value:?} has mismatched types {existing:?} and {ty:?}");
             }
 
             return;
