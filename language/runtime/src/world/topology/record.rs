@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -11,9 +11,6 @@ pub struct EntityDefinition {
     pub kind: EntityKind,
     /// Kind labels for selector matching.
     pub labels: BTreeMap<String, String>,
-    /// Fault verbs supported by this kind.
-    #[serde(default)]
-    pub supported_faults: BTreeSet<String>,
 }
 
 impl EntityDefinition {
@@ -22,7 +19,6 @@ impl EntityDefinition {
         Self {
             kind: kind.into(),
             labels: BTreeMap::new(),
-            supported_faults: BTreeSet::new(),
         }
     }
 
@@ -35,18 +31,6 @@ impl EntityDefinition {
     /// Replace labels.
     pub fn labels(mut self, labels: BTreeMap<String, String>) -> Self {
         self.labels = labels;
-        self
-    }
-
-    /// Add one supported fault verb id.
-    pub fn supports_fault(mut self, verb_id: impl Into<String>) -> Self {
-        self.supported_faults.insert(verb_id.into());
-        self
-    }
-
-    /// Extend supported fault verb ids.
-    pub fn supports_faults(mut self, verb_ids: impl IntoIterator<Item = String>) -> Self {
-        self.supported_faults.extend(verb_ids);
         self
     }
 }
@@ -58,9 +42,6 @@ pub struct EdgeDefinition {
     pub kind: EdgeKind,
     /// Kind labels for selector matching.
     pub labels: BTreeMap<String, String>,
-    /// Fault verbs supported by this kind.
-    #[serde(default)]
-    pub supported_faults: BTreeSet<String>,
 }
 
 impl EdgeDefinition {
@@ -69,7 +50,6 @@ impl EdgeDefinition {
         Self {
             kind: kind.into(),
             labels: BTreeMap::new(),
-            supported_faults: BTreeSet::new(),
         }
     }
 
@@ -82,18 +62,6 @@ impl EdgeDefinition {
     /// Replace labels.
     pub fn labels(mut self, labels: BTreeMap<String, String>) -> Self {
         self.labels = labels;
-        self
-    }
-
-    /// Add one supported fault verb id.
-    pub fn supports_fault(mut self, verb_id: impl Into<String>) -> Self {
-        self.supported_faults.insert(verb_id.into());
-        self
-    }
-
-    /// Extend supported fault verb ids.
-    pub fn supports_faults(mut self, verb_ids: impl IntoIterator<Item = String>) -> Self {
-        self.supported_faults.extend(verb_ids);
         self
     }
 }

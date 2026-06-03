@@ -10,11 +10,9 @@ use crate::host::poller::{HostPollerInstance, create_host_poller};
 use crate::host::time::HostClockSource;
 use crate::host::{Host, HostError, compile_target_host};
 use crate::runtime::random::{Random, RandomSource, RandomStreamId};
-use crate::runtime::time::{Clock, ClockSource, Instant, Nanos};
+use crate::runtime::time::{Clock, ClockSource, Nanos};
 use crate::runtime::{Runtime, WorkerId};
-use crate::simulation::Simulation;
 use crate::world::policy::Policy;
-use crate::world::scenario::Scenario;
 use crate::world::trace::{
     EntrypointCall, Observation, ObservationSequence, Observations, Outcome, Trace, TraceHeader,
     TraceSequence,
@@ -126,19 +124,15 @@ impl World {
         let clock = Clock::from_options(clock_source, &options.clock, default_clock_epoch_nanos);
         let random = Random::from_options(random_source, &options.random);
         let policy = Policy::default();
-        let scenarios: Vec<Scenario> = Vec::new();
         let trace = Trace::new(execution_mode, trace_header);
         let topology = Topology::new();
 
         // live world state
         let state = WorldState {
             branch_id,
-            simulation: Simulation::default(),
             policy,
-            scenarios,
             next_runtime_id: 1,
             next_worker_id: 1,
-            next_scenario_id: 1,
             topology,
             clock,
             random,
@@ -150,11 +144,8 @@ impl World {
         let root_image = Arc::new(WorldImage {
             next_runtime_id: state.next_runtime_id,
             next_worker_id: state.next_worker_id,
-            next_scenario_id: state.next_scenario_id,
             policy: state.policy.clone(),
-            scenarios: state.scenarios.clone(),
             topology: state.topology.clone(),
-            simulation: state.simulation.clone(),
             clock: state.clock.snapshot(),
             random: state.random.snapshot(),
             runtimes: BTreeMap::new(),
@@ -182,21 +173,6 @@ impl World {
         };
 
         Ok(world)
-    }
-
-    /// Borrow simulation state.
-    pub fn simulation(&self) -> &Simulation {
-        &self.state.simulation
-    }
-
-    /// Borrow mutable simulation state.
-    pub fn simulation_mut(&mut self) -> &mut Simulation {
-        &mut self.state.simulation
-    }
-
-    /// Return the earliest deadline contributed by simulation state.
-    pub fn next_simulation_deadline(&self) -> Option<Instant> {
-        self.state.simulation.next_deadline()
     }
 
     /// Snapshot world policy state.
@@ -280,11 +256,6 @@ impl World {
     /// Snapshot world edges.
     pub fn edges(&self) -> BTreeMap<EdgeId, Edge> {
         self.state.topology.edges().clone()
-    }
-
-    /// Snapshot active scenario scripts.
-    pub fn scenarios(&self) -> Vec<Scenario> {
-        self.state.scenarios.clone()
     }
 
     /// Borrow the shared world clock.

@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
 use crate::host::ResourceKind;
-use crate::world::scenario::{edge_kind_faults, entity_kind_faults, resource_kind_faults};
 
 use super::{EdgeDefinition, EdgeKind, EntityDefinition, EntityKind};
 
@@ -146,9 +145,7 @@ pub(super) fn builtin_entity_kinds() -> Vec<EntityDefinition> {
     BUILTIN_ENTITY_KIND_DESCRIPTORS
         .iter()
         .map(|descriptor| {
-            EntityDefinition::new(descriptor.kind_id)
-                .labels(labels_for_kind(descriptor.kind_id))
-                .supports_faults(entity_kind_faults(descriptor.kind_id))
+            EntityDefinition::new(descriptor.kind_id).labels(labels_for_kind(descriptor.kind_id))
         })
         .collect()
 }
@@ -159,9 +156,7 @@ pub(super) fn builtin_resource_entity_kinds() -> Vec<EntityDefinition> {
         .iter()
         .map(|resource_kind| {
             let kind_id = resource_kind.kind_id();
-            EntityDefinition::new(kind_id)
-                .labels(labels_for_kind(kind_id))
-                .supports_faults(resource_kind_faults(*resource_kind))
+            EntityDefinition::new(kind_id).labels(labels_for_kind(kind_id))
         })
         .collect()
 }
@@ -171,9 +166,7 @@ pub(super) fn builtin_edge_kinds() -> Vec<EdgeDefinition> {
     BUILTIN_EDGE_KIND_DESCRIPTORS
         .iter()
         .map(|descriptor| {
-            EdgeDefinition::new(descriptor.kind_id)
-                .labels(labels_for_kind(descriptor.kind_id))
-                .supports_faults(edge_kind_faults(descriptor.kind_id))
+            EdgeDefinition::new(descriptor.kind_id).labels(labels_for_kind(descriptor.kind_id))
         })
         .collect()
 }

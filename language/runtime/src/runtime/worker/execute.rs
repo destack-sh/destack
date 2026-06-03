@@ -7,7 +7,7 @@ use crate::host::core::{HostQueue, poll_host_events};
 use crate::host::poller::HostPoller;
 use crate::runtime::RuntimeHeap;
 use crate::runtime::engine::{Continuation, Entry, Outcome};
-use crate::runtime::scheduler::{Microtask, Task, TaskId, Wake};
+use crate::runtime::scheduler::{Microtask, Task, TaskId};
 use crate::runtime::time::{ClockSource, Nanos};
 use crate::world::WorldState;
 use destack_engine as engine;
@@ -30,7 +30,6 @@ impl Worker {
             environment: self.environment.clone(),
             options: self.options.clone(),
             diagnostics: self.diagnostics.clone(),
-            scenario: self.scenario.clone(),
             bindings: &self.bindings,
             host,
             host_queue,
@@ -84,7 +83,7 @@ impl Worker {
                 value,
             } => {
                 let task_id = self.event_loop.next_task_id()?;
-                self.enqueue_task(world, task_id, continuation, value)?;
+                self.enqueue_task(task_id, continuation, value)?;
 
                 let output = self.run_event_loop(
                     world,
@@ -387,11 +386,8 @@ impl Worker {
         let mono_now = Nanos::new(world.mono_nanos());
         if let Some(wake) = self.event_loop.next_wake(wall_now, mono_now)? {
             progressed = true;
-            if matches!(&wake, Wake::Timer(_)) {
-                self.scenario.on_timer_fire(world)?;
-            }
             if let Some(task) = self.event_loop.task_for_wake(wake, &mut self.engine)? {
-                self.enqueue_prepared_task(world, task)?;
+                self.enqueue_prepared_task(task)?;
             }
         }
 
@@ -418,7 +414,6 @@ impl Worker {
     /// Enqueue one yielded continuation as a task.
     fn enqueue_task(
         &mut self,
-        world: &mut WorldState,
         task_id: TaskId,
         runnable: Continuation,
         resume_value: engine::Value,
@@ -431,7 +426,7 @@ impl Worker {
             priority: 0,
         };
 
-        self.enqueue_prepared_task(world, task)
+        self.enqueue_prepared_task(task)
     }
 
     /// Execute one dequeued task and return output when it completes the target task.
@@ -445,7 +440,6 @@ impl Worker {
         task: Task,
         target_task: Option<TaskId>,
     ) -> RuntimeResult<Option<engine::Value>> {
-        self.scenario.on_task_start(world)?;
         let _guard = enter_runnable_scope(RunnableScope::for_task(task.id));
         let outcome = self.execute_runnable(
             world,
@@ -468,7 +462,7 @@ impl Worker {
                 continuation,
                 value,
             } => {
-                self.enqueue_task(world, task.id, continuation, value)?;
+                self.enqueue_task(task.id, continuation, value)?;
             }
         }
 
@@ -477,11 +471,10 @@ impl Worker {
         Ok(None)
     }
 
-    /// Enqueue one prepared task and record scenario events.
-    fn enqueue_prepared_task(&mut self, world: &mut WorldState, task: Task) -> RuntimeResult<()> {
+    /// Enqueue one prepared task.
+    fn enqueue_prepared_task(&mut self, task: Task) -> RuntimeResult<()> {
         // enqueue the task into the event loop
         self.event_loop.enqueue_task(task);
-        self.scenario.on_task_ready(world)?;
 
         Ok(())
     }
@@ -552,7 +545,6 @@ impl Worker {
             let Some(microtask) = self.event_loop.pop_microtask() else {
                 break;
             };
-            self.scenario.on_task_start(world)?;
             self.execute_microtask(
                 world,
                 shared,
@@ -638,10 +630,6 @@ impl Worker {
         // drain host ingress before blocking or sleeping
         let host_event_count = self.drain_host_wakes(host, host_queue, Some(0))?;
         if host_event_count > 0 {
-            for _ in 0..host_event_count {
-                self.scenario.on_ingress_ready(world)?;
-            }
-
             return Ok(true);
         }
 
@@ -650,10 +638,6 @@ impl Worker {
             .event_loop
             .poll_poller(poller, timeout_nanos.map(|timeout| timeout.get()))?;
         if event_count > 0 {
-            for _ in 0..event_count {
-                self.scenario.on_ingress_ready(world)?;
-            }
-
             return Ok(true);
         }
 

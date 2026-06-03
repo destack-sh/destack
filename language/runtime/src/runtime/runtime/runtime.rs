@@ -373,17 +373,16 @@ impl Runtime {
         self.insert_worker(worker)
     }
 
-    /// Return the next virtual deadline across all workers and simulation.
+    /// Return the next virtual deadline across all workers.
     pub(crate) fn next_deadline(&mut self, world: &mut WorldState) -> Option<Instant> {
         // current virtual timestamps: monotonic deadlines are projected onto wall time
         let wall_now = world.wall();
         let mono_now = world.mono();
 
-        world.next_deadline(
-            self.workers
-                .values_mut()
-                .map(|worker| worker.event_loop.next_deadline(wall_now, mono_now)),
-        )
+        self.workers
+            .values_mut()
+            .filter_map(|worker| worker.event_loop.next_deadline(wall_now, mono_now))
+            .min()
     }
 
     /// Drain due worker timers after the world advances time.
@@ -407,7 +406,6 @@ impl Runtime {
     /// Deliver externally collected events to worker event loops.
     pub(crate) fn deliver_events(
         &mut self,
-        world: &mut WorldState,
         host_events: &[HostEvent],
         poller_events: &[PollerEvent],
     ) -> RuntimeResult<bool> {
@@ -416,14 +414,14 @@ impl Runtime {
 
         // host events
         for event in host_events {
-            if self.deliver_host_event(world, event.clone(), is_marking_shared)? {
+            if self.deliver_host_event(event.clone(), is_marking_shared)? {
                 handled_any = true;
             }
         }
 
         // poller events
         for event in poller_events {
-            if self.deliver_poller_event(world, *event, is_marking_shared)? {
+            if self.deliver_poller_event(*event, is_marking_shared)? {
                 handled_any = true;
             }
         }
@@ -434,7 +432,6 @@ impl Runtime {
     /// Deliver one host event into matching worker event loops.
     pub(crate) fn deliver_host_event(
         &mut self,
-        world: &mut WorldState,
         event: HostEvent,
         is_marking_shared: bool,
     ) -> RuntimeResult<bool> {
@@ -451,7 +448,6 @@ impl Runtime {
             worker
                 .event_loop
                 .enqueue_wake(Wake::Host(HostWake::new(event.clone())));
-            worker.scenario.on_ingress_ready(world)?;
 
             // shared mark: event can change direct worker roots without a worker tick
             if is_marking_shared {
@@ -465,7 +461,6 @@ impl Runtime {
     /// Deliver one poller event into matching worker event loops.
     pub(crate) fn deliver_poller_event(
         &mut self,
-        world: &mut WorldState,
         event: PollerEvent,
         is_marking_shared: bool,
     ) -> RuntimeResult<bool> {
@@ -485,7 +480,6 @@ impl Runtime {
             worker
                 .event_loop
                 .enqueue_wake(Wake::Resource(ResourceWake::poller(event)));
-            worker.scenario.on_ingress_ready(world)?;
 
             // shared mark: event can change direct worker roots without a worker tick
             if is_marking_shared {
@@ -497,11 +491,7 @@ impl Runtime {
     }
 
     /// Deliver one batch of due worker-timer wakes.
-    pub(crate) fn deliver_wakes(
-        &mut self,
-        world: &mut WorldState,
-        wakes: Vec<WorkerWake>,
-    ) -> RuntimeResult<()> {
+    pub(crate) fn deliver_wakes(&mut self, wakes: Vec<WorkerWake>) -> RuntimeResult<()> {
         for wake in wakes {
             if wake.runtime_id != self.id {
                 continue;
@@ -511,7 +501,6 @@ impl Runtime {
                 .worker_mut(wake.worker_id)
                 .ok_or_else(|| RuntimeError::worker_not_found(wake.worker_id.0).boxed())?;
             worker.event_loop.enqueue_wake(wake.wake);
-            worker.scenario.on_ingress_ready(world)?;
         }
 
         Ok(())
@@ -833,7 +822,6 @@ mod tests {
         // events should requeue the touched worker even before it ticks
         let handled = runtime
             .deliver_host_event(
-                world_state,
                 HostEvent::Lifecycle(LifecycleEvent {
                     source_kind: LifecycleSourceKind::Application,
                     state: LifecycleState::Running,

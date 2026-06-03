@@ -11,9 +11,7 @@ use crate::host::resource::ResourceRebinders;
 use crate::runtime::random::RandomImage;
 use crate::runtime::time::ClockImage;
 use crate::runtime::{Runtime, RuntimeImage, WorkerId, WorkerImage};
-use crate::simulation::Simulation;
 use crate::world::policy::Policy;
-use crate::world::scenario::Scenario;
 use crate::world::topology::{Edge, Entity, RuntimeId, Topology};
 
 use super::World;
@@ -25,16 +23,10 @@ pub struct WorldImage {
     pub(crate) next_runtime_id: u64,
     /// The next worker id to allocate after restore.
     pub(crate) next_worker_id: u64,
-    /// The next scenario id to allocate after restore.
-    pub(crate) next_scenario_id: u64,
     /// Captured dynamic policy state.
     pub(crate) policy: Policy,
-    /// Captured dynamic scenario state.
-    pub(crate) scenarios: Vec<Scenario>,
     /// Captured topology metadata graph.
     pub(crate) topology: Topology,
-    /// Captured simulation state.
-    pub(crate) simulation: Simulation,
     /// Captured world clock state.
     pub(crate) clock: ClockImage,
     /// Captured world random state.
@@ -219,11 +211,8 @@ impl World {
             Ok(WorldImage {
                 next_runtime_id: self.state.next_runtime_id,
                 next_worker_id: self.state.next_worker_id,
-                next_scenario_id: self.state.next_scenario_id,
                 policy: self.state.policy.clone(),
-                scenarios: self.state.scenarios.clone(),
                 topology: self.state.topology.clone(),
-                simulation: self.state.simulation.clone(),
                 clock: self.state.clock.snapshot(),
                 random: self.state.random.snapshot(),
                 runtimes: runtime_images,
@@ -247,11 +236,8 @@ impl World {
         let result = (|| {
             self.state.next_runtime_id = image.next_runtime_id;
             self.state.next_worker_id = image.next_worker_id;
-            self.state.next_scenario_id = image.next_scenario_id;
             self.state.policy = image.policy.clone();
-            self.state.scenarios = image.scenarios.clone();
             self.state.topology = image.topology.clone();
-            self.state.simulation = image.simulation.clone();
 
             self.state.clock.restore_snapshot(&image.clock);
             self.state.random.restore_snapshot(&image.random)?;

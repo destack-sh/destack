@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +11,6 @@ use super::{
 };
 use crate::host::ResourceId;
 use crate::runtime::WorkerId;
-use crate::world::scenario::{base_edge_faults, base_entity_faults};
 
 /// World topology graph and kind catalog.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -60,16 +59,6 @@ impl Topology {
         self.edge_kinds
             .get(kind)
             .or_else(|| BUILTIN_EDGE_KINDS.get(kind))
-    }
-
-    /// Return one entity kind supported fault set by kind id.
-    pub(crate) fn entity_kind_supported_faults(&self, kind: &str) -> Option<&BTreeSet<String>> {
-        self.entity_kind(kind).map(|kind| &kind.supported_faults)
-    }
-
-    /// Return one edge kind supported fault set by kind id.
-    pub(crate) fn edge_kind_supported_faults(&self, kind: &str) -> Option<&BTreeSet<String>> {
-        self.edge_kind(kind).map(|kind| &kind.supported_faults)
     }
 
     /// Return all topology entities.
@@ -298,7 +287,7 @@ impl Topology {
     }
 
     /// Define one entity kind in topology.
-    pub(crate) fn define_entity_kind(&mut self, mut kind: EntityDefinition) -> TopologyResult<()> {
+    pub(crate) fn define_entity_kind(&mut self, kind: EntityDefinition) -> TopologyResult<()> {
         // reject empty kind identifiers
         if kind.kind.as_str().is_empty() {
             return Err(TopologyError::EmptyKindId);
@@ -311,11 +300,6 @@ impl Topology {
             });
         }
 
-        // default to base entity faults for user-defined kinds
-        if kind.supported_faults.is_empty() {
-            kind.supported_faults = base_entity_faults();
-        }
-
         // insert one kind definition
         self.entity_kinds.insert(kind.kind.clone(), kind);
 
@@ -323,7 +307,7 @@ impl Topology {
     }
 
     /// Define one edge kind in topology.
-    pub(crate) fn define_edge_kind(&mut self, mut kind: EdgeDefinition) -> TopologyResult<()> {
+    pub(crate) fn define_edge_kind(&mut self, kind: EdgeDefinition) -> TopologyResult<()> {
         // reject empty kind identifiers
         if kind.kind.as_str().is_empty() {
             return Err(TopologyError::EmptyKindId);
@@ -334,11 +318,6 @@ impl Topology {
             return Err(TopologyError::DuplicateEdgeKind {
                 kind: kind.kind.clone(),
             });
-        }
-
-        // default to base edge faults for user-defined kinds
-        if kind.supported_faults.is_empty() {
-            kind.supported_faults = base_edge_faults();
         }
 
         // insert one kind definition

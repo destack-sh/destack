@@ -186,16 +186,6 @@ pub enum BindingDeterminism {
     OpaqueExternal,
 }
 
-/// Runtime route selected for one binding call.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-pub enum BindingRoute {
-    /// Use host-backed bindings.
-    #[default]
-    Host,
-    /// Use simulation-backed bindings.
-    Simulation,
-}
-
 /// Runtime access decision for one binding call.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 pub enum RuntimeAccess {

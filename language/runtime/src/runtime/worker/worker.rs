@@ -9,11 +9,10 @@ use crate::diagnostic::{DiagnosticSnapshot, DiagnosticStore, RuntimeError, Runti
 use crate::host::binding::{BindingAccess, BindingRegistry};
 use crate::host::resource::{ResourceRebinders, ResourceTableSnapshot};
 use crate::host::{HostEventKind, ResourceId, ResourceTable};
+use crate::runtime::RuntimeHeap;
 use crate::runtime::engine::{Continuation, Engine, EngineMemory, Image};
 use crate::runtime::heap::resolve_local_heap_options;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
-use crate::runtime::{RuntimeHeap, ScenarioRunner};
-use crate::world::scenario::ScenarioRunnerSnapshot;
 use crate::world::{Entity, EntityKind, RuntimeId, WorldState};
 use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
 
@@ -30,8 +29,6 @@ pub struct Worker {
 
     /// External resource table.
     pub(crate) resources: ResourceTable,
-    /// Worker scenario runner.
-    pub(crate) scenario: Arc<ScenarioRunner>,
     /// Diagnostics storage for runtime errors and warning events.
     pub(crate) diagnostics: Arc<DiagnosticStore>,
     /// External binding registry and policy enforcement.
@@ -70,8 +67,6 @@ pub struct WorkerImage {
     pub options: WorkerOptionsImage,
     /// Captured diagnostics store state.
     pub diagnostics: DiagnosticSnapshot,
-    /// Captured scenario runner state.
-    pub scenario: ScenarioRunnerSnapshot,
     /// Captured resource table state.
     pub resources: ResourceTableSnapshot,
     /// Captured event-loop state.
@@ -107,7 +102,6 @@ impl PartialEq for WorkerImage {
 
         self.options == other.options
             && self.diagnostics == other.diagnostics
-            && self.scenario == other.scenario
             && self.resources == other.resources
             && self.event_loop == other.event_loop
             && heap.is_ok()
@@ -166,7 +160,6 @@ impl std::fmt::Debug for Worker {
             .field("environment", &self.environment)
             .field("options", &self.options)
             .field("resources", &self.resources)
-            .field("scenario", &self.scenario)
             .field("diagnostics", &self.diagnostics)
             .field("bindings", &self.bindings)
             .field("heap", &self.heap)
@@ -241,13 +234,7 @@ impl Worker {
     ) -> RuntimeResult<Self> {
         let mut engine = engine.into();
 
-        // scenario and resources
-        let scenario = Arc::new(ScenarioRunner::new(
-            runtime_id,
-            worker_id,
-            world.trace.mode(),
-            options.conditions.clone(),
-        ));
+        // resources
         let resources = ResourceTable::new(worker_id);
 
         // bindings
@@ -286,7 +273,6 @@ impl Worker {
             environment,
             options: Arc::new(options.clone()),
             resources,
-            scenario,
             diagnostics: Arc::new(DiagnosticStore::from_options(&options.diagnostic)),
             bindings,
             shared_gc_worker,
@@ -546,13 +532,11 @@ impl Worker {
         let event_loop = self.event_loop.capture_image(mode, &mut self.engine)?;
         let resources = self.resources.capture_image(mode, ())?;
         let diagnostics = self.diagnostics.snapshot()?;
-        let scenario = self.scenario.snapshot();
 
         // capture the worker-local image payload
         Ok(WorkerImage {
             options: WorkerOptionsImage::explicit_arc(self.options.clone()),
             diagnostics,
-            scenario,
             resources,
             event_loop,
             heap: self
@@ -587,8 +571,7 @@ impl Worker {
         runtime_static: &engine::StaticSpace,
         shared_gc_worker: heap::GcWorker,
     ) -> RuntimeResult<Option<Self>> {
-        // scenario and diagnostics state
-        let scenario = Arc::new(self.scenario.fork());
+        // diagnostics state
         let diagnostics = match self.diagnostics.try_fork()? {
             Some(diagnostics) => Arc::new(diagnostics),
             None => return Ok(None),
@@ -625,7 +608,6 @@ impl Worker {
             environment: self.environment.clone(),
             options: self.options.clone(),
             resources,
-            scenario,
             diagnostics,
             bindings,
             shared_gc_worker,
@@ -652,13 +634,7 @@ impl Worker {
         // resolve the captured options first
         let options = image.options.resolve(shared_options)?;
 
-        // scenario and resources
-        let scenario = Arc::new(ScenarioRunner::new(
-            runtime_id,
-            worker_id,
-            world.trace.mode(),
-            options.conditions.clone(),
-        ));
+        // resources
         let resources = ResourceTable::new(worker_id);
 
         // bindings
@@ -712,7 +688,6 @@ impl Worker {
         // restore local state on fresh containers
         event_loop.restore_snapshot(&image.event_loop, &mut engine)?;
         diagnostics.restore_snapshot(&image.diagnostics)?;
-        scenario.restore_snapshot(&image.scenario);
         resources.restore_snapshot(&image.resources, rebind_context)?;
 
         Ok(Self {
@@ -721,7 +696,6 @@ impl Worker {
             environment,
             options,
             resources,
-            scenario,
             diagnostics,
             bindings,
             shared_gc_worker,

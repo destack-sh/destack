@@ -1,22 +1,22 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::BindingDescriptor;
+use crate::host::binding::{BindingDescriptor, RuntimeAccess};
 use crate::runtime::WorkerId;
 use crate::world::topology::Topology;
 use crate::world::{RuntimeId, WorldState};
 use destack_workspace::{ConditionSet, ExecutionMode};
 
-use super::{BindingDecision, Subject};
+use super::Subject;
 
 impl WorldState {
     /// Decide one binding call.
     pub(crate) fn decide_binding(
         &self,
-        mode: ExecutionMode,
         conditions: &ConditionSet,
         runtime_id: RuntimeId,
         worker_id: WorkerId,
         descriptor: BindingDescriptor,
-    ) -> RuntimeResult<BindingDecision> {
+    ) -> RuntimeResult<RuntimeAccess> {
+        let mode = self.trace.mode();
         let subject =
             Self::policy_subject(&self.topology, runtime_id, worker_id, mode, conditions)?;
 

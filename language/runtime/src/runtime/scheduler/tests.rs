@@ -16,7 +16,7 @@ use crate::runtime::scheduler::{
 use crate::runtime::tests::{
     TestEngine, TestRuntime, TestWorldRuntime, start_worker_continuation, test_resource_id,
 };
-use crate::runtime::time::{Instant, Nanos};
+use crate::runtime::time::Nanos;
 use crate::runtime::{TickResult, Worker};
 use crate::world::World;
 
@@ -412,33 +412,6 @@ fn test_runtime_tick_orders_equal_deadline_timers_by_worker_id() {
     assert_eq!(runtime.tick(), TickResult::Progress);
     assert_eq!(runtime.tick(), TickResult::Progress);
     assert_eq!(runtime.tick(), TickResult::Idle);
-}
-
-/// Advances virtual time to one simulation deadline when no worker work is ready.
-#[test]
-fn test_runtime_tick_advances_to_simulation_deadline() {
-    // configure one virtual runtime with one simulated wakeup
-    let options = runtime_options_with_execution(ExecutionMode::Strict);
-    let runtime = TestWorldRuntime::build(&options, TestEngine::default());
-    let mut runtime = runtime;
-    let wall_before = runtime.wall_nanos();
-    let mono_before = runtime.mono_nanos();
-    let deadline = Instant::new(wall_before.saturating_add(7_500));
-    runtime
-        .world_mut()
-        .simulation_mut()
-        .schedule_event(deadline)
-        .expect("schedule simulation event");
-
-    // the first tick should advance world time to the simulated deadline
-    let outcome = runtime.tick();
-    assert_eq!(outcome, TickResult::TimeAdvanced);
-    assert_eq!(runtime.wall_nanos(), deadline.get());
-    assert_eq!(runtime.mono_nanos(), mono_before.saturating_add(7_500));
-    let world = runtime.world();
-    let simulation = world.simulation();
-    assert_eq!(simulation.ready_events().len(), 1);
-    assert_eq!(simulation.ready_events()[0].at(), deadline);
 }
 
 /// Register one timer waiter on one explicit worker.
