@@ -1324,7 +1324,7 @@ impl Parser {
         let (name, name_span) = self.eat_binding_identifier_with_span()?;
 
         // generic parameters are type parameters by default
-        // value parameters must opt in with `comptime` or `const`
+        // value parameters opt in with `comptime`
         let annotation_token_type = self.peek_token_type();
         let annotation_keyword = self.current_keyword();
         let has_colon_annotation = annotation_token_type == TokenType::Colon;
