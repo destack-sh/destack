@@ -1,7 +1,7 @@
 use destack_core::{StringId, StringPool};
 use indexmap::{IndexMap, IndexSet};
 
-use crate::build::Variable;
+use crate::build::{BuildError, BuildResult, Variable};
 use crate::{
     AllocationMode, AllocationSize, Block, Function, FunctionBehavior, Instruction, Linkage,
     LocalNodeId, MemoryEffect, Parameter, Place, PlaceId, PlaceProjection, PlaceTable, Tree, Type,
@@ -139,10 +139,12 @@ impl<'a> FunctionBuilder<'a> {
         // validate the declared function is still empty
         let next_value_id = {
             let function = tree.get(function_id);
-            assert!(
-                function.entry.is_none() && function.blocks.is_empty(),
-                "function already has a body"
-            );
+            if function.entry.is_some() || !function.blocks.is_empty() {
+                let error = BuildError::FunctionAlreadyHasBody {
+                    function: function_id,
+                };
+                panic!("{error}");
+            }
 
             function.next_value_id
         };
@@ -298,9 +300,20 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Require the type of an SSA value.
-    pub(super) fn value_type_or_panic(&self, value: Value, context: &str) -> LocalNodeId<Type> {
-        self.value_type(value)
-            .unwrap_or_else(|| panic!("missing value type for {context}"))
+    pub(super) fn expect_value_type(&self, value: Value, context: &str) -> LocalNodeId<Type> {
+        let result = self
+            .value_type(value)
+            .ok_or_else(|| BuildError::MissingValueType {
+                value,
+                context: context.to_string(),
+            });
+
+        self.expect_build(result)
+    }
+
+    /// Unwrap one builder result for an infallible builder operation.
+    pub(super) fn expect_build<T>(&self, result: BuildResult<T>) -> T {
+        result.unwrap_or_else(|error| panic!("{error}"))
     }
 
     /// Record that `from_block` is a predecessor of `to_block`.
@@ -331,7 +344,14 @@ impl<'a> FunctionBuilder<'a> {
         self.seal_all_blocks();
 
         // set entry block to the first created block
-        let entry_block = self.blocks[0];
+        let entry_block = self
+            .blocks
+            .first()
+            .copied()
+            .ok_or(BuildError::MissingEntryBlock {
+                function: self.function_id,
+            });
+        let entry_block = self.expect_build(entry_block);
 
         // capture function parameters for entry block checks
         let parameters = {
@@ -340,14 +360,17 @@ impl<'a> FunctionBuilder<'a> {
         };
 
         // ensure entry block parameters match function parameters
-        {
+        let is_entry_mismatch = {
             let block = self.tree.get_mut(entry_block);
             // populate entry block parameters when missing
             if block.parameters.is_empty() {
                 block.parameters = parameters.clone();
-            } else if block.parameters != parameters {
-                panic!("entry block parameters must match function parameters");
             }
+
+            block.parameters != parameters
+        };
+        if is_entry_mismatch {
+            self.expect_build::<()>(Err(BuildError::EntryParameterMismatch));
         }
 
         // update function

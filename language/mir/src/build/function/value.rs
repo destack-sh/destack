@@ -1,4 +1,4 @@
-use crate::build::FunctionBuilder;
+use crate::build::{BuildError, FunctionBuilder};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, CompareExchangeAccess, Constant,
     FenceAccess, FloatType, Instruction, Intrinsic, LocalNodeId, Type, UnaryOperator, Value,
@@ -88,14 +88,16 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a binary operation.
     fn binary(&mut self, operator: BinaryOperator, left_value: Value, right_value: Value) -> Value {
         let destination = self.allocate_value();
-        let left_type_id = self.value_type_or_panic(left_value, "binary left");
-        let right_type_id = self.value_type_or_panic(right_value, "binary right");
+        let left_type_id = self.expect_value_type(left_value, "binary left");
+        let right_type_id = self.expect_value_type(right_value, "binary right");
         let left_type = self.tree.get(left_type_id);
         let right_type = self.tree.get(right_type_id);
         if left_type != right_type {
-            panic!(
-                "binary operator expects matching operand types: op {operator:?} left {left_type:?} right {right_type:?}"
-            );
+            self.expect_build::<()>(Err(BuildError::MismatchedBinaryOperands {
+                operator,
+                left: left_type_id,
+                right: right_type_id,
+            }));
         }
         self.insert_instruction(Instruction::Binary {
             destination: destination.into(),
@@ -202,7 +204,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a unary operation.
     fn unary(&mut self, operator: UnaryOperator, argument_value: Value) -> Value {
         let destination = self.allocate_value();
-        let argument_type = self.value_type_or_panic(argument_value, "unary argument");
+        let argument_type = self.expect_value_type(argument_value, "unary argument");
         self.insert_instruction(Instruction::Unary {
             destination: destination.into(),
             operator,
@@ -270,12 +272,15 @@ impl<'a> FunctionBuilder<'a> {
     /// Both values must have the same type.
     pub fn select(&mut self, condition: Value, then_value: Value, else_value: Value) -> Value {
         let destination = self.allocate_value();
-        let then_type = self.value_type_or_panic(then_value, "select then");
-        let else_type = self.value_type_or_panic(else_value, "select else");
+        let then_type = self.expect_value_type(then_value, "select then");
+        let else_type = self.expect_value_type(else_value, "select else");
         let then_ty = self.tree.get(then_type);
         let else_ty = self.tree.get(else_type);
         if then_ty != else_ty {
-            panic!("select expects matching value types");
+            self.expect_build::<()>(Err(BuildError::MismatchedSelectOperands {
+                then_type,
+                else_type,
+            }));
         }
         self.insert_instruction(Instruction::Select {
             destination: destination.into(),
