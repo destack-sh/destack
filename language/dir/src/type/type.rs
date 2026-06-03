@@ -2,8 +2,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, GenericSlotIndex, GenericSlotKey, GlobalStaticId, GlobalSymbolId,
-    MappedTypeModifier, ScalarLiteral, StaticArgument, StaticKey, StringId, TypeLiteral,
+    Asynchrony, GlobalGenericParameterId, GlobalStaticId, GlobalSymbolId, MappedTypeModifier,
+    ScalarLiteral, StaticArgument, StaticKey, StringId, TypeLiteral,
 };
 
 use super::{FloatType, PrimitiveType};
@@ -37,7 +37,7 @@ impl TryFrom<&str> for StringMapping {
     }
 }
 
-/// Semantic mapped-type modifiers.
+/// Mapped-type modifiers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MappedTypeModifiers {
     /// The readonly modifier.
@@ -46,7 +46,7 @@ pub struct MappedTypeModifiers {
     pub optional: MappedTypeModifier,
 }
 
-/// A semantic mapped-type parameter.
+/// A mapped-type parameter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MappedTypeParameter {
     /// The parameter name like `K`.
@@ -57,40 +57,6 @@ pub struct MappedTypeParameter {
     pub constraint: GlobalTypeId,
     /// The optional key remap like `as Foo<K>`.
     pub key_remap: Option<GlobalTypeId>,
-}
-
-/// A semantic type parameter reference.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GenericParameterRef {
-    /// The owner that declared the referenced generic slot.
-    pub owner: GlobalSymbolId,
-    /// The referenced generic slot key.
-    pub key: GenericSlotKey,
-    /// The referenced generic slot index.
-    pub index: GenericSlotIndex,
-}
-
-impl GenericParameterRef {
-    /// Return a parameter reference for an explicit source symbol.
-    pub fn explicit(
-        owner: GlobalSymbolId,
-        symbol: GlobalSymbolId,
-        index: GenericSlotIndex,
-    ) -> Self {
-        Self {
-            owner,
-            key: GenericSlotKey::Symbol(symbol),
-            index,
-        }
-    }
-
-    /// Return the explicit source symbol when this parameter has one.
-    pub fn symbol(&self) -> Option<GlobalSymbolId> {
-        match self.key {
-            GenericSlotKey::Symbol(symbol) => Some(symbol),
-            GenericSlotKey::Generated(_) => None,
-        }
-    }
 }
 
 /// Reference to one type declaration.
@@ -314,8 +280,8 @@ pub struct FunctionType {
 pub struct FunctionParameterType {
     /// The parameter type.
     pub ty: GlobalTypeId,
-    /// The static generic slot supplied by this runtime argument.
-    pub static_slot: Option<GenericParameterRef>,
+    /// The static generic parameter supplied by this runtime argument.
+    pub static_parameter: Option<GlobalGenericParameterId>,
     /// Whether the parameter may be omitted at the call site.
     pub is_optional: bool,
     /// Whether the parameter captures remaining call arguments.
@@ -369,7 +335,7 @@ pub enum TypeOperation {
     KeyOf(UnaryType),
 }
 
-/// A canonical solved semantic type.
+/// A canonical solved type.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Type {
     /// Error type that could not be resolved.
@@ -392,9 +358,11 @@ pub enum Type {
     Primitive(PrimitiveType),
     /// Scalar literal type.
     Literal(ScalarLiteral),
+    /// Compiler intrinsic type body.
+    Intrinsic,
 
-    /// Generic parameter reference.
-    Parameter(GenericParameterRef),
+    /// Generic parameter.
+    Parameter(GlobalGenericParameterId),
     /// Type declaration reference.
     Reference(ReferenceType),
     /// This type in a method signature.
@@ -434,7 +402,7 @@ pub enum Type {
 }
 
 impl From<TypeLiteral> for Type {
-    /// Convert a source type literal into a semantic type.
+    /// Convert a source type literal into a type.
     fn from(value: TypeLiteral) -> Self {
         match value {
             TypeLiteral::Never => Self::Never,
@@ -458,14 +426,14 @@ impl From<TypeLiteral> for Type {
 }
 
 impl From<ScalarLiteral> for Type {
-    /// Convert a scalar literal expression into its fresh semantic type.
+    /// Convert a scalar literal expression into its fresh type.
     fn from(value: ScalarLiteral) -> Self {
         Self::from(&value)
     }
 }
 
 impl From<&ScalarLiteral> for Type {
-    /// Convert a scalar literal expression into its fresh semantic type.
+    /// Convert a scalar literal expression into its fresh type.
     fn from(value: &ScalarLiteral) -> Self {
         match value {
             ScalarLiteral::Null => Self::Null,
@@ -500,7 +468,6 @@ impl Type {
     /// Return the symbol if this type directly references one declaration.
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {
-            Self::Parameter(parameter) => parameter.symbol(),
             Self::Reference(reference) => Some(reference.symbol),
             _ => None,
         }

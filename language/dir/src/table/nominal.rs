@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LocalGenericApplicationId,
+    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LocalGenericInstanceId,
     LocalGenericTemplateId, MemberSlot, SegmentView, StaticKey,
 };
 
@@ -322,8 +322,8 @@ pub struct NominalHeritage {
     pub source: GlobalNodeIdAny,
     /// The heritage nominal symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic application used at the relation site.
-    pub application: Option<LocalGenericApplicationId>,
+    /// The generic instance used at the relation site.
+    pub instance: Option<LocalGenericInstanceId>,
 }
 
 /// One checked field member.

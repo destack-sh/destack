@@ -3,15 +3,15 @@ use serde::{Deserialize, Serialize};
 use destack_source::ModuleId;
 
 use crate::{
-    Declaration, FunctionSignature, GenericParameterRef, GlobalSymbolId, GlobalTypeId, LocalNodeId,
-    ScalarLiteral, StaticKey, StringId, TypeLiteral,
+    Declaration, FunctionSignature, GlobalGenericParameterId, GlobalSymbolId, GlobalTypeId,
+    LocalNodeId, ScalarLiteral, StaticKey, StringId, TypeLiteral,
 };
 
 /// Static value produced by checked static evaluation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StaticTerm {
     /// Generic parameter reference.
-    Parameter(GenericParameterRef),
+    Parameter(GlobalGenericParameterId),
     /// Static symbol reference.
     Symbol { symbol: GlobalSymbolId },
     /// Normalized access value.

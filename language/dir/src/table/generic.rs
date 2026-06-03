@@ -5,11 +5,11 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Arena, GenericApplication, GenericSlot, GenericTemplate, GlobalNodeIdAny,
-    LocalGenericApplicationId, LocalGenericSlotId, LocalGenericTemplateId, SegmentView,
+    Arena, GenericInstance, GenericParameterBinding, GenericTemplate, GlobalNodeIdAny,
+    LocalGenericInstanceId, LocalGenericParameterId, LocalGenericTemplateId, SegmentView,
 };
 
-/// Cumulative generic slots and applications for one DIR module.
+/// Cumulative generic parameters and instances for one DIR module.
 #[derive(Debug, Clone)]
 pub struct GenericTable<'a> {
     /// The module id of the generic table.
@@ -68,70 +68,66 @@ impl<'a> GenericTable<'a> {
             .flat_map(|segment| segment.iter_templates())
     }
 
-    /// Iterate committed generic slots with their local ids.
-    pub fn iter_slots(&self) -> impl Iterator<Item = (LocalGenericSlotId, &GenericSlot)> + '_ {
+    /// Iterate committed generic parameters with their local ids.
+    pub fn iter_parameters(
+        &self,
+    ) -> impl Iterator<Item = (LocalGenericParameterId, &GenericParameterBinding)> + '_ {
         self.segments
             .iter()
-            .flat_map(|segment| segment.iter_slots())
+            .flat_map(|segment| segment.iter_parameters())
     }
 
-    /// Iterate committed generic applications with their local ids.
-    pub fn iter_applications(
+    /// Iterate committed generic instances with their local ids.
+    pub fn iter_instances(
         &self,
-    ) -> impl Iterator<Item = (LocalGenericApplicationId, &GenericApplication)> + '_ {
+    ) -> impl Iterator<Item = (LocalGenericInstanceId, &GenericInstance)> + '_ {
         self.segments
             .iter()
-            .flat_map(|segment| segment.iter_applications())
+            .flat_map(|segment| segment.iter_instances())
     }
 
-    /// Return the generic application attached to a source node.
-    pub fn node_application_id(
-        &self,
-        node_id: GlobalNodeIdAny,
-    ) -> Option<LocalGenericApplicationId> {
+    /// Return the generic instance attached to a source node.
+    pub fn node_instance_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalGenericInstanceId> {
         for segment in self.segments.iter().rev() {
-            if let Some(application_id) = segment.node_application_id(node_id) {
-                return Some(application_id);
+            if let Some(instance_id) = segment.node_instance_id(node_id) {
+                return Some(instance_id);
             }
         }
 
         None
     }
 
-    /// Find one exact generic application by shape.
-    pub fn find_application(
-        &self,
-        expected: &GenericApplication,
-    ) -> Option<LocalGenericApplicationId> {
-        for (application_id, application) in self.iter_applications() {
-            if application == expected {
-                return Some(application_id);
+    /// Find one exact generic instance by shape.
+    pub fn find_instance(&self, expected: &GenericInstance) -> Option<LocalGenericInstanceId> {
+        for (instance_id, instance) in self.iter_instances() {
+            if instance == expected {
+                return Some(instance_id);
             }
         }
 
         None
     }
 
-    /// Intern one generic application into a mutable tail segment.
-    pub fn intern_application(
+    /// Intern one generic instance into a mutable tail segment.
+    pub fn intern_instance(
         &self,
         tail: &mut GenericSegment,
-        application: GenericApplication,
-    ) -> LocalGenericApplicationId {
+        instance: GenericInstance,
+    ) -> LocalGenericInstanceId {
         assert_eq!(
             self.module_id, tail.module_id,
             "generic table tail belongs to a different module"
         );
 
-        if let Some(application_id) = self.find_application(&application) {
-            return application_id;
+        if let Some(instance_id) = self.find_instance(&instance) {
+            return instance_id;
         }
 
-        if let Some(application_id) = tail.find_application(&application) {
-            return application_id;
+        if let Some(instance_id) = tail.find_instance(&instance) {
+            return instance_id;
         }
 
-        tail.push_application(application)
+        tail.push_instance(instance)
     }
 
     /// Get a generic template by id.
@@ -145,29 +141,26 @@ impl<'a> GenericTable<'a> {
         panic!("DIR generic template {template_id:?} is not visible")
     }
 
-    /// Get a generic slot by id.
-    pub fn get_slot(&self, slot_id: LocalGenericSlotId) -> &GenericSlot {
+    /// Get a generic parameter by id.
+    pub fn get_parameter(&self, parameter_id: LocalGenericParameterId) -> &GenericParameterBinding {
         for segment in self.segments.iter() {
-            if let Some(slot) = segment.get_local_slot(slot_id) {
-                return slot;
+            if let Some(parameter) = segment.get_local_parameter(parameter_id) {
+                return parameter;
             }
         }
 
-        panic!("DIR generic slot {slot_id:?} is not visible")
+        panic!("DIR generic parameter {parameter_id:?} is not visible")
     }
 
-    /// Get a generic application by id.
-    pub fn get_application(
-        &self,
-        application_id: LocalGenericApplicationId,
-    ) -> &GenericApplication {
+    /// Get a generic instance by id.
+    pub fn get_instance(&self, instance_id: LocalGenericInstanceId) -> &GenericInstance {
         for segment in self.segments.iter() {
-            if let Some(application) = segment.get_local_application(application_id) {
-                return application;
+            if let Some(instance) = segment.get_local_instance(instance_id) {
+                return instance;
             }
         }
 
-        panic!("DIR generic application {application_id:?} is not visible")
+        panic!("DIR generic instance {instance_id:?} is not visible")
     }
 
     /// Get the number of templates in the table.
@@ -178,19 +171,19 @@ impl<'a> GenericTable<'a> {
             .unwrap_or(0)
     }
 
-    /// Get the number of slots in the table.
-    pub fn slot_count(&self) -> u32 {
+    /// Get the number of parameters in the table.
+    pub fn parameter_count(&self) -> u32 {
         self.segments
             .last()
-            .map(|segment| segment.slot_count())
+            .map(|segment| segment.parameter_count())
             .unwrap_or(0)
     }
 
-    /// Get the number of generic applications in the table.
-    pub fn application_count(&self) -> u32 {
+    /// Get the number of generic instances in the table.
+    pub fn instance_count(&self) -> u32 {
         self.segments
             .last()
-            .map(|segment| segment.application_count())
+            .map(|segment| segment.instance_count())
             .unwrap_or(0)
     }
 
@@ -200,25 +193,25 @@ impl<'a> GenericTable<'a> {
     }
 }
 
-/// Generic slots and applications added by one DIR phase.
+/// Generic parameters and instances added by one DIR phase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GenericSegment {
     /// The module id of the generic segment.
     pub module_id: ModuleId,
     /// The first generic template id owned by this table segment.
     pub(crate) first_template_id: u32,
-    /// The first generic slot id owned by this table segment.
-    pub(crate) first_slot_id: u32,
-    /// The first generic application id owned by this table segment.
-    pub(crate) first_application_id: u32,
+    /// The first generic parameter id owned by this table segment.
+    pub(crate) first_parameter_id: u32,
+    /// The first generic instance id owned by this table segment.
+    pub(crate) first_instance_id: u32,
     /// Generic templates.
     pub(crate) templates: Arena<GenericTemplate>,
-    /// Generic slots.
-    pub(crate) slots: Arena<GenericSlot>,
-    /// Interned generic applications.
-    pub(crate) applications: Arena<GenericApplication>,
-    /// Generic applications keyed by DIR node.
-    pub(crate) nodes: IndexMap<GlobalNodeIdAny, LocalGenericApplicationId>,
+    /// Generic parameters.
+    pub(crate) parameters: Arena<GenericParameterBinding>,
+    /// Interned generic instances.
+    pub(crate) instances: Arena<GenericInstance>,
+    /// Generic instances keyed by DIR node.
+    pub(crate) nodes: IndexMap<GlobalNodeIdAny, LocalGenericInstanceId>,
 }
 
 impl GenericSegment {
@@ -227,11 +220,11 @@ impl GenericSegment {
         Self {
             module_id,
             first_template_id: 0,
-            first_slot_id: 0,
-            first_application_id: 0,
+            first_parameter_id: 0,
+            first_instance_id: 0,
             templates: Arena::new(),
-            slots: Arena::new(),
-            applications: Arena::new(),
+            parameters: Arena::new(),
+            instances: Arena::new(),
             nodes: IndexMap::new(),
         }
     }
@@ -241,11 +234,11 @@ impl GenericSegment {
         Self {
             module_id: base.module_id,
             first_template_id: base.template_count(),
-            first_slot_id: base.slot_count(),
-            first_application_id: base.application_count(),
+            first_parameter_id: base.parameter_count(),
+            first_instance_id: base.instance_count(),
             templates: Arena::new(),
-            slots: Arena::new(),
-            applications: Arena::new(),
+            parameters: Arena::new(),
+            instances: Arena::new(),
             nodes: IndexMap::new(),
         }
     }
@@ -258,64 +251,63 @@ impl GenericSegment {
         template_id
     }
 
-    /// Append a generic slot to this segment.
-    pub fn push_slot(&mut self, slot: GenericSlot) -> LocalGenericSlotId {
-        let slot_id = LocalGenericSlotId::new(self.slot_count());
-        self.slots.allocate(slot);
-
-        slot_id
-    }
-
-    /// Append a generic application to this segment.
-    pub fn push_application(
+    /// Append a generic parameter to this segment.
+    pub fn push_parameter(
         &mut self,
-        application: GenericApplication,
-    ) -> LocalGenericApplicationId {
-        let application_id = LocalGenericApplicationId::new(self.application_count());
-        self.applications.allocate(application);
+        parameter: GenericParameterBinding,
+    ) -> LocalGenericParameterId {
+        let parameter_id = LocalGenericParameterId::new(self.parameter_count());
+        self.parameters.allocate(parameter);
 
-        application_id
+        parameter_id
     }
 
-    /// Attach a generic application to a source node.
-    pub fn set_node_application(
+    /// Append a generic instance to this segment.
+    pub fn push_instance(&mut self, instance: GenericInstance) -> LocalGenericInstanceId {
+        let instance_id = LocalGenericInstanceId::new(self.instance_count());
+        self.instances.allocate(instance);
+
+        instance_id
+    }
+
+    /// Attach a generic instance to a source node.
+    pub fn set_node_instance(
         &mut self,
         node_id: GlobalNodeIdAny,
-        application_id: LocalGenericApplicationId,
+        instance_id: LocalGenericInstanceId,
     ) {
-        self.nodes.insert(node_id, application_id);
+        let previous = self.nodes.insert(node_id, instance_id);
+
+        assert!(
+            previous.is_none(),
+            "DIR generic instance already exists for node {node_id:?}"
+        );
     }
 
-    /// Return the generic application attached to a source node.
-    pub fn node_application_id(
-        &self,
-        node_id: GlobalNodeIdAny,
-    ) -> Option<LocalGenericApplicationId> {
+    /// Return the generic instance attached to a source node.
+    pub fn node_instance_id(&self, node_id: GlobalNodeIdAny) -> Option<LocalGenericInstanceId> {
         self.nodes.get(&node_id).copied()
     }
 
-    /// Iterate source nodes with their generic applications.
-    pub fn node_applications(
+    /// Iterate source nodes with their generic instances.
+    pub fn node_instances(
         &self,
-    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalGenericApplicationId)> + '_ {
+    ) -> impl Iterator<Item = (GlobalNodeIdAny, LocalGenericInstanceId)> + '_ {
         self.nodes
             .iter()
-            .map(|(node_id, application_id)| (*node_id, *application_id))
+            .map(|(node_id, instance_id)| (*node_id, *instance_id))
     }
 
-    /// Return the number of source nodes with generic applications.
-    pub fn node_application_count(&self) -> usize {
+    /// Return the number of source nodes with generic instances.
+    pub fn node_instance_count(&self) -> usize {
         self.nodes.len()
     }
 
-    /// Find one exact generic application by shape.
-    pub fn find_application(
-        &self,
-        expected: &GenericApplication,
-    ) -> Option<LocalGenericApplicationId> {
-        for (application_id, application) in self.iter_applications() {
-            if application == expected {
-                return Some(application_id);
+    /// Find one exact generic instance by shape.
+    pub fn find_instance(&self, expected: &GenericInstance) -> Option<LocalGenericInstanceId> {
+        for (instance_id, instance) in self.iter_instances() {
+            if instance == expected {
+                return Some(instance_id);
             }
         }
 
@@ -329,24 +321,18 @@ impl GenericSegment {
         })
     }
 
-    /// Get a generic slot by id.
-    pub fn get_slot(&self, slot_id: LocalGenericSlotId) -> &GenericSlot {
-        self.get_local_slot(slot_id).unwrap_or_else(|| {
-            panic!("DIR generic slot {slot_id:?} is not allocated in this segment")
+    /// Get a generic parameter by id.
+    pub fn get_parameter(&self, parameter_id: LocalGenericParameterId) -> &GenericParameterBinding {
+        self.get_local_parameter(parameter_id).unwrap_or_else(|| {
+            panic!("DIR generic parameter {parameter_id:?} is not allocated in this segment")
         })
     }
 
-    /// Get a generic application by id.
-    pub fn get_application(
-        &self,
-        application_id: LocalGenericApplicationId,
-    ) -> &GenericApplication {
-        self.get_local_application(application_id)
-            .unwrap_or_else(|| {
-                panic!(
-                    "DIR generic application {application_id:?} is not allocated in this segment"
-                )
-            })
+    /// Get a generic instance by id.
+    pub fn get_instance(&self, instance_id: LocalGenericInstanceId) -> &GenericInstance {
+        self.get_local_instance(instance_id).unwrap_or_else(|| {
+            panic!("DIR generic instance {instance_id:?} is not allocated in this segment")
+        })
     }
 
     /// Iterate committed generic templates with their local ids.
@@ -359,21 +345,23 @@ impl GenericSegment {
         })
     }
 
-    /// Iterate committed generic slots with their local ids.
-    pub fn iter_slots(&self) -> impl Iterator<Item = (LocalGenericSlotId, &GenericSlot)> + '_ {
-        (self.first_slot_id..self.slot_count()).map(|index| {
-            let slot_id = LocalGenericSlotId::new(index);
-            (slot_id, self.get_slot(slot_id))
+    /// Iterate committed generic parameters with their local ids.
+    pub fn iter_parameters(
+        &self,
+    ) -> impl Iterator<Item = (LocalGenericParameterId, &GenericParameterBinding)> + '_ {
+        (self.first_parameter_id..self.parameter_count()).map(|index| {
+            let parameter_id = LocalGenericParameterId::new(index);
+            (parameter_id, self.get_parameter(parameter_id))
         })
     }
 
-    /// Iterate committed generic applications with their local ids.
-    pub fn iter_applications(
+    /// Iterate committed generic instances with their local ids.
+    pub fn iter_instances(
         &self,
-    ) -> impl Iterator<Item = (LocalGenericApplicationId, &GenericApplication)> + '_ {
-        (self.first_application_id..self.application_count()).map(|index| {
-            let application_id = LocalGenericApplicationId::new(index);
-            (application_id, self.get_application(application_id))
+    ) -> impl Iterator<Item = (LocalGenericInstanceId, &GenericInstance)> + '_ {
+        (self.first_instance_id..self.instance_count()).map(|index| {
+            let instance_id = LocalGenericInstanceId::new(index);
+            (instance_id, self.get_instance(instance_id))
         })
     }
 
@@ -382,21 +370,21 @@ impl GenericSegment {
         self.first_template_id + self.templates.len() as u32
     }
 
-    /// Get the number of slots in the segment.
-    pub fn slot_count(&self) -> u32 {
-        self.first_slot_id + self.slots.len() as u32
+    /// Get the number of parameters in the segment.
+    pub fn parameter_count(&self) -> u32 {
+        self.first_parameter_id + self.parameters.len() as u32
     }
 
-    /// Get the number of generic applications in the segment.
-    pub fn application_count(&self) -> u32 {
-        self.first_application_id + self.applications.len() as u32
+    /// Get the number of generic instances in the segment.
+    pub fn instance_count(&self) -> u32 {
+        self.first_instance_id + self.instances.len() as u32
     }
 
     /// Return whether this segment has no entries.
     pub fn is_empty(&self) -> bool {
         self.templates.is_empty()
-            && self.slots.is_empty()
-            && self.applications.is_empty()
+            && self.parameters.is_empty()
+            && self.instances.is_empty()
             && self.nodes.is_empty()
     }
 
@@ -409,21 +397,24 @@ impl GenericSegment {
             .then(|| self.templates.get(template_id.0 - self.first_template_id))
     }
 
-    /// Get a generic slot owned by this table segment.
-    pub(crate) fn get_local_slot(&self, slot_id: LocalGenericSlotId) -> Option<&GenericSlot> {
-        self.contains_slot_id(slot_id)
-            .then(|| self.slots.get(slot_id.0 - self.first_slot_id))
+    /// Get a generic parameter owned by this table segment.
+    pub(crate) fn get_local_parameter(
+        &self,
+        parameter_id: LocalGenericParameterId,
+    ) -> Option<&GenericParameterBinding> {
+        self.contains_parameter_id(parameter_id).then(|| {
+            self.parameters
+                .get(parameter_id.0 - self.first_parameter_id)
+        })
     }
 
-    /// Get a generic application owned by this table segment.
-    pub(crate) fn get_local_application(
+    /// Get a generic instance owned by this table segment.
+    pub(crate) fn get_local_instance(
         &self,
-        application_id: LocalGenericApplicationId,
-    ) -> Option<&GenericApplication> {
-        self.contains_application_id(application_id).then(|| {
-            self.applications
-                .get(application_id.0 - self.first_application_id)
-        })
+        instance_id: LocalGenericInstanceId,
+    ) -> Option<&GenericInstance> {
+        self.contains_instance_id(instance_id)
+            .then(|| self.instances.get(instance_id.0 - self.first_instance_id))
     }
 
     /// Return whether this segment contains the given template id.
@@ -431,13 +422,13 @@ impl GenericSegment {
         template_id.0 >= self.first_template_id && template_id.0 < self.template_count()
     }
 
-    /// Return whether this segment contains the given slot id.
-    fn contains_slot_id(&self, slot_id: LocalGenericSlotId) -> bool {
-        slot_id.0 >= self.first_slot_id && slot_id.0 < self.slot_count()
+    /// Return whether this segment contains the given parameter id.
+    fn contains_parameter_id(&self, parameter_id: LocalGenericParameterId) -> bool {
+        parameter_id.0 >= self.first_parameter_id && parameter_id.0 < self.parameter_count()
     }
 
-    /// Return whether this segment contains the given application id.
-    fn contains_application_id(&self, application_id: LocalGenericApplicationId) -> bool {
-        application_id.0 >= self.first_application_id && application_id.0 < self.application_count()
+    /// Return whether this segment contains the given instance id.
+    fn contains_instance_id(&self, instance_id: LocalGenericInstanceId) -> bool {
+        instance_id.0 >= self.first_instance_id && instance_id.0 < self.instance_count()
     }
 }

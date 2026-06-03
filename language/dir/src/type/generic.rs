@@ -19,86 +19,124 @@ impl LocalGenericTemplateId {
     }
 }
 
-/// Unique identifier for generic slots.
+/// Unique identifier for generic parameters.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct LocalGenericSlotId(pub u32);
+pub struct LocalGenericParameterId(pub u32);
 
-impl LocalGenericSlotId {
-    /// Wrap an id as a local generic slot id.
-    pub fn new(id: u32) -> Self {
-        Self(id)
-    }
-}
-
-/// Unique identifier for generic applications.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct LocalGenericApplicationId(pub u32);
-
-impl LocalGenericApplicationId {
-    /// Wrap an id as a local generic application id.
+impl LocalGenericParameterId {
+    /// Wrap an id as a local generic parameter id.
     pub fn new(id: u32) -> Self {
         Self(id)
     }
 
-    /// Turn into a global generic application id.
-    pub fn into_global(self, module_id: ModuleId) -> GlobalGenericApplicationId {
-        GlobalGenericApplicationId {
+    /// Turn into a global generic parameter id.
+    pub fn into_global(self, module_id: ModuleId) -> GlobalGenericParameterId {
+        GlobalGenericParameterId {
             module_id,
             local_id: self,
         }
     }
 }
 
-/// Global generic application id across modules.
+/// Global generic parameter id across modules.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct GlobalGenericApplicationId {
-    /// The module id of the global generic application.
+pub struct GlobalGenericParameterId {
+    /// The module id of the global generic parameter.
     pub module_id: ModuleId,
-    /// The local generic application id.
-    pub local_id: LocalGenericApplicationId,
+    /// The local generic parameter id.
+    pub local_id: LocalGenericParameterId,
 }
 
-impl GlobalGenericApplicationId {
-    /// Create a new global generic application id.
-    pub fn new(module_id: ModuleId, local_id: LocalGenericApplicationId) -> Self {
+impl GlobalGenericParameterId {
+    /// Create a new global generic parameter id.
+    pub fn new(module_id: ModuleId, local_id: LocalGenericParameterId) -> Self {
         Self {
             module_id,
             local_id,
         }
     }
 
-    /// Turn into a local generic application id.
-    pub fn into_local(self) -> LocalGenericApplicationId {
+    /// Turn into a local generic parameter id.
+    pub fn into_local(self) -> LocalGenericParameterId {
         self.local_id
     }
 }
 
-impl From<GlobalGenericApplicationId> for LocalGenericApplicationId {
-    fn from(id: GlobalGenericApplicationId) -> Self {
+impl From<GlobalGenericParameterId> for LocalGenericParameterId {
+    fn from(id: GlobalGenericParameterId) -> Self {
         id.local_id
     }
 }
 
-impl Display for LocalGenericApplicationId {
+/// Unique identifier for generic instances.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct LocalGenericInstanceId(pub u32);
+
+impl LocalGenericInstanceId {
+    /// Wrap an id as a local generic instance id.
+    pub fn new(id: u32) -> Self {
+        Self(id)
+    }
+
+    /// Turn into a global generic instance id.
+    pub fn into_global(self, module_id: ModuleId) -> GlobalGenericInstanceId {
+        GlobalGenericInstanceId {
+            module_id,
+            local_id: self,
+        }
+    }
+}
+
+/// Global generic instance id across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct GlobalGenericInstanceId {
+    /// The module id of the global generic instance.
+    pub module_id: ModuleId,
+    /// The local generic instance id.
+    pub local_id: LocalGenericInstanceId,
+}
+
+impl GlobalGenericInstanceId {
+    /// Create a new global generic instance id.
+    pub fn new(module_id: ModuleId, local_id: LocalGenericInstanceId) -> Self {
+        Self {
+            module_id,
+            local_id,
+        }
+    }
+
+    /// Turn into a local generic instance id.
+    pub fn into_local(self) -> LocalGenericInstanceId {
+        self.local_id
+    }
+}
+
+impl From<GlobalGenericInstanceId> for LocalGenericInstanceId {
+    fn from(id: GlobalGenericInstanceId) -> Self {
+        id.local_id
+    }
+}
+
+impl Display for LocalGenericInstanceId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "#{}", self.0)
     }
 }
 
-/// Source that introduced one generic slot.
+/// Source that introduced one generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum GenericSlotOrigin {
-    /// The slot was written in source.
+pub enum GenericParameterOrigin {
+    /// The parameter was written in source.
     Explicit,
-    /// The slot was induced by check.
-    Induced(GenericSlotInduction),
+    /// The parameter was induced by check.
+    Induced(GenericParameterInduction),
 }
 
-/// Reason one generic slot was induced.
+/// Reason one generic parameter was induced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum GenericSlotInduction {
+pub enum GenericParameterInduction {
     /// A transparent type constraint escaped.
     Constraint,
     /// A type form parameter escaped.
@@ -107,44 +145,22 @@ pub enum GenericSlotInduction {
     Comptime,
 }
 
-/// User-visible key of one generic slot.
+/// User-visible key of one generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum GenericSlotKey {
+pub enum GenericParameterKey {
     /// Explicit source symbol.
     Symbol(GlobalSymbolId),
-    /// Generated checked slot key.
+    /// Generated checked parameter key.
     Generated(StringId),
 }
 
-/// Declaration order index for one generic slot.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct GenericSlotIndex(pub u32);
-
-impl GenericSlotIndex {
-    /// Wrap an index as a generic slot index.
-    pub fn new(index: u32) -> Self {
-        Self(index)
-    }
-
-    /// Return the following generic slot index.
-    pub fn next(self) -> Self {
-        Self(self.0 + 1)
-    }
-
-    /// Return the raw index.
-    pub fn get(self) -> u32 {
-        self.0
-    }
-}
-
-/// One owner-level declaration of generic slots.
+/// One owner-level declaration of generic parameters.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GenericTemplate {
     /// The symbol that owns this generic template.
     pub owner: GlobalSymbolId,
-    /// The generic slots in declaration order.
-    pub slots: Vec<LocalGenericSlotId>,
+    /// The generic parameters in declaration order.
+    pub parameters: Vec<LocalGenericParameterId>,
 }
 
 impl GenericTemplate {
@@ -152,81 +168,73 @@ impl GenericTemplate {
     pub fn new(owner: GlobalSymbolId) -> Self {
         Self {
             owner,
-            slots: Vec::new(),
+            parameters: Vec::new(),
         }
     }
 }
 
-/// One declaration-side generic slot.
+/// One declaration-side generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum GenericSlot {
-    /// Type generic slot.
+pub enum GenericParameterBinding {
+    /// Type generic parameter.
     Type {
-        /// The generic template that owns this slot.
+        /// The generic template that owns this parameter.
         template: LocalGenericTemplateId,
-        /// The slot key.
-        key: GenericSlotKey,
-        /// The declaration order index.
-        index: GenericSlotIndex,
-        /// The slot variance.
+        /// The parameter key.
+        key: GenericParameterKey,
+        /// The parameter variance.
         variance: Option<VarianceModifier>,
         /// The optional type constraint.
         constraint: Option<GlobalTypeId>,
         /// The optional type default.
         default: Option<GlobalTypeId>,
-        /// The slot origin.
-        origin: GenericSlotOrigin,
+        /// The parameter origin.
+        origin: GenericParameterOrigin,
     },
-    /// Variadic type generic slot.
+    /// Variadic type generic parameter.
     VariadicType {
-        /// The generic template that owns this slot.
+        /// The generic template that owns this parameter.
         template: LocalGenericTemplateId,
-        /// The slot key.
-        key: GenericSlotKey,
-        /// The declaration order index.
-        index: GenericSlotIndex,
-        /// The slot variance.
+        /// The parameter key.
+        key: GenericParameterKey,
+        /// The parameter variance.
         variance: Option<VarianceModifier>,
         /// The optional type constraint.
         constraint: Option<GlobalTypeId>,
         /// The optional type default.
         default: Option<GlobalTypeId>,
-        /// The slot origin.
-        origin: GenericSlotOrigin,
+        /// The parameter origin.
+        origin: GenericParameterOrigin,
     },
-    /// Static generic slot.
+    /// Static generic parameter.
     Static {
-        /// The generic template that owns this slot.
+        /// The generic template that owns this parameter.
         template: LocalGenericTemplateId,
-        /// The slot key.
-        key: GenericSlotKey,
-        /// The declaration order index.
-        index: GenericSlotIndex,
+        /// The parameter key.
+        key: GenericParameterKey,
         /// The optional static value type constraint.
         constraint: Option<GlobalTypeId>,
         /// The optional static default.
         default: Option<GlobalStaticId>,
-        /// The slot origin.
-        origin: GenericSlotOrigin,
+        /// The parameter origin.
+        origin: GenericParameterOrigin,
     },
-    /// Variadic static generic slot.
+    /// Variadic static generic parameter.
     VariadicStatic {
-        /// The generic template that owns this slot.
+        /// The generic template that owns this parameter.
         template: LocalGenericTemplateId,
-        /// The slot key.
-        key: GenericSlotKey,
-        /// The declaration order index.
-        index: GenericSlotIndex,
+        /// The parameter key.
+        key: GenericParameterKey,
         /// The optional static value type constraint.
         constraint: Option<GlobalTypeId>,
         /// The optional static default.
         default: Option<GlobalStaticId>,
-        /// The slot origin.
-        origin: GenericSlotOrigin,
+        /// The parameter origin.
+        origin: GenericParameterOrigin,
     },
 }
 
-impl GenericSlot {
+impl GenericParameterBinding {
     /// Return the owner generic template.
     pub fn template(&self) -> LocalGenericTemplateId {
         match self {
@@ -237,8 +245,8 @@ impl GenericSlot {
         }
     }
 
-    /// Return the slot key.
-    pub fn key(&self) -> GenericSlotKey {
+    /// Return the parameter key.
+    pub fn key(&self) -> GenericParameterKey {
         match self {
             Self::Type { key, .. }
             | Self::VariadicType { key, .. }
@@ -247,18 +255,8 @@ impl GenericSlot {
         }
     }
 
-    /// Return the declaration order index.
-    pub fn index(&self) -> GenericSlotIndex {
-        match self {
-            Self::Type { index, .. }
-            | Self::VariadicType { index, .. }
-            | Self::Static { index, .. }
-            | Self::VariadicStatic { index, .. } => *index,
-        }
-    }
-
-    /// Return the slot origin.
-    pub fn origin(&self) -> GenericSlotOrigin {
+    /// Return the parameter origin.
+    pub fn origin(&self) -> GenericParameterOrigin {
         match self {
             Self::Type { origin, .. }
             | Self::VariadicType { origin, .. }
@@ -268,17 +266,17 @@ impl GenericSlot {
     }
 }
 
-/// One concrete application of static arguments to a generic template.
+/// One concrete instance of static arguments to a generic template.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct GenericApplication {
+pub struct GenericInstance {
     /// The generic template being applied.
     pub template: LocalGenericTemplateId,
     /// The static arguments in declaration order.
     pub arguments: Vec<StaticArgument>,
 }
 
-impl GenericApplication {
-    /// Create a generic application.
+impl GenericInstance {
+    /// Create a generic instance.
     pub fn new(template: LocalGenericTemplateId, arguments: Vec<StaticArgument>) -> Self {
         Self {
             template,
