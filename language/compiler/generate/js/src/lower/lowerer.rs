@@ -27,6 +27,8 @@ pub struct ModuleLowerer<'a> {
     pub(crate) types: &'a dir::TypeTable<'static>,
     /// The static table.
     pub(crate) statics: &'a dir::StaticTable<'static>,
+    /// The generic table.
+    pub(crate) generics: &'a dir::GenericTable<'static>,
     /// The resolution table.
     pub(crate) resolutions: &'a dir::ResolutionTable<'static>,
     /// The module table.
@@ -166,6 +168,7 @@ impl<'a> ModuleLowerer<'a> {
         symbols: dir::BindingTable<'static>,
         types: &'a dir::TypeTable<'static>,
         statics: &'a dir::StaticTable<'static>,
+        generics: &'a dir::GenericTable<'static>,
         resolutions: &'a dir::ResolutionTable<'static>,
         modules: dir::ModuleTable<'static>,
         target: &'a Target,
@@ -182,6 +185,7 @@ impl<'a> ModuleLowerer<'a> {
             symbols,
             types,
             statics,
+            generics,
             resolutions,
             modules,
             target,

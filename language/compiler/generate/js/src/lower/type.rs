@@ -348,14 +348,9 @@ impl ModuleLowerer<'_> {
             dir::StaticTerm::Symbol { symbol } => {
                 self.lower_reference_type_from_symbol(source_id, *symbol, None)
             }
-            dir::StaticTerm::Parameter(parameter) => match parameter.key {
-                dir::GenericSlotKey::Symbol(symbol) => {
-                    self.lower_reference_type_from_symbol(source_id, symbol, None)
-                }
-                dir::GenericSlotKey::Generated(_) => {
-                    self.lower_generated_parameter_type(source_id, parameter.key)
-                }
-            },
+            dir::StaticTerm::Parameter(parameter) => {
+                self.lower_generic_parameter_type(source_id, *parameter)
+            }
             dir::StaticTerm::Access { access } => {
                 self.lower_static_string_type(source_id, &format!("{access:?}").to_lowercase())
             }
@@ -508,16 +503,41 @@ impl ModuleLowerer<'_> {
             .insert_from_source_any(ty, self.module.id, source_id))
     }
 
+    /// Lower one generic parameter into a JS path type.
+    fn lower_generic_parameter_type(
+        &mut self,
+        source_id: dir::LocalNodeIdAny,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
+        // reject foreign generics
+        if parameter.module_id != self.module.id {
+            return Err(CodegenJsError::Internal {
+                message: format!("JS lowering cannot read foreign DIR generic {parameter:?}"),
+            });
+        }
+
+        // lower by committed parameter key
+        let key = self.generics.get_parameter(parameter.local_id).key();
+        match key {
+            dir::GenericParameterKey::Symbol(symbol) => {
+                self.lower_reference_type_from_symbol(source_id, symbol, None)
+            }
+            dir::GenericParameterKey::Generated(_) => {
+                self.lower_generated_parameter_type(source_id, key)
+            }
+        }
+    }
+
     /// Lower one generated generic parameter into a JS path type.
     fn lower_generated_parameter_type(
         &mut self,
         source_id: dir::LocalNodeIdAny,
-        key: dir::GenericSlotKey,
+        key: dir::GenericParameterKey,
     ) -> CodegenJsResult<js::LocalNodeId<js::TypeExpression>> {
-        let dir::GenericSlotKey::Generated(name) = key else {
+        let dir::GenericParameterKey::Generated(name) = key else {
             return Err(CodegenJsError::UnsupportedConstruct {
                 node: source_id.into_global(self.module.id),
-                message: Some("generic parameter slot is not generated".to_string()),
+                message: Some("generic parameter key is not generated".to_string()),
             });
         };
         let path = js::Path {
@@ -715,7 +735,7 @@ impl ModuleLowerer<'_> {
                     "this".to_string(),
                     dir::FunctionParameterType {
                         ty: this_type_id,
-                        static_slot: None,
+                        static_parameter: None,
                         is_optional: false,
                         is_rest: false,
                     },
@@ -914,10 +934,9 @@ impl ModuleLowerer<'_> {
                         .insert_from_source_any(ty, self.module.id, source_id)
                 }
             },
-            dir::Type::Parameter(parameter) => match parameter.symbol() {
-                Some(symbol) => self.lower_reference_type_from_symbol(source_id, symbol, None)?,
-                None => self.lower_generated_parameter_type(source_id, parameter.key)?,
-            },
+            dir::Type::Parameter(parameter) => {
+                self.lower_generic_parameter_type(source_id, *parameter)?
+            }
             dir::Type::This => self.tree.insert_from_source_any(
                 js::TypeExpression::This,
                 self.module.id,
