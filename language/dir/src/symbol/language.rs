@@ -155,10 +155,10 @@ macro_rules! define_language_items {
 define_language_items! {
     /// Accessibility types.
     accessibility {
-        /// `destack:accessibility/host`.
-        host {
+        /// `destack:accessibility/binding`.
+        binding {
             /// Accessibility binding family.
-            AccessibilityHost => (Interface, "accessibility/host/accessibility", "Accessibility"),
+            AccessibilityBinding => (Interface, "accessibility/binding/accessibility", "Accessibility"),
         }
     }
 
@@ -224,10 +224,10 @@ define_language_items! {
 
     /// Audio types.
     audio {
-        /// `destack:audio/host`.
-        host {
+        /// `destack:audio/binding`.
+        binding {
             /// Audio binding family.
-            AudioHost => (Interface, "audio/host/audio", "Audio"),
+            AudioBinding => (Interface, "audio/binding/audio", "Audio"),
         }
     }
 
@@ -391,10 +391,10 @@ define_language_items! {
 
     /// Crypto types.
     crypto {
-        /// `destack:crypto/host`.
-        host {
+        /// `destack:crypto/binding`.
+        binding {
             /// Crypto binding family.
-            CryptoHost => (Interface, "crypto/host/crypto", "Crypto"),
+            CryptoBinding => (Interface, "crypto/binding/crypto", "Crypto"),
         }
     }
 
@@ -553,19 +553,19 @@ define_language_items! {
 
     /// Device types.
     device {
-        /// `destack:device/host`.
-        host {
+        /// `destack:device/binding`.
+        binding {
             /// Device binding family.
-            DeviceHost => (Interface, "device/host/device", "Device"),
+            DeviceBinding => (Interface, "device/binding/device", "Device"),
         }
     }
 
     /// Display types.
     display {
-        /// `destack:display/host`.
-        host {
+        /// `destack:display/binding`.
+        binding {
             /// Display binding family.
-            DisplayHost => (Interface, "display/host/display", "Display"),
+            DisplayBinding => (Interface, "display/binding/display", "Display"),
         }
     }
 
@@ -643,58 +643,46 @@ define_language_items! {
 
     /// Filesystem types.
     fs {
-        /// `destack:fs/host`.
-        host {
+        /// `destack:fs/binding`.
+        binding {
             /// Filesystem binding family.
-            FsHost => (Interface, "fs/host/fs", "Fs"),
+            FsBinding => (Interface, "fs/binding/fs", "Fs"),
         }
     }
 
     /// GPU types.
     gpu {
-        /// `destack:gpu/host`.
-        host {
+        /// `destack:gpu/binding`.
+        binding {
             /// GPU binding family.
-            GpuHost => (Interface, "gpu/host/gpu", "Gpu"),
-        }
-    }
-
-    /// Host types.
-    host {
-        /// `destack:host`.
-        host {
-            /// Runtime host binding families.
-            Host => (Interface, "host/host", "Host"),
-
-            /// Runtime host bindings.
-            HostValue => (Variable, "host/host", "host"),
+            GpuBinding => (Interface, "gpu/binding/gpu", "Gpu"),
         }
     }
 
     /// Input types.
     input {
-        /// `destack:input/host`.
-        host {
+        /// `destack:input/binding`.
+        binding {
             /// Input binding family.
-            InputHost => (Interface, "input/host/input", "Input"),
+            InputBinding => (Interface, "input/binding/input", "Input"),
         }
     }
 
     /// IO types.
     io {
-        /// `destack:io/host`.
-        host {
+        /// `destack:io/binding`.
+        binding {
             /// IO binding family.
-            IoHost => (Interface, "io/host/io", "Io"),
+            IoBinding => (Interface, "io/binding/io", "Io"),
         }
     }
 
     /// IPC types.
     ipc {
-        /// `destack:ipc/host`.
-        host {
+        /// `destack:ipc/binding`.
+        binding {
             /// IPC binding family.
-            IpcHost => (Interface, "ipc/host/ipc", "Ipc"),
+            IpcBinding => (Interface, "ipc/binding/ipc", "Ipc"),
         }
     }
 
@@ -799,10 +787,10 @@ define_language_items! {
             Dynamic => (Newtype, "memory/dynamic", "Dynamic"),
         }
 
-        /// `destack:memory/host`.
-        host {
+        /// `destack:memory/binding`.
+        binding {
             /// Memory binding family.
-            MemoryHost => (Interface, "memory/host/memory", "Memory"),
+            MemoryBinding => (Interface, "memory/binding/memory", "Memory"),
         }
 
         /// `destack:memory/arc`.
@@ -1051,10 +1039,10 @@ define_language_items! {
 
     /// Network types.
     net {
-        /// `destack:net/host`.
-        host {
+        /// `destack:net/binding`.
+        binding {
             /// Network binding family.
-            NetHost => (Interface, "net/host/net", "Net"),
+            NetBinding => (Interface, "net/binding/net", "Net"),
         }
     }
 
@@ -1201,28 +1189,28 @@ define_language_items! {
 
     /// Operating system types.
     os {
-        /// `destack:os/host`.
-        host {
+        /// `destack:os/binding`.
+        binding {
             /// Operating system binding family.
-            OsHost => (Interface, "os/host/os", "Os"),
+            OsBinding => (Interface, "os/binding/os", "Os"),
         }
     }
 
     /// Process types.
     process {
-        /// `destack:process/host`.
-        host {
+        /// `destack:process/binding`.
+        binding {
             /// Process binding family.
-            ProcessHost => (Interface, "process/host/process", "Process"),
+            ProcessBinding => (Interface, "process/binding/process", "Process"),
         }
     }
 
     /// Random types.
     random {
-        /// `destack:random/host`.
-        host {
+        /// `destack:random/binding`.
+        binding {
             /// Random binding family.
-            RandomHost => (Interface, "random/host/random", "Random"),
+            RandomBinding => (Interface, "random/binding/random", "Random"),
         }
     }
 
@@ -1399,28 +1387,37 @@ define_language_items! {
 
     /// Time types.
     time {
-        /// `destack:time/host`.
-        host {
+        /// `destack:time/binding`.
+        binding {
             /// Time binding family.
-            TimeHost => (Interface, "time/host/time", "Time"),
+            TimeBinding => (Interface, "time/binding/time", "Time"),
+        }
+    }
+
+    /// Topology types.
+    topology {
+        /// `destack:topology/binding`.
+        binding {
+            /// Topology binding family.
+            TopologyBinding => (Interface, "topology/binding/topology", "Topology"),
         }
     }
 
     /// TLS types.
     tls {
-        /// `destack:tls/host`.
-        host {
+        /// `destack:tls/binding`.
+        binding {
             /// TLS binding family.
-            TlsHost => (Interface, "tls/host/tls", "Tls"),
+            TlsBinding => (Interface, "tls/binding/tls", "Tls"),
         }
     }
 
     /// TTY types.
     tty {
-        /// `destack:tty/host`.
-        host {
+        /// `destack:tty/binding`.
+        binding {
             /// TTY binding family.
-            TtyHost => (Interface, "tty/host/tty", "Tty"),
+            TtyBinding => (Interface, "tty/binding/tty", "Tty"),
         }
     }
 
