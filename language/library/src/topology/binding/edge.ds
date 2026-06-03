@@ -1,0 +1,52 @@
+import { HostError } from "destack:error/host";
+import { WorldHandle } from "destack:runtime";
+
+import { EdgeId, EdgeKind, EdgeKindRecord, EdgeRecord, EdgeSelector } from "../edge.ds";
+
+/// Topology edge binding family.
+export interface TopologyEdge {
+    /// Define one runtime topology edge kind.
+    @binding("destack.topology.edge.kind.define", {
+        requires: ["runtime.topology.edge.kind.define"],
+    })
+    defineKind(
+        world: WorldHandle,
+        kind: EdgeKindRecord,
+    ): Result<void, HostError>;
+
+    /// Undefine one runtime topology edge kind.
+    @binding("destack.topology.edge.kind.undefine", {
+        requires: ["runtime.topology.edge.kind.undefine"],
+    })
+    undefineKind(
+        world: WorldHandle,
+        kind: EdgeKind,
+    ): Result<void, HostError>;
+
+    /// Upsert one runtime topology edge.
+    @binding("destack.topology.edge.upsert", {
+        requires: ["runtime.topology.edge.upsert"],
+    })
+    upsert(
+        world: WorldHandle,
+        edge: EdgeRecord,
+    ): Result<EdgeId, HostError>;
+
+    /// Remove one runtime topology edge.
+    @binding("destack.topology.edge.remove", {
+        requires: ["runtime.topology.edge.remove"],
+    })
+    remove(
+        world: WorldHandle,
+        edge: EdgeId,
+    ): Result<boolean, HostError>;
+
+    /// Return runtime topology edges.
+    @binding("destack.topology.edge.list", {
+        requires: ["runtime.topology.edge.read"],
+    })
+    list(
+        world: WorldHandle,
+        selector?: EdgeSelector,
+    ): Result<[EdgeRecord], HostError>;
+}
