@@ -225,7 +225,7 @@ pub struct ProgramArgs {
     pub cwd: Option<PathBuf>,
 
     /// Path to one project directory or destack.json manifest file.
-    #[arg(long = "manifest", short = 'm', global = true)]
+    #[arg(long = "manifest", global = true)]
     pub manifest: Option<PathBuf>,
 
     /// Workspace root directory (defaults to resolved workspace from cwd).
