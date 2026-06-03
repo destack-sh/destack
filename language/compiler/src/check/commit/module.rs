@@ -8,7 +8,7 @@ use crate::check::CheckState;
 use super::CheckModuleOutput;
 
 impl CheckState<'_> {
-    /// Commit one module's solved checker state into checked DIR tables.
+    /// Commit one module's solved checker state into output DIR tables.
     pub(in crate::check) fn commit_module(
         &mut self,
         module: ModuleId,
@@ -19,9 +19,10 @@ impl CheckState<'_> {
         output.annotations = self.commit_annotation_table(module, &mut output, &environment)?;
         output.generics = self.commit_generic_slot_table(module, &mut output, &environment);
         output.resolutions = self.commit_resolution_table(module, &mut output, &environment)?;
-        self.commit_type_and_static_tables(module, &mut output, &environment);
-        output.nominals = self.commit_nominal_table(module, &mut output, &environment)?;
-        output.extensions = self.commit_extension_table(module, &output);
+        self.commit_type_table(module, &mut output, &environment);
+        self.commit_static_table(module, &mut output, &environment);
+        output.nominals = self.commit_nominal_table(module, &mut output, &environment);
+        output.extensions = self.commit_extension_table(module, &mut output, &environment);
         output.layouts = self.commit_layout_table(module, &mut output, &environment)?;
         output.captures = self.commit_capture_table(module, &mut output, &environment);
 

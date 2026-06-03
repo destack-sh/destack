@@ -86,8 +86,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalStaticId>> {
         let node = value.into_global_any(module);
 
-        // use an existing checked static operand
-        if let Some(operand) = self.operands.node_statics.get(&node).copied() {
+        // use an existing static operand
+        if let Some(operand) = self.inputs.node_static(node) {
             return Ok(self.commit_static_operand(module, output, environment, operand));
         }
 

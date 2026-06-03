@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, Layout, LayoutDecision, LayoutField, LayoutResolution, LayoutShape, LayoutType,
-    NewtypeRepresentation, VariantCaseLayout, VariantTagLayout,
+    VariantCaseLayout, VariantTagLayout,
 };
 
 use super::CheckModuleOutput;
@@ -20,15 +20,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::LayoutSegment> {
         let mut table = dir::LayoutSegment::new(module);
         let pointer_bytes = self.target_pointer_bytes()?;
-        let newtypes = self
-            .representations
-            .iter_newtypes()
-            .filter(|(symbol, _)| symbol.module_id == module)
-            .map(|(_, representation)| *representation)
-            .collect::<Vec<_>>();
         let layouts = self
             .inference
-            .layouts_vec()
+            .layouts()
             .into_iter()
             .filter_map(|decision| match decision {
                 LayoutDecision::Resolved(layout) => Some(layout),
@@ -40,17 +34,6 @@ impl CheckState<'_> {
             .iter_definitions()
             .map(|(symbol, _)| symbol)
             .collect::<Vec<_>>();
-
-        // write nominal representation facts
-        for representation in newtypes {
-            self.commit_newtype_representation(
-                module,
-                output,
-                environment,
-                &mut table,
-                representation,
-            );
-        }
 
         // write concrete nominal layouts
         for nominal in nominals {
@@ -72,28 +55,6 @@ impl CheckState<'_> {
         Ok(table)
     }
 
-    /// Commit one newtype representation.
-    fn commit_newtype_representation(
-        &mut self,
-        module: ModuleId,
-        output: &mut CheckModuleOutput,
-        environment: &GlobalEnvironment,
-        table: &mut dir::LayoutSegment,
-        representation: NewtypeRepresentation,
-    ) {
-        let source = self.symbol_source_node(representation.symbol);
-        let Some(backing) =
-            self.commit_type_operand(module, output, environment, representation.backing, source)
-        else {
-            return;
-        };
-
-        table.insert_newtype_representation(dir::NewtypeRepresentation {
-            symbol: representation.symbol,
-            backing,
-        });
-    }
-
     /// Commit one concrete nominal layout when fully known.
     fn commit_nominal_layout(
         &mut self,
@@ -104,16 +65,18 @@ impl CheckState<'_> {
         pointer_bytes: u32,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        let source = self.symbol_source_node(symbol);
-        let Some(operand) = self.operands.symbol_types.get(&symbol).copied() else {
-            panic!("check nominal symbol {symbol:?} has no checked type operand")
+        let source = self
+            .module(symbol.module_id)
+            .symbol_declaration_node(symbol.local_id);
+        let Some(operand) = self.inputs.symbol_type(symbol) else {
+            panic!("check nominal symbol {symbol:?} has no type operand")
         };
         let Some(layout) = self.type_operand_layout(module, operand, pointer_bytes)? else {
             return Ok(());
         };
         let Some(type_id) = self.commit_type_operand(module, output, environment, operand, source)
         else {
-            panic!("check nominal symbol {symbol:?} has unresolved checked type {operand:?}")
+            panic!("check nominal symbol {symbol:?} has unresolved type operand {operand:?}")
         };
 
         self.commit_type_layout(module, output, environment, table, type_id, &layout, source);

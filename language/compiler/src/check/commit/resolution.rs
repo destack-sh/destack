@@ -44,7 +44,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let calls = self
             .inference
-            .calls_vec()
+            .calls()
             .into_iter()
             .filter_map(|decision| match decision {
                 CallDecision::Resolved(call) => Some(call),
@@ -94,7 +94,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let constructs = self
             .inference
-            .constructs_vec()
+            .constructs()
             .into_iter()
             .filter_map(|decision| match decision {
                 ConstructDecision::Resolved(construct) => Some(construct),
@@ -166,7 +166,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let operators = self
             .inference
-            .operators_vec()
+            .operators()
             .into_iter()
             .filter_map(|decision| match decision {
                 OperatorDecision::Resolved(operator) => Some(operator),
@@ -278,7 +278,7 @@ impl CheckState<'_> {
 
     /// Write collected name resolutions into the resolution segment.
     fn write_name_resolutions(&self, module: ModuleId, resolutions: &mut dir::ResolutionSegment) {
-        let names = self.inference.names_vec();
+        let names = self.inference.names();
 
         // write lexical resolutions selected by check
         for (source, resolution) in names {
@@ -298,7 +298,7 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         resolutions: &mut dir::ResolutionSegment,
     ) {
-        let receivers = self.inference.receivers_vec();
+        let receivers = self.inference.receivers();
 
         // write contextual receiver resolutions
         for receiver in receivers {
@@ -337,7 +337,7 @@ impl CheckState<'_> {
     ) {
         let members = self
             .inference
-            .members_vec()
+            .members()
             .into_iter()
             .filter_map(|decision| match decision {
                 MemberDecision::Resolved(member) if member.source.module_id == module => {
@@ -428,7 +428,7 @@ impl CheckState<'_> {
     ) {
         let patterns = self
             .inference
-            .patterns_vec()
+            .patterns()
             .into_iter()
             .filter_map(|decision| match decision {
                 PatternDecision::Resolved(pattern) if pattern.source.module_id == module => {

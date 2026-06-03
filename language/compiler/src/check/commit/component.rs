@@ -5,18 +5,18 @@ use crate::CompilerResult;
 use crate::check::CheckState;
 
 impl CheckState<'_> {
-    /// Commit solved check state into checked DIR tables and diagnostics.
+    /// Commit solved check state into output DIR tables and diagnostics.
     pub(in crate::check) fn commit(
         mut self,
     ) -> CompilerResult<(Vec<DirCheckedComponentEntry>, DiagnosticCollection)> {
         let diagnostics = self.collect_diagnostics()?;
-        let modules = self.commit_checked_modules()?;
+        let modules = self.commit_module_outputs()?;
 
         Ok((modules, diagnostics))
     }
 
-    /// Commit checked DIR tables for every loaded module.
-    fn commit_checked_modules(&mut self) -> CompilerResult<Vec<DirCheckedComponentEntry>> {
+    /// Commit output DIR tables for every loaded module.
+    fn commit_module_outputs(&mut self) -> CompilerResult<Vec<DirCheckedComponentEntry>> {
         let modules = self.modules.keys().copied().collect::<Vec<_>>();
         let mut entries = Vec::with_capacity(modules.len());
 

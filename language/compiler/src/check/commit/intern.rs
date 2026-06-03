@@ -6,7 +6,7 @@ use crate::check::CheckState;
 use super::CheckModuleOutput;
 
 impl CheckState<'_> {
-    /// Intern one checked type into the output type segment.
+    /// Intern one type into the output type segment.
     pub(super) fn intern_type(
         &self,
         module: ModuleId,
@@ -19,7 +19,7 @@ impl CheckState<'_> {
         types.intern_type(&mut output.types, ty, source)
     }
 
-    /// Intern one checked static value into the output static segment.
+    /// Intern one static value into the output static segment.
     pub(super) fn intern_static(
         &self,
         module: ModuleId,
