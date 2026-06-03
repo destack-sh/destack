@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Access, BinaryOperator, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
-    LocalGenericApplicationId, RangeEnd, StaticKey, UnaryOperator,
+    LocalGenericInstanceId, RangeEnd, StaticKey, UnaryOperator,
 };
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
@@ -222,8 +222,8 @@ pub struct MemberCandidate {
     pub receiver: GlobalTypeId,
     /// The selected member symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic application of the member symbol, if statically applied.
-    pub application: Option<LocalGenericApplicationId>,
+    /// The generic instance of the member symbol, if statically applied.
+    pub instance: Option<LocalGenericInstanceId>,
 }
 
 /// Callable selected at a call site.
@@ -282,8 +282,8 @@ pub enum CallTarget {
     /// callback(value)
     /// ```
     Expression {
-        /// The generic application of the callable value, if statically applied.
-        application: Option<LocalGenericApplicationId>,
+        /// The generic instance of the callable value, if statically applied.
+        instance: Option<LocalGenericInstanceId>,
     },
     /// Exactly one symbol-backed callable selected at compile time.
     ///
@@ -348,8 +348,8 @@ pub struct CallCandidate {
     pub receiver: Option<GlobalTypeId>,
     /// The selected callable symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic application of the callable symbol, if statically applied.
-    pub application: Option<LocalGenericApplicationId>,
+    /// The generic instance of the callable symbol, if statically applied.
+    pub instance: Option<LocalGenericInstanceId>,
 }
 
 /// Construct expression selected at a usage site.
@@ -433,8 +433,8 @@ pub struct ClassConstructCandidate {
     pub symbol: GlobalSymbolId,
     /// The selected explicit constructor symbol, when declared.
     pub constructor: Option<GlobalSymbolId>,
-    /// The generic application of the class symbol, if statically applied.
-    pub application: Option<LocalGenericApplicationId>,
+    /// The generic instance of the class symbol, if statically applied.
+    pub instance: Option<LocalGenericInstanceId>,
 }
 
 /// One newtype construction candidate after overload selection.
@@ -447,8 +447,8 @@ pub struct ClassConstructCandidate {
 pub struct NewtypeConstructCandidate {
     /// The selected newtype symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic application of the newtype symbol, if statically applied.
-    pub application: Option<LocalGenericApplicationId>,
+    /// The generic instance of the newtype symbol, if statically applied.
+    pub instance: Option<LocalGenericInstanceId>,
 }
 
 /// Pattern meaning selected during checking.
@@ -558,8 +558,8 @@ pub struct PatternShapeResolution {
 pub struct PatternNominalResolution {
     /// The selected nominal symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic application of the nominal symbol, if statically applied.
-    pub application: Option<LocalGenericApplicationId>,
+    /// The generic instance of the nominal symbol, if statically applied.
+    pub instance: Option<LocalGenericInstanceId>,
     /// The nominal field mapping in source order.
     pub fields: Vec<PatternFieldResolution>,
 }
@@ -569,8 +569,8 @@ pub struct PatternNominalResolution {
 pub struct PatternNewtypeResolution {
     /// The selected newtype symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic application of the newtype symbol, if statically applied.
-    pub application: Option<LocalGenericApplicationId>,
+    /// The generic instance of the newtype symbol, if statically applied.
+    pub instance: Option<LocalGenericInstanceId>,
     /// The wrapped value pattern.
     pub value: Option<GlobalNodeIdAny>,
 }
@@ -580,8 +580,8 @@ pub struct PatternNewtypeResolution {
 pub struct PatternVariantResolution {
     /// The selected variant symbol.
     pub symbol: GlobalSymbolId,
-    /// The generic application of the variant symbol, if statically applied.
-    pub application: Option<LocalGenericApplicationId>,
+    /// The generic instance of the variant symbol, if statically applied.
+    pub instance: Option<LocalGenericInstanceId>,
     /// The static discriminant value, when one is materialized.
     pub discriminant: Option<GlobalStaticId>,
     /// The variant field mapping in source order.

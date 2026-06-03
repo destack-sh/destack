@@ -5,7 +5,7 @@ use crate::{
     SymbolSpace, TypeExpression, VarianceModifier,
 };
 
-/// A generic parameter in static parameter position.
+/// A declared generic parameter in source.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GenericParameter {
     /// Type parameter.
@@ -38,7 +38,7 @@ pub enum GenericParameter {
         default: Option<LocalNodeId<Expression>>,
         is_comptime: bool,
     },
-    /// Malformed generic parameter slot.
+    /// Malformed generic parameter.
     Error,
 }
 
@@ -110,7 +110,7 @@ pub enum Parameter {
         declared_type: Option<LocalNodeId<TypeExpression>>,
         is_comptime: bool,
     },
-    /// Malformed parameter slot.
+    /// Malformed parameter.
     Error,
 }
 
