@@ -433,12 +433,9 @@ impl World {
         // state restored by the image replay
         let state = WorldState {
             branch_id,
-            simulation: Default::default(),
             policy: self.state.policy.clone(),
-            scenarios: self.state.scenarios.clone(),
             next_runtime_id: 0,
             next_worker_id: 0,
-            next_scenario_id: 0,
             topology: Default::default(),
             clock,
             random,
@@ -492,12 +489,9 @@ impl World {
 
             let state = WorldState {
                 branch_id,
-                simulation: self.state.simulation.clone(),
                 policy: self.state.policy.clone(),
-                scenarios: self.state.scenarios.clone(),
                 next_runtime_id: self.state.next_runtime_id,
                 next_worker_id: self.state.next_worker_id,
-                next_scenario_id: self.state.next_scenario_id,
                 topology: self.state.topology.clone(),
                 clock,
                 random,

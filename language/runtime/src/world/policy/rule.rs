@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::host::binding::BindingRoute;
+use crate::host::binding::RuntimeAccess;
 
 use super::{ActionSelector, SubjectSelector, TargetSelector};
 
@@ -16,35 +16,28 @@ impl RuleId {
 }
 
 /// Runtime policy decision payload.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Decision {
-    /// Allow the matching action through one route.
-    Allow {
-        /// Route selected for matching host actions.
-        route: BindingRoute,
-    },
+    /// Allow the matching action.
+    #[default]
+    Allow,
     /// Deny the matching action.
     Deny,
 }
 
-impl Default for Decision {
-    fn default() -> Self {
-        Self::allow()
-    }
-}
-
 impl Decision {
-    /// Create one allow decision using the host route.
+    /// Create one allow decision.
     pub fn allow() -> Self {
-        Self::Allow {
-            route: BindingRoute::Host,
-        }
+        Self::Allow
     }
 
-    /// Create one allow decision using an explicit route.
-    pub fn route(route: BindingRoute) -> Self {
-        Self::Allow { route }
+    /// Return the binding access implied by this decision.
+    pub(crate) const fn access(&self) -> RuntimeAccess {
+        match self {
+            Self::Allow => RuntimeAccess::Allow,
+            Self::Deny => RuntimeAccess::Deny,
+        }
     }
 }
 
@@ -110,10 +103,5 @@ impl Rule {
     /// Create one enabled deny rule.
     pub fn deny(id: impl Into<String>, selector: ActionSelector) -> Self {
         Self::new(id, Decision::Deny).action(selector)
-    }
-
-    /// Create one enabled route rule.
-    pub fn route(id: impl Into<String>, selector: ActionSelector, route: BindingRoute) -> Self {
-        Self::new(id, Decision::route(route)).action(selector)
     }
 }

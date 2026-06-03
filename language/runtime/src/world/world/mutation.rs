@@ -1,13 +1,11 @@
 use destack_workspace::ExecutionMode;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::fmt;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::ResourceId;
 use crate::runtime::WorkerId;
 use crate::world::policy::{Policy, Rule, RuleId};
-use crate::world::scenario::{FaultRule, FaultRuleId, Scenario, ScenarioId};
 
 use super::{
     Edge, EdgeDefinition, EdgeId, EdgeKind, Entity, EntityDefinition, EntityId, EntityKind,
@@ -72,63 +70,6 @@ pub enum Mutation {
         /// Replacement rule payload.
         rule: Rule,
     },
-    /// Add one scenario script.
-    AddScenario {
-        /// Scenario payload to add.
-        scenario: Scenario,
-    },
-    /// Remove one scenario script.
-    RemoveScenario {
-        /// Stable scenario identifier.
-        scenario_id: ScenarioId,
-    },
-    /// Enable one scenario script.
-    EnableScenario {
-        /// Stable scenario identifier.
-        scenario_id: ScenarioId,
-    },
-    /// Disable one scenario script.
-    DisableScenario {
-        /// Stable scenario identifier.
-        scenario_id: ScenarioId,
-    },
-    /// Add one rule into one scenario.
-    AddScenarioRule {
-        /// Stable scenario identifier.
-        scenario_id: ScenarioId,
-        /// Scenario rule payload to add.
-        rule: FaultRule,
-    },
-    /// Remove one rule from one scenario.
-    RemoveScenarioRule {
-        /// Stable scenario identifier.
-        scenario_id: ScenarioId,
-        /// Stable scenario rule identifier.
-        rule_id: FaultRuleId,
-    },
-    /// Enable one rule in one scenario.
-    EnableScenarioRule {
-        /// Stable scenario identifier.
-        scenario_id: ScenarioId,
-        /// Stable scenario rule identifier.
-        rule_id: FaultRuleId,
-    },
-    /// Disable one rule in one scenario.
-    DisableScenarioRule {
-        /// Stable scenario identifier.
-        scenario_id: ScenarioId,
-        /// Stable scenario rule identifier.
-        rule_id: FaultRuleId,
-    },
-    /// Replace one rule in one scenario.
-    ReplaceScenarioRule {
-        /// Stable scenario identifier.
-        scenario_id: ScenarioId,
-        /// Stable scenario rule identifier to replace.
-        rule_id: FaultRuleId,
-        /// Replacement scenario rule payload.
-        rule: FaultRule,
-    },
     /// Define one entity kind in world topology.
     DefineEntityKind {
         /// Entity kind definition.
@@ -185,15 +126,6 @@ impl Mutation {
             Self::EnableRule { .. } => "runtime.policy.rule.enable",
             Self::DisableRule { .. } => "runtime.policy.rule.disable",
             Self::ReplaceRule { .. } => "runtime.policy.rule.replace",
-            Self::AddScenario { .. } => "runtime.scenario.add",
-            Self::RemoveScenario { .. } => "runtime.scenario.remove",
-            Self::EnableScenario { .. } => "runtime.scenario.enable",
-            Self::DisableScenario { .. } => "runtime.scenario.disable",
-            Self::AddScenarioRule { .. } => "runtime.scenario.rule.add",
-            Self::RemoveScenarioRule { .. } => "runtime.scenario.rule.remove",
-            Self::EnableScenarioRule { .. } => "runtime.scenario.rule.enable",
-            Self::DisableScenarioRule { .. } => "runtime.scenario.rule.disable",
-            Self::ReplaceScenarioRule { .. } => "runtime.scenario.rule.replace",
             Self::DefineEntityKind { .. } => "runtime.topology.entity.kind.define",
             Self::UndefineEntityKind { .. } => "runtime.topology.entity.kind.undefine",
             Self::DefineEdgeKind { .. } => "runtime.topology.edge.kind.define",
@@ -257,47 +189,6 @@ impl World {
             }
             Mutation::ReplaceRule { rule_id, rule } => {
                 self.state.policy.replace_rule(&rule_id, rule)?;
-            }
-            Mutation::AddScenario { scenario } => {
-                self.state.add_scenario(scenario)?;
-            }
-            Mutation::RemoveScenario { scenario_id } => {
-                self.state.remove_scenario(scenario_id)?;
-            }
-            Mutation::EnableScenario { scenario_id } => {
-                self.state.enable_scenario(scenario_id)?;
-            }
-            Mutation::DisableScenario { scenario_id } => {
-                self.state.disable_scenario(scenario_id)?;
-            }
-            Mutation::AddScenarioRule { scenario_id, rule } => {
-                self.state.add_scenario_rule(scenario_id, rule)?;
-            }
-            Mutation::RemoveScenarioRule {
-                scenario_id,
-                rule_id,
-            } => {
-                self.state.remove_scenario_rule(scenario_id, &rule_id)?;
-            }
-            Mutation::EnableScenarioRule {
-                scenario_id,
-                rule_id,
-            } => {
-                self.state.enable_scenario_rule(scenario_id, &rule_id)?;
-            }
-            Mutation::DisableScenarioRule {
-                scenario_id,
-                rule_id,
-            } => {
-                self.state.disable_scenario_rule(scenario_id, &rule_id)?;
-            }
-            Mutation::ReplaceScenarioRule {
-                scenario_id,
-                rule_id,
-                rule,
-            } => {
-                self.state
-                    .replace_scenario_rule(scenario_id, &rule_id, rule)?;
             }
             Mutation::DefineEntityKind { kind } => {
                 self.state
@@ -418,115 +309,6 @@ impl World {
     /// Replace one active rule.
     pub fn replace_rule(&mut self, rule_id: RuleId, rule: Rule) -> RuntimeResult<()> {
         self.mutate(Mutation::ReplaceRule { rule_id, rule })
-    }
-
-    /// Create one scenario script.
-    pub fn create_scenario(
-        &mut self,
-        name: Option<String>,
-        labels: BTreeMap<String, String>,
-        is_enabled: bool,
-    ) -> RuntimeResult<ScenarioId> {
-        let mode = self.state.trace.mode();
-        let scenario_id = self.state.next_scenario_id();
-        let scenario = Scenario::new(scenario_id, Vec::new())
-            .name(name)
-            .labels(labels)
-            .enabled(is_enabled);
-        let mutation = self.resolve_mutation(Mutation::AddScenario { scenario })?;
-        let Mutation::AddScenario { scenario } = mutation.clone() else {
-            return Err(Self::internal_error(
-                "runtime replay returned a non-scenario mutation",
-            ));
-        };
-        let scenario_id = scenario.id;
-
-        self.apply_mutation(mutation.clone())?;
-
-        if mode == ExecutionMode::Record {
-            self.record_mutation(mutation)?;
-        }
-
-        Ok(scenario_id)
-    }
-
-    /// Add one scenario script.
-    pub fn add_scenario(&mut self, scenario: Scenario) -> RuntimeResult<()> {
-        self.mutate(Mutation::AddScenario { scenario })
-    }
-
-    /// Remove one scenario script.
-    pub fn remove_scenario(&mut self, scenario_id: ScenarioId) -> RuntimeResult<()> {
-        self.mutate(Mutation::RemoveScenario { scenario_id })
-    }
-
-    /// Enable one scenario script.
-    pub fn enable_scenario(&mut self, scenario_id: ScenarioId) -> RuntimeResult<()> {
-        self.mutate(Mutation::EnableScenario { scenario_id })
-    }
-
-    /// Disable one scenario script.
-    pub fn disable_scenario(&mut self, scenario_id: ScenarioId) -> RuntimeResult<()> {
-        self.mutate(Mutation::DisableScenario { scenario_id })
-    }
-
-    /// Add one rule into one scenario.
-    pub fn add_scenario_rule(
-        &mut self,
-        scenario_id: ScenarioId,
-        rule: FaultRule,
-    ) -> RuntimeResult<()> {
-        self.mutate(Mutation::AddScenarioRule { scenario_id, rule })
-    }
-
-    /// Remove one rule from one scenario.
-    pub fn remove_scenario_rule(
-        &mut self,
-        scenario_id: ScenarioId,
-        rule_id: FaultRuleId,
-    ) -> RuntimeResult<()> {
-        self.mutate(Mutation::RemoveScenarioRule {
-            scenario_id,
-            rule_id,
-        })
-    }
-
-    /// Enable one rule in one scenario.
-    pub fn enable_scenario_rule(
-        &mut self,
-        scenario_id: ScenarioId,
-        rule_id: FaultRuleId,
-    ) -> RuntimeResult<()> {
-        self.mutate(Mutation::EnableScenarioRule {
-            scenario_id,
-            rule_id,
-        })
-    }
-
-    /// Disable one rule in one scenario.
-    pub fn disable_scenario_rule(
-        &mut self,
-        scenario_id: ScenarioId,
-        rule_id: FaultRuleId,
-    ) -> RuntimeResult<()> {
-        self.mutate(Mutation::DisableScenarioRule {
-            scenario_id,
-            rule_id,
-        })
-    }
-
-    /// Replace one scenario rule.
-    pub fn replace_scenario_rule(
-        &mut self,
-        scenario_id: ScenarioId,
-        rule_id: FaultRuleId,
-        rule: FaultRule,
-    ) -> RuntimeResult<()> {
-        self.mutate(Mutation::ReplaceScenarioRule {
-            scenario_id,
-            rule_id,
-            rule,
-        })
     }
 
     /// Define one world entity kind.

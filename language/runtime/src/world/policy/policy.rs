@@ -3,40 +3,18 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use crate::host::binding::{BindingDescriptor, BindingProvider, BindingRoute, RuntimeAccess};
+use crate::host::binding::{BindingDescriptor, RuntimeAccess};
 
 use super::{Attempt, Decision, Rule, RuleId, Subject};
 
 /// Runtime policy specification.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Policy {
     /// Default decision when no rule matches.
     #[serde(default)]
     pub default: Decision,
     /// Ordered runtime rules.
     pub rules: Vec<Rule>,
-}
-
-#[expect(
-    clippy::derivable_impls,
-    reason = "policy default spells out the allow invariant"
-)]
-impl Default for Policy {
-    fn default() -> Self {
-        Self {
-            default: Decision::allow(),
-            rules: Vec::new(),
-        }
-    }
-}
-
-/// Binding call policy decision used by hot binding call paths.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct BindingDecision {
-    /// Final access decision after policy evaluation.
-    pub access: RuntimeAccess,
-    /// Final route decision after policy evaluation.
-    pub route: BindingRoute,
 }
 
 impl Policy {
@@ -194,8 +172,8 @@ impl Policy {
         &self,
         subject: Subject<'_>,
         descriptor: BindingDescriptor,
-    ) -> BindingDecision {
-        let mut decision = self.default.clone();
+    ) -> RuntimeAccess {
+        let mut decision = self.default;
 
         for rule in &self.rules {
             if !rule.enabled {
@@ -208,35 +186,10 @@ impl Policy {
                 continue;
             }
 
-            decision = rule.decision.clone();
+            decision = rule.decision;
             break;
         }
 
-        Self::binding_decision(decision, descriptor)
-    }
-
-    /// Convert one policy decision into one binding decision.
-    fn binding_decision(
-        decision: super::Decision,
-        descriptor: BindingDescriptor,
-    ) -> BindingDecision {
-        match decision {
-            super::Decision::Allow { route } => {
-                let route = if descriptor.provider == BindingProvider::Runtime {
-                    BindingRoute::Host
-                } else {
-                    route
-                };
-
-                BindingDecision {
-                    access: RuntimeAccess::Allow,
-                    route,
-                }
-            }
-            super::Decision::Deny => BindingDecision {
-                access: RuntimeAccess::Deny,
-                route: BindingRoute::Host,
-            },
-        }
+        decision.access()
     }
 }

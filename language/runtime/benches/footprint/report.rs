@@ -13,23 +13,22 @@ use destack_runtime::host::resource::ResourceTable;
 use destack_runtime::runtime::random::Random;
 use destack_runtime::runtime::scheduler::EventLoop;
 use destack_runtime::runtime::{Runtime, Worker};
-use destack_runtime::simulation::Simulation;
 use destack_runtime::world::trace::{Observations, Trace, TraceLog};
-use destack_runtime::world::{Entity, Policy, Scenario, World};
+use destack_runtime::world::{Entity, Policy, World};
 use destack_vm::{Continuation, ContinuationImage, Machine, StackImage};
 use destack_workspace::{Environment, RuntimeOptions};
 
 use crate::ALLOCATOR;
 use crate::measure::AllocationSample;
-use crate::scenario::{RuntimeScenario, VmScenario};
+use crate::setup::{RuntimeSetup, VmSetup};
 
 static PRINT: Once = Once::new();
 
 /// Print the footprint summary once per benchmark process.
 pub(crate) fn print_once() {
     PRINT.call_once(|| {
-        let runtime = RuntimeScenario::new();
-        let vm = VmScenario::new();
+        let runtime = RuntimeSetup::new();
+        let vm = VmSetup::new();
 
         print_type_sizes();
         print_component_sizes();
@@ -43,7 +42,6 @@ fn print_type_sizes() {
     let rows = [
         ("world", "World", size_of::<World>()),
         ("world", "Policy", size_of::<Policy>()),
-        ("world", "Scenario", size_of::<Scenario>()),
         ("world", "Trace", size_of::<Trace>()),
         ("world", "TraceLog", size_of::<TraceLog>()),
         ("world", "Observations", size_of::<Observations>()),
@@ -60,7 +58,6 @@ fn print_type_sizes() {
             "DiagnosticStore",
             size_of::<DiagnosticStore>(),
         ),
-        ("simulation", "Simulation", size_of::<Simulation>()),
         ("workspace", "Environment", size_of::<Environment>()),
         ("workspace", "RuntimeOptions", size_of::<RuntimeOptions>()),
         ("engine", "StaticSpace", size_of::<StaticSpace>()),
@@ -106,7 +103,7 @@ fn print_component_sizes() {
 }
 
 /// Print retained allocation samples.
-fn print_allocations(runtime: &RuntimeScenario, vm: VmScenario) {
+fn print_allocations(runtime: &RuntimeSetup, vm: VmSetup) {
     let mut world = runtime.world();
     let engine = runtime.engine();
     let runtime_spawn = ALLOCATOR.measure(|| runtime.spawn_runtime(&mut world, engine));
@@ -145,7 +142,7 @@ fn print_allocations(runtime: &RuntimeScenario, vm: VmScenario) {
     eprintln!("runtime footprint: rust allocator samples");
     eprintln!(
         "{:<28} {:>12} {:>14} {:>14} {:>14}",
-        "scenario", "allocs", "allocated", "live", "peak"
+        "setup", "allocs", "allocated", "live", "peak"
     );
     eprintln!(
         "{:-<28} {:-<12} {:-<14} {:-<14} {:-<14}",
@@ -158,7 +155,7 @@ fn print_allocations(runtime: &RuntimeScenario, vm: VmScenario) {
 }
 
 /// Print one step-by-step initialized VM machine allocation ledger.
-fn print_vm_machine_breakdown(vm: VmScenario) {
+fn print_vm_machine_breakdown(vm: VmSetup) {
     let (mut machine, machine_build) = ALLOCATOR.capture(|| vm.build_machine());
     let (mut statics, statics_empty) = ALLOCATOR.capture(StaticSpace::empty);
     let (heap, local_heap) = ALLOCATOR.capture(|| vm.local_heap());

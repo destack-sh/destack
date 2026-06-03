@@ -1,7 +1,7 @@
 # Runtime
 
 The runtime is how Destack actually does anything interesting beyond pure computation.
-The Destack runtime integrates VM and or native execution with scheduling, platform and host bindings, simulation, telemetry, and all the other runtime machinery (the cool people call this "effects").
+The Destack runtime integrates VM and or native execution with scheduling, platform and host bindings, telemetry, and the runtime machinery that makes effects observable.
 
 ## Testing
 

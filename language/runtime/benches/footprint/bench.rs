@@ -1,22 +1,22 @@
 mod measure;
 mod report;
-mod scenario;
+mod setup;
 
 use std::hint::black_box;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 
-use scenario::{RuntimeScenario, VmScenario};
+use setup::{RuntimeSetup, VmSetup};
 
 #[global_allocator]
 static ALLOCATOR: measure::CountingAllocator = measure::CountingAllocator;
 
-/// Benchmark runtime footprint scenarios.
+/// Benchmark runtime footprint setups.
 fn bench_footprint(criterion: &mut Criterion) {
     report::print_once();
 
-    let runtime = RuntimeScenario::new();
-    let vm = VmScenario::new();
+    let runtime = RuntimeSetup::new();
+    let vm = VmSetup::new();
     let mut group = criterion.benchmark_group("runtime/footprint");
 
     group.bench_function("world.new", |bencher| {

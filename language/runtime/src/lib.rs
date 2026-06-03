@@ -5,5 +5,4 @@ pub mod diagnostic;
 pub mod host;
 pub mod launch;
 pub mod runtime;
-pub mod simulation;
 pub mod world;

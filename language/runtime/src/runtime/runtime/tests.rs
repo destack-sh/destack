@@ -46,7 +46,6 @@ pub(crate) fn binding_call<'host>(
         environment: worker.environment.clone(),
         options: worker.options.clone(),
         diagnostics: worker.diagnostics.clone(),
-        scenario: worker.scenario.clone(),
         bindings: &worker.bindings,
         host,
         host_queue,
@@ -191,13 +190,6 @@ impl HostPoller for TestPoller {
     /// Return no host ingress.
     fn poll(&mut self, _timeout_nanos: Option<u64>) -> RuntimeResult<Vec<PollerEvent>> {
         Ok(Vec::new())
-    }
-}
-
-impl TestWorldRuntime {
-    /// Borrow the wrapped world.
-    pub(crate) fn world(&self) -> &World {
-        &self.world
     }
 }
 
@@ -487,11 +479,6 @@ impl TestWorldRuntime {
     /// Return current world wall time in nanoseconds.
     pub(crate) fn wall_nanos(&self) -> u64 {
         self.world.wall_nanos()
-    }
-
-    /// Borrow the wrapped world mutably.
-    pub(crate) fn world_mut(&mut self) -> &mut World {
-        &mut self.world
     }
 
     /// Return current world monotonic time in nanoseconds.

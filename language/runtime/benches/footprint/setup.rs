@@ -14,7 +14,7 @@ use destack_source::FileId;
 use destack_vm::{Continuation, ContinuationImage, Machine, MachineOptions, Outcome};
 use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
 
-/// MIR program used by footprint scenarios.
+/// MIR program used by footprint setups.
 const VM_PROGRAM: &str = r#"
 function bench.entry(): void {
 b0:
@@ -33,17 +33,17 @@ b1(v2: ref<int32, raw, readonly, space(frame)>, v3: int32):
 }
 "#;
 
-/// Runtime-level footprint scenario.
+/// Runtime-level footprint setup.
 #[derive(Debug, Clone)]
-pub(crate) struct RuntimeScenario {
+pub(crate) struct RuntimeSetup {
     /// Runtime options shared by every run.
     options: RuntimeOptions,
     /// Ambient launch environment.
     environment: Arc<Environment>,
 }
 
-impl RuntimeScenario {
-    /// Create one default runtime footprint scenario.
+impl RuntimeSetup {
+    /// Create one default runtime footprint setup.
     pub(crate) fn new() -> Self {
         let mut options = RuntimeOptions::default();
         options.execution.mode = ExecutionMode::Strict;
@@ -100,12 +100,12 @@ impl RuntimeScenario {
     }
 }
 
-/// VM-level footprint scenario.
+/// VM-level footprint setup.
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct VmScenario;
+pub(crate) struct VmSetup;
 
-impl VmScenario {
-    /// Create one VM footprint scenario.
+impl VmSetup {
+    /// Create one VM footprint setup.
     pub(crate) const fn new() -> Self {
         Self
     }

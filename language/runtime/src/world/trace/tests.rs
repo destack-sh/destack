@@ -350,7 +350,6 @@ fn test_record_replay_mutations() {
             kind: EntityDefinition {
                 kind: "test.program.entity".into(),
                 labels: Default::default(),
-                supported_faults: Default::default(),
             },
         },
         Mutation::UpsertEntity {

@@ -44,7 +44,7 @@ impl World {
 
         // external events
         for runtime in self.runtimes.values_mut() {
-            if runtime.deliver_events(world, &host_events, &poller_events)? {
+            if runtime.deliver_events(&host_events, &poller_events)? {
                 ingress_progressed = true;
             }
         }
@@ -95,12 +95,11 @@ impl World {
         }
 
         // next global deadline
-        let worker_deadlines = self
+        let next_deadline = self
             .runtimes
             .values_mut()
-            .map(|runtime| runtime.next_deadline(world))
-            .collect::<Vec<_>>();
-        let next_deadline = world.next_deadline(worker_deadlines);
+            .filter_map(|runtime| runtime.next_deadline(world))
+            .min();
         let Some(deadline) = next_deadline else {
             return Ok(TickResult::Idle);
         };
@@ -116,9 +115,6 @@ impl World {
             worker_timers.extend(runtime.collect_due_timers(world)?);
         }
 
-        // deliver due simulation events into the simulation ready queue
-        world.simulation.deliver_due(deadline);
-
         // drain world timer wakes into per-runtime batches
         let wakes = Self::drain_due(worker_timers);
         let mut wakes_by_runtime = BTreeMap::<RuntimeId, Vec<WorkerWake>>::new();
@@ -133,7 +129,7 @@ impl World {
         for (runtime_id, runtime) in self.runtimes.iter_mut() {
             let wakes = wakes_by_runtime.remove(runtime_id).unwrap_or_default();
             if !wakes.is_empty() {
-                runtime.deliver_wakes(world, wakes)?;
+                runtime.deliver_wakes(wakes)?;
             }
         }
 
