@@ -90,7 +90,7 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Walk one argument for a type generic slot.
+    /// Walk one argument for a type generic parameter.
     ///
     /// Example:
     /// ```ds
@@ -145,7 +145,7 @@ impl WalkState<'_, '_> {
         term
     }
 
-    /// Walk one argument for a static generic slot.
+    /// Walk one argument for a static generic parameter.
     ///
     /// Example:
     /// ```ds
@@ -200,7 +200,7 @@ impl WalkState<'_, '_> {
         term
     }
 
-    /// Walk one argument whose type or static slot is still ambiguous.
+    /// Walk one argument whose type or static parameter is still ambiguous.
     ///
     /// Example:
     /// ```ds
@@ -258,16 +258,26 @@ impl WalkState<'_, '_> {
     }
 
     /// Return whether one generic argument position is static.
-    fn generic_argument_is_static(&self, owner: dir::GlobalSymbolId, index: usize) -> Option<bool> {
-        let index = dir::GenericSlotIndex::new(index as u32);
+    fn generic_argument_is_static(
+        &mut self,
+        owner: dir::GlobalSymbolId,
+        index: usize,
+    ) -> Option<bool> {
+        self.check.import_generic_template(self.module, owner);
+
         let mut variadic = None;
 
-        for (_, generic) in self.check.inference.generic_slots_for_owner(owner) {
-            if generic.slot().index == index {
+        for (parameter_index, (_, generic)) in self
+            .check
+            .inference
+            .generic_parameters_for_owner(owner)
+            .enumerate()
+        {
+            if parameter_index == index {
                 return Some(generic.is_static());
             }
 
-            if generic.is_variadic() && generic.slot().index <= index {
+            if generic.is_variadic() && parameter_index <= index {
                 variadic = Some(generic.is_static());
             }
         }

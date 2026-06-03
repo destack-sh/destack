@@ -1,109 +1,131 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::check::{CheckState, GenericSlot, GenericSlotHeader, GenericSlotId};
+use crate::check::{
+    CheckState, GenericParameterBinding, GenericParameterId, GenericParameterIdentity,
+};
 
 impl CheckState<'_> {
-    /// Return one generic parameter slot in a component module context.
-    pub(in crate::check) fn import_generic_parameter_slot(
+    /// Import one committed generic template.
+    pub(in crate::check) fn import_generic_template(
         &mut self,
         module: ModuleId,
-        parameter: dir::GenericParameterRef,
-    ) -> GenericSlotId {
-        let slot_id = GenericSlotId::from(parameter);
-
-        if self.inference.generic_slot_by_id(slot_id).is_some() {
-            return slot_id;
+        owner: dir::GlobalSymbolId,
+    ) {
+        if self.inference.generic_template_for_owner(owner).is_some() {
+            return;
         }
 
-        if self.is_component_module(parameter.owner.module_id) {
-            panic!("generic parameter {parameter:?} has no check slot");
+        if self.is_component_module(owner.module_id) {
+            return;
         }
 
-        let dependency = parameter.owner.module_id;
-        let slot = self.import_generic_parameter(parameter);
-        let generic = self.import_generic_slot(module, slot, dependency);
-
-        self.insert_generic_slot(generic);
-
-        slot_id
-    }
-
-    /// Return one committed generic slot by parameter identity.
-    fn import_generic_parameter(&self, parameter: dir::GenericParameterRef) -> dir::GenericSlot {
-        let dependency = self.dependency(parameter.owner.module_id);
-
-        // find the matching committed slot
-        for (_, slot) in dependency.generics.iter_slots() {
-            let template = dependency.generics.get_template(slot.template());
-            if template.owner == parameter.owner
-                && slot.key() == parameter.key
-                && slot.index() == parameter.index
-            {
-                return *slot;
-            }
-        }
-
-        panic!("dependency generic parameter {parameter:?} has no slot")
-    }
-
-    /// Import one generic slot.
-    fn import_generic_slot(
-        &mut self,
-        module: ModuleId,
-        slot: dir::GenericSlot,
-        dependency: ModuleId,
-    ) -> GenericSlot {
-        let owner = self
-            .dependency(dependency)
+        let dependency = self.dependency(owner.module_id);
+        let Some((_, template)) = dependency
             .generics
-            .get_template(slot.template())
-            .owner;
-        let header = GenericSlotHeader {
+            .iter_templates()
+            .find(|(_, template)| template.owner == owner)
+        else {
+            return;
+        };
+        let parameters = template
+            .parameters
+            .iter()
+            .map(|parameter_id| {
+                (
+                    (*parameter_id).into_global(owner.module_id),
+                    *dependency.generics.get_parameter(*parameter_id),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        for (parameter_id, parameter) in parameters {
+            let generic = self.import_generic_parameter(module, owner, parameter_id, parameter);
+
+            self.insert_generic_parameter(generic);
+        }
+    }
+
+    /// Return one generic parameter parameter in a component module context.
+    pub(in crate::check) fn import_generic_parameter_id(
+        &mut self,
+        module: ModuleId,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> GenericParameterId {
+        if self.is_component_module(parameter.module_id) {
+            return parameter;
+        }
+
+        if self.inference.generic_parameter_by_id(parameter).is_some() {
+            return parameter;
+        }
+
+        let dependency = self.dependency(parameter.module_id);
+        let generic = dependency.generics.get_parameter(parameter.local_id);
+        let template = dependency.generics.get_template(generic.template());
+        let owner = template.owner;
+
+        self.import_generic_template(module, owner);
+        if self.inference.generic_parameter_by_id(parameter).is_none() {
+            panic!("dependency generic parameter {parameter:?} has no parameter");
+        }
+
+        parameter
+    }
+
+    /// Import one generic parameter.
+    fn import_generic_parameter(
+        &mut self,
+        module: ModuleId,
+        owner: dir::GlobalSymbolId,
+        id: dir::GlobalGenericParameterId,
+        parameter: dir::GenericParameterBinding,
+    ) -> GenericParameterBinding {
+        let header = GenericParameterIdentity {
+            id,
             owner,
-            key: slot.key(),
-            index: slot.index(),
-            origin: slot.origin(),
+            key: parameter.key(),
+            origin: parameter.origin(),
         };
 
-        match slot {
-            dir::GenericSlot::Type {
+        match parameter {
+            dir::GenericParameterBinding::Type {
                 variance,
                 constraint,
                 default,
                 ..
-            } => GenericSlot::Type {
-                slot: header,
+            } => GenericParameterBinding::Type {
+                identity: header,
                 variance,
                 constraint: constraint.map(|id| self.import_type_operand(module, id)),
                 default: default.map(|id| self.import_type_operand(module, id)),
             },
-            dir::GenericSlot::VariadicType {
+            dir::GenericParameterBinding::VariadicType {
                 variance,
                 constraint,
                 default,
                 ..
-            } => GenericSlot::VariadicType {
-                slot: header,
+            } => GenericParameterBinding::VariadicType {
+                identity: header,
                 variance,
                 constraint: constraint.map(|id| self.import_type_operand(module, id)),
                 default: default.map(|id| self.import_type_operand(module, id)),
             },
-            dir::GenericSlot::Static {
+            dir::GenericParameterBinding::Static {
                 constraint,
                 default,
                 ..
-            } => GenericSlot::Static {
-                slot: header,
+            } => GenericParameterBinding::Static {
+                identity: header,
                 constraint: constraint.map(|id| self.import_type_operand(module, id)),
                 default: default.map(|id| self.import_static_operand(module, id)),
             },
-            dir::GenericSlot::VariadicStatic {
+            dir::GenericParameterBinding::VariadicStatic {
                 constraint,
                 default,
                 ..
-            } => GenericSlot::VariadicStatic {
-                slot: header,
+            } => GenericParameterBinding::VariadicStatic {
+                identity: header,
                 constraint: constraint.map(|id| self.import_type_operand(module, id)),
                 default: default.map(|id| self.import_static_operand(module, id)),
             },

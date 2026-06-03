@@ -5,9 +5,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, ExtensionWhereClause, GenericApplication, GenericArgument, GenericSlotId,
-    GenericSubstitution, MemberProtocol, Origin, ShapeMember, Substitution, TypeOperand,
-    TypeRelation, TypeTerm,
+    CheckState, Decision, ExtensionWhereClause, GenericArgument, GenericInstance,
+    GenericParameterId, GenericSubstitution, MemberProtocol, Origin, ShapeMember, Substitution,
+    TypeOperand, TypeRelation, TypeTerm,
 };
 
 /// A symbol-backed member candidate found by lookup.
@@ -16,8 +16,8 @@ pub(in crate::check) struct MemberCandidate {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The resolved member type.
     pub(in crate::check) ty: TypeTerm,
-    /// The resolved generic application, when lookup instantiated an owner.
-    pub(in crate::check) application: Option<GenericApplication>,
+    /// The resolved generic instance, when lookup instantiated an owner.
+    pub(in crate::check) instance: Option<GenericInstance>,
 }
 
 /// Extension member candidate available to component checking.
@@ -147,7 +147,7 @@ impl CheckState<'_> {
                 symbol,
                 arguments,
             } if arguments.is_empty() => {
-                if let Some(parameter) = self.type_generic_slot_for_symbol(*symbol)? {
+                if let Some(parameter) = self.type_generic_parameter_for_symbol(*symbol)? {
                     self.parameter_member_candidates(module, origin, parameter, key, protocol)
                 } else {
                     self.instantiate_symbol_member_candidate(
@@ -184,7 +184,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         origin: Origin,
-        parameter: GenericSlotId,
+        parameter: GenericParameterId,
         key: &dir::StaticKey,
         protocol: Option<&MemberProtocol>,
     ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
@@ -234,7 +234,7 @@ impl CheckState<'_> {
             return Ok(Some(MemberCandidate {
                 symbol,
                 ty: term,
-                application: None,
+                instance: None,
             }));
         }
 
@@ -266,7 +266,7 @@ impl CheckState<'_> {
                 return Ok(Some(MemberCandidate {
                     symbol: member,
                     ty: term,
-                    application: None,
+                    instance: None,
                 }));
             }
             let Some(term) = self.type_operand_term(operand)? else {
@@ -275,7 +275,7 @@ impl CheckState<'_> {
             let Some(term) = term.substitute(module, &substitution, self)? else {
                 return Ok(None);
             };
-            let instance = Some(GenericApplication {
+            let instance = Some(GenericInstance {
                 owner: symbol,
                 arguments: arguments.to_vec().into(),
             });
@@ -283,7 +283,7 @@ impl CheckState<'_> {
             return Ok(Some(MemberCandidate {
                 symbol: member,
                 ty: term,
-                application: instance,
+                instance: instance,
             }));
         }
 
@@ -305,7 +305,7 @@ impl CheckState<'_> {
             return Ok(Some(MemberCandidate {
                 symbol: member,
                 ty: term,
-                application: None,
+                instance: None,
             }));
         }
         let Some(term) = self.type_operand_term(variable)? else {
@@ -314,12 +314,12 @@ impl CheckState<'_> {
         let Some(term) = term.substitute(module, &substitution, self)? else {
             return Ok(None);
         };
-        let application = self.substitution_application(extension, &substitution)?;
+        let instance = self.substitution_application(extension, &substitution)?;
 
         Ok(Some(MemberCandidate {
             symbol: member,
             ty: term,
-            application,
+            instance,
         }))
     }
 

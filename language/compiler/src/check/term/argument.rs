@@ -164,8 +164,8 @@ impl GenericArgument {
         }
     }
 
-    /// Select this argument for a known generic slot kind.
-    pub(in crate::check) fn select_for_static_slot(&self, is_static: bool) -> Self {
+    /// Select this argument for a known generic parameter kind.
+    pub(in crate::check) fn select_for_static_parameter(&self, is_static: bool) -> Self {
         match (self, is_static) {
             (Self::TypeOrStatic { value }, false) => Self::Type(value.ty),
             (Self::TypeOrStatic { value }, true) => Self::Static(value.value),

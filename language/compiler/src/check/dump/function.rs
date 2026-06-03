@@ -41,7 +41,7 @@ impl Dump for FunctionParameter {
             "FunctionParameter",
             [
                 ("type", self.ty.dump(context)),
-                ("static_slot", self.static_slot.dump(context)),
+                ("static_parameter", self.static_parameter.dump(context)),
                 ("optional", self.is_optional.to_string()),
                 ("rest", self.is_rest.to_string()),
             ],

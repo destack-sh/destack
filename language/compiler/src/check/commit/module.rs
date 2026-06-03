@@ -17,7 +17,7 @@ impl CheckState<'_> {
         let mut output = CheckModuleOutput::new(module, self.module(module));
 
         output.annotations = self.commit_annotation_table(module, &mut output, &environment)?;
-        output.generics = self.commit_generic_slot_table(module, &mut output, &environment);
+        output.generics = self.commit_generic_parameter_table(module, &mut output, &environment);
         output.resolutions = self.commit_resolution_table(module, &mut output, &environment)?;
         self.commit_type_table(module, &mut output, &environment);
         self.commit_static_table(module, &mut output, &environment);

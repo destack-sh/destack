@@ -2,22 +2,22 @@ use destack_dir as dir;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
-    CheckState, GenericInductionRoot, GenericInductionSlot, GenericSlot, StaticSolution,
-    StaticTerm, TypeOperand, TypeSolution, TypeTerm, VariableId, VariableKind,
+    CheckState, GenericInductionParameter, GenericInductionRoot, GenericParameterBinding,
+    StaticSolution, StaticTerm, TypeOperand, TypeSolution, TypeTerm, VariableId, VariableKind,
 };
 use crate::{CompilerError, CompilerResult};
 
 /// One escaping variable that receives an owner generic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct GenericInductionKey {
-    /// The declaration that receives the generated generic slot.
+    /// The declaration that receives the generated generic parameter.
     owner: dir::GlobalSymbolId,
     /// The variable rewritten to the generated parameter.
     variable: VariableId,
 }
 
 impl CheckState<'_> {
-    /// Induce generic slots from explicit walk roots.
+    /// Induce generic parameters from explicit walk roots.
     pub(in crate::check) fn induce_generics(&mut self) -> CompilerResult<()> {
         let roots = self
             .inference
@@ -33,7 +33,7 @@ impl CheckState<'_> {
     fn collect_induced_generics(
         &self,
         roots: &[GenericInductionRoot],
-    ) -> CompilerResult<IndexMap<GenericInductionKey, GenericInductionSlot>> {
+    ) -> CompilerResult<IndexMap<GenericInductionKey, GenericInductionParameter>> {
         let mut generics = IndexMap::new();
 
         for root in roots {
@@ -51,7 +51,7 @@ impl CheckState<'_> {
         owner: dir::GlobalSymbolId,
         operand: TypeOperand,
         visited: &mut IndexSet<VariableId>,
-        generics: &mut IndexMap<GenericInductionKey, GenericInductionSlot>,
+        generics: &mut IndexMap<GenericInductionKey, GenericInductionParameter>,
     ) -> CompilerResult<()> {
         match operand {
             TypeOperand::Variable(variable) => {
@@ -70,7 +70,7 @@ impl CheckState<'_> {
         owner: dir::GlobalSymbolId,
         term: &TypeTerm,
         visited: &mut IndexSet<VariableId>,
-        generics: &mut IndexMap<GenericInductionKey, GenericInductionSlot>,
+        generics: &mut IndexMap<GenericInductionKey, GenericInductionParameter>,
     ) -> CompilerResult<()> {
         for variable in term.referenced_variables(self) {
             self.collect_induced_variable(owner, variable, visited, generics)?;
@@ -85,15 +85,15 @@ impl CheckState<'_> {
         owner: dir::GlobalSymbolId,
         variable: VariableId,
         visited: &mut IndexSet<VariableId>,
-        generics: &mut IndexMap<GenericInductionKey, GenericInductionSlot>,
+        generics: &mut IndexMap<GenericInductionKey, GenericInductionParameter>,
     ) -> CompilerResult<()> {
         if !visited.insert(variable) {
             return Ok(());
         }
-        if let Some(slot) = self.inference.generic_induction_slot(variable) {
+        if let Some(parameter) = self.inference.generic_induction_parameter(variable) {
             let key = GenericInductionKey { owner, variable };
 
-            generics.entry(key).or_insert(slot);
+            generics.entry(key).or_insert(parameter);
 
             return Ok(());
         }
@@ -103,10 +103,10 @@ impl CheckState<'_> {
         self.collect_induced_term(owner, &term, visited, generics)
     }
 
-    /// Insert collected induced generic slots into the generic table.
+    /// Insert collected induced generic parameters into the generic table.
     fn insert_induced_generics(
         &mut self,
-        generics: IndexMap<GenericInductionKey, GenericInductionSlot>,
+        generics: IndexMap<GenericInductionKey, GenericInductionParameter>,
     ) -> CompilerResult<()> {
         for (leaf, generic) in generics {
             self.insert_induced_generic(leaf, generic)?;
@@ -115,41 +115,41 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Insert one induced generic slot.
+    /// Insert one induced generic parameter.
     fn insert_induced_generic(
         &mut self,
         key: GenericInductionKey,
-        generic: GenericInductionSlot,
+        generic: GenericInductionParameter,
     ) -> CompilerResult<()> {
         self.check_induced_generic_module(key)?;
 
         let header =
-            self.allocate_generic_induction_slot(key.owner, generic.prefix, generic.induction);
-        let slot = header.id();
+            self.allocate_generic_induction_parameter(key.owner, generic.prefix, generic.induction);
+        let parameter = header.id();
         let kind = generic.kind;
 
         match kind {
             VariableKind::Type => {
-                let generic = GenericSlot::Type {
-                    slot: header,
+                let generic = GenericParameterBinding::Type {
+                    identity: header,
                     variance: None,
                     constraint: generic.constraint,
                     default: None,
                 };
-                let parameter = self.inference.push_term(TypeTerm::Parameter(slot));
+                let parameter = self.inference.push_term(TypeTerm::Parameter(parameter));
 
-                self.insert_generic_slot(generic);
+                self.insert_generic_parameter(generic);
                 self.set_variable_solution(key.variable, TypeSolution::Term(parameter).into())?;
             }
             VariableKind::Static => {
-                let generic = GenericSlot::Static {
-                    slot: header,
+                let generic = GenericParameterBinding::Static {
+                    identity: header,
                     constraint: generic.constraint,
                     default: None,
                 };
-                let parameter = self.inference.push_term(StaticTerm::Parameter(slot));
+                let parameter = self.inference.push_term(StaticTerm::Parameter(parameter));
 
-                self.insert_generic_slot(generic);
+                self.insert_generic_parameter(generic);
                 self.set_variable_solution(key.variable, StaticSolution::Term(parameter).into())?;
             }
         }

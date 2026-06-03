@@ -1,168 +1,179 @@
 use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
-
 use destack_source::ModuleId;
+use indexmap::IndexMap;
 
-use crate::check::{CheckState, GenericSlot, TypeOperand};
+use crate::check::{CheckState, GenericParameterBinding, TypeOperand};
 
 use super::CheckModuleOutput;
 
 impl CheckState<'_> {
-    /// Commit generic parameters into the checked generic slot table.
-    pub(super) fn commit_generic_slot_table(
+    /// Commit generic parameters into the checked generic parameter table.
+    pub(super) fn commit_generic_parameter_table(
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
     ) -> dir::GenericSegment {
         let mut table = dir::GenericSegment::new(module);
-        let mut generics = self
-            .inference
-            .generic_slots()
-            .filter(|(_, generic)| generic.slot().owner.module_id == module)
-            .map(|(variable, generic)| {
-                (
-                    generic.slot().owner,
-                    generic.slot().index,
-                    variable,
-                    generic.clone(),
-                )
-            })
-            .collect::<Vec<_>>();
-        generics.sort_by_key(|(owner, index, _, _)| (*owner, *index));
 
-        // write each owner as one generic template
-        let mut index = 0;
-        while index < generics.len() {
-            let owner = generics[index].0;
-            let template_id = dir::LocalGenericTemplateId::new(table.template_count());
-            let mut slots = Vec::new();
-
-            while index < generics.len() && generics[index].0 == owner {
-                let generic = generics[index].3.clone();
-                let slot =
-                    self.commit_generic_slot(module, output, environment, template_id, generic);
-                let slot_id = table.push_slot(slot);
-
-                slots.push(slot_id);
-                index += 1;
+        // collect template parameter ids
+        let mut templates =
+            IndexMap::<dir::GlobalSymbolId, Vec<dir::LocalGenericParameterId>>::new();
+        for (parameter_id, generic) in self.inference.generic_parameters() {
+            let identity = generic.identity();
+            if identity.owner.module_id != module {
+                continue;
             }
 
-            table.push_template(dir::GenericTemplate { owner, slots });
+            templates
+                .entry(identity.owner)
+                .or_default()
+                .push(parameter_id.local_id);
+        }
+
+        // commit owner templates
+        let mut template_ids = IndexMap::new();
+        for (owner, parameters) in &templates {
+            let template = dir::GenericTemplate {
+                owner: *owner,
+                parameters: parameters.clone(),
+            };
+            let template_id = table.push_template(template);
+
+            template_ids.insert(*owner, template_id);
+        }
+
+        // commit parameters in allocated id order
+        let mut parameters = self
+            .inference
+            .generic_parameters()
+            .filter(|(_, generic)| generic.identity().owner.module_id == module)
+            .map(|(parameter_id, generic)| (parameter_id, generic.clone()))
+            .collect::<Vec<_>>();
+        parameters.sort_by_key(|(parameter_id, _)| parameter_id.local_id);
+
+        for (parameter_id, generic) in parameters {
+            let owner = generic.identity().owner;
+            let template = template_ids[&owner];
+            let parameter =
+                self.commit_generic_parameter(module, output, environment, template, generic);
+            let committed_id = table.push_parameter(parameter);
+
+            assert_eq!(
+                committed_id, parameter_id.local_id,
+                "generic parameter committed under a different id"
+            );
         }
 
         table
     }
 
-    /// Commit one generic parameter as a generic slot.
-    fn commit_generic_slot(
+    /// Commit one generic parameter as a generic parameter.
+    fn commit_generic_parameter(
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         template: dir::LocalGenericTemplateId,
-        generic: GenericSlot,
-    ) -> dir::GenericSlot {
+        generic: GenericParameterBinding,
+    ) -> dir::GenericParameterBinding {
         match generic {
-            GenericSlot::Type {
-                slot,
+            GenericParameterBinding::Type {
+                identity,
                 variance,
                 constraint,
                 default,
-            } => dir::GenericSlot::Type {
+            } => dir::GenericParameterBinding::Type {
                 template,
-                key: slot.key,
-                index: slot.index,
+                key: identity.key,
                 variance,
                 constraint: constraint.and_then(|constraint| {
                     self.commit_generic_constraint(
                         module,
                         output,
                         environment,
-                        slot.owner,
+                        identity.owner,
                         constraint,
                     )
                 }),
                 default: default.and_then(|operand| {
                     let source = self
-                        .module(slot.owner.module_id)
-                        .symbol_declaration_node(slot.owner.local_id);
+                        .module(identity.owner.module_id)
+                        .symbol_declaration_node(identity.owner.local_id);
 
                     self.commit_type_operand(module, output, environment, operand, source)
                 }),
-                origin: slot.origin,
+                origin: identity.origin,
             },
-            GenericSlot::VariadicType {
-                slot,
+            GenericParameterBinding::VariadicType {
+                identity,
                 variance,
                 constraint,
                 default,
-            } => dir::GenericSlot::VariadicType {
+            } => dir::GenericParameterBinding::VariadicType {
                 template,
-                key: slot.key,
-                index: slot.index,
+                key: identity.key,
                 variance,
                 constraint: constraint.and_then(|constraint| {
                     self.commit_generic_constraint(
                         module,
                         output,
                         environment,
-                        slot.owner,
+                        identity.owner,
                         constraint,
                     )
                 }),
                 default: default.and_then(|operand| {
                     let source = self
-                        .module(slot.owner.module_id)
-                        .symbol_declaration_node(slot.owner.local_id);
+                        .module(identity.owner.module_id)
+                        .symbol_declaration_node(identity.owner.local_id);
 
                     self.commit_type_operand(module, output, environment, operand, source)
                 }),
-                origin: slot.origin,
+                origin: identity.origin,
             },
-            GenericSlot::Static {
-                slot,
+            GenericParameterBinding::Static {
+                identity,
                 constraint,
                 default,
-            } => dir::GenericSlot::Static {
+            } => dir::GenericParameterBinding::Static {
                 template,
-                key: slot.key,
-                index: slot.index,
+                key: identity.key,
                 constraint: constraint.and_then(|constraint| {
                     self.commit_generic_constraint(
                         module,
                         output,
                         environment,
-                        slot.owner,
+                        identity.owner,
                         constraint,
                     )
                 }),
                 default: default.and_then(|operand| {
                     self.commit_static_operand(module, output, environment, operand)
                 }),
-                origin: slot.origin,
+                origin: identity.origin,
             },
-            GenericSlot::VariadicStatic {
-                slot,
+            GenericParameterBinding::VariadicStatic {
+                identity,
                 constraint,
                 default,
-            } => dir::GenericSlot::VariadicStatic {
+            } => dir::GenericParameterBinding::VariadicStatic {
                 template,
-                key: slot.key,
-                index: slot.index,
+                key: identity.key,
                 constraint: constraint.and_then(|constraint| {
                     self.commit_generic_constraint(
                         module,
                         output,
                         environment,
-                        slot.owner,
+                        identity.owner,
                         constraint,
                     )
                 }),
                 default: default.and_then(|operand| {
                     self.commit_static_operand(module, output, environment, operand)
                 }),
-                origin: slot.origin,
+                origin: identity.origin,
             },
         }
     }

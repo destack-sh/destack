@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{
-    GenericSlot, GenericSlotId, Origin, PatternRelation, StaticTerm, TypeOperand, TypeRelation,
-    TypeTerm, WalkState,
+    GenericParameterBinding, GenericParameterId, Origin, PatternRelation, StaticTerm, TypeOperand,
+    TypeRelation, TypeTerm, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -13,7 +13,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// <T extends Serializable = string>
     /// ```
-    pub(in crate::check) fn walk_generic_slot(
+    pub(in crate::check) fn walk_generic_parameter(
         &mut self,
         tree: &dir::Tree,
         id: dir::LocalNodeId<dir::GenericParameter>,
@@ -37,7 +37,7 @@ impl WalkState<'_, '_> {
                 if let Some(default) = default {
                     self.walk_type_expression(tree, *default, tree.get(*default));
                 }
-                self.bind_generic_slot(tree.module_id, id, generic_parameter);
+                self.bind_generic_parameter(tree.module_id, id, generic_parameter);
             }
             // <...T>
             dir::GenericParameter::VariadicType {
@@ -52,7 +52,7 @@ impl WalkState<'_, '_> {
                 if let Some(default) = default {
                     self.walk_type_expression(tree, *default, tree.get(*default));
                 }
-                self.bind_generic_slot(tree.module_id, id, generic_parameter);
+                self.bind_generic_parameter(tree.module_id, id, generic_parameter);
             }
             // <comptime C: T>
             dir::GenericParameter::Value {
@@ -77,7 +77,7 @@ impl WalkState<'_, '_> {
                     self.walk_expression(tree, *default, tree.get(*default));
                     self.restore_flow(before_default);
                 }
-                self.bind_generic_slot(tree.module_id, id, generic_parameter);
+                self.bind_generic_parameter(tree.module_id, id, generic_parameter);
             }
             // <comptime ...C: T>
             dir::GenericParameter::VariadicValue {
@@ -102,7 +102,7 @@ impl WalkState<'_, '_> {
                     self.walk_expression(tree, *default, tree.get(*default));
                     self.restore_flow(before_default);
                 }
-                self.bind_generic_slot(tree.module_id, id, generic_parameter);
+                self.bind_generic_parameter(tree.module_id, id, generic_parameter);
             }
             // ignore damaged syntax
             dir::GenericParameter::Error => {}
@@ -111,18 +111,18 @@ impl WalkState<'_, '_> {
         self.pop_static_guard();
     }
 
-    /// Bind the generic slot introduced by one generic parameter.
+    /// Bind the generic parameter introduced by one generic parameter.
     ///
     /// Example:
     /// ```ds
     /// <comptime Size: number = 4>
     /// ```
-    pub(in crate::check) fn bind_generic_slot(
+    pub(in crate::check) fn bind_generic_parameter(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::GenericParameter>,
         generic_parameter: &dir::GenericParameter,
-    ) -> Option<GenericSlotId> {
+    ) -> Option<GenericParameterId> {
         let source = id.into_any();
         let owner = self.check.module(module).scope_owner_symbol(source)?;
         let symbol = self.check.module(module).declaration_symbol(source)?;
@@ -135,23 +135,25 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
-                let slot_id = slot.id();
+                let parameter = self
+                    .check
+                    .allocate_explicit_generic_parameter(owner, symbol);
+                let parameter_id = parameter.id();
                 let constraint = constraint.map(|id| self.allocate_node_type_operand(id).into());
                 let default = default.map(|id| self.allocate_node_type_operand(id));
-                let generic = GenericSlot::Type {
-                    slot,
+                let generic = GenericParameterBinding::Type {
+                    identity: parameter,
                     variance: *variance,
                     constraint,
                     default,
                 };
 
-                self.check.insert_generic_slot(generic);
+                self.check.insert_generic_parameter(generic);
                 let condition = self.active_static_guard();
 
-                self.bind_symbol_type(symbol, TypeTerm::Parameter(slot_id), condition);
+                self.bind_symbol_type(symbol, TypeTerm::Parameter(parameter_id), condition);
 
-                Some(slot_id)
+                Some(parameter_id)
             }
             // <...T>
             dir::GenericParameter::VariadicType {
@@ -160,23 +162,25 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
-                let slot_id = slot.id();
+                let parameter = self
+                    .check
+                    .allocate_explicit_generic_parameter(owner, symbol);
+                let parameter_id = parameter.id();
                 let constraint = constraint.map(|id| self.allocate_node_type_operand(id).into());
                 let default = default.map(|id| self.allocate_node_type_operand(id));
-                let generic = GenericSlot::VariadicType {
-                    slot,
+                let generic = GenericParameterBinding::VariadicType {
+                    identity: parameter,
                     variance: *variance,
                     constraint,
                     default,
                 };
 
-                self.check.insert_generic_slot(generic);
+                self.check.insert_generic_parameter(generic);
                 let condition = self.active_static_guard();
 
-                self.bind_symbol_type(symbol, TypeTerm::Parameter(slot_id), condition);
+                self.bind_symbol_type(symbol, TypeTerm::Parameter(parameter_id), condition);
 
-                Some(slot_id)
+                Some(parameter_id)
             }
             // <comptime C: T>
             dir::GenericParameter::Value {
@@ -184,8 +188,10 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
-                let slot_id = slot.id();
+                let parameter = self
+                    .check
+                    .allocate_explicit_generic_parameter(owner, symbol);
+                let parameter_id = parameter.id();
                 let constraint = declared_type.map(|id| self.allocate_node_type_operand(id).into());
                 let default = default.map(|id| {
                     let condition = self.active_static_guard();
@@ -193,18 +199,18 @@ impl WalkState<'_, '_> {
                     self.allocate_static_expression_variable(id, condition)
                         .into()
                 });
-                let generic = GenericSlot::Static {
-                    slot,
+                let generic = GenericParameterBinding::Static {
+                    identity: parameter,
                     constraint,
                     default,
                 };
 
-                self.check.insert_generic_slot(generic);
+                self.check.insert_generic_parameter(generic);
                 let condition = self.active_static_guard();
 
-                self.bind_symbol_static(symbol, StaticTerm::Parameter(slot_id), condition);
+                self.bind_symbol_static(symbol, StaticTerm::Parameter(parameter_id), condition);
 
-                Some(slot_id)
+                Some(parameter_id)
             }
             // <comptime ...C: T>
             dir::GenericParameter::VariadicValue {
@@ -212,8 +218,10 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
-                let slot = self.check.allocate_explicit_generic_slot(owner, symbol);
-                let slot_id = slot.id();
+                let parameter = self
+                    .check
+                    .allocate_explicit_generic_parameter(owner, symbol);
+                let parameter_id = parameter.id();
                 let constraint = declared_type.map(|id| self.allocate_node_type_operand(id).into());
                 let default = default.map(|id| {
                     let condition = self.active_static_guard();
@@ -221,18 +229,18 @@ impl WalkState<'_, '_> {
                     self.allocate_static_expression_variable(id, condition)
                         .into()
                 });
-                let generic = GenericSlot::VariadicStatic {
-                    slot,
+                let generic = GenericParameterBinding::VariadicStatic {
+                    identity: parameter,
                     constraint,
                     default,
                 };
 
-                self.check.insert_generic_slot(generic);
+                self.check.insert_generic_parameter(generic);
                 let condition = self.active_static_guard();
 
-                self.bind_symbol_static(symbol, StaticTerm::Parameter(slot_id), condition);
+                self.bind_symbol_static(symbol, StaticTerm::Parameter(parameter_id), condition);
 
-                Some(slot_id)
+                Some(parameter_id)
             }
             // ignore damaged syntax
             dir::GenericParameter::Error => None,
@@ -290,7 +298,7 @@ impl WalkState<'_, '_> {
                 // bind named parameter output
                 if let Some(symbol) = symbol {
                     if *is_comptime {
-                        self.bind_comptime_parameter_slot(
+                        self.bind_comptime_parameter(
                             tree.module_id,
                             id,
                             symbol,
@@ -336,7 +344,7 @@ impl WalkState<'_, '_> {
                 // bind variadic parameter output
                 if let Some(symbol) = symbol {
                     if *is_comptime {
-                        self.bind_comptime_parameter_slot(
+                        self.bind_comptime_parameter(
                             tree.module_id,
                             id,
                             symbol,
@@ -437,13 +445,13 @@ impl WalkState<'_, '_> {
         self.pop_static_guard();
     }
 
-    /// Bind one comptime runtime parameter as an induced static generic slot.
+    /// Bind one comptime runtime parameter as an induced static generic parameter.
     ///
     /// Example:
     /// ```ds
     /// function repeat(value: string, comptime count: uint): [string; count]
     /// ```
-    fn bind_comptime_parameter_slot(
+    fn bind_comptime_parameter(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Parameter>,
@@ -451,13 +459,13 @@ impl WalkState<'_, '_> {
         parameter_type: Option<TypeOperand>,
         default: Option<dir::LocalNodeId<dir::Expression>>,
         is_variadic: bool,
-    ) -> Option<GenericSlotId> {
+    ) -> Option<GenericParameterId> {
         let source = id.into_any();
         let owner = self.check.module(module).scope_owner_symbol(source)?;
-        let slot = self
+        let parameter = self
             .check
-            .allocate_induced_symbol_generic_slot(owner, symbol);
-        let slot_id = slot.id();
+            .allocate_induced_symbol_generic_parameter(owner, symbol);
+        let parameter_id = parameter.id();
         let default = default.map(|id| {
             let condition = self.active_static_guard();
 
@@ -465,25 +473,25 @@ impl WalkState<'_, '_> {
                 .into()
         });
         let generic = if is_variadic {
-            GenericSlot::VariadicStatic {
-                slot,
+            GenericParameterBinding::VariadicStatic {
+                identity: parameter,
                 constraint: parameter_type,
                 default,
             }
         } else {
-            GenericSlot::Static {
-                slot,
+            GenericParameterBinding::Static {
+                identity: parameter,
                 constraint: parameter_type,
                 default,
             }
         };
 
-        self.check.insert_generic_slot(generic);
+        self.check.insert_generic_parameter(generic);
         let condition = self.active_static_guard();
 
-        self.bind_symbol_static(symbol, StaticTerm::Parameter(slot_id), condition);
+        self.bind_symbol_static(symbol, StaticTerm::Parameter(parameter_id), condition);
 
-        Some(slot_id)
+        Some(parameter_id)
     }
 
     /// Constrain one parameter default value to its declared type.

@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     AwaitTerm, CallCallee, CallTerm, CheckState, ConstructTerm, Decision, FormTerm, FunctionTerm,
-    GenericArgument, GenericSlotId, IdentityTerm, ImportMetaTerm, IndexSetTerm, IndexTerm,
+    GenericArgument, GenericParameterId, IdentityTerm, ImportMetaTerm, IndexSetTerm, IndexTerm,
     InstanceCheckTerm, KeyMembershipTerm, MemberCallSource, MemberCallTerm, MemberProtocol,
     MemberTerm, OperatorTerm, Origin, Progress, RangeValueTerm, ReceiverTerm, Reduction,
     ShapeMember, ShapeTerm, StaticOperand, StaticRelation, StaticTerm, Substitution, SuperTerm,
@@ -180,12 +180,18 @@ pub(in crate::check) enum TypeTerm {
     /// int32
     /// ```
     Literal(TypeLiteralTerm),
+    /// Compiler intrinsic type body.
+    ///
+    /// ```ds
+    /// intrinsic
+    /// ```
+    Intrinsic,
     /// Generic parameter reference.
     ///
     /// ```ds
     /// T
     /// ```
-    Parameter(GenericSlotId),
+    Parameter(GenericParameterId),
     /// Type declaration reference.
     ///
     /// ```ds
@@ -629,7 +635,11 @@ impl TypeTerm {
                 variables.extend(function.referenced_variables(state));
                 variables.extend(environment.referenced_variables(state));
             }
-            Self::Literal(_) | Self::Type(_) | Self::Parameter(_) | Self::This => {}
+            Self::Literal(_)
+            | Self::Intrinsic
+            | Self::Type(_)
+            | Self::Parameter(_)
+            | Self::This => {}
         }
 
         variables
@@ -639,6 +649,7 @@ impl TypeTerm {
     pub(in crate::check) fn is_stable(&self, state: &CheckState<'_>) -> bool {
         match self {
             Self::Literal(_)
+            | Self::Intrinsic
             | Self::Type(_)
             | Self::Parameter(_)
             | Self::Reference { .. }
@@ -1194,6 +1205,7 @@ impl CheckState<'_> {
                 Reduction::value(TypeTerm::Intersection { elements })
             }
             TypeTerm::Literal(_)
+            | TypeTerm::Intrinsic
             | TypeTerm::Parameter(_)
             | TypeTerm::This
             | TypeTerm::Function(_)
@@ -1592,15 +1604,17 @@ impl TypeTerm {
     ) -> CompilerResult<Option<TypeTerm>> {
         let substitution = substitution.into();
         let term = match self {
-            TypeTerm::Parameter(slot_id) => {
-                if let Some(argument) = state.substitution_type_slot(substitution, *slot_id) {
+            TypeTerm::Parameter(parameter_id) => {
+                if let Some(argument) =
+                    state.substitution_type_parameter(substitution, *parameter_id)
+                {
                     if let Some(term) = state.type_solution(argument)? {
                         term
                     } else {
                         return Ok(None);
                     }
                 } else if let Some(argument) =
-                    state.substitution_static_slot(substitution, *slot_id)
+                    state.substitution_static_parameter(substitution, *parameter_id)
                 {
                     TypeTerm::StaticValue {
                         value: argument.into(),
@@ -2055,7 +2069,10 @@ impl TypeTerm {
 
                 term
             }
-            TypeTerm::Literal(_) | TypeTerm::Type(_) | TypeTerm::Range { .. } => self.clone(),
+            TypeTerm::Literal(_)
+            | TypeTerm::Intrinsic
+            | TypeTerm::Type(_)
+            | TypeTerm::Range { .. } => self.clone(),
         };
 
         Ok(Some(term))
@@ -2120,7 +2137,7 @@ impl CheckState<'_> {
         term: &TypeTerm,
     ) -> CompilerResult<Progress> {
         let progress = match term {
-            TypeTerm::Literal(_) | TypeTerm::Type(_) => Progress::Unchanged,
+            TypeTerm::Literal(_) | TypeTerm::Intrinsic | TypeTerm::Type(_) => Progress::Unchanged,
             TypeTerm::Form { form, payload } => {
                 let TypeTerm::Form {
                     form: result_form,

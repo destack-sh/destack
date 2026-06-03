@@ -108,11 +108,7 @@ impl Dump for dir::StaticTerm {
         match self {
             Self::Parameter(parameter) => dump_record(
                 "CommittedStaticTerm.Parameter",
-                [
-                    ("owner", context.symbol_label(parameter.owner)),
-                    ("key", context.generic_slot_key(parameter.key)),
-                    ("index", parameter.index.get().to_string()),
-                ],
+                [("parameter", context.generic_parameter_label(*parameter))],
             ),
             Self::Symbol { symbol } => dump_record(
                 "CommittedStaticTerm.Symbol",

@@ -129,6 +129,34 @@ impl<'a, 'b> DumpContext<'a, 'b> {
         }
     }
 
+    /// Return a compact generic parameter label.
+    pub(in crate::check) fn generic_parameter_label(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> String {
+        if let Some(generic) = self.check.inference.generic_parameter_by_id(parameter) {
+            let identity = generic.identity();
+            let owner = self.symbol_label(identity.owner);
+            let key = self.generic_parameter_key(identity.key);
+
+            return format!("{owner}:{key}");
+        }
+
+        if let Some(dependency) = self.check.dependencies.get(&parameter.module_id) {
+            let generic = dependency.generics.get_parameter(parameter.local_id);
+            let template = dependency.generics.get_template(generic.template());
+            let owner = self.symbol_label(template.owner);
+            let key = self.generic_parameter_key(generic.key());
+
+            return format!("{owner}:{key}");
+        }
+
+        let module = self.module_label(parameter.module_id);
+        let index = parameter.local_id.0;
+
+        format!("{module}:generic#{index}")
+    }
+
     /// Return a readable interned string.
     pub(in crate::check) fn string(&self, string: dir::StringId) -> String {
         format!(
@@ -156,10 +184,10 @@ impl<'a, 'b> DumpContext<'a, 'b> {
     }
 
     /// Return a compact generic slot key label.
-    pub(super) fn generic_slot_key(&self, key: dir::GenericSlotKey) -> String {
+    pub(super) fn generic_parameter_key(&self, key: dir::GenericParameterKey) -> String {
         match key {
-            dir::GenericSlotKey::Symbol(symbol) => self.symbol_key(symbol),
-            dir::GenericSlotKey::Generated(name) => self.string_label(name),
+            dir::GenericParameterKey::Symbol(symbol) => self.symbol_key(symbol),
+            dir::GenericParameterKey::Generated(name) => self.string_label(name),
         }
     }
 

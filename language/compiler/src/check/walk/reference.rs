@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::check::{
-    Condition, GenericArgument, GenericSlotId, NameLookup, Obligation, Origin, PathLookup,
+    Condition, GenericArgument, GenericParameterId, NameLookup, Obligation, Origin, PathLookup,
     ReceiverTerm, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, WalkState,
 };
 
@@ -151,7 +151,10 @@ impl WalkState<'_, '_> {
             _ => {
                 self.walk_expression(tree, id, tree.get(id));
 
-                self.check.inputs.node_type(id.into_global_any(self.module))
+                let source = id.into_global_any(self.module);
+                let operand = self.check.node_type_operand(source);
+
+                Some(operand)
             }
         }
     }
@@ -244,7 +247,7 @@ impl WalkState<'_, '_> {
 
         // lower bare type parameter receiver
         let term = if generic_arguments.is_empty()
-            && let Some(slot) = self.generic_type_parameter_slot(symbol)
+            && let Some(slot) = self.generic_type_parameter(symbol)
         {
             TypeTerm::Parameter(slot)
         }
@@ -347,7 +350,7 @@ impl WalkState<'_, '_> {
 
             // lower bare type parameter
             if generic_arguments.is_empty()
-                && let Some(slot) = self.generic_type_parameter_slot(symbol)
+                && let Some(slot) = self.generic_type_parameter(symbol)
             {
                 TypeTerm::Parameter(slot)
             } else {
@@ -418,7 +421,7 @@ impl WalkState<'_, '_> {
             variable,
             "T",
             Some(operand),
-            dir::GenericSlotInduction::Constraint,
+            dir::GenericParameterInduction::Constraint,
         );
         self.check.relate_type(
             Origin::Node(source),
@@ -568,9 +571,12 @@ impl WalkState<'_, '_> {
         let source = id.into_global_any(tree.module_id);
         self.check.select_name(source, symbol);
 
-        let slot_id = self.check.inference.generic_slot_id_for_symbol(symbol)?;
+        let parameter_id = self
+            .check
+            .inference
+            .generic_parameter_id_for_symbol(symbol)?;
 
-        Some(TypeTerm::Parameter(slot_id))
+        Some(TypeTerm::Parameter(parameter_id))
     }
 
     /// Return the generic slot for one type parameter symbol.
@@ -579,12 +585,12 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// T
     /// ```
-    fn generic_type_parameter_slot(&self, symbol: dir::GlobalSymbolId) -> Option<GenericSlotId> {
+    fn generic_type_parameter(&self, symbol: dir::GlobalSymbolId) -> Option<GenericParameterId> {
         if self.check.symbol_kind(symbol) != dir::SymbolKind::GenericTypeParameter {
             return None;
         }
 
-        self.check.inference.generic_slot_id_for_symbol(symbol)
+        self.check.inference.generic_parameter_id_for_symbol(symbol)
     }
 
     /// Lower the contextual receiver type term.

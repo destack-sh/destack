@@ -53,23 +53,15 @@ impl CheckState<'_> {
 
     /// Equate one declaration type variable to its self reference.
     fn equate_declaration_self_type(&mut self, symbol: dir::GlobalSymbolId) {
-        let mut parameters = self
+        let parameters = self
             .inference
-            .generic_slots_for_owner(symbol)
-            .map(|(slot, generic)| {
-                (
-                    generic.slot().index,
-                    slot,
-                    generic.is_static(),
-                    generic.is_variadic(),
-                )
-            })
+            .generic_parameters_for_owner(symbol)
+            .map(|(slot, generic)| (slot, generic.is_static(), generic.is_variadic()))
             .collect::<Vec<_>>();
-        parameters.sort_by_key(|(index, _, _, _)| *index);
 
         let arguments = parameters
             .into_iter()
-            .map(|(_, slot, is_static, is_variadic)| {
+            .map(|(slot, is_static, is_variadic)| {
                 if is_static {
                     let parameter = self.inference.push_term(StaticTerm::Parameter(slot));
 

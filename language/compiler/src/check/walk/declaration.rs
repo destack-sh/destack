@@ -102,12 +102,13 @@ impl WalkState<'_, '_> {
     ) {
         // walk generic header
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
         }
 
+        // get declaration symbol
         let Some(symbol) = self
             .check
             .module(tree.module_id)
@@ -120,15 +121,16 @@ impl WalkState<'_, '_> {
         let is_language_item =
             is_intrinsic && self.check.environment.language.item(symbol).is_some();
 
-        // bind legal intrinsic declarations
+        // bind (legal) intrinsic declarations
         if is_intrinsic && (declaration.is_nominal || is_language_item) {
-            let ty = TypeTerm::Reference {
+            let symbol_type = TypeTerm::Reference {
                 origin: Origin::Symbol(symbol),
                 symbol,
                 arguments: Vec::new(),
             };
 
-            self.bind_symbol_type(symbol, ty, Condition::Always);
+            self.bind_node_type(declaration.value, TypeTerm::Intrinsic);
+            self.bind_symbol_type(symbol, symbol_type, Condition::Always);
 
             return;
         }
@@ -173,7 +175,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
@@ -184,6 +186,7 @@ impl WalkState<'_, '_> {
             self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
         }
 
+        // walk members
         for member in &declaration.members {
             self.walk_member(tree, *member, tree.get(*member), receiver);
         }
@@ -209,7 +212,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
@@ -225,6 +228,7 @@ impl WalkState<'_, '_> {
             self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
         }
 
+        // walk members
         for member in &declaration.members {
             self.walk_member(tree, *member, tree.get(*member), receiver);
         }
@@ -250,7 +254,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
@@ -260,10 +264,13 @@ impl WalkState<'_, '_> {
         for implemented_type in &declaration.implements_types {
             self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
         }
+
+        // walk fields
         for field in &declaration.fields {
             self.walk_enum_field(tree, *field, tree.get(*field));
         }
 
+        // walk members
         for member in &declaration.members {
             self.walk_member(tree, *member, tree.get(*member), receiver);
         }
@@ -291,7 +298,7 @@ impl WalkState<'_, '_> {
 
         // walk generic header
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
@@ -302,6 +309,7 @@ impl WalkState<'_, '_> {
             self.walk_type_expression(tree, *extends_type, tree.get(*extends_type));
         }
 
+        // walk members
         for member in &declaration.members {
             self.walk_type_member(tree, *member, tree.get(*member));
         }
@@ -321,27 +329,30 @@ impl WalkState<'_, '_> {
     ) {
         // walk generic header
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(tree, *where_clause, tree.get(*where_clause));
         }
 
+        // walk target
         self.walk_type_expression(
             tree,
             declaration.target_type,
             tree.get(declaration.target_type),
         );
+
+        // walk implements
         for implemented_type in &declaration.implements_types {
             self.walk_type_expression(tree, *implemented_type, tree.get(*implemented_type));
         }
 
+        // walk members
         let receiver = Some(MemberReceiverContext {
             module: tree.module_id,
             owner: None,
             ty: self.allocate_node_type_operand(declaration.target_type),
         });
-
         for member in &declaration.members {
             self.walk_member(tree, *member, tree.get(*member), receiver);
         }
@@ -485,7 +496,7 @@ impl WalkState<'_, '_> {
     ) {
         // walk generic parameters
         for parameter in &signature.generic_parameters {
-            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
 
         // walk receiver and runtime parameters

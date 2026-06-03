@@ -5,10 +5,11 @@ use crate::CompilerResult;
 use crate::check::{
     CallCallee, CallDecision, CallFailure, CallTargetResolution, CallTerm, CandidateResolution,
     CheckState, Condition, ConstructCandidates, ConstructDecision, ConstructFailure,
-    ConstructTargetResolution, Decision, FunctionParameter, FunctionTerm, GenericApplication,
-    GenericArgument, GenericSlot, GenericSlotId, GenericSubstitution, GenericSubstitutionEntry,
-    MemberCallSource, Origin, Progress, ReceiverSubstitution, ShapeMember, StaticTerm,
-    Substitution, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm, VariableId,
+    ConstructTargetResolution, Decision, FunctionParameter, FunctionTerm, GenericArgument,
+    GenericInstance, GenericParameterBinding, GenericParameterId, GenericSubstitution,
+    GenericSubstitutionEntry, MemberCallSource, Origin, Progress, ReceiverSubstitution,
+    ShapeMember, StaticTerm, Substitution, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm,
+    VariableId,
 };
 use smallvec::SmallVec;
 
@@ -22,8 +23,8 @@ pub(in crate::check) struct CallableCandidate {
     pub(in crate::check) symbol: dir::GlobalSymbolId,
     /// The callable type term to inspect.
     pub(in crate::check) ty: TypeTerm,
-    /// The already resolved generic application.
-    pub(in crate::check) application: Option<GenericApplication>,
+    /// The already resolved generic instance.
+    pub(in crate::check) instance: Option<GenericInstance>,
     /// The final callable target if this candidate is selected.
     pub(in crate::check) target: CallableTarget,
 }
@@ -33,12 +34,12 @@ pub(in crate::check) struct CallableCandidate {
 pub(in crate::check) struct FunctionTermApplication {
     /// The instantiated function signature.
     pub(in crate::check) function: FunctionTerm,
-    /// The resolved generic application.
-    pub(in crate::check) application: Option<GenericApplication>,
-    /// The substitution used for this application.
+    /// The resolved generic instance.
+    pub(in crate::check) instance: Option<GenericInstance>,
+    /// The substitution used for this instance.
     pub(in crate::check) substitution: GenericSubstitution,
     /// The original generic parameters.
-    pub(in crate::check) generic_parameters: Vec<GenericSlotId>,
+    pub(in crate::check) generic_parameters: Vec<GenericParameterId>,
 }
 
 /// Callable function signature extracted from a type term.
@@ -172,20 +173,20 @@ impl CallableTarget {
     /// Return this selected target as a callable dispatch.
     pub(in crate::check) fn into_dispatch(
         self,
-        application: Option<GenericApplication>,
+        instance: Option<GenericInstance>,
         function: FunctionTerm,
         progress: Progress,
     ) -> CallableDispatch {
         match self {
             Self::Expression => {
-                let target = CallTargetResolution::Expression { application };
+                let target = CallTargetResolution::Expression { instance };
 
                 CallableDispatch::call_selected(target, function, progress)
             }
             Self::Symbol { symbol, receiver } => {
                 let target = CallTargetResolution::Symbol {
                     symbol,
-                    application,
+                    instance,
                     receiver,
                 };
 
@@ -203,7 +204,7 @@ impl CallableTarget {
                 CallableDispatch::call_selected(target, function, progress)
             }
             Self::Construct(target) => {
-                let target = target.with_application(application);
+                let target = target.with_application(instance);
 
                 CallableDispatch::construct_selected(target, function, progress)
             }
@@ -425,7 +426,7 @@ impl CheckState<'_> {
                 .iter()
                 .map(|candidate| CandidateResolution {
                     symbol: candidate.symbol,
-                    application: candidate.application.clone(),
+                    instance: candidate.instance.clone(),
                 })
                 .collect();
 
@@ -452,7 +453,7 @@ impl CheckState<'_> {
                     module,
                     symbol: member_match.symbol,
                     ty: member_match.ty.clone(),
-                    application: member_match.application.clone(),
+                    instance: member_match.instance.clone(),
                     target,
                 }
             })
@@ -477,7 +478,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         owner: Option<dir::GlobalSymbolId>,
-        application: Option<GenericApplication>,
+        instance: Option<GenericInstance>,
         function: FunctionTerm,
         generic_arguments: &[GenericArgument],
         arguments: &[TypeOperand],
@@ -493,7 +494,7 @@ impl CheckState<'_> {
             module,
             source,
             owner,
-            application,
+            instance,
             function,
             generic_arguments,
             arguments,
@@ -523,7 +524,7 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         owner: Option<dir::GlobalSymbolId>,
-        application: Option<GenericApplication>,
+        instance: Option<GenericInstance>,
         function: FunctionTerm,
         generic_arguments: &[GenericArgument],
         arguments: &[TypeOperand],
@@ -546,7 +547,7 @@ impl CheckState<'_> {
             source,
             owner,
             target.receiver(),
-            application,
+            instance,
             function,
             generic_arguments,
             argument_values,
@@ -587,7 +588,7 @@ impl CheckState<'_> {
         match input_decision {
             Decision::Yes => match return_decision {
                 Decision::Yes | Decision::Undecidable => {
-                    Ok(target.into_dispatch(instantiation.application, function, progress))
+                    Ok(target.into_dispatch(instantiation.instance, function, progress))
                 }
                 Decision::No if !progress.is_unchanged() => {
                     Ok(CallableDispatch::Pending { progress })
@@ -595,7 +596,7 @@ impl CheckState<'_> {
                 Decision::No => self.call_signature_rejected(arguments, &function.parameters),
             },
             Decision::Undecidable if candidate_set.keeps_pending_probe() => {
-                Ok(target.into_dispatch(instantiation.application, function, progress))
+                Ok(target.into_dispatch(instantiation.instance, function, progress))
             }
             Decision::Undecidable => Ok(CallableDispatch::Pending { progress }),
             Decision::No if !progress.is_unchanged() => Ok(CallableDispatch::Pending { progress }),
@@ -674,7 +675,7 @@ impl CheckState<'_> {
                 candidate.module,
                 source,
                 Some(candidate.symbol),
-                candidate.application.clone(),
+                candidate.instance.clone(),
                 function,
                 generic_arguments,
                 arguments,
@@ -862,7 +863,7 @@ impl CheckState<'_> {
                 .iter()
                 .map(|element| FunctionParameter {
                     ty: element.ty,
-                    static_slot: None,
+                    static_parameter: None,
                     is_optional: element.is_optional,
                     is_rest: element.is_rest,
                 })
@@ -881,7 +882,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         owner: Option<dir::GlobalSymbolId>,
         receiver: Option<TypeOperand>,
-        application: Option<GenericApplication>,
+        instance: Option<GenericInstance>,
         function: FunctionTerm,
         generic_arguments: &[GenericArgument],
         argument_values: &[dir::GlobalNodeId<dir::Expression>],
@@ -897,7 +898,7 @@ impl CheckState<'_> {
 
             return Ok(FunctionTermApplication {
                 function,
-                application,
+                instance,
                 substitution: GenericSubstitution::empty(),
                 generic_parameters: Vec::new(),
             });
@@ -905,24 +906,29 @@ impl CheckState<'_> {
         let mut substitution = GenericSubstitution::empty();
         let mut arguments = SmallVec::with_capacity(function.generic_parameters.len());
         let generic_parameters = function.generic_parameters.clone();
-        let application_owner = function.generic_owner();
+        let application_owner = function.generic_parameters.first().map(|parameter| {
+            self.inference
+                .generic_parameter(*parameter)
+                .identity()
+                .owner
+        });
 
         // use explicit arguments first, then infer the remaining call generics
         for (index, parameter) in function.generic_parameters.iter().enumerate() {
-            let generic = self.inference.generic_slot(*parameter);
+            let generic = self.inference.generic_parameter(*parameter);
+            let owner = generic.identity().owner;
             let argument = if let Some(argument) = generic_arguments.get(index) {
-                argument.select_for_static_slot(generic.is_static())
-            } else if let Some(argument) = application
+                argument.select_for_static_parameter(generic.is_static())
+            } else if let Some(argument) = instance
                 .as_ref()
-                .filter(|application| application.owner == parameter.owner)
-                .and_then(|application| application.arguments.get(parameter.index.0 as usize))
+                .filter(|instance| instance.owner == owner)
+                .and_then(|instance| instance.arguments.get(index))
             {
-                argument.select_for_static_slot(generic.is_static())
-            } else if let Some(argument) = self.inference.generic_application_argument(
-                source,
-                parameter.owner,
-                parameter.index,
-            ) {
+                argument.select_for_static_parameter(generic.is_static())
+            } else if let Some(argument) = self
+                .inference
+                .generic_instance_argument(source, owner, index)
+            {
                 argument
             } else if let Some(argument) = self.static_parameter_argument(
                 module,
@@ -937,7 +943,7 @@ impl CheckState<'_> {
 
             arguments.push(argument.clone());
             substitution.entries.push(GenericSubstitutionEntry {
-                slot: *parameter,
+                parameter: *parameter,
                 argument,
             });
         }
@@ -950,13 +956,12 @@ impl CheckState<'_> {
         }
         function.generic_parameters.clear();
         let owner = owner.or(application_owner);
-        let application = application.or_else(|| {
-            owner.map(|owner| self.insert_generic_application(source, owner, arguments))
-        });
+        let instance = instance
+            .or_else(|| owner.map(|owner| self.insert_generic_instance(source, owner, arguments)));
 
         let instantiation = FunctionTermApplication {
             function,
-            application,
+            instance,
             substitution,
             generic_parameters: generic_parameters.to_vec(),
         };
@@ -969,9 +974,9 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
-        parameter: GenericSlotId,
+        parameter: GenericParameterId,
     ) -> CompilerResult<GenericArgument> {
-        let generic = self.inference.generic_slot(parameter);
+        let generic = self.inference.generic_parameter(parameter);
         let is_static = generic.is_static();
         let variable = self.instantiation_variable(module, source, parameter)?;
         let argument = if is_static {
@@ -983,17 +988,17 @@ impl CheckState<'_> {
         Ok(argument)
     }
 
-    /// Return the runtime argument supplied to one static parameter slot.
+    /// Return the runtime argument supplied to one static parameter parameter.
     fn static_parameter_argument(
         &mut self,
         module: ModuleId,
-        parameter: GenericSlotId,
+        parameter: GenericParameterId,
         parameters: &[FunctionParameter],
         argument_values: &[dir::GlobalNodeId<dir::Expression>],
     ) -> CompilerResult<Option<GenericArgument>> {
         let Some(index) = parameters
             .iter()
-            .position(|candidate| candidate.static_slot == Some(parameter))
+            .position(|candidate| candidate.static_parameter == Some(parameter))
         else {
             return Ok(None);
         };
@@ -1015,9 +1020,9 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
-        parameter: GenericSlotId,
+        parameter: GenericParameterId,
     ) -> CompilerResult<VariableId> {
-        let generic = self.inference.generic_slot(parameter);
+        let generic = self.inference.generic_parameter(parameter);
         let origin = Origin::Node(source);
 
         let variable = if generic.is_static() {
@@ -1035,13 +1040,13 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameters: &[GenericSlotId],
+        parameters: &[GenericParameterId],
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
 
-        // constrain each substituted generic argument by its declared slot
+        // constrain each substituted generic argument by its declared parameter
         for parameter in parameters {
-            let generic = self.inference.generic_slot(*parameter).clone();
+            let generic = self.inference.generic_parameter(*parameter).clone();
 
             progress = progress.merge(self.expect_call_generic_constraint(
                 origin,
@@ -1061,15 +1066,15 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameter: GenericSlotId,
-        generic: &GenericSlot,
+        parameter: GenericParameterId,
+        generic: &GenericParameterBinding,
     ) -> CompilerResult<Progress> {
         match generic {
-            GenericSlot::Type {
+            GenericParameterBinding::Type {
                 constraint: Some(constraint),
                 ..
             }
-            | GenericSlot::VariadicType {
+            | GenericParameterBinding::VariadicType {
                 constraint: Some(constraint),
                 ..
             } => {
@@ -1080,11 +1085,11 @@ impl CheckState<'_> {
 
                 self.relate_contextual_type_assignability(origin, argument, constraint)
             }
-            GenericSlot::Static {
+            GenericParameterBinding::Static {
                 constraint: Some(constraint),
                 ..
             }
-            | GenericSlot::VariadicStatic {
+            | GenericParameterBinding::VariadicStatic {
                 constraint: Some(constraint),
                 ..
             } => {
@@ -1099,16 +1104,16 @@ impl CheckState<'_> {
 
                 self.relate_contextual_type_assignability(origin, source, constraint)
             }
-            GenericSlot::Type {
+            GenericParameterBinding::Type {
                 constraint: None, ..
             }
-            | GenericSlot::VariadicType {
+            | GenericParameterBinding::VariadicType {
                 constraint: None, ..
             }
-            | GenericSlot::Static {
+            | GenericParameterBinding::Static {
                 constraint: None, ..
             }
-            | GenericSlot::VariadicStatic {
+            | GenericParameterBinding::VariadicStatic {
                 constraint: None, ..
             } => Ok(Progress::Unchanged),
         }
@@ -1119,13 +1124,13 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameters: &[GenericSlotId],
+        parameters: &[GenericParameterId],
     ) -> CompilerResult<Decision> {
         let mut decision = Decision::Yes;
 
-        // combine each generic slot constraint
+        // combine each generic parameter constraint
         for parameter in parameters {
-            let generic = self.inference.generic_slot(*parameter).clone();
+            let generic = self.inference.generic_parameter(*parameter).clone();
 
             decision = decision.and(self.reduce_call_generic_constraint(
                 module,
@@ -1143,15 +1148,15 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameter: GenericSlotId,
-        generic: &GenericSlot,
+        parameter: GenericParameterId,
+        generic: &GenericParameterBinding,
     ) -> CompilerResult<Decision> {
         match generic {
-            GenericSlot::Type {
+            GenericParameterBinding::Type {
                 constraint: Some(constraint),
                 ..
             }
-            | GenericSlot::VariadicType {
+            | GenericParameterBinding::VariadicType {
                 constraint: Some(constraint),
                 ..
             } => {
@@ -1162,11 +1167,11 @@ impl CheckState<'_> {
 
                 self.decide_type_relation(TypeRelation::Assignable, argument, constraint)
             }
-            GenericSlot::Static {
+            GenericParameterBinding::Static {
                 constraint: Some(constraint),
                 ..
             }
-            | GenericSlot::VariadicStatic {
+            | GenericParameterBinding::VariadicStatic {
                 constraint: Some(constraint),
                 ..
             } => {
@@ -1181,16 +1186,16 @@ impl CheckState<'_> {
 
                 self.decide_type_relation(TypeRelation::Assignable, source, constraint)
             }
-            GenericSlot::Type {
+            GenericParameterBinding::Type {
                 constraint: None, ..
             }
-            | GenericSlot::VariadicType {
+            | GenericParameterBinding::VariadicType {
                 constraint: None, ..
             }
-            | GenericSlot::Static {
+            | GenericParameterBinding::Static {
                 constraint: None, ..
             }
-            | GenericSlot::VariadicStatic {
+            | GenericParameterBinding::VariadicStatic {
                 constraint: None, ..
             } => Ok(Decision::Yes),
         }
@@ -1201,7 +1206,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameters: &[GenericSlotId],
+        parameters: &[GenericParameterId],
         explicit_count: usize,
     ) -> CompilerResult<Progress> {
         let mut progress = Progress::Unchanged;
@@ -1222,16 +1227,16 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         substitution: Substitution<'_>,
-        parameter: GenericSlotId,
+        parameter: GenericParameterId,
     ) -> CompilerResult<Progress> {
-        let generic = self.inference.generic_slot(parameter).clone();
+        let generic = self.inference.generic_parameter(parameter).clone();
 
         let progress = match generic {
-            GenericSlot::Type {
+            GenericParameterBinding::Type {
                 default: Some(default),
                 ..
             }
-            | GenericSlot::VariadicType {
+            | GenericParameterBinding::VariadicType {
                 default: Some(default),
                 ..
             } => {
@@ -1243,11 +1248,11 @@ impl CheckState<'_> {
 
                 self.solve_default_type_variable(argument, default)?
             }
-            GenericSlot::Static {
+            GenericParameterBinding::Static {
                 default: Some(default),
                 ..
             }
-            | GenericSlot::VariadicStatic {
+            | GenericParameterBinding::VariadicStatic {
                 default: Some(default),
                 ..
             } => {
@@ -1259,10 +1264,10 @@ impl CheckState<'_> {
 
                 self.solve_default_static_variable(argument, default)?
             }
-            GenericSlot::Type { .. }
-            | GenericSlot::VariadicType { .. }
-            | GenericSlot::Static { .. }
-            | GenericSlot::VariadicStatic { .. } => Progress::Unchanged,
+            GenericParameterBinding::Type { .. }
+            | GenericParameterBinding::VariadicType { .. }
+            | GenericParameterBinding::Static { .. }
+            | GenericParameterBinding::VariadicStatic { .. } => Progress::Unchanged,
         };
 
         Ok(progress)

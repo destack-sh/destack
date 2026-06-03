@@ -352,11 +352,11 @@ impl CheckState<'_> {
         let target = match target {
             CallTargetResolution::Symbol {
                 symbol,
-                application,
+                instance,
                 receiver: Some(_),
             } => MemberTargetResolution::Symbol {
                 symbol: *symbol,
-                application: application.clone(),
+                instance: instance.clone(),
             },
             CallTargetResolution::Union {
                 candidates,
@@ -365,7 +365,7 @@ impl CheckState<'_> {
             CallTargetResolution::Expression { .. }
             | CallTargetResolution::Symbol {
                 symbol: _,
-                application: _,
+                instance: _,
                 receiver: None,
             }
             | CallTargetResolution::Union {

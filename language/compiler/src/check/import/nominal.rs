@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::check::{
     AssociatedConstDefinition, AssociatedTypeDefinition, CheckState, ClassDefinition,
-    EnumDefinition, FieldDefinition, GenericApplication, GenericArgument, InterfaceDefinition,
+    EnumDefinition, FieldDefinition, GenericArgument, GenericInstance, InterfaceDefinition,
     MethodDefinition, NewtypeDefinition, NominalDefinition, NominalHeritage, SignatureDefinition,
     StructDefinition, TypeOperand, VariantDefinition,
 };
@@ -189,30 +189,30 @@ impl CheckState<'_> {
         NominalHeritage {
             source: heritage.source,
             symbol: heritage.symbol,
-            application: heritage.application.map(|application| {
-                self.import_generic_application(module, heritage.symbol, application)
-            }),
+            instance: heritage
+                .instance
+                .map(|instance| self.import_generic_instance(module, heritage.symbol, instance)),
         }
     }
 
-    /// Import one generic application.
-    fn import_generic_application(
+    /// Import one generic instance.
+    fn import_generic_instance(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-        application: dir::LocalGenericApplicationId,
-    ) -> GenericApplication {
-        let application = self
+        instance: dir::LocalGenericInstanceId,
+    ) -> GenericInstance {
+        let instance = self
             .dependency(symbol.module_id)
             .generics
-            .get_application(application)
+            .get_instance(instance)
             .clone();
         let template = self
             .dependency(symbol.module_id)
             .generics
-            .get_template(application.template);
+            .get_template(instance.template);
         let owner = template.owner;
-        let arguments = application
+        let arguments = instance
             .arguments
             .into_iter()
             .map(|argument| {
@@ -220,7 +220,7 @@ impl CheckState<'_> {
             })
             .collect();
 
-        GenericApplication { owner, arguments }
+        GenericInstance { owner, arguments }
     }
 
     /// Import field definitions from committed nominal metadata.

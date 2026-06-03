@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::check::{
-    FunctionParameter, FunctionTerm, GenericArgument, GenericSlotId, Origin, ReceiverCapture,
+    FunctionParameter, FunctionTerm, GenericArgument, GenericParameterId, Origin, ReceiverCapture,
     TermId, TypeOperand, TypeRelation, TypeTerm, WalkState,
 };
 
@@ -23,7 +23,7 @@ impl WalkState<'_, '_> {
         let mut generic_parameters = signature
             .generic_parameters
             .iter()
-            .filter_map(|parameter| self.generic_slot(*parameter, tree))
+            .filter_map(|parameter| self.generic_parameter(*parameter, tree))
             .collect::<Vec<_>>();
         generic_parameters.extend(
             signature
@@ -71,7 +71,7 @@ impl WalkState<'_, '_> {
         let mut generic_parameters = declaration
             .generic_parameters
             .iter()
-            .filter_map(|parameter| self.generic_slot(*parameter, tree))
+            .filter_map(|parameter| self.generic_parameter(*parameter, tree))
             .collect::<Vec<_>>();
         generic_parameters.extend(
             declaration
@@ -118,7 +118,7 @@ impl WalkState<'_, '_> {
         let mut generic_parameters = declaration
             .generic_parameters
             .iter()
-            .filter_map(|parameter| self.generic_slot(*parameter, tree))
+            .filter_map(|parameter| self.generic_parameter(*parameter, tree))
             .collect::<Vec<_>>();
         generic_parameters.extend(
             declaration
@@ -306,14 +306,14 @@ impl WalkState<'_, '_> {
 
         let parameter = FunctionParameter {
             ty,
-            static_slot: if parameter.is_comptime() {
+            static_parameter: if parameter.is_comptime() {
                 let source = id.into_any();
                 let symbol = self
                     .check
                     .module(tree.module_id)
                     .declaration_symbol(source)?;
 
-                self.check.inference.generic_slot_id_for_symbol(symbol)
+                self.check.inference.generic_parameter_id_for_symbol(symbol)
             } else {
                 None
             },
@@ -324,32 +324,32 @@ impl WalkState<'_, '_> {
         Some(parameter)
     }
 
-    /// Return the slot bound to one generic parameter.
-    fn generic_slot(
+    /// Return the parameter bound to one generic parameter.
+    fn generic_parameter(
         &mut self,
         id: dir::LocalNodeId<dir::GenericParameter>,
         tree: &dir::Tree,
-    ) -> Option<GenericSlotId> {
+    ) -> Option<GenericParameterId> {
         let source = id.into_any();
         let symbol = self
             .check
             .module(tree.module_id)
             .declaration_symbol(source)?;
-        let slot = self
+        let parameter = self
             .check
             .inference
-            .generic_slot_id_for_symbol(symbol)
+            .generic_parameter_id_for_symbol(symbol)
             .unwrap_or_else(|| panic!("generic parameter {symbol:?} was not bound before use"));
 
-        Some(slot)
+        Some(parameter)
     }
 
-    /// Return the slot bound to one comptime runtime parameter.
+    /// Return the parameter bound to one comptime runtime parameter.
     fn comptime_parameter_slot(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
         tree: &dir::Tree,
-    ) -> Option<GenericSlotId> {
+    ) -> Option<GenericParameterId> {
         let parameter = tree.get(id);
         if !parameter.is_comptime() {
             return None;
@@ -359,13 +359,13 @@ impl WalkState<'_, '_> {
             .check
             .module(tree.module_id)
             .declaration_symbol(source)?;
-        let slot = self
+        let parameter = self
             .check
             .inference
-            .generic_slot_id_for_symbol(symbol)
+            .generic_parameter_id_for_symbol(symbol)
             .unwrap_or_else(|| panic!("comptime parameter {symbol:?} was not bound before use"));
 
-        Some(slot)
+        Some(parameter)
     }
 
     /// Return one runtime parameter type operand.

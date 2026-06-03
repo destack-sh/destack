@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Condition, Decision, GenericArgument, GenericSlotId, LayoutQuery, LayoutTerm,
+    CheckState, Condition, Decision, GenericArgument, GenericParameterId, LayoutQuery, LayoutTerm,
     NameLookup, Obligation, Origin, PathLookup, Reduction, StaticOperand, StaticRelation,
     Substitution, TypeOperand, TypeRelation, VariableId,
 };
@@ -29,7 +29,7 @@ pub(in crate::check) enum StaticTerm {
     /// ```ds
     /// <comptime N: uint>
     /// ```
-    Parameter(GenericSlotId),
+    Parameter(GenericParameterId),
     /// Source expression evaluated as a static term.
     ///
     /// ```ds
@@ -262,7 +262,7 @@ impl StaticTerm {
                 else_value: state.substitute_static_operand(module, substitution, *else_value)?,
             },
             StaticTerm::Parameter(slot) => {
-                if let Some(argument) = state.substitution_static_slot(substitution, *slot)
+                if let Some(argument) = state.substitution_static_parameter(substitution, *slot)
                     && let Some(term) = state.static_solution(argument)?
                 {
                     term
@@ -1123,14 +1123,14 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(slot) = self.inference.generic_slot_id_for_symbol(symbol) else {
+        let Some(slot) = self.inference.generic_parameter_id_for_symbol(symbol) else {
             return Ok(None);
         };
-        if !self.inference.generic_slot(slot).is_static() {
+        if !self.inference.generic_parameter(slot).is_static() {
             return Ok(None);
         }
 
-        Ok(Some(dir::StaticTerm::Parameter(slot.into())))
+        Ok(Some(dir::StaticTerm::Parameter(slot)))
     }
 
     /// Return one locally concrete static object expression value.

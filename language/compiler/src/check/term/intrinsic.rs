@@ -142,6 +142,7 @@ impl CheckState<'_> {
                 StaticTerm::Union { elements: values }
             }
             TypeTerm::Literal(_)
+            | TypeTerm::Intrinsic
             | TypeTerm::This
             | TypeTerm::Member(_)
             | TypeTerm::Form { .. }
