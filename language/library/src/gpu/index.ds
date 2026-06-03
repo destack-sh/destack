@@ -1,2 +1,2 @@
-export { Gpu } from "./host/gpu.ds";
-export * as host from "./host";
+export { Gpu } from "./binding/gpu.ds";
+export * as binding from "./binding";

@@ -1,3 +1,3 @@
-export { Process } from "./host/process.ds";
+export { Process } from "./binding/process.ds";
 export * from "./process.ds";
-export * as host from "./host";
+export * as binding from "./binding";

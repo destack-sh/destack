@@ -1,0 +1,131 @@
+import { Array } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { SocketHandle } from "destack:net/binding";
+import { ResourceId } from "destack:runtime/resource";
+import { TlsContextHandle } from "destack:tls/binding";
+
+/// Handle for one TLS connection.
+export newtype TlsConnectionHandle = ResourceId;
+
+/// TLS handshake status.
+export enum TlsHandshakeStatus {
+    /// Handshake is complete.
+    Complete = 0,
+    /// Handshake needs more transport reads.
+    WantRead = 1,
+    /// Handshake needs more transport writes.
+    WantWrite = 2,
+}
+
+/// TLS resumption state for one connection.
+export enum TlsResumptionState {
+    /// Connection was not resumed.
+    Fresh = 0,
+    /// Connection resumed from one cached state or ticket.
+    Resumed = 1,
+}
+
+/// Connection binding family.
+export interface TlsConnection {
+    /// Open one socket backed TLS connection.
+    @binding("destack.tls.connection.open", {
+        effect: "external",
+        requires: ["host.tls.connection"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openTlsConnection(
+        context: TlsContextHandle,
+        socket: SocketHandle,
+        serverName?: &readonly string,
+    ): Result<TlsConnectionHandle, HostError>;
+
+    /// Advance one TLS handshake state machine.
+    @binding("destack.tls.connection.handshake", {
+        effect: "external",
+        requires: ["host.tls.handshake"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    handshakeTlsConnection(connection: TlsConnectionHandle): Result<TlsHandshakeStatus, HostError>;
+
+    /// Read decrypted application bytes from one TLS connection.
+    @binding("destack.tls.connection.read", {
+        effect: "external",
+        requires: ["host.tls.connection"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readTlsConnection(connection: TlsConnectionHandle, buffer: &[uint8]): Result<uint64, HostError>;
+
+    /// Write plaintext application bytes to one TLS connection.
+    @binding("destack.tls.connection.write", {
+        effect: "external",
+        requires: ["host.tls.connection"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writeTlsConnection(
+        connection: TlsConnectionHandle,
+        buffer: &readonly [uint8],
+    ): Result<uint64, HostError>;
+
+    /// Shutdown one TLS connection.
+    @binding("destack.tls.connection.shutdown", {
+        effect: "external",
+        requires: ["host.tls.connection"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    shutdownTlsConnection(connection: TlsConnectionHandle): Result<void, HostError>;
+
+    /// Close one TLS connection.
+    @binding("destack.tls.connection.close", {
+        effect: "external",
+        requires: ["host.tls.connection"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeTlsConnection(connection: TlsConnectionHandle): Result<void, HostError>;
+
+    /// Read negotiated ALPN protocol bytes.
+    @binding("destack.tls.connection.alpn.read", {
+        effect: "external",
+        requires: ["host.tls.connection"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readTlsAlpn(connection: TlsConnectionHandle): Result<Array<uint8>, HostError>;
+
+    /// Read the peer certificate chain in PEM encoding.
+    @binding("destack.tls.connection.peerCertificates.pem.read", {
+        effect: "external",
+        requires: ["host.tls.certificate.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readTlsPeerCertificatesPem(connection: TlsConnectionHandle): Result<Array<uint8>, HostError>;
+
+    /// Export keying material bytes for one TLS connection.
+    @binding("destack.tls.connection.keyingMaterial.export", {
+        effect: "external",
+        requires: ["host.tls.connection", "host.tls.exporter"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    exportTlsKeyingMaterial(
+        connection: TlsConnectionHandle,
+        label: &readonly string,
+        context: &readonly [uint8],
+        length: uint32,
+    ): Result<Array<uint8>, HostError>;
+
+    /// Return whether one connection resumed from cached state or ticket.
+    @binding("destack.tls.connection.resumption.read", {
+        effect: "external",
+        requires: ["host.tls.connection", "host.tls.resumption"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readTlsResumptionState(connection: TlsConnectionHandle): Result<TlsResumptionState, HostError>;
+}

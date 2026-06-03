@@ -1,2 +1,2 @@
-export { Display } from "./host/display.ds";
-export * as host from "./host";
+export { Display } from "./binding/display.ds";
+export * as binding from "./binding";

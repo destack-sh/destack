@@ -1,0 +1,126 @@
+import { Array } from "destack:collections";
+import { CryptoKeyHandle, CryptoStoreHandle } from "destack:crypto/binding";
+import { HostError } from "destack:error/host";
+
+import { CryptoDigestAlgorithm, CryptoKeyAgreementAlgorithm } from "./algorithm.ds";
+import { CryptoDerivedKey } from "./key.ds";
+
+/// Key-agreement HKDF derivation.
+export struct CryptoAgreementHkdf {
+    /// Key-agreement algorithm.
+    algorithm: CryptoKeyAgreementAlgorithm;
+    /// Digest algorithm used by the KDF stage.
+    digest: CryptoDigestAlgorithm;
+    /// KDF salt bytes.
+    salt: &readonly [uint8];
+    /// KDF context info bytes.
+    info: &readonly [uint8];
+}
+
+/// Key-agreement SP 800-56A concat derivation.
+export struct CryptoAgreementSp80056aConcat {
+    /// Key-agreement algorithm.
+    algorithm: CryptoKeyAgreementAlgorithm;
+    /// Digest algorithm.
+    digest: CryptoDigestAlgorithm;
+    /// Algorithm identifier bytes.
+    algorithmId: &readonly [uint8];
+    /// Party U info bytes.
+    partyUInfo: &readonly [uint8];
+    /// Party V info bytes.
+    partyVInfo: &readonly [uint8];
+    /// Public supplemental info bytes.
+    publicInfo: &readonly [uint8];
+    /// Private supplemental info bytes.
+    privateInfo: &readonly [uint8];
+}
+
+/// Key-agreement X9.63 derivation.
+export struct CryptoAgreementX963 {
+    /// Key-agreement algorithm.
+    algorithm: CryptoKeyAgreementAlgorithm;
+    /// Digest algorithm.
+    digest: CryptoDigestAlgorithm;
+    /// Shared info bytes.
+    sharedInfo: &readonly [uint8];
+}
+
+/// Key-agreement X9.42 concat derivation.
+export struct CryptoAgreementX942Concat {
+    /// Key-agreement algorithm.
+    algorithm: CryptoKeyAgreementAlgorithm;
+    /// Digest algorithm.
+    digest: CryptoDigestAlgorithm;
+    /// Algorithm identifier bytes.
+    algorithmId: &readonly [uint8];
+    /// Party U info bytes.
+    partyUInfo: &readonly [uint8];
+    /// Party V info bytes.
+    partyVInfo: &readonly [uint8];
+    /// Public supplemental info bytes.
+    publicInfo: &readonly [uint8];
+    /// Private supplemental info bytes.
+    privateInfo: &readonly [uint8];
+}
+
+/// Key-agreement derivation.
+export newtype CryptoAgreementDerivation =
+    | CryptoAgreementHkdf
+    | CryptoAgreementSp80056aConcat
+    | CryptoAgreementX963
+    | CryptoAgreementX942Concat;
+
+/// Key-agreement raw byte request.
+export struct CryptoAgreementBits {
+    /// Agreement derivation.
+    derivation: CryptoAgreementDerivation;
+    /// Derived key length in bytes.
+    length: uint32;
+}
+
+/// Agreement binding family.
+export interface CryptoAgreement {
+    /// Derive one shared secret from one local private key and one peer public key.
+    @binding("destack.crypto.agreement.deriveSharedSecret", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.key.agree"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    deriveSharedSecret(
+        privateKey: CryptoKeyHandle,
+        peerPublicKey: CryptoKeyHandle,
+        algorithm: CryptoKeyAgreementAlgorithm,
+    ): Result<Array<uint8>, HostError>;
+
+    /// Derive raw bytes from one local private key and one peer public key.
+    @binding("destack.crypto.agreement.deriveBits", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.key.agree", "host.crypto.kdf"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    deriveAgreementBits(
+        privateKey: CryptoKeyHandle,
+        peerPublicKey: CryptoKeyHandle,
+        request: &readonly CryptoAgreementBits,
+    ): Result<Array<uint8>, HostError>;
+
+    /// Derive one key from one local private key and one peer public key.
+    @binding("destack.crypto.agreement.deriveKey", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.key.agree", "host.crypto.kdf", "host.crypto.store.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    deriveAgreementKey(
+        store: CryptoStoreHandle,
+        privateKey: CryptoKeyHandle,
+        peerPublicKey: CryptoKeyHandle,
+        derivation: &readonly CryptoAgreementDerivation,
+        key: &readonly CryptoDerivedKey,
+    ): Result<CryptoKeyHandle, HostError>;
+}

@@ -1,4 +1,4 @@
-export { Memory } from "./host/memory.ds";
+export { Memory } from "./binding/memory.ds";
 export { Lifetime, StaticLifetime } from "./lifetime.ds";
 export { Access, Readonly } from "./access.ds";
 export { Place, Placed, Space } from "./place.ds";
@@ -95,4 +95,4 @@ export {
     writeVolatile,
 } from "./raw.ds";
 export * from "./init.ds";
-export * as host from "./host";
+export * as binding from "./binding";

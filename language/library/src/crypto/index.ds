@@ -1,3 +1,3 @@
-export { Crypto } from "./host/crypto.ds";
+export { Crypto } from "./binding/crypto.ds";
 export * from "./crypto.ds";
-export * as host from "./host";
+export * as binding from "./binding";

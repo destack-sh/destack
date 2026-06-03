@@ -1,0 +1,475 @@
+import { WindowHandle } from "destack:display/binding";
+import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
+import { AccessibilityNodeId } from "./node.ds";
+
+/// Handle for one accessibility text query stream.
+export newtype AccessibilityTextHandle = ResourceId;
+
+/// Monotonic accessibility text version.
+export newtype AccessibilityTextRevision = uint64;
+
+/// Accessibility text query identifier.
+export newtype AccessibilityTextRequestId = uint64;
+
+/// Monotonic accessibility text query sequence number.
+export newtype AccessibilityTextSequence = uint64;
+
+/// Text offset range in UTF-16 code units.
+export struct AccessibilityTextRange {
+    /// Inclusive start offset.
+    startOffset: uint32;
+    /// Exclusive end offset.
+    endOffset: uint32;
+}
+
+/// Editable text selection in UTF-16 code units.
+export struct AccessibilityTextSelection {
+    /// Selection anchor offset.
+    anchorOffset: uint32;
+    /// Selection focus offset.
+    focusOffset: uint32;
+}
+
+/// Text navigation unit.
+export enum AccessibilityTextUnit {
+    /// One UTF-16 code unit boundary.
+    Character = 1,
+    /// One formatting run.
+    Format = 2,
+    /// One word boundary.
+    Word = 3,
+    /// One line boundary.
+    Line = 4,
+    /// One paragraph boundary.
+    Paragraph = 5,
+    /// One page boundary.
+    Page = 6,
+    /// The full text range.
+    Document = 7,
+}
+
+/// Supported text navigation units.
+export newtype AccessibilityTextUnitFlags = uint32;
+
+/// No text navigation units.
+export const ACCESSIBILITY_TEXT_UNIT_NONE: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x0);
+
+/// Character navigation.
+export const ACCESSIBILITY_TEXT_UNIT_CHARACTER: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x1);
+
+/// Format run navigation.
+export const ACCESSIBILITY_TEXT_UNIT_FORMAT: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x2);
+
+/// Word navigation.
+export const ACCESSIBILITY_TEXT_UNIT_WORD: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x4);
+
+/// Line navigation.
+export const ACCESSIBILITY_TEXT_UNIT_LINE: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x8);
+
+/// Paragraph navigation.
+export const ACCESSIBILITY_TEXT_UNIT_PARAGRAPH: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x10);
+
+/// Page navigation.
+export const ACCESSIBILITY_TEXT_UNIT_PAGE: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x20);
+
+/// Whole document navigation.
+export const ACCESSIBILITY_TEXT_UNIT_DOCUMENT: AccessibilityTextUnitFlags =
+    AccessibilityTextUnitFlags(0x40);
+
+/// Supported text selection model.
+export enum AccessibilityTextSelectionModel {
+    /// Text selection is not supported.
+    None = 1,
+    /// One active selection is supported.
+    Single = 2,
+    /// Multiple active selections are supported.
+    Multiple = 3,
+}
+
+/// Text bounds in window coordinates.
+export struct AccessibilityTextRect {
+    /// Logical x coordinate.
+    x: float64;
+    /// Logical y coordinate.
+    y: float64;
+    /// Logical width.
+    width: float64;
+    /// Logical height.
+    height: float64;
+}
+
+/// Attributed text run.
+export struct AccessibilityTextStyleRun {
+    /// Covered text range in UTF-16 code units.
+    range: AccessibilityTextRange;
+    /// BCP 47 language tag.
+    languageTag?: string;
+    /// Font family name.
+    fontFamily?: string;
+    /// Font size in typographic points.
+    fontSizePoints?: float64;
+    /// Foreground color encoded as `0xRRGGBBAA`.
+    foregroundColorRgba?: uint32;
+    /// Background color encoded as `0xRRGGBBAA`.
+    backgroundColorRgba?: uint32;
+    /// Whether this run is bold.
+    isBold: boolean;
+    /// Whether this run is italic.
+    isItalic: boolean;
+    /// Whether this run is underlined.
+    isUnderlined: boolean;
+    /// Whether this run is struck through.
+    isStruckThrough: boolean;
+    /// Whether this run is superscript.
+    isSuperscript: boolean;
+    /// Whether this run is subscript.
+    isSubscript: boolean;
+    /// Whether this run carries one spelling error annotation.
+    isMisspelled: boolean;
+    /// Whether this run carries one grammar error annotation.
+    isGrammarError: boolean;
+    /// Canonical URL for link runs.
+    linkUrl?: string;
+}
+
+/// Embedded object anchored in text.
+export struct AccessibilityTextObject {
+    /// Covered placeholder or attachment range in UTF-16 code units.
+    range: AccessibilityTextRange;
+    /// Referenced accessibility node identifier.
+    nodeId: AccessibilityNodeId;
+}
+
+/// Published text metadata for one node.
+export struct AccessibilityText {
+    /// Monotonic text revision.
+    revision: AccessibilityTextRevision;
+    /// Full text range in UTF-16 code units.
+    range: AccessibilityTextRange;
+    /// Character count in UTF-16 code units.
+    characterCount: uint32;
+    /// Line count when available.
+    lineCount?: uint32;
+    /// Placeholder text for editable controls.
+    placeholder?: string;
+    /// Supported selection model.
+    selectionModel: AccessibilityTextSelectionModel;
+    /// Supported navigation units.
+    units: AccessibilityTextUnitFlags;
+    /// Current text selections in source order.
+    selections: [AccessibilityTextSelection];
+    /// Currently visible text ranges in source order.
+    visibleRanges: [AccessibilityTextRange];
+    /// Whether the text node is multiline.
+    isMultiline: boolean;
+    /// Whether the text node masks its contents.
+    isPassword: boolean;
+    /// Whether the text node accepts text edits.
+    isEditable: boolean;
+    /// Whether the text node supports selection.
+    isSelectable: boolean;
+}
+
+/// Accessibility text query header.
+export struct AccessibilityTextQueryHeader {
+    /// Request identifier.
+    requestId: AccessibilityTextRequestId;
+    /// Target window.
+    window: WindowHandle;
+    /// Target node identifier.
+    nodeId: AccessibilityNodeId;
+    /// Text revision current when the query was issued.
+    revision?: AccessibilityTextRevision;
+    /// Event timestamp in nanoseconds.
+    timestampNs: uint64;
+    /// Event sequence number.
+    sequence: AccessibilityTextSequence;
+    /// Number of queries dropped before this query.
+    droppedCount: uint64;
+}
+
+/// Accessibility text query stream options.
+export struct AccessibilityTextOptions {
+    /// Requested queue capacity, or zero for the backend default.
+    queueCapacity: uint32;
+}
+
+/// Text query status.
+export enum AccessibilityTextQueryStatus {
+    /// The query completed successfully.
+    Ok = 1,
+    /// The requested data is not currently available.
+    Unavailable = 2,
+    /// The provider does not support this query.
+    Unsupported = 3,
+    /// The requested range or offset is invalid.
+    InvalidRange = 4,
+    /// The requested text revision is no longer current.
+    Stale = 5,
+}
+
+/// Read text query.
+export struct AccessibilityTextQueryRead {
+    /// Query discriminator.
+    kind: "read";
+    /// Query header.
+    header: AccessibilityTextQueryHeader;
+    /// Requested text range.
+    range: AccessibilityTextRange;
+}
+
+/// Read unit ranges query.
+export struct AccessibilityTextQueryReadUnitRanges {
+    /// Query discriminator.
+    kind: "readUnitRanges";
+    /// Query header.
+    header: AccessibilityTextQueryHeader;
+    /// Requested text navigation unit.
+    unit: AccessibilityTextUnit;
+    /// Covering text range.
+    range: AccessibilityTextRange;
+}
+
+/// Range for unit query.
+export struct AccessibilityTextQueryRangeForUnit {
+    /// Query discriminator.
+    kind: "rangeForUnit";
+    /// Query header.
+    header: AccessibilityTextQueryHeader;
+    /// Requested text navigation unit.
+    unit: AccessibilityTextUnit;
+    /// Requested UTF-16 offset.
+    offset: uint32;
+}
+
+/// Range at point query.
+export struct AccessibilityTextQueryRangeAtPoint {
+    /// Query discriminator.
+    kind: "rangeAtPoint";
+    /// Query header.
+    header: AccessibilityTextQueryHeader;
+    /// Logical x coordinate in window coordinates.
+    x: float64;
+    /// Logical y coordinate in window coordinates.
+    y: float64;
+}
+
+/// Range for child query.
+export struct AccessibilityTextQueryRangeForChild {
+    /// Query discriminator.
+    kind: "rangeForChild";
+    /// Query header.
+    header: AccessibilityTextQueryHeader;
+    /// Embedded child node identifier.
+    childNodeId: AccessibilityNodeId;
+}
+
+/// Read range bounds query.
+export struct AccessibilityTextQueryReadBounds {
+    /// Query discriminator.
+    kind: "readBounds";
+    /// Query header.
+    header: AccessibilityTextQueryHeader;
+    /// Requested text range.
+    range: AccessibilityTextRange;
+}
+
+/// Read style runs query.
+export struct AccessibilityTextQueryReadStyles {
+    /// Query discriminator.
+    kind: "readStyles";
+    /// Query header.
+    header: AccessibilityTextQueryHeader;
+    /// Requested text range.
+    range: AccessibilityTextRange;
+}
+
+/// Read embedded objects query.
+export struct AccessibilityTextQueryReadObjects {
+    /// Query discriminator.
+    kind: "readObjects";
+    /// Query header.
+    header: AccessibilityTextQueryHeader;
+    /// Requested text range.
+    range: AccessibilityTextRange;
+}
+
+/// Inbound accessibility text query.
+@derive(Tagged)
+export newtype AccessibilityTextQuery =
+    | AccessibilityTextQueryRead
+    | AccessibilityTextQueryReadUnitRanges
+    | AccessibilityTextQueryRangeForUnit
+    | AccessibilityTextQueryRangeAtPoint
+    | AccessibilityTextQueryRangeForChild
+    | AccessibilityTextQueryReadBounds
+    | AccessibilityTextQueryReadStyles
+    | AccessibilityTextQueryReadObjects;
+
+/// Text response header.
+export struct AccessibilityTextResponseHeader {
+    /// Matched request identifier.
+    requestId: AccessibilityTextRequestId;
+    /// Text revision used to produce this response.
+    revision?: AccessibilityTextRevision;
+    /// Response status.
+    status: AccessibilityTextQueryStatus;
+}
+
+/// Text payload response.
+export struct AccessibilityTextResponseText {
+    /// Response discriminator.
+    kind: "text";
+    /// Response header.
+    header: AccessibilityTextResponseHeader;
+    /// UTF-8 text payload when the query succeeded.
+    text?: string;
+}
+
+/// Range list response.
+export struct AccessibilityTextResponseRanges {
+    /// Response discriminator.
+    kind: "ranges";
+    /// Response header.
+    header: AccessibilityTextResponseHeader;
+    /// Range list payload when the query succeeded.
+    ranges?: [AccessibilityTextRange];
+}
+
+/// Single range response.
+export struct AccessibilityTextResponseRange {
+    /// Response discriminator.
+    kind: "range";
+    /// Response header.
+    header: AccessibilityTextResponseHeader;
+    /// Range payload when the query succeeded.
+    range?: AccessibilityTextRange;
+}
+
+/// Range bounds response.
+export struct AccessibilityTextResponseBounds {
+    /// Response discriminator.
+    kind: "bounds";
+    /// Response header.
+    header: AccessibilityTextResponseHeader;
+    /// Bounding rectangles when the query succeeded.
+    rects?: [AccessibilityTextRect];
+}
+
+/// Style runs response.
+export struct AccessibilityTextResponseStyles {
+    /// Response discriminator.
+    kind: "styles";
+    /// Response header.
+    header: AccessibilityTextResponseHeader;
+    /// Attributed runs when the query succeeded.
+    runs?: [AccessibilityTextStyleRun];
+}
+
+/// Embedded objects response.
+export struct AccessibilityTextResponseObjects {
+    /// Response discriminator.
+    kind: "objects";
+    /// Response header.
+    header: AccessibilityTextResponseHeader;
+    /// Embedded objects when the query succeeded.
+    objects?: [AccessibilityTextObject];
+}
+
+/// Outbound accessibility text response.
+@derive(Tagged)
+export newtype AccessibilityTextResponse =
+    | AccessibilityTextResponseText
+    | AccessibilityTextResponseRanges
+    | AccessibilityTextResponseRange
+    | AccessibilityTextResponseBounds
+    | AccessibilityTextResponseStyles
+    | AccessibilityTextResponseObjects;
+
+/// Text binding family.
+export interface AccessibilityText {
+    /// Open one inbound accessibility text query stream.
+    @binding("destack.accessibility.text.open", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    openAccessibilityText(
+        window: WindowHandle,
+        options: &readonly AccessibilityTextOptions,
+    ): Result<AccessibilityTextHandle, HostError>;
+
+    /// Close one inbound accessibility text query stream.
+    @binding("destack.accessibility.text.close", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    closeAccessibilityText(text: AccessibilityTextHandle): Result<void, HostError>;
+
+    /// Read one accessibility text query.
+    @binding("destack.accessibility.text.read", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    readAccessibilityText(
+        text: AccessibilityTextHandle,
+        timeoutNs?: uint64,
+    ): Result<AccessibilityTextQuery, HostError>;
+
+    /// Respond to one accessibility text query.
+    @binding("destack.accessibility.text.respond", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    respondAccessibilityText(
+        text: AccessibilityTextHandle,
+        response: &readonly AccessibilityTextResponse,
+    ): Result<void, HostError>;
+
+    /// Publish text metadata for one node.
+    @binding("destack.accessibility.text.set", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    setAccessibilityText(
+        window: WindowHandle,
+        nodeId: AccessibilityNodeId,
+        text: &readonly AccessibilityText,
+    ): Result<void, HostError>;
+
+    /// Clear text metadata for one node.
+    @binding("destack.accessibility.text.clear", {
+        effect: "external",
+        requires: ["host.accessibility.text"],
+        families: ["windows", "unix"],
+        simulation: true,
+        affinity: "worker",
+    })
+    clearAccessibilityText(
+        window: WindowHandle,
+        nodeId: AccessibilityNodeId,
+    ): Result<void, HostError>;
+}

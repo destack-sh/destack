@@ -1,0 +1,59 @@
+import { HostError } from "destack:error/host";
+import { SocketHandle, SocketMessageFlags } from "destack:net/binding";
+import { ResourceId } from "destack:runtime/resource";
+
+/// Handle transferred through ancillary transport.
+export newtype TransferredHandle = ResourceId;
+
+/// Unix socket peer credentials.
+export struct UnixSocketCredentials {
+    /// Peer process identifier when available.
+    pid?: uint32;
+    /// Peer user identifier.
+    uid: uint32;
+    /// Peer group identifier.
+    gid: uint32;
+}
+
+/// Unix socket message receive result.
+export struct UnixSocketMessage {
+    /// Payload bytes copied into the caller buffer.
+    bytes: uint64;
+    /// Transferred handles copied into the caller buffer.
+    handleCount: uint64;
+    /// Message flags returned by the host.
+    flags: SocketMessageFlags;
+    /// Peer credentials when available.
+    credentials?: UnixSocketCredentials;
+}
+
+/// Unix binding family.
+export interface IpcUnix {
+    /// Send one Unix-domain socket message with transferred handles.
+    @binding("destack.ipc.unix.send", {
+        effect: "external",
+        requires: ["host.ipc.unix", "host.ipc.handle.pass"],
+        families: ["unix"],
+        simulation: true,
+    })
+    sendUnixSocketMessage(
+        socket: SocketHandle,
+        payload: &readonly [uint8],
+        handles: &readonly [TransferredHandle],
+        flags: SocketMessageFlags,
+    ): Result<uint64, HostError>;
+
+    /// Receive one Unix-domain socket message with transferred handles.
+    @binding("destack.ipc.unix.receive", {
+        effect: "external",
+        requires: ["host.ipc.unix", "host.ipc.handle.pass"],
+        families: ["unix"],
+        simulation: true,
+    })
+    receiveUnixSocketMessage(
+        socket: SocketHandle,
+        payload: &[uint8],
+        handles: &[TransferredHandle],
+        flags: SocketMessageFlags,
+    ): Result<UnixSocketMessage, HostError>;
+}

@@ -1,22 +1,23 @@
-import { Accessibility } from "destack:accessibility/host";
-import { Audio } from "destack:audio/host";
-import { Crypto } from "destack:crypto/host";
-import { Device } from "destack:device/host";
-import { Display } from "destack:display/host";
-import { Fs } from "destack:fs/host";
-import { Gpu } from "destack:gpu/host";
-import { Input } from "destack:input/host";
-import { Io } from "destack:io/host";
-import { Ipc } from "destack:ipc/host";
+import { Accessibility } from "destack:accessibility/binding";
+import { Audio } from "destack:audio/binding";
+import { Crypto } from "destack:crypto/binding";
+import { Device } from "destack:device/binding";
+import { Display } from "destack:display/binding";
+import { Fs } from "destack:fs/binding";
+import { Gpu } from "destack:gpu/binding";
+import { Input } from "destack:input/binding";
+import { Io } from "destack:io/binding";
+import { Ipc } from "destack:ipc/binding";
 import { Dynamic } from "destack:memory";
-import { Memory } from "destack:memory/host";
-import { Net } from "destack:net/host";
-import { Os } from "destack:os/host";
-import { Process } from "destack:process/host";
-import { Random } from "destack:random/host";
-import { Time } from "destack:time/host";
-import { Tls } from "destack:tls/host";
-import { Tty } from "destack:tty/host";
+import { Memory } from "destack:memory/binding";
+import { Net } from "destack:net/binding";
+import { Os } from "destack:os/binding";
+import { Process } from "destack:process/binding";
+import { Random } from "destack:random/binding";
+import { Time } from "destack:time/binding";
+import { Topology } from "destack:topology/binding";
+import { Tls } from "destack:tls/binding";
+import { Tty } from "destack:tty/binding";
 
 import { ContextKey } from "./key.ds";
 import { ContextPatch } from "./patch.ds";
@@ -116,6 +117,10 @@ export class Context {
     /// Current time binding family.
     @intrinsic("context.time")
     get time(): Dynamic<Time>;
+
+    /// Current topology binding family.
+    @intrinsic("context.topology")
+    get topology(): Dynamic<Topology>;
 
     /// Current TLS binding family.
     @intrinsic("context.tls")

@@ -1,2 +1,2 @@
-export { Io } from "./host/io.ds";
-export * as host from "./host";
+export { Io } from "./binding/io.ds";
+export * as binding from "./binding";

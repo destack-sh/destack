@@ -1,0 +1,213 @@
+import { Array } from "destack:collections";
+import { CryptoCertificateHandle, CryptoKeyHandle } from "destack:crypto/binding";
+import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+
+/// Handle for one cryptographic key store.
+export newtype CryptoStoreHandle = ResourceId;
+
+import {
+    CryptoAsymmetricEncryptionAlgorithm,
+    CryptoCipherAlgorithm,
+    CryptoDigestAlgorithm,
+    CryptoKdfAlgorithm,
+    CryptoKeyAgreementAlgorithm,
+    CryptoKeyAlgorithm,
+    CryptoKeyFormat,
+    CryptoKeyResidency,
+    CryptoKeyUsageFlags,
+    CryptoKeyWrapAlgorithm,
+    CryptoMacAlgorithm,
+    CryptoNamedCurve,
+    CryptoSignatureAlgorithm,
+} from "./algorithm.ds";
+
+/// Crypto store kind.
+export enum CryptoStoreKind {
+    /// Host system trust and key provider.
+    System = 1,
+    /// User-scoped host key and certificate store.
+    User = 2,
+    /// Machine-scoped host key and certificate store.
+    Machine = 3,
+    /// Process-scoped ephemeral key and certificate store.
+    Ephemeral = 4,
+}
+
+/// Crypto store options.
+export struct CryptoStoreOptions {
+    /// Store kind.
+    kind: CryptoStoreKind;
+    /// Logical namespace for store providers that support partitioning.
+    namespace?: string;
+}
+
+/// Crypto store identity.
+export struct CryptoStoreIdentity {
+    /// Store kind.
+    kind: CryptoStoreKind;
+    /// Logical namespace.
+    namespace?: string;
+}
+
+/// Crypto provider capability.
+export struct CryptoProviderCapability {
+    /// Available store kinds.
+    stores: Array<CryptoStoreKind>;
+    /// Supported key algorithms.
+    keyAlgorithms: Array<CryptoKeyAlgorithm>;
+    /// Supported key formats.
+    keyFormats: Array<CryptoKeyFormat>;
+    /// Supported key residencies.
+    keyResidencies: Array<CryptoKeyResidency>;
+    /// Supported named curves.
+    curves: Array<CryptoNamedCurve>;
+    /// Supported digest algorithms.
+    digests: Array<CryptoDigestAlgorithm>;
+    /// Supported signature algorithms.
+    signatures: Array<CryptoSignatureAlgorithm>;
+    /// Supported asymmetric encryption algorithms.
+    asymmetricEncryption: Array<CryptoAsymmetricEncryptionAlgorithm>;
+    /// Supported key-wrap algorithms.
+    keyWrap: Array<CryptoKeyWrapAlgorithm>;
+    /// Supported symmetric cipher algorithms.
+    ciphers: Array<CryptoCipherAlgorithm>;
+    /// Supported MAC algorithms.
+    macs: Array<CryptoMacAlgorithm>;
+    /// Supported KDF algorithms.
+    kdfs: Array<CryptoKdfAlgorithm>;
+    /// Supported key-agreement algorithms.
+    agreements: Array<CryptoKeyAgreementAlgorithm>;
+    /// Supported key usage bits.
+    keyUsages: CryptoKeyUsageFlags;
+    /// Whether certificate verification is supported.
+    supportsCertificateVerification: boolean;
+    /// Whether host system trust anchors are readable.
+    supportsSystemTrustAnchors: boolean;
+}
+
+/// Key query.
+export struct CryptoKeyQuery {
+    /// Label prefix filter.
+    labelPrefix?: string;
+    /// Key algorithm filter.
+    algorithm?: CryptoKeyAlgorithm;
+    /// Required key usage bits.
+    usage?: CryptoKeyUsageFlags;
+    /// Pagination cursor.
+    cursor?: string;
+    /// Maximum returned entries.
+    limit: uint32;
+}
+
+/// Certificate query.
+export struct CryptoCertificateQuery {
+    /// Subject substring filter.
+    subject?: string;
+    /// Issuer substring filter.
+    issuer?: string;
+    /// Subject alternative name exact-match filter.
+    subjectAlternativeName?: string;
+    /// Pagination cursor.
+    cursor?: string;
+    /// Maximum returned entries.
+    limit: uint32;
+}
+
+/// Key list entry.
+export struct CryptoKeyListEntry {
+    /// Key handle.
+    key: CryptoKeyHandle;
+    /// User-visible key label.
+    label: string;
+    /// Key algorithm.
+    algorithm: CryptoKeyAlgorithm;
+    /// Key usage bits.
+    usage: CryptoKeyUsageFlags;
+}
+
+/// Key list page.
+export struct CryptoKeyListPage {
+    /// Page entries.
+    entries: Array<CryptoKeyListEntry>;
+    /// Continuation cursor.
+    nextCursor?: string;
+}
+
+/// Certificate list entry.
+export struct CryptoCertificateListEntry {
+    /// Certificate handle.
+    certificate: CryptoCertificateHandle;
+    /// Subject name string.
+    subject: string;
+    /// Issuer name string.
+    issuer: string;
+    /// Serial number string.
+    serialNumber: string;
+}
+
+/// Certificate list page.
+export struct CryptoCertificateListPage {
+    /// Page entries.
+    entries: Array<CryptoCertificateListEntry>;
+    /// Continuation cursor.
+    nextCursor?: string;
+}
+
+/// Store binding family.
+export interface CryptoStore {
+    /// Read crypto provider capabilities.
+    @binding("destack.crypto.capability.read", {
+        effect: "external",
+        requires: ["host.crypto.capability.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readCryptoProviderCapability(): Result<CryptoProviderCapability, HostError>;
+
+    /// Open one crypto store.
+    @binding("destack.crypto.store.open", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.store.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openCryptoStore(options: &readonly CryptoStoreOptions): Result<CryptoStoreHandle, HostError>;
+
+    /// Close one crypto store.
+    @binding("destack.crypto.store.close", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.store.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeCryptoStore(store: CryptoStoreHandle): Result<void, HostError>;
+
+    /// List keys from one store.
+    @binding("destack.crypto.store.keys.list", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.store.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listCryptoKeys(
+        store: CryptoStoreHandle,
+        query: &readonly CryptoKeyQuery,
+    ): Result<CryptoKeyListPage, HostError>;
+
+    /// List certificates from one store.
+    @binding("destack.crypto.store.certificates.list", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.crypto.store.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    listCryptoCertificates(
+        store: CryptoStoreHandle,
+        query: &readonly CryptoCertificateQuery,
+    ): Result<CryptoCertificateListPage, HostError>;
+}
