@@ -32,6 +32,8 @@ pub struct ModuleQueryContext<'a> {
     dir_types: dir::TypeTable<'static>,
     /// The checked static table.
     dir_statics: dir::StaticTable<'static>,
+    /// The checked generic table.
+    dir_generics: dir::GenericTable<'static>,
     /// The checked extension table.
     dir_extensions: dir::ExtensionTable<'static>,
     /// The checked resolution table.
@@ -121,6 +123,8 @@ pub(crate) struct DirQueryContext<'a> {
     exports: &'a dir::ExportTable,
     /// The checked type table.
     types: &'a dir::TypeTable<'static>,
+    /// The checked generic table.
+    generics: &'a dir::GenericTable<'static>,
     /// The checked extension table.
     extensions: &'a dir::ExtensionTable<'static>,
     /// The checked resolution table.
@@ -224,6 +228,11 @@ impl<'a> DirQueryContext<'a> {
     /// Return the DIR type table.
     pub(crate) fn types(self) -> &'a dir::TypeTable<'static> {
         self.types
+    }
+
+    /// Return the DIR generic table.
+    pub(crate) fn generics(self) -> &'a dir::GenericTable<'static> {
+        self.generics
     }
 
     /// Return the DIR extension table.
@@ -396,6 +405,7 @@ impl<'a> ModuleQueryContext<'a> {
             modules: &self.dir_modules,
             exports: &self.dir_exported.exports,
             types: &self.dir_types,
+            generics: &self.dir_generics,
             extensions: &self.dir_extensions,
             resolutions: &self.dir_resolutions,
             strings: self.strings,
@@ -579,6 +589,7 @@ fn read_module_query_context_from_checked(
     let dir_modules = dir_expanded.module_table(&dir_imported);
     let dir_types = dir_checked.type_table(&dir_bound, &dir_expanded);
     let dir_statics = dir_checked.static_table(&dir_bound, &dir_expanded);
+    let dir_generics = dir_checked.generic_table();
     let dir_extensions = dir_checked.extension_table();
     let dir_resolutions = dir_checked.resolution_table();
     let tokens = dir_parsed
@@ -598,6 +609,7 @@ fn read_module_query_context_from_checked(
         dir_modules,
         dir_types,
         dir_statics,
+        dir_generics,
         dir_extensions,
         dir_resolutions,
         tokens,
@@ -654,6 +666,7 @@ pub(crate) fn require_module_query_context<'a>(
     let dir_modules = dir_expanded.module_table(&dir_imported);
     let dir_types = dir_checked.type_table(&dir_bound, &dir_expanded);
     let dir_statics = dir_checked.static_table(&dir_bound, &dir_expanded);
+    let dir_generics = dir_checked.generic_table();
     let dir_extensions = dir_checked.extension_table();
     let dir_resolutions = dir_checked.resolution_table();
     let tokens = dir_parsed
@@ -677,6 +690,7 @@ pub(crate) fn require_module_query_context<'a>(
         dir_modules,
         dir_types,
         dir_statics,
+        dir_generics,
         dir_extensions,
         dir_resolutions,
         tokens,

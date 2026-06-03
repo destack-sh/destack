@@ -239,7 +239,7 @@ fn unwrap_statement_expression(
     (expr_id, expr)
 }
 
-/// Convert one public type/value classification into a generic slot owner.
+/// Convert one public type/value classification into an expression slot owner.
 fn expression_slot_owner_from_position(position: ExpressionSlotPosition) -> ExpressionSlotOwner {
     match position {
         ExpressionSlotPosition::Constructor => ExpressionSlotOwner::Constructor,
