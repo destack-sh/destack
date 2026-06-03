@@ -78,7 +78,10 @@ impl LocalNodeIdAny {
 
     /// Turn into a typed local node id.
     pub fn into_typed<T: Node>(self) -> LocalNodeId<T> {
-        self.try_into_typed().unwrap()
+        match self.try_into_typed() {
+            Ok(id) => id,
+            Err(error) => unreachable!("{error}"),
+        }
     }
 
     /// Turn into an AnchoredGlobalNodeId.
@@ -311,7 +314,10 @@ impl GlobalNodeIdAny {
 
     /// Turn into a typed global node id.
     pub fn into_typed<T: Node>(self) -> GlobalNodeId<T> {
-        self.try_into_typed().unwrap()
+        match self.try_into_typed() {
+            Ok(id) => id,
+            Err(error) => unreachable!("{error}"),
+        }
     }
 
     /// Turn into an AnchoredGlobalNodeId.

@@ -154,7 +154,9 @@ impl PostDominatorTree {
         for (&block, &ipdom) in immediate_postdominators {
             children
                 .get_mut(&ipdom)
-                .unwrap_or_else(|| panic!("missing postdominator children for block: {ipdom:?}"))
+                .unwrap_or_else(|| {
+                    unreachable!("missing postdominator children for block: {ipdom:?}")
+                })
                 .push(block);
         }
 
@@ -210,7 +212,7 @@ impl PostDominatorTree {
             for &child in block_children {
                 Self::fill_preorder(child, children, preorder, preorder_max, counter);
                 max = max.max(*preorder_max.get(&child).unwrap_or_else(|| {
-                    panic!("missing postdominator preorder max for child: {child:?}")
+                    unreachable!("missing postdominator preorder max for child: {child:?}")
                 }));
             }
         }

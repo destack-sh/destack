@@ -157,7 +157,9 @@ impl DominatorTree {
         for (&block, &idom) in immediate_dominators {
             children
                 .get_mut(&idom)
-                .unwrap_or_else(|| panic!("missing dominator-tree children for block: {idom:?}"))
+                .unwrap_or_else(|| {
+                    unreachable!("missing dominator-tree children for block: {idom:?}")
+                })
                 .push(block);
         }
 
@@ -195,7 +197,7 @@ impl DominatorTree {
             for &child in block_children {
                 Self::fill_preorder(child, children, preorder, preorder_max, counter);
                 max = max.max(*preorder_max.get(&child).unwrap_or_else(|| {
-                    panic!("missing dominator preorder max for child: {child:?}")
+                    unreachable!("missing dominator preorder max for child: {child:?}")
                 }));
             }
         }
