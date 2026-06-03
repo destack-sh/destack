@@ -89,6 +89,7 @@ match extracted {
 - Even associated functions (that don't depend on state at all) often benefit from being tied to relevant nouns in cases where one presents itself, just because it reads nicer.
 - More specifically, as a trivial example, when a function takes an array of something, try to make it work on a single "element" instead and just loop in the caller. Prefer parametric mutability. etc. etc., that sort of thing.
 - Usually, in each file, the "top" / most important nouns should go up top (constants at the very top above it), followed by successively more internal / inner nouns, and any relevant free functions at the very bottom (+ tests as needed ofc).
+- Generally, methods that _could_ be methods _should_ be methods - if we have a top level function like `foo(definition: &Definition) -> bool` we should probably just make that `Definition.foo`
 - Often, when we're tempted to add a matrix of methods like "x_for_y", the more pristine factoring is to back up and (re)align state and logic construction flows in a more natural way.
 - When a method mutates state it should be obvious by name and signature, and ideally we want to return mutated state / take the mutator instead of mutating internally when possible (e.g. `resolve_x` should return the resolved thing, not mutate an internal resolver cache and return void). This isn't always possible, and performance matters a lot, but when we can have both it's much preferred.
 
@@ -247,6 +248,7 @@ Ideally, you should format code _before_ running it (via tests or otherwise), so
 - Avoid `include!` or convoluted `#[path]` to bypass
 - Avoid nesting `mod x { }` inside a file (except for `tests`)
 - Avoid `Cell` and `RefCell`, they almost always imply a bad ownership model
+- Import aliases are evil. 
 - Prefer direct `expr.clone()` over `Arc.clone(expr)`
 
 ### Logic
