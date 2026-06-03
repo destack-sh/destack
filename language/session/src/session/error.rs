@@ -50,7 +50,7 @@ pub enum SessionError {
         /// The failed artifact key.
         key: ArtifactKey,
         /// The artifact failure.
-        failure: ArtifactFailure,
+        failure: Box<ArtifactFailure>,
     },
     /// Repository work failed inside the session.
     Repository(RepositoryError),
