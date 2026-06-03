@@ -1,0 +1,283 @@
+import { HostError } from "destack:error/host";
+import {
+    GpuBindGroupHandle,
+    GpuBindGroupLayoutHandle,
+    GpuBufferHandle,
+    GpuDeviceHandle,
+    GpuExternalTextureHandle,
+    GpuPipelineLayoutHandle,
+    GpuSamplerHandle,
+    GpuTextureViewHandle,
+} from "destack:gpu/binding";
+
+import { GpuTextureFormat, GpuTextureViewDimension } from "./resource.ds";
+
+/// Shader stage visibility bitset.
+export newtype GpuShaderVisibilityMask = uint32;
+
+/// Shader visibility bit for vertex shaders.
+export const GPU_SHADER_VISIBILITY_VERTEX: GpuShaderVisibilityMask = GpuShaderVisibilityMask(0x1);
+/// Shader visibility bit for fragment shaders.
+export const GPU_SHADER_VISIBILITY_FRAGMENT: GpuShaderVisibilityMask = GpuShaderVisibilityMask(0x2);
+/// Shader visibility bit for compute shaders.
+export const GPU_SHADER_VISIBILITY_COMPUTE: GpuShaderVisibilityMask = GpuShaderVisibilityMask(0x4);
+
+/// Buffer binding layout selector.
+export enum GpuBufferBindingType {
+    /// Uniform buffer binding.
+    Uniform = 1,
+    /// Storage buffer binding.
+    Storage = 2,
+    /// Read-only storage buffer binding.
+    ReadOnlyStorage = 3,
+}
+
+/// Sampler binding layout selector.
+export enum GpuSamplerBindingType {
+    /// Filtering sampler binding.
+    Filtering = 1,
+    /// Non-filtering sampler binding.
+    NonFiltering = 2,
+    /// Comparison sampler binding.
+    Comparison = 3,
+}
+
+/// Texture sample-type selector.
+export enum GpuTextureSampleType {
+    /// Filterable floating-point sample type.
+    Float = 1,
+    /// Non-filterable floating-point sample type.
+    UnfilterableFloat = 2,
+    /// Depth sample type.
+    Depth = 3,
+    /// Signed integer sample type.
+    Sint = 4,
+    /// Unsigned integer sample type.
+    Uint = 5,
+}
+
+/// Storage-texture access selector.
+export enum GpuStorageTextureAccess {
+    /// Write-only storage-texture access.
+    WriteOnly = 1,
+    /// Read-only storage-texture access.
+    ReadOnly = 2,
+    /// Read-write storage-texture access.
+    ReadWrite = 3,
+    /// Atomic storage-texture access.
+    Atomic = 4,
+}
+
+/// Buffer bind group layout resource payload.
+export struct GpuBindGroupLayoutBufferResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "buffer";
+    /// Buffer binding layout selector.
+    bindingType: GpuBufferBindingType;
+    /// Whether this binding uses dynamic offsets.
+    hasDynamicOffset: boolean;
+    /// Minimum binding size in bytes when applicable.
+    minBindingSize: uint64;
+}
+
+/// Sampled-texture bind group layout resource payload.
+export struct GpuBindGroupLayoutSampledTextureResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "sampledTexture";
+    /// Texture sample type selector.
+    textureSampleType: GpuTextureSampleType;
+    /// Texture view dimension selector.
+    textureViewDimension: GpuTextureViewDimension;
+    /// Whether multisampled textures are required.
+    multisampled: boolean;
+}
+
+/// Storage-texture bind group layout resource payload.
+export struct GpuBindGroupLayoutStorageTextureResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "storageTexture";
+    /// Storage-texture access selector.
+    storageTextureAccess: GpuStorageTextureAccess;
+    /// Storage-texture format identifier.
+    storageTextureFormat: GpuTextureFormat;
+    /// Texture view dimension selector.
+    textureViewDimension: GpuTextureViewDimension;
+}
+
+/// Sampler bind group layout resource payload.
+export struct GpuBindGroupLayoutSamplerResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "sampler";
+    /// Sampler binding layout selector.
+    samplerBindingType: GpuSamplerBindingType;
+}
+
+/// External-texture bind group layout resource payload.
+export struct GpuBindGroupLayoutExternalTextureResource {
+    /// Discriminator for this bind-group-layout resource variant.
+    kind: "externalTexture";
+}
+
+/// Bind group layout resource payload.
+export newtype GpuBindGroupLayoutResource =
+    | GpuBindGroupLayoutBufferResource
+    | GpuBindGroupLayoutSampledTextureResource
+    | GpuBindGroupLayoutStorageTextureResource
+    | GpuBindGroupLayoutSamplerResource
+    | GpuBindGroupLayoutExternalTextureResource;
+
+/// Bind group layout entry.
+export struct GpuBindGroupLayoutEntry {
+    /// Binding index.
+    binding: uint32;
+    /// Shader stage visibility mask.
+    visibility: GpuShaderVisibilityMask;
+    /// Binding array length when this entry is array-backed.
+    bindingArrayCount?: uint32;
+    /// Typed resource payload.
+    resource: GpuBindGroupLayoutResource;
+}
+
+/// Buffer bind group resource payload.
+export struct GpuBindGroupBufferResource {
+    /// Discriminator for this bind-group resource variant.
+    kind: "buffer";
+    /// Buffer handle.
+    buffer: GpuBufferHandle;
+    /// Buffer byte offset.
+    offset: uint64;
+    /// Buffer byte length.
+    size: uint64;
+}
+
+/// Texture bind group resource payload.
+export struct GpuBindGroupTextureResource {
+    /// Discriminator for this bind-group resource variant.
+    kind: "texture";
+    /// Texture-view handle.
+    texture: GpuTextureViewHandle;
+}
+
+/// Sampler bind group resource payload.
+export struct GpuBindGroupSamplerResource {
+    /// Discriminator for this bind-group resource variant.
+    kind: "sampler";
+    /// Sampler handle.
+    sampler: GpuSamplerHandle;
+}
+
+/// External-texture bind group resource payload.
+export struct GpuBindGroupExternalTextureResource {
+    /// Discriminator for this bind-group resource variant.
+    kind: "externalTexture";
+    /// External-texture handle.
+    externalTexture: GpuExternalTextureHandle;
+}
+
+/// Bind group resource payload.
+export newtype GpuBindGroupResource =
+    | GpuBindGroupBufferResource
+    | GpuBindGroupTextureResource
+    | GpuBindGroupSamplerResource
+    | GpuBindGroupExternalTextureResource;
+
+/// Bind group resource entry.
+export struct GpuBindGroupEntry {
+    /// Binding index.
+    binding: uint32;
+    /// Binding array element index when this entry targets one array element.
+    bindingArrayElement?: uint32;
+    /// Typed resource payload.
+    resource: GpuBindGroupResource;
+}
+
+/// Bind group layout descriptor.
+export struct GpuBindGroupLayoutDescriptor {
+    /// Debug label.
+    label: string;
+}
+
+/// Pipeline layout descriptor.
+export struct GpuPipelineLayoutDescriptor {
+    /// Debug label.
+    label: string;
+    /// Ordered bind group layouts for this pipeline layout.
+    bindGroupLayouts: [GpuBindGroupLayoutHandle];
+    /// Immediate-data byte size when supported.
+    immediateSize: uint32;
+}
+
+/// Bind group descriptor.
+export struct GpuBindGroupDescriptor {
+    /// Debug label.
+    label: string;
+}
+
+/// Bind binding family.
+export interface GpuBind {
+    /// Create a bind group layout.
+    @binding("destack.gpu.bind.group.layout.create", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createBindGroupLayout(
+        device: GpuDeviceHandle,
+        entries: &readonly [GpuBindGroupLayoutEntry],
+        descriptor: &readonly GpuBindGroupLayoutDescriptor,
+    ): Result<GpuBindGroupLayoutHandle, HostError>;
+
+    /// Destroy a bind group layout.
+    @binding("destack.gpu.bind.group.layout.destroy", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyBindGroupLayout(layout: GpuBindGroupLayoutHandle): Result<void, HostError>;
+
+    /// Create a pipeline layout.
+    @binding("destack.gpu.bind.pipeline.layout.create", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createPipelineLayout(
+        device: GpuDeviceHandle,
+        descriptor: &readonly GpuPipelineLayoutDescriptor,
+    ): Result<GpuPipelineLayoutHandle, HostError>;
+
+    /// Destroy a pipeline layout.
+    @binding("destack.gpu.bind.pipeline.layout.destroy", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyPipelineLayout(layout: GpuPipelineLayoutHandle): Result<void, HostError>;
+
+    /// Create a bind group.
+    @binding("destack.gpu.bind.group.create", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    createBindGroup(
+        device: GpuDeviceHandle,
+        layout: GpuBindGroupLayoutHandle,
+        entries: &readonly [GpuBindGroupEntry],
+        descriptor: &readonly GpuBindGroupDescriptor,
+    ): Result<GpuBindGroupHandle, HostError>;
+
+    /// Destroy a bind group.
+    @binding("destack.gpu.bind.group.destroy", {
+        effect: "external",
+        requires: ["host.gpu.bind"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    destroyBindGroup(bindGroup: GpuBindGroupHandle): Result<void, HostError>;
+}

@@ -1,0 +1,232 @@
+import { Array } from "destack:collections";
+import { HostError } from "destack:error/host";
+import { GpuAdapterHandle, GpuDeviceHandle, GpuQueueHandle } from "destack:gpu/binding";
+
+import { GpuAdapterLimits, GpuBackend, GpuFeatureId } from "./adapter.ds";
+
+/// Device-loss reason category.
+export enum GpuDeviceLossReason {
+    /// Device was lost for an unknown reason.
+    Unknown = 0,
+    /// Device was intentionally destroyed.
+    Destroyed = 1,
+    /// Device became unavailable due to driver reset.
+    DriverReset = 2,
+    /// Device was removed from the system.
+    DeviceRemoved = 3,
+    /// Device was lost due to out-of-memory conditions.
+    OutOfMemory = 4,
+    /// Device was lost due to internal backend error.
+    InternalError = 5,
+}
+
+/// Runtime-visible device status.
+export struct GpuDeviceStatus {
+    /// Whether the device is currently operational.
+    healthy: boolean;
+    /// Device-loss reason category when the device is not healthy.
+    /// `Unknown` and `Destroyed` match WebGPU and `wgpu` reasons.
+    lossReason?: GpuDeviceLossReason;
+    /// Backend-specific status code when the backend exposes one.
+    backendCode?: int32;
+    /// Human-readable status message when the backend exposes one.
+    message?: string;
+}
+
+/// Device-memory allocation hint selector.
+export enum GpuMemoryHint {
+    /// Favor performance over memory usage.
+    Performance = 1,
+    /// Favor memory usage over performance.
+    MemoryUsage = 2,
+    /// Use explicit backend allocation guidance.
+    Manual = 3,
+}
+
+/// Manual memory-allocation guidance.
+export struct GpuManualMemoryHint {
+    /// Minimum suballocated device-memory block size in bytes.
+    minSuballocatedDeviceMemoryBlockSize: uint64;
+    /// Maximum suballocated device-memory block size in bytes.
+    maxSuballocatedDeviceMemoryBlockSize: uint64;
+}
+
+/// Device tracing mode selector.
+export enum GpuTraceMode {
+    /// Disable tracing.
+    Off = 0,
+    /// Write trace data to one directory path.
+    Directory = 1,
+    /// Keep trace data in memory when supported.
+    Memory = 2,
+}
+
+/// GPU device descriptor.
+export struct GpuDeviceDescriptor {
+    /// Debug label.
+    label: string;
+    /// Required feature identifiers.
+    requiredFeatures: [GpuFeatureId];
+    /// Required minimum limits.
+    requiredLimits: GpuAdapterLimits;
+    /// Memory allocation hint.
+    memoryHint: GpuMemoryHint;
+    /// Manual memory-allocation guidance when `memoryHint` is `Manual`.
+    manualMemoryHint?: GpuManualMemoryHint;
+    /// Whether experimental feature identifiers are allowed.
+    allowExperimentalFeatures: boolean;
+    /// Trace mode selector.
+    traceMode: GpuTraceMode;
+    /// Trace output directory when `traceMode` is `Directory`.
+    traceDirectory?: string;
+    /// Preferred backend override.
+    backend: GpuBackend;
+}
+
+/// GPU device.
+export struct GpuDevice {
+    /// Chosen backend for this device.
+    backend: GpuBackend;
+    /// Feature identifiers enabled on this device.
+    enabledFeatures: [GpuFeatureId];
+    /// Effective device limits.
+    effectiveLimits: GpuAdapterLimits;
+    /// Default queue count visible to the runtime.
+    queueCount: uint32;
+    /// Whether timeline synchronization is available.
+    hasTimelineSync: boolean;
+    /// Whether timestamp queries are available.
+    hasTimestampQueries: boolean;
+    /// Whether push constants are available.
+    hasPushConstants: boolean;
+}
+
+/// Device error-scope filter selector.
+export enum GpuErrorFilter {
+    /// Validation error scope.
+    Validation = 1,
+    /// Out-of-memory error scope.
+    OutOfMemory = 2,
+    /// Internal error scope.
+    Internal = 3,
+}
+
+/// Captured device error snapshot.
+export struct GpuCapturedError {
+    /// Human-readable error message when one error was captured.
+    message?: string;
+    /// Backend-specific status code when one error was captured.
+    backendCode?: int32;
+}
+
+/// Device binding family.
+export interface GpuDevice {
+    /// Open a logical GPU device.
+    @binding("destack.gpu.device.open", {
+        effect: "external",
+        requires: ["host.gpu.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openDevice(
+        adapter: GpuAdapterHandle,
+        descriptor: &readonly GpuDeviceDescriptor,
+    ): Result<GpuDeviceHandle, HostError>;
+
+    /// Read device metadata.
+    @binding("destack.gpu.device.read", {
+        effect: "external",
+        requires: ["host.gpu.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readDevice(device: GpuDeviceHandle): Result<GpuDevice, HostError>;
+
+    /// Read a device feature snapshot.
+    @binding("destack.gpu.device.features.read", {
+        effect: "external",
+        requires: ["host.gpu.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readDeviceFeatures(device: GpuDeviceHandle): Result<Array<GpuFeatureId>, HostError>;
+
+    /// Read a device limits snapshot.
+    @binding("destack.gpu.device.limits.read", {
+        effect: "external",
+        requires: ["host.gpu.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readDeviceLimits(device: GpuDeviceHandle): Result<GpuAdapterLimits, HostError>;
+
+    /// Check whether one device supports one feature.
+    @binding("destack.gpu.device.feature.has", {
+        effect: "external",
+        requires: ["host.gpu.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    hasDeviceFeature(device: GpuDeviceHandle, feature: GpuFeatureId): Result<boolean, HostError>;
+
+    /// Read device health status.
+    @binding("destack.gpu.device.status.read", {
+        effect: "external",
+        requires: ["host.gpu.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readDeviceStatus(device: GpuDeviceHandle): Result<GpuDeviceStatus, HostError>;
+
+    /// Resolve the default queue for a logical device.
+    @binding("destack.gpu.device.queue.read", {
+        effect: "external",
+        requires: ["host.gpu.queue"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readDeviceQueue(device: GpuDeviceHandle): Result<GpuQueueHandle, HostError>;
+
+    /// Poll a logical device for completion progress.
+    @binding("destack.gpu.device.poll", {
+        effect: "external",
+        requires: ["host.gpu.queue"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    pollDevice(
+        device: GpuDeviceHandle,
+        wait: boolean,
+        timeoutNs: uint64,
+    ): Result<uint32, HostError>;
+
+    /// Push one device error scope.
+    @binding("destack.gpu.device.error.scope.push", {
+        effect: "external",
+        requires: ["host.gpu.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    pushDeviceErrorScope(device: GpuDeviceHandle, filter: GpuErrorFilter): Result<void, HostError>;
+
+    /// Pop one device error scope.
+    @binding("destack.gpu.device.error.scope.pop", {
+        effect: "external",
+        requires: ["host.gpu.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    popDeviceErrorScope(
+        device: GpuDeviceHandle,
+        timeoutNs: uint64,
+    ): Result<GpuCapturedError, HostError>;
+
+    /// Close a logical GPU device.
+    @binding("destack.gpu.device.close", {
+        effect: "external",
+        requires: ["host.gpu.device"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeDevice(device: GpuDeviceHandle): Result<void, HostError>;
+}

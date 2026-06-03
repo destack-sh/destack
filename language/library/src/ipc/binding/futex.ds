@@ -1,0 +1,28 @@
+import { HostError } from "destack:error/host";
+import { SharedMemoryHandle } from "destack:ipc/binding";
+
+/// Futex binding family.
+export interface IpcFutex {
+    /// Wait on one shared-memory futex word.
+    @binding("destack.ipc.futex.wait", {
+        effect: "external",
+        requires: ["host.ipc.futex", "host.ipc.memory"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    waitFutex(
+        memory: SharedMemoryHandle,
+        offset: uint64,
+        expected: uint32,
+        timeoutNanoseconds?: uint64,
+    ): Result<void, HostError>;
+
+    /// Wake futex waiters for one shared-memory word.
+    @binding("destack.ipc.futex.wake", {
+        effect: "external",
+        requires: ["host.ipc.futex", "host.ipc.memory"],
+        platforms: ["linux"],
+        simulation: true,
+    })
+    wakeFutex(memory: SharedMemoryHandle, offset: uint64, count: uint32): Result<uint32, HostError>;
+}

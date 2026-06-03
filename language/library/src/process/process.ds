@@ -1,8 +1,7 @@
+import { Context } from "destack:context";
 import { HostError } from "destack:error/host";
-
-import * as host from "./host";
 
 /// Return the process arguments.
 export function args(): Result<^Array<^string>, HostError> {
-    host.listArguments();
+    Context.current().process.argument.listArguments()
 }

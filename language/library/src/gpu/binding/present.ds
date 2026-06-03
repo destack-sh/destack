@@ -1,0 +1,368 @@
+import { Array } from "destack:collections";
+import { DisplayColorSpace, DisplayHdrMode, WindowHandle } from "destack:display/binding";
+import { HostError } from "destack:error/host";
+import {
+    GpuAdapterHandle,
+    GpuDeviceHandle,
+    GpuPresentationHandle,
+    GpuSurfaceHandle,
+    GpuTextureHandle,
+} from "destack:gpu/binding";
+
+import { GpuTextureFormat, GpuTextureUsage } from "./resource.ds";
+
+/// Surface present mode.
+export enum GpuPresentMode {
+    /// Choose the first supported v-synced mode.
+    AutoVsync = 0,
+    /// Choose the first supported non-v-synced mode.
+    AutoNoVsync = 1,
+    /// Present in first-in-first-out v-sync order.
+    Fifo = 2,
+    /// Present with relaxed v-sync when available.
+    FifoRelaxed = 3,
+    /// Present without v-sync ordering.
+    Immediate = 4,
+    /// Present the latest available frame.
+    Mailbox = 5,
+}
+
+/// Surface composite alpha mode.
+export enum GpuCompositeAlphaMode {
+    /// Choose the backend default alpha mode.
+    Auto = 0,
+    /// Treat the surface as opaque.
+    Opaque = 1,
+    /// Use premultiplied alpha.
+    Premultiplied = 2,
+    /// Use postmultiplied alpha.
+    Postmultiplied = 3,
+    /// Inherit compositor alpha behavior.
+    Inherit = 4,
+}
+
+/// Surface timing flags.
+export newtype GpuSurfaceTimingFlags = uint32;
+
+/// Backend can report presentation events.
+export const GPU_SURFACE_TIMING_PRESENTATION: GpuSurfaceTimingFlags = GpuSurfaceTimingFlags(0x01);
+
+/// Backend can report actual presentation timestamps.
+export const GPU_SURFACE_TIMING_PRESENTED_AT: GpuSurfaceTimingFlags = GpuSurfaceTimingFlags(0x02);
+
+/// Backend can report refresh intervals.
+export const GPU_SURFACE_TIMING_REFRESH_INTERVAL: GpuSurfaceTimingFlags =
+    GpuSurfaceTimingFlags(0x04);
+
+/// Backend can report compositor latency.
+export const GPU_SURFACE_TIMING_COMPOSITOR_LATENCY: GpuSurfaceTimingFlags =
+    GpuSurfaceTimingFlags(0x08);
+
+/// Backend can accept requested presentation timestamps.
+export const GPU_SURFACE_TIMING_REQUESTED_PRESENT_AT: GpuSurfaceTimingFlags =
+    GpuSurfaceTimingFlags(0x10);
+
+/// Present surface capabilities.
+export struct GpuSurfaceCapabilities {
+    /// Supported texture usages.
+    usages: GpuTextureUsage;
+    /// Supported texture formats.
+    formats: [GpuTextureFormat];
+    /// Supported present modes.
+    presentModes: [GpuPresentMode];
+    /// Supported composite alpha modes.
+    alphaModes: [GpuCompositeAlphaMode];
+    /// Supported output color spaces.
+    colorSpaces: [DisplayColorSpace];
+    /// Supported output HDR modes.
+    hdrModes: [DisplayHdrMode];
+    /// Supported presentation timing flags.
+    timing: GpuSurfaceTimingFlags;
+    /// Minimum frame latency in refresh intervals.
+    minFrameLatency?: uint32;
+    /// Maximum frame latency in refresh intervals.
+    maxFrameLatency?: uint32;
+}
+
+/// Surface HDR metadata.
+export struct GpuSurfaceHdrMetadata {
+    /// Maximum content light level in nits.
+    maxContentLightLevelNits: float64;
+    /// Maximum frame-average light level in nits.
+    maxFrameAverageLightLevelNits: float64;
+    /// Maximum mastering luminance in nits.
+    maxMasteringLuminanceNits: float64;
+    /// Minimum mastering luminance in nits.
+    minMasteringLuminanceNits: float64;
+}
+
+/// Surface configuration descriptor.
+export struct GpuSurfaceDescriptor {
+    /// Texture usage flags.
+    usage: GpuTextureUsage;
+    /// Additional compatible view formats.
+    viewFormats: [GpuTextureFormat];
+    /// Surface width in pixels.
+    width: uint32;
+    /// Surface height in pixels.
+    height: uint32;
+    /// Surface texture format.
+    format: GpuTextureFormat;
+    /// Present mode.
+    presentMode: GpuPresentMode;
+    /// Composite alpha mode.
+    alphaMode: GpuCompositeAlphaMode;
+    /// Output color space.
+    colorSpace?: DisplayColorSpace;
+    /// Output HDR mode.
+    hdrMode?: DisplayHdrMode;
+    /// HDR metadata.
+    hdrMetadata?: GpuSurfaceHdrMetadata;
+    /// Requested maximum frame latency in refresh intervals.
+    frameLatency: uint32;
+}
+
+/// Surface acquisition status.
+export enum GpuSurfaceAcquireStatus {
+    /// Texture was acquired.
+    Good = 1,
+    /// Texture was acquired but reconfiguration is recommended.
+    Suboptimal = 2,
+    /// Acquire timed out.
+    Timeout = 3,
+    /// Surface configuration is outdated.
+    Outdated = 4,
+    /// Surface was lost.
+    Lost = 5,
+}
+
+/// Surface lifecycle status.
+export enum GpuSurfaceStatus {
+    /// Surface is open but not configured.
+    Unconfigured = 1,
+    /// Surface is configured and ready.
+    Good = 2,
+    /// Surface is configured but should be reconfigured soon.
+    Suboptimal = 3,
+    /// Surface configuration is outdated.
+    Outdated = 4,
+    /// Surface was lost.
+    Lost = 5,
+}
+
+/// Acquired surface frame.
+export struct GpuSurfaceFrame {
+    /// Acquire status.
+    status: GpuSurfaceAcquireStatus;
+    /// Acquired texture.
+    texture?: GpuTextureHandle;
+    /// Surface frame identifier.
+    frameId?: uint64;
+}
+
+/// Present surface status.
+export struct GpuSurfaceState {
+    /// Surface status.
+    status: GpuSurfaceStatus;
+    /// Active surface configuration.
+    descriptor?: GpuSurfaceDescriptor;
+}
+
+/// Present request.
+export struct GpuPresentRequest {
+    /// Surface frame identifier returned by `acquireSurface`.
+    frameId: uint64;
+    /// Display frame identifier that drove this presentation.
+    displayFrameId?: uint64;
+    /// Requested presentation timestamp in nanoseconds.
+    presentAtNs?: uint64;
+}
+
+/// Presentation result.
+export enum GpuPresentationResult {
+    /// Frame reached presentation.
+    Presented = 1,
+    /// Frame was superseded by one newer frame.
+    Superseded = 2,
+    /// Frame was dropped.
+    Dropped = 3,
+    /// Presentation result is unknown.
+    Unknown = 4,
+}
+
+/// Presentation event.
+export struct GpuPresentationEvent {
+    /// Surface associated with this event.
+    surface: GpuSurfaceHandle;
+    /// Surface frame identifier.
+    frameId: uint64;
+    /// Display frame identifier.
+    displayFrameId?: uint64;
+    /// Presentation result.
+    result: GpuPresentationResult;
+    /// Requested presentation timestamp.
+    requestedPresentAtNs?: uint64;
+    /// Actual presentation timestamp.
+    presentedAtNs?: uint64;
+    /// Effective refresh interval in nanoseconds.
+    refreshIntervalNs?: uint64;
+    /// Compositor latency in nanoseconds.
+    compositorLatencyNs?: uint64;
+    /// Reporting timestamp in nanoseconds.
+    reportedAtNs: uint64;
+    /// Event sequence number.
+    sequence: uint64;
+    /// Dropped event count before this event.
+    droppedCount: uint64;
+}
+
+/// Presentation event overflow policy.
+export enum GpuPresentationOverflow {
+    /// Drop oldest queued events first.
+    DropOldest = 1,
+    /// Drop newest incoming events first.
+    DropNewest = 2,
+    /// Report queue overflow as an error.
+    Error = 3,
+}
+
+/// Presentation event subscription.
+export struct GpuPresentationSubscription {
+    /// Queue capacity in events, or zero for backend default.
+    capacity: uint32;
+    /// Queue overflow policy.
+    overflow: GpuPresentationOverflow;
+}
+
+/// Present binding family.
+export interface GpuPresent {
+    /// Open one present surface for a window.
+    @binding("destack.gpu.present.surface.open", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openSurface(window: WindowHandle): Result<GpuSurfaceHandle, HostError>;
+
+    /// Close one present surface.
+    @binding("destack.gpu.present.surface.close", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closeSurface(surface: GpuSurfaceHandle): Result<void, HostError>;
+
+    /// Read surface capabilities for one adapter.
+    @binding("destack.gpu.present.surface.capabilities", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    surfaceCapabilities(
+        surface: GpuSurfaceHandle,
+        adapter: GpuAdapterHandle,
+    ): Result<GpuSurfaceCapabilities, HostError>;
+
+    /// Configure one present surface.
+    @binding("destack.gpu.present.surface.configure", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    configureSurface(
+        device: GpuDeviceHandle,
+        surface: GpuSurfaceHandle,
+        descriptor: &readonly GpuSurfaceDescriptor,
+    ): Result<void, HostError>;
+
+    /// Remove one present surface configuration.
+    @binding("destack.gpu.present.surface.unconfigure", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    unconfigureSurface(surface: GpuSurfaceHandle): Result<void, HostError>;
+
+    /// Read one present surface state.
+    @binding("destack.gpu.present.surface.state.read", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    surfaceState(surface: GpuSurfaceHandle): Result<GpuSurfaceState, HostError>;
+
+    /// Acquire one presentable surface texture.
+    @binding("destack.gpu.present.surface.acquire", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    acquireSurface(
+        surface: GpuSurfaceHandle,
+        timeoutNs?: uint64,
+    ): Result<GpuSurfaceFrame, HostError>;
+
+    /// Present one acquired surface frame.
+    @binding("destack.gpu.present.surface.present", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    presentSurface(
+        surface: GpuSurfaceHandle,
+        request: &readonly GpuPresentRequest,
+    ): Result<void, HostError>;
+
+    /// Open one presentation event subscription.
+    @binding("destack.gpu.present.event.open", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openPresentationEvents(
+        surface: GpuSurfaceHandle,
+        subscription: &readonly GpuPresentationSubscription,
+    ): Result<GpuPresentationHandle, HostError>;
+
+    /// Close one presentation event subscription.
+    @binding("destack.gpu.present.event.close", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closePresentationEvents(events: GpuPresentationHandle): Result<void, HostError>;
+
+    /// Read presentation events.
+    @binding("destack.gpu.present.event.read", {
+        effect: "external",
+        replay: "forbidden",
+        requires: ["host.gpu.present"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readPresentationEvents(
+        events: GpuPresentationHandle,
+        maxEvents: uint32,
+        timeoutNs?: uint64,
+    ): Result<Array<GpuPresentationEvent>, HostError>;
+}

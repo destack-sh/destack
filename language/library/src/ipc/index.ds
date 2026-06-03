@@ -1,2 +1,2 @@
-export { Ipc } from "./host/ipc.ds";
-export * as host from "./host";
+export { Ipc } from "./binding/ipc.ds";
+export * as binding from "./binding";

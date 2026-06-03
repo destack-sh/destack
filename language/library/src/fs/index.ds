@@ -1,3 +1,3 @@
-export { Fs } from "./host/fs.ds";
+export { Fs } from "./binding/fs.ds";
 export * from "./fs.ds";
-export * as host from "./host";
+export * as binding from "./binding";

@@ -1,0 +1,61 @@
+import { HostError } from "destack:error/host";
+import { ResourceId } from "destack:runtime/resource";
+import { TtyHandle } from "destack:tty/binding";
+
+import { TtySize } from "./terminal.ds";
+
+/// Handle for a pseudo terminal endpoint.
+export newtype PtyHandle = ResourceId;
+
+/// Pseudo terminal open options.
+export struct PtyOpenOptions {
+    /// Initial terminal size.
+    size: TtySize;
+}
+
+/// Pseudo terminal pair.
+export struct PtyPair {
+    /// Controller endpoint.
+    controller: PtyHandle;
+    /// Terminal endpoint.
+    terminal: TtyHandle;
+}
+
+/// Pty binding family.
+export interface TtyPty {
+    /// Open one pseudo terminal pair.
+    @binding("destack.tty.pty.open", {
+        effect: "external",
+        requires: ["host.tty.pty"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    openPty(options: &readonly PtyOpenOptions): Result<PtyPair, HostError>;
+
+    /// Read bytes from one pseudo terminal controller.
+    @binding("destack.tty.pty.read", {
+        effect: "external",
+        requires: ["host.tty.pty.read"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    readPty(pty: PtyHandle, buffer: &[uint8]): Result<uint64, HostError>;
+
+    /// Write bytes to one pseudo terminal controller.
+    @binding("destack.tty.pty.write", {
+        effect: "external",
+        requires: ["host.tty.pty.write"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    writePty(pty: PtyHandle, buffer: &readonly [uint8]): Result<uint64, HostError>;
+
+    /// Close one pseudo terminal controller.
+    @binding("destack.tty.pty.close", {
+        effect: "external",
+        requires: ["host.tty.close"],
+        families: ["windows", "unix"],
+        simulation: true,
+    })
+    closePty(pty: PtyHandle): Result<void, HostError>;
+}

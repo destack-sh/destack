@@ -1,2 +1,2 @@
 export * from "./random.ds";
-export * as host from "./host";
+export * as binding from "./binding";

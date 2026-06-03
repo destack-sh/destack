@@ -1,2 +1,2 @@
-export { Audio } from "./host/audio.ds";
-export * as host from "./host";
+export { Audio } from "./binding/audio.ds";
+export * as binding from "./binding";

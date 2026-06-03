@@ -8,7 +8,7 @@ import {
     SocketHandle,
     SocketMessageFlags,
     SocketReceiveFromResult,
-} from "destack:net/host";
+} from "destack:net/binding";
 
 /// Owned stream socket.
 export struct Connection {
