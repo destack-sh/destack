@@ -9,7 +9,7 @@ use destack_source::{FileId, ModuleId};
 use destack_workspace::{Ref, Repository, Revision};
 
 use crate::executor::Executor;
-use crate::{FileSystemSource, RepositorySource, RepositorySourceFilter, SessionError};
+use crate::{FileSystemSource, SessionError, SourceSnapshot};
 
 use super::{SessionEventHandler, SessionState};
 
@@ -199,8 +199,8 @@ impl Session {
 
         // read the requested filesystem source file
         let repository_path = self.repository_path(path);
-        let mut source = FileSystemSource::new(repository.as_ref(), self.root());
-        let Some(file) = source.get(Path::new(&repository_path))? else {
+        let source = FileSystemSource::new(repository.as_ref(), self.root());
+        let Some(file) = source.file(Path::new(&repository_path))? else {
             return Err(SessionError::ModulePathNotLoadable {
                 path: path.to_path_buf(),
                 detail: "source file is not importable".to_string(),
@@ -208,11 +208,8 @@ impl Session {
         };
 
         // apply the selected source file
-        let change = source.poll(
-            repository.as_ref(),
-            revision,
-            RepositorySourceFilter::files([file]),
-        )?;
+        let snapshot = SourceSnapshot::from_file(file);
+        let change = snapshot.change(repository.as_ref(), revision)?;
         let next_revision = repository.commit_change(revision, change)?;
         let _next_revision_pin = repository.pin(next_revision)?;
 
