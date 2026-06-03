@@ -6,34 +6,34 @@ use destack_source::ModuleId;
 
 use crate::check::CheckModuleState;
 
-/// Checked DIR output for one module.
+/// Output DIR tables for one module.
 pub(in crate::check) struct CheckModuleOutput {
-    /// Checked annotation segment.
+    /// Output annotation segment.
     pub(super) annotations: dir::AnnotationSegment,
-    /// Checked type segment.
+    /// Output type segment.
     pub(super) types: dir::TypeSegment,
-    /// Checked static value segment.
+    /// Output static value segment.
     pub(super) statics: dir::StaticSegment,
-    /// Checked resolution segment.
+    /// Output resolution segment.
     pub(super) resolutions: dir::ResolutionSegment,
-    /// Checked generic segment.
+    /// Output generic segment.
     pub(super) generics: dir::GenericSegment,
-    /// Checked nominal segment.
+    /// Output nominal segment.
     pub(super) nominals: dir::NominalSegment,
-    /// Checked relation segment.
+    /// Output relation segment.
     pub(super) relations: dir::RelationSegment,
-    /// Checked coercion segment.
+    /// Output coercion segment.
     pub(super) coercions: dir::CoercionSegment,
-    /// Checked extension segment.
+    /// Output extension segment.
     pub(super) extensions: dir::ExtensionSegment,
-    /// Checked layout segment.
+    /// Output layout segment.
     pub(super) layouts: dir::LayoutSegment,
-    /// Checked capture segment.
+    /// Output capture segment.
     pub(super) captures: dir::CaptureSegment,
 }
 
 impl CheckModuleOutput {
-    /// Create checked output segments for one module.
+    /// Create output segments for one module.
     pub(in crate::check) fn new(module: ModuleId, state: &CheckModuleState) -> Self {
         Self {
             annotations: dir::AnnotationSegment::new(module),
@@ -50,7 +50,7 @@ impl CheckModuleOutput {
         }
     }
 
-    /// Convert checked output segments into the artifact payload.
+    /// Convert output segments into the artifact payload.
     pub(in crate::check) fn finish(self) -> DirCheckedModule {
         DirCheckedModule {
             annotations: Arc::new(self.annotations),

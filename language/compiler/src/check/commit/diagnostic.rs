@@ -40,7 +40,7 @@ impl CheckState<'_> {
         &mut self,
         diagnostics: &mut Vec<CheckError>,
     ) -> CompilerResult<()> {
-        let constraints = self.inference.constraints_vec();
+        let constraints = self.inference.constraints().cloned().collect::<Vec<_>>();
 
         // render rejected constraints
         for constraint in constraints {

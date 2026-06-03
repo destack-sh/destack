@@ -17,6 +17,7 @@ impl CheckState<'_> {
     ) -> dir::GenericSegment {
         let mut table = dir::GenericSegment::new(module);
         let mut generics = self
+            .inference
             .generic_slots()
             .filter(|(_, generic)| generic.slot().owner.module_id == module)
             .map(|(variable, generic)| {
@@ -83,7 +84,9 @@ impl CheckState<'_> {
                     )
                 }),
                 default: default.and_then(|operand| {
-                    let source = self.symbol_source_node(slot.owner);
+                    let source = self
+                        .module(slot.owner.module_id)
+                        .symbol_declaration_node(slot.owner.local_id);
 
                     self.commit_type_operand(module, output, environment, operand, source)
                 }),
@@ -109,7 +112,9 @@ impl CheckState<'_> {
                     )
                 }),
                 default: default.and_then(|operand| {
-                    let source = self.symbol_source_node(slot.owner);
+                    let source = self
+                        .module(slot.owner.module_id)
+                        .symbol_declaration_node(slot.owner.local_id);
 
                     self.commit_type_operand(module, output, environment, operand, source)
                 }),
@@ -176,8 +181,10 @@ impl CheckState<'_> {
                 self.commit_declared_type_variable(module, output, environment, variable)
             }
             TypeOperand::Term(term) => {
-                let term = self.term(term).clone();
-                let source = self.symbol_source_node(owner);
+                let term = self.inference.term(term).clone();
+                let source = self
+                    .module(owner.module_id)
+                    .symbol_declaration_node(owner.local_id);
 
                 self.commit_type_term(owner.module_id, output, environment, &term, source)
             }

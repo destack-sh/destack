@@ -7,7 +7,7 @@ use crate::check::CheckState;
 use super::CheckModuleOutput;
 
 impl CheckState<'_> {
-    /// Commit closure captures discovered while walking into the checked capture table.
+    /// Commit closure captures discovered while walking into the DIR capture table.
     pub(super) fn commit_capture_table(
         &mut self,
         module: ModuleId,
@@ -15,7 +15,7 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
     ) -> dir::CaptureSegment {
         let mut table = dir::CaptureSegment::new(module);
-        let captures = std::mem::take(self.captures_mut(module));
+        let captures = std::mem::take(&mut self.module_mut(module).captures);
 
         // write one managed frame per captured function
         for capture in captures {
@@ -27,12 +27,14 @@ impl CheckState<'_> {
 
             // commit captured binding types and split managed fields
             for symbol in capture.symbols {
-                let operand = self.require_symbol_type(module, symbol);
-                let source = self.symbol_source_node(symbol);
+                let operand = self.import_symbol_type_operand(module, symbol);
+                let source = self
+                    .module(symbol.module_id)
+                    .symbol_declaration_node(symbol.local_id);
                 let Some(ty) =
                     self.commit_type_operand(module, output, environment, operand, source)
                 else {
-                    continue;
+                    self.panic_unresolved_symbol_type(module, symbol, operand);
                 };
                 let mode = self.capture_mode_for_symbol(directive.as_ref(), symbol);
 
@@ -43,24 +45,25 @@ impl CheckState<'_> {
                 captured.push((symbol, mode, ty));
             }
 
-            let this = capture.receiver.and_then(|receiver| {
-                let ty = self.commit_type_operand(
-                    module,
-                    output,
-                    environment,
-                    receiver.ty,
-                    self.symbol_source_node(receiver.symbol),
-                )?;
+            let this = capture.receiver.map(|receiver| {
+                let source = self
+                    .module(receiver.symbol.module_id)
+                    .symbol_declaration_node(receiver.symbol.local_id);
+                let Some(ty) =
+                    self.commit_type_operand(module, output, environment, receiver.ty, source)
+                else {
+                    self.panic_unresolved_symbol_type(module, receiver.symbol, receiver.ty);
+                };
                 let mode = directive
                     .as_ref()
                     .map(|directive| directive.default)
                     .unwrap_or(dir::CaptureMode::Manage);
 
-                Some(dir::CapturedReceiver {
+                dir::CapturedReceiver {
                     symbol: receiver.symbol,
                     mode,
                     ty,
-                })
+                }
             });
 
             if captured.is_empty() && this.is_none() && directive.is_none() {
