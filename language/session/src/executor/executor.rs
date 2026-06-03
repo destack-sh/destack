@@ -152,7 +152,7 @@ impl Executor {
 
             return Err(SessionError::ArtifactFailed {
                 key: task.key,
-                failure,
+                failure: Box::new(failure),
             });
         }
 
