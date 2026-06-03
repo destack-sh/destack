@@ -27,12 +27,10 @@ const DEFAULT_TARGET_OUT_DIR: &str = "dist";
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct Target {
-    // discovery
-    /// How modules are discovered for this target.
-    pub discovery: TargetDiscovery,
-    /// Entry points for entry-based discovery (bundled/executable targets).
+    // target roots
+    /// Entry points for entry-rooted targets.
     pub entry: Vec<PathBuf>,
-    /// Global modules added as discovery roots.
+    /// Global modules added to every target root set.
     pub globals: Vec<PathBuf>,
     /// Target tree tag builder override.
     pub tree: Option<String>,
@@ -40,7 +38,7 @@ pub struct Target {
     pub derive: Vec<Derive>,
     /// Static semantic restrictions for this target.
     pub restrictions: CompilerRestrictions,
-    /// Glob patterns for files to include (for include-based discovery).
+    /// Glob patterns for files to include when no entry is declared.
     pub include: Vec<String>,
     /// Glob patterns for files to exclude.
     pub exclude: Vec<String>,
@@ -182,7 +180,6 @@ impl Target {
     /// Create a target with neutral defaults.
     fn base() -> Self {
         Self {
-            discovery: TargetDiscovery::default(),
             entry: Vec::new(),
             globals: Vec::new(),
             tree: None,
@@ -382,6 +379,15 @@ impl Target {
         OutputMode::Directory
     }
 
+    /// Return how this target chooses its root module set.
+    pub fn root(&self) -> TargetRoot {
+        if self.entry.is_empty() {
+            TargetRoot::Include
+        } else {
+            TargetRoot::Entry
+        }
+    }
+
     /// Whether this target produces single-file output.
     pub fn is_single_file(&self) -> bool {
         self.output_mode() == OutputMode::File
@@ -433,7 +439,7 @@ impl Target {
     pub fn emits_assembled_output(&self) -> bool {
         is_assembled_target(
             Some(self.assembly),
-            self.discovery,
+            self.root(),
             self.entry.len(),
             self.emit,
             self.preserve_modules,
@@ -692,18 +698,9 @@ impl Target {
         self
     }
 
-    /// Set the discovery mode.
-    pub fn with_discovery(mut self, discovery: TargetDiscovery) -> Self {
-        self.discovery = discovery;
-        self
-    }
-
-    /// Set entry points (also sets discovery mode to Entry).
+    /// Set entry points.
     pub fn with_entry(mut self, entry: Vec<PathBuf>) -> Self {
         self.entry = entry;
-        if !self.entry.is_empty() {
-            self.discovery = TargetDiscovery::Entry;
-        }
         self
     }
 
@@ -811,7 +808,7 @@ impl Target {
 /// Resolves the bundle mode for a target.
 fn resolved_bundle_mode(
     explicit_mode: Option<BundleMode>,
-    discovery: TargetDiscovery,
+    root: TargetRoot,
     entry_count: usize,
     emit: EmitFormat,
     out_file: bool,
@@ -834,20 +831,20 @@ fn resolved_bundle_mode(
         return BundleMode::Chunked;
     }
 
-    if discovery == TargetDiscovery::Entry && entry_count > 1 {
+    if root == TargetRoot::Entry && entry_count > 1 {
         return BundleMode::Chunked;
     }
 
-    match discovery {
-        TargetDiscovery::Entry => BundleMode::SingleFile,
-        TargetDiscovery::Include => BundleMode::PreserveModules,
+    match root {
+        TargetRoot::Entry => BundleMode::SingleFile,
+        TargetRoot::Include => BundleMode::PreserveModules,
     }
 }
 
 /// Returns `true` if the target is an assembled target (i.e. it uses entry output layout).
 fn is_assembled_target(
     explicit_bundle_mode: Option<BundleMode>,
-    discovery: TargetDiscovery,
+    root: TargetRoot,
     entry_count: usize,
     emit: EmitFormat,
     preserve_modules: bool,
@@ -856,7 +853,7 @@ fn is_assembled_target(
 ) -> bool {
     let bundle_mode = resolved_bundle_mode(
         explicit_bundle_mode,
-        discovery,
+        root,
         entry_count,
         emit,
         out_file,

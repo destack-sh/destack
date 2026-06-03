@@ -4575,13 +4575,8 @@
       "description": "A build target configuration.\n\nCan be constructed from `destack.json` or programmatically.\nThis is the type used by compiler/codegen, independent of config parsing.",
       "type": "object",
       "properties": {
-        "discovery": {
-          "description": "How modules are discovered for this target.",
-          "$ref": "#/$defs/TargetDiscovery",
-          "default": "include"
-        },
         "entry": {
-          "description": "Entry points for entry-based discovery (bundled/executable targets).",
+          "description": "Entry points for entry-rooted targets.",
           "type": "array",
           "items": {
             "type": "string"
@@ -4628,7 +4623,7 @@
           }
         },
         "include": {
-          "description": "Glob patterns for files to include (for include-based discovery).",
+          "description": "Glob patterns for files to include when no entry is declared.",
           "type": "array",
           "items": {
             "type": "string"
@@ -5199,21 +5194,6 @@
           "default": null
         }
       }
-    },
-    "TargetDiscovery": {
-      "description": "How modules are discovered for a build target.",
-      "oneOf": [
-        {
-          "description": "Start from entry points and follow imports.\nRequires `entry` to be set. Used for bundles/executables.",
-          "type": "string",
-          "const": "entry"
-        },
-        {
-          "description": "Compile all files matching `include` patterns.\nEach file becomes a separate output. Used for libraries.",
-          "type": "string",
-          "const": "include"
-        }
-      ]
     },
     "BundleMode": {
       "description": "Assembly mode for one script target.",
