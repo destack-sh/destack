@@ -381,20 +381,30 @@ impl Parser {
     }
 
     /// Apply one ordered segment span list to one MIR node.
-    pub(super) fn set_segment_spans<T>(&mut self, id: LocalNodeId<T>, segment_spans: &[Span])
+    pub(super) fn set_segment_spans<T>(
+        &mut self,
+        id: LocalNodeId<T>,
+        segment_spans: &[Span],
+    ) -> ParseResult<()>
     where
         T: Node,
     {
         // ordered source parts
         for (index, span) in segment_spans.iter().copied().enumerate() {
-            let segment_index = u16::try_from(index)
-                .unwrap_or_else(|_| panic!("too many segment spans for node {}", id.id));
+            let segment_index = u16::try_from(index).map_err(|_| {
+                ParseError::new(
+                    format!("too many segment spans for node {}", id.id),
+                    self.pos(),
+                )
+            })?;
             self.tree.set_side_span(
                 id,
                 NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
                 span,
             );
         }
+
+        Ok(())
     }
 
     /// Parse a symbol name after `@`.
@@ -481,19 +491,28 @@ impl Parser {
     }
 
     /// Record the type for a value in the current function.
-    pub(super) fn record_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
+    pub(super) fn record_value_type(
+        &mut self,
+        value: Value,
+        ty: LocalNodeId<Type>,
+    ) -> ParseResult<()> {
         if let Some(function_id) = self.current_function {
             let function = self.tree.get_mut(function_id);
             let existing = function.value_type(value);
             if let Some(existing) = existing {
                 if existing != ty {
-                    panic!("value {value:?} has mismatched types {existing:?} and {ty:?}");
+                    return Err(ParseError::new(
+                        format!("value {value:?} has mismatched types {existing:?} and {ty:?}"),
+                        self.pos(),
+                    ));
                 }
-                return;
+                return Ok(());
             }
 
             function.set_value_type(value, ty);
         }
+
+        Ok(())
     }
 
     /// Reset per-function parse state.

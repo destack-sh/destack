@@ -704,7 +704,7 @@ impl TestProgram {
     /// Format the MIR back to text.
     pub(crate) fn format(&self) -> String {
         let strings = self.strings_pool.clone();
-        mir::format_mir(&self.tree, &strings, mir::MirFormatOptions::default())
+        mir::format_mir(&self.tree, &strings, mir::MirFormatOptions::default()).expect("format MIR")
     }
 
     /// Get string by id from the string pool.
@@ -745,7 +745,8 @@ impl TestProgram {
         )
         .finish()
         .expect("failed to parse expected MIR");
-        let expected = mir::format_mir(&tree, &strings, mir::MirFormatOptions::default());
+        let expected =
+            mir::format_mir(&tree, &strings, mir::MirFormatOptions::default()).expect("format MIR");
 
         self.assert_output(&expected);
     }

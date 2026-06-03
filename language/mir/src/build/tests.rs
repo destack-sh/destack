@@ -4,6 +4,11 @@ use crate::{
     MirFormatOptions, Mutability, Nullability, ReferenceKind, Space, SyncScope, Type, format_mir,
 };
 
+/// Format one test MIR tree.
+fn format_test_mir(tree: &crate::Tree, strings: &destack_core::StringPool) -> String {
+    format_mir(tree, strings, MirFormatOptions::default()).expect("format MIR")
+}
+
 /// Empty function with void return.
 #[test]
 fn test_build_empty_function() {
@@ -21,7 +26,7 @@ fn test_build_empty_function() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function empty(): void {
 entry0:
@@ -50,7 +55,7 @@ fn test_build_function_with_parameters() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function add(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
@@ -83,7 +88,7 @@ fn test_build_function_with_locals() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function withLocal(): int64 {
     local local0: int64, owned
@@ -141,7 +146,7 @@ fn test_build_function_with_branch() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function select(value0: boolean): int32 {
 entry0(value0: boolean):
@@ -190,7 +195,7 @@ fn test_build_function_with_call_terminator() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 external function callee(int32): int32
 
@@ -218,13 +223,13 @@ fn test_build_function_with_trap_terminator() {
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let payload = builder.null(string_type);
-    builder.panic(Some(payload.into()));
+    builder.panic(Some(payload));
     builder.seal_block(entry_block);
     builder.finish();
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function trapper(): void {
 entry0:
@@ -261,7 +266,7 @@ fn test_ssa_define_use_single_block() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function varTest(): int32 {
 entry0:
@@ -300,7 +305,7 @@ fn test_ssa_redefine_variable() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function redefine(): int32 {
 entry0:
@@ -360,7 +365,7 @@ fn test_ssa_branch_with_phi() {
 
     // verify output - should have block parameter in merge block
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function phiTest(value0: boolean): int32 {
 entry0(value0: boolean):
@@ -427,7 +432,7 @@ fn test_ssa_trivial_phi_removal() {
 
     // verify output - no block parameter in merge block
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function trivialPhi(value0: boolean): int32 {
 entry0(value0: boolean):
@@ -492,7 +497,7 @@ fn test_ssa_trivial_phi_unsealed() {
 
     // verify output: trivial phi removal rewrites the unsealed use
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function trivialPhiUnsealed(value0: boolean): int32 {
 entry0(value0: boolean):
@@ -537,7 +542,7 @@ fn test_build_arithmetic_operations() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function arithmetic(value0: int32, value1: int32): int32 {
 entry0(value0: int32, value1: int32):
@@ -576,7 +581,7 @@ fn test_build_comparison_operations() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function compare(value0: int32, value1: int32): boolean {
 entry0(value0: int32, value1: int32):
@@ -677,7 +682,7 @@ fn test_seal_all_blocks() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function multiBlock(): void {
 entry0:
@@ -786,7 +791,7 @@ fn test_build_new_zeroed() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function allocTest(): ref<int32, managed, readonly> {
 entry0:
@@ -817,7 +822,7 @@ fn test_build_new_slice_zeroed() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function allocArrayTest(value0: int64): slice<int32, managed> {
 entry0(value0: int64):
@@ -857,7 +862,7 @@ fn test_build_slice_descriptor() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function sliceTest(value0: slice<int32, managed>, value1: int64, value2: int64): slice<int32, borrowed, lifetime(0)> {
 entry0(value0: slice<int32, managed>, value1: int64, value2: int64):
@@ -893,7 +898,7 @@ fn test_build_frame_alloc_zeroed() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function stackAllocTest(): ref<int32, raw, readonly, space(frame)> {
 entry0:
@@ -929,7 +934,7 @@ fn test_build_intrinsics() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function intrinsicTest(value0: float64, value1: float64): float64 {
 entry0(value0: float64, value1: float64):
@@ -965,7 +970,7 @@ fn test_build_void_intrinsic() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function fenceTest(): void {
 entry0:
@@ -1002,7 +1007,7 @@ fn test_build_struct() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makePoint(value0: int32, value1: float64): { int32, float64 } {
 entry0(value0: int32, value1: float64):
@@ -1035,7 +1040,7 @@ fn test_build_tuple() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makePair(value0: int32, value1: boolean): (int32, boolean) {
 entry0(value0: int32, value1: boolean):
@@ -1068,7 +1073,7 @@ fn test_build_array() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function makeArray(): [int32; 3] {
 entry0:
@@ -1105,7 +1110,7 @@ fn test_build_field_get_struct() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function getY(value0: { int32, float64 }): float64 {
 entry0(value0: { int32, float64 }):
@@ -1137,7 +1142,7 @@ fn test_build_field_get_tuple() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function getFirst(value0: (int32, boolean)): int32 {
 entry0(value0: (int32, boolean)):
@@ -1169,7 +1174,7 @@ fn test_build_element_get_array() {
 
     // verify output
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function getElement(value0: [int32; 3], value1: int64): int32 {
 entry0(value0: [int32; 3], value1: int64):
@@ -1252,7 +1257,7 @@ fn test_ssa_passthrough_intermediate_block() {
     // verify output
     // the key check: b3 must pass the updated x to b1
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
 
     // expected: b3 passes the updated x (v4) from b2 to b1
     // note: b3 has no block parameter since it has only one predecessor
@@ -1338,7 +1343,7 @@ fn test_ssa_multiple_phis_at_merge() {
 
     // verify output: two block parameters, arguments in correct order
     let (tree, strings) = module.finish();
-    let output = format_mir(&tree, &strings, MirFormatOptions::default());
+    let output = format_test_mir(&tree, &strings);
     let expected = "\
 function multiPhi(value0: boolean): int32 {
 entry0(value0: boolean):

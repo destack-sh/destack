@@ -18,7 +18,7 @@ fn write_recovery_token<'a>(is_missing: bool, f: &mut MirFormatter<'a, '_>) -> F
 
 impl<'a> Format<MirFormatContext<'a>> for Value {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
-        let name = f.context().value_name(*self);
+        let name = f.context().value_name(*self)?;
         write!(f, [text(&name)])
     }
 }

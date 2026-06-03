@@ -74,7 +74,7 @@ impl<'a> TestParser<'a> {
     /// Assert one canonical format result.
     pub(crate) fn assert_format(self, expected: &str) {
         let (tree, strings) = self.parse();
-        let output = format_mir(&tree, &strings, MirFormatOptions::default());
+        let output = format_mir(&tree, &strings, MirFormatOptions::default()).expect("format MIR");
 
         assert_eq!(expected.trim(), output.trim(), "formatted output mismatch");
     }

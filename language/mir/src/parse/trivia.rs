@@ -184,7 +184,7 @@ impl Parser {
                 TokenType::Newline => {
                     break;
                 }
-                _ => panic!("non trivia token stored inside MIR comment gap"),
+                _ => unreachable!("non trivia token stored inside MIR comment gap"),
             }
         }
 

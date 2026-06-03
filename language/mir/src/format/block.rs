@@ -526,7 +526,7 @@ fn format_check_constraint<'a>(
             is_signed,
         } => {
             let suffix = if *is_signed { "s" } else { "u" };
-            let name = format!("{}.overflow.{suffix}", overflow_check_family(*operator));
+            let name = format!("{}.overflow.{suffix}", overflow_check_family(*operator)?);
             write!(f, [text(&name), space(), left, token(","), space(), right])
         }
         CheckConstraint::Type { value, expected } => write!(
@@ -577,8 +577,8 @@ fn format_check_constraint<'a>(
 }
 
 /// Return the canonical operator family used in overflow checks.
-fn overflow_check_family(operator: crate::BinaryOperator) -> &'static str {
-    match operator {
+fn overflow_check_family(operator: crate::BinaryOperator) -> FormatResult<&'static str> {
+    let family = match operator {
         crate::BinaryOperator::Add => "int.add",
         crate::BinaryOperator::Subtract => "int.sub",
         crate::BinaryOperator::Multiply => "int.mul",
@@ -586,8 +586,14 @@ fn overflow_check_family(operator: crate::BinaryOperator) -> &'static str {
         crate::BinaryOperator::SignedRemainder | crate::BinaryOperator::UnsignedRemainder => {
             "int.rem"
         }
-        _ => panic!("unsupported overflow check operator: {operator:?}"),
-    }
+        _ => {
+            return Err(FormatError::SyntaxError {
+                message: "unsupported overflow check operator",
+            });
+        }
+    };
+
+    Ok(family)
 }
 
 /// Format a parenthesized, comma-separated list of values.

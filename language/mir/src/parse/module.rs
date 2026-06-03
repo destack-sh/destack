@@ -248,7 +248,10 @@ impl Parser {
 
         // seed the placeholder signature now so forward calls can resolve immediately
         let Some(function_id) = self.function_map.get(&name).copied() else {
-            panic!("function placeholder missing for {name}");
+            return Err(ParseError::new(
+                format!("function placeholder missing for {name}"),
+                self.pos(),
+            ));
         };
         let function = self.tree.get_mut(function_id);
         function.parameters = parameters;

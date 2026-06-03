@@ -31,7 +31,7 @@ impl Parser {
         if self.is_value_definition_start() {
             let (parsed_destination, parsed_type, parsed_span, parsed_type_span) =
                 self.parse_typed_destination_parts()?;
-            self.record_value_type(parsed_destination, parsed_type);
+            self.record_value_type(parsed_destination, parsed_type)?;
             self.eat_token(TokenType::Equal)?;
             destination = Some(parsed_destination.into());
             destination_type = Some(parsed_type);
@@ -66,7 +66,7 @@ impl Parser {
                     destination_span,
                     destination_type_span,
                     &[],
-                );
+                )?;
                 return Ok(id);
             }
         }
@@ -1041,7 +1041,7 @@ impl Parser {
             destination_span,
             destination_type_span,
             &segment_spans,
-        );
+        )?;
         Ok(instruction_id)
     }
 
@@ -1053,7 +1053,7 @@ impl Parser {
         main_span: Option<Span>,
         type_span: Option<Span>,
         segment_spans: &[Span],
-    ) {
+    ) -> ParseResult<()> {
         // enclosing span
         self.tree.set_text_span(instruction_id, instruction_span);
 
@@ -1072,7 +1072,9 @@ impl Parser {
         }
 
         // ordered source parts
-        self.set_segment_spans(instruction_id, segment_spans);
+        self.set_segment_spans(instruction_id, segment_spans)?;
+
+        Ok(())
     }
 
     /// Parse a bracketed list of values and append each element as one source segment.

@@ -1,7 +1,9 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use destack_core::StringPool;
-use destack_fir::format::{Format, FormatContext, FormatOptions, FormatResult, Formatter};
+use destack_fir::format::{
+    Format, FormatContext, FormatError, FormatOptions, FormatResult, Formatter,
+};
 use destack_fir::prelude::*;
 use destack_fir::print::PrintOptions;
 use destack_fir::write;
@@ -136,7 +138,11 @@ impl<'a> std::fmt::Debug for MirFormatContext<'a> {
 
 impl<'a> MirFormatContext<'a> {
     /// Create a new format context.
-    pub fn new(tree: &'a Tree, strings: &'a StringPool, options: MirFormatOptions) -> Self {
+    pub fn new(
+        tree: &'a Tree,
+        strings: &'a StringPool,
+        options: MirFormatOptions,
+    ) -> FormatResult<Self> {
         // collect explicit type aliases
         let type_alias_by_type: HashMap<_, _> = tree
             .iter_nodes::<TypeAlias>()
@@ -166,14 +172,14 @@ impl<'a> MirFormatContext<'a> {
                 type_alias_by_type,
                 options.type_alias_min_uses,
                 options.use_local_names,
-            )
+            )?
         } else {
             // skip synthetic aliases
             (type_alias_by_type, Vec::new())
         };
 
         // assemble the format context
-        Self {
+        Ok(Self {
             options,
             tree,
             strings,
@@ -185,7 +191,7 @@ impl<'a> MirFormatContext<'a> {
             synthetic_aliases,
             current_function: None,
             current_lifetimes: Vec::new(),
-        }
+        })
     }
 
     /// Format a type alias name with the configured naming policy.
@@ -229,16 +235,18 @@ impl<'a> MirFormatContext<'a> {
     }
 
     /// Get the display name for an SSA value in the current function.
-    pub fn value_name(&self, value: Value) -> String {
-        let function_id = self
-            .current_function
-            .unwrap_or_else(|| panic!("missing current function while formatting {value:?}"));
+    pub fn value_name(&self, value: Value) -> FormatResult<String> {
+        let function_id = self.current_function.ok_or(FormatError::SyntaxError {
+            message: "missing current function while formatting value",
+        })?;
         let function = self.tree.get(function_id);
-        if let Some(name) = function.value_name(value) {
+        let name = if let Some(name) = function.value_name(value) {
             self.strings.get(name).to_string()
         } else {
             format!("value{}", value.0)
-        }
+        };
+
+        Ok(name)
     }
 
     /// Get the unique function display name.
@@ -375,10 +383,10 @@ fn build_synthetic_aliases(
     mut type_alias_by_type: HashMap<LocalNodeId<Type>, String>,
     min_uses: u8,
     use_local_names: bool,
-) -> (
+) -> FormatResult<(
     HashMap<LocalNodeId<Type>, String>,
     Vec<(LocalNodeId<Type>, String)>,
-) {
+)> {
     // collect how often types appear in formatted output
     let type_uses = collect_type_uses(tree);
 
@@ -407,7 +415,7 @@ fn build_synthetic_aliases(
         }
 
         // group candidates by structure
-        let key = type_key_for_alias(tree, strings, type_id);
+        let key = type_key_for_alias(tree, strings, type_id)?;
         let entry = candidates.entry(key).or_default();
         entry.total_uses += uses;
         entry.type_ids.push(type_id);
@@ -428,16 +436,16 @@ fn build_synthetic_aliases(
     // assign aliases in stable order
     for key in ordered_keys {
         // select the next alias name
-        let candidate = candidates
-            .remove(&key)
-            .unwrap_or_else(|| panic!("missing alias candidates for {key}"));
+        let candidate = candidates.remove(&key).ok_or(FormatError::SyntaxError {
+            message: "missing alias candidates",
+        })?;
         if candidate.total_uses < u32::from(min_uses) {
             continue;
         }
 
         // reserve the alias name
         let alias_name =
-            alias_name_for_candidate(tree, &candidate, &mut next_alias_indices, &alias_names);
+            alias_name_for_candidate(tree, &candidate, &mut next_alias_indices, &alias_names)?;
         alias_names.insert(alias_name.clone());
 
         // assign the alias to all matching types
@@ -450,7 +458,7 @@ fn build_synthetic_aliases(
         }
     }
 
-    (type_alias_by_type, synthetic_aliases)
+    Ok((type_alias_by_type, synthetic_aliases))
 }
 
 /// Check whether a type is eligible for synthetic aliasing.
@@ -468,10 +476,10 @@ fn alias_name_for_candidate(
     candidate: &AliasCandidateGroup,
     next_alias_indices: &mut HashMap<String, usize>,
     alias_names: &HashSet<String>,
-) -> String {
+) -> FormatResult<String> {
     // prefer the stable earliest metadata name when available
     if let Some(name) = &candidate.preferred_metadata_name {
-        return unique_alias_name(name, alias_names);
+        return Ok(unique_alias_name(name, alias_names));
     }
 
     // fall back to a type based prefix
@@ -479,9 +487,15 @@ fn alias_name_for_candidate(
         .type_ids
         .first()
         .copied()
-        .unwrap_or_else(|| panic!("missing type id for alias candidate"));
+        .ok_or(FormatError::SyntaxError {
+            message: "missing type id for alias candidate",
+        })?;
     let prefix = type_alias_prefix(tree.get(first_id));
-    next_available_alias_name(prefix, next_alias_indices, alias_names)
+    Ok(next_available_alias_name(
+        prefix,
+        next_alias_indices,
+        alias_names,
+    ))
 }
 
 /// Return a unique alias name based on the preferred base.
@@ -587,23 +601,24 @@ struct AliasCandidateGroup {
 }
 
 /// Build a structural key used for alias grouping.
-fn type_key_for_alias(tree: &Tree, strings: &StringPool, ty: LocalNodeId<Type>) -> String {
+fn type_key_for_alias(
+    tree: &Tree,
+    strings: &StringPool,
+    ty: LocalNodeId<Type>,
+) -> FormatResult<String> {
     let options = MirFormatOptions {
         use_type_aliases: false,
         ..MirFormatOptions::default()
     };
-    let context = MirFormatContext::new(tree, strings, options);
+    let context = MirFormatContext::new(tree, strings, options)?;
     let ty_node = tree.get(ty);
     let document = destack_fir::format!(
         context,
         [format_with(|f| format_type_expanded(f, ty, ty_node))]
-    )
-    .unwrap_or_else(|error| panic!("failed to format MIR type alias key: {error:?}"));
-    let printed = document
-        .print()
-        .unwrap_or_else(|error| panic!("failed to print MIR type alias key: {error:?}"));
+    )?;
+    let printed = document.print()?;
 
-    printed.as_str().to_string()
+    Ok(printed.as_str().to_string())
 }
 
 /// Collect type usage counts for formatting.
@@ -936,19 +951,20 @@ where
 }
 
 /// Format a MIR tree to a string.
-pub fn format_mir(tree: &Tree, strings: &StringPool, options: MirFormatOptions) -> String {
-    let context = MirFormatContext::new(tree, strings, options);
+pub fn format_mir(
+    tree: &Tree,
+    strings: &StringPool,
+    options: MirFormatOptions,
+) -> FormatResult<String> {
+    let context = MirFormatContext::new(tree, strings, options)?;
 
     // format all globals and functions
-    let document = destack_fir::format!(context, [FormatAllItems])
-        .unwrap_or_else(|error| panic!("failed to format MIR: {error:?}"));
+    let document = destack_fir::format!(context, [FormatAllItems])?;
 
     // print the formatted document
-    let printed = document
-        .print()
-        .unwrap_or_else(|error| panic!("failed to print MIR: {error:?}"));
+    let printed = document.print()?;
 
-    printed.as_str().to_string()
+    Ok(printed.as_str().to_string())
 }
 
 /// One normalized comment line.

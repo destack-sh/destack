@@ -21,7 +21,7 @@ pub(crate) fn format_fixture_with_options(source: &str, options: MirFormatOption
     let (tree, strings) = parse_fixture(source);
 
     // normalize only the outer fixture boundary
-    normalize_fixture_text(&format_mir(&tree, &strings, options)).to_string()
+    normalize_fixture_text(&format_mir(&tree, &strings, options).expect("format MIR")).to_string()
 }
 
 /// Format one MIR tree with explicit options.
@@ -30,7 +30,7 @@ pub(crate) fn format_tree_with_options(
     strings: &StringPool,
     options: MirFormatOptions,
 ) -> String {
-    normalize_fixture_text(&format_mir(tree, strings, options)).to_string()
+    normalize_fixture_text(&format_mir(tree, strings, options).expect("format MIR")).to_string()
 }
 
 /// Assert formatter output and print a diff on mismatch.

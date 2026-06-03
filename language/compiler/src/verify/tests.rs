@@ -44,6 +44,7 @@ impl TestProgram {
         DropInsert.run(&mut self.tree, &mut state);
 
         mir::format_mir(&self.tree, &self.strings, mir::MirFormatOptions::default())
+            .expect("format MIR")
     }
 
     /// Assert the MIR produced by drop insertion.

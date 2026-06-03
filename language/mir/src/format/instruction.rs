@@ -1668,7 +1668,9 @@ fn format_typed_destination<'a>(
     let ty = f
         .context()
         .value_type(destination)
-        .unwrap_or_else(|| panic!("missing value type for instruction destination"));
+        .ok_or(FormatError::SyntaxError {
+            message: "missing value type for instruction destination",
+        })?;
     write!(f, [destination, token(":"), space(), ty])
 }
 
