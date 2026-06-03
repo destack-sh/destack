@@ -22,7 +22,7 @@ fn test_build_empty_function() {
     builder.switch_to_block(entry_block);
     builder.return_(None);
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -51,7 +51,7 @@ fn test_build_function_with_parameters() {
     let sum_value = builder.iadd(left_value, right_value);
     builder.return_(Some(sum_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -84,7 +84,7 @@ fn test_build_function_with_locals() {
     let loaded_value = builder.local_get(local);
     builder.return_(Some(loaded_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -142,7 +142,7 @@ fn test_build_function_with_branch() {
     builder.switch_to_block(merge_block);
     builder.return_(Some(one_value));
     builder.seal_block(merge_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -191,7 +191,7 @@ fn test_build_function_with_call_terminator() {
     builder.switch_to_block(target_block);
     builder.return_(Some(result));
     builder.seal_block(target_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -225,7 +225,7 @@ fn test_build_function_with_trap_terminator() {
     let payload = builder.null(string_type);
     builder.panic(Some(payload));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -262,7 +262,7 @@ fn test_ssa_define_use_single_block() {
 
     builder.return_(Some(used_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -301,7 +301,7 @@ fn test_ssa_redefine_variable() {
 
     builder.return_(Some(result_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -361,7 +361,7 @@ fn test_ssa_branch_with_phi() {
     builder.seal_block(merge_block);
     let result_value = builder.use_variable(result_variable);
     builder.return_(Some(result_value));
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output - should have block parameter in merge block
     let (tree, strings) = module.finish();
@@ -428,7 +428,7 @@ fn test_ssa_trivial_phi_removal() {
     builder.seal_block(merge_block);
     let result_value = builder.use_variable(result_variable);
     builder.return_(Some(result_value));
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output - no block parameter in merge block
     let (tree, strings) = module.finish();
@@ -493,7 +493,7 @@ fn test_ssa_trivial_phi_unsealed() {
     builder.switch_to_block(merge_block);
     let result_value = builder.use_variable(result_variable);
     builder.return_(Some(result_value));
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output: trivial phi removal rewrites the unsealed use
     let (tree, strings) = module.finish();
@@ -538,7 +538,7 @@ fn test_build_arithmetic_operations() {
 
     builder.return_(Some(quotient_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -577,7 +577,7 @@ fn test_build_comparison_operations() {
 
     builder.return_(Some(result_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -678,7 +678,7 @@ fn test_seal_all_blocks() {
 
     // seal all at once instead of individually
     builder.seal_all_blocks();
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -787,7 +787,7 @@ fn test_build_new_zeroed() {
     let allocated_value = builder.new_zeroed(i32_type, ref_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -818,7 +818,7 @@ fn test_build_new_slice_zeroed() {
     let allocated_value = builder.new_slice_zeroed(i32_type, length_value, slice_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -858,7 +858,7 @@ fn test_build_slice_descriptor() {
     let slice_value = builder.slice(source_value, start_value, length_value, slice_type);
     builder.return_(Some(slice_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -894,7 +894,7 @@ fn test_build_frame_alloc_zeroed() {
     let allocated_value = builder.frame_alloc_zeroed(i32_type, raw_ref_type);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -930,7 +930,7 @@ fn test_build_intrinsics() {
     let result = builder.intrinsic(Intrinsic::Abs, f64_type, vec![min_val]);
     builder.return_(Some(result));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -966,7 +966,7 @@ fn test_build_void_intrinsic() {
     builder.atomic_fence(access);
     builder.return_(None);
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -1003,7 +1003,7 @@ fn test_build_struct() {
     let point = builder.struct_(struct_type, vec![x, y]);
     builder.return_(Some(point));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -1036,7 +1036,7 @@ fn test_build_tuple() {
     let pair = builder.tuple(tuple_type, vec![a, b]);
     builder.return_(Some(pair));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -1069,7 +1069,7 @@ fn test_build_array() {
     let arr = builder.array(array_type, vec![v0, v1, v2]);
     builder.return_(Some(arr));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -1106,7 +1106,7 @@ fn test_build_field_get_struct() {
     let y = builder.field_get(point, 1);
     builder.return_(Some(y));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -1138,7 +1138,7 @@ fn test_build_field_get_tuple() {
     let first = builder.field_get(pair, 0);
     builder.return_(Some(first));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -1170,7 +1170,7 @@ fn test_build_element_get_array() {
     let element = builder.element_get(arr, 1);
     builder.return_(Some(element));
     builder.seal_block(entry_block);
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     let (tree, strings) = module.finish();
@@ -1252,7 +1252,7 @@ fn test_ssa_passthrough_intermediate_block() {
     builder.return_(Some(x_exit));
     builder.seal_block(b4);
 
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output
     // the key check: b3 must pass the updated x to b1
@@ -1339,7 +1339,7 @@ fn test_ssa_multiple_phis_at_merge() {
     let y_val = builder.use_variable(y_var);
     let sum = builder.iadd(x_val, y_val);
     builder.return_(Some(sum));
-    builder.finish();
+    builder.finish().unwrap();
 
     // verify output: two block parameters, arguments in correct order
     let (tree, strings) = module.finish();

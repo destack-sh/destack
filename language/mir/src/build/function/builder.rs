@@ -130,26 +130,24 @@ impl<'a> FunctionBuilder<'a> {
     }
 
     /// Create a function builder for an existing declared function.
-    /// (Must not have a body yet).
     pub fn from_declared(
         tree: &'a mut Tree,
         strings: &'a mut StringPool,
         function_id: LocalNodeId<Function>,
-    ) -> Self {
+    ) -> BuildResult<Self> {
         // validate the declared function is still empty
         let next_value_id = {
             let function = tree.get(function_id);
             if function.entry.is_some() || !function.blocks.is_empty() {
-                let error = BuildError::FunctionAlreadyHasBody {
+                return Err(BuildError::FunctionAlreadyHasBody {
                     function: function_id,
-                };
-                panic!("{error}");
+                });
             }
 
             function.next_value_id
         };
 
-        Self {
+        Ok(Self {
             tree,
             strings,
             function_id,
@@ -162,7 +160,7 @@ impl<'a> FunctionBuilder<'a> {
             incomplete_phis: IndexMap::new(),
             variable_types: IndexMap::new(),
             blocks: Vec::new(),
-        }
+        })
     }
 
     /// Set a debug parameter name on the function signature.
@@ -313,7 +311,7 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Unwrap one builder result for an infallible builder operation.
     pub(super) fn expect_build<T>(&self, result: BuildResult<T>) -> T {
-        result.unwrap_or_else(|error| panic!("{error}"))
+        result.unwrap_or_else(|error| unreachable!("{error}"))
     }
 
     /// Record that `from_block` is a predecessor of `to_block`.
@@ -339,7 +337,7 @@ impl<'a> FunctionBuilder<'a> {
         block.instructions.push(instruction_id);
         instruction_id
     }
-    pub fn finish(mut self) -> LocalNodeId<Function> {
+    pub fn finish(mut self) -> BuildResult<LocalNodeId<Function>> {
         // seal any remaining unsealed blocks
         self.seal_all_blocks();
 
@@ -350,8 +348,7 @@ impl<'a> FunctionBuilder<'a> {
             .copied()
             .ok_or(BuildError::MissingEntryBlock {
                 function: self.function_id,
-            });
-        let entry_block = self.expect_build(entry_block);
+            })?;
 
         // capture function parameters for entry block checks
         let parameters = {
@@ -370,7 +367,7 @@ impl<'a> FunctionBuilder<'a> {
             block.parameters != parameters
         };
         if is_entry_mismatch {
-            self.expect_build::<()>(Err(BuildError::EntryParameterMismatch));
+            return Err(BuildError::EntryParameterMismatch);
         }
 
         // update function
@@ -382,6 +379,6 @@ impl<'a> FunctionBuilder<'a> {
         // finalize generated names before formatting
         finalize_function_names(self.tree, self.strings, self.function_id);
 
-        self.function_id
+        Ok(self.function_id)
     }
 }

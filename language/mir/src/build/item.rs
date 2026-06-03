@@ -1,4 +1,4 @@
-use crate::build::{FunctionBuilder, ModuleBuilder};
+use crate::build::{BuildResult, FunctionBuilder, ModuleBuilder};
 use crate::{
     Function, Global, GlobalInitializer, LocalNodeId, Mutability, Parameter, Type, Value,
     finalize_function_names,
@@ -72,7 +72,10 @@ impl ModuleBuilder {
     }
 
     /// Start building a body for an existing declared function.
-    pub fn function_body(&mut self, function_id: LocalNodeId<Function>) -> FunctionBuilder<'_> {
+    pub fn function_body(
+        &mut self,
+        function_id: LocalNodeId<Function>,
+    ) -> BuildResult<FunctionBuilder<'_>> {
         FunctionBuilder::from_declared(&mut self.tree, &mut self.strings, function_id)
     }
 
