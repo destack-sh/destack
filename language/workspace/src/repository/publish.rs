@@ -145,6 +145,7 @@ impl Repository {
                         return Err(RepositoryError::FileAlreadyExists { path: logical_path });
                     }
 
+                    let logical_path = self.intern_logical_path(logical_path);
                     let content = self.files.intern(content);
                     files.insert(file_id, FileEntry::loaded(logical_path, content));
                 }
@@ -156,6 +157,7 @@ impl Repository {
                 } => {
                     let logical_path = normalize_logical_path(&logical_path);
                     let file_id = FileId::from_logical_str(&logical_path);
+                    let logical_path = self.intern_logical_path(logical_path);
                     let content = self.files.intern(content);
                     files.insert(file_id, FileEntry::loaded(logical_path, content));
                 }
@@ -192,6 +194,7 @@ impl Repository {
                     }
 
                     files.remove(&from_file_id);
+                    let to = self.intern_logical_path(to);
                     let to_file = FileEntry::loaded(to, from_file.content_id);
 
                     files.insert(to_file_id, to_file);

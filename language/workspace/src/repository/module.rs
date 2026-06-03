@@ -42,7 +42,7 @@ impl Repository {
 
         // collect base files and their conditional files
         for (file_id, entry) in files.iter() {
-            let path = self.root.join(&entry.logical_path);
+            let path = self.file_entry_path(entry);
             let Some(candidate) =
                 self.module_file_candidate(revision, *file_id, path, packages, &mut known_aliases)?
             else {

@@ -6,7 +6,7 @@ use crate::repository::{Repository, RepositoryError, Revision};
 use dashmap::DashMap;
 use destack_source::{
     File, FileContent, FileContentEntry, FileContentId, FileId, FileMetadata, FileType, PathExt,
-    Uri,
+    StringId, Uri,
 };
 use im::OrdMap;
 use rustc_hash::FxHashSet;
@@ -22,14 +22,14 @@ pub(crate) fn normalize_logical_path(value: impl AsRef<str>) -> String {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub(crate) struct FileEntry {
     /// The logical path for this file in this revision.
-    pub logical_path: String,
+    pub logical_path: StringId,
     /// The fixed content binding for this file.
     pub content_id: FileContentId,
 }
 
 impl FileEntry {
     /// Build one loaded file entry.
-    pub(crate) fn loaded(logical_path: String, content_id: FileContentId) -> Self {
+    pub(crate) fn loaded(logical_path: StringId, content_id: FileContentId) -> Self {
         Self {
             logical_path,
             content_id,
@@ -94,6 +94,23 @@ impl Repository {
         normalize_logical_path(path.to_string_lossy())
     }
 
+    /// Intern one normalized logical repository path.
+    pub(crate) fn intern_logical_path(&self, logical_path: impl AsRef<str>) -> StringId {
+        let logical_path = normalize_logical_path(logical_path);
+
+        self.strings.intern(&logical_path)
+    }
+
+    /// Return one interned logical repository path as text.
+    pub(crate) fn logical_path_text(&self, logical_path: StringId) -> &str {
+        self.strings.get(logical_path)
+    }
+
+    /// Return the physical workspace path for one file entry.
+    pub(crate) fn file_entry_path(&self, entry: &FileEntry) -> PathBuf {
+        self.root.join(self.logical_path_text(entry.logical_path))
+    }
+
     /// Build one file id for one workspace path.
     pub fn file_id(&self, path: &Path) -> FileId {
         // prefer immutable builtin files
@@ -126,12 +143,13 @@ impl Repository {
 
         // assemble the physical source file
         let content = self.file_content_by_id(entry.content_id)?;
-        let path = self.root.join(&entry.logical_path);
+        let logical_path = self.logical_path_text(entry.logical_path);
+        let path = self.file_entry_path(&entry);
         let uri = Uri::from_path(&path);
         let name = path
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| entry.logical_path.clone());
+            .unwrap_or_else(|| logical_path.to_string());
         let file_type = FileType::from_path_or_unknown(&path);
         let file = File::from_content(file_id, name, uri, Some(path), file_type, content);
 
@@ -208,9 +226,24 @@ impl Repository {
         let revision = self.revision(revision)?;
         let logical_path = revision
             .file_entry(file_id)
-            .map(|entry| entry.logical_path.clone());
+            .map(|entry| self.logical_path_text(entry.logical_path).to_string());
 
         Ok(logical_path)
+    }
+
+    /// Return editable file ids and interned logical paths for one revision.
+    pub fn editable_file_logical_paths(
+        &self,
+        revision: Revision,
+    ) -> Result<Vec<(FileId, StringId)>, RepositoryError> {
+        let revision = self.revision(revision)?;
+        let logical_paths = revision
+            .files
+            .iter()
+            .map(|(file_id, entry)| (*file_id, entry.logical_path))
+            .collect();
+
+        Ok(logical_paths)
     }
 
     /// Return the file ids visible in one revision.
@@ -234,7 +267,7 @@ impl Repository {
 
         // physical workspace directories
         for entry in files.values() {
-            let path = self.root.join(&entry.logical_path);
+            let path = self.file_entry_path(entry);
 
             let mut current = path.parent().map(Path::to_path_buf);
             while let Some(directory) = current {
