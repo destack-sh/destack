@@ -24,7 +24,6 @@ just language/test
 just language/test-unit
 just language/test-specification
 just language/test-query
-just language/test-lsp
 just language/test-formatter
 just language/test-grammar
 just language/test-conformance

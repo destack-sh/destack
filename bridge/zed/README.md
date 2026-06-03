@@ -2,7 +2,7 @@
 
 Zed extension for Destack language support.
 This extension provides `.ds`, `.d.ds`, and `.mir` language configuration and Tree-sitter highlighting.
-It wires LSP for Destack, JavaScript, TypeScript, and TSX buffers.
+It launches `destack lsp` for Destack, JavaScript, TypeScript, and TSX buffers.
 
 ## Grammar Source
 
@@ -63,7 +63,6 @@ The extension registers `destack-lsp` for these Zed languages:
 Run these from the repository root.
 
 ```sh
-just bridge/test-zed
 just bridge/check-quick
 just bridge/check-full
 ```

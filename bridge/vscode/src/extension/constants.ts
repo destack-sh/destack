@@ -1,8 +1,5 @@
 import * as path from "node:path";
 
-/** Enable verbose stdio relay logging for local debugging. */
-export const DEBUG = false;
-
 /** Fallback command names used when no explicit binary is configured. */
 export const FALLBACK_COMMANDS = ["destack", "ds", "dsc"];
 

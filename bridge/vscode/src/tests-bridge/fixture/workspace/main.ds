@@ -1,5 +1,0 @@
-export function answer(value: number): number {
-    return value;
-}
-
-const output = answer(42);

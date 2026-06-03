@@ -126,7 +126,7 @@
       "patterns": [
         {
           "name": "keyword.operator.instruction.dsmir",
-          "match": "\\b(local\\.set|local\\.get|local\\.address|function\\.address|callable\\.environment|global\\.address|store|load|drop|free|pin|unpin|raw\\.drop|stack\\.drop|assume|tensor\\.store|tensor\\.fill|tensor\\.copy|call(?:\\.(?:interface|indirect|class))?|tailCall(?:\\.(?:interface|indirect|class))?|raw\\.alloc|raw\\.free|intrinsic\\.[A-Za-z_][A-Za-z0-9_.]*)\\b"
+          "match": "\\b(local\\.set|local\\.get|local\\.address|function\\.address|callable\\.environment|global\\.address|store|load|drop|free|pin|unpin|raw\\.drop|stack\\.drop|assume|tensor\\.store|tensor\\.fill|tensor\\.copy|call(?:\\.(?:interface|indirect|class|dynamic))?|tailCall(?:\\.(?:interface|indirect|class|virtual))?|raw\\.alloc|raw\\.free|intrinsic\\.[A-Za-z_][A-Za-z0-9_.]*)\\b"
         },
         {
           "name": "keyword.operator.instruction.dsmir",

@@ -124,9 +124,9 @@ block1:
 //  ^^^^^^ keyword.control.flow.dsmir
 block2:
     tailCall.virtual @Klass.method(v0) -> (int64) -> void
-//  ^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
     call.dynamic @Iface.method(v0) -> (int64) -> void
-//  ^^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
+//  ^^^^^^^^^^^^ keyword.operator.instruction.dsmir
     call.indirect v0(v1) -> (int64) -> void
 //  ^^^^^^^^^^^^^ keyword.operator.instruction.dsmir
     v2: boolean = select true, false, true
