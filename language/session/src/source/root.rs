@@ -1,16 +1,14 @@
-use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::DiskCacheStore;
-use destack_source::{File, FileId, FileSystem, FileType, Uri};
+use destack_source::FileSystem;
 use destack_workspace::{
-    DestackFile, DestackLayout, DestackLayoutOverride, Environment, Ref, Repository,
-    RepositoryError, Settings,
+    DestackLayout, DestackLayoutOverride, Environment, Ref, Repository, RepositoryError, Settings,
 };
 
-use super::reload::{RELOAD_EXCLUDED_DIRECTORY_NAMES, is_reload_path};
-use super::{FileSystemSource, RepositorySource, RepositorySourceFilter};
+use super::Source;
+use super::fs::{FileSystemSource, read_destack_config};
 use crate::SessionError;
 
 /// Open one repository after discovering the workspace root from one path.
@@ -21,7 +19,7 @@ pub fn open_repository_from_fs(
     settings: Settings,
     layout_override: DestackLayoutOverride,
 ) -> Result<Repository, SessionError> {
-    let root = find_source_root_from_fs(fs.as_ref(), &path)?;
+    let root = find_source_root(fs.as_ref(), &path)?;
     let cwd = environment.cwd.as_deref().unwrap_or(&path);
     let layout =
         DestackLayout::resolve(&root, cwd, &environment, &settings, &layout_override, None);
@@ -38,11 +36,10 @@ pub fn open_repository_from_fs(
     let workspace_ref = Ref::for_workspace_root(&root);
     let base_revision = repository.current(&workspace_ref)?;
 
-    // import the initial filesystem truth
-    let mut source = FileSystemSource::new(&repository, &root)
-        .with_excluded_directory_names(RELOAD_EXCLUDED_DIRECTORY_NAMES)
-        .with_include_path(is_reload_path);
-    let change = source.poll(&repository, base_revision, RepositorySourceFilter::All)?;
+    // import the complete source snapshot
+    let mut source = FileSystemSource::new(&repository, &root);
+    let snapshot = source.snapshot()?;
+    let change = snapshot.change(&repository, base_revision)?;
     let revision = repository.commit_change(base_revision, change)?;
 
     repository.set_ref(&workspace_ref, revision)?;
@@ -51,28 +48,31 @@ pub fn open_repository_from_fs(
 }
 
 /// Find the source root for one filesystem input path.
-fn find_source_root_from_fs(fs: &dyn FileSystem, path: &Path) -> Result<PathBuf, RepositoryError> {
-    // normalize file inputs to their containing directory
-    let input_directory = match fs.metadata(path) {
-        Ok(metadata) if metadata.is_file => path
-            .parent()
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| path.to_path_buf()),
-        Ok(_) => path.to_path_buf(),
-        Err(error) => {
-            return Err(RepositoryError::WorkspaceRootDiscovery {
+fn find_source_root(file_system: &dyn FileSystem, path: &Path) -> Result<PathBuf, RepositoryError> {
+    let metadata =
+        file_system
+            .metadata(path)
+            .map_err(|error| RepositoryError::WorkspaceRootDiscovery {
                 path: path.to_path_buf(),
                 message: error.to_string(),
-            });
-        }
+            })?;
+
+    // normalize file inputs to their containing directory
+    let input_directory = if metadata.is_file {
+        path.parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| path.to_path_buf())
+    }
+    // use directory inputs directly
+    else {
+        path.to_path_buf()
     };
     let mut current = input_directory.clone();
 
     // walk up directories looking for a workspace root
     loop {
-        // destack source root
-        if let Some(root) = find_destack_source_root(fs, &current)? {
-            return Ok(root);
+        if read_destack_config(file_system, &current)?.is_some() {
+            return Ok(current);
         }
 
         // move up to the parent
@@ -83,55 +83,4 @@ fn find_source_root_from_fs(fs: &dyn FileSystem, path: &Path) -> Result<PathBuf,
     }
 
     Ok(input_directory)
-}
-
-/// Find the Destack source root at one directory when present.
-fn find_destack_source_root(
-    fs: &dyn FileSystem,
-    directory: &Path,
-) -> Result<Option<PathBuf>, RepositoryError> {
-    let Some(_config) = read_source_destack_config(fs, directory)? else {
-        return Ok(None);
-    };
-
-    Ok(Some(directory.to_path_buf()))
-}
-
-/// Read one source root `destack.json` when present.
-fn read_source_destack_config(
-    fs: &dyn FileSystem,
-    root: &Path,
-) -> Result<Option<DestackFile>, RepositoryError> {
-    let path = root.join("destack.json");
-
-    // read Destack config when present
-    let content = match fs.read_to_string(&path) {
-        Ok(content) => content,
-        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
-        Err(error) => {
-            return Err(RepositoryError::WorkspaceRootDiscovery {
-                path,
-                message: error.to_string(),
-            });
-        }
-    };
-
-    // parse with the normal Destack config parser
-    let file = File::from_text(
-        FileId::from_logical_str("destack.json"),
-        "destack.json".to_string(),
-        Uri::from_path(&path),
-        Some(path.clone()),
-        FileType::Json,
-        content,
-    );
-    let path = path.clone();
-    let file = Arc::new(file);
-
-    DestackFile::parse(&file)
-        .map(Some)
-        .map_err(|error| RepositoryError::WorkspaceRootDiscovery {
-            path,
-            message: error.to_string(),
-        })
 }
