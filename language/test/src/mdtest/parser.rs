@@ -329,9 +329,11 @@ pub fn parse_mdtest(content: &str) -> Result<Vec<MdTestCase>, String> {
                         content: code_block_content.clone(),
                         options,
                     });
-                } else if is_data_language(parsed.base) && parsed.filename.is_some() {
+                } else if let Some(filename) =
+                    parsed.filename.filter(|_| is_data_language(parsed.base))
+                {
                     // data/text file with explicit filename (e.g., `json:data.json`)
-                    let path = parsed.filename.unwrap().to_string();
+                    let path = filename.to_string();
                     current_files.push(MdTestFile {
                         path,
                         content: code_block_content.clone(),

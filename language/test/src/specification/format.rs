@@ -268,7 +268,7 @@ struct FenceBlock {
 /// Parse one markdown fence tag as a source code block.
 fn parse_fence_block(tag: &str) -> Result<Option<FenceBlock>, String> {
     let parsed = parse_fence_tag(tag);
-    if parsed.markers.iter().any(|marker| *marker == "expected") {
+    if parsed.markers.contains(&"expected") {
         return Ok(None);
     }
 

@@ -171,8 +171,8 @@ pub(super) fn default_conformance_formatter_options() -> FormatterOptions {
 /// Format parsed expressions into source output.
 fn format_expressions(
     parser: &Parser,
-    tokens: &Vec<TokenSpan>,
-    side_tokens: &Vec<TokenSpan>,
+    tokens: &[TokenSpan],
+    side_tokens: &[TokenSpan],
     expressions: &[destack_dir::LocalNodeId<destack_dir::Expression>],
     file: &File,
     language_type: LanguageType,

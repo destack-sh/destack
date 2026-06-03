@@ -240,8 +240,8 @@ fn pattern_names_sentinel(
 ) -> bool {
     match parser.tree.get(pattern_id) {
         Pattern::Binding { name, .. } => strings.get(*name) == RECOVERY_SENTINEL,
-        Pattern::Must(pattern) => pattern_names_sentinel(parser, pattern.clone(), strings),
-        Pattern::Expression { value } => expression_names_sentinel(parser, value.clone(), strings),
+        Pattern::Must(pattern) => pattern_names_sentinel(parser, *pattern, strings),
+        Pattern::Expression { value } => expression_names_sentinel(parser, *value, strings),
         Pattern::Assign { pattern, .. }
         | Pattern::BorrowOf { right: pattern, .. }
         | Pattern::MoveOf { right: pattern, .. }

@@ -31,8 +31,8 @@ where
     for diagnostic in diagnostics.iter() {
         let primary = diagnostic.primary_label();
         let file_id = primary.span.file;
-        let file = file_for_id(file_id)
-            .unwrap_or_else(|| panic!("missing diagnostic file: {:?}", file_id));
+        let file =
+            file_for_id(file_id).unwrap_or_else(|| panic!("missing diagnostic file: {file_id:?}"));
         let annotate_options = annotate_options
             .clone()
             .with_highlight_color(diagnostic.severity.color());
@@ -170,8 +170,8 @@ pub fn render_unexpected_diagnostic_collection(
     // filter to unexpected diagnostics (at or above min_fail_severity)
     let unexpected_diagnostics: Vec<_> = diagnostics
         .iter()
+        .filter(|&d| severity_at_or_above(d.severity, min_fail_severity))
         .cloned()
-        .filter(|d| severity_at_or_above(d.severity, min_fail_severity))
         .collect();
 
     if unexpected_diagnostics.is_empty() {

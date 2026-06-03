@@ -640,7 +640,7 @@ fn apply_file_edits(source: &str, edits: &[Edit]) -> Result<String, String> {
 
     // sort edits by start descending
     let mut sorted_edits = edits.to_vec();
-    sorted_edits.sort_by(|left, right| right.span.start.cmp(&left.span.start));
+    sorted_edits.sort_by_key(|edit| std::cmp::Reverse(edit.span.start));
 
     // apply edits from the end
     let mut updated = source.to_string();

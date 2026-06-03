@@ -50,7 +50,6 @@ just check-full
 just test-unit
 just test-specification
 just test-query
-just test-lsp
 just test-formatter
 just test-grammar
 
@@ -69,10 +68,9 @@ just test-stress-formatter
 
 ## Mdtest
 
-The mdtest framework powers the specification, query, and LSP suites.
+The mdtest framework powers the specification and query suites.
 Specification fixtures define language semantics and diagnostics in markdown.
 Query fixtures define lower-level query behavior through source markers and expected results.
-LSP fixtures define applied editor scenarios through `ds:path` source blocks and `lsp ...` expectation blocks.
 
 ## Direct Entry Points
 
