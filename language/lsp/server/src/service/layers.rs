@@ -6,7 +6,6 @@ use std::task::{Context, Poll};
 
 use futures::future::{self, BoxFuture, FutureExt};
 use tower::{Layer, Service};
-use tracing::{info, warn};
 
 use super::ExitedError;
 use crate::jsonrpc::{Error, Id, Request, Response, not_initialized_error};
@@ -77,7 +76,6 @@ where
                 Ok(response)
             })
         } else {
-            warn!("received duplicate `initialize` request, ignoring");
             let (_, id, _) = req.into_parts();
             future::ok(id.map(|id| Response::from_error(id, Error::invalid_request()))).boxed()
         }
@@ -133,7 +131,6 @@ where
     fn call(&mut self, req: Request) -> Self::Future {
         match self.state.get() {
             State::Initialized => {
-                info!("shutdown request received, shutting down");
                 self.state.set(State::ShutDown);
                 self.inner.call(req)
             }
@@ -201,7 +198,6 @@ impl<S> Service<Request> for ExitService<S> {
     }
 
     fn call(&mut self, _: Request) -> Self::Future {
-        info!("exit notification received, stopping");
         self.state.set(State::Exited);
         self.pending.cancel_all();
         self.client.close();

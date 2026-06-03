@@ -12,7 +12,6 @@ use bytes::{Buf, BytesMut};
 use memchr::memmem;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
-use tracing::{trace, warn};
 
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -115,7 +114,6 @@ impl<T: Serialize> Encoder<T> for LanguageServerCodec<T> {
 
     fn encode(&mut self, item: T, dst: &mut BytesMut) -> Result<(), Self::Error> {
         let msg = serde_json::to_string(&item)?;
-        trace!("-> {}", msg);
 
         // reserve just enough space to hold the `Content-Length: ` and `\r\n\r\n` constants,
         // the length of the message, and the message body
@@ -155,7 +153,6 @@ impl<T: DeserializeOwned> Decoder for LanguageServerCodec<T> {
             let result = if message.is_empty() {
                 Ok(None)
             } else {
-                trace!("<- {}", message);
                 match serde_json::from_str(message) {
                     Ok(parsed) => Ok(Some(parsed)),
                     Err(err) => Err(err.into()),
@@ -218,7 +215,7 @@ fn decode_headers(headers: &[httparse::Header<'_>]) -> Result<usize, ParseError>
                     _ => return Err(ParseError::InvalidContentType),
                 }
             }
-            other => warn!("encountered unsupported header: {:?}", other),
+            _ => {}
         }
     }
 

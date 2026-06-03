@@ -28,8 +28,3 @@ pub(crate) fn lsp_uri_for_file(file: &File) -> Option<lsp::Uri> {
 pub(crate) fn lsp_uri_for_source_uri(uri: &Uri) -> Option<lsp::Uri> {
     uri.as_ref().parse().ok()
 }
-
-/// Convert one LSP uri into the source uri representation.
-pub(crate) fn source_uri_from_lsp(uri: &lsp::Uri) -> Uri {
-    Uri::from_string(uri.to_string())
-}

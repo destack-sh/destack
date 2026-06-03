@@ -7,7 +7,6 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
 use futures::future::{self, Either};
-use tracing::{debug, info};
 
 use super::ExitedError;
 use crate::jsonrpc::{Error, Id, Response};
@@ -58,12 +57,6 @@ impl Pending {
     pub fn cancel(&self, id: &Id) {
         if let Some((_, handle)) = self.0.remove(id) {
             handle.abort();
-            info!("successfully cancelled request with ID: {}", id);
-        } else {
-            debug!(
-                "client asked to cancel request {}, but no such pending request exists, ignoring",
-                id
-            );
         }
     }
 

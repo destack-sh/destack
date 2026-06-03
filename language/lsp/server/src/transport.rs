@@ -8,7 +8,6 @@ use futures::{
     FutureExt, Sink, SinkExt, Stream, StreamExt, TryFutureExt, future, join, stream, stream_select,
 };
 use tower::Service;
-use tracing::error;
 
 use crate::codec::{LanguageServerCodec, ParseError};
 use crate::jsonrpc::{Error, Id, Message, Request, Response};
@@ -123,8 +122,7 @@ where
             while let Some(msg) = framed_stdin.next().await {
                 match msg {
                     Ok(Message::Request(req)) => {
-                        if let Err(err) = future::poll_fn(|cx| service.poll_ready(cx)).await {
-                            error!("{}", display_sources(err.into().as_ref()));
+                        if future::poll_fn(|cx| service.poll_ready(cx)).await.is_err() {
                             return;
                         }
 
@@ -133,10 +131,7 @@ where
                         // we break early here so that control can be yielded back immediately
                         let will_exit = req.method() == "exit";
 
-                        let fut = service.call(req).unwrap_or_else(|err| {
-                            error!("{}", display_sources(err.into().as_ref()));
-                            None
-                        });
+                        let fut = service.call(req).unwrap_or_else(|_| None);
 
                         let _ = server_tasks_tx.send(fut).await;
 
@@ -145,13 +140,11 @@ where
                         }
                     }
                     Ok(Message::Response(res)) => {
-                        if let Err(err) = client_responses.send(res).await {
-                            error!("{}", display_sources(&err));
+                        if client_responses.send(res).await.is_err() {
                             return;
                         }
                     }
                     Err(err) => {
-                        error!("failed to decode message: {}", err);
                         let res = Response::from_error(Id::Null, to_jsonrpc_error(err));
                         let _ = responses_tx.send(Message::Response(res)).await;
                     }
@@ -169,13 +162,6 @@ where
             read_input
         );
     }
-}
-
-fn display_sources(error: &dyn std::error::Error) -> String {
-    error.source().map_or_else(
-        || error.to_string(),
-        |source| format!("{}: {}", error, display_sources(source)),
-    )
 }
 
 fn to_jsonrpc_error(err: ParseError) -> Error {
