@@ -4,8 +4,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Constraint, FormTerm, FunctionParameter, FunctionTerm, GenericApplication,
-    GenericArgument, MemberTerm, Origin, ShapeMember, ShapeTerm, StaticOperand, StaticTerm, TermId,
+    CheckState, Constraint, FormTerm, FunctionParameter, FunctionTerm, GenericArgument,
+    GenericInstance, MemberTerm, Origin, ShapeMember, ShapeTerm, StaticOperand, StaticTerm, TermId,
     TupleElement, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
 };
 
@@ -215,7 +215,8 @@ impl CheckState<'_> {
         let ty = match term {
             TypeTerm::Type(ty) => return Some(*ty),
             TypeTerm::Literal(atom) => atom.to_type(),
-            TypeTerm::Parameter(parameter) => dir::Type::Parameter((*parameter).into()),
+            TypeTerm::Intrinsic => dir::Type::Intrinsic,
+            TypeTerm::Parameter(parameter) => dir::Type::Parameter(*parameter),
             TypeTerm::This => dir::Type::This,
             TypeTerm::Form { form, payload } => {
                 let value =
@@ -446,7 +447,7 @@ impl CheckState<'_> {
         let term = match term {
             StaticTerm::Static(static_id) => return Some(*static_id),
             StaticTerm::Literal(term) => term.clone(),
-            StaticTerm::Parameter(parameter) => dir::StaticTerm::Parameter((*parameter).into()),
+            StaticTerm::Parameter(parameter) => dir::StaticTerm::Parameter(*parameter),
             StaticTerm::Union { elements } => {
                 let elements = elements
                     .iter()
@@ -555,13 +556,13 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
-        slots: &[crate::check::GenericSlotId],
+        parameters: &[crate::check::GenericParameterId],
         source: dir::LocalNodeIdAny,
     ) -> Option<Vec<dir::GlobalTypeId>> {
-        slots
+        parameters
             .iter()
-            .map(|slot| {
-                let ty = dir::Type::Parameter((*slot).into());
+            .map(|parameter| {
+                let ty = dir::Type::Parameter(*parameter);
 
                 Some(
                     self.intern_type(module, output, ty, source)
@@ -617,13 +618,13 @@ impl CheckState<'_> {
             .map(|parameter| {
                 let parameter = parameter;
                 let ty = parameter.ty;
-                let static_slot = parameter.static_slot.map(dir::GenericParameterRef::from);
+                let static_parameter = parameter.static_parameter;
                 let is_optional = parameter.is_optional;
                 let is_rest = parameter.is_rest;
 
                 Some(dir::FunctionParameterType {
                     ty: self.commit_type_operand(module, output, environment, ty, source)?,
-                    static_slot,
+                    static_parameter,
                     is_optional,
                     is_rest,
                 })
@@ -631,36 +632,31 @@ impl CheckState<'_> {
             .collect()
     }
 
-    /// Commit one resolved generic application.
-    pub(in crate::check) fn commit_generic_application(
+    /// Commit one resolved generic instance.
+    pub(in crate::check) fn commit_generic_instance(
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         node: dir::GlobalNodeIdAny,
-        application: &GenericApplication,
-    ) -> Option<dir::LocalGenericApplicationId> {
+        instance: &GenericInstance,
+    ) -> Option<dir::LocalGenericInstanceId> {
         let source = node.local_id;
-        let arguments = self.commit_argument_terms(
-            module,
-            output,
-            environment,
-            &application.arguments,
-            source,
-        )?;
+        let arguments =
+            self.commit_argument_terms(module, output, environment, &instance.arguments, source)?;
         let template = output
             .generics
             .iter_templates()
-            .find_map(|(id, template)| (template.owner == application.owner).then_some(id))?;
-        let application = dir::GenericApplication::new(template, arguments);
-        let application_id = output
+            .find_map(|(id, template)| (template.owner == instance.owner).then_some(id))?;
+        let instance = dir::GenericInstance::new(template, arguments);
+        let instance_id = output
             .generics
-            .find_application(&application)
-            .unwrap_or_else(|| output.generics.push_application(application));
+            .find_instance(&instance)
+            .unwrap_or_else(|| output.generics.push_instance(instance));
 
-        output.generics.set_node_application(node, application_id);
+        output.generics.set_node_instance(node, instance_id);
 
-        Some(application_id)
+        Some(instance_id)
     }
 
     /// Commit generic argument terms.

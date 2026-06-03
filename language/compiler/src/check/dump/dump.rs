@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{Dump, DumpContext, GenericSlotId, Origin, VariableId, VariableKind};
+use crate::check::{Dump, DumpContext, GenericParameterId, Origin, VariableId, VariableKind};
 
 use super::format::dump_record;
 
@@ -63,20 +63,15 @@ impl Dump for Origin {
     }
 }
 
-impl Dump for GenericSlotId {
+impl Dump for GenericParameterId {
     /// Render one generic slot id.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
-        let owner = context.symbol_label(self.owner);
-        let key = context.generic_slot_key(self.key);
-        let index = self.index.get();
-
         dump_record(
-            "GenericSlot",
+            "GenericParameterBinding",
             [
-                ("owner", owner),
-                ("owner_at", context.symbol_source_label(self.owner)),
-                ("key", key),
-                ("index", index.to_string()),
+                ("id", context.generic_parameter_label(*self)),
+                ("module", context.module_label(self.module_id)),
+                ("local", self.local_id.0.to_string()),
             ],
         )
     }

@@ -6,8 +6,8 @@ use crate::CompilerResult;
 use crate::check::{
     CallableDispatch, CallableSignature, CallableTarget, CheckState, ConstructDecision,
     ConstructFailure, ConstructTargetResolution, ConstructTerm, FunctionParameter, FunctionTerm,
-    GenericApplication, GenericArgument, NominalDefinition, Origin, Progress, TypeOperand,
-    TypeTerm, VariableId,
+    GenericArgument, GenericInstance, NominalDefinition, Origin, Progress, TypeOperand, TypeTerm,
+    VariableId,
 };
 
 use super::CandidateSet;
@@ -86,14 +86,14 @@ impl CheckState<'_> {
         // choose the first compatible declaration order candidate
         for candidate in candidates {
             let owner = Some(candidate.target.symbol());
-            let application = candidate.target.application().cloned();
+            let instance = candidate.target.instance().cloned();
             let target = CallableTarget::Construct(candidate.target);
             let result = self.select_call_signature(
                 origin,
                 module,
                 source,
                 owner,
-                application,
+                instance,
                 candidate.function,
                 generic_arguments,
                 arguments,
@@ -199,7 +199,7 @@ impl CheckState<'_> {
             return Ok(self.default_class_construct_candidate(callee, class, arguments));
         }
         let substitution = self.generic_substitution(class, arguments)?;
-        let instance = (!arguments.is_empty()).then(|| GenericApplication {
+        let instance = (!arguments.is_empty()).then(|| GenericInstance {
             owner: class,
             arguments: arguments.to_vec().into(),
         });
@@ -229,7 +229,7 @@ impl CheckState<'_> {
                 target: ConstructTargetResolution::Class {
                     symbol: class,
                     constructor: Some(symbol),
-                    application: instance.clone(),
+                    instance: instance.clone(),
                 },
                 function,
             });
@@ -245,7 +245,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
     ) -> ConstructCandidates {
-        let instance = (!arguments.is_empty()).then(|| GenericApplication {
+        let instance = (!arguments.is_empty()).then(|| GenericInstance {
             owner: symbol,
             arguments: arguments.to_vec().into(),
         });
@@ -261,7 +261,7 @@ impl CheckState<'_> {
             target: ConstructTargetResolution::Class {
                 symbol,
                 constructor: None,
-                application: instance,
+                instance: instance,
             },
             function,
         };
@@ -282,8 +282,8 @@ impl CheckState<'_> {
         };
         let generic_parameters = self
             .inference
-            .generic_slots_for_owner(symbol)
-            .map(|(_, generic)| generic.slot().id())
+            .generic_parameters_for_owner(symbol)
+            .map(|(_, generic)| generic.identity().id())
             .collect::<Vec<_>>();
         let substitution = self.generic_substitution(symbol, arguments)?;
         let backing = if substitution.is_empty() {
@@ -291,7 +291,7 @@ impl CheckState<'_> {
         } else {
             self.substitute_type_operand(module, &substitution, value)?
         };
-        let instance = (!arguments.is_empty()).then(|| GenericApplication {
+        let instance = (!arguments.is_empty()).then(|| GenericInstance {
             owner: symbol,
             arguments: arguments.to_vec().into(),
         });
@@ -306,7 +306,7 @@ impl CheckState<'_> {
         let candidate = ConstructCandidate {
             target: ConstructTargetResolution::Newtype {
                 symbol,
-                application: instance,
+                instance: instance,
             },
             function,
         };

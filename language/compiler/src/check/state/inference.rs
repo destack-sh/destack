@@ -3,12 +3,12 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CallDecision, CheckState, Constraint, ConstructDecision, Dump, DumpContext, GenericApplication,
-    GenericApplicationKey, GenericArgument, GenericInduction, GenericInductionRoot,
-    GenericInductionSlot, GenericSlot, GenericSlotId, GenericTemplate, IdentityDecision,
-    LayoutDecision, MemberDecision, Obligation, OperatorDecision, PatternDecision,
-    ReceiverResolution, Solution, StaticOperand, Term, TermId, TermTable, TypeOperand, Variable,
-    VariableId,
+    CallDecision, CheckState, Constraint, ConstructDecision, Dump, DumpContext, GenericArgument,
+    GenericInduction, GenericInductionParameter, GenericInductionRoot, GenericInstance,
+    GenericInstanceKey, GenericParameterBinding, GenericParameterId, GenericTemplate,
+    IdentityDecision, LayoutDecision, MemberDecision, Obligation, OperatorDecision,
+    PatternDecision, ReceiverResolution, Solution, StaticOperand, Term, TermId, TermTable,
+    TypeOperand, Variable, VariableId,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -51,16 +51,16 @@ pub(in crate::check) struct InferenceSegment {
 
     /// Generic templates keyed by owning symbol.
     generic_templates: IndexMap<dir::GlobalSymbolId, GenericTemplate>,
-    /// Generic applications keyed by source node and owner.
-    generic_applications: IndexMap<GenericApplicationKey, GenericApplication>,
-    /// Generic slot ids keyed by parameter symbol.
-    generic_slots_by_symbol: IndexMap<dir::GlobalSymbolId, GenericSlotId>,
-    /// Generic slots keyed by slot id.
-    generic_slots_by_id: IndexMap<GenericSlotId, GenericSlot>,
+    /// Generic instances keyed by source node and owner.
+    generic_instances: IndexMap<GenericInstanceKey, GenericInstance>,
+    /// Generic parameter ids keyed by parameter symbol.
+    generic_parameters_by_symbol: IndexMap<dir::GlobalSymbolId, GenericParameterId>,
+    /// Generic parameters keyed by parameter id.
+    generic_parameters_by_id: IndexMap<GenericParameterId, GenericParameterBinding>,
     /// Declaration operands that can induce owner generics.
     generic_induction_roots: Vec<GenericInductionRoot>,
     /// Variables that can induce owner generics.
-    generic_inductions: IndexMap<VariableId, GenericInductionSlot>,
+    generic_inductions: IndexMap<VariableId, GenericInductionParameter>,
 
     /// Runtime calls resolved or rejected by solve.
     calls: IndexMap<dir::GlobalNodeIdAny, CallDecision>,
@@ -281,7 +281,7 @@ impl InferenceTable {
         let previous = self
             .current_mut()
             .generic_inductions
-            .insert(variable.variable, variable.slot);
+            .insert(variable.variable, variable.parameter);
 
         if previous.is_some() {
             panic!(
@@ -291,38 +291,38 @@ impl InferenceTable {
         }
     }
 
-    /// Return the active induced generic slot for one variable.
-    pub(in crate::check) fn generic_induction_slot(
+    /// Return the active induced generic parameter for one variable.
+    pub(in crate::check) fn generic_induction_parameter(
         &self,
         variable: VariableId,
-    ) -> Option<GenericInductionSlot> {
+    ) -> Option<GenericInductionParameter> {
         self.segments
             .iter()
             .rev()
             .find_map(|segment| segment.generic_inductions.get(&variable).cloned())
     }
 
-    /// Return generic slots in template order.
-    pub(in crate::check) fn generic_slots(
+    /// Return generic parameters in template order.
+    pub(in crate::check) fn generic_parameters(
         &self,
-    ) -> impl Iterator<Item = (GenericSlotId, &GenericSlot)> + '_ {
+    ) -> impl Iterator<Item = (GenericParameterId, &GenericParameterBinding)> + '_ {
         self.segments
             .iter()
             .flat_map(|segment| segment.generic_templates.values())
-            .flat_map(|template| template.slots.iter())
-            .filter_map(|slot_id| self.generic_slot_entry(*slot_id))
+            .flat_map(|template| template.parameters.iter())
+            .filter_map(|parameter_id| self.generic_parameter_entry(*parameter_id))
     }
 
-    /// Return generic slots owned by one symbol.
-    pub(in crate::check) fn generic_slots_for_owner(
+    /// Return generic parameters owned by one symbol.
+    pub(in crate::check) fn generic_parameters_for_owner(
         &self,
         owner: dir::GlobalSymbolId,
-    ) -> impl Iterator<Item = (GenericSlotId, &GenericSlot)> + '_ {
+    ) -> impl Iterator<Item = (GenericParameterId, &GenericParameterBinding)> + '_ {
         self.segments
             .iter()
             .flat_map(move |segment| segment.generic_templates.get(&owner))
-            .flat_map(|template| template.slots.iter().copied())
-            .filter_map(|slot_id| self.generic_slot_entry(slot_id))
+            .flat_map(|template| template.parameters.iter().copied())
+            .filter_map(|parameter_id| self.generic_parameter_entry(parameter_id))
     }
 
     /// Return the active generic template for one owner.
@@ -336,132 +336,136 @@ impl InferenceTable {
             .find_map(|segment| segment.generic_templates.get(&owner))
     }
 
-    /// Return one active generic slot by id.
-    pub(in crate::check) fn generic_slot_by_id(
+    /// Return one active generic parameter by id.
+    pub(in crate::check) fn generic_parameter_by_id(
         &self,
-        slot_id: GenericSlotId,
-    ) -> Option<&GenericSlot> {
+        parameter_id: GenericParameterId,
+    ) -> Option<&GenericParameterBinding> {
         self.segments
             .iter()
             .rev()
-            .find_map(|segment| segment.generic_slots_by_id.get(&slot_id))
+            .find_map(|segment| segment.generic_parameters_by_id.get(&parameter_id))
     }
 
-    /// Return one required generic slot by id.
-    pub(in crate::check) fn generic_slot(&self, slot_id: GenericSlotId) -> &GenericSlot {
-        self.generic_slot_by_id(slot_id)
-            .unwrap_or_else(|| panic!("generic slot {slot_id:?} does not exist"))
-    }
-
-    /// Return one active generic application.
-    pub(in crate::check) fn generic_application(
+    /// Return one required generic parameter by id.
+    pub(in crate::check) fn generic_parameter(
         &self,
-        key: GenericApplicationKey,
-    ) -> Option<&GenericApplication> {
+        parameter_id: GenericParameterId,
+    ) -> &GenericParameterBinding {
+        self.generic_parameter_by_id(parameter_id)
+            .unwrap_or_else(|| panic!("generic parameter {parameter_id:?} does not exist"))
+    }
+
+    /// Return one active generic instance.
+    pub(in crate::check) fn generic_instance(
+        &self,
+        key: GenericInstanceKey,
+    ) -> Option<&GenericInstance> {
         self.segments
             .iter()
             .rev()
-            .find_map(|segment| segment.generic_applications.get(&key))
+            .find_map(|segment| segment.generic_instances.get(&key))
     }
 
-    /// Return one active generic application argument.
-    pub(in crate::check) fn generic_application_argument(
+    /// Return one active generic instance argument.
+    pub(in crate::check) fn generic_instance_argument(
         &self,
         source: dir::GlobalNodeIdAny,
         owner: dir::GlobalSymbolId,
-        index: dir::GenericSlotIndex,
+        index: usize,
     ) -> Option<GenericArgument> {
-        let key = GenericApplicationKey { source, owner };
+        let key = GenericInstanceKey { source, owner };
 
-        self.generic_application(key)
-            .and_then(|application| application.arguments.get(index.0 as usize))
+        self.generic_instance(key)
+            .and_then(|instance| instance.arguments.get(index))
             .cloned()
     }
 
-    /// Insert one generic application into the current segment.
-    pub(in crate::check) fn insert_generic_application(
+    /// Insert one generic instance into the current segment.
+    pub(in crate::check) fn insert_generic_instance(
         &mut self,
-        key: GenericApplicationKey,
+        key: GenericInstanceKey,
         arguments: SmallVec<[GenericArgument; 2]>,
-    ) -> GenericApplication {
-        if let Some(application) = self.generic_application(key) {
-            if application.arguments != arguments {
-                panic!("check generic application {key:?} already has different arguments");
+    ) -> GenericInstance {
+        if let Some(instance) = self.generic_instance(key) {
+            if instance.arguments != arguments {
+                panic!("check generic instance {key:?} already has different arguments");
             }
 
-            return application.clone();
+            return instance.clone();
         }
 
-        let application = GenericApplication {
+        let instance = GenericInstance {
             owner: key.owner,
             arguments,
         };
 
         self.current_mut()
-            .generic_applications
-            .insert(key, application.clone());
+            .generic_instances
+            .insert(key, instance.clone());
 
-        application
+        instance
     }
 
-    /// Insert one generic slot into the current segment.
-    pub(in crate::check) fn insert_generic_slot(&mut self, generic: GenericSlot) {
-        let owner = generic.slot().owner;
-        let key = generic.slot().key;
-        let slot_id = generic.slot().id();
-        if self.generic_slot_by_id(slot_id).is_some() {
-            panic!("generic slot {slot_id:?} is already inserted");
+    /// Insert one generic parameter into the current segment.
+    pub(in crate::check) fn insert_generic_parameter(&mut self, generic: GenericParameterBinding) {
+        let owner = generic.identity().owner;
+        let key = generic.identity().key;
+        let parameter_id = generic.identity().id();
+        if self.generic_parameter_by_id(parameter_id).is_some() {
+            panic!("generic parameter {parameter_id:?} is already inserted");
         }
 
         let segment = self.current_mut();
-        segment.generic_slots_by_id.insert(slot_id, generic);
+        segment
+            .generic_parameters_by_id
+            .insert(parameter_id, generic);
         segment
             .generic_templates
             .entry(owner)
             .or_insert_with(|| GenericTemplate::new(owner))
-            .slots
-            .push(slot_id);
-        if let dir::GenericSlotKey::Symbol(symbol) = key {
-            segment.generic_slots_by_symbol.insert(symbol, slot_id);
+            .parameters
+            .push(parameter_id);
+        if let dir::GenericParameterKey::Symbol(symbol) = key {
+            segment
+                .generic_parameters_by_symbol
+                .insert(symbol, parameter_id);
         }
     }
 
-    /// Return the active generic slot id declared by one symbol.
-    pub(in crate::check) fn generic_slot_id_for_symbol(
+    /// Return the active generic parameter id declared by one symbol.
+    pub(in crate::check) fn generic_parameter_id_for_symbol(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<GenericSlotId> {
+    ) -> Option<GenericParameterId> {
         self.segments
             .iter()
             .rev()
-            .find_map(|segment| segment.generic_slots_by_symbol.get(&symbol).copied())
+            .find_map(|segment| segment.generic_parameters_by_symbol.get(&symbol).copied())
     }
 
-    /// Return one active generic slot mutably.
-    pub(in crate::check) fn generic_slot_by_id_mut(
+    /// Return one active generic parameter mutably.
+    pub(in crate::check) fn generic_parameter_by_id_mut(
         &mut self,
-        slot_id: GenericSlotId,
-    ) -> &mut GenericSlot {
+        parameter_id: GenericParameterId,
+    ) -> &mut GenericParameterBinding {
         self.segments
             .iter_mut()
             .rev()
-            .find_map(|segment| segment.generic_slots_by_id.get_mut(&slot_id))
-            .unwrap_or_else(|| panic!("generic slot {slot_id:?} does not exist"))
+            .find_map(|segment| segment.generic_parameters_by_id.get_mut(&parameter_id))
+            .unwrap_or_else(|| panic!("generic parameter {parameter_id:?} does not exist"))
     }
 
-    /// Return the next generic slot index for one owner.
-    pub(in crate::check) fn next_generic_slot_index(
+    /// Return the next generic parameter number for one owner.
+    pub(in crate::check) fn next_generic_parameter_number(
         &self,
         owner: dir::GlobalSymbolId,
-    ) -> dir::GenericSlotIndex {
-        let index = self
-            .segments
+    ) -> u32 {
+        self.segments
             .iter()
             .filter_map(|segment| segment.generic_templates.get(&owner))
-            .map(|template| template.slots.len())
-            .sum::<usize>();
-
-        dir::GenericSlotIndex::new(index as u32)
+            .map(|template| template.parameters.len())
+            .sum::<usize>() as u32
     }
 
     /// Return active lower type bounds for one variable.
@@ -998,11 +1002,14 @@ impl InferenceTable {
         true
     }
 
-    /// Return one generic slot entry with its id.
-    fn generic_slot_entry(&self, slot_id: GenericSlotId) -> Option<(GenericSlotId, &GenericSlot)> {
-        let generic = self.generic_slot_by_id(slot_id)?;
+    /// Return one generic parameter entry with its id.
+    fn generic_parameter_entry(
+        &self,
+        parameter_id: GenericParameterId,
+    ) -> Option<(GenericParameterId, &GenericParameterBinding)> {
+        let generic = self.generic_parameter_by_id(parameter_id)?;
 
-        Some((slot_id, generic))
+        Some((parameter_id, generic))
     }
 }
 
@@ -1020,9 +1027,9 @@ impl InferenceSegment {
             static_upper_bounds: IndexMap::new(),
             solutions: IndexMap::new(),
             generic_templates: IndexMap::new(),
-            generic_applications: IndexMap::new(),
-            generic_slots_by_symbol: IndexMap::new(),
-            generic_slots_by_id: IndexMap::new(),
+            generic_instances: IndexMap::new(),
+            generic_parameters_by_symbol: IndexMap::new(),
+            generic_parameters_by_id: IndexMap::new(),
             generic_induction_roots: Vec::new(),
             generic_inductions: IndexMap::new(),
             calls: IndexMap::new(),
@@ -1054,13 +1061,14 @@ impl InferenceSegment {
             self.generic_templates
                 .entry(owner)
                 .or_insert_with(|| GenericTemplate::new(owner))
-                .slots
-                .append(&mut template.slots);
+                .parameters
+                .append(&mut template.parameters);
         }
-        self.generic_applications.extend(child.generic_applications);
-        self.generic_slots_by_symbol
-            .extend(child.generic_slots_by_symbol);
-        self.generic_slots_by_id.extend(child.generic_slots_by_id);
+        self.generic_instances.extend(child.generic_instances);
+        self.generic_parameters_by_symbol
+            .extend(child.generic_parameters_by_symbol);
+        self.generic_parameters_by_id
+            .extend(child.generic_parameters_by_id);
         self.generic_induction_roots
             .append(&mut child.generic_induction_roots);
         self.generic_inductions.extend(child.generic_inductions);

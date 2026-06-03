@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, FunctionTerm, GenericApplication, TypeOperand};
+use crate::check::{CheckState, FunctionTerm, GenericInstance, TypeOperand};
 
 /// Runtime call target resolved by the solver.
 ///
@@ -20,8 +20,8 @@ pub(in crate::check) enum CallTargetResolution {
     /// callback()
     /// ```
     Expression {
-        /// The resolved generic application.
-        application: Option<GenericApplication>,
+        /// The resolved generic instance.
+        instance: Option<GenericInstance>,
     },
     /// Symbol-backed callable selected at compile time.
     ///
@@ -33,8 +33,8 @@ pub(in crate::check) enum CallTargetResolution {
     Symbol {
         /// The resolved callable symbol.
         symbol: dir::GlobalSymbolId,
-        /// The resolved generic application.
-        application: Option<GenericApplication>,
+        /// The resolved generic instance.
+        instance: Option<GenericInstance>,
         /// The resolved receiver type for method calls.
         receiver: Option<TypeOperand>,
     },
@@ -62,8 +62,8 @@ pub(in crate::check) enum CallTargetResolution {
 pub(in crate::check) struct CandidateResolution {
     /// The selected declaration symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// The selected generic application.
-    pub(in crate::check) application: Option<GenericApplication>,
+    /// The selected generic instance.
+    pub(in crate::check) instance: Option<GenericInstance>,
 }
 
 /// Runtime call selected by the solver before commit.

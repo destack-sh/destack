@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, GenericApplication, StaticOperand, TypeOperand};
+use crate::check::{CheckState, GenericInstance, StaticOperand, TypeOperand};
 
 /// Pattern decision resolved by check before commit.
 ///
@@ -299,8 +299,8 @@ pub(in crate::check) struct PatternShapeResolution {
 pub(in crate::check) struct PatternNominalResolution {
     /// The selected nominal symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// The selected generic application.
-    pub(in crate::check) application: Option<GenericApplication>,
+    /// The selected generic instance.
+    pub(in crate::check) instance: Option<GenericInstance>,
     /// The nominal field mapping in source order.
     pub(in crate::check) fields: Vec<PatternFieldResolution>,
 }
@@ -315,8 +315,8 @@ pub(in crate::check) struct PatternNominalResolution {
 pub(in crate::check) struct PatternNewtypeResolution {
     /// The selected newtype symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// The selected generic application.
-    pub(in crate::check) application: Option<GenericApplication>,
+    /// The selected generic instance.
+    pub(in crate::check) instance: Option<GenericInstance>,
     /// The wrapped value pattern.
     pub(in crate::check) value: Option<dir::GlobalNodeIdAny>,
 }
@@ -331,8 +331,8 @@ pub(in crate::check) struct PatternNewtypeResolution {
 pub(in crate::check) struct PatternVariantResolution {
     /// The selected variant symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// The selected generic application.
-    pub(in crate::check) application: Option<GenericApplication>,
+    /// The selected generic instance.
+    pub(in crate::check) instance: Option<GenericInstance>,
     /// The selected static discriminant value.
     pub(in crate::check) discriminant: Option<StaticOperand>,
     /// The variant field mapping in source order.

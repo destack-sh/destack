@@ -7,42 +7,34 @@ use crate::check::{
 
 use super::VariableId;
 
-/// Stable id for one declaration-side generic slot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) struct GenericSlotId {
-    /// The generic owner symbol.
-    pub(in crate::check) owner: dir::GlobalSymbolId,
-    /// The referenced slot key.
-    pub(in crate::check) key: dir::GenericSlotKey,
-    /// The declaration order index.
-    pub(in crate::check) index: dir::GenericSlotIndex,
-}
+/// Stable id for one declaration-side generic parameter.
+pub(in crate::check) type GenericParameterId = dir::GlobalGenericParameterId;
 
-/// One generic template application.
+/// One generic template instance.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct GenericApplication {
+pub(in crate::check) struct GenericInstance {
     /// The applied generic owner.
     pub(in crate::check) owner: dir::GlobalSymbolId,
     /// The generic arguments in declaration order.
     pub(in crate::check) arguments: SmallVec<[GenericArgument; 2]>,
 }
 
-/// Stable key for one source-level generic application.
+/// Stable key for one source-level generic instance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::check) struct GenericApplicationKey {
+pub(in crate::check) struct GenericInstanceKey {
     /// The syntax node that applies the generic owner.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The generic owner being applied.
     pub(in crate::check) owner: dir::GlobalSymbolId,
 }
 
-/// One owner-level declaration of generic slots.
+/// One owner-level declaration of generic parameters.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct GenericTemplate {
     /// The symbol that owns this generic template.
     pub(in crate::check) owner: dir::GlobalSymbolId,
-    /// The generic slots in declaration order.
-    pub(in crate::check) slots: Vec<GenericSlotId>,
+    /// The generic parameters in declaration order.
+    pub(in crate::check) parameters: Vec<GenericParameterId>,
 }
 
 impl GenericTemplate {
@@ -50,7 +42,7 @@ impl GenericTemplate {
     pub(in crate::check) fn new(owner: dir::GlobalSymbolId) -> Self {
         Self {
             owner,
-            slots: Vec::new(),
+            parameters: Vec::new(),
         }
     }
 }
@@ -69,29 +61,29 @@ pub(in crate::check) struct GenericInductionRoot {
 pub(in crate::check) struct GenericInduction {
     /// The variable rewritten to the generated parameter.
     pub(in crate::check) variable: VariableId,
-    /// The generated slot recipe.
-    pub(in crate::check) slot: GenericInductionSlot,
+    /// The generated parameter recipe.
+    pub(in crate::check) parameter: GenericInductionParameter,
 }
 
-/// One generated generic slot recipe.
+/// One generated generic parameter recipe.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct GenericInductionSlot {
+pub(in crate::check) struct GenericInductionParameter {
     /// The induced variable kind.
     pub(in crate::check) kind: VariableKind,
-    /// The generated slot name prefix.
+    /// The generated parameter name prefix.
     pub(in crate::check) prefix: &'static str,
-    /// The optional generated slot constraint.
+    /// The optional generated parameter constraint.
     pub(in crate::check) constraint: Option<TypeOperand>,
-    /// The reason this slot was induced.
-    pub(in crate::check) induction: dir::GenericSlotInduction,
+    /// The reason this parameter was induced.
+    pub(in crate::check) induction: dir::GenericParameterInduction,
 }
 
-impl GenericInductionSlot {
-    /// Create one induced type slot.
+impl GenericInductionParameter {
+    /// Create one induced type parameter.
     pub(in crate::check) fn r#type(
         prefix: &'static str,
         constraint: Option<TypeOperand>,
-        induction: dir::GenericSlotInduction,
+        induction: dir::GenericParameterInduction,
     ) -> Self {
         Self {
             kind: VariableKind::Type,
@@ -101,11 +93,11 @@ impl GenericInductionSlot {
         }
     }
 
-    /// Create one induced static slot.
+    /// Create one induced static parameter.
     pub(in crate::check) fn r#static(
         prefix: &'static str,
         constraint: Option<TypeOperand>,
-        induction: dir::GenericSlotInduction,
+        induction: dir::GenericParameterInduction,
     ) -> Self {
         Self {
             kind: VariableKind::Static,
@@ -116,88 +108,64 @@ impl GenericInductionSlot {
     }
 }
 
-/// Generic slot identity shared by explicit and induced generic slots.
+/// Generic parameter identity shared by explicit and induced generic parameters.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct GenericSlotHeader {
+pub(in crate::check) struct GenericParameterIdentity {
+    /// The stable generic parameter id.
+    pub(in crate::check) id: GenericParameterId,
     /// The generic owner symbol.
     pub(in crate::check) owner: dir::GlobalSymbolId,
-    /// The slot key.
-    pub(in crate::check) key: dir::GenericSlotKey,
-    /// The declaration order index.
-    pub(in crate::check) index: dir::GenericSlotIndex,
-    /// The slot origin.
-    pub(in crate::check) origin: dir::GenericSlotOrigin,
+    /// The parameter key.
+    pub(in crate::check) key: dir::GenericParameterKey,
+    /// The parameter origin.
+    pub(in crate::check) origin: dir::GenericParameterOrigin,
 }
 
-impl GenericSlotHeader {
-    /// Return a stable slot id.
-    pub(in crate::check) fn id(&self) -> GenericSlotId {
-        GenericSlotId {
-            owner: self.owner,
-            key: self.key,
-            index: self.index,
-        }
+impl GenericParameterIdentity {
+    /// Return a stable parameter id.
+    pub(in crate::check) fn id(&self) -> GenericParameterId {
+        self.id
     }
 }
 
-impl From<GenericSlotId> for dir::GenericParameterRef {
-    fn from(reference: GenericSlotId) -> Self {
-        Self {
-            owner: reference.owner,
-            key: reference.key,
-            index: reference.index,
-        }
-    }
-}
-
-impl From<dir::GenericParameterRef> for GenericSlotId {
-    fn from(parameter: dir::GenericParameterRef) -> Self {
-        Self {
-            owner: parameter.owner,
-            key: parameter.key,
-            index: parameter.index,
-        }
-    }
-}
-
-/// Generic slot metadata shared by explicit and induced parameters.
+/// Generic parameter metadata shared by explicit and induced parameters.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum GenericSlot {
-    /// Type generic slot.
+pub(in crate::check) enum GenericParameterBinding {
+    /// Type generic parameter.
     Type {
-        /// The slot identity.
-        slot: GenericSlotHeader,
-        /// The slot variance.
+        /// The parameter identity.
+        identity: GenericParameterIdentity,
+        /// The parameter variance.
         variance: Option<dir::VarianceModifier>,
         /// The optional type constraint.
         constraint: Option<TypeOperand>,
         /// The optional type default.
         default: Option<TypeOperand>,
     },
-    /// Variadic type generic slot.
+    /// Variadic type generic parameter.
     VariadicType {
-        /// The slot identity.
-        slot: GenericSlotHeader,
-        /// The slot variance.
+        /// The parameter identity.
+        identity: GenericParameterIdentity,
+        /// The parameter variance.
         variance: Option<dir::VarianceModifier>,
         /// The optional type constraint.
         constraint: Option<TypeOperand>,
         /// The optional type default.
         default: Option<TypeOperand>,
     },
-    /// Static generic slot.
+    /// Static generic parameter.
     Static {
-        /// The slot identity.
-        slot: GenericSlotHeader,
+        /// The parameter identity.
+        identity: GenericParameterIdentity,
         /// The optional static value type constraint.
         constraint: Option<TypeOperand>,
         /// The optional static default.
         default: Option<StaticOperand>,
     },
-    /// Variadic static generic slot.
+    /// Variadic static generic parameter.
     VariadicStatic {
-        /// The slot identity.
-        slot: GenericSlotHeader,
+        /// The parameter identity.
+        identity: GenericParameterIdentity,
         /// The optional static value type constraint.
         constraint: Option<TypeOperand>,
         /// The optional static default.
@@ -205,28 +173,28 @@ pub(in crate::check) enum GenericSlot {
     },
 }
 
-impl GenericSlot {
-    /// Return this generic parameter's slot identity.
-    pub(in crate::check) fn slot(&self) -> &GenericSlotHeader {
+impl GenericParameterBinding {
+    /// Return this generic parameter's parameter identity.
+    pub(in crate::check) fn identity(&self) -> &GenericParameterIdentity {
         match self {
-            Self::Type { slot, .. }
-            | Self::VariadicType { slot, .. }
-            | Self::Static { slot, .. }
-            | Self::VariadicStatic { slot, .. } => slot,
+            Self::Type { identity, .. }
+            | Self::VariadicType { identity, .. }
+            | Self::Static { identity, .. }
+            | Self::VariadicStatic { identity, .. } => identity,
         }
     }
 
-    /// Return whether this is a type-level generic slot.
+    /// Return whether this is a type-level generic parameter.
     pub(in crate::check) fn is_type(&self) -> bool {
         matches!(self, Self::Type { .. } | Self::VariadicType { .. })
     }
 
-    /// Return whether this is a static generic slot.
+    /// Return whether this is a static generic parameter.
     pub(in crate::check) fn is_static(&self) -> bool {
         matches!(self, Self::Static { .. } | Self::VariadicStatic { .. })
     }
 
-    /// Return whether this is a variadic generic slot.
+    /// Return whether this is a variadic generic parameter.
     pub(in crate::check) fn is_variadic(&self) -> bool {
         matches!(
             self,
@@ -261,11 +229,11 @@ impl CheckState<'_> {
         variable: VariableId,
         prefix: &'static str,
         constraint: Option<TypeOperand>,
-        induction: dir::GenericSlotInduction,
+        induction: dir::GenericParameterInduction,
     ) {
         let generic_induction = GenericInduction {
             variable,
-            slot: GenericInductionSlot::r#static(prefix, constraint, induction),
+            parameter: GenericInductionParameter::r#static(prefix, constraint, induction),
         };
 
         self.inference.insert_generic_induction(generic_induction);
@@ -290,7 +258,7 @@ impl CheckState<'_> {
             variable,
             prefix,
             Some(constraint),
-            dir::GenericSlotInduction::Form,
+            dir::GenericParameterInduction::Form,
         );
     }
 
@@ -300,131 +268,142 @@ impl CheckState<'_> {
         variable: VariableId,
         prefix: &'static str,
         constraint: Option<TypeOperand>,
-        induction: dir::GenericSlotInduction,
+        induction: dir::GenericParameterInduction,
     ) {
         let generic_induction = GenericInduction {
             variable,
-            slot: GenericInductionSlot::r#type(prefix, constraint, induction),
+            parameter: GenericInductionParameter::r#type(prefix, constraint, induction),
         };
 
         self.inference.insert_generic_induction(generic_induction);
     }
 
-    /// Insert one generic application for a source node.
-    pub(in crate::check) fn insert_generic_application(
+    /// Insert one generic instance for a source node.
+    pub(in crate::check) fn insert_generic_instance(
         &mut self,
         source: dir::GlobalNodeIdAny,
         owner: dir::GlobalSymbolId,
         arguments: SmallVec<[GenericArgument; 2]>,
-    ) -> GenericApplication {
-        let key = GenericApplicationKey { source, owner };
+    ) -> GenericInstance {
+        let key = GenericInstanceKey { source, owner };
 
-        self.inference.insert_generic_application(key, arguments)
+        self.inference.insert_generic_instance(key, arguments)
     }
 
-    /// Add one type constraint to an existing generic type slot.
-    pub(in crate::check) fn constrain_generic_type_slot(
+    /// Add one type constraint to an existing generic type parameter.
+    pub(in crate::check) fn constrain_generic_type_parameter(
         &mut self,
-        slot_id: GenericSlotId,
+        parameter_id: GenericParameterId,
         constraint: TypeOperand,
     ) {
-        let current = self.inference.generic_slot(slot_id).type_constraint();
+        let current = self
+            .inference
+            .generic_parameter(parameter_id)
+            .type_constraint();
         let constraint = match current {
             Some(current) => TypeOperand::Term(self.inference.push_term(TypeTerm::Intersection {
                 elements: vec![current, constraint],
             })),
             None => constraint,
         };
-        let generic = self.inference.generic_slot_by_id_mut(slot_id);
+        let generic = self.inference.generic_parameter_by_id_mut(parameter_id);
 
         match generic {
-            GenericSlot::Type {
+            GenericParameterBinding::Type {
                 constraint: current,
                 ..
             }
-            | GenericSlot::VariadicType {
+            | GenericParameterBinding::VariadicType {
                 constraint: current,
                 ..
             } => *current = Some(constraint),
-            GenericSlot::Static { .. } | GenericSlot::VariadicStatic { .. } => {
-                panic!("generic slot {slot_id:?} is not a type slot")
+            GenericParameterBinding::Static { .. }
+            | GenericParameterBinding::VariadicStatic { .. } => {
+                panic!("generic parameter {parameter_id:?} is not a type parameter")
             }
         }
     }
 
-    /// Insert one generic slot.
-    pub(in crate::check) fn insert_generic_slot(&mut self, generic: GenericSlot) {
-        self.inference.insert_generic_slot(generic);
+    /// Insert one generic parameter.
+    pub(in crate::check) fn insert_generic_parameter(&mut self, generic: GenericParameterBinding) {
+        self.inference.insert_generic_parameter(generic);
     }
 
-    /// Allocate one explicit generic slot for one owner.
-    pub(in crate::check) fn allocate_explicit_generic_slot(
+    /// Allocate one explicit generic parameter for one owner.
+    pub(in crate::check) fn allocate_explicit_generic_parameter(
         &mut self,
         owner: dir::GlobalSymbolId,
         symbol: dir::GlobalSymbolId,
-    ) -> GenericSlotHeader {
-        self.allocate_symbol_generic_slot(owner, symbol, dir::GenericSlotOrigin::Explicit)
+    ) -> GenericParameterIdentity {
+        self.allocate_symbol_generic_parameter(owner, symbol, dir::GenericParameterOrigin::Explicit)
     }
 
-    /// Allocate one induced generic slot for one source symbol.
-    pub(in crate::check) fn allocate_induced_symbol_generic_slot(
+    /// Allocate one induced generic parameter for one source symbol.
+    pub(in crate::check) fn allocate_induced_symbol_generic_parameter(
         &mut self,
         owner: dir::GlobalSymbolId,
         symbol: dir::GlobalSymbolId,
-    ) -> GenericSlotHeader {
-        self.allocate_symbol_generic_slot(
+    ) -> GenericParameterIdentity {
+        self.allocate_symbol_generic_parameter(
             owner,
             symbol,
-            dir::GenericSlotOrigin::Induced(dir::GenericSlotInduction::Comptime),
+            dir::GenericParameterOrigin::Induced(dir::GenericParameterInduction::Comptime),
         )
     }
 
-    /// Allocate one induced generic slot for one owner.
-    pub(in crate::check) fn allocate_generic_induction_slot(
+    /// Allocate one induced generic parameter for one owner.
+    pub(in crate::check) fn allocate_generic_induction_parameter(
         &mut self,
         owner: dir::GlobalSymbolId,
         prefix: &str,
-        induction: dir::GenericSlotInduction,
-    ) -> GenericSlotHeader {
-        let index = self.next_generic_slot_index(owner);
-        let name = self.generated_generic_name(owner, prefix, index);
+        induction: dir::GenericParameterInduction,
+    ) -> GenericParameterIdentity {
+        let id = self.allocate_generic_parameter_id(owner);
+        let number = self.next_generic_parameter_number(owner);
+        let name = self.generated_generic_name(owner, prefix, number);
 
-        GenericSlotHeader {
+        GenericParameterIdentity {
+            id,
             owner,
-            key: dir::GenericSlotKey::Generated(name),
-            index,
-            origin: dir::GenericSlotOrigin::Induced(induction),
+            key: dir::GenericParameterKey::Generated(name),
+            origin: dir::GenericParameterOrigin::Induced(induction),
         }
     }
 
-    /// Return the generated local name for one generic slot.
+    /// Return the generated local name for one generic parameter.
     fn generated_generic_name(
         &mut self,
         owner: dir::GlobalSymbolId,
         prefix: &str,
-        index: dir::GenericSlotIndex,
+        number: u32,
     ) -> dir::StringId {
         self.module_mut(owner.module_id)
             .strings
-            .intern(&format!("{prefix}{}", index.get()))
+            .intern(&format!("{prefix}{number}"))
     }
 
-    /// Allocate the next generic slot index for one owner.
-    fn next_generic_slot_index(&mut self, owner: dir::GlobalSymbolId) -> dir::GenericSlotIndex {
-        self.inference.next_generic_slot_index(owner)
+    /// Allocate the next generic parameter id for one module.
+    fn allocate_generic_parameter_id(&mut self, owner: dir::GlobalSymbolId) -> GenericParameterId {
+        self.module_mut(owner.module_id)
+            .allocate_generic_parameter_id()
     }
 
-    /// Allocate one source-symbol generic slot for one owner.
-    fn allocate_symbol_generic_slot(
+    /// Return the next generic parameter number for one owner.
+    fn next_generic_parameter_number(&mut self, owner: dir::GlobalSymbolId) -> u32 {
+        self.inference.next_generic_parameter_number(owner)
+    }
+
+    /// Allocate one source-symbol generic parameter for one owner.
+    fn allocate_symbol_generic_parameter(
         &mut self,
         owner: dir::GlobalSymbolId,
         symbol: dir::GlobalSymbolId,
-        origin: dir::GenericSlotOrigin,
-    ) -> GenericSlotHeader {
-        GenericSlotHeader {
+        origin: dir::GenericParameterOrigin,
+    ) -> GenericParameterIdentity {
+        GenericParameterIdentity {
+            id: self.allocate_generic_parameter_id(owner),
             owner,
-            key: dir::GenericSlotKey::Symbol(symbol),
-            index: self.next_generic_slot_index(owner),
+            key: dir::GenericParameterKey::Symbol(symbol),
             origin,
         }
     }

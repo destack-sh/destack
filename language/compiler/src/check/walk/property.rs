@@ -122,7 +122,7 @@ impl WalkState<'_, '_> {
             } => {
                 // walk generic parameters
                 for generic_parameter in generic_parameters {
-                    self.walk_generic_slot(
+                    self.walk_generic_parameter(
                         tree,
                         *generic_parameter,
                         tree.get(*generic_parameter),

@@ -255,7 +255,7 @@ impl CheckState<'_> {
                     let target = dir::CallTarget::Symbol(dir::CallCandidate {
                         receiver: Some(receiver),
                         symbol,
-                        application: None,
+                        instance: None,
                     });
                     let resolution = dir::CallResolution::new(target, parameters, return_type);
 
@@ -264,7 +264,7 @@ impl CheckState<'_> {
                     let target = dir::MemberTarget::Symbol(dir::MemberCandidate {
                         receiver,
                         symbol,
-                        application: None,
+                        instance: None,
                     });
                     let resolution = dir::MemberResolution::new(receiver, target);
 
@@ -365,23 +365,20 @@ impl CheckState<'_> {
             let target = match member.target {
                 MemberTargetResolution::Builtin(member) => dir::MemberTarget::Builtin(member),
                 MemberTargetResolution::Field(key) => dir::MemberTarget::Field(key),
-                MemberTargetResolution::Symbol {
-                    symbol,
-                    application,
-                } => {
-                    let application = application.as_ref().and_then(|application| {
-                        self.commit_generic_application(
+                MemberTargetResolution::Symbol { symbol, instance } => {
+                    let instance = instance.as_ref().and_then(|instance| {
+                        self.commit_generic_instance(
                             module,
                             output,
                             environment,
                             member.source,
-                            application,
+                            instance,
                         )
                     });
                     let candidate = dir::MemberCandidate {
                         receiver,
                         symbol,
-                        application,
+                        instance,
                     };
 
                     dir::MemberTarget::Symbol(candidate)
@@ -390,21 +387,20 @@ impl CheckState<'_> {
                     let candidates = candidates
                         .into_iter()
                         .map(|candidate| {
-                            let application =
-                                candidate.application.as_ref().and_then(|application| {
-                                    self.commit_generic_application(
-                                        module,
-                                        output,
-                                        environment,
-                                        member.source,
-                                        application,
-                                    )
-                                });
+                            let instance = candidate.instance.as_ref().and_then(|instance| {
+                                self.commit_generic_instance(
+                                    module,
+                                    output,
+                                    environment,
+                                    member.source,
+                                    instance,
+                                )
+                            });
 
                             dir::MemberCandidate {
                                 receiver,
                                 symbol: candidate.symbol,
-                                application,
+                                instance,
                             }
                         })
                         .collect();
@@ -462,22 +458,16 @@ impl CheckState<'_> {
         call: &CallResolution,
     ) -> dir::CallTarget {
         match &call.target {
-            CallTargetResolution::Expression { application } => {
-                let application = application.as_ref().and_then(|application| {
-                    self.commit_generic_application(
-                        module,
-                        output,
-                        environment,
-                        call.source,
-                        application,
-                    )
+            CallTargetResolution::Expression { instance } => {
+                let instance = instance.as_ref().and_then(|instance| {
+                    self.commit_generic_instance(module, output, environment, call.source, instance)
                 });
 
-                dir::CallTarget::Expression { application }
+                dir::CallTarget::Expression { instance }
             }
             CallTargetResolution::Symbol {
                 symbol,
-                application,
+                instance,
                 receiver,
             } => {
                 let receiver = receiver.and_then(|receiver| {
@@ -489,19 +479,13 @@ impl CheckState<'_> {
                         call.source.local_id,
                     )
                 });
-                let application = application.as_ref().and_then(|application| {
-                    self.commit_generic_application(
-                        module,
-                        output,
-                        environment,
-                        call.source,
-                        application,
-                    )
+                let instance = instance.as_ref().and_then(|instance| {
+                    self.commit_generic_instance(module, output, environment, call.source, instance)
                 });
                 let candidate = dir::CallCandidate {
                     receiver,
                     symbol: *symbol,
-                    application,
+                    instance,
                 };
 
                 dir::CallTarget::Symbol(candidate)
@@ -522,20 +506,20 @@ impl CheckState<'_> {
                 let candidates = candidates
                     .iter()
                     .map(|candidate| {
-                        let application = candidate.application.as_ref().and_then(|application| {
-                            self.commit_generic_application(
+                        let instance = candidate.instance.as_ref().and_then(|instance| {
+                            self.commit_generic_instance(
                                 module,
                                 output,
                                 environment,
                                 call.source,
-                                application,
+                                instance,
                             )
                         });
 
                         dir::CallCandidate {
                             receiver,
                             symbol: candidate.symbol,
-                            application,
+                            instance,
                         }
                     })
                     .collect();
@@ -557,7 +541,7 @@ impl CheckState<'_> {
             ConstructTargetResolution::Class {
                 symbol,
                 constructor,
-                application,
+                instance,
             } => {
                 let candidate = self.commit_class_construct_candidate(
                     module,
@@ -566,22 +550,19 @@ impl CheckState<'_> {
                     construct.source,
                     *symbol,
                     *constructor,
-                    application.as_ref(),
+                    instance.as_ref(),
                 );
 
                 Some(dir::ConstructTarget::Class(candidate))
             }
-            ConstructTargetResolution::Newtype {
-                symbol,
-                application,
-            } => {
+            ConstructTargetResolution::Newtype { symbol, instance } => {
                 let candidate = self.commit_construct_candidate(
                     module,
                     output,
                     environment,
                     construct.source,
                     *symbol,
-                    application.as_ref(),
+                    instance.as_ref(),
                 );
 
                 Some(dir::ConstructTarget::Newtype(candidate))
@@ -598,16 +579,16 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
         constructor: Option<dir::GlobalSymbolId>,
-        application: Option<&crate::check::GenericApplication>,
+        instance: Option<&crate::check::GenericInstance>,
     ) -> dir::ClassConstructCandidate {
-        let application = application.and_then(|application| {
-            self.commit_generic_application(module, output, environment, source, application)
+        let instance = instance.and_then(|instance| {
+            self.commit_generic_instance(module, output, environment, source, instance)
         });
 
         dir::ClassConstructCandidate {
             symbol,
             constructor,
-            application,
+            instance,
         }
     }
 
@@ -619,16 +600,13 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-        application: Option<&crate::check::GenericApplication>,
+        instance: Option<&crate::check::GenericInstance>,
     ) -> dir::NewtypeConstructCandidate {
-        let application = application.and_then(|application| {
-            self.commit_generic_application(module, output, environment, source, application)
+        let instance = instance.and_then(|instance| {
+            self.commit_generic_instance(module, output, environment, source, instance)
         });
 
-        dir::NewtypeConstructCandidate {
-            symbol,
-            application,
-        }
+        dir::NewtypeConstructCandidate { symbol, instance }
     }
 
     /// Commit one builtin operator as a builtin call.
@@ -722,13 +700,13 @@ impl CheckState<'_> {
                 }))
             }
             PatternTargetResolution::Nominal(nominal) => {
-                let application = nominal.application.as_ref().and_then(|application| {
-                    self.commit_generic_application(
+                let instance = nominal.instance.as_ref().and_then(|instance| {
+                    self.commit_generic_instance(
                         module,
                         output,
                         environment,
                         pattern.source,
-                        application,
+                        instance,
                     )
                 });
                 let fields = self.commit_pattern_field_selections(&nominal.fields);
@@ -736,38 +714,38 @@ impl CheckState<'_> {
                 Some(dir::PatternResolution::Nominal(
                     dir::PatternNominalResolution {
                         symbol: nominal.symbol,
-                        application,
+                        instance,
                         fields,
                     },
                 ))
             }
             PatternTargetResolution::Newtype(newtype) => {
-                let application = newtype.application.as_ref().and_then(|application| {
-                    self.commit_generic_application(
+                let instance = newtype.instance.as_ref().and_then(|instance| {
+                    self.commit_generic_instance(
                         module,
                         output,
                         environment,
                         pattern.source,
-                        application,
+                        instance,
                     )
                 });
 
                 Some(dir::PatternResolution::Newtype(
                     dir::PatternNewtypeResolution {
                         symbol: newtype.symbol,
-                        application,
+                        instance,
                         value: newtype.value,
                     },
                 ))
             }
             PatternTargetResolution::Variant(variant) => {
-                let application = variant.application.as_ref().and_then(|application| {
-                    self.commit_generic_application(
+                let instance = variant.instance.as_ref().and_then(|instance| {
+                    self.commit_generic_instance(
                         module,
                         output,
                         environment,
                         pattern.source,
-                        application,
+                        instance,
                     )
                 });
                 let discriminant = self.commit_optional_pattern_static(
@@ -781,7 +759,7 @@ impl CheckState<'_> {
                 Some(dir::PatternResolution::Variant(
                     dir::PatternVariantResolution {
                         symbol: variant.symbol,
-                        application,
+                        instance,
                         discriminant,
                         fields,
                     },

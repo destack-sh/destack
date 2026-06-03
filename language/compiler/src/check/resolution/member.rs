@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{CandidateResolution, CheckState, GenericApplication, TypeOperand};
+use crate::check::{CandidateResolution, CheckState, GenericInstance, TypeOperand};
 
 /// Runtime member failure resolved by the solver.
 ///
@@ -94,8 +94,8 @@ pub(in crate::check) enum MemberTargetResolution {
     Symbol {
         /// The resolved member symbol.
         symbol: dir::GlobalSymbolId,
-        /// The resolved generic application.
-        application: Option<GenericApplication>,
+        /// The resolved generic instance.
+        instance: Option<GenericInstance>,
     },
     /// Symbol-backed members selected from a union receiver.
     ///

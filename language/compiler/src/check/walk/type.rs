@@ -1632,7 +1632,11 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 for generic_parameter in generic_parameters {
-                    self.walk_generic_slot(tree, *generic_parameter, tree.get(*generic_parameter));
+                    self.walk_generic_parameter(
+                        tree,
+                        *generic_parameter,
+                        tree.get(*generic_parameter),
+                    );
                 }
 
                 for where_clause in where_clauses {
@@ -1807,7 +1811,7 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_function_type(&mut self, tree: &dir::Tree, declaration: &dir::FunctionTypeExpression) {
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
 
         if let Some(parameter) = declaration.this_parameter {
@@ -1835,7 +1839,7 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_constructor_type(&mut self, tree: &dir::Tree, declaration: &dir::ConstructorType) {
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_slot(tree, *parameter, tree.get(*parameter));
+            self.walk_generic_parameter(tree, *parameter, tree.get(*parameter));
         }
 
         for parameter in &declaration.parameters {

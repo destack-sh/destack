@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use crate::CompilerResult;
 use crate::check::{
     AssociatedConstDefinition, AssociatedTypeDefinition, CheckState, ClassDefinition,
-    EnumDefinition, FieldDefinition, GenericApplicationKey, InterfaceDefinition, MethodDefinition,
+    EnumDefinition, FieldDefinition, GenericInstanceKey, InterfaceDefinition, MethodDefinition,
     NewtypeDefinition, NominalDefinition, NominalHeritage, SignatureDefinition, StructDefinition,
     TypeOperand, VariantDefinition,
 };
@@ -218,16 +218,16 @@ impl CheckState<'_> {
     ) -> Option<NominalHeritage> {
         let source = node.into_global(module);
         let symbol = self.inference.name(source)?.symbol();
-        let key = GenericApplicationKey {
+        let key = GenericInstanceKey {
             source,
             owner: symbol,
         };
-        let application = self.inference.generic_application(key).cloned();
+        let instance = self.inference.generic_instance(key).cloned();
 
         Some(NominalHeritage {
             source,
             symbol,
-            application,
+            instance,
         })
     }
 

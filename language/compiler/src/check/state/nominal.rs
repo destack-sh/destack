@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::IndexMap;
 
-use crate::check::{GenericApplication, GenericTemplate, StaticOperand, TypeOperand};
+use crate::check::{GenericInstance, GenericTemplate, StaticOperand, TypeOperand};
 
 /// Checked nominal declarations for one component.
 #[derive(Debug, Default)]
@@ -199,8 +199,8 @@ pub(in crate::check) struct NominalHeritage {
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The heritage nominal symbol.
     pub(in crate::check) symbol: dir::GlobalSymbolId,
-    /// The generic application used at the relation site.
-    pub(in crate::check) application: Option<GenericApplication>,
+    /// The generic instance used at the relation site.
+    pub(in crate::check) instance: Option<GenericInstance>,
 }
 
 /// One checked field member.

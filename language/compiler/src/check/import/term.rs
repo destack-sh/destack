@@ -14,14 +14,15 @@ impl CheckState<'_> {
             return operand;
         }
 
-        // import generic parameters as check generic slots
+        // import generic parameters as check parameters
         let parameter = match self.r#type(source) {
             dir::Type::Parameter(parameter) => Some(*parameter),
             _ => None,
         };
         if let Some(parameter) = parameter {
-            let slot = self.import_generic_parameter_slot(module, parameter);
-            let operand = TypeOperand::Term(self.inference.push_term(TypeTerm::Parameter(slot)));
+            let parameter = self.import_generic_parameter_id(module, parameter);
+            let operand =
+                TypeOperand::Term(self.inference.push_term(TypeTerm::Parameter(parameter)));
 
             self.inputs.insert_type_id_operand(source, operand);
 
@@ -41,15 +42,15 @@ impl CheckState<'_> {
             return operand;
         }
 
-        // import generic parameters as check generic slots
+        // import generic parameters as check parameters
         let parameter = match self.r#static(source) {
             dir::StaticTerm::Parameter(parameter) => Some(*parameter),
             _ => None,
         };
         if let Some(parameter) = parameter {
-            let slot = self.import_generic_parameter_slot(module, parameter);
+            let parameter = self.import_generic_parameter_id(module, parameter);
             let operand =
-                StaticOperand::Term(self.inference.push_term(StaticTerm::Parameter(slot)));
+                StaticOperand::Term(self.inference.push_term(StaticTerm::Parameter(parameter)));
 
             self.inputs.insert_static_id_operand(source, operand);
 

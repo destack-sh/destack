@@ -299,7 +299,7 @@ impl WalkState<'_, '_> {
         if let TypeOperand::Term(term) = left
             && let TypeTerm::Parameter(slot) = self.check.inference.term(term)
         {
-            self.check.constrain_generic_type_slot(*slot, right);
+            self.check.constrain_generic_type_parameter(*slot, right);
         }
 
         self.check
@@ -2135,16 +2135,12 @@ impl WalkState<'_, '_> {
 
             if let Some(symbol) = generic_owner {
                 let source = left.into_global_any(self.module);
-                let Some(value) = self.check.inputs.node_type(source) else {
-                    return;
-                };
+                let value = self.check.node_type_operand(source);
 
                 (CallCallee::Reference { value, symbol }, generic_owner)
             } else {
                 let source = left.into_global_any(self.module);
-                let Some(callee) = self.check.inputs.node_type(source) else {
-                    return;
-                };
+                let callee = self.check.node_type_operand(source);
 
                 (CallCallee::Expression(callee), generic_owner)
             }

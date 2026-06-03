@@ -346,20 +346,14 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         heritage: NominalHeritage,
     ) -> dir::NominalHeritage {
-        let application = heritage.application.as_ref().and_then(|application| {
-            self.commit_generic_application(
-                module,
-                output,
-                environment,
-                heritage.source,
-                application,
-            )
+        let instance = heritage.instance.as_ref().and_then(|instance| {
+            self.commit_generic_instance(module, output, environment, heritage.source, instance)
         });
 
         dir::NominalHeritage {
             source: heritage.source,
             symbol: heritage.symbol,
-            application,
+            instance,
         }
     }
 

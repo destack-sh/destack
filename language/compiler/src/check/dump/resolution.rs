@@ -44,19 +44,19 @@ impl Dump for CallTargetResolution {
     /// Render one call target resolution.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         match self {
-            Self::Expression { application } => dump_record(
+            Self::Expression { instance } => dump_record(
                 "CallTarget.Expression",
-                [("application", application.dump(context))],
+                [("instance", instance.dump(context))],
             ),
             Self::Symbol {
                 symbol,
-                application,
+                instance,
                 receiver,
             } => dump_record(
                 "CallTarget.Symbol",
                 [
                     ("symbol", context.symbol_label(*symbol)),
-                    ("application", application.dump(context)),
+                    ("instance", instance.dump(context)),
                     ("receiver", receiver.dump(context)),
                 ],
             ),
@@ -81,7 +81,7 @@ impl Dump for CandidateResolution {
             "CandidateResolution",
             [
                 ("symbol", context.symbol_label(self.symbol)),
-                ("application", self.application.dump(context)),
+                ("instance", self.instance.dump(context)),
             ],
         )
     }
@@ -144,23 +144,20 @@ impl Dump for ConstructTargetResolution {
             Self::Class {
                 symbol,
                 constructor,
-                application,
+                instance,
             } => dump_record(
                 "ConstructTarget.Class",
                 [
                     ("symbol", context.symbol_label(*symbol)),
                     ("constructor", constructor.dump(context)),
-                    ("application", application.dump(context)),
+                    ("instance", instance.dump(context)),
                 ],
             ),
-            Self::Newtype {
-                symbol,
-                application,
-            } => dump_record(
+            Self::Newtype { symbol, instance } => dump_record(
                 "ConstructTarget.Newtype",
                 [
                     ("symbol", context.symbol_label(*symbol)),
-                    ("application", application.dump(context)),
+                    ("instance", instance.dump(context)),
                 ],
             ),
         }
@@ -215,14 +212,11 @@ impl Dump for MemberTargetResolution {
                 dump_record("MemberTarget.Builtin", [("member", member.dump(context))])
             }
             Self::Field(key) => dump_record("MemberTarget.Field", [("key", key.dump(context))]),
-            Self::Symbol {
-                symbol,
-                application,
-            } => dump_record(
+            Self::Symbol { symbol, instance } => dump_record(
                 "MemberTarget.Symbol",
                 [
                     ("symbol", context.symbol_label(*symbol)),
-                    ("application", application.dump(context)),
+                    ("instance", instance.dump(context)),
                 ],
             ),
             Self::Union(candidates) => dump_record(

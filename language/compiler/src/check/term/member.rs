@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CandidateResolution, CheckState, GenericArgument, GenericSlotId, GenericSubstitution,
+    CandidateResolution, CheckState, GenericArgument, GenericParameterId, GenericSubstitution,
     MemberCandidate, MemberDecision, MemberFailure, MemberProtocol, MemberResolution,
     MemberTargetResolution, Origin, ShapeMember, StaticTerm, Substitution, TermId, TupleElement,
     TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
@@ -97,14 +97,14 @@ impl CheckState<'_> {
 
                     MemberTargetResolution::Symbol {
                         symbol: member.symbol,
-                        application: member.application,
+                        instance: member.instance,
                     }
                 } else {
                     let members = members
                         .into_iter()
                         .map(|member| CandidateResolution {
                             symbol: member.symbol,
-                            application: member.application,
+                            instance: member.instance,
                         })
                         .collect();
 
@@ -157,7 +157,7 @@ impl CheckState<'_> {
                 symbol,
                 arguments,
             } if arguments.is_empty() => {
-                if let Some(parameter) = self.type_generic_slot_for_symbol(*symbol)? {
+                if let Some(parameter) = self.type_generic_parameter_for_symbol(*symbol)? {
                     self.parameter_member_type(module, origin, parameter, key, member_arguments)
                 } else {
                     self.instantiate_symbol_member_type(
@@ -233,7 +233,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         origin: Origin,
-        parameter: GenericSlotId,
+        parameter: GenericParameterId,
         key: &dir::StaticKey,
         member_arguments: &[GenericArgument],
     ) -> CompilerResult<Option<TypeTerm>> {
@@ -389,14 +389,14 @@ impl CheckState<'_> {
     }
 
     /// Return the generic slot id for one type parameter symbol.
-    pub(in crate::check) fn type_generic_slot_for_symbol(
+    pub(in crate::check) fn type_generic_parameter_for_symbol(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<GenericSlotId>> {
-        let Some(slot) = self.inference.generic_slot_id_for_symbol(symbol) else {
+    ) -> CompilerResult<Option<GenericParameterId>> {
+        let Some(slot) = self.inference.generic_parameter_id_for_symbol(symbol) else {
             return Ok(None);
         };
-        let generic = self.inference.generic_slot(slot);
+        let generic = self.inference.generic_parameter(slot);
         if !generic.is_type() {
             return Ok(None);
         }
@@ -407,18 +407,14 @@ impl CheckState<'_> {
     /// Return the type constraint for one generic type slot.
     pub(in crate::check) fn type_generic_constraint(
         &self,
-        slot_id: GenericSlotId,
+        parameter_id: GenericParameterId,
     ) -> CompilerResult<Option<TypeOperand>> {
-        let constraint = self
-            .inference
-            .generic_slots_for_owner(slot_id.owner)
-            .find_map(|(_, generic)| {
-                if generic.slot().id() == slot_id && generic.is_type() {
-                    generic.type_constraint()
-                } else {
-                    None
-                }
-            });
+        let generic = self.inference.generic_parameter(parameter_id);
+        if !generic.is_type() {
+            return Ok(None);
+        }
+
+        let constraint = generic.type_constraint();
 
         Ok(constraint)
     }

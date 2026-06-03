@@ -568,6 +568,7 @@ impl CheckState<'_> {
 
                 self.variant_layout(module, variants, pointer_bytes)?
             }
+            TypeTerm::Intrinsic => None,
             TypeTerm::Reference {
                 origin: _,
                 symbol,
@@ -598,6 +599,7 @@ impl CheckState<'_> {
             dir::Type::Null => Some(Layout::none()),
             dir::Type::Primitive(primitive) => Layout::primitive(*primitive, pointer_bytes),
             dir::Type::Literal(literal) => Layout::literal(literal),
+            dir::Type::Intrinsic => None,
             dir::Type::Form(form) => self.form_layout(module, form, pointer_bytes)?,
             dir::Type::FixedArray(array) => {
                 self.fixed_array_layout(module, array, pointer_bytes)?

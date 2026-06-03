@@ -21,6 +21,7 @@ impl Dump for TypeTerm {
             Self::Literal(literal) => {
                 dump_record("TypeTerm.Literal", [("value", literal.dump(context))])
             }
+            Self::Intrinsic => dump_record("TypeTerm.Intrinsic", []),
             Self::Parameter(parameter) => {
                 dump_record("TypeTerm.Parameter", [("slot", parameter.dump(context))])
             }

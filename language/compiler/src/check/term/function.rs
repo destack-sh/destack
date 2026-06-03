@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericSlotId, Origin, Progress, ReceiverSubstitution, Substitution,
+    CheckState, Decision, GenericParameterId, Origin, Progress, ReceiverSubstitution, Substitution,
     TypeOperand, TypeRelation, VariableId,
 };
 
@@ -17,8 +17,8 @@ use crate::check::{
 pub(in crate::check) struct FunctionParameter {
     /// The parameter type.
     pub(in crate::check) ty: TypeOperand,
-    /// The static generic slot supplied by this runtime argument.
-    pub(in crate::check) static_slot: Option<GenericSlotId>,
+    /// The static generic parameter supplied by this runtime argument.
+    pub(in crate::check) static_parameter: Option<GenericParameterId>,
     /// Whether the parameter may be omitted at the call site.
     pub(in crate::check) is_optional: bool,
     /// Whether the parameter captures the remaining call arguments.
@@ -30,7 +30,7 @@ impl FunctionParameter {
     pub(in crate::check) fn required(ty: impl Into<TypeOperand>) -> Self {
         Self {
             ty: ty.into(),
-            static_slot: None,
+            static_parameter: None,
             is_optional: false,
             is_rest: false,
         }
@@ -45,7 +45,7 @@ impl FunctionParameter {
     ) -> CompilerResult<Self> {
         Ok(Self {
             ty: state.substitute_type_operand(module, substitution, self.ty)?,
-            static_slot: None,
+            static_parameter: None,
             is_optional: self.is_optional,
             is_rest: self.is_rest,
         })
@@ -60,7 +60,7 @@ impl FunctionParameter {
     ) -> CompilerResult<Self> {
         Ok(Self {
             ty: state.substitute_receiver_type_operand(module, self.ty, substitution)?,
-            static_slot: self.static_slot.clone(),
+            static_parameter: self.static_parameter.clone(),
             is_optional: self.is_optional,
             is_rest: self.is_rest,
         })
@@ -76,8 +76,8 @@ impl FunctionParameter {
 pub(in crate::check) struct FunctionTerm {
     /// The function asynchrony.
     pub(in crate::check) asynchrony: dir::Asynchrony,
-    /// The generic parameter slots.
-    pub(in crate::check) generic_parameters: Vec<GenericSlotId>,
+    /// The generic parameter parameters.
+    pub(in crate::check) generic_parameters: Vec<GenericParameterId>,
     /// The optional `this` parameter type.
     pub(in crate::check) this_parameter: Option<TypeOperand>,
     /// The parameter types.
@@ -89,22 +89,6 @@ pub(in crate::check) struct FunctionTerm {
 }
 
 impl FunctionTerm {
-    /// Return the generic owner shared by this function term.
-    pub(in crate::check) fn generic_owner(&self) -> Option<dir::GlobalSymbolId> {
-        let owner = self.generic_parameters.first()?.owner;
-
-        for parameter in &self.generic_parameters {
-            if parameter.owner != owner {
-                panic!(
-                    "function term mixes generic owners {owner:?} and {:?}",
-                    parameter.owner
-                );
-            }
-        }
-
-        Some(owner)
-    }
-
     /// Substitute generic arguments through this function term.
     pub(in crate::check) fn substitute<'a>(
         &self,
@@ -116,7 +100,10 @@ impl FunctionTerm {
         let substitution = substitution.into();
         if let Some(generic) = substitution.generic {
             for parameter in &self.generic_parameters {
-                let is_substituted = generic.entries.iter().any(|entry| entry.slot == *parameter);
+                let is_substituted = generic
+                    .entries
+                    .iter()
+                    .any(|entry| entry.parameter == *parameter);
                 if !is_substituted {
                     generic_parameters.push(*parameter);
                 }
@@ -216,7 +203,7 @@ impl CheckState<'_> {
                 panic!("committed function generic parameter is not a parameter type");
             };
 
-            generic_parameters.push((*parameter).into());
+            generic_parameters.push(self.import_generic_parameter_id(module, *parameter));
         }
 
         let this_parameter = function
@@ -226,11 +213,13 @@ impl CheckState<'_> {
             .parameters
             .into_iter()
             .map(|parameter| {
-                let static_slot = parameter.static_slot.map(GenericSlotId::from);
+                let static_parameter = parameter
+                    .static_parameter
+                    .map(|parameter| self.import_generic_parameter_id(module, parameter));
 
                 FunctionParameter {
                     ty: self.import_type_operand(module, parameter.ty),
-                    static_slot,
+                    static_parameter,
                     is_optional: parameter.is_optional,
                     is_rest: parameter.is_rest,
                 }

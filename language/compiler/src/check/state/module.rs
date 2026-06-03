@@ -36,6 +36,8 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) availability: IndexMap<dir::GlobalSymbolId, Condition>,
     /// Diagnostics reported while walking this module.
     pub(in crate::check) diagnostics: Vec<CheckError>,
+    /// Next check-owned generic parameter id.
+    next_generic_parameter_id: u32,
 }
 
 impl CheckModuleState {
@@ -61,6 +63,7 @@ impl CheckModuleState {
             captures: Vec::new(),
             availability: IndexMap::new(),
             diagnostics: Vec::new(),
+            next_generic_parameter_id: 0,
         }
     }
 
@@ -108,6 +111,17 @@ impl CheckModuleState {
     /// Return whether one local symbol is an imported alias.
     pub(in crate::check) fn is_import_alias(&self, symbol: dir::LocalSymbolId) -> bool {
         self.resolved.imports.symbol_target(symbol).is_some()
+    }
+
+    /// Allocate one generic parameter id owned by this module.
+    pub(in crate::check) fn allocate_generic_parameter_id(
+        &mut self,
+    ) -> dir::GlobalGenericParameterId {
+        let local_id = dir::LocalGenericParameterId::new(self.next_generic_parameter_id);
+
+        self.next_generic_parameter_id += 1;
+
+        local_id.into_global(self.module.id)
     }
 }
 

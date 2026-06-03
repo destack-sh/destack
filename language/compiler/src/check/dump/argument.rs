@@ -1,4 +1,4 @@
-use crate::check::{Dump, DumpContext, GenericApplication, GenericArgument};
+use crate::check::{Dump, DumpContext, GenericArgument, GenericInstance};
 
 use super::format::{dump_list, dump_record};
 
@@ -54,11 +54,11 @@ impl Dump for GenericArgument {
     }
 }
 
-impl Dump for GenericApplication {
-    /// Render one generic application.
+impl Dump for GenericInstance {
+    /// Render one generic instance.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         dump_record(
-            "GenericApplication",
+            "GenericInstance",
             [
                 ("owner", context.symbol_label(self.owner)),
                 ("arguments", dump_arguments(&self.arguments, context)),

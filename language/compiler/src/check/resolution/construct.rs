@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{CallFailure, CheckState, FunctionTerm, GenericApplication};
+use crate::check::{CallFailure, CheckState, FunctionTerm, GenericInstance};
 
 /// Runtime construct target selected before commit.
 ///
@@ -24,8 +24,8 @@ pub(in crate::check) enum ConstructTargetResolution {
         symbol: dir::GlobalSymbolId,
         /// The resolved explicit constructor symbol, when declared.
         constructor: Option<dir::GlobalSymbolId>,
-        /// The resolved generic application.
-        application: Option<GenericApplication>,
+        /// The resolved generic instance.
+        instance: Option<GenericInstance>,
     },
     /// Newtype wrapper constructor selected at compile time.
     ///
@@ -36,8 +36,8 @@ pub(in crate::check) enum ConstructTargetResolution {
     Newtype {
         /// The resolved newtype symbol.
         symbol: dir::GlobalSymbolId,
-        /// The resolved generic application.
-        application: Option<GenericApplication>,
+        /// The resolved generic instance.
+        instance: Option<GenericInstance>,
     },
 }
 
@@ -101,20 +101,15 @@ impl ConstructTargetResolution {
         }
     }
 
-    /// Return the generic application selected by this construct target.
-    pub(in crate::check) fn application(&self) -> Option<&GenericApplication> {
+    /// Return the generic instance selected by this construct target.
+    pub(in crate::check) fn instance(&self) -> Option<&GenericInstance> {
         match self {
-            Self::Class { application, .. } | Self::Newtype { application, .. } => {
-                application.as_ref()
-            }
+            Self::Class { instance, .. } | Self::Newtype { instance, .. } => instance.as_ref(),
         }
     }
 
-    /// Return this construct target with its final generic application.
-    pub(in crate::check) fn with_application(
-        self,
-        application: Option<GenericApplication>,
-    ) -> Self {
+    /// Return this construct target with its final generic instance.
+    pub(in crate::check) fn with_application(self, instance: Option<GenericInstance>) -> Self {
         match self {
             Self::Class {
                 symbol,
@@ -123,12 +118,9 @@ impl ConstructTargetResolution {
             } => Self::Class {
                 symbol,
                 constructor,
-                application,
+                instance,
             },
-            Self::Newtype { symbol, .. } => Self::Newtype {
-                symbol,
-                application,
-            },
+            Self::Newtype { symbol, .. } => Self::Newtype { symbol, instance },
         }
     }
 }
