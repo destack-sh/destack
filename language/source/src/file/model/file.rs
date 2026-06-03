@@ -77,7 +77,7 @@ pub struct File {
 }
 
 /// The content of a File.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FileContent {
     /// Text content.
     Text { content: String },

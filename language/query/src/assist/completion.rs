@@ -1604,7 +1604,6 @@ fn keyword_completions() -> Vec<Completion> {
         dir::Keyword::Virtual,
         dir::Keyword::Accessor,
         dir::Keyword::Default,
-        dir::Keyword::Self_,
         dir::Keyword::This,
         dir::Keyword::Super,
         dir::Keyword::Package,

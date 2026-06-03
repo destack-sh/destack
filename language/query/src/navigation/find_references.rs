@@ -132,15 +132,13 @@ impl ModuleQueryContext<'_> {
             declaration_span,
             target_name.as_deref(),
         );
-        let references = spans
+        spans
             .into_iter()
             .map(|(module, span, role)| Reference {
                 target: QueryTarget::span(module, span).with_symbol(target_symbol),
                 role,
             })
-            .collect();
-
-        references
+            .collect()
     }
 
     /// Find all references to a symbol across all modules.

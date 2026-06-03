@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use destack_artifact::DirExported;
 use destack_dir as dir;
 use destack_source::{FileType, ModuleId, Span};
-use destack_workspace::TargetDiscovery;
+use destack_workspace::TargetRoot;
 
 use crate::{LintReport, LintRule, LintWorkspaceContext, declare_lint};
 
@@ -172,7 +172,7 @@ fn collect_profile_target_entry_modules(
             continue;
         };
         for (target_id, target) in &package.targets {
-            if target.discovery != TargetDiscovery::Entry {
+            if target.root() != TargetRoot::Entry {
                 continue;
             }
 
