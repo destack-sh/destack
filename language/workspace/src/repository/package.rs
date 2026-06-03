@@ -158,7 +158,7 @@ impl Repository {
         // explicit workspace packages
         else {
             for entry in files.values() {
-                let path = self.root.join(&entry.logical_path);
+                let path = self.file_entry_path(entry);
                 let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
                     continue;
                 };
