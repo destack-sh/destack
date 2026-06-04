@@ -92,7 +92,7 @@ impl FlowState {
     pub(in crate::check) fn pop_static_guard(&mut self) {
         // require balanced guard pushes
         if self.guards.pop().is_none() {
-            panic!("static guard stack underflow");
+            unreachable!("static guard stack underflow");
         }
     }
 
@@ -110,17 +110,17 @@ impl FlowState {
     pub(in crate::check) fn pop_function(&mut self) -> Capture {
         // require an active function frame
         let Some(function) = self.functions.pop() else {
-            panic!("function stack underflow");
+            unreachable!("function stack underflow");
         };
 
         // require balanced control targets
         if self.targets.len() != function.target_start {
-            panic!("control target stack leaked out of function");
+            unreachable!("control target stack leaked out of function");
         }
 
         // require balanced try targets
         if self.tries.len() != function.try_start {
-            panic!("try target stack leaked out of function");
+            unreachable!("try target stack leaked out of function");
         }
 
         // collect frame capture output
@@ -151,7 +151,7 @@ impl FlowState {
     /// Leave the current contextual receiver.
     pub(in crate::check) fn pop_receiver(&mut self) {
         if self.receivers.pop().is_none() {
-            panic!("receiver stack underflow");
+            unreachable!("receiver stack underflow");
         }
     }
 
@@ -168,7 +168,7 @@ impl FlowState {
     /// Leave the current break or continue target.
     pub(in crate::check) fn pop_target(&mut self) -> ControlTarget {
         let Some(target) = self.targets.pop() else {
-            panic!("control target stack underflow");
+            unreachable!("control target stack underflow");
         };
 
         target
@@ -183,7 +183,7 @@ impl FlowState {
     pub(in crate::check) fn pop_try(&mut self) -> TryTarget {
         // require an active try target
         let Some(target) = self.tries.pop() else {
-            panic!("try target stack underflow");
+            unreachable!("try target stack underflow");
         };
 
         target
@@ -271,7 +271,9 @@ impl FlowState {
     /// Take continue branches collected by the current control target.
     pub(in crate::check) fn take_continue_branches(&mut self) -> Vec<FlowBranch> {
         let Some(target) = self.targets.last_mut() else {
-            panic!("continue branch collection requires an active control target");
+            unreachable!(
+                "internal invariant: continue branch collection requires an active control target"
+            );
         };
 
         std::mem::take(&mut target.continue_branches)
@@ -280,7 +282,7 @@ impl FlowState {
     /// Capture one symbol in the current function body.
     pub(in crate::check) fn capture_symbol(&mut self, symbol: dir::GlobalSymbolId) {
         let Some(function) = self.functions.last_mut() else {
-            panic!("symbol capture requires an active function");
+            unreachable!("symbol capture requires an active function");
         };
 
         function.captured_symbols.insert(symbol);
@@ -289,7 +291,7 @@ impl FlowState {
     /// Capture one receiver in the current function body.
     pub(in crate::check) fn capture_receiver(&mut self, receiver: ReceiverCapture) {
         let Some(function) = self.functions.last_mut() else {
-            panic!("receiver capture requires an active function");
+            unreachable!("receiver capture requires an active function");
         };
 
         function.captured_receiver = Some(receiver);
@@ -410,7 +412,7 @@ impl FlowState {
         // roll back mutations in reverse order
         while self.mutations.len() > checkpoint.mutation_count {
             let Some(change) = self.mutations.pop() else {
-                panic!("flow mutation log changed during restore");
+                unreachable!("flow mutation log changed during restore");
             };
 
             // undo the latest mutation

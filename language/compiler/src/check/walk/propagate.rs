@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
     CheckState, Condition, GenericArgument, Origin, StaticTerm, TypeOperand, TypeTerm,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Propagate walk-owned state before solving constraints.
@@ -17,14 +17,17 @@ impl CheckState<'_> {
 
         // equate declarations after all generic slots are fixed
         for module in modules {
-            self.equate_declaration_self_types(*module);
+            self.equate_declaration_self_types(*module)?;
         }
 
         Ok(())
     }
 
     /// Equate declaration type variables after generic slots are fixed.
-    pub(in crate::check) fn equate_declaration_self_types(&mut self, module: ModuleId) {
+    pub(in crate::check) fn equate_declaration_self_types(
+        &mut self,
+        module: ModuleId,
+    ) -> CompilerResult<()> {
         let binding_table = self.module(module).binding_table();
         let symbols = binding_table
             .symbol_ids()
@@ -34,8 +37,10 @@ impl CheckState<'_> {
 
         // include every explicit and induced slot
         for symbol in symbols {
-            self.equate_declaration_self_type(symbol);
+            self.equate_declaration_self_type(symbol)?;
         }
+
+        Ok(())
     }
 
     /// Return whether one symbol owns a declaration type.
@@ -52,7 +57,7 @@ impl CheckState<'_> {
     }
 
     /// Equate one declaration type variable to its self reference.
-    fn equate_declaration_self_type(&mut self, symbol: dir::GlobalSymbolId) {
+    fn equate_declaration_self_type(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<()> {
         let parameters = self
             .inference
             .generic_parameters_for_owner(symbol)
@@ -93,12 +98,18 @@ impl CheckState<'_> {
                 self.equate_type(variable, term, Condition::Always);
             }
             Some(TypeOperand::Term(_)) => {
-                panic!("check declaration symbol {symbol:?} already has a type operand")
+                return Err(CompilerError::Internal {
+                    message: format!("declaration symbol {symbol:?} already has a type operand"),
+                });
             }
             Some(TypeOperand::Type(_)) => {}
             None => {
-                panic!("check declaration symbol {symbol:?} has no type operand")
+                return Err(CompilerError::Internal {
+                    message: format!("declaration symbol {symbol:?} has no type operand"),
+                });
             }
         }
+
+        Ok(())
     }
 }

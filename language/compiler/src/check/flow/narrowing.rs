@@ -6,10 +6,9 @@ impl WalkState<'_, '_> {
     /// Return the stable flow path for one expression.
     pub(in crate::check) fn flow_path(
         &self,
-        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<FlowPath> {
-        match tree.get(id) {
+        match self.tree.get(id) {
             // value
             dir::Expression::Identifier { name } => {
                 let guard = self.active_static_guard();
@@ -17,7 +16,7 @@ impl WalkState<'_, '_> {
                 // resolve root binding
                 let lookup = self
                     .check.lookup_name_by_name(
-                        tree.module_id,
+                        self.module,
                         id.into_any(),
                         *name,
                         dir::SymbolSpace::Value,
@@ -39,7 +38,7 @@ impl WalkState<'_, '_> {
                 let name = path.segments[0];
                 let lookup = self
                     .check.lookup_name_by_name(
-                        tree.module_id,
+                        self.module,
                         id.into_any(),
                         name,
                         dir::SymbolSpace::Value,
@@ -64,7 +63,7 @@ impl WalkState<'_, '_> {
                 name: Some(name),
             } => {
                 // extend root path with selected member
-                let mut path = self.flow_path(tree, *left)?;
+                let mut path = self.flow_path(*left)?;
                 path.push_segment(dir::StaticKey::Name(*name));
 
                 Some(path)
@@ -76,15 +75,15 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 // extend root path with static index key
-                let key = tree.get(*index).static_key()?;
-                let mut path = self.flow_path(tree, *left)?;
+                let key = self.tree.get(*index).static_key()?;
+                let mut path = self.flow_path(*left)?;
 
                 path.push_segment(key);
 
                 Some(path)
             }
             // (value)
-            dir::Expression::Parenthesized { expression } => self.flow_path(tree, *expression),
+            dir::Expression::Parenthesized { expression } => self.flow_path(*expression),
             // not a stable flow path
             _ => None,
         }
@@ -93,11 +92,10 @@ impl WalkState<'_, '_> {
     /// Return the current narrowing for one flow path.
     pub(in crate::check) fn flow_path_narrowing(
         &self,
-        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<TypeOperand> {
         // resolve path before reading narrowing table
-        let path = self.flow_path(tree, id)?;
+        let path = self.flow_path(id)?;
 
         self.flow().narrowing(&path)
     }
@@ -135,11 +133,10 @@ impl WalkState<'_, '_> {
     /// Clear flow narrowings invalidated by mutating an expression.
     pub(in crate::check) fn clear_mutated_expression_narrowings(
         &mut self,
-        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
     ) {
         // ignore expressions without stable flow paths
-        let Some(path) = self.flow_path(tree, id) else {
+        let Some(path) = self.flow_path(id) else {
             return;
         };
 

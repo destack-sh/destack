@@ -12,19 +12,15 @@ impl WalkState<'_, '_> {
     ///     value
     /// }
     /// ```
-    pub(in crate::check) fn block_can_complete_normally(
-        &self,
-        tree: &dir::Tree,
-        block: &dir::Block,
-    ) -> bool {
+    pub(in crate::check) fn block_can_complete_normally(&self, block: &dir::Block) -> bool {
         for expression in &block.leading_expressions {
-            if !self.expression_can_complete_normally(tree, *expression) {
+            if !self.expression_can_complete_normally(*expression) {
                 return false;
             }
         }
 
         match block.tail_expression {
-            Some(expression) => self.expression_can_complete_normally(tree, expression),
+            Some(expression) => self.expression_can_complete_normally(expression),
             None => true,
         }
     }
@@ -37,10 +33,9 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn expression_can_complete_normally(
         &self,
-        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> bool {
-        match tree.get(id) {
+        match self.tree.get(id) {
             // return, break, continue, throw
             dir::Expression::Return { .. }
             | dir::Expression::Break { .. }
@@ -48,7 +43,7 @@ impl WalkState<'_, '_> {
             | dir::Expression::Throw { .. } => false,
             // { ... }
             dir::Expression::Block(block) => {
-                self.block_can_complete_normally(tree, tree.get(*block))
+                self.block_can_complete_normally(self.tree.get(*block))
             }
             // if condition { then } else { otherwise }
             dir::Expression::If {
@@ -56,8 +51,8 @@ impl WalkState<'_, '_> {
                 else_expression: Some(else_expression),
                 ..
             } => {
-                self.expression_can_complete_normally(tree, *then_expression)
-                    || self.expression_can_complete_normally(tree, *else_expression)
+                self.expression_can_complete_normally(*then_expression)
+                    || self.expression_can_complete_normally(*else_expression)
             }
             // if condition { then }
             dir::Expression::If {
@@ -67,19 +62,19 @@ impl WalkState<'_, '_> {
             // match (value) { pattern => body }
             dir::Expression::Match { cases, .. } => cases
                 .iter()
-                .any(|case| self.match_case_can_complete_normally(tree, tree.get(*case))),
+                .any(|case| self.match_case_can_complete_normally(self.tree.get(*case))),
             // try { value } catch (error) { recover(error) }
             dir::Expression::Try {
                 body,
                 catch,
                 finally,
             } => {
-                let body = self.expression_can_complete_normally(tree, *body);
+                let body = self.expression_can_complete_normally(*body);
                 let catch = catch.is_some_and(|catch| {
-                    self.expression_can_complete_normally(tree, tree.get(catch).body)
+                    self.expression_can_complete_normally(self.tree.get(catch).body)
                 });
                 let finally = if let Some(finally) = finally {
-                    self.expression_can_complete_normally(tree, *finally)
+                    self.expression_can_complete_normally(*finally)
                 } else {
                     true
                 };
@@ -156,19 +151,13 @@ impl WalkState<'_, '_> {
     ///     _ => "other",
     /// }
     /// ```
-    pub(in crate::check) fn match_case_can_complete_normally(
-        &self,
-        tree: &dir::Tree,
-        case: &dir::MatchCase,
-    ) -> bool {
+    pub(in crate::check) fn match_case_can_complete_normally(&self, case: &dir::MatchCase) -> bool {
         match case {
             // pattern => expression
-            dir::MatchCase::Expression { body, .. } => {
-                self.expression_can_complete_normally(tree, *body)
-            }
+            dir::MatchCase::Expression { body, .. } => self.expression_can_complete_normally(*body),
             // pattern => { ... }
             dir::MatchCase::Block { body, .. } => {
-                self.block_can_complete_normally(tree, tree.get(*body))
+                self.block_can_complete_normally(self.tree.get(*body))
             }
         }
     }
