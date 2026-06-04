@@ -30,8 +30,8 @@ impl Session {
 
         // collect filesystem source truth
         let mut source = FileSystemSource::new(repository.as_ref(), self.root());
-        let snapshot = source.snapshot()?;
-        let change = snapshot.change(repository.as_ref(), before)?;
+        let source_import = source.import()?;
+        let change = source_import.change(repository.as_ref(), before)?;
         let file_ids = change.file_ids().to_vec();
         let before_pin = repository.pin(before)?;
         let revision = repository.commit_change(before, change)?;

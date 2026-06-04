@@ -2,13 +2,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::DiskCacheStore;
-use destack_source::FileSystem;
+use destack_source::{FileSystem, MemoryFileSystem};
 use destack_workspace::{
     DestackLayout, DestackLayoutOverride, Environment, Ref, Repository, RepositoryError, Settings,
 };
 
-use super::Source;
 use super::fs::{FileSystemSource, read_destack_config};
+use super::{Source, SourceSnapshot};
 use crate::SessionError;
 
 /// Open one repository after discovering the workspace root from one path.
@@ -38,13 +38,27 @@ pub fn open_repository_from_fs(
 
     // import the complete source snapshot
     let mut source = FileSystemSource::new(&repository, &root);
-    let snapshot = source.snapshot()?;
-    let change = snapshot.change(&repository, base_revision)?;
+    let source_import = source.import()?;
+    let change = source_import.change(&repository, base_revision)?;
     let revision = repository.commit_change(base_revision, change)?;
 
     repository.set_ref(&workspace_ref, revision)?;
 
     Ok(repository)
+}
+
+/// Open one repository from an explicit source snapshot.
+pub fn open_repository_from_source(
+    root: PathBuf,
+    source: SourceSnapshot,
+    environment: Environment,
+    settings: Settings,
+    layout_override: DestackLayoutOverride,
+) -> Result<Repository, SessionError> {
+    let file_system = Arc::new(MemoryFileSystem::new());
+    source.write_to(file_system.as_ref(), &root)?;
+
+    open_repository_from_fs(root, file_system, environment, settings, layout_override)
 }
 
 /// Find the source root for one filesystem input path.

@@ -19,6 +19,15 @@ pub enum SourceError {
         /// The failure message.
         message: String,
     },
+    /// One source write operation failed.
+    WriteFailed {
+        /// The failed operation.
+        operation: &'static str,
+        /// The path used by the operation.
+        path: PathBuf,
+        /// The failure message.
+        message: String,
+    },
 }
 
 impl std::fmt::Display for SourceError {
@@ -39,6 +48,17 @@ impl std::fmt::Display for SourceError {
                 write!(
                     formatter,
                     "source read failed during {operation} for '{}': {message}",
+                    path.display()
+                )
+            }
+            Self::WriteFailed {
+                operation,
+                path,
+                message,
+            } => {
+                write!(
+                    formatter,
+                    "source write failed during {operation} for '{}': {message}",
                     path.display()
                 )
             }

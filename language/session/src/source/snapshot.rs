@@ -1,79 +1,146 @@
 use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
-use destack_source::{FileContent, FileContentId, FileId, StringId};
+use destack_source::{FileContent, FileContentId, FileId, FileSystem, StringId};
 use destack_workspace::{Edit, Repository, RepositoryChange, Revision};
 
-use crate::SessionError;
+use crate::{SessionError, SourceError};
 
-/// Source that can produce one complete immutable source snapshot.
+/// Source that can import one source root into repository-ready state.
 pub(crate) trait Source {
-    /// Read the complete source snapshot visible from this source.
-    fn snapshot(&mut self) -> Result<SourceSnapshot, SessionError>;
+    /// Import the complete source state visible from this source.
+    fn import(&mut self) -> Result<SourceImport, SessionError>;
 }
 
-/// One file captured from an external source.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SourceFile {
-    /// The stable file identity.
-    pub(crate) file_id: FileId,
-    /// The interned logical repository path.
-    pub(crate) logical_path: StringId,
-    /// The exact file content.
-    pub(crate) content: FileContent,
-}
-
-/// Source truth for one repository revision sync.
+/// Source truth used to open a live session without native filesystem access.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct SourceSnapshot {
-    /// Files visible in this snapshot by stable file id.
-    files: BTreeMap<FileId, SourceFile>,
-    /// Whether this snapshot is the complete editable source truth.
-    coverage: SourceCoverage,
+pub struct SourceSnapshot {
+    /// Files visible to the session source root.
+    pub files: Vec<SourceFile>,
 }
 
-/// The repository edit coverage of one source snapshot.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-enum SourceCoverage {
-    /// The snapshot only adds or updates selected files.
-    #[default]
-    Selected,
-    /// The snapshot also removes any editable file missing from it.
-    Complete,
+/// One file in a source snapshot.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceFile {
+    /// Repository-root relative path.
+    pub path: PathBuf,
+    /// Full source file content.
+    pub content: SourceFileContent,
 }
 
-impl SourceFile {
-    /// Create one captured source file.
-    pub(crate) fn new(file_id: FileId, logical_path: StringId, content: FileContent) -> Self {
-        Self {
-            file_id,
-            logical_path,
-            content,
-        }
-    }
+/// Full content for one source snapshot file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SourceFileContent {
+    /// Text file content.
+    Text(String),
+    /// Binary file content.
+    Bytes(Vec<u8>),
+}
+
+/// Source root state ready to import into a repository.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct SourceImport {
+    /// Files visible in this import by stable file id.
+    files: BTreeMap<FileId, (StringId, FileContent)>,
+    /// Whether missing editable files should be removed.
+    remove_missing_files: bool,
 }
 
 impl SourceSnapshot {
-    /// Create one complete source snapshot.
-    pub(crate) fn complete() -> Self {
+    /// Create one source snapshot from explicit files.
+    pub fn new(files: Vec<SourceFile>) -> Self {
+        Self { files }
+    }
+
+    /// Write this source snapshot into one filesystem root.
+    pub(crate) fn write_to(
+        self,
+        file_system: &dyn FileSystem,
+        root: &Path,
+    ) -> Result<(), SessionError> {
+        file_system
+            .create_dir_all(root)
+            .map_err(|error| SourceError::WriteFailed {
+                operation: "create_dir_all",
+                path: root.to_path_buf(),
+                message: error.to_string(),
+            })?;
+
+        // write every snapshot file under the source root
+        for file in self.files {
+            let path = root.join(file.path);
+            match file.content {
+                SourceFileContent::Text(text) => {
+                    file_system.write_string(&path, &text).map_err(|error| {
+                        SourceError::WriteFailed {
+                            operation: "write_string",
+                            path: path.clone(),
+                            message: error.to_string(),
+                        }
+                    })?;
+                }
+                SourceFileContent::Bytes(bytes) => {
+                    file_system
+                        .write(&path, &bytes)
+                        .map_err(|error| SourceError::WriteFailed {
+                            operation: "write",
+                            path: path.clone(),
+                            message: error.to_string(),
+                        })?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl SourceFile {
+    /// Create one text source file.
+    pub fn text(path: impl Into<PathBuf>, text: impl Into<String>) -> Self {
         Self {
-            files: BTreeMap::new(),
-            coverage: SourceCoverage::Complete,
+            path: path.into(),
+            content: SourceFileContent::Text(text.into()),
         }
     }
 
-    /// Create one source snapshot containing one explicit file.
-    pub(crate) fn from_file(file: SourceFile) -> Self {
-        let mut snapshot = Self::default();
-        snapshot.add_file(file);
-        snapshot
+    /// Create one binary source file.
+    pub fn bytes(path: impl Into<PathBuf>, bytes: impl Into<Vec<u8>>) -> Self {
+        Self {
+            path: path.into(),
+            content: SourceFileContent::Bytes(bytes.into()),
+        }
+    }
+}
+
+impl SourceImport {
+    /// Create one complete source import.
+    pub(crate) fn complete() -> Self {
+        Self {
+            files: BTreeMap::new(),
+            remove_missing_files: true,
+        }
     }
 
-    /// Add one captured source file.
-    pub(crate) fn add_file(&mut self, file: SourceFile) {
-        self.files.insert(file.file_id, file);
+    /// Create one source import containing one explicit file.
+    pub(crate) fn from_file(file_id: FileId, logical_path: StringId, content: FileContent) -> Self {
+        let mut import = Self::default();
+        import.add_file(file_id, logical_path, content);
+
+        import
     }
 
-    /// Return the repository change needed to sync this snapshot.
+    /// Add one source import file.
+    pub(crate) fn add_file(
+        &mut self,
+        file_id: FileId,
+        logical_path: StringId,
+        content: FileContent,
+    ) {
+        self.files.insert(file_id, (logical_path, content));
+    }
+
+    /// Return the repository change needed to sync this import.
     pub(crate) fn change(
         &self,
         repository: &Repository,
@@ -81,22 +148,22 @@ impl SourceSnapshot {
     ) -> Result<RepositoryChange, SessionError> {
         let mut change = RepositoryChange::new();
 
-        // add changed snapshot files
-        for (file_id, file) in &self.files {
-            let incoming = FileContentId::for_content(&file.content);
+        // add changed import files
+        for (file_id, (logical_path, content)) in &self.files {
+            let incoming = FileContentId::for_content(content);
             let current = repository.file_content_id(revision, *file_id)?;
 
             if current != Some(incoming) {
-                let logical_path = repository.string_pool().get(file.logical_path).to_string();
+                let logical_path = repository.string_pool().get(*logical_path).to_string();
                 change.push(Edit::SetFile {
                     logical_path,
-                    content: file.content.clone(),
+                    content: content.clone(),
                 });
             }
         }
 
-        // remove stale editable files for complete snapshots
-        if self.coverage == SourceCoverage::Complete {
+        // remove missing files for full source imports
+        if self.remove_missing_files {
             for (file_id, logical_path) in repository.editable_file_logical_paths(revision)? {
                 if !self.files.contains_key(&file_id) {
                     let logical_path = repository.string_pool().get(logical_path);

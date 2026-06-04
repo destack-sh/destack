@@ -1,4 +1,5 @@
 use super::TestSession;
+use crate::{SourceEdit, TextEdit, TextRange};
 
 #[test]
 fn test_open_imports_root_package_sources() {
@@ -327,4 +328,79 @@ fn test_load_module_from_fs_adds_requested_module() {
     test.load_module("tools/task.ds");
 
     test.assert_files(&["destack.json", "tools/task.ds"]);
+}
+
+#[test]
+fn test_update_applies_multiple_source_edits_atomically() {
+    let test = TestSession::open(&[(
+        "destack.json",
+        r#"{
+  "name": "@test/app"
+}
+"#,
+    )])
+    .unwrap();
+
+    let result = test.update(vec![
+        SourceEdit::SetText {
+            path: "src/index.ds".into(),
+            text: "export const value = 1;\n".to_string(),
+        },
+        SourceEdit::SetText {
+            path: "src/user.ds".into(),
+            text: "export const user = 2;\n".to_string(),
+        },
+    ]);
+
+    test.assert_result_paths(&result, &["src/index.ds", "src/user.ds"]);
+    test.assert_files(&["destack.json", "src/index.ds", "src/user.ds"]);
+}
+
+#[test]
+fn test_update_materializes_text_edits() {
+    let test = TestSession::open(&[
+        (
+            "destack.json",
+            r#"{
+  "name": "@test/app"
+}
+"#,
+        ),
+        ("src/index.ds", "export const value = 1;\n"),
+    ])
+    .unwrap();
+
+    let result = test.update(vec![SourceEdit::EditText {
+        path: "src/index.ds".into(),
+        edits: vec![TextEdit {
+            range: TextRange { start: 21, end: 22 },
+            text: "2".to_string(),
+        }],
+    }]);
+
+    test.assert_result_paths(&result, &["src/index.ds"]);
+    assert_eq!(test.text("src/index.ds"), "export const value = 2;\n");
+}
+
+#[test]
+fn test_update_reports_source_and_destination_for_move() {
+    let test = TestSession::open(&[
+        (
+            "destack.json",
+            r#"{
+  "name": "@test/app"
+}
+"#,
+        ),
+        ("src/index.ds", "export const value = 1;\n"),
+    ])
+    .unwrap();
+
+    let result = test.update(vec![SourceEdit::Move {
+        from: "src/index.ds".into(),
+        to: "src/main.ds".into(),
+    }]);
+
+    test.assert_result_paths(&result, &["src/index.ds", "src/main.ds"]);
+    test.assert_files(&["destack.json", "src/main.ds"]);
 }
