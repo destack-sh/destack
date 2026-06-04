@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::check::{
     Condition, GenericArgument, GenericParameterId, NameLookup, Obligation, Origin, PathLookup,
     ReceiverTerm, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, WalkState,
@@ -17,22 +18,23 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         name: dir::StringId,
-        tree: &dir::Tree,
-    ) -> Option<TypeOperand> {
+    ) -> CompilerResult<Option<TypeOperand>> {
         let guard = self.active_static_guard();
-        let symbol = self.check.symbol_by_name_under(
-            tree.module_id,
+        let Some(symbol) = self.check.symbol_by_name_under(
+            self.module,
             id.into_any(),
             name,
             dir::SymbolSpace::Value,
             &guard,
-        )?;
-        let source = id.into_global_any(tree.module_id);
+        ) else {
+            return Ok(None);
+        };
+        let source = id.into_global_any(self.module);
 
         self.select_value_reference(source, symbol);
         self.check_value_read_assigned(source, id.into_any(), symbol);
 
-        Some(self.walk_value_reference_operand(tree, id, symbol, &[]))
+        Ok(Some(self.walk_value_reference_operand(id, symbol, &[])?))
     }
 
     /// Bind one qualified value reference and return its type operand.
@@ -46,22 +48,27 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        tree: &dir::Tree,
-    ) -> Option<TypeOperand> {
+    ) -> CompilerResult<Option<TypeOperand>> {
         let guard = self.active_static_guard();
-        let symbol = self.check.symbol_by_path_under(
-            tree.module_id,
+        let Some(symbol) = self.check.symbol_by_path_under(
+            self.module,
             id.into_any(),
             path,
             dir::SymbolSpace::Value,
             &guard,
-        )?;
-        let source = id.into_global_any(tree.module_id);
+        ) else {
+            return Ok(None);
+        };
+        let source = id.into_global_any(self.module);
 
         self.select_value_reference(source, symbol);
         self.check_value_read_assigned(source, id.into_any(), symbol);
 
-        Some(self.walk_value_reference_operand(tree, id, symbol, generic_arguments))
+        Ok(Some(self.walk_value_reference_operand(
+            id,
+            symbol,
+            generic_arguments,
+        )?))
     }
 
     /// Bind one namespace path expression when the path root was resolved as a namespace.
@@ -74,21 +81,20 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         path: &dir::Path,
-        tree: &dir::Tree,
-    ) -> bool {
+    ) -> CompilerResult<bool> {
         // skip ordinary runtime member expressions
         if !self
             .check
-            .path_has_namespace_root(tree.module_id, id.into_any())
+            .path_has_namespace_root(self.module, id.into_any())
         {
-            return false;
+            return Ok(false);
         }
 
         // resolve the full namespace path
         let guard = self.active_static_guard();
         let lookup = self
             .check
-            .lookup_path(tree.module_id, id.into_any(), path, dir::SymbolSpace::Value)
+            .lookup_path(self.module, id.into_any(), path, dir::SymbolSpace::Value)
             .available_under(&guard);
 
         match lookup {
@@ -96,30 +102,30 @@ impl WalkState<'_, '_> {
             PathLookup::Found(candidate) => {
                 let Some(symbol) = candidate.symbol() else {
                     self.check
-                        .report_unresolved_reference(tree.module_id, id.into_any(), path);
+                        .report_unresolved_reference(self.module, id.into_any(), path);
 
-                    return true;
+                    return Ok(true);
                 };
-                let source = id.into_global_any(tree.module_id);
-                let operand = self.walk_value_reference_operand(tree, id, symbol, &[]);
+                let source = id.into_global_any(self.module);
+                let operand = self.walk_value_reference_operand(id, symbol, &[])?;
 
                 self.select_value_reference(source, symbol);
                 self.check_value_read_assigned(source, id.into_any(), symbol);
-                self.bind_node_type_operand(id, operand);
+                self.bind_node_type_operand(id, operand)?;
             }
             // report missing namespace member
             PathLookup::Missing => {
                 self.check
-                    .report_unresolved_reference(tree.module_id, id.into_any(), path);
+                    .report_unresolved_reference(self.module, id.into_any(), path);
             }
             // report ambiguous namespace member
             PathLookup::Ambiguous(_) => {
                 self.check
-                    .report_ambiguous_reference(tree.module_id, id.into_any(), path);
+                    .report_ambiguous_reference(self.module, id.into_any(), path);
             }
         }
 
-        true
+        Ok(true)
     }
 
     /// Bind one member call receiver and return its type operand.
@@ -131,30 +137,29 @@ impl WalkState<'_, '_> {
     pub(in crate::check) fn bind_member_call_receiver_operand(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
-        tree: &dir::Tree,
-    ) -> Option<TypeOperand> {
-        match tree.get(id) {
+    ) -> CompilerResult<Option<TypeOperand>> {
+        match self.tree.get(id) {
             // value.member(), T.member()
             dir::Expression::Identifier { name } => {
                 let path = dir::Path {
                     segments: smallvec::smallvec![*name],
                 };
 
-                self.bind_reference_receiver_operand(id, &path, &[], tree)
+                self.bind_reference_receiver_operand(id, &path, &[])
             }
             // namespace.value.member(), Box<T>.member()
             dir::Expression::QualifiedReference {
                 path,
                 generic_arguments,
-            } => self.bind_reference_receiver_operand(id, path, generic_arguments, tree),
+            } => self.bind_reference_receiver_operand(id, path, generic_arguments),
             // expression.member()
             _ => {
-                self.walk_expression(tree, id, tree.get(id));
+                self.walk_expression(id, self.tree.get(id))?;
 
                 let source = id.into_global_any(self.module);
-                let operand = self.check.node_type_operand(source);
+                let operand = self.check.node_type_operand(source)?;
 
-                Some(operand)
+                Ok(Some(operand))
             }
         }
     }
@@ -170,13 +175,12 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        tree: &dir::Tree,
-    ) -> Option<TypeOperand> {
+    ) -> CompilerResult<Option<TypeOperand>> {
         let guard = self.active_static_guard();
-        let source = id.into_global_any(tree.module_id);
+        let source = id.into_global_any(self.module);
         let lookup = self
             .check
-            .lookup_path(tree.module_id, id.into_any(), path, dir::SymbolSpace::Value)
+            .lookup_path(self.module, id.into_any(), path, dir::SymbolSpace::Value)
             .available_under(&guard);
 
         match lookup {
@@ -184,29 +188,31 @@ impl WalkState<'_, '_> {
             PathLookup::Found(candidate) => {
                 let Some(symbol) = candidate.symbol() else {
                     self.check
-                        .report_unresolved_reference(tree.module_id, id.into_any(), path);
+                        .report_unresolved_reference(self.module, id.into_any(), path);
 
-                    return None;
+                    return Ok(None);
                 };
-                let operand =
-                    self.walk_value_reference_operand(tree, id, symbol, generic_arguments);
+                if self.check.symbol_kind(symbol).is_nominal() {
+                    return self.bind_type_receiver_path_operand(id, path, generic_arguments);
+                }
+                let operand = self.walk_value_reference_operand(id, symbol, generic_arguments)?;
 
                 self.select_value_reference(source, symbol);
                 self.check_value_read_assigned(source, id.into_any(), symbol);
-                self.bind_node_type_operand(id, operand);
+                self.bind_node_type_operand(id, operand)?;
 
-                Some(operand)
+                Ok(Some(operand))
             }
             // bind type receiver when no value receiver exists
             PathLookup::Missing => {
-                self.bind_type_receiver_path_operand(id, path, generic_arguments, tree)
+                self.bind_type_receiver_path_operand(id, path, generic_arguments)
             }
             // report ambiguous value receiver
             PathLookup::Ambiguous(_) => {
                 self.check
-                    .report_ambiguous_reference(tree.module_id, id.into_any(), path);
+                    .report_ambiguous_reference(self.module, id.into_any(), path);
 
-                None
+                Ok(None)
             }
         }
     }
@@ -222,24 +228,29 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Expression>,
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        tree: &dir::Tree,
-    ) -> Option<TypeOperand> {
-        let source = id.into_global_any(tree.module_id);
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let source = id.into_global_any(self.module);
         let guard = self.active_static_guard();
         let lookup = self
             .check
-            .lookup_path(tree.module_id, id.into_any(), path, dir::SymbolSpace::Type)
+            .lookup_path(self.module, id.into_any(), path, dir::SymbolSpace::Type)
             .available_under(&guard);
 
         // no type receiver exists
         let symbol = match lookup {
-            PathLookup::Found(candidate) => candidate.symbol()?,
-            PathLookup::Missing => return None,
+            PathLookup::Found(candidate) => {
+                let Some(symbol) = candidate.symbol() else {
+                    return Ok(None);
+                };
+
+                symbol
+            }
+            PathLookup::Missing => return Ok(None),
             PathLookup::Ambiguous(_) => {
                 self.check
-                    .report_ambiguous_reference(tree.module_id, id.into_any(), path);
+                    .report_ambiguous_reference(self.module, id.into_any(), path);
 
-                return None;
+                return Ok(None);
             }
         };
 
@@ -251,14 +262,14 @@ impl WalkState<'_, '_> {
         {
             TypeTerm::Parameter(slot)
         }
-        // lower nominal type receiver
+        // lower selected type receiver
         else {
-            let arguments = self.walk_generic_arguments(Some(symbol), generic_arguments, tree);
+            let arguments = self.walk_generic_arguments(generic_arguments)?;
 
             self.lower_type_symbol_reference_term(source, symbol, arguments)
         };
 
-        Some(self.bind_node_type(id, term))
+        Ok(Some(self.bind_node_type(id, term)?))
     }
 
     /// Walk one resolved value reference and return its operand.
@@ -269,20 +280,19 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_value_reference_operand(
         &mut self,
-        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-    ) -> TypeOperand {
-        let source = id.into_global_any(tree.module_id);
+    ) -> CompilerResult<TypeOperand> {
+        let source = id.into_global_any(self.module);
 
         // return direct symbol type for bare references
         let operand = if generic_arguments.is_empty() {
-            self.value_symbol_operand(tree, id, symbol)
+            self.value_symbol_operand(id, symbol)?
         }
         // instantiate explicit generic references
         else {
-            let arguments = self.walk_generic_arguments(Some(symbol), generic_arguments, tree);
+            let arguments = self.walk_generic_arguments(generic_arguments)?;
             self.check
                 .inference
                 .push_term(TypeTerm::Reference {
@@ -293,7 +303,7 @@ impl WalkState<'_, '_> {
                 .into()
         };
 
-        operand
+        Ok(operand)
     }
 
     /// Return the operand for one bare value symbol.
@@ -304,12 +314,11 @@ impl WalkState<'_, '_> {
     /// ```
     fn value_symbol_operand(
         &mut self,
-        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
-    ) -> TypeOperand {
-        if let Some(narrowed) = self.flow_path_narrowing(tree, id) {
-            return narrowed;
+    ) -> CompilerResult<TypeOperand> {
+        if let Some(narrowed) = self.flow_path_narrowing(id) {
+            return Ok(narrowed);
         }
 
         self.allocate_symbol_type_operand(symbol)
@@ -326,26 +335,27 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         path: &dir::Path,
         generic_arguments: &[dir::LocalNodeId<dir::GenericArgument>],
-        tree: &dir::Tree,
-    ) -> Option<TypeTerm> {
-        let source = id.into_global_any(tree.module_id);
+    ) -> CompilerResult<Option<TypeTerm>> {
+        let source = id.into_global_any(self.module);
 
         // bind bare static parameter
         let term = if generic_arguments.is_empty()
-            && let Some(term) = self.bind_bare_static_parameter_term(id, path, tree)
+            && let Some(term) = self.bind_bare_static_parameter_term(id, path)
         {
             term
         }
         // bind type symbol reference
         else {
             let guard = self.active_static_guard();
-            let symbol = self.check.symbol_by_path_under(
-                tree.module_id,
+            let Some(symbol) = self.check.symbol_by_path_under(
+                self.module,
                 id.into_any(),
                 path,
                 dir::SymbolSpace::Type,
                 &guard,
-            )?;
+            ) else {
+                return Ok(None);
+            };
             self.check.select_name(source, symbol);
 
             // lower bare type parameter
@@ -354,13 +364,13 @@ impl WalkState<'_, '_> {
             {
                 TypeTerm::Parameter(slot)
             } else {
-                let arguments = self.walk_generic_arguments(Some(symbol), generic_arguments, tree);
+                let arguments = self.walk_generic_arguments(generic_arguments)?;
 
                 self.lower_type_symbol_reference_term(source, symbol, arguments)
             }
         };
 
-        Some(term)
+        Ok(Some(term))
     }
 
     /// Lower the term for one selected type symbol reference.
@@ -537,7 +547,6 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         path: &dir::Path,
-        tree: &dir::Tree,
     ) -> Option<TypeTerm> {
         let [name] = path.segments.as_slice() else {
             return None;
@@ -546,19 +555,14 @@ impl WalkState<'_, '_> {
         let guard = self.active_static_guard();
         let lookup = self
             .check
-            .lookup_name_by_name(
-                tree.module_id,
-                id.into_any(),
-                *name,
-                dir::SymbolSpace::Value,
-            )
+            .lookup_name_by_name(self.module, id.into_any(), *name, dir::SymbolSpace::Value)
             .available_under(&guard);
         let symbol = match lookup {
             NameLookup::Found(candidate) => candidate.symbol()?,
             NameLookup::Missing => return None,
             NameLookup::Ambiguous(_) => {
                 self.check
-                    .report_ambiguous_reference(tree.module_id, id.into_any(), path);
+                    .report_ambiguous_reference(self.module, id.into_any(), path);
 
                 return None;
             }
@@ -568,7 +572,7 @@ impl WalkState<'_, '_> {
             return None;
         }
 
-        let source = id.into_global_any(tree.module_id);
+        let source = id.into_global_any(self.module);
         self.check.select_name(source, symbol);
 
         let parameter_id = self

@@ -1,5 +1,6 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::check::WalkState;
 
 impl WalkState<'_, '_> {
@@ -11,13 +12,12 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn walk_dependency_item(
         &mut self,
-        tree: &dir::Tree,
         id: dir::LocalNodeId<dir::DependencyItem>,
         dependency_item: &dir::DependencyItem,
-    ) {
-        if !self.push_static_guard_for(tree, id.into_any(), None) {
-            return;
-        }
+    ) -> CompilerResult<()> {
+        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+            return Ok(());
+        };
 
         match dependency_item {
             // import { name: value }
@@ -27,7 +27,7 @@ impl WalkState<'_, '_> {
                 // check dependency alias in declaration context
                 let before_value = self.fork_flow();
 
-                self.walk_expression(tree, *value, tree.get(*value));
+                self.walk_expression(*value, self.tree.get(*value))?;
                 self.restore_flow(before_value);
             }
             // import { name }
@@ -36,6 +36,6 @@ impl WalkState<'_, '_> {
             dir::DependencyItem::Error => {}
         };
 
-        self.pop_static_guard();
+        Ok(())
     }
 }
