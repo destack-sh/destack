@@ -575,10 +575,7 @@ impl WalkState<'_, '_> {
         let source = id.into_global_any(self.module);
         self.check.select_name(source, symbol);
 
-        let parameter_id = self
-            .check
-            .inference
-            .generic_parameter_id_for_symbol(symbol)?;
+        let parameter_id = self.check.inference.symbol_generic_parameter(symbol)?;
 
         Some(TypeTerm::Parameter(parameter_id))
     }
@@ -594,7 +591,7 @@ impl WalkState<'_, '_> {
             return None;
         }
 
-        self.check.inference.generic_parameter_id_for_symbol(symbol)
+        self.check.inference.symbol_generic_parameter(symbol)
     }
 
     /// Lower the contextual receiver type term.

@@ -26,7 +26,9 @@ impl ExtensionTable {
         definition: ExtensionDefinition,
     ) {
         if self.definitions.contains_key(&symbol) {
-            panic!("check extension symbol {symbol:?} already has a definition");
+            unreachable!(
+                "internal invariant: extension symbol {symbol:?} already has a definition"
+            );
         }
 
         self.definitions.insert(symbol, definition);
@@ -53,7 +55,7 @@ impl ExtensionTable {
     }
 
     /// Return extension symbols declared in one module for one target symbol.
-    pub(in crate::check) fn symbols_for_target(
+    pub(in crate::check) fn target_symbols(
         &self,
         module: ModuleId,
         target: dir::GlobalSymbolId,

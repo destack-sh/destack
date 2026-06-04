@@ -94,7 +94,7 @@ impl InferenceTable {
     pub(in crate::check) fn current_mut(&mut self) -> &mut InferenceSegment {
         self.segments
             .last_mut()
-            .unwrap_or_else(|| panic!("inference table has no current segment"))
+            .unwrap_or_else(|| unreachable!("inference table has no current segment"))
     }
 
     /// Begin one speculative inference segment.
@@ -108,17 +108,17 @@ impl InferenceTable {
     /// Merge the current speculative segment into its parent.
     pub(in crate::check) fn commit_probe(&mut self, probe: InferenceProbe) -> CompilerResult<()> {
         if probe.depth + 1 != self.segments.len() {
-            panic!("inference probes must be committed in LIFO order");
+            unreachable!("inference probes must be committed in LIFO order");
         }
 
         let segment = self
             .segments
             .pop()
-            .unwrap_or_else(|| panic!("inference probe segment is missing"));
+            .unwrap_or_else(|| unreachable!("inference probe segment is missing"));
         let parent = self
             .segments
             .last_mut()
-            .unwrap_or_else(|| panic!("inference probe has no parent segment"));
+            .unwrap_or_else(|| unreachable!("inference probe has no parent segment"));
 
         parent.merge(segment)?;
 
@@ -128,7 +128,7 @@ impl InferenceTable {
     /// Drop the current speculative segment.
     pub(in crate::check) fn drop_probe(&mut self, probe: InferenceProbe) {
         if probe.depth + 1 != self.segments.len() {
-            panic!("inference probes must be dropped in LIFO order");
+            unreachable!("inference probes must be dropped in LIFO order");
         }
 
         self.segments.pop();
@@ -158,7 +158,7 @@ impl InferenceTable {
             base = end;
         }
 
-        panic!("check term {id:?} is not allocated")
+        unreachable!("check term {id:?} is not allocated")
     }
 
     /// Return the total number of stored terms.
@@ -203,7 +203,7 @@ impl InferenceTable {
             base = end;
         }
 
-        panic!("check variable {index} is not allocated")
+        unreachable!("check variable {index} is not allocated")
     }
 
     /// Push one constraint into the current segment.
@@ -232,7 +232,7 @@ impl InferenceTable {
             base = end;
         }
 
-        panic!("check constraint {index} is not allocated")
+        unreachable!("check constraint {index} is not allocated")
     }
 
     /// Iterate constraints in segment order.
@@ -284,8 +284,8 @@ impl InferenceTable {
             .insert(variable.variable, variable.parameter);
 
         if previous.is_some() {
-            panic!(
-                "check variable {:?} already has generic induction",
+            unreachable!(
+                "internal invariant: variable {:?} already has generic induction",
                 variable.variable
             );
         }
@@ -313,8 +313,8 @@ impl InferenceTable {
             .filter_map(|parameter_id| self.generic_parameter_entry(*parameter_id))
     }
 
-    /// Return generic parameters owned by one symbol.
-    pub(in crate::check) fn generic_parameters_for_owner(
+    /// Return one owner's generic parameters.
+    pub(in crate::check) fn owner_generic_parameters(
         &self,
         owner: dir::GlobalSymbolId,
     ) -> impl Iterator<Item = (GenericParameterId, &GenericParameterBinding)> + '_ {
@@ -325,8 +325,8 @@ impl InferenceTable {
             .filter_map(|parameter_id| self.generic_parameter_entry(parameter_id))
     }
 
-    /// Return the active generic template for one owner.
-    pub(in crate::check) fn generic_template_for_owner(
+    /// Return one owner's active generic template.
+    pub(in crate::check) fn owner_generic_template(
         &self,
         owner: dir::GlobalSymbolId,
     ) -> Option<&GenericTemplate> {
@@ -353,7 +353,11 @@ impl InferenceTable {
         parameter_id: GenericParameterId,
     ) -> &GenericParameterBinding {
         self.generic_parameter_by_id(parameter_id)
-            .unwrap_or_else(|| panic!("generic parameter {parameter_id:?} does not exist"))
+            .unwrap_or_else(|| {
+                unreachable!(
+                    "internal invariant: generic parameter {parameter_id:?} does not exist"
+                )
+            })
     }
 
     /// Return one active generic instance.
@@ -367,20 +371,6 @@ impl InferenceTable {
             .find_map(|segment| segment.generic_instances.get(&key))
     }
 
-    /// Return one active generic instance argument.
-    pub(in crate::check) fn generic_instance_argument(
-        &self,
-        source: dir::GlobalNodeIdAny,
-        owner: dir::GlobalSymbolId,
-        index: usize,
-    ) -> Option<GenericArgument> {
-        let key = GenericInstanceKey { source, owner };
-
-        self.generic_instance(key)
-            .and_then(|instance| instance.arguments.get(index))
-            .cloned()
-    }
-
     /// Insert one generic instance into the current segment.
     pub(in crate::check) fn insert_generic_instance(
         &mut self,
@@ -389,7 +379,9 @@ impl InferenceTable {
     ) -> GenericInstance {
         if let Some(instance) = self.generic_instance(key) {
             if instance.arguments != arguments {
-                panic!("check generic instance {key:?} already has different arguments");
+                unreachable!(
+                    "internal invariant: generic instance {key:?} already has different arguments"
+                );
             }
 
             return instance.clone();
@@ -413,7 +405,9 @@ impl InferenceTable {
         let key = generic.identity().key;
         let parameter_id = generic.identity().id();
         if self.generic_parameter_by_id(parameter_id).is_some() {
-            panic!("generic parameter {parameter_id:?} is already inserted");
+            unreachable!(
+                "internal invariant: generic parameter {parameter_id:?} is already inserted"
+            );
         }
 
         let segment = self.current_mut();
@@ -433,8 +427,8 @@ impl InferenceTable {
         }
     }
 
-    /// Return the active generic parameter id declared by one symbol.
-    pub(in crate::check) fn generic_parameter_id_for_symbol(
+    /// Return one symbol's active generic parameter id.
+    pub(in crate::check) fn symbol_generic_parameter(
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Option<GenericParameterId> {
@@ -453,7 +447,11 @@ impl InferenceTable {
             .iter_mut()
             .rev()
             .find_map(|segment| segment.generic_parameters_by_id.get_mut(&parameter_id))
-            .unwrap_or_else(|| panic!("generic parameter {parameter_id:?} does not exist"))
+            .unwrap_or_else(|| {
+                unreachable!(
+                    "internal invariant: generic parameter {parameter_id:?} does not exist"
+                )
+            })
     }
 
     /// Return the next generic parameter number for one owner.
@@ -919,10 +917,15 @@ impl InferenceTable {
     }
 
     /// Return active member decisions in component order.
-    pub(in crate::check) fn members(&self) -> Vec<MemberDecision> {
+    pub(in crate::check) fn members(&self) -> Vec<(dir::GlobalNodeIdAny, MemberDecision)> {
         self.segments
             .iter()
-            .flat_map(|segment| segment.members.values().cloned())
+            .flat_map(|segment| {
+                segment
+                    .members
+                    .iter()
+                    .map(|(source, decision)| (*source, decision.clone()))
+            })
             .collect()
     }
 
@@ -935,26 +938,41 @@ impl InferenceTable {
     }
 
     /// Return active call decisions in component order.
-    pub(in crate::check) fn calls(&self) -> Vec<CallDecision> {
+    pub(in crate::check) fn calls(&self) -> Vec<(dir::GlobalNodeIdAny, CallDecision)> {
         self.segments
             .iter()
-            .flat_map(|segment| segment.calls.values().cloned())
+            .flat_map(|segment| {
+                segment
+                    .calls
+                    .iter()
+                    .map(|(source, decision)| (*source, decision.clone()))
+            })
             .collect()
     }
 
     /// Return active construct decisions in component order.
-    pub(in crate::check) fn constructs(&self) -> Vec<ConstructDecision> {
+    pub(in crate::check) fn constructs(&self) -> Vec<(dir::GlobalNodeIdAny, ConstructDecision)> {
         self.segments
             .iter()
-            .flat_map(|segment| segment.constructs.values().cloned())
+            .flat_map(|segment| {
+                segment
+                    .constructs
+                    .iter()
+                    .map(|(source, decision)| (*source, decision.clone()))
+            })
             .collect()
     }
 
     /// Return active operator decisions in component order.
-    pub(in crate::check) fn operators(&self) -> Vec<OperatorDecision> {
+    pub(in crate::check) fn operators(&self) -> Vec<(dir::GlobalNodeIdAny, OperatorDecision)> {
         self.segments
             .iter()
-            .flat_map(|segment| segment.operators.values().cloned())
+            .flat_map(|segment| {
+                segment
+                    .operators
+                    .iter()
+                    .map(|(source, decision)| (*source, decision.clone()))
+            })
             .collect()
     }
 
@@ -996,7 +1014,9 @@ impl InferenceTable {
                 return false;
             }
 
-            panic!("check {label} {source:?} received two different selections");
+            unreachable!(
+                "internal invariant: check {label} {source:?} received two different selections"
+            );
         }
 
         true

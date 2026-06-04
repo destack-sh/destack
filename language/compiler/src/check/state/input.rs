@@ -5,6 +5,7 @@ use indexmap::IndexMap;
 use crate::check::{
     CheckState, Condition, Origin, StaticOperand, TypeOperand, TypeTerm, VariableId,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Input identity to check operand index.
 #[derive(Debug)]
@@ -108,16 +109,20 @@ impl InputTable {
         &mut self,
         id: dir::GlobalTypeId,
         operand: TypeOperand,
-    ) {
+    ) -> CompilerResult<()> {
         if let Some(previous) = self.types.get(&id) {
             if *previous != operand {
-                panic!("check type id {id:?} already has a different operand");
+                return Err(CompilerError::Internal {
+                    message: format!("check type id {id:?} already has a different operand"),
+                });
             }
 
-            return;
+            return Ok(());
         }
 
         self.types.insert(id, operand);
+
+        Ok(())
     }
 
     /// Return one operand keyed by committed static id.
@@ -133,16 +138,20 @@ impl InputTable {
         &mut self,
         id: dir::GlobalStaticId,
         operand: StaticOperand,
-    ) {
+    ) -> CompilerResult<()> {
         if let Some(previous) = self.statics.get(&id) {
             if *previous != operand {
-                panic!("check static id {id:?} already has a different operand");
+                return Err(CompilerError::Internal {
+                    message: format!("check static id {id:?} already has a different operand"),
+                });
             }
 
-            return;
+            return Ok(());
         }
 
         self.statics.insert(id, operand);
+
+        Ok(())
     }
 
     /// Insert one source node type operand.
@@ -150,14 +159,16 @@ impl InputTable {
         &mut self,
         node: dir::GlobalNodeIdAny,
         operand: TypeOperand,
-    ) -> TypeOperand {
+    ) -> CompilerResult<TypeOperand> {
         if self.node_types.contains_key(&node) {
-            panic!("check node {node:?} already has a type operand");
+            return Err(CompilerError::Internal {
+                message: format!("check node {node:?} already has a type operand"),
+            });
         }
 
         self.node_types.insert(node, operand);
 
-        operand
+        Ok(operand)
     }
 
     /// Insert one source node static operand.
@@ -165,14 +176,16 @@ impl InputTable {
         &mut self,
         node: dir::GlobalNodeIdAny,
         operand: StaticOperand,
-    ) -> StaticOperand {
+    ) -> CompilerResult<StaticOperand> {
         if self.node_statics.contains_key(&node) {
-            panic!("check node {node:?} already has a static operand");
+            return Err(CompilerError::Internal {
+                message: format!("check node {node:?} already has a static operand"),
+            });
         }
 
         self.node_statics.insert(node, operand);
 
-        operand
+        Ok(operand)
     }
 
     /// Insert one source symbol type operand.
@@ -180,14 +193,16 @@ impl InputTable {
         &mut self,
         symbol: dir::GlobalSymbolId,
         operand: TypeOperand,
-    ) -> TypeOperand {
+    ) -> CompilerResult<TypeOperand> {
         if self.symbol_types.contains_key(&symbol) {
-            panic!("check symbol {symbol:?} already has a type operand");
+            return Err(CompilerError::Internal {
+                message: format!("check symbol {symbol:?} already has a type operand"),
+            });
         }
 
         self.symbol_types.insert(symbol, operand);
 
-        operand
+        Ok(operand)
     }
 
     /// Insert one source symbol static operand.
@@ -195,36 +210,43 @@ impl InputTable {
         &mut self,
         symbol: dir::GlobalSymbolId,
         operand: StaticOperand,
-    ) -> StaticOperand {
+    ) -> CompilerResult<StaticOperand> {
         if self.symbol_statics.contains_key(&symbol) {
-            panic!("check symbol {symbol:?} already has a static operand");
+            return Err(CompilerError::Internal {
+                message: format!("check symbol {symbol:?} already has a static operand"),
+            });
         }
 
         self.symbol_statics.insert(symbol, operand);
 
-        operand
+        Ok(operand)
     }
 }
 
 impl CheckState<'_> {
     /// Return one required node type operand.
-    pub(in crate::check) fn node_type_operand(&self, node: dir::GlobalNodeIdAny) -> TypeOperand {
+    pub(in crate::check) fn node_type_operand(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<TypeOperand> {
         if let Some(operand) = self.inputs.node_type(node) {
-            return operand;
+            return Ok(operand);
         }
 
-        // report the source location for missing walked node types
+        // include the source location for missing walked node types
         let module = self.module(node.module_id);
         let span = module.parsed.tree.get_span_by_id(node.local_id.id);
 
-        panic!(
-            "check node {node:?} in {:?} at {span:?} has no type operand",
-            module.module.uri
-        )
+        Err(CompilerError::Internal {
+            message: format!(
+                "check node {node:?} in {:?} at {span:?} has no type operand",
+                module.module.uri
+            ),
+        })
     }
 
-    /// Return a type variable constrained by one operand.
-    pub(in crate::check) fn type_variable_for_operand(
+    /// Create or return one type variable constrained by one operand.
+    pub(in crate::check) fn create_operand_type_variable(
         &mut self,
         module: ModuleId,
         origin: Origin,

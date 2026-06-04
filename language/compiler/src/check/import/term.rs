@@ -1,6 +1,7 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::check::{CheckState, StaticOperand, StaticTerm, TypeOperand, TypeTerm};
 
 impl CheckState<'_> {
@@ -9,9 +10,9 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         source: dir::GlobalTypeId,
-    ) -> TypeOperand {
+    ) -> CompilerResult<TypeOperand> {
         if let Some(operand) = self.inputs.type_id_operand(source) {
-            return operand;
+            return Ok(operand);
         }
 
         // import generic parameters as check parameters
@@ -20,16 +21,16 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(parameter) = parameter {
-            let parameter = self.import_generic_parameter_id(module, parameter);
+            let parameter = self.import_generic_parameter_id(module, parameter)?;
             let operand =
                 TypeOperand::Term(self.inference.push_term(TypeTerm::Parameter(parameter)));
 
-            self.inputs.insert_type_id_operand(source, operand);
+            self.inputs.insert_type_id_operand(source, operand)?;
 
-            return operand;
+            return Ok(operand);
         }
 
-        TypeOperand::Type(source)
+        Ok(TypeOperand::Type(source))
     }
 
     /// Return one committed static id as a check static operand.
@@ -37,9 +38,9 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         source: dir::GlobalStaticId,
-    ) -> StaticOperand {
+    ) -> CompilerResult<StaticOperand> {
         if let Some(operand) = self.inputs.static_id_operand(source) {
-            return operand;
+            return Ok(operand);
         }
 
         // import generic parameters as check parameters
@@ -48,15 +49,15 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(parameter) = parameter {
-            let parameter = self.import_generic_parameter_id(module, parameter);
+            let parameter = self.import_generic_parameter_id(module, parameter)?;
             let operand =
                 StaticOperand::Term(self.inference.push_term(StaticTerm::Parameter(parameter)));
 
-            self.inputs.insert_static_id_operand(source, operand);
+            self.inputs.insert_static_id_operand(source, operand)?;
 
-            return operand;
+            return Ok(operand);
         }
 
-        StaticOperand::Static(source)
+        Ok(StaticOperand::Static(source))
     }
 }

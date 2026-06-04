@@ -82,7 +82,7 @@ impl<'a> CheckState<'a> {
 
         // walk modules in stable component order
         for module in modules.iter().copied() {
-            self.walk_module(module);
+            self.walk_module(module)?;
         }
 
         self.propagate_walk_state(modules.as_slice())
@@ -141,7 +141,7 @@ impl<'a> CheckState<'a> {
             .imports
             .language_symbol(item)
             .unwrap_or_else(|| {
-                panic!("language item {item} was not resolved for module {module:?}")
+                unreachable!("language item {item} was not resolved for module {module:?}")
             });
 
         symbol

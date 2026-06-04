@@ -201,14 +201,17 @@ impl CheckState<'_> {
     ) -> DiagnosticAnchor {
         let span = match self.module(module).parsed.tree.get_span_by_id(source.id) {
             Some(span) => span,
-            None => panic!("check node {} has no source span", source.id),
+            None => unreachable!(
+                "internal invariant: check node {} has no source span",
+                source.id
+            ),
         };
 
         DiagnosticAnchor::from(span)
     }
 
-    /// Return the diagnostic anchor for one check origin.
-    pub(in crate::check) fn diagnostic_anchor_for_origin(
+    /// Return one check origin's diagnostic anchor.
+    pub(in crate::check) fn origin_diagnostic_anchor(
         &self,
         origin: Origin,
     ) -> (ModuleId, DiagnosticAnchor) {
@@ -226,7 +229,7 @@ impl CheckState<'_> {
 
     /// Return a circular type diagnostic for one origin.
     pub(in crate::check) fn circular_type_error(&self, origin: Origin) -> CheckError {
-        let (module, anchor) = self.diagnostic_anchor_for_origin(origin);
+        let (module, anchor) = self.origin_diagnostic_anchor(origin);
 
         CheckError::CircularType { anchor, module }
     }

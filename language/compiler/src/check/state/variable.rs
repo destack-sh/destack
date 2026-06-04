@@ -78,7 +78,7 @@ impl CheckState<'_> {
         source: Origin,
     ) -> VariableId {
         if source.module() != module {
-            panic!("check inference variable source must be local");
+            unreachable!("inference variable source must be local");
         }
 
         let id = VariableId::new(module, self.inference.variable_count() as u32);
@@ -114,11 +114,6 @@ impl CheckState<'_> {
     /// Return one variable.
     pub(in crate::check) fn variable(&self, id: VariableId) -> &Variable {
         self.inference.variable_at(id.index as usize)
-    }
-
-    /// Return one variable by allocation index.
-    pub(in crate::check) fn variable_at(&self, index: usize) -> &Variable {
-        self.inference.variable_at(index)
     }
 
     /// Return the source symbol for one variable.
@@ -221,14 +216,14 @@ impl CheckState<'_> {
         match self.variable(id).source {
             Origin::Node(node) => {
                 if node.module_id != id.module {
-                    panic!("check variable source node must be local");
+                    unreachable!("variable source node must be local");
                 }
 
                 node.local_id
             }
             Origin::Symbol(symbol) => {
                 if symbol.module_id != id.module {
-                    panic!("check variable source symbol must be local");
+                    unreachable!("variable source symbol must be local");
                 }
 
                 self.module(symbol.module_id)

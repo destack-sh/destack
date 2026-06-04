@@ -1,5 +1,5 @@
 use crate::check::{
-    CallCallee, CallTerm, ConstructTerm, Dump, DumpContext, MemberCallSource, MemberCallTerm,
+    CallCallee, CallTerm, ConstructTerm, Dump, DumpContext, MemberCallTerm, MemberProjectionOrigin,
 };
 
 use super::argument::dump_arguments;
@@ -57,7 +57,7 @@ impl Dump for MemberCallTerm {
         dump_record(
             "MemberCallTerm",
             [
-                ("source", self.source.dump(context)),
+                ("origin", self.origin.dump(context)),
                 ("receiver", self.receiver.dump(context)),
                 ("key", self.key.dump(context)),
                 ("arguments", dump_arguments(&self.arguments, context)),
@@ -66,16 +66,16 @@ impl Dump for MemberCallTerm {
     }
 }
 
-impl Dump for MemberCallSource {
-    /// Render one member call source.
+impl Dump for MemberProjectionOrigin {
+    /// Render one member projection origin.
     fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         match self {
             Self::Expression { source } => dump_record(
-                "MemberCallSource.Expression",
+                "MemberProjectionOrigin.Expression",
                 [("source", context.node_label(*source))],
             ),
             Self::Protocol { protocol } => dump_record(
-                "MemberCallSource.Protocol",
+                "MemberProjectionOrigin.Protocol",
                 [
                     ("item", protocol.item.key()),
                     ("arguments", dump_arguments(&protocol.arguments, context)),

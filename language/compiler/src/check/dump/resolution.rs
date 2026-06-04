@@ -239,9 +239,11 @@ impl Dump for dir::BuiltinMember {
 
 impl Dump for MemberFailure {
     /// Render one member failure.
-    fn dump(&self, _context: &DumpContext<'_, '_>) -> String {
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
         match self {
-            Self::Missing => dump_record("MemberFailure.Missing", []),
+            Self::Missing { key } => {
+                dump_record("MemberFailure.Missing", [("key", key.dump(context))])
+            }
         }
     }
 }

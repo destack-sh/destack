@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use super::{CheckModuleState, CheckState};
 
@@ -62,17 +63,88 @@ impl CheckModuleState {
 
         // require source symbols to have local declaration nodes
         let Some(declaration) = binding.declaration else {
-            panic!("check source symbol {symbol:?} has no declaration node");
+            unreachable!("source symbol {symbol:?} has no declaration node");
         };
         if declaration.module_id != self.module.id {
-            panic!("check source symbol {symbol:?} declaration points outside its module");
+            unreachable!(
+                "internal invariant: source symbol {symbol:?} declaration points outside its module"
+            );
         }
 
         declaration.local_id
     }
+
+    /// Return named member symbols declared under one local owner.
+    pub(in crate::check) fn named_member_symbols(
+        &self,
+        owner: dir::GlobalSymbolId,
+    ) -> Vec<(dir::StaticKey, dir::GlobalSymbolId)> {
+        let bindings = self.binding_table();
+        let Some(scope) = bindings.scope_for_owner(owner.local_id) else {
+            return Vec::new();
+        };
+        let scope = bindings.get_scope(scope);
+
+        scope
+            .named_symbols()
+            .map(|(key, symbol)| (key, symbol.into_global(owner.module_id)))
+            .collect()
+    }
+
+    /// Return member symbols declared under one local owner and key.
+    pub(in crate::check) fn member_symbols(
+        &self,
+        owner: dir::GlobalSymbolId,
+        key: dir::StaticKey,
+    ) -> SmallVec<[dir::GlobalSymbolId; 4]> {
+        let bindings = self.binding_table();
+
+        match bindings.lookup_key_member(owner.local_id, key) {
+            dir::SymbolLookup::Missing => SmallVec::new(),
+            dir::SymbolLookup::Found(symbol) => {
+                let mut symbols = SmallVec::new();
+                symbols.push(symbol.into_global(owner.module_id));
+
+                symbols
+            }
+            dir::SymbolLookup::Ambiguous(symbols) => symbols
+                .into_iter()
+                .map(|symbol| symbol.into_global(owner.module_id))
+                .collect(),
+        }
+    }
 }
 
 impl CheckState<'_> {
+    /// Return named member symbols declared under one owner.
+    pub(in crate::check) fn named_member_symbols(
+        &self,
+        owner: dir::GlobalSymbolId,
+    ) -> Vec<(dir::StaticKey, dir::GlobalSymbolId)> {
+        if let Some(state) = self.modules.get(&owner.module_id) {
+            state.named_member_symbols(owner)
+        } else {
+            let dependency = self.dependency(owner.module_id);
+
+            dependency.named_member_symbols(owner)
+        }
+    }
+
+    /// Return member symbols declared under one owner and key.
+    pub(in crate::check) fn member_symbols(
+        &self,
+        owner: dir::GlobalSymbolId,
+        key: dir::StaticKey,
+    ) -> SmallVec<[dir::GlobalSymbolId; 4]> {
+        if let Some(state) = self.modules.get(&owner.module_id) {
+            state.member_symbols(owner, key)
+        } else {
+            let dependency = self.dependency(owner.module_id);
+
+            dependency.member_symbols(owner, key)
+        }
+    }
+
     /// Return the declaration kind for one symbol.
     pub(in crate::check) fn symbol_kind(&self, symbol: dir::GlobalSymbolId) -> dir::SymbolKind {
         if let Some(state) = self.modules.get(&symbol.module_id) {

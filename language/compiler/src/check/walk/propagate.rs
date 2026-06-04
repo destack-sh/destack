@@ -60,7 +60,7 @@ impl CheckState<'_> {
     fn equate_declaration_self_type(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<()> {
         let parameters = self
             .inference
-            .generic_parameters_for_owner(symbol)
+            .owner_generic_parameters(symbol)
             .map(|(slot, generic)| (slot, generic.is_static(), generic.is_variadic()))
             .collect::<Vec<_>>();
 

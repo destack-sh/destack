@@ -135,7 +135,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn module(&self, module: ModuleId) -> &CheckModuleState {
         match self.modules.get(&module) {
             Some(state) => state,
-            None => panic!("check module {module:?} was not loaded"),
+            None => unreachable!("check module {module:?} was not loaded"),
         }
     }
 
@@ -143,7 +143,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn module_mut(&mut self, module: ModuleId) -> &mut CheckModuleState {
         match self.modules.get_mut(&module) {
             Some(state) => state,
-            None => panic!("check module {module:?} was not loaded"),
+            None => unreachable!("check module {module:?} was not loaded"),
         }
     }
 

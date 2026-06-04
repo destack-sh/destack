@@ -2,18 +2,18 @@ use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerError;
 use crate::check::{CheckState, Dump, DumpContext, Origin, StaticOperand, TypeOperand};
 
 impl CheckState<'_> {
-    /// Panic for one node type operand that cannot be committed.
-    #[track_caller]
-    pub(in crate::check) fn panic_unresolved_node_type(
+    /// Return an internal error for one node type operand that cannot be committed.
+    pub(in crate::check) fn unresolved_node_type_error(
         &self,
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
         operand: TypeOperand,
-    ) -> ! {
-        self.panic_unresolved_commit_operand(
+    ) -> CompilerError {
+        self.unresolved_commit_operand_error(
             module,
             "node_type",
             "node",
@@ -22,15 +22,14 @@ impl CheckState<'_> {
         )
     }
 
-    /// Panic for one symbol type operand that cannot be committed.
-    #[track_caller]
-    pub(in crate::check) fn panic_unresolved_symbol_type(
+    /// Return an internal error for one symbol type operand that cannot be committed.
+    pub(in crate::check) fn unresolved_symbol_type_error(
         &self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         operand: TypeOperand,
-    ) -> ! {
-        self.panic_unresolved_commit_operand(
+    ) -> CompilerError {
+        self.unresolved_commit_operand_error(
             module,
             "symbol_type",
             "symbol",
@@ -39,15 +38,14 @@ impl CheckState<'_> {
         )
     }
 
-    /// Panic for one symbol static operand that cannot be committed.
-    #[track_caller]
-    pub(in crate::check) fn panic_unresolved_symbol_static(
+    /// Return an internal error for one symbol static operand that cannot be committed.
+    pub(in crate::check) fn unresolved_symbol_static_error(
         &self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         operand: StaticOperand,
-    ) -> ! {
-        self.panic_unresolved_commit_operand(
+    ) -> CompilerError {
+        self.unresolved_commit_operand_error(
             module,
             "symbol_static",
             "symbol",
@@ -56,16 +54,15 @@ impl CheckState<'_> {
         )
     }
 
-    /// Panic for one operand that cannot be committed.
-    #[track_caller]
-    fn panic_unresolved_commit_operand<T: Dump + ?Sized>(
+    /// Return an internal error for one operand that cannot be committed.
+    fn unresolved_commit_operand_error<T: Dump + ?Sized>(
         &self,
         module: ModuleId,
         kind: &'static str,
         target_key: &'static str,
         target: Origin,
         operand: &T,
-    ) -> ! {
+    ) -> CompilerError {
         let mut log = ArtifactEventLog::new();
 
         // record failing commit operand
@@ -78,17 +75,12 @@ impl CheckState<'_> {
                 .text("operand", self.dump_in_module(module, operand)),
         );
 
-        self.panic_check_report(log);
-    }
-
-    /// Panic with one structured check report and the current trace.
-    #[track_caller]
-    fn panic_check_report(&self, log: ArtifactEventLog) -> ! {
         let report = log.render_raw();
         let trace = self.trace.render_dump(self);
 
-        panic!(
-            "check crash
+        CompilerError::Internal {
+            message: format!(
+                "check internal error
 ---------------
 {report}
 ---------------
@@ -96,6 +88,7 @@ check trace
 ---------------
 {trace}
 ---------------"
-        );
+            ),
+        }
     }
 }

@@ -351,15 +351,15 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(variable)
     }
 
-    /// Return a type variable constrained by one operand.
-    pub(in crate::check) fn type_variable_for_operand(
+    /// Create or return one type variable constrained by one operand.
+    pub(in crate::check) fn create_operand_type_variable(
         &mut self,
         origin: Origin,
         operand: TypeOperand,
         condition: Condition,
     ) -> VariableId {
         self.check
-            .type_variable_for_operand(self.module, origin, operand, condition)
+            .create_operand_type_variable(self.module, origin, operand, condition)
     }
 
     /// Create one operand for a type term.
