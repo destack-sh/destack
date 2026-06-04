@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use destack_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
-use destack_source::{FileId, ModuleId, PackageId};
+use destack_source::{EditApplyError, FileId, ModuleId, PackageId};
 use destack_workspace::{Ref, RepositoryError, Revision};
 
 use crate::SourceError;
@@ -52,6 +52,11 @@ pub enum SessionError {
         /// The artifact failure.
         failure: Box<ArtifactFailure>,
     },
+    /// One source edit is invalid.
+    InvalidSourceEdit {
+        /// The edit failure.
+        error: EditApplyError,
+    },
     /// Repository work failed inside the session.
     Repository(RepositoryError),
     /// External source work failed inside the session.
@@ -101,6 +106,9 @@ impl std::fmt::Display for SessionError {
                     "artifact failed while providing {key:?}: {failure:?}"
                 )
             }
+            SessionError::InvalidSourceEdit { error } => {
+                write!(formatter, "source edit failed: {error}")
+            }
             SessionError::Repository(error) => {
                 write!(formatter, "session repository error: {error}")
             }
@@ -117,6 +125,7 @@ impl std::fmt::Display for SessionError {
 impl std::error::Error for SessionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            SessionError::InvalidSourceEdit { error } => Some(error),
             SessionError::Repository(error) => Some(error),
             SessionError::Source(error) => Some(error),
             _ => None,
@@ -141,5 +150,11 @@ impl From<DiagnosticError> for SessionError {
         SessionError::Internal {
             detail: format!("failed to finalize provider diagnostic: {error}"),
         }
+    }
+}
+
+impl From<EditApplyError> for SessionError {
+    fn from(error: EditApplyError) -> Self {
+        Self::InvalidSourceEdit { error }
     }
 }

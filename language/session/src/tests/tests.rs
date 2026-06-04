@@ -7,7 +7,10 @@ use destack_query::Query;
 use destack_source::{FileSystem, MemoryFileSystem};
 use destack_workspace::{DestackLayoutOverride, Environment, Ref, Repository, Revision, Settings};
 
-use crate::{FileUpdate, Session, SessionError, open_repository_from_fs};
+use crate::{
+    FileUpdate, Session, SessionError, SourceEdit, SourceUpdate, SourceUpdateResult,
+    open_repository_from_fs,
+};
 
 const DEFAULT_ROOT: &str = "/workspace";
 
@@ -98,6 +101,13 @@ impl TestSession {
             .expect("test session should reload")
     }
 
+    /// Apply one source update to the session.
+    pub(crate) fn update(&self, edits: Vec<SourceEdit>) -> SourceUpdateResult {
+        self.session
+            .update(&self.head(), SourceUpdate { base: None, edits })
+            .expect("test session should update")
+    }
+
     /// Load one module from the memory filesystem.
     pub(crate) fn load_module(&self, path: &str) {
         let path = self.root.join(path);
@@ -158,6 +168,11 @@ impl TestSession {
         assert!(updates.is_empty(), "expected no updates, got {updates:#?}");
     }
 
+    /// Assert update result paths relative to the selected source root.
+    pub(crate) fn assert_result_paths(&self, result: &SourceUpdateResult, expected: &[&str]) {
+        self.assert_update_paths(&result.files, expected);
+    }
+
     /// Assert that reloading changes the head revision.
     pub(crate) fn assert_revision_changed(&self, before: Revision) {
         assert_ne!(self.revision(), before);
@@ -192,6 +207,19 @@ impl TestSession {
         files.sort();
 
         files
+    }
+
+    /// Return one tracked text file at the current head.
+    pub(crate) fn text(&self, path: &str) -> String {
+        let revision = self.revision();
+        let file_id = destack_source::FileId::from_logical_str(path);
+        let file = self
+            .repository
+            .file(revision, file_id)
+            .expect("test file should load")
+            .expect("test file should exist");
+
+        file.text().to_string()
     }
 
     /// Return one update path relative to the selected source root.

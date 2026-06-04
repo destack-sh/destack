@@ -8,20 +8,20 @@ use destack_source::{
 };
 use destack_workspace::{Dependency, DestackFile, Repository, RepositoryError};
 
-use super::{Source, SourceError, SourceFile, SourceSnapshot};
+use super::{Source, SourceError, SourceImport};
 use crate::SessionError;
 
 const SOURCE_EXCLUDED_DIRECTORY_NAMES: &[&str] =
     &[".destack", ".git", "node_modules", "target", "vendor"];
 
-/// Filesystem-backed source snapshot producer.
+/// Filesystem-backed source importer.
 pub(crate) struct FileSystemSource<'a> {
     /// The repository receiving filesystem truth.
     repository: &'a Repository,
     /// The physical source root.
     root: &'a Path,
-    /// The source snapshot built so far.
-    snapshot: SourceSnapshot,
+    /// The source import built so far.
+    source_import: SourceImport,
     /// Package roots still to expand.
     packages: Vec<(PathBuf, DestackFile)>,
     /// Package roots already scheduled.
@@ -34,14 +34,14 @@ impl<'a> FileSystemSource<'a> {
         Self {
             repository,
             root,
-            snapshot: SourceSnapshot::complete(),
+            source_import: SourceImport::complete(),
             packages: Vec::new(),
             seen_packages: HashSet::new(),
         }
     }
 
     /// Read one source file by logical repository path.
-    pub(crate) fn file(&self, logical_path: &Path) -> Result<Option<SourceFile>, SourceError> {
+    pub(crate) fn file(&self, logical_path: &Path) -> Result<Option<SourceImport>, SourceError> {
         let Some(path) = self.physical_path(logical_path) else {
             return Ok(None);
         };
@@ -64,13 +64,17 @@ impl<'a> FileSystemSource<'a> {
             return Ok(None);
         }
 
-        // build captured file
+        // build one file import
         let logical_path = self.source_path_text(logical_path);
         let file_id = FileId::from_logical_str(&logical_path);
         let logical_path = self.repository.string_pool().intern(&logical_path);
         let content = self.read_content(&path)?;
 
-        Ok(Some(SourceFile::new(file_id, logical_path, content)))
+        Ok(Some(SourceImport::from_file(
+            file_id,
+            logical_path,
+            content,
+        )))
     }
 
     /// Read one `destack.json` from a physical directory when present.
@@ -259,8 +263,7 @@ impl<'a> FileSystemSource<'a> {
         let logical_path = self.repository.string_pool().intern(&logical_path);
         let content = self.read_content(path)?;
 
-        self.snapshot
-            .add_file(SourceFile::new(file_id, logical_path, content));
+        self.source_import.add_file(file_id, logical_path, content);
 
         Ok(())
     }
@@ -447,11 +450,11 @@ impl<'a> FileSystemSource<'a> {
 }
 
 impl Source for FileSystemSource<'_> {
-    fn snapshot(&mut self) -> Result<SourceSnapshot, SessionError> {
+    fn import(&mut self) -> Result<SourceImport, SessionError> {
         let Some(workspace_config) = self.read_destack_config(self.root)? else {
             return Ok(std::mem::replace(
-                &mut self.snapshot,
-                SourceSnapshot::complete(),
+                &mut self.source_import,
+                SourceImport::complete(),
             ));
         };
 
@@ -469,8 +472,8 @@ impl Source for FileSystemSource<'_> {
         }
 
         Ok(std::mem::replace(
-            &mut self.snapshot,
-            SourceSnapshot::complete(),
+            &mut self.source_import,
+            SourceImport::complete(),
         ))
     }
 }

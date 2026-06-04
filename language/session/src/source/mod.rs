@@ -10,4 +10,6 @@ pub use error::*;
 pub use file::*;
 pub(crate) use fs::FileSystemSource;
 pub use root::*;
-pub(crate) use snapshot::*;
+pub(crate) use snapshot::{Source, SourceImport};
+pub use snapshot::{SourceFile, SourceFileContent, SourceSnapshot};
+pub use update::*;
