@@ -4,14 +4,16 @@ use std::sync::Arc;
 
 use destack_query::QueryModule;
 use destack_service::{DiagnosticView, FileChange, FileImage, LanguageServiceError, QueryRevision};
+use destack_session as session;
 use destack_source::{
     File, FileType, FileWatchFilter, FileWatchOptions, PackageId, ProfileId, TargetId,
 };
-use destack_workspace::{Repository, Revision};
+use destack_workspace::Revision;
 use parking_lot::Mutex;
 
 use crate::{
-    CommandErrorKind, CommandRevision, Daemon, DaemonError, DaemonWorkspace, WatchCoordinator,
+    CommandErrorKind, CommandRevision, Daemon, DaemonCommandError, DaemonError, DaemonWorkspace,
+    WatchCoordinator, WatchPolicy,
 };
 
 use super::{
@@ -23,8 +25,9 @@ use super::{
     ProtocolCodecError, ProtocolError, ProtocolErrorCode, ProtocolLimits, ProtocolMessage,
     ProtocolNotification, ProtocolRange, ProtocolRequest, ProtocolResponse, ProtocolServerControl,
     QueryRequestPayload, QueryResponsePayload, ReloadRootRequest, RepositoryId, RootHandleId,
-    RootOpenedResponse, RootReloadResponse, RootSnapshot, ServerDescriptor, Transport,
-    TransportError, WatchBatchResponse, WatchNextRequest, WatchStartRequest, WatchStartedResponse,
+    RootOpenedResponse, RootReloadResponse, RootSnapshot, ServerDescriptor, SourceEdit,
+    SourceUpdateRequest, SourceUpdateResponse, TextEdit, TextRange, Transport, TransportError,
+    WatchBatchResponse, WatchNextRequest, WatchStartRequest, WatchStartedResponse,
     WatchStopRequest, WatchStoppedResponse, daemon_messages_to_records, daemon_updates_to_records,
     diagnostic_file_images, diagnostics_to_batches, inline_payload_max_bytes, payload_chunk_bytes,
 };
@@ -364,6 +367,7 @@ impl ProtocolServer {
             DaemonRequest::CloseRoot(request) => self.handle_close_root(request),
             DaemonRequest::ReloadRoot(request) => self.handle_reload_root(request),
             DaemonRequest::ApplyFileUpdate(request) => self.handle_file_update(request),
+            DaemonRequest::ApplySourceUpdate(request) => self.handle_source_update(request),
             DaemonRequest::StartWatch(request) => self.handle_start_watch(request),
             DaemonRequest::NextWatchBatch(request) => self.handle_next_watch_batch(request),
             DaemonRequest::StopWatch(request) => self.handle_stop_watch(request),
@@ -530,19 +534,20 @@ impl ProtocolServer {
             );
         }
 
-        let update_result = match &request.update.update {
+        let FileUpdate {
+            path,
+            update,
+            write_to_disk,
+        } = request.update;
+        let update_result = match update {
             // close restores disk-backed source state
-            FileUpdateKind::Closed => workspace.close_file(&request.update.path),
+            FileUpdateKind::Closed => workspace.close_file(&path),
             // content updates go through the normal update path
-            _ => {
-                let update =
-                    file_change_from_request(&request.update, workspace.repository.as_ref())?;
-                workspace.apply_file_update(
-                    &request.update.path,
-                    update,
-                    request.update.write_to_disk,
-                )
-            }
+            update => workspace.apply_file_update(
+                &path,
+                file_change_from_request(&path, update)?,
+                write_to_disk,
+            ),
         }
         .map_err(|error| self.protocol_error_from_daemon(error))?;
 
@@ -551,6 +556,65 @@ impl ProtocolServer {
             updates: daemon_updates_to_records(&update_result.updates),
             messages: daemon_messages_to_records(&update_result.messages),
         }))
+    }
+
+    /// Handle a source update request.
+    fn handle_source_update(
+        &self,
+        request: SourceUpdateRequest,
+    ) -> Result<DaemonResponse, ProtocolError> {
+        self.require_session()?;
+        let entry = self.root_for_handle(request.handle)?;
+        let workspace = self.workspace_for_entry(&entry)?;
+        self.validate_source_update_paths(workspace.as_ref(), &entry.root, &request.update.edits)?;
+
+        let result = workspace
+            .apply_source_update(&entry.root, session_source_update(request.update))
+            .map_err(|error| self.protocol_error_from_daemon(error))?;
+
+        Ok(DaemonResponse::SourceUpdated(SourceUpdateResponse {
+            handle: request.handle,
+            before: result.before,
+            after: result.after,
+            updates: daemon_updates_to_records(&result.updates),
+            messages: daemon_messages_to_records(&result.messages),
+        }))
+    }
+
+    /// Validate paths in one source update.
+    fn validate_source_update_paths(
+        &self,
+        workspace: &DaemonWorkspace,
+        root: &Path,
+        edits: &[SourceEdit],
+    ) -> Result<(), ProtocolError> {
+        for edit in edits {
+            match edit {
+                SourceEdit::SetText { path, .. }
+                | SourceEdit::EditText { path, .. }
+                | SourceEdit::SetBytes { path, .. }
+                | SourceEdit::Remove { path } => {
+                    if !self.path_within_root(workspace, path, root) {
+                        return Err(self.protocol_error(
+                            ProtocolErrorCode::Forbidden,
+                            "update path is outside root",
+                        ));
+                    }
+                }
+                SourceEdit::Move { from, to } => {
+                    if !self.path_within_root(workspace, from, root)
+                        || !self.path_within_root(workspace, to, root)
+                    {
+                        return Err(self.protocol_error(
+                            ProtocolErrorCode::Forbidden,
+                            "update path is outside root",
+                        ));
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Handle a watch start request.
@@ -573,7 +637,7 @@ impl ProtocolServer {
                 );
             }
         }
-        let policy = crate::WatchPolicy::from(&request.options);
+        let policy = WatchPolicy::from(&request.options);
         let coordinator = WatchCoordinator::new(
             self.daemon.file_watcher.clone(),
             roots,
@@ -683,7 +747,7 @@ impl ProtocolServer {
     }
 
     /// Convert a command error into a protocol error.
-    fn protocol_error_from_command(&self, error: crate::DaemonCommandError) -> ProtocolError {
+    fn protocol_error_from_command(&self, error: DaemonCommandError) -> ProtocolError {
         let code = match error.kind {
             CommandErrorKind::InvalidInput
             | CommandErrorKind::Config
@@ -1433,58 +1497,59 @@ fn is_watch_source_path(path: &Path) -> bool {
     file_type.is_code() || file_type.is_data() || file_type.is_text()
 }
 
-/// Build a service update from a protocol payload.
+/// Build a session source update from a protocol payload.
+fn session_source_update(update: super::SourceUpdate) -> session::SourceUpdate {
+    session::SourceUpdate {
+        base: update.base,
+        edits: update.edits.into_iter().map(session_source_edit).collect(),
+    }
+}
+
+/// Build a session source edit from a protocol payload.
+fn session_source_edit(edit: SourceEdit) -> session::SourceEdit {
+    match edit {
+        SourceEdit::SetText { path, text } => session::SourceEdit::SetText { path, text },
+        SourceEdit::EditText { path, edits } => session::SourceEdit::EditText {
+            path,
+            edits: edits.into_iter().map(session_text_edit).collect(),
+        },
+        SourceEdit::SetBytes { path, bytes } => session::SourceEdit::SetBytes { path, bytes },
+        SourceEdit::Remove { path } => session::SourceEdit::Remove { path },
+        SourceEdit::Move { from, to } => session::SourceEdit::Move { from, to },
+    }
+}
+
+/// Build a session text edit from a protocol payload.
+fn session_text_edit(edit: TextEdit) -> session::TextEdit {
+    session::TextEdit {
+        range: session_text_range(edit.range),
+        text: edit.text,
+    }
+}
+
+/// Build a session text range from a protocol payload.
+fn session_text_range(range: TextRange) -> session::TextRange {
+    session::TextRange {
+        start: range.start,
+        end: range.end,
+    }
+}
+
+/// Build a file change from a protocol payload.
 fn file_change_from_request(
-    update: &FileUpdate,
-    repository: &Repository,
+    path: &Path,
+    update: FileUpdateKind,
 ) -> Result<FileChange, ProtocolError> {
-    let content = match &update.update {
-        FileUpdateKind::Text { content } => FileChange::Text {
-            content: content.clone(),
-        },
-        FileUpdateKind::Bytes { content } => FileChange::Bytes {
-            content: content.clone(),
-        },
-        FileUpdateKind::Touch => {
-            let path = &update.path;
-            let file_type = FileType::from_path_or_unknown(path);
-
-            if file_type.is_binary() {
-                let content =
-                    repository
-                        .file_system()
-                        .read(path)
-                        .map_err(|error| ProtocolError {
-                            code: ProtocolErrorCode::Internal,
-                            message: format!(
-                                "failed to read touched file {}: {error}",
-                                path.display()
-                            ),
-                            detail: None,
-                            retryable: false,
-                            retry_after_ms: None,
-                        })?;
-
-                FileChange::Bytes { content }
-            } else {
-                let content = repository
-                    .file_system()
-                    .read_to_string(path)
-                    .map_err(|error| ProtocolError {
-                        code: ProtocolErrorCode::Internal,
-                        message: format!("failed to read touched file {}: {error}", path.display()),
-                        detail: None,
-                        retryable: false,
-                        retry_after_ms: None,
-                    })?;
-
-                FileChange::Text { content }
-            }
-        }
+    let change = match update {
+        FileUpdateKind::Text { content } => FileChange::Text { content },
+        FileUpdateKind::Bytes { content } => FileChange::Bytes { content },
         FileUpdateKind::Closed => {
             return Err(ProtocolError {
                 code: ProtocolErrorCode::Internal,
-                message: "closed file update was routed as content".to_string(),
+                message: format!(
+                    "closed file update was routed as content: {}",
+                    path.display()
+                ),
                 detail: None,
                 retryable: false,
                 retry_after_ms: None,
@@ -1492,7 +1557,8 @@ fn file_change_from_request(
         }
         FileUpdateKind::Removed => FileChange::Removed,
     };
-    Ok(content)
+
+    Ok(change)
 }
 
 /// Errors returned by protocol server loops.

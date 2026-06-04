@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 
 use super::{DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, RootHandleId};
@@ -106,6 +107,95 @@ pub struct FileUpdateResponse {
     pub messages: Vec<DaemonMessageRecord>,
 }
 
+/// Request to apply a source update.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SourceUpdateRequest {
+    /// Root handle.
+    pub handle: RootHandleId,
+    /// Update payload.
+    pub update: SourceUpdate,
+}
+
+/// Response to a source update.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SourceUpdateResponse {
+    /// Root handle.
+    pub handle: RootHandleId,
+    /// Previous revision.
+    pub before: Revision,
+    /// Updated revision.
+    pub after: Revision,
+    /// Updates produced by the change.
+    pub updates: Vec<DaemonUpdateRecord>,
+    /// Messages produced by the change.
+    pub messages: Vec<DaemonMessageRecord>,
+}
+
+/// Source update payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SourceUpdate {
+    /// Expected base revision.
+    pub base: Option<Revision>,
+    /// Source edits in this atomic update.
+    pub edits: Vec<SourceEdit>,
+}
+
+/// Source edit payload.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum SourceEdit {
+    /// Replace with text content.
+    SetText {
+        /// Path being updated.
+        path: PathBuf,
+        /// Full text content.
+        text: String,
+    },
+    /// Apply text edits.
+    EditText {
+        /// Path being updated.
+        path: PathBuf,
+        /// Text edits.
+        edits: Vec<TextEdit>,
+    },
+    /// Replace with binary content.
+    SetBytes {
+        /// Path being updated.
+        path: PathBuf,
+        /// Full binary content.
+        bytes: Vec<u8>,
+    },
+    /// Remove one file.
+    Remove {
+        /// Path being removed.
+        path: PathBuf,
+    },
+    /// Move one file.
+    Move {
+        /// Source path.
+        from: PathBuf,
+        /// Destination path.
+        to: PathBuf,
+    },
+}
+
+/// Source text edit payload.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TextEdit {
+    /// Replaced text range.
+    pub range: TextRange,
+    /// Replacement text.
+    pub text: String,
+}
+
+/// Source text range payload.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TextRange {
+    /// Inclusive start byte offset.
+    pub start: u32,
+    /// Exclusive end byte offset.
+    pub end: u32,
+}
+
 /// File update payload.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileUpdate {
@@ -124,8 +214,6 @@ pub enum FileUpdateKind {
     Text { content: String },
     /// Replace with new binary content.
     Bytes { content: Vec<u8> },
-    /// Touch the file version without modifying content.
-    Touch,
     /// Close the editor overlay and restore filesystem truth.
     Closed,
     /// Mark the file as missing.
