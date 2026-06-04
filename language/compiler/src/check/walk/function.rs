@@ -331,7 +331,7 @@ impl WalkState<'_, '_> {
                     return Ok(None);
                 };
 
-                self.check.inference.generic_parameter_id_for_symbol(symbol)
+                self.check.inference.symbol_generic_parameter(symbol)
             } else {
                 None
             },
@@ -351,7 +351,7 @@ impl WalkState<'_, '_> {
         let Some(symbol) = self.check.module(self.module).declaration_symbol(source) else {
             return Ok(None);
         };
-        let Some(parameter) = self.check.inference.generic_parameter_id_for_symbol(symbol) else {
+        let Some(parameter) = self.check.inference.symbol_generic_parameter(symbol) else {
             return Err(crate::CompilerError::Internal {
                 message: format!("generic parameter {symbol:?} was not bound before use"),
             });
@@ -373,7 +373,7 @@ impl WalkState<'_, '_> {
         let Some(symbol) = self.check.module(self.module).declaration_symbol(source) else {
             return Ok(None);
         };
-        let Some(parameter) = self.check.inference.generic_parameter_id_for_symbol(symbol) else {
+        let Some(parameter) = self.check.inference.symbol_generic_parameter(symbol) else {
             return Err(crate::CompilerError::Internal {
                 message: format!("comptime parameter {symbol:?} was not bound before use"),
             });

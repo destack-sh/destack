@@ -4,6 +4,7 @@ use destack_source::ModuleId;
 use crate::check::{
     CheckState, GenericParameterBinding, GenericParameterId, GenericParameterIdentity,
 };
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Import one committed generic template.
@@ -11,13 +12,13 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         owner: dir::GlobalSymbolId,
-    ) {
-        if self.inference.generic_template_for_owner(owner).is_some() {
-            return;
+    ) -> CompilerResult<()> {
+        if self.inference.owner_generic_template(owner).is_some() {
+            return Ok(());
         }
 
         if self.is_component_module(owner.module_id) {
-            return;
+            return Ok(());
         }
 
         let dependency = self.dependency(owner.module_id);
@@ -26,7 +27,7 @@ impl CheckState<'_> {
             .iter_templates()
             .find(|(_, template)| template.owner == owner)
         else {
-            return;
+            return Ok(());
         };
         let parameters = template
             .parameters
@@ -40,24 +41,26 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
 
         for (parameter_id, parameter) in parameters {
-            let generic = self.import_generic_parameter(module, owner, parameter_id, parameter);
+            let generic = self.import_generic_parameter(module, owner, parameter_id, parameter)?;
 
             self.insert_generic_parameter(generic);
         }
+
+        Ok(())
     }
 
-    /// Return one generic parameter parameter in a component module context.
+    /// Import one committed generic parameter id.
     pub(in crate::check) fn import_generic_parameter_id(
         &mut self,
         module: ModuleId,
         parameter: dir::GlobalGenericParameterId,
-    ) -> GenericParameterId {
+    ) -> CompilerResult<GenericParameterId> {
         if self.is_component_module(parameter.module_id) {
-            return parameter;
+            return Ok(parameter);
         }
 
         if self.inference.generic_parameter_by_id(parameter).is_some() {
-            return parameter;
+            return Ok(parameter);
         }
 
         let dependency = self.dependency(parameter.module_id);
@@ -65,12 +68,14 @@ impl CheckState<'_> {
         let template = dependency.generics.get_template(generic.template());
         let owner = template.owner;
 
-        self.import_generic_template(module, owner);
+        self.import_generic_template(module, owner)?;
         if self.inference.generic_parameter_by_id(parameter).is_none() {
-            panic!("dependency generic parameter {parameter:?} has no parameter");
+            return Err(CompilerError::Internal {
+                message: format!("dependency generic parameter {parameter:?} has no parameter"),
+            });
         }
 
-        parameter
+        Ok(parameter)
     }
 
     /// Import one generic parameter.
@@ -80,7 +85,7 @@ impl CheckState<'_> {
         owner: dir::GlobalSymbolId,
         id: dir::GlobalGenericParameterId,
         parameter: dir::GenericParameterBinding,
-    ) -> GenericParameterBinding {
+    ) -> CompilerResult<GenericParameterBinding> {
         let header = GenericParameterIdentity {
             id,
             owner,
@@ -94,41 +99,57 @@ impl CheckState<'_> {
                 constraint,
                 default,
                 ..
-            } => GenericParameterBinding::Type {
+            } => Ok(GenericParameterBinding::Type {
                 identity: header,
                 variance,
-                constraint: constraint.map(|id| self.import_type_operand(module, id)),
-                default: default.map(|id| self.import_type_operand(module, id)),
-            },
+                constraint: constraint
+                    .map(|id| self.import_type_operand(module, id))
+                    .transpose()?,
+                default: default
+                    .map(|id| self.import_type_operand(module, id))
+                    .transpose()?,
+            }),
             dir::GenericParameterBinding::VariadicType {
                 variance,
                 constraint,
                 default,
                 ..
-            } => GenericParameterBinding::VariadicType {
+            } => Ok(GenericParameterBinding::VariadicType {
                 identity: header,
                 variance,
-                constraint: constraint.map(|id| self.import_type_operand(module, id)),
-                default: default.map(|id| self.import_type_operand(module, id)),
-            },
+                constraint: constraint
+                    .map(|id| self.import_type_operand(module, id))
+                    .transpose()?,
+                default: default
+                    .map(|id| self.import_type_operand(module, id))
+                    .transpose()?,
+            }),
             dir::GenericParameterBinding::Static {
                 constraint,
                 default,
                 ..
-            } => GenericParameterBinding::Static {
+            } => Ok(GenericParameterBinding::Static {
                 identity: header,
-                constraint: constraint.map(|id| self.import_type_operand(module, id)),
-                default: default.map(|id| self.import_static_operand(module, id)),
-            },
+                constraint: constraint
+                    .map(|id| self.import_type_operand(module, id))
+                    .transpose()?,
+                default: default
+                    .map(|id| self.import_static_operand(module, id))
+                    .transpose()?,
+            }),
             dir::GenericParameterBinding::VariadicStatic {
                 constraint,
                 default,
                 ..
-            } => GenericParameterBinding::VariadicStatic {
+            } => Ok(GenericParameterBinding::VariadicStatic {
                 identity: header,
-                constraint: constraint.map(|id| self.import_type_operand(module, id)),
-                default: default.map(|id| self.import_static_operand(module, id)),
-            },
+                constraint: constraint
+                    .map(|id| self.import_type_operand(module, id))
+                    .transpose()?,
+                default: default
+                    .map(|id| self.import_static_operand(module, id))
+                    .transpose()?,
+            }),
         }
     }
 }

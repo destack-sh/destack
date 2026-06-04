@@ -1,3 +1,5 @@
+use std::ops::ControlFlow;
+
 use crate::CompilerResult;
 use crate::check::{
     CheckState, Origin, Solution, StaticOperand, StaticSolution, StaticTerm, TypeOperand,
@@ -19,6 +21,26 @@ enum BoundReduction<T> {
         /// The progress made while reducing the term.
         progress: Progress,
     },
+}
+
+impl<T> BoundReduction<T> {
+    /// Add this reduction to one bound collection.
+    fn collect_into(self, progress: &mut Progress, terms: &mut Vec<T>) -> ControlFlow<Progress> {
+        match self {
+            Self::Empty => ControlFlow::Continue(()),
+            Self::Pending(pending) => ControlFlow::Break(pending),
+            Self::Term {
+                term,
+                progress: reduced,
+            } => {
+                let current = std::mem::replace(progress, Progress::Unchanged);
+                *progress = current.merge(reduced);
+                terms.push(term);
+
+                ControlFlow::Continue(())
+            }
+        }
+    }
 }
 
 impl CheckState<'_> {
@@ -173,16 +195,9 @@ impl CheckState<'_> {
         let mut progress = Progress::Unchanged;
         let mut terms = Vec::with_capacity(lower_bounds.len());
         for bound in lower_bounds {
-            match self.reduce_type_bound(origin, variable, bound)? {
-                BoundReduction::Empty => {}
-                BoundReduction::Pending(pending) => return Ok(pending),
-                BoundReduction::Term {
-                    term,
-                    progress: reduced,
-                } => {
-                    progress = progress.merge(reduced);
-                    terms.push(term);
-                }
+            let reduction = self.reduce_type_bound(origin, variable, bound)?;
+            if let ControlFlow::Break(pending) = reduction.collect_into(&mut progress, &mut terms) {
+                return Ok(pending);
             }
         }
 
@@ -216,8 +231,20 @@ impl CheckState<'_> {
             TypeOperand::Type(ty) => TypeTerm::Type(ty),
         };
 
+        // push upper bounds into the lower bound term
+        let expected = self.expect_type_term(origin, variable, &term)?;
+
         // reduce the bound term
-        self.reduce_type_bound_term(origin, term)
+        match self.reduce_type_bound_term(origin, term)? {
+            BoundReduction::Empty => Ok(BoundReduction::Empty),
+            BoundReduction::Pending(progress) => {
+                Ok(BoundReduction::Pending(expected.merge(progress)))
+            }
+            BoundReduction::Term { term, progress } => Ok(BoundReduction::Term {
+                term,
+                progress: expected.merge(progress),
+            }),
+        }
     }
 
     /// Reduce one solved lower type bound.
@@ -253,32 +280,22 @@ impl CheckState<'_> {
         let mut progress = Progress::Unchanged;
         let mut lower_terms = Vec::with_capacity(lower_bounds.len());
         for bound in lower_bounds.iter().copied() {
-            match self.reduce_static_bound(origin, variable, bound)? {
-                BoundReduction::Empty => {}
-                BoundReduction::Pending(pending) => return Ok(pending),
-                BoundReduction::Term {
-                    term,
-                    progress: reduced,
-                } => {
-                    progress = progress.merge(reduced);
-                    lower_terms.push(term);
-                }
+            let reduction = self.reduce_static_bound(origin, variable, bound)?;
+            if let ControlFlow::Break(pending) =
+                reduction.collect_into(&mut progress, &mut lower_terms)
+            {
+                return Ok(pending);
             }
         }
 
         // collect upper bound terms
         let mut upper_terms = Vec::with_capacity(upper_bounds.len());
         for bound in upper_bounds.iter().copied() {
-            match self.reduce_static_bound(origin, variable, bound)? {
-                BoundReduction::Empty => {}
-                BoundReduction::Pending(pending) => return Ok(pending),
-                BoundReduction::Term {
-                    term,
-                    progress: reduced,
-                } => {
-                    progress = progress.merge(reduced);
-                    upper_terms.push(term);
-                }
+            let reduction = self.reduce_static_bound(origin, variable, bound)?;
+            if let ControlFlow::Break(pending) =
+                reduction.collect_into(&mut progress, &mut upper_terms)
+            {
+                return Ok(pending);
             }
         }
 

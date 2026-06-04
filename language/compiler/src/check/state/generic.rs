@@ -319,7 +319,9 @@ impl CheckState<'_> {
             } => *current = Some(constraint),
             GenericParameterBinding::Static { .. }
             | GenericParameterBinding::VariadicStatic { .. } => {
-                panic!("generic parameter {parameter_id:?} is not a type parameter")
+                unreachable!(
+                    "internal invariant: generic parameter {parameter_id:?} is not a type parameter"
+                )
             }
         }
     }

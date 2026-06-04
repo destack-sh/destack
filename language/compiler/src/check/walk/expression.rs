@@ -312,7 +312,7 @@ impl WalkState<'_, '_> {
         // read resolved generic parameter names
         if let Some(symbol) = self.check.selected_name(source)
             && self.check.symbol_kind(symbol) == dir::SymbolKind::GenericTypeParameter
-            && let Some(parameter) = self.check.inference.generic_parameter_id_for_symbol(symbol)
+            && let Some(parameter) = self.check.inference.symbol_generic_parameter(symbol)
         {
             return Some(parameter);
         }
@@ -2768,7 +2768,7 @@ impl WalkState<'_, '_> {
 
         // enter labeled control target
         let result_type = self.allocate_node_type_operand(id)?;
-        let result = self.type_variable_for_operand(
+        let result = self.create_operand_type_variable(
             Origin::Node(id.into_global_any(self.module)),
             result_type,
             self.active_static_guard(),
@@ -3185,7 +3185,7 @@ impl WalkState<'_, '_> {
 
         // enter loop control target
         let result_type = self.allocate_node_type_operand(id)?;
-        let result = self.type_variable_for_operand(
+        let result = self.create_operand_type_variable(
             Origin::Node(id.into_global_any(self.module)),
             result_type,
             self.active_static_guard(),
@@ -3239,7 +3239,7 @@ impl WalkState<'_, '_> {
 
         // enter loop control target
         let result_type = self.allocate_node_type_operand(id)?;
-        let result = self.type_variable_for_operand(
+        let result = self.create_operand_type_variable(
             Origin::Node(id.into_global_any(self.module)),
             result_type,
             self.active_static_guard(),
@@ -3482,7 +3482,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         // enter loop control target
         let result_type = self.allocate_node_type_operand(id)?;
-        let result = self.type_variable_for_operand(
+        let result = self.create_operand_type_variable(
             Origin::Node(id.into_global_any(self.module)),
             result_type,
             self.active_static_guard(),

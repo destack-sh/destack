@@ -51,7 +51,7 @@ impl CheckState<'_> {
 
         let variable_count = self.variable_count();
         for index in 0..variable_count {
-            let variable = self.variable_at(index).id;
+            let variable = self.inference.variable_at(index).id;
 
             progress = progress.merge(self.solve_variable_from_bounds(variable)?);
         }

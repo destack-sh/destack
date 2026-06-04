@@ -26,7 +26,7 @@ impl NominalTable {
         definition: NominalDefinition,
     ) {
         if self.definitions.contains_key(&symbol) {
-            panic!("check nominal symbol {symbol:?} already has a definition");
+            unreachable!("nominal symbol {symbol:?} already has a definition");
         }
 
         self.definitions.insert(symbol, definition);
