@@ -6,10 +6,12 @@ use destack_service::{
     FileChange, FileImage, FileUpdate, FileUpdateKind, LanguageServiceError,
     LanguageServiceMessage, LanguageServiceMessageKind, LanguageServiceResult,
 };
+use destack_session::SourceUpdate;
 use destack_source::{
     Diagnostic, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus,
     ModuleId,
 };
+use destack_workspace::Revision;
 
 use crate::{DaemonError, DaemonMessage, DaemonMessageKind, DaemonWorkspace, WatchBatch};
 
@@ -31,6 +33,19 @@ pub struct DaemonUpdate {
 /// Result of applying an update through the daemon.
 #[derive(Debug, Clone, Default)]
 pub struct DaemonUpdateResult {
+    /// File updates produced by the daemon.
+    pub updates: Vec<DaemonUpdate>,
+    /// Messages produced while applying the update.
+    pub messages: Vec<DaemonMessage>,
+}
+
+/// Result of applying a source update through the daemon.
+#[derive(Debug, Clone)]
+pub struct DaemonSourceUpdateResult {
+    /// Previous repository revision.
+    pub before: Revision,
+    /// Updated repository revision.
+    pub after: Revision,
     /// File updates produced by the daemon.
     pub updates: Vec<DaemonUpdate>,
     /// Messages produced while applying the update.
@@ -91,6 +106,26 @@ impl DaemonWorkspace {
         let service_result = self.language_service.apply_file(path, update)?;
 
         Ok(daemon_update_result_from_service(service_result))
+    }
+
+    /// Apply an atomic source update through the daemon.
+    pub fn apply_source_update(
+        &self,
+        root: &Path,
+        update: SourceUpdate,
+    ) -> Result<DaemonSourceUpdateResult, DaemonError> {
+        // apply the source batch through language service
+        let result = self.language_service.apply_source_update(root, update)?;
+        let before = result.before;
+        let after = result.after;
+        let result = daemon_update_result(result.updates, result.messages);
+
+        Ok(DaemonSourceUpdateResult {
+            before,
+            after,
+            updates: result.updates,
+            messages: result.messages,
+        })
     }
 
     /// Apply a watch event through the daemon.
@@ -217,13 +252,13 @@ impl DaemonWorkspace {
                     })?;
             }
             FileChange::Removed => {
-                if let Err(error) = self.repository.file_system().remove_file(path)
-                    && error.kind() != io::ErrorKind::NotFound
-                {
-                    return Err(DaemonError::FileWrite {
-                        path: path.to_path_buf(),
-                        error,
-                    });
+                if let Err(error) = self.repository.file_system().remove_file(path) {
+                    if error.kind() != io::ErrorKind::NotFound {
+                        return Err(DaemonError::FileWrite {
+                            path: path.to_path_buf(),
+                            error,
+                        });
+                    }
                 }
             }
         }
@@ -273,13 +308,20 @@ struct WatchStatusResult {
 
 /// Convert a service update result into daemon shape.
 fn daemon_update_result_from_service(result: LanguageServiceResult) -> DaemonUpdateResult {
+    daemon_update_result(result.updates, result.messages)
+}
+
+/// Convert service updates and messages into daemon shape.
+fn daemon_update_result(
+    updates: Vec<FileUpdate>,
+    messages: Vec<LanguageServiceMessage>,
+) -> DaemonUpdateResult {
     DaemonUpdateResult {
-        updates: result
-            .updates
+        updates: updates
             .into_iter()
             .map(daemon_update_from_service)
             .collect(),
-        messages: daemon_messages_from_service(result.messages),
+        messages: daemon_messages_from_service(messages),
     }
 }
 

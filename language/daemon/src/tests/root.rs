@@ -1,5 +1,8 @@
 use std::path::PathBuf;
 
+use crate::protocol::{
+    DaemonRequest, DaemonResponse, SourceEdit, SourceUpdate, SourceUpdateRequest,
+};
 use crate::tests::{TestDaemon, TestProtocolHarness};
 
 /// Tracks roots independently.
@@ -43,4 +46,38 @@ fn test_daemon_updates_do_not_cross_roots() {
     assert!(updates.iter().all(|update| {
         update.file.as_ref().and_then(|file| file.path.as_deref()) != Some(file_b.as_path())
     }));
+}
+
+/// Advances the root revision for protocol source updates.
+#[test]
+fn test_protocol_source_update_advances_root_revision() {
+    let harness = TestProtocolHarness::default();
+    harness.handshake();
+    let handle = harness.open_root();
+    let path = harness.test.root.join("main.ds");
+
+    // apply one atomic source update through protocol
+    let response = harness.send_request(DaemonRequest::ApplySourceUpdate(SourceUpdateRequest {
+        handle,
+        update: SourceUpdate {
+            base: None,
+            edits: vec![SourceEdit::SetText {
+                path: path.clone(),
+                text: "export const value = 1;\n".to_string(),
+            }],
+        },
+    }));
+
+    // assert revision and file update payloads
+    match response {
+        DaemonResponse::SourceUpdated(response) => {
+            assert_ne!(response.before, response.after);
+            assert!(response.updates.iter().any(|update| {
+                update.file.as_ref().and_then(|file| file.path.as_deref()) == Some(path.as_path())
+            }));
+        }
+        other => panic!("unexpected response: {other:?}"),
+    }
+
+    harness.shutdown();
 }

@@ -4,9 +4,9 @@ use super::super::handshake::{HandshakeRequest, HandshakeResponse};
 use super::{
     CloseRootRequest, CommandRequest, CommandResponse, DaemonNotification, DaemonQuery,
     DaemonQueryResponse, FileUpdateRequest, FileUpdateResponse, OpenRootRequest, ReloadRootRequest,
-    RootClosedResponse, RootOpenedResponse, RootReloadResponse, WatchBatchResponse,
-    WatchNextRequest, WatchStartRequest, WatchStartedResponse, WatchStopRequest,
-    WatchStoppedResponse,
+    RootClosedResponse, RootOpenedResponse, RootReloadResponse, SourceUpdateRequest,
+    SourceUpdateResponse, WatchBatchResponse, WatchNextRequest, WatchStartRequest,
+    WatchStartedResponse, WatchStopRequest, WatchStoppedResponse,
 };
 
 /// Unique identifier for protocol requests.
@@ -198,6 +198,8 @@ pub enum DaemonRequest {
     ReloadRoot(ReloadRootRequest),
     /// Apply a file update to a root.
     ApplyFileUpdate(FileUpdateRequest),
+    /// Apply a source update to a root.
+    ApplySourceUpdate(SourceUpdateRequest),
     /// Start watching a root.
     StartWatch(WatchStartRequest),
     /// Receive and apply the next watch batch.
@@ -230,6 +232,8 @@ pub enum DaemonResponse {
     RootReloaded(RootReloadResponse),
     /// File update response.
     FileUpdated(FileUpdateResponse),
+    /// Source update response.
+    SourceUpdated(SourceUpdateResponse),
     /// Watch start response.
     WatchStarted(WatchStartedResponse),
     /// Watch batch response.

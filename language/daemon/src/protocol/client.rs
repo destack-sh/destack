@@ -12,9 +12,9 @@ use super::{
     ProtocolCodec, ProtocolLimits, ProtocolMessage, ProtocolRange, ProtocolRequest,
     QueryRequestBody, QueryRequestPayload, QueryResponseBody, ReloadReason, ReloadRootRequest,
     RepositoryId, RequestId, RequestOptions, RootClosedResponse, RootHandleId, RootOpenOptions,
-    RootOpenedResponse, RootReloadResponse, RootSnapshot, Transport, WatchBatchResponse,
-    WatchNextRequest, WatchStartOptions, WatchStartRequest, WatchStartedResponse, WatchStopRequest,
-    WatchStoppedResponse,
+    RootOpenedResponse, RootReloadResponse, RootSnapshot, SourceUpdate, SourceUpdateRequest,
+    SourceUpdateResponse, Transport, WatchBatchResponse, WatchNextRequest, WatchStartOptions,
+    WatchStartRequest, WatchStartedResponse, WatchStopRequest, WatchStoppedResponse,
 };
 use destack_workspace::Revision;
 
@@ -259,6 +259,24 @@ impl ProtocolClient {
             DaemonResponse::FileUpdated(response) => Ok(response),
             DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
             other => Err(Self::unexpected_response("file update applied", other)),
+        }
+    }
+
+    /// Apply a source update to a daemon root handle.
+    pub fn apply_source_update(
+        &self,
+        handle: RootHandleId,
+        update: SourceUpdate,
+    ) -> Result<SourceUpdateResponse, ProtocolClientError> {
+        // send the source update request
+        let request = SourceUpdateRequest { handle, update };
+        let response = self.send_request(DaemonRequest::ApplySourceUpdate(request))?;
+
+        // decode the source update response
+        match response {
+            DaemonResponse::SourceUpdated(response) => Ok(response),
+            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            other => Err(Self::unexpected_response("source update applied", other)),
         }
     }
 

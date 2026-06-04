@@ -382,7 +382,8 @@ mod tests {
         CommandBuildOptions, CommandInput, CommandPayload, CommandRequest, CommandResponse,
         CommonCommandOptions, DaemonRequest, DaemonResponse, DiagnosticBatch, FileUpdate,
         FileUpdateImage, FileUpdateKind, FileUpdateRequest, ProtocolRequest, ProtocolResponse,
-        RequestId, RequestOptions, RootHandleId, loopback_transport_pair,
+        RequestId, RequestOptions, RootHandleId, SourceEdit, SourceUpdate, SourceUpdateRequest,
+        TextEdit, TextRange, loopback_transport_pair,
     };
 
     #[test]
@@ -471,6 +472,42 @@ mod tests {
         let decoded = codec.recv_message(&server).expect("recv");
 
         // assert roundtrip works
+        assert_eq!(decoded, message);
+    }
+
+    #[test]
+    fn test_protocol_source_update_roundtrip() {
+        // build a source update payload
+        let request = ProtocolRequest {
+            id: RequestId::new(5),
+            options: RequestOptions::default(),
+            payload: DaemonRequest::ApplySourceUpdate(SourceUpdateRequest {
+                handle: RootHandleId::new(1),
+                update: SourceUpdate {
+                    base: None,
+                    edits: vec![
+                        SourceEdit::SetText {
+                            path: "/root/app.ds".into(),
+                            text: "let x = 1".to_string(),
+                        },
+                        SourceEdit::EditText {
+                            path: "/root/app.ds".into(),
+                            edits: vec![TextEdit {
+                                range: TextRange { start: 4, end: 5 },
+                                text: "y".to_string(),
+                            }],
+                        },
+                    ],
+                },
+            }),
+        };
+        let message = ProtocolMessage::Request(Box::new(request));
+        let codec = ProtocolCodec::default();
+
+        // encode to bytes and decode back
+        let bytes = codec.encode_message(&message).expect("encode");
+        let decoded = codec.decode_message(&bytes).expect("decode");
+
         assert_eq!(decoded, message);
     }
 
