@@ -1,13 +1,13 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
     AssociatedConstDefinition, AssociatedTypeDefinition, CheckState, ClassDefinition,
     EnumDefinition, FieldDefinition, GenericInstanceKey, InterfaceDefinition, MethodDefinition,
     NewtypeDefinition, NominalDefinition, NominalHeritage, SignatureDefinition, StructDefinition,
     TypeOperand, VariantDefinition,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Member definitions built from one nominal body.
 #[derive(Debug, Default)]
@@ -59,7 +59,7 @@ impl CheckState<'_> {
             .module(module)
             .symbol_declaration_node(symbol.local_id)
             .into_global(module);
-        let template = self.inference.generic_template_for_owner(symbol).cloned();
+        let template = self.inference.owner_generic_template(symbol).cloned();
         let source_id = source.local_id.into_typed::<dir::Declaration>();
         let declaration = self.module(module).view().get(source_id).clone();
 
@@ -147,7 +147,7 @@ impl CheckState<'_> {
                         .iter()
                         .map(|node| node.into_any()),
                 );
-                let variants = self.build_enum_variants(module, &declaration.fields);
+                let variants = self.build_enum_variants(module, &declaration.fields)?;
 
                 Ok(NominalDefinition::Enum(EnumDefinition {
                     source,
@@ -163,7 +163,7 @@ impl CheckState<'_> {
             }
             // build newtype declaration
             dir::Declaration::Type(declaration) if declaration.is_nominal => {
-                let value = self.node_type_operand(declaration.value.into_global_any(module));
+                let value = self.node_type_operand(declaration.value.into_global_any(module))?;
 
                 Ok(NominalDefinition::Newtype(NewtypeDefinition {
                     source,
@@ -171,9 +171,11 @@ impl CheckState<'_> {
                     value,
                 }))
             }
-            _ => {
-                panic!("nominal symbol {symbol:?} does not point at a nominal declaration")
-            }
+            _ => Err(CompilerError::Internal {
+                message: format!(
+                    "nominal symbol {symbol:?} does not point at a nominal declaration"
+                ),
+            }),
         }
     }
 
@@ -263,11 +265,13 @@ impl CheckState<'_> {
             dir::Member::AssociatedType {
                 constraint, value, ..
             } => {
-                let symbol = self.declaration_symbol_at(module, source.local_id);
+                let symbol = self.declaration_symbol_at(module, source.local_id)?;
                 let constraint = constraint
-                    .map(|constraint| self.node_type_operand(constraint.into_global_any(module)));
-                let value =
-                    value.map(|value| self.node_type_operand(value.into_global_any(module)));
+                    .map(|constraint| self.node_type_operand(constraint.into_global_any(module)))
+                    .transpose()?;
+                let value = value
+                    .map(|value| self.node_type_operand(value.into_global_any(module)))
+                    .transpose()?;
 
                 definitions.associated_types.push(AssociatedTypeDefinition {
                     symbol,
@@ -278,8 +282,8 @@ impl CheckState<'_> {
             }
             // build associated const
             dir::Member::AssociatedConst { .. } => {
-                let symbol = self.declaration_symbol_at(module, source.local_id);
-                let ty = self.import_symbol_type_operand(module, symbol);
+                let symbol = self.declaration_symbol_at(module, source.local_id)?;
+                let ty = self.import_symbol_type_operand(module, symbol)?;
                 let value = self.inputs.symbol_static(symbol);
 
                 definitions
@@ -296,8 +300,8 @@ impl CheckState<'_> {
                 let Some(key) = key.direct_static_key() else {
                     return Ok(());
                 };
-                let symbol = self.declaration_symbol_at(module, source.local_id);
-                let ty = self.import_symbol_type_operand(module, symbol);
+                let symbol = self.declaration_symbol_at(module, source.local_id)?;
+                let ty = self.import_symbol_type_operand(module, symbol)?;
                 let field = FieldDefinition {
                     symbol,
                     source,
@@ -317,7 +321,7 @@ impl CheckState<'_> {
                     return Ok(());
                 };
                 let symbol = self.module(module).declaration_symbol(source.local_id);
-                let ty = self.nominal_member_type_operand(module, source, symbol);
+                let ty = self.nominal_member_type_operand(module, source, symbol)?;
 
                 let method = MethodDefinition {
                     symbol,
@@ -374,8 +378,8 @@ impl CheckState<'_> {
                 let Some(key) = key.direct_static_key() else {
                     return Ok(());
                 };
-                let symbol = self.declaration_symbol_at(module, source.local_id);
-                let ty = self.import_symbol_type_operand(module, symbol);
+                let symbol = self.declaration_symbol_at(module, source.local_id)?;
+                let ty = self.import_symbol_type_operand(module, symbol)?;
                 let field = FieldDefinition {
                     symbol,
                     source,
@@ -394,8 +398,8 @@ impl CheckState<'_> {
                 let Some(key) = key.direct_static_key() else {
                     return Ok(());
                 };
-                let symbol = self.declaration_symbol_at(module, source.local_id);
-                let ty = self.import_symbol_type_operand(module, symbol);
+                let symbol = self.declaration_symbol_at(module, source.local_id)?;
+                let ty = self.import_symbol_type_operand(module, symbol)?;
 
                 let method = MethodDefinition {
                     symbol: Some(symbol),
@@ -412,7 +416,7 @@ impl CheckState<'_> {
             }
             // build call signature
             dir::TypeMember::CallSignature { .. } => {
-                let ty = self.node_type_operand(source);
+                let ty = self.node_type_operand(source)?;
 
                 definitions
                     .call_signatures
@@ -420,7 +424,7 @@ impl CheckState<'_> {
             }
             // build construct signature
             dir::TypeMember::ConstructSignature { .. } => {
-                let ty = self.node_type_operand(source);
+                let ty = self.node_type_operand(source)?;
 
                 definitions
                     .construct_signatures
@@ -428,7 +432,7 @@ impl CheckState<'_> {
             }
             // build index signature
             dir::TypeMember::IndexSignature { .. } => {
-                let ty = self.node_type_operand(source);
+                let ty = self.node_type_operand(source)?;
 
                 definitions
                     .index_signatures
@@ -438,11 +442,13 @@ impl CheckState<'_> {
             dir::TypeMember::AssociatedType {
                 constraint, value, ..
             } => {
-                let symbol = self.declaration_symbol_at(module, source.local_id);
+                let symbol = self.declaration_symbol_at(module, source.local_id)?;
                 let constraint = constraint
-                    .map(|constraint| self.node_type_operand(constraint.into_global_any(module)));
-                let value =
-                    value.map(|value| self.node_type_operand(value.into_global_any(module)));
+                    .map(|constraint| self.node_type_operand(constraint.into_global_any(module)))
+                    .transpose()?;
+                let value = value
+                    .map(|value| self.node_type_operand(value.into_global_any(module)))
+                    .transpose()?;
 
                 definitions.associated_types.push(AssociatedTypeDefinition {
                     symbol,
@@ -453,8 +459,8 @@ impl CheckState<'_> {
             }
             // build associated const
             dir::TypeMember::AssociatedConst { .. } => {
-                let symbol = self.declaration_symbol_at(module, source.local_id);
-                let ty = self.import_symbol_type_operand(module, symbol);
+                let symbol = self.declaration_symbol_at(module, source.local_id)?;
+                let ty = self.import_symbol_type_operand(module, symbol)?;
                 let value = self.inputs.symbol_static(symbol);
 
                 definitions
@@ -478,13 +484,13 @@ impl CheckState<'_> {
         &self,
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::EnumField>],
-    ) -> Vec<VariantDefinition> {
+    ) -> CompilerResult<Vec<VariantDefinition>> {
         let mut variants = Vec::new();
 
         // build variants in source order
         for field in fields {
             let source = field.into_global_any(module);
-            let symbol = self.declaration_symbol_at(module, source.local_id);
+            let symbol = self.declaration_symbol_at(module, source.local_id)?;
             let key = self.module(module).view().get(*field).name.static_key();
             let value = self.inputs.symbol_static(symbol);
 
@@ -496,7 +502,7 @@ impl CheckState<'_> {
             });
         }
 
-        variants
+        Ok(variants)
     }
 
     /// Return the symbol declared by one source node.
@@ -504,10 +510,14 @@ impl CheckState<'_> {
         &self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
-    ) -> dir::GlobalSymbolId {
-        self.module(module)
-            .declaration_symbol(source)
-            .unwrap_or_else(|| panic!("nominal source node {source:?} declares no symbol"))
+    ) -> CompilerResult<dir::GlobalSymbolId> {
+        let Some(symbol) = self.module(module).declaration_symbol(source) else {
+            return Err(CompilerError::Internal {
+                message: format!("nominal source node {source:?} declares no symbol"),
+            });
+        };
+
+        Ok(symbol)
     }
 
     /// Return one nominal member type operand.
@@ -516,9 +526,9 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         symbol: Option<dir::GlobalSymbolId>,
-    ) -> TypeOperand {
+    ) -> CompilerResult<TypeOperand> {
         if let Some(symbol) = symbol {
-            return self.import_symbol_type_operand(module, symbol);
+            return Ok(self.import_symbol_type_operand(module, symbol)?);
         }
 
         self.node_type_operand(source)

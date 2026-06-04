@@ -2,7 +2,6 @@ use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
     CallDecision, CallResolution, CallTargetResolution, CheckState, ConstructDecision,
     ConstructTargetResolution, MemberDecision, MemberTargetResolution, OperatorDecision,
@@ -10,6 +9,7 @@ use crate::check::{
     PatternFieldTargetResolution, PatternResolution, PatternSequenceResolution,
     PatternTargetResolution, StaticOperand, TypeOperand,
 };
+use crate::{CompilerError, CompilerResult};
 
 use super::CheckModuleOutput;
 
@@ -27,7 +27,7 @@ impl CheckState<'_> {
         self.write_construct_resolutions(module, output, environment, &mut resolutions)?;
         self.write_operator_resolutions(module, output, environment, &mut resolutions)?;
         self.write_name_resolutions(module, &mut resolutions);
-        self.write_receiver_resolutions(module, output, environment, &mut resolutions);
+        self.write_receiver_resolutions(module, output, environment, &mut resolutions)?;
         self.write_member_resolutions(module, output, environment, &mut resolutions);
         self.write_pattern_resolutions(module, output, environment, &mut resolutions);
 
@@ -46,7 +46,7 @@ impl CheckState<'_> {
             .inference
             .calls()
             .into_iter()
-            .filter_map(|decision| match decision {
+            .filter_map(|(_, decision)| match decision {
                 CallDecision::Resolved(call) => Some(call),
                 CallDecision::Rejected(_) => None,
             })
@@ -96,7 +96,7 @@ impl CheckState<'_> {
             .inference
             .constructs()
             .into_iter()
-            .filter_map(|decision| match decision {
+            .filter_map(|(_, decision)| match decision {
                 ConstructDecision::Resolved(construct) => Some(construct),
                 ConstructDecision::Rejected(_) => None,
             })
@@ -168,7 +168,7 @@ impl CheckState<'_> {
             .inference
             .operators()
             .into_iter()
-            .filter_map(|decision| match decision {
+            .filter_map(|(_, decision)| match decision {
                 OperatorDecision::Resolved(operator) => Some(operator),
                 OperatorDecision::Rejected(_) => None,
             })
@@ -297,7 +297,7 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         resolutions: &mut dir::ResolutionSegment,
-    ) {
+    ) -> CompilerResult<()> {
         let receivers = self.inference.receivers();
 
         // write contextual receiver resolutions
@@ -312,10 +312,12 @@ impl CheckState<'_> {
                 receiver.ty,
                 receiver.source.local_id,
             ) else {
-                panic!(
-                    "receiver {:?} selected uncommittable type {:?}",
-                    receiver.source, receiver.ty
-                );
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "receiver {:?} selected uncommittable type {:?}",
+                        receiver.source, receiver.ty
+                    ),
+                });
             };
             let resolution = dir::ReceiverResolution {
                 kind: receiver.kind,
@@ -325,6 +327,8 @@ impl CheckState<'_> {
 
             resolutions.set_receiver_resolution(receiver.source, resolution);
         }
+
+        Ok(())
     }
 
     /// Write member solutions into the resolution segment.
@@ -339,7 +343,7 @@ impl CheckState<'_> {
             .inference
             .members()
             .into_iter()
-            .filter_map(|decision| match decision {
+            .filter_map(|(_, decision)| match decision {
                 MemberDecision::Resolved(member) if member.source.module_id == module => {
                     Some(member)
                 }

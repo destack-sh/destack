@@ -2,6 +2,7 @@ use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
+use crate::CompilerResult;
 use crate::check::CheckState;
 
 use super::CheckModuleOutput;
@@ -13,7 +14,7 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-    ) -> dir::CaptureSegment {
+    ) -> CompilerResult<dir::CaptureSegment> {
         let mut table = dir::CaptureSegment::new(module);
         let captures = std::mem::take(&mut self.module_mut(module).captures);
 
@@ -27,14 +28,14 @@ impl CheckState<'_> {
 
             // commit captured binding types and split managed fields
             for symbol in capture.symbols {
-                let operand = self.import_symbol_type_operand(module, symbol);
+                let operand = self.import_symbol_type_operand(module, symbol)?;
                 let source = self
                     .module(symbol.module_id)
                     .symbol_declaration_node(symbol.local_id);
                 let Some(ty) =
                     self.commit_type_operand(module, output, environment, operand, source)
                 else {
-                    self.panic_unresolved_symbol_type(module, symbol, operand);
+                    return Err(self.unresolved_symbol_type_error(module, symbol, operand));
                 };
                 let mode = self.capture_mode_for_symbol(directive.as_ref(), symbol);
 
@@ -45,26 +46,32 @@ impl CheckState<'_> {
                 captured.push((symbol, mode, ty));
             }
 
-            let this = capture.receiver.map(|receiver| {
+            let this = if let Some(receiver) = capture.receiver {
                 let source = self
                     .module(receiver.symbol.module_id)
                     .symbol_declaration_node(receiver.symbol.local_id);
                 let Some(ty) =
                     self.commit_type_operand(module, output, environment, receiver.ty, source)
                 else {
-                    self.panic_unresolved_symbol_type(module, receiver.symbol, receiver.ty);
+                    return Err(self.unresolved_symbol_type_error(
+                        module,
+                        receiver.symbol,
+                        receiver.ty,
+                    ));
                 };
                 let mode = directive
                     .as_ref()
                     .map(|directive| directive.default)
                     .unwrap_or(dir::CaptureMode::Manage);
 
-                dir::CapturedReceiver {
+                Some(dir::CapturedReceiver {
                     symbol: receiver.symbol,
                     mode,
                     ty,
-                }
-            });
+                })
+            } else {
+                None
+            };
 
             if captured.is_empty() && this.is_none() && directive.is_none() {
                 continue;
@@ -118,7 +125,7 @@ impl CheckState<'_> {
             table.set_capture(function, capture);
         }
 
-        table
+        Ok(table)
     }
 
     /// Return the capture mode for one captured symbol.

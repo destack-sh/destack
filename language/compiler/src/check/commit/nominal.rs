@@ -523,6 +523,10 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
     ) -> dir::GlobalTypeId {
         self.commit_type_operand(module, output, environment, operand, source.local_id)
-            .unwrap_or_else(|| panic!("nominal source node {source:?} has unresolved type operand"))
+            .unwrap_or_else(|| {
+                unreachable!(
+                    "internal invariant: nominal source node {source:?} has unresolved type operand"
+                )
+            })
     }
 }

@@ -943,7 +943,7 @@ impl CheckState<'_> {
         arguments: &[GenericArgument],
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        let Some(value) = self.newtype_backing(module, symbol) else {
+        let Some(value) = self.newtype_backing(module, symbol)? else {
             return Ok(None);
         };
         let substitution = self.generic_substitution(symbol, arguments)?;
@@ -974,7 +974,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         pointer_bytes: u32,
     ) -> CompilerResult<Option<Layout>> {
-        let Some(fields) = self.nominal_fields(module, symbol) else {
+        let Some(fields) = self.nominal_fields(module, symbol)? else {
             return Ok(None);
         };
         let fields = fields.into_iter().map(|(key, ty)| LayoutFieldInput {

@@ -1,20 +1,18 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{CheckState, ExtensionDefinition, ExtensionWhereClause};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Return inherent extension symbols declared in one module for one receiver symbol.
-    pub(in crate::check) fn extension_symbols_for_target(
+    /// Import inherent extension symbols declared in one module for one receiver symbol.
+    pub(in crate::check) fn import_extension_target_symbols(
         &mut self,
         declaration_module: ModuleId,
         target: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::GlobalSymbolId>> {
         if self.is_component_module(declaration_module) {
-            return Ok(self
-                .extensions
-                .symbols_for_target(declaration_module, target));
+            return Ok(self.extensions.target_symbols(declaration_module, target));
         }
 
         let dependency = self.dependency(declaration_module);
@@ -49,10 +47,12 @@ impl CheckState<'_> {
         let source = dependency
             .extensions
             .extension_source(extension_id)
-            .unwrap_or_else(|| panic!("dependency extension {extension_id:?} has no source"));
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("dependency extension {extension_id:?} has no source"),
+            })?;
 
         Ok(Some(
-            self.import_extension_definition(module, source, extension),
+            self.import_extension_definition(module, source, extension)?,
         ))
     }
 
@@ -62,24 +62,24 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::GlobalNodeIdAny,
         extension: dir::Extension,
-    ) -> ExtensionDefinition {
-        let target_type = self.import_type_operand(module, extension.target_type);
-        let where_clauses = extension
-            .where_clauses
-            .into_iter()
-            .map(|where_clause| ExtensionWhereClause {
-                source: where_clause.source,
-                left: self.import_type_operand(module, where_clause.left),
-                right: self.import_type_operand(module, where_clause.right),
-            })
-            .collect();
+    ) -> CompilerResult<ExtensionDefinition> {
+        let target_type = self.import_type_operand(module, extension.target_type)?;
+        let mut where_clauses = Vec::with_capacity(extension.where_clauses.len());
 
-        ExtensionDefinition {
+        for where_clause in extension.where_clauses {
+            where_clauses.push(ExtensionWhereClause {
+                source: where_clause.source,
+                left: self.import_type_operand(module, where_clause.left)?,
+                right: self.import_type_operand(module, where_clause.right)?,
+            });
+        }
+
+        Ok(ExtensionDefinition {
             source,
             form: extension.form,
             target_symbol: extension.target_symbol,
             target_type,
             where_clauses,
-        }
+        })
     }
 }
