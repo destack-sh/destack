@@ -1,7 +1,9 @@
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use destack_session::{FileUpdate as SessionFileUpdate, Session};
+use destack_session::{
+    FileUpdate as SessionFileUpdate, Session, SourceUpdate as SessionSourceUpdate,
+};
 use destack_source::{
     FileContentId, FileWatchEvent, FileWatchEventKind, TextChange, Uri, apply_text_changes,
 };
@@ -12,6 +14,19 @@ use super::{
     FileChange, FileUpdate, LanguageService, LanguageServiceError, LanguageServiceMessage,
     LanguageServiceResult,
 };
+
+/// Result of applying one source update.
+#[derive(Debug)]
+pub struct SourceUpdateResult {
+    /// Previous repository revision.
+    pub before: Revision,
+    /// Updated repository revision.
+    pub after: Revision,
+    /// Service updates produced by the source update.
+    pub updates: Vec<FileUpdate>,
+    /// Messages produced by the source update.
+    pub messages: Vec<LanguageServiceMessage>,
+}
 
 impl LanguageService {
     /// Open one file with its current content.
@@ -34,14 +49,14 @@ impl LanguageService {
         change: FileChange,
     ) -> Result<LanguageServiceResult, LanguageServiceError> {
         // reject stale client versions before mutating repository state
-        if let Some(current) = self.open_file_version(path)
-            && version <= current
-        {
-            return Err(LanguageServiceError::StaleOpenFile {
-                path: path.to_path_buf(),
-                incoming: version,
-                current,
-            });
+        if let Some(current) = self.open_file_version(path) {
+            if version <= current {
+                return Err(LanguageServiceError::StaleOpenFile {
+                    path: path.to_path_buf(),
+                    incoming: version,
+                    current,
+                });
+            }
         }
 
         // publish the open content as repository source truth
@@ -74,14 +89,14 @@ impl LanguageService {
         changes: Vec<TextChange>,
     ) -> Result<LanguageServiceResult, LanguageServiceError> {
         // reject stale client versions before computing text
-        if let Some(current) = self.open_file_version(path)
-            && version <= current
-        {
-            return Err(LanguageServiceError::StaleOpenFile {
-                path: path.to_path_buf(),
-                incoming: version,
-                current,
-            });
+        if let Some(current) = self.open_file_version(path) {
+            if version <= current {
+                return Err(LanguageServiceError::StaleOpenFile {
+                    path: path.to_path_buf(),
+                    incoming: version,
+                    current,
+                });
+            }
         }
 
         // apply the patch to the current open text
@@ -179,6 +194,27 @@ impl LanguageService {
             .map_err(LanguageServiceError::from)?;
 
         self.build_change_result(&session, change)
+    }
+
+    /// Apply one atomic source update through the service.
+    pub fn apply_source_update(
+        &self,
+        root: &Path,
+        update: SessionSourceUpdate,
+    ) -> Result<SourceUpdateResult, LanguageServiceError> {
+        // publish the source batch through the owning session
+        let session = self.session(root)?;
+        let update = session.update(session.head(), update)?;
+        let before = update.before;
+        let after = update.after;
+        let result = self.build_change_result(&session, update.files)?;
+
+        Ok(SourceUpdateResult {
+            before,
+            after,
+            updates: result.updates,
+            messages: result.messages,
+        })
     }
 
     /// Apply watch events through the service.
@@ -433,16 +469,16 @@ impl LanguageService {
         let mut update = FileUpdate::from(update);
 
         // attach open file protocol identity when the revision content agrees
-        if let Some(path) = update.file.as_ref().and_then(|file| file.path.as_deref())
-            && let Some(file) = self.open_state(path)
-        {
-            update.diagnostic_uri = file.uri;
-            update.diagnostic_version = self.open_file_version_in_revision(
-                session.repository().as_ref(),
-                revision,
-                update.file_id,
-                path,
-            )?;
+        if let Some(path) = update.file.as_ref().and_then(|file| file.path.as_deref()) {
+            if let Some(file) = self.open_state(path) {
+                update.diagnostic_uri = file.uri;
+                update.diagnostic_version = self.open_file_version_in_revision(
+                    session.repository().as_ref(),
+                    revision,
+                    update.file_id,
+                    path,
+                )?;
+            }
         }
 
         Ok(update)

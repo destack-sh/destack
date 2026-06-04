@@ -17,4 +17,5 @@ pub use file::{FileImage, FileUpdate};
 pub use message::{LanguageServiceMessage, LanguageServiceMessageKind, LanguageServiceResult};
 pub use query::{QueryResult, QueryRevision};
 pub use service::LanguageService;
+pub use update::SourceUpdateResult;
 pub use view::{FileView, SessionRevisionView};
