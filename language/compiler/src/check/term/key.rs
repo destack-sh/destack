@@ -40,6 +40,6 @@ impl CheckState<'_> {
         &self,
         _membership: &KeyMembershipTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
-        todo!("reduce key membership through structural and nominal member tables")
+        Ok(None)
     }
 }

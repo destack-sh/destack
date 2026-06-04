@@ -10,10 +10,6 @@ pub(in crate::check) enum OperatorType {
     MethodReturn,
     /// Use the builtin boolean type.
     Boolean,
-    /// Use the type named by one language item.
-    LanguageItem(dir::LanguageItem),
-    /// Use the type named by one language item or null.
-    NullableLanguageItem(dir::LanguageItem),
 }
 
 /// Static generic argument required by one operator protocol.
@@ -240,14 +236,14 @@ pub(in crate::check) fn binary_operator_protocols(
                 item: dir::LanguageItem::Compare,
                 arguments: SmallVec::new(),
                 method: OperatorMethod::Compare,
-                method_return: OperatorType::LanguageItem(dir::LanguageItem::Ordering),
+                method_return: OperatorType::MethodReturn,
                 expression_type: OperatorType::Boolean,
             },
             OperatorProtocol {
                 item: dir::LanguageItem::PartialCompare,
                 arguments: SmallVec::new(),
                 method: OperatorMethod::PartialCompare,
-                method_return: OperatorType::NullableLanguageItem(dir::LanguageItem::Ordering),
+                method_return: OperatorType::MethodReturn,
                 expression_type: OperatorType::Boolean,
             },
         ],

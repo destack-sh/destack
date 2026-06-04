@@ -72,10 +72,21 @@ impl CheckState<'_> {
             CallableDispatch::ConstructRejected(failure) => {
                 self.reject_construct(construct, *failure)?;
 
-                return Ok(Reduction::progress(progress));
+                return Ok(Reduction {
+                    value: Some(TypeTerm::Literal(TypeLiteralTerm::Error)),
+                    progress,
+                });
             }
             CallableDispatch::CallSelected { .. } | CallableDispatch::CallRejected(_) => {
-                panic!("construct term dispatch produced a call selection");
+                unreachable!(
+                    "internal invariant: construct term dispatch produced a call selection"
+                );
+            }
+            CallableDispatch::Invalid { .. } => {
+                return Ok(Reduction {
+                    value: Some(TypeTerm::Literal(TypeLiteralTerm::Error)),
+                    progress,
+                });
             }
             CallableDispatch::Pending { .. } => return Ok(Reduction::progress(progress)),
         };
@@ -121,11 +132,23 @@ impl CheckState<'_> {
             }
             CallableDispatch::ConstructRejected(failure) => {
                 self.reject_construct(construct, *failure)?;
+                let error = self
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
 
-                progress
+                progress.merge(self.relate_contextual_type_assignability(origin, error, result)?)
             }
             CallableDispatch::CallSelected { .. } | CallableDispatch::CallRejected(_) => {
-                panic!("construct term dispatch produced a call selection");
+                unreachable!(
+                    "internal invariant: construct term dispatch produced a call selection"
+                );
+            }
+            CallableDispatch::Invalid { .. } => {
+                let error = self
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
+
+                progress.merge(self.relate_contextual_type_assignability(origin, error, result)?)
             }
             CallableDispatch::Pending { .. } => progress,
         };

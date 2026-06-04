@@ -361,7 +361,7 @@ impl MappedParameter {
 impl CheckState<'_> {
     /// Reduce one conditional type expression.
     pub(in crate::check) fn reduce_conditional_term(
-        &self,
+        &mut self,
         left: TypeOperand,
         right: TypeOperand,
         then_type: TypeOperand,
@@ -769,7 +769,7 @@ impl CheckState<'_> {
         elements: &[TypeOperand],
     ) -> CompilerResult<Option<TypeTerm>> {
         if elements.is_empty() {
-            panic!("best common type requires at least one element");
+            unreachable!("best common type requires at least one element");
         }
         let mut candidates = Vec::with_capacity(elements.len());
 
@@ -814,7 +814,7 @@ impl CheckState<'_> {
         candidates: Vec<TypeTerm>,
     ) -> CompilerResult<TypeTerm> {
         if candidates.is_empty() {
-            panic!("best common type requires at least one candidate");
+            unreachable!("best common type requires at least one candidate");
         }
 
         // choose the first candidate that accepts every element
@@ -892,7 +892,7 @@ impl CheckState<'_> {
 
     /// Return whether one candidate accepts every best-common element.
     fn is_best_common_candidate(
-        &self,
+        &mut self,
         candidate: &TypeTerm,
         elements: &[TypeTerm],
     ) -> CompilerResult<bool> {
@@ -909,7 +909,7 @@ impl CheckState<'_> {
 
     /// Reduce one union type exclusion.
     fn reduce_exclude_union(
-        &self,
+        &mut self,
         elements: &[TypeOperand],
         target: &TypeTerm,
     ) -> CompilerResult<TypeTerm> {

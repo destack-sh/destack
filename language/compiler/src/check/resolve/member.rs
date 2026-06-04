@@ -1,7 +1,6 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
-use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
@@ -20,6 +19,32 @@ pub(in crate::check) struct MemberCandidate {
     pub(in crate::check) instance: Option<GenericInstance>,
 }
 
+/// Result of looking up one member on a receiver type.
+pub(in crate::check) enum MemberLookup {
+    /// Member lookup is waiting for solver input.
+    Pending,
+    /// No symbol-backed member exists.
+    Missing,
+    /// One or more symbol-backed members exist.
+    Found(Vec<MemberCandidate>),
+}
+
+impl MemberLookup {
+    /// Return a member lookup with one found candidate.
+    pub(in crate::check) fn found(candidate: MemberCandidate) -> Self {
+        Self::Found(vec![candidate])
+    }
+
+    /// Return a member lookup from collected candidates.
+    pub(in crate::check) fn from_candidates(candidates: Vec<MemberCandidate>) -> Self {
+        if candidates.is_empty() {
+            Self::Missing
+        } else {
+            Self::Found(candidates)
+        }
+    }
+}
+
 /// Extension member candidate available to component checking.
 #[derive(Debug, Clone, PartialEq)]
 struct ExtensionCandidate {
@@ -34,113 +59,60 @@ struct ExtensionCandidate {
 }
 
 impl CheckState<'_> {
-    /// Return member symbols declared under one owner and key.
-    pub(in crate::check) fn lookup_member_symbols(
-        &self,
-        owner: dir::GlobalSymbolId,
-        key: dir::StaticKey,
-    ) -> SmallVec<[dir::GlobalSymbolId; 4]> {
-        let lookup = if let Some(module) = self.modules.get(&owner.module_id) {
-            module
-                .binding_table()
-                .lookup_key_member(owner.local_id, key)
-        } else {
-            self.dependency(owner.module_id)
-                .bindings
-                .lookup_key_member(owner.local_id, key)
-        };
-
-        match lookup {
-            dir::SymbolLookup::Missing => SmallVec::new(),
-            dir::SymbolLookup::Found(symbol) => {
-                let mut symbols = SmallVec::new();
-                symbols.push(symbol.into_global(owner.module_id));
-
-                symbols
-            }
-            dir::SymbolLookup::Ambiguous(symbols) => symbols
-                .into_iter()
-                .map(|symbol| symbol.into_global(owner.module_id))
-                .collect(),
-        }
-    }
-
-    /// Return symbol-backed member candidates from one reduced type term.
-    pub(in crate::check) fn member_type_candidates(
+    /// Look up symbol-backed members from one type term.
+    pub(in crate::check) fn lookup_type_member(
         &mut self,
         origin: Origin,
         module: ModuleId,
         term: &TypeTerm,
         key: &dir::StaticKey,
-    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
+    ) -> CompilerResult<MemberLookup> {
         let reduction = self.reduce_type_term(origin, term)?;
         let term = match reduction.value.as_ref() {
             Some(reduced) => reduced,
-            None => term,
+            None => return Ok(MemberLookup::Pending),
         };
 
-        self.member_type_candidates_matching(origin, module, term, key, None)
+        self.lookup_type_member_matching(origin, module, term, key)
     }
 
-    /// Return a symbol-backed member candidate that satisfies one protocol.
-    pub(in crate::check) fn member_type_candidate_for_protocol(
+    /// Look up symbol-backed members that satisfy one protocol.
+    pub(in crate::check) fn lookup_protocol_member(
         &mut self,
         origin: Origin,
         module: ModuleId,
         term: &TypeTerm,
         key: &dir::StaticKey,
         protocol: &MemberProtocol,
-    ) -> CompilerResult<Option<MemberCandidate>> {
-        let Some(mut candidates) =
-            self.member_type_candidates_for_protocol(origin, module, term, key, protocol)?
-        else {
-            return Ok(None);
-        };
-        if candidates.len() != 1 {
-            return Ok(None);
-        }
-
-        Ok(candidates.pop())
-    }
-
-    /// Return symbol-backed member candidates that satisfy one protocol.
-    pub(in crate::check) fn member_type_candidates_for_protocol(
-        &mut self,
-        origin: Origin,
-        module: ModuleId,
-        term: &TypeTerm,
-        key: &dir::StaticKey,
-        protocol: &MemberProtocol,
-    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
+    ) -> CompilerResult<MemberLookup> {
         let reduction = self.reduce_type_term(origin, term)?;
         let term = match reduction.value.as_ref() {
             Some(reduced) => reduced,
-            None => term,
+            None => return Ok(MemberLookup::Pending),
         };
 
-        self.member_type_candidates_matching(origin, module, term, key, Some(protocol))
+        match self.decide_member_protocol(module, term, protocol)? {
+            Decision::Yes => self.lookup_type_member_matching(origin, module, term, key),
+            Decision::Undecidable => Ok(MemberLookup::Pending),
+            Decision::No => Ok(MemberLookup::Missing),
+        }
     }
 
-    /// Return symbol-backed member candidates from one reduced type term.
-    pub(in crate::check) fn member_type_candidates_matching(
+    /// Look up symbol-backed members from one reduced type term.
+    pub(in crate::check) fn lookup_type_member_matching(
         &mut self,
         origin: Origin,
         module: ModuleId,
         term: &TypeTerm,
         key: &dir::StaticKey,
-        protocol: Option<&MemberProtocol>,
-    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
-        if protocol.is_some() {
-            todo!("filter member candidates through nominal protocol table")
-        }
-
+    ) -> CompilerResult<MemberLookup> {
         match term {
             TypeTerm::Form { payload, .. } => {
                 let Some(term) = self.type_operand_term(*payload)? else {
-                    return Ok(None);
+                    return Ok(MemberLookup::Pending);
                 };
 
-                self.member_type_candidates_matching(origin, module, &term, key, protocol)
+                self.lookup_type_member_matching(origin, module, &term, key)
             }
             TypeTerm::Reference {
                 origin: _,
@@ -148,67 +120,56 @@ impl CheckState<'_> {
                 arguments,
             } if arguments.is_empty() => {
                 if let Some(parameter) = self.type_generic_parameter_for_symbol(*symbol)? {
-                    self.parameter_member_candidates(module, origin, parameter, key, protocol)
+                    self.lookup_parameter_member(module, origin, parameter, key)
                 } else {
-                    self.instantiate_symbol_member_candidate(
-                        module, *symbol, arguments, *key, protocol,
-                    )
-                    .map(|candidate| candidate.map(|candidate| vec![candidate]))
+                    self.lookup_symbol_member(origin, module, *symbol, arguments, *key)
                 }
             }
             TypeTerm::Reference {
                 origin: _,
                 symbol,
                 arguments,
-            } => self
-                .instantiate_symbol_member_candidate(module, *symbol, arguments, *key, protocol)
-                .map(|candidate| candidate.map(|candidate| vec![candidate])),
+            } => self.lookup_symbol_member(origin, module, *symbol, arguments, *key),
             TypeTerm::Parameter(parameter) => {
-                self.parameter_member_candidates(module, origin, *parameter, key, protocol)
+                self.lookup_parameter_member(module, origin, *parameter, key)
             }
-            TypeTerm::Shape(shape) => self
-                .shape_member_candidate(&self.inference.term(*shape).members, key, protocol)
-                .map(|candidate| candidate.map(|candidate| vec![candidate])),
+            TypeTerm::Shape(shape) => {
+                self.lookup_shape_member(&self.inference.term(*shape).members, key)
+            }
             TypeTerm::Union { elements } => {
-                self.union_member_candidates(origin, module, elements, key, protocol)
+                self.union_member_candidates(origin, module, elements, key)
             }
             TypeTerm::Operation(operation) => {
-                self.operation_member_candidates(origin, module, *operation, key, protocol)
+                self.operation_member_candidates(origin, module, *operation, key)
             }
-            _ => Ok(None),
+            _ => Ok(MemberLookup::Missing),
         }
     }
 
-    /// Return member candidates through a generic parameter constraint.
-    fn parameter_member_candidates(
+    /// Look up members through a generic parameter constraint.
+    fn lookup_parameter_member(
         &mut self,
         module: ModuleId,
         origin: Origin,
         parameter: GenericParameterId,
         key: &dir::StaticKey,
-        protocol: Option<&MemberProtocol>,
-    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
+    ) -> CompilerResult<MemberLookup> {
         let Some(constraint) = self.type_generic_constraint(parameter)? else {
-            return Ok(None);
+            return Ok(MemberLookup::Missing);
         };
         let Some(term) = self.reduced_generic_type_constraint(origin, constraint)? else {
-            return Ok(None);
+            return Ok(MemberLookup::Pending);
         };
 
-        self.member_type_candidates_matching(origin, module, &term, key, protocol)
+        self.lookup_type_member_matching(origin, module, &term, key)
     }
 
-    /// Return a symbol-backed candidate from one shape method field.
-    fn shape_member_candidate(
+    /// Look up a symbol-backed member from one shape field.
+    fn lookup_shape_member(
         &self,
         members: &[ShapeMember],
         key: &dir::StaticKey,
-        protocol: Option<&MemberProtocol>,
-    ) -> CompilerResult<Option<MemberCandidate>> {
-        if protocol.is_some() {
-            return Ok(None);
-        }
-
+    ) -> CompilerResult<MemberLookup> {
         for member in members {
             let ShapeMember::Field {
                 key: member_key,
@@ -222,147 +183,174 @@ impl CheckState<'_> {
                 continue;
             };
             let Some(term) = self.type_operand_term(*ty)? else {
-                return Ok(None);
+                return Ok(MemberLookup::Pending);
             };
             let TypeOperand::Variable(variable) = *ty else {
-                return Ok(None);
+                return Ok(MemberLookup::Missing);
             };
             let Origin::Symbol(symbol) = self.variable(variable).source else {
-                return Ok(None);
+                return Ok(MemberLookup::Missing);
             };
 
-            return Ok(Some(MemberCandidate {
+            let candidate = MemberCandidate {
                 symbol,
                 ty: term,
                 instance: None,
-            }));
+            };
+
+            return Ok(MemberLookup::found(candidate));
         }
 
-        Ok(None)
+        Ok(MemberLookup::Missing)
     }
 
-    /// Instantiate a member candidate from one applied nominal declaration.
-    fn instantiate_symbol_member_candidate(
+    /// Look up an applied symbol member.
+    fn lookup_symbol_member(
         &mut self,
+        origin: Origin,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
         key: dir::StaticKey,
-        protocol: Option<&MemberProtocol>,
-    ) -> CompilerResult<Option<MemberCandidate>> {
-        for member in self.lookup_member_symbols(symbol, key) {
+    ) -> CompilerResult<MemberLookup> {
+        let mut candidates = Vec::new();
+
+        // collect inherent members
+        for member in self.member_symbols(symbol, key) {
             let substitution = self.generic_substitution(symbol, arguments)?;
             if self.reduce_symbol_availability(module, member, (&substitution).into())?
                 != Decision::Yes
             {
-                return Ok(None);
+                continue;
             }
-            let operand = self.import_symbol_type_operand(module, member);
+            let operand = self.import_symbol_type_operand(module, member)?;
             if substitution.is_empty() {
                 let Some(term) = self.type_operand_term(operand)? else {
-                    return Ok(None);
+                    return Ok(MemberLookup::Pending);
                 };
 
-                return Ok(Some(MemberCandidate {
+                candidates.push(MemberCandidate {
                     symbol: member,
                     ty: term,
                     instance: None,
-                }));
+                });
+                continue;
             }
             let Some(term) = self.type_operand_term(operand)? else {
-                return Ok(None);
+                return Ok(MemberLookup::Pending);
             };
             let Some(term) = term.substitute(module, &substitution, self)? else {
-                return Ok(None);
+                return Ok(MemberLookup::Pending);
             };
             let instance = Some(GenericInstance {
                 owner: symbol,
                 arguments: arguments.to_vec().into(),
             });
 
-            return Ok(Some(MemberCandidate {
+            candidates.push(MemberCandidate {
                 symbol: member,
                 ty: term,
-                instance: instance,
-            }));
+                instance,
+            });
         }
 
-        let Some((extension, member, substitution)) =
-            self.extension_member(module, symbol, arguments, key, protocol)?
-        else {
-            return Ok(None);
-        };
-        if self.reduce_symbol_availability(module, member, (&substitution).into())? != Decision::Yes
-        {
-            return Ok(None);
+        if !candidates.is_empty() {
+            return Ok(MemberLookup::Found(candidates));
         }
-        let variable = self.import_symbol_type_operand(module, member);
-        if substitution.is_empty() {
-            let Some(term) = self.type_operand_term(variable)? else {
-                return Ok(None);
+
+        for (extension, member, substitution) in
+            self.lookup_extension_members(origin, module, symbol, arguments, key)?
+        {
+            if self.reduce_symbol_availability(module, member, (&substitution).into())?
+                != Decision::Yes
+            {
+                continue;
+            }
+            let variable = self.import_symbol_type_operand(module, member)?;
+            let Some(mut term) = self.type_operand_term(variable)? else {
+                return Ok(MemberLookup::Pending);
+            };
+            let instance = if substitution.is_empty() {
+                None
+            } else {
+                let Some(substituted) = term.substitute(module, &substitution, self)? else {
+                    return Ok(MemberLookup::Pending);
+                };
+
+                term = substituted;
+                self.substitution_application(extension, &substitution)?
             };
 
-            return Ok(Some(MemberCandidate {
+            candidates.push(MemberCandidate {
                 symbol: member,
                 ty: term,
-                instance: None,
-            }));
+                instance,
+            });
         }
-        let Some(term) = self.type_operand_term(variable)? else {
-            return Ok(None);
-        };
-        let Some(term) = term.substitute(module, &substitution, self)? else {
-            return Ok(None);
-        };
-        let instance = self.substitution_application(extension, &substitution)?;
 
-        Ok(Some(MemberCandidate {
-            symbol: member,
-            ty: term,
-            instance,
-        }))
+        Ok(MemberLookup::from_candidates(candidates))
     }
 
-    /// Return an applicable extension member for one applied nominal receiver.
-    pub(in crate::check) fn extension_member(
+    /// Decide whether one type satisfies one member protocol.
+    fn decide_member_protocol(
         &mut self,
+        module: ModuleId,
+        receiver: &TypeTerm,
+        protocol: &MemberProtocol,
+    ) -> CompilerResult<Decision> {
+        let symbol = self.language_symbol(module, protocol.item);
+        let target = TypeTerm::Reference {
+            origin: Origin::Symbol(symbol),
+            symbol,
+            arguments: protocol.arguments.to_vec(),
+        };
+
+        self.decide_type_term_relation(TypeRelation::Satisfies, receiver, &target)
+    }
+
+    /// Look up applicable extension members for one applied nominal receiver.
+    pub(in crate::check) fn lookup_extension_members(
+        &mut self,
+        origin: Origin,
         module: ModuleId,
         target: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
         key: dir::StaticKey,
-        protocol: Option<&MemberProtocol>,
     ) -> CompilerResult<
-        Option<(
+        Vec<(
             dir::GlobalSymbolId,
             dir::GlobalSymbolId,
             GenericSubstitution,
         )>,
     > {
-        let extensions = self.extension_candidates(module, target, key)?;
+        let extensions = self.extension_member_candidates(module, target, key)?;
+        let mut members = Vec::new();
 
-        // accept the first extension whose target pattern and constraints hold
+        // collect extensions whose target pattern and constraints hold
         for extension in extensions {
-            let Some(substitution) =
-                self.extension_substitution(extension.symbol, extension.target, target, arguments)?
+            let Some(substitution) = self.match_extension_target(
+                origin,
+                extension.symbol,
+                extension.target,
+                target,
+                arguments,
+            )?
             else {
                 continue;
             };
-            if protocol.is_some() {
-                todo!("filter extension candidates through nominal protocol table")
-            }
 
             if self
-                .extension_where_clauses_hold(&extension.where_clauses, (&substitution).into())?
+                .decide_extension_where_clauses(&extension.where_clauses, (&substitution).into())?
             {
-                return Ok(Some((extension.symbol, extension.member, substitution)));
+                members.push((extension.symbol, extension.member, substitution));
             }
         }
 
-        Ok(None)
+        Ok(members)
     }
 
-    /// Return extension candidates available from one module.
-    fn extension_candidates(
+    /// Return extension member candidates available from one module.
+    fn extension_member_candidates(
         &mut self,
         module: ModuleId,
         target: dir::GlobalSymbolId,
@@ -371,16 +359,16 @@ impl CheckState<'_> {
         let mut candidates = Vec::new();
         let mut seen = IndexSet::new();
 
-        let symbols = self.extension_symbols_for_target(module, target)?;
+        let symbols = self.import_extension_target_symbols(module, target)?;
         for symbol in symbols {
-            self.collect_extension_candidate(module, symbol, key, &mut seen, &mut candidates)?;
+            self.collect_extension_members(module, symbol, key, &mut seen, &mut candidates)?;
         }
 
         // add inherent extensions declared with the receiver type
         if target.module_id != module {
-            let symbols = self.extension_symbols_for_target(target.module_id, target)?;
+            let symbols = self.import_extension_target_symbols(target.module_id, target)?;
             for symbol in symbols {
-                self.collect_extension_candidate(module, symbol, key, &mut seen, &mut candidates)?;
+                self.collect_extension_members(module, symbol, key, &mut seen, &mut candidates)?;
             }
         }
 
@@ -394,14 +382,14 @@ impl CheckState<'_> {
 
         // add explicitly imported extension declarations
         for symbol in imports {
-            self.collect_extension_candidate(module, symbol, key, &mut seen, &mut candidates)?;
+            self.collect_extension_members(module, symbol, key, &mut seen, &mut candidates)?;
         }
 
         Ok(candidates)
     }
 
-    /// Collect one extension candidate by declaration symbol.
-    fn collect_extension_candidate(
+    /// Collect extension member candidates by declaration symbol.
+    fn collect_extension_members(
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
@@ -409,42 +397,29 @@ impl CheckState<'_> {
         seen: &mut IndexSet<dir::GlobalSymbolId>,
         candidates: &mut Vec<ExtensionCandidate>,
     ) -> CompilerResult<()> {
-        let candidate = self.extension_candidate(module, symbol, key)?;
-        let Some(candidate) = candidate else {
+        let Some(extension) = self.extension_definition(module, symbol)? else {
             return Ok(());
         };
-        if seen.insert(candidate.symbol) {
-            candidates.push(candidate);
+
+        // collect every member overload declared on this extension
+        for member in self.member_symbols(symbol, key) {
+            if seen.insert(member) {
+                candidates.push(ExtensionCandidate {
+                    symbol,
+                    target: extension.target_type,
+                    where_clauses: extension.where_clauses.clone(),
+                    member,
+                });
+            }
         }
 
         Ok(())
     }
 
-    /// Return one extension candidate by declaration symbol.
-    fn extension_candidate(
-        &mut self,
-        module: ModuleId,
-        symbol: dir::GlobalSymbolId,
-        key: dir::StaticKey,
-    ) -> CompilerResult<Option<ExtensionCandidate>> {
-        let Some(extension) = self.extension_definition(module, symbol)? else {
-            return Ok(None);
-        };
-        let Some(member) = self.lookup_member_symbols(symbol, key).into_iter().next() else {
-            return Ok(None);
-        };
-
-        Ok(Some(ExtensionCandidate {
-            symbol,
-            target: extension.target_type,
-            where_clauses: extension.where_clauses,
-            member,
-        }))
-    }
-
     /// Match an extension target pattern against an applied receiver.
-    fn extension_substitution(
+    fn match_extension_target(
         &mut self,
+        origin: Origin,
         extension: dir::GlobalSymbolId,
         target_variable: TypeOperand,
         receiver: dir::GlobalSymbolId,
@@ -460,6 +435,7 @@ impl CheckState<'_> {
         };
         let mut substitution = GenericSubstitution::empty();
         let is_match = self.match_type_pattern(
+            origin,
             receiver.module_id,
             extension,
             &pattern,
@@ -470,8 +446,8 @@ impl CheckState<'_> {
         Ok(is_match.then_some(substitution))
     }
 
-    /// Return whether substituted extension where clauses hold.
-    fn extension_where_clauses_hold(
+    /// Decide whether substituted extension where clauses hold.
+    fn decide_extension_where_clauses(
         &mut self,
         where_clauses: &[ExtensionWhereClause],
         substitution: Substitution<'_>,
@@ -499,7 +475,7 @@ impl CheckState<'_> {
                 Decision::Yes => {}
                 Decision::No => return Ok(false),
                 Decision::Undecidable => {
-                    todo!("resolve extension where clauses through inference constraints")
+                    return Ok(false);
                 }
             };
         }

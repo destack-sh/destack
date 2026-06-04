@@ -1,5 +1,4 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -54,8 +53,7 @@ impl CheckState<'_> {
         };
 
         // choose identity comparison only for identity bearing domains
-        let module = identity.source.module_id;
-        let is_compatible = self.identity_compatible(module, &left, &right)?;
+        let is_compatible = self.identity_compatible(&left, &right)?;
         if is_compatible {
             let resolution = IdentityResolution {
                 source: identity.source,
@@ -77,20 +75,15 @@ impl CheckState<'_> {
     }
 
     /// Return whether strict identity can compare both operands.
-    fn identity_compatible(
-        &mut self,
-        module: ModuleId,
-        left: &TypeTerm,
-        right: &TypeTerm,
-    ) -> CompilerResult<bool> {
-        let left = self.supports_identity(module, left)?;
-        let right = self.supports_identity(module, right)?;
+    fn identity_compatible(&mut self, left: &TypeTerm, right: &TypeTerm) -> CompilerResult<bool> {
+        let left = self.supports_identity(left)?;
+        let right = self.supports_identity(right)?;
 
         Ok(left && right)
     }
 
     /// Return whether one type carries scalar or reference identity.
-    fn supports_identity(&mut self, module: ModuleId, term: &TypeTerm) -> CompilerResult<bool> {
+    fn supports_identity(&mut self, term: &TypeTerm) -> CompilerResult<bool> {
         let is_supported = match term {
             TypeTerm::Literal(literal) => Self::literal_supports_identity(literal),
             TypeTerm::Form { payload, .. } => {
@@ -98,14 +91,14 @@ impl CheckState<'_> {
                     return Ok(false);
                 };
 
-                return self.supports_identity(module, &term);
+                return self.supports_identity(&term);
             }
             TypeTerm::Union { elements } => {
                 for element in elements {
                     let Some(term) = self.type_operand_term(*element)? else {
                         return Ok(false);
                     };
-                    if !self.supports_identity(module, &term)? {
+                    if !self.supports_identity(&term)? {
                         return Ok(false);
                     }
                 }
@@ -113,7 +106,7 @@ impl CheckState<'_> {
                 true
             }
             TypeTerm::Function(_) => true,
-            TypeTerm::Reference { symbol, .. } => self.nominal_supports_identity(module, *symbol),
+            TypeTerm::Reference { .. } => false,
             _ => false,
         };
 

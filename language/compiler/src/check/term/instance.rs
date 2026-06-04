@@ -38,6 +38,6 @@ impl CheckState<'_> {
         &self,
         _instance: &InstanceCheckTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
-        todo!("reduce instance checks through nominal definitions")
+        Ok(None)
     }
 }

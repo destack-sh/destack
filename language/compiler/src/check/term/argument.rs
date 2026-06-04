@@ -247,7 +247,7 @@ impl CheckState<'_> {
 
     /// Decide exact equality for argument lists.
     pub(in crate::check) fn decide_argument_list_equal(
-        &self,
+        &mut self,
         left: &[GenericArgument],
         right: &[GenericArgument],
     ) -> CompilerResult<Decision> {
@@ -268,7 +268,7 @@ impl CheckState<'_> {
 
     /// Decide exact equality for one argument.
     pub(in crate::check) fn decide_argument_equal(
-        &self,
+        &mut self,
         left: &GenericArgument,
         right: &GenericArgument,
     ) -> CompilerResult<Decision> {

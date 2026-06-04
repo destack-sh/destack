@@ -1,23 +1,31 @@
-/// Candidate set shape for speculative dispatch.
+/// Candidate cardinality for speculative dispatch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum CandidateSet {
+pub(in crate::check) enum CandidateCardinality {
+    /// No candidate exists.
+    Empty,
     /// One candidate can keep pending inference work.
-    Single,
+    One,
     /// Multiple candidates must not commit branch-local pending work.
-    Overload,
+    Many,
 }
 
-impl CandidateSet {
-    /// Return the candidate set shape from a candidate count.
+impl CandidateCardinality {
+    /// Return the candidate cardinality from a candidate count.
     pub(in crate::check) fn from_len(len: usize) -> Self {
         match len {
-            1 => Self::Single,
-            _ => Self::Overload,
+            0 => Self::Empty,
+            1 => Self::One,
+            _ => Self::Many,
         }
+    }
+
+    /// Return whether this represents many candidates.
+    pub(in crate::check) fn is_many(self) -> bool {
+        self == Self::Many
     }
 
     /// Return whether pending probe work belongs to a unique candidate.
     pub(in crate::check) fn keeps_pending_probe(self) -> bool {
-        self == Self::Single
+        self == Self::One
     }
 }

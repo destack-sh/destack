@@ -17,7 +17,10 @@ pub(in crate::check) enum MemberFailure {
     /// ```ds
     /// value.missing
     /// ```
-    Missing,
+    Missing {
+        /// The selected member key.
+        key: dir::StaticKey,
+    },
 }
 
 /// Runtime member decision resolved by the solver.

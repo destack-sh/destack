@@ -262,8 +262,8 @@ impl StaticTerm {
                 else_value: state.substitute_static_operand(module, substitution, *else_value)?,
             },
             StaticTerm::Parameter(slot) => {
-                if let Some(argument) = state.substitution_static_parameter(substitution, *slot)
-                    && let Some(term) = state.static_solution(argument)?
+                if let Some(argument) = state.substitution_static_operand(substitution, *slot)
+                    && let Some(term) = state.static_operand_term(argument)?
                 {
                     term
                 } else {
@@ -888,7 +888,7 @@ impl CheckState<'_> {
                 left,
                 name: Some(name),
             } => {
-                let owner = self.node_type_operand(left.into_global_any(module));
+                let owner = self.node_type_operand(left.into_global_any(module))?;
 
                 Some(StaticTerm::Member {
                     source,
@@ -1001,13 +1001,13 @@ impl CheckState<'_> {
             }
             dir::TypeExpression::Extends { left, right } => StaticTerm::TypeRelation {
                 relation: TypeRelation::Extends,
-                left: self.node_type_operand(left.into_global_any(module)),
-                right: self.node_type_operand(right.into_global_any(module)),
+                left: self.node_type_operand(left.into_global_any(module))?,
+                right: self.node_type_operand(right.into_global_any(module))?,
             },
             dir::TypeExpression::Implements { left, right } => StaticTerm::TypeRelation {
                 relation: TypeRelation::Implements,
-                left: self.node_type_operand(left.into_global_any(module)),
-                right: self.node_type_operand(right.into_global_any(module)),
+                left: self.node_type_operand(left.into_global_any(module))?,
+                right: self.node_type_operand(right.into_global_any(module))?,
             },
             dir::TypeExpression::Conditional {
                 left,
@@ -1017,8 +1017,8 @@ impl CheckState<'_> {
             } => {
                 let condition = StaticTerm::TypeRelation {
                     relation: TypeRelation::Extends,
-                    left: self.node_type_operand(left.into_global_any(module)),
-                    right: self.node_type_operand(extends_type.into_global_any(module)),
+                    left: self.node_type_operand(left.into_global_any(module))?,
+                    right: self.node_type_operand(extends_type.into_global_any(module))?,
                 };
                 let Some(then_value) = self.build_static_type_expression_term(module, then_type)?
                 else {
@@ -1123,7 +1123,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(slot) = self.inference.generic_parameter_id_for_symbol(symbol) else {
+        let Some(slot) = self.inference.symbol_generic_parameter(symbol) else {
             return Ok(None);
         };
         if !self.inference.generic_parameter(slot).is_static() {
@@ -1269,7 +1269,7 @@ impl CheckState<'_> {
         else {
             return Ok(None);
         };
-        let target = self.node_type_operand(value.into_global_any(module));
+        let target = self.node_type_operand(value.into_global_any(module))?;
 
         Ok(Some(target))
     }

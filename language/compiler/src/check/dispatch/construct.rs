@@ -2,15 +2,14 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
     CallableDispatch, CallableSignature, CallableTarget, CheckState, ConstructDecision,
-    ConstructFailure, ConstructTargetResolution, ConstructTerm, FunctionParameter, FunctionTerm,
-    GenericArgument, GenericInstance, NominalDefinition, Origin, Progress, TypeOperand, TypeTerm,
-    VariableId,
+    ConstructFailure, ConstructTargetResolution, ConstructTerm, FunctionTerm, GenericArgument,
+    GenericInstance, NominalDefinition, Origin, Progress, TypeOperand, TypeTerm, VariableId,
 };
+use crate::{CompilerError, CompilerResult};
 
-use super::CandidateSet;
+use super::CandidateCardinality;
 
 /// Construct signature candidate selected from a callee type.
 pub(in crate::check) struct ConstructCandidate {
@@ -46,7 +45,7 @@ impl CheckState<'_> {
         let Some(callee) = self.type_operand_term(construct.callee)? else {
             return Ok(CallableDispatch::pending());
         };
-        let candidates = match self.construct_candidates(module, construct.callee, &callee)? {
+        let candidates = match self.construct_candidates(module, &callee)? {
             ConstructCandidates::Pending => return Ok(CallableDispatch::pending()),
             ConstructCandidates::Absent => {
                 return Ok(CallableDispatch::construct_rejected(
@@ -81,7 +80,7 @@ impl CheckState<'_> {
         expected: Option<VariableId>,
     ) -> CompilerResult<CallableDispatch> {
         let mut saw_pending = false;
-        let candidate_set = CandidateSet::from_len(candidates.len());
+        let candidate_cardinality = CandidateCardinality::from_len(candidates.len());
 
         // choose the first compatible declaration order candidate
         for candidate in candidates {
@@ -100,7 +99,7 @@ impl CheckState<'_> {
                 argument_values,
                 expected,
                 target,
-                candidate_set,
+                candidate_cardinality,
             )?;
 
             match result {
@@ -108,13 +107,18 @@ impl CheckState<'_> {
                     return Ok(result);
                 }
                 CallableDispatch::CallSelected { .. } => {
-                    panic!("construct candidate selection produced a call selection");
+                    unreachable!(
+                        "internal invariant: construct candidate selection produced a call selection"
+                    );
                 }
-                CallableDispatch::Pending { .. } if candidate_set.keeps_pending_probe() => {
+                CallableDispatch::Pending { .. } if candidate_cardinality.keeps_pending_probe() => {
                     return Ok(result);
                 }
                 CallableDispatch::Pending { .. } => {
                     saw_pending = true;
+                }
+                CallableDispatch::Invalid { .. } => {
+                    return Ok(result);
                 }
                 CallableDispatch::CallRejected(_) | CallableDispatch::ConstructRejected(_) => {}
             }
@@ -134,7 +138,6 @@ impl CheckState<'_> {
     pub(in crate::check) fn construct_candidates(
         &mut self,
         module: ModuleId,
-        callee: TypeOperand,
         term: &TypeTerm,
     ) -> CompilerResult<ConstructCandidates> {
         let candidates = match term {
@@ -142,29 +145,8 @@ impl CheckState<'_> {
                 origin: _,
                 symbol,
                 arguments,
-            } => self.nominal_construct_candidates(module, callee, *symbol, arguments)?,
+            } => self.class_construct_candidates(module, *symbol, arguments)?,
             TypeTerm::Shape(_) => ConstructCandidates::Absent,
-            _ => ConstructCandidates::Absent,
-        };
-
-        Ok(candidates)
-    }
-
-    /// Return construct candidates from one nominal type.
-    fn nominal_construct_candidates(
-        &mut self,
-        module: ModuleId,
-        callee: TypeOperand,
-        symbol: dir::GlobalSymbolId,
-        arguments: &[GenericArgument],
-    ) -> CompilerResult<ConstructCandidates> {
-        let candidates = match self.symbol_kind(symbol) {
-            dir::SymbolKind::Class => {
-                self.class_construct_candidates(module, callee, symbol, arguments)?
-            }
-            dir::SymbolKind::Newtype => {
-                self.newtype_construct_candidate(module, callee, symbol, arguments)?
-            }
             _ => ConstructCandidates::Absent,
         };
 
@@ -175,12 +157,11 @@ impl CheckState<'_> {
     fn class_construct_candidates(
         &mut self,
         module: ModuleId,
-        callee: TypeOperand,
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
     ) -> CompilerResult<ConstructCandidates> {
         let class = symbol;
-        let Some(NominalDefinition::Class(definition)) = self.nominal_definition(module, class)
+        let Some(NominalDefinition::Class(definition)) = self.nominal_definition(module, class)?
         else {
             return Ok(ConstructCandidates::Absent);
         };
@@ -196,7 +177,7 @@ impl CheckState<'_> {
             .collect::<Vec<_>>();
 
         if constructors.is_empty() {
-            return Ok(self.default_class_construct_candidate(callee, class, arguments));
+            return Ok(ConstructCandidates::Absent);
         }
         let substitution = self.generic_substitution(class, arguments)?;
         let instance = (!arguments.is_empty()).then(|| GenericInstance {
@@ -208,10 +189,12 @@ impl CheckState<'_> {
         // lower constructor method types to construct signatures
         for constructor in constructors {
             let Some(symbol) = constructor.symbol else {
-                panic!(
-                    "class constructor method {:?} has no symbol",
-                    constructor.source
-                );
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "class constructor method {:?} has no symbol",
+                        constructor.source
+                    ),
+                });
             };
             let Some(term) = self.type_operand_term(constructor.ty)? else {
                 return Ok(ConstructCandidates::Pending);
@@ -236,82 +219,6 @@ impl CheckState<'_> {
         }
 
         Ok(ConstructCandidates::Present(candidates.into()))
-    }
-
-    /// Return the default constructor candidate for one class.
-    fn default_class_construct_candidate(
-        &self,
-        callee: TypeOperand,
-        symbol: dir::GlobalSymbolId,
-        arguments: &[GenericArgument],
-    ) -> ConstructCandidates {
-        let instance = (!arguments.is_empty()).then(|| GenericInstance {
-            owner: symbol,
-            arguments: arguments.to_vec().into(),
-        });
-        let function = FunctionTerm {
-            asynchrony: dir::Asynchrony::Sync,
-            generic_parameters: Vec::new(),
-            this_parameter: None,
-            parameters: Vec::new().into(),
-            return_type: Some(callee.into()),
-            is_generator: false,
-        };
-        let candidate = ConstructCandidate {
-            target: ConstructTargetResolution::Class {
-                symbol,
-                constructor: None,
-                instance: instance,
-            },
-            function,
-        };
-
-        ConstructCandidates::Present(vec![candidate].into())
-    }
-
-    /// Return the construct candidate for one newtype.
-    fn newtype_construct_candidate(
-        &mut self,
-        module: ModuleId,
-        callee: TypeOperand,
-        symbol: dir::GlobalSymbolId,
-        arguments: &[GenericArgument],
-    ) -> CompilerResult<ConstructCandidates> {
-        let Some(value) = self.newtype_backing(module, symbol) else {
-            return Ok(ConstructCandidates::Absent);
-        };
-        let generic_parameters = self
-            .inference
-            .generic_parameters_for_owner(symbol)
-            .map(|(_, generic)| generic.identity().id())
-            .collect::<Vec<_>>();
-        let substitution = self.generic_substitution(symbol, arguments)?;
-        let backing = if substitution.is_empty() {
-            value
-        } else {
-            self.substitute_type_operand(module, &substitution, value)?
-        };
-        let instance = (!arguments.is_empty()).then(|| GenericInstance {
-            owner: symbol,
-            arguments: arguments.to_vec().into(),
-        });
-        let function = FunctionTerm {
-            asynchrony: dir::Asynchrony::Sync,
-            generic_parameters,
-            this_parameter: None,
-            parameters: vec![FunctionParameter::required(backing)].into(),
-            return_type: Some(callee.into()),
-            is_generator: false,
-        };
-        let candidate = ConstructCandidate {
-            target: ConstructTargetResolution::Newtype {
-                symbol,
-                instance: instance,
-            },
-            function,
-        };
-
-        Ok(ConstructCandidates::Present(vec![candidate].into()))
     }
 
     /// Return the already chosen decision for one construct expression.

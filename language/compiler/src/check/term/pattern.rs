@@ -1022,7 +1022,7 @@ impl CheckState<'_> {
             }
             PatternTarget::Binding { symbol, pattern } => {
                 let binding = if let Some(symbol) = symbol {
-                    let binding = self.import_symbol_type_operand(module, symbol);
+                    let binding = self.import_symbol_type_operand(module, symbol)?;
 
                     self.relate_type_relation(origin, TypeRelation::Equal, binding, value)?
                 } else {
@@ -1247,7 +1247,7 @@ impl CheckState<'_> {
 
     /// Decide one relation from a pattern operand to a solved term.
     fn decide_pattern_operand_relation(
-        &self,
+        &mut self,
         relation: TypeRelation,
         left: TypeOperand,
         right: &TypeTerm,
@@ -1261,7 +1261,7 @@ impl CheckState<'_> {
 
     /// Decide one relation from a solved term to a pattern operand.
     fn decide_pattern_term_operand_relation(
-        &self,
+        &mut self,
         relation: TypeRelation,
         left: &TypeTerm,
         right: TypeOperand,

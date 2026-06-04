@@ -3,7 +3,8 @@ use destack_dir as dir;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, FunctionTerm, OperatorCandidateDispatch, OperatorDecision, OperatorFailure,
-    OperatorFailureReason, OperatorResolution, Origin, Progress, TypeOperand, TypeTerm, VariableId,
+    OperatorFailureReason, OperatorResolution, Origin, Progress, TypeLiteralTerm, TypeOperand,
+    TypeTerm, VariableId,
 };
 
 /// Runtime operator expression term.
@@ -92,7 +93,7 @@ impl CheckState<'_> {
             OperatorCandidateDispatch::NoMatch { reason } => {
                 self.reject_operator(operator, *reason)?;
 
-                return Ok(None);
+                return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
             }
             OperatorCandidateDispatch::Pending => return Ok(None),
         }
@@ -104,13 +105,14 @@ impl CheckState<'_> {
         origin: Origin,
         operator: &OperatorTerm,
         result: VariableId,
+        expected: &TypeTerm,
     ) -> CompilerResult<Progress> {
-        let resolved = self.select_operator_candidate(origin, operator, Some(result))?;
+        let resolved = self.select_operator_candidate(origin, operator, Some(expected))?;
         let progress = match &resolved {
             OperatorCandidateDispatch::Builtin { return_type } => {
                 self.select_builtin_operator(operator, result)?;
 
-                self.expect_operator_return_type(origin, &return_type, result)?
+                self.expect_operator_return_type(origin, &return_type, expected)?
             }
             OperatorCandidateDispatch::Method {
                 symbol,
@@ -119,12 +121,16 @@ impl CheckState<'_> {
             } => {
                 self.select_operator_method(operator, *symbol, &function)?;
 
-                self.expect_operator_return_type(origin, &return_type, result)?
+                self.expect_operator_return_type(origin, &return_type, expected)?
             }
             OperatorCandidateDispatch::NoMatch { reason } => {
                 self.reject_operator(operator, *reason)?;
 
-                Progress::Unchanged
+                self.constrain_solved_type_assignable(
+                    origin,
+                    &TypeTerm::Literal(TypeLiteralTerm::Error),
+                    expected,
+                )?
             }
             OperatorCandidateDispatch::Pending => Progress::Unchanged,
         };
@@ -137,13 +143,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         return_type: &TypeTerm,
-        result: VariableId,
+        expected: &TypeTerm,
     ) -> CompilerResult<Progress> {
-        let Some(expected) = self.type_solution(result)? else {
-            return Ok(Progress::Unchanged);
-        };
-
-        self.constrain_solved_type_assignable(origin, return_type, &expected)
+        self.constrain_solved_type_assignable(origin, return_type, expected)
     }
 
     /// Reject one operator for diagnostics.

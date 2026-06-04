@@ -2,11 +2,11 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::check::{
     CheckState, Decision, GenericParameterId, Origin, Progress, ReceiverSubstitution, Substitution,
     TypeOperand, TypeRelation, VariableId,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Function parameter payload.
 ///
@@ -26,16 +26,6 @@ pub(in crate::check) struct FunctionParameter {
 }
 
 impl FunctionParameter {
-    /// Create a required parameter.
-    pub(in crate::check) fn required(ty: impl Into<TypeOperand>) -> Self {
-        Self {
-            ty: ty.into(),
-            static_parameter: None,
-            is_optional: false,
-            is_rest: false,
-        }
-    }
-
     /// Substitute generic arguments through this function parameter.
     pub(in crate::check) fn substitute<'a>(
         &self,
@@ -200,40 +190,43 @@ impl CheckState<'_> {
         let mut generic_parameters = Vec::with_capacity(function.generic_parameters.len());
         for parameter in function.generic_parameters {
             let dir::Type::Parameter(parameter) = self.r#type(parameter) else {
-                panic!("committed function generic parameter is not a parameter type");
+                return Err(CompilerError::Internal {
+                    message: "committed function generic parameter is not a parameter type"
+                        .to_owned(),
+                });
             };
 
-            generic_parameters.push(self.import_generic_parameter_id(module, *parameter));
+            generic_parameters.push(self.import_generic_parameter_id(module, *parameter)?);
         }
 
         let this_parameter = function
             .this_parameter
-            .map(|parameter| self.import_type_operand(module, parameter));
-        let parameters = function
-            .parameters
-            .into_iter()
-            .map(|parameter| {
-                let static_parameter = parameter
-                    .static_parameter
-                    .map(|parameter| self.import_generic_parameter_id(module, parameter));
+            .map(|parameter| self.import_type_operand(module, parameter))
+            .transpose()?;
+        let mut parameters = Vec::with_capacity(function.parameters.len());
+        for parameter in function.parameters {
+            let static_parameter = parameter
+                .static_parameter
+                .map(|parameter| self.import_generic_parameter_id(module, parameter))
+                .transpose()?;
 
-                FunctionParameter {
-                    ty: self.import_type_operand(module, parameter.ty),
-                    static_parameter,
-                    is_optional: parameter.is_optional,
-                    is_rest: parameter.is_rest,
-                }
-            })
-            .collect();
+            parameters.push(FunctionParameter {
+                ty: self.import_type_operand(module, parameter.ty)?,
+                static_parameter,
+                is_optional: parameter.is_optional,
+                is_rest: parameter.is_rest,
+            });
+        }
         let return_type = function
             .return_type
-            .map(|return_type| self.import_type_operand(module, return_type));
+            .map(|return_type| self.import_type_operand(module, return_type))
+            .transpose()?;
 
         Ok(FunctionTerm {
             asynchrony: function.asynchrony,
             generic_parameters,
             this_parameter,
-            parameters,
+            parameters: parameters.into(),
             return_type,
             is_generator: function.is_generator,
         })
@@ -280,7 +273,7 @@ impl CheckState<'_> {
 
     /// Decide exact equality for function terms.
     pub(in crate::check) fn decide_function_equal(
-        &self,
+        &mut self,
         left: &FunctionTerm,
         right: &FunctionTerm,
     ) -> CompilerResult<Decision> {
@@ -305,7 +298,7 @@ impl CheckState<'_> {
 
     /// Decide exact equality for function parameter terms.
     fn decide_function_parameter_list_equal(
-        &self,
+        &mut self,
         left: &[FunctionParameter],
         right: &[FunctionParameter],
     ) -> CompilerResult<Decision> {

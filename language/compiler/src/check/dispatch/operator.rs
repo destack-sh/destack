@@ -1,16 +1,16 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallableSignature, CheckState, Decision, FunctionTerm, GenericArgument, MemberProtocol,
-    OperatorFailureReason, OperatorProtocol, OperatorProtocolArgument, OperatorTerm,
-    OperatorTermKind, OperatorType, Origin, Progress, StaticTerm, TypeLiteralTerm, TypeRelation,
-    TypeTerm, VariableId, binary_operator_protocols, unary_operator_protocols,
+    CallableSignature, CheckState, Decision, FunctionTerm, GenericArgument, MemberCandidate,
+    MemberLookup, MemberProtocol, OperatorFailureReason, OperatorProtocol,
+    OperatorProtocolArgument, OperatorTerm, OperatorTermKind, OperatorType, Origin, Progress,
+    StaticTerm, TypeLiteralTerm, TypeRelation, TypeTerm, binary_operator_protocols,
+    unary_operator_protocols,
 };
 
-use super::CandidateSet;
+use super::CandidateCardinality;
 
 /// Transient operator selection while reducing operator syntax.
 pub(in crate::check) enum OperatorCandidateDispatch {
@@ -84,15 +84,15 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         operator: &OperatorTerm,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<OperatorCandidateDispatch> {
-        let Some(receiver) = self.type_operand_term(operator.receiver)? else {
+        let Some(receiver) = self.reduce_type_operand(origin, operator.receiver)? else {
             return Ok(OperatorCandidateDispatch::Pending);
         };
 
         // choose primitive operators
         if let Some(result) =
-            self.select_builtin_operator_candidate(operator, &receiver, expected)?
+            self.select_builtin_operator_candidate(origin, operator, &receiver, expected)?
         {
             return Ok(result);
         }
@@ -117,14 +117,15 @@ impl CheckState<'_> {
     /// Select one builtin operator case.
     fn select_builtin_operator_candidate(
         &mut self,
+        origin: Origin,
         operator: &OperatorTerm,
         receiver: &TypeTerm,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<Option<OperatorCandidateDispatch>> {
         let decision = match operator.kind {
             OperatorTermKind::Unary(kind) => self.decide_builtin_unary(kind, receiver, expected)?,
             OperatorTermKind::Binary(kind) => {
-                self.decide_builtin_binary(operator, kind, receiver, expected)?
+                self.decide_builtin_binary(origin, operator, kind, receiver, expected)?
             }
         };
         let Some(decision) = decision else {
@@ -156,7 +157,7 @@ impl CheckState<'_> {
         &self,
         kind: dir::UnaryOperator,
         receiver: &TypeTerm,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<Option<BuiltinOperatorDecision>> {
         let selection = match kind {
             dir::UnaryOperator::Not => {
@@ -203,26 +204,25 @@ impl CheckState<'_> {
 
     /// Decide one builtin binary operator case.
     fn decide_builtin_binary(
-        &self,
+        &mut self,
+        origin: Origin,
         operator: &OperatorTerm,
         kind: dir::BinaryOperator,
         receiver: &TypeTerm,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<Option<BuiltinOperatorDecision>> {
         let Some(argument) = operator.argument else {
             return Ok(Some(BuiltinOperatorDecision::Rejected(
                 OperatorFailureReason::NoMatch,
             )));
         };
-        let Some(argument_type) = self.type_operand_term(argument)? else {
+        let Some(argument_type) = self.reduce_type_operand(origin, argument)? else {
             return Ok(Some(BuiltinOperatorDecision::Pending));
         };
 
         // choose strict identity comparison
         if kind.is_strict_equality() {
-            let module = operator.source.module_id;
-            let is_compatible =
-                self.strict_equality_compatible(module, receiver, &argument_type)?;
+            let is_compatible = self.strict_equality_compatible(receiver, &argument_type)?;
             let target = Self::boolean_type_term();
 
             if is_compatible && self.decide_expected_type(&target, expected)? != Decision::No {
@@ -272,14 +272,14 @@ impl CheckState<'_> {
         origin: Origin,
         operator: &OperatorTerm,
         receiver: &TypeTerm,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<Option<OperatorCandidateDispatch>> {
         let protocols = operator.protocols();
         if protocols.is_empty() {
             return Ok(None);
         }
         let mut is_pending = false;
-        let candidate_set = CandidateSet::from_len(protocols.len());
+        let candidate_cardinality = CandidateCardinality::from_len(protocols.len());
 
         // choose the first protocol candidate that resolves
         for protocol in protocols {
@@ -295,7 +295,7 @@ impl CheckState<'_> {
                     return Ok(Some(result));
                 }
                 OperatorCandidateDispatch::Pending => {
-                    if candidate_set.keeps_pending_probe() {
+                    if candidate_cardinality.keeps_pending_probe() {
                         self.inference.commit_probe(probe)?;
 
                         return Ok(Some(result));
@@ -323,23 +323,86 @@ impl CheckState<'_> {
         origin: Origin,
         operator: &OperatorTerm,
         receiver: &TypeTerm,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
         protocol: OperatorProtocol,
     ) -> CompilerResult<OperatorCandidateDispatch> {
         // resolve protocol member on the receiver
         let module = operator.source.module_id;
         let key = protocol.method.key(&self.module(module).strings);
         let member_protocol = self.operator_member_protocol(&protocol)?;
-        let Some(member) = self.member_type_candidate_for_protocol(
-            origin,
-            module,
-            receiver,
-            &key,
-            &member_protocol,
-        )?
-        else {
-            return Ok(Self::operator_no_match());
-        };
+        let members =
+            match self.lookup_protocol_member(origin, module, receiver, &key, &member_protocol)? {
+                MemberLookup::Pending => return Ok(OperatorCandidateDispatch::Pending),
+                MemberLookup::Missing => return Ok(Self::operator_no_match()),
+                MemberLookup::Found(members) => members,
+            };
+
+        self.select_operator_member_candidate(origin, operator, expected, protocol, members)
+    }
+
+    /// Select one operator method member candidate.
+    fn select_operator_member_candidate(
+        &mut self,
+        origin: Origin,
+        operator: &OperatorTerm,
+        expected: Option<&TypeTerm>,
+        protocol: OperatorProtocol,
+        members: Vec<MemberCandidate>,
+    ) -> CompilerResult<OperatorCandidateDispatch> {
+        let mut is_pending = false;
+        let candidate_cardinality = CandidateCardinality::from_len(members.len());
+
+        // choose the first member candidate that accepts this operator
+        for member in members {
+            let probe = self.inference.begin_probe();
+            let result = self
+                .select_operator_member_signature(origin, operator, expected, &protocol, member)?;
+
+            match result {
+                OperatorCandidateDispatch::Method { .. } => {
+                    self.inference.commit_probe(probe)?;
+
+                    return Ok(result);
+                }
+                OperatorCandidateDispatch::Pending
+                    if candidate_cardinality.keeps_pending_probe() =>
+                {
+                    self.inference.commit_probe(probe)?;
+
+                    return Ok(result);
+                }
+                OperatorCandidateDispatch::Pending => {
+                    self.inference.drop_probe(probe);
+                    is_pending = true;
+                }
+                OperatorCandidateDispatch::Builtin { .. } => {
+                    unreachable!(
+                        "internal invariant: operator member selection produced a builtin"
+                    );
+                }
+                OperatorCandidateDispatch::NoMatch { reason: _ } => {
+                    self.inference.drop_probe(probe);
+                }
+            }
+        }
+
+        if is_pending {
+            Ok(OperatorCandidateDispatch::Pending)
+        } else {
+            Ok(Self::operator_no_match())
+        }
+    }
+
+    /// Select one operator method signature.
+    fn select_operator_member_signature(
+        &mut self,
+        origin: Origin,
+        operator: &OperatorTerm,
+        expected: Option<&TypeTerm>,
+        protocol: &OperatorProtocol,
+        member: MemberCandidate,
+    ) -> CompilerResult<OperatorCandidateDispatch> {
+        let module = operator.source.module_id;
 
         // reduce member type to one callable signature
         let reduction = self.reduce_type_term(origin, &member.ty)?;
@@ -354,9 +417,8 @@ impl CheckState<'_> {
 
         // decide operator method inputs and protocol output
         let arguments = self.decide_operator_method_arguments(operator, &function)?;
-        let method_return = self.reduce_operator_type(module, &function, protocol.method_return)?;
-        let Some(expression_type) =
-            self.operator_type_term(module, &function, protocol.expression_type)?
+        let method_return = self.reduce_operator_type(&function, protocol.method_return)?;
+        let Some(expression_type) = self.operator_type_term(&function, protocol.expression_type)?
         else {
             return Ok(OperatorCandidateDispatch::Pending);
         };
@@ -365,7 +427,7 @@ impl CheckState<'_> {
         // commit selected method expectations
         match arguments.and(method_return).and(expected) {
             Decision::Yes => {
-                self.expect_operator_type(origin, module, &function, protocol.method_return)?;
+                self.expect_operator_type(origin, &function, protocol.method_return)?;
 
                 Ok(OperatorCandidateDispatch::Method {
                     symbol: member.symbol,
@@ -380,7 +442,7 @@ impl CheckState<'_> {
 
     /// Decide whether operands are assignable to an operator method.
     fn decide_operator_method_arguments(
-        &self,
+        &mut self,
         operator: &OperatorTerm,
         function: &FunctionTerm,
     ) -> CompilerResult<Decision> {
@@ -416,32 +478,27 @@ impl CheckState<'_> {
 
     /// Decide whether one type term can flow into an expected result.
     fn decide_expected_type(
-        &self,
+        &mut self,
         source: &TypeTerm,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<Decision> {
         let Some(expected) = expected else {
             return Ok(Decision::Yes);
         };
-        let Some(expected) = self.type_solution(expected)? else {
-            return Ok(Decision::Undecidable);
-        };
 
-        self.decide_type_term_relation(TypeRelation::Assignable, source, &expected)
+        self.decide_type_term_relation(TypeRelation::Assignable, source, expected)
     }
 
     /// Decide whether one operator method return matches the protocol.
     fn reduce_operator_type(
         &mut self,
-        module: ModuleId,
         function: &FunctionTerm,
         operator_type: OperatorType,
     ) -> CompilerResult<Decision> {
-        let Some(source) = self.operator_type_term(module, function, OperatorType::MethodReturn)?
-        else {
+        let Some(source) = self.operator_type_term(function, OperatorType::MethodReturn)? else {
             return Ok(Decision::Undecidable);
         };
-        let Some(target) = self.operator_type_term(module, function, operator_type)? else {
+        let Some(target) = self.operator_type_term(function, operator_type)? else {
             return Ok(Decision::Undecidable);
         };
 
@@ -451,7 +508,6 @@ impl CheckState<'_> {
     /// Return one operator protocol type term.
     fn operator_type_term(
         &mut self,
-        module: ModuleId,
         function: &FunctionTerm,
         operator_type: OperatorType,
     ) -> CompilerResult<Option<TypeTerm>> {
@@ -467,12 +523,6 @@ impl CheckState<'_> {
                 None => TypeTerm::Literal(TypeLiteralTerm::Void),
             },
             OperatorType::Boolean => TypeTerm::Literal(TypeLiteralTerm::boolean()),
-            OperatorType::LanguageItem(item) => self.language_item_type_term(module, item)?,
-            OperatorType::NullableLanguageItem(item) => {
-                let value = self.language_item_type_term(module, item)?;
-
-                self.nullable_operator_type_term(value)?
-            }
         };
 
         Ok(Some(term))
@@ -482,7 +532,6 @@ impl CheckState<'_> {
     fn expect_operator_type(
         &mut self,
         origin: Origin,
-        module: ModuleId,
         function: &FunctionTerm,
         operator_type: OperatorType,
     ) -> CompilerResult<Progress> {
@@ -492,7 +541,7 @@ impl CheckState<'_> {
         let Some(return_type) = function.return_type else {
             return Ok(Progress::Unchanged);
         };
-        let Some(target) = self.operator_type_term(module, function, operator_type)? else {
+        let Some(target) = self.operator_type_term(function, operator_type)? else {
             return Ok(Progress::Unchanged);
         };
         let target = self.inference.push_term(target);
@@ -501,7 +550,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type can flow into boolean.
-    fn is_boolean_assignable(&self, term: &TypeTerm) -> CompilerResult<bool> {
+    fn is_boolean_assignable(&mut self, term: &TypeTerm) -> CompilerResult<bool> {
         let target = Self::boolean_type_term();
 
         Ok(
@@ -557,7 +606,7 @@ impl CheckState<'_> {
         &self,
         operator: dir::UnaryOperator,
         operand: &NumericOperand,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<TypeTerm> {
         if let Some(primitive) = operand.primitive {
             return Ok(TypeTerm::Literal(TypeLiteralTerm::Primitive(primitive)));
@@ -585,7 +634,7 @@ impl CheckState<'_> {
         operator: dir::BinaryOperator,
         left: &NumericOperand,
         right: &NumericOperand,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<Option<NumericBinaryMatch>> {
         if !operator.has_numeric_builtin() {
             return Ok(None);
@@ -615,7 +664,7 @@ impl CheckState<'_> {
         operator: dir::BinaryOperator,
         left: &NumericOperand,
         right: &NumericOperand,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<Option<TypeTerm>> {
         if let Some(primitive) = Self::selected_numeric_primitive(left, right) {
             return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Primitive(
@@ -642,19 +691,16 @@ impl CheckState<'_> {
     /// Return an expected type when it is primitive numeric.
     fn expected_numeric_type(
         &self,
-        expected: Option<VariableId>,
+        expected: Option<&TypeTerm>,
     ) -> CompilerResult<Option<TypeTerm>> {
         let Some(expected) = expected else {
             return Ok(None);
         };
-        let Some(term) = self.type_solution(expected)? else {
-            return Ok(None);
-        };
-        if self.numeric_operand(&term)?.is_none() {
+        if self.numeric_operand(expected)?.is_none() {
             return Ok(None);
         }
 
-        Ok(Some(term))
+        Ok(Some(expected.clone()))
     }
 
     /// Return the concrete primitive selected by numeric operands.
@@ -673,34 +719,33 @@ impl CheckState<'_> {
     /// Return whether strict equality can compare both operands.
     fn strict_equality_compatible(
         &self,
-        module: ModuleId,
         left: &TypeTerm,
         right: &TypeTerm,
     ) -> CompilerResult<bool> {
-        let left = self.supports_strict_identity(module, left)?;
-        let right = self.supports_strict_identity(module, right)?;
+        let left = self.supports_strict_identity(left)?;
+        let right = self.supports_strict_identity(right)?;
 
         Ok(left && right)
     }
 
     /// Return whether one type carries scalar or reference identity.
-    fn supports_strict_identity(&self, module: ModuleId, term: &TypeTerm) -> CompilerResult<bool> {
+    fn supports_strict_identity(&self, term: &TypeTerm) -> CompilerResult<bool> {
         let is_supported = match term {
             TypeTerm::Literal(literal) => Self::literal_supports_strict_identity(literal),
-            TypeTerm::Reference { symbol, .. } => self.symbol_supports_strict_identity(*symbol)?,
+            TypeTerm::Reference { .. } => false,
             TypeTerm::Form { payload, .. } => {
                 let Some(term) = self.type_operand_term(*payload)? else {
                     return Ok(false);
                 };
 
-                return self.supports_strict_identity(module, &term);
+                return self.supports_strict_identity(&term);
             }
             TypeTerm::Union { elements } => {
                 for element in elements {
                     let Some(term) = self.type_operand_term(*element)? else {
                         return Ok(false);
                     };
-                    if !self.supports_strict_identity(module, &term)? {
+                    if !self.supports_strict_identity(&term)? {
                         return Ok(false);
                     }
                 }
@@ -750,46 +795,9 @@ impl CheckState<'_> {
         )
     }
 
-    /// Return whether one nominal symbol carries reference identity.
-    fn symbol_supports_strict_identity(&self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
-        let kind = self.symbol_kind(symbol);
-
-        Ok(matches!(
-            kind,
-            dir::SymbolKind::Class | dir::SymbolKind::Function
-        ))
-    }
-
     /// Return the builtin boolean type term.
     fn boolean_type_term() -> TypeTerm {
         TypeTerm::Literal(TypeLiteralTerm::boolean())
-    }
-
-    /// Return a nominal language item type term.
-    fn language_item_type_term(
-        &self,
-        module: ModuleId,
-        item: dir::LanguageItem,
-    ) -> CompilerResult<TypeTerm> {
-        let symbol = self.language_symbol(module, item);
-
-        Ok(TypeTerm::Reference {
-            origin: Origin::Symbol(symbol),
-            symbol,
-            arguments: Vec::new().into(),
-        })
-    }
-
-    /// Return a nullable protocol return type.
-    fn nullable_operator_type_term(&mut self, value: TypeTerm) -> CompilerResult<TypeTerm> {
-        let value = self.inference.push_term(value);
-        let null = self
-            .inference
-            .push_term(TypeTerm::Literal(TypeLiteralTerm::Null));
-
-        Ok(TypeTerm::Union {
-            elements: vec![value.into(), null.into()],
-        })
     }
 
     /// Lower one operator protocol into member protocol arguments.
