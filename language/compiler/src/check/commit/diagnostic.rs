@@ -1,8 +1,11 @@
 use destack_artifact::ToDiagnostic;
+use destack_dir as dir;
 use destack_source::{DiagnosticCollection, ModuleId};
 
 use crate::check::{
-    CheckError, CheckState, Constraint, Decision, Origin, StaticRelation, TypeRelation,
+    CallDecision, CallFailure, CheckError, CheckState, Constraint, ConstructDecision,
+    ConstructFailure, Decision, MemberDecision, MemberFailure, OperatorDecision,
+    OperatorFailureReason, OperatorTermKind, Origin, StaticRelation, TypeRelation,
 };
 use crate::{CompilerResult, DiagnosticAnchor};
 
@@ -12,6 +15,7 @@ impl CheckState<'_> {
         let mut diagnostics = Vec::new();
 
         self.collect_walk_diagnostics(&mut diagnostics);
+        self.collect_selection_diagnostics(&mut diagnostics);
         self.collect_constraint_diagnostics(&mut diagnostics)?;
         diagnostics.extend(self.check_obligations()?);
 
@@ -32,6 +36,112 @@ impl CheckState<'_> {
         // drain walk diagnostics in stable module order
         for module in modules {
             diagnostics.append(&mut self.module_mut(module).diagnostics);
+        }
+    }
+
+    /// Collect diagnostics for rejected selections.
+    fn collect_selection_diagnostics(&self, diagnostics: &mut Vec<CheckError>) {
+        self.collect_member_diagnostics(diagnostics);
+        self.collect_call_diagnostics(diagnostics);
+        self.collect_construct_diagnostics(diagnostics);
+        self.collect_operator_diagnostics(diagnostics);
+    }
+
+    /// Collect rejected member diagnostics.
+    fn collect_member_diagnostics(&self, diagnostics: &mut Vec<CheckError>) {
+        for (source, decision) in self.inference.members() {
+            let MemberDecision::Rejected(failure) = decision else {
+                continue;
+            };
+            let MemberFailure::Missing { key } = failure;
+            let module = source.module_id;
+            let anchor = self.diagnostic_anchor(module, source.local_id);
+            let key = self.member_key_label(module, key);
+            let diagnostic = CheckError::MissingMember {
+                anchor,
+                module,
+                key,
+            };
+
+            diagnostics.push(diagnostic);
+        }
+    }
+
+    /// Collect rejected call diagnostics.
+    fn collect_call_diagnostics(&self, diagnostics: &mut Vec<CheckError>) {
+        for (source, decision) in self.inference.calls() {
+            let CallDecision::Rejected(failure) = decision else {
+                continue;
+            };
+            let module = source.module_id;
+            let anchor = self.diagnostic_anchor(module, source.local_id);
+            let diagnostic = match failure {
+                CallFailure::NotCallable => CheckError::NotCallable { anchor, module },
+                CallFailure::NoMatch | CallFailure::ArgumentType { .. } => {
+                    CheckError::NoMatchingCall { anchor, module }
+                }
+            };
+
+            diagnostics.push(diagnostic);
+        }
+    }
+
+    /// Collect rejected construct diagnostics.
+    fn collect_construct_diagnostics(&self, diagnostics: &mut Vec<CheckError>) {
+        for (source, decision) in self.inference.constructs() {
+            let ConstructDecision::Rejected(failure) = decision else {
+                continue;
+            };
+            let module = source.module_id;
+            let anchor = self.diagnostic_anchor(module, source.local_id);
+            let diagnostic = match failure {
+                ConstructFailure::NotConstructible => CheckError::NotCallable { anchor, module },
+                ConstructFailure::NoMatch => CheckError::NoMatchingCall { anchor, module },
+            };
+
+            diagnostics.push(diagnostic);
+        }
+    }
+
+    /// Collect rejected operator diagnostics.
+    fn collect_operator_diagnostics(&self, diagnostics: &mut Vec<CheckError>) {
+        for (source, decision) in self.inference.operators() {
+            let OperatorDecision::Rejected(failure) = decision else {
+                continue;
+            };
+            let module = source.module_id;
+            let anchor = self.diagnostic_anchor(module, source.local_id);
+            let diagnostic = match failure.reason {
+                OperatorFailureReason::NoMatch => CheckError::NoMatchingOperator {
+                    anchor,
+                    module,
+                    operator: self.operator_label(failure.kind).to_owned(),
+                },
+                OperatorFailureReason::InvalidStrictEquality => {
+                    CheckError::InvalidStrictEquality { anchor, module }
+                }
+            };
+
+            diagnostics.push(diagnostic);
+        }
+    }
+
+    /// Return a diagnostic label for one member key.
+    fn member_key_label(&self, module: ModuleId, key: dir::StaticKey) -> String {
+        match key {
+            dir::StaticKey::Name(name) => self.module(module).strings.get(name).to_owned(),
+            dir::StaticKey::Index(index) => index.to_string(),
+            dir::StaticKey::Symbol(symbol) => {
+                symbol.debug_string(self.compiler.repository.string_pool())
+            }
+        }
+    }
+
+    /// Return a diagnostic label for one operator.
+    fn operator_label(&self, kind: OperatorTermKind) -> &'static str {
+        match kind {
+            OperatorTermKind::Unary(operator) => operator.text(),
+            OperatorTermKind::Binary(operator) => operator.text(),
         }
     }
 
@@ -156,6 +266,6 @@ impl CheckState<'_> {
 
     /// Return the diagnostic anchor for a constraint origin.
     fn anchor(&self, origin: Origin) -> (ModuleId, DiagnosticAnchor) {
-        self.diagnostic_anchor_for_origin(origin)
+        self.origin_diagnostic_anchor(origin)
     }
 }

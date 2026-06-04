@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{CheckState, ExtensionDefinition, ExtensionWhereClause};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Build extension declarations from walked operands.
@@ -34,15 +34,22 @@ impl CheckState<'_> {
         let declaration_id = source.local_id.into_typed::<dir::Declaration>();
         let declaration = self.module(module).view().get(declaration_id).clone();
         let dir::Declaration::Extension(declaration) = declaration else {
-            panic!("extension symbol {symbol:?} does not point at an extension declaration");
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "extension symbol {symbol:?} does not point at an extension declaration"
+                ),
+            });
         };
         let target_source = declaration.target_type.into_global_any(module);
-        let target_symbol = self
-            .selected_name(target_source)
-            .unwrap_or_else(|| panic!("extension target {target_source:?} has no selected symbol"));
-        let target_type = self.node_type_operand(target_source);
+        let Some(target_symbol) = self.selected_name(target_source) else {
+            return Err(CompilerError::Internal {
+                message: format!("extension target {target_source:?} has no selected symbol"),
+            });
+        };
+        let target_type = self.node_type_operand(target_source)?;
         let form = Self::extension_form(module, &declaration, target_symbol);
-        let where_clauses = self.build_extension_where_clauses(module, &declaration.where_clauses);
+        let where_clauses =
+            self.build_extension_where_clauses(module, &declaration.where_clauses)?;
 
         Ok(ExtensionDefinition {
             source,
@@ -80,7 +87,7 @@ impl CheckState<'_> {
         &self,
         module: ModuleId,
         clauses: &[dir::LocalNodeId<dir::WhereClause>],
-    ) -> Vec<ExtensionWhereClause> {
+    ) -> CompilerResult<Vec<ExtensionWhereClause>> {
         let mut where_clauses = Vec::with_capacity(clauses.len());
         let view = self.module(module).view();
 
@@ -88,8 +95,8 @@ impl CheckState<'_> {
         for clause in clauses {
             let source = clause.into_global_any(module);
             let clause = view.get(*clause);
-            let left = self.node_type_operand(clause.left.into_global_any(module));
-            let right = self.node_type_operand(clause.right.into_global_any(module));
+            let left = self.node_type_operand(clause.left.into_global_any(module))?;
+            let right = self.node_type_operand(clause.right.into_global_any(module))?;
 
             where_clauses.push(ExtensionWhereClause {
                 source,
@@ -98,7 +105,7 @@ impl CheckState<'_> {
             });
         }
 
-        where_clauses
+        Ok(where_clauses)
     }
 
     /// Return how one extension should be made visible.

@@ -2,11 +2,11 @@ use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
     CheckState, Layout, LayoutDecision, LayoutField, LayoutResolution, LayoutShape, LayoutType,
     VariantCaseLayout, VariantTagLayout,
 };
+use crate::{CompilerError, CompilerResult};
 
 use super::CheckModuleOutput;
 
@@ -69,14 +69,20 @@ impl CheckState<'_> {
             .module(symbol.module_id)
             .symbol_declaration_node(symbol.local_id);
         let Some(operand) = self.inputs.symbol_type(symbol) else {
-            panic!("check nominal symbol {symbol:?} has no type operand")
+            return Err(CompilerError::Internal {
+                message: format!("nominal symbol {symbol:?} has no type operand"),
+            });
         };
         let Some(layout) = self.type_operand_layout(module, operand, pointer_bytes)? else {
             return Ok(());
         };
         let Some(type_id) = self.commit_type_operand(module, output, environment, operand, source)
         else {
-            panic!("check nominal symbol {symbol:?} has unresolved type operand {operand:?}")
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "nominal symbol {symbol:?} has unresolved type operand {operand:?}"
+                ),
+            });
         };
 
         self.commit_type_layout(module, output, environment, table, type_id, &layout, source);

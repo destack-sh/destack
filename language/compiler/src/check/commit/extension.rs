@@ -3,6 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::check::{CheckState, ExtensionDefinition};
+use crate::{CompilerError, CompilerResult};
 
 use super::CheckModuleOutput;
 
@@ -13,7 +14,7 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-    ) -> dir::ExtensionSegment {
+    ) -> CompilerResult<dir::ExtensionSegment> {
         let mut table = dir::ExtensionSegment::new(module);
         let definitions = self
             .extensions
@@ -25,12 +26,12 @@ impl CheckState<'_> {
         for (symbol, definition) in definitions {
             let source = definition.source;
             let extension =
-                self.commit_extension_definition(module, output, environment, symbol, definition);
+                self.commit_extension_definition(module, output, environment, symbol, definition)?;
 
             table.insert_extension(source, extension);
         }
 
-        table
+        Ok(table)
     }
 
     /// Commit one extension definition.
@@ -41,26 +42,26 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         symbol: dir::GlobalSymbolId,
         definition: ExtensionDefinition,
-    ) -> dir::Extension {
+    ) -> CompilerResult<dir::Extension> {
         let source = definition.source.local_id;
         let target_type = self
             .commit_type_operand(module, output, environment, definition.target_type, source)
-            .unwrap_or_else(|| {
-                panic!(
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
                     "extension target {:?} has no committed type",
                     definition.source
-                )
+                ),
             });
         let where_clauses =
-            self.commit_extension_where_clauses(module, output, environment, &definition);
+            self.commit_extension_where_clauses(module, output, environment, &definition)?;
 
-        dir::Extension::new(
+        Ok(dir::Extension::new(
             symbol,
             definition.form,
             definition.target_symbol,
-            target_type,
+            target_type?,
             where_clauses,
-        )
+        ))
     }
 
     /// Commit extension where clauses.
@@ -70,7 +71,7 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         definition: &ExtensionDefinition,
-    ) -> Vec<dir::ExtensionWhereClause> {
+    ) -> CompilerResult<Vec<dir::ExtensionWhereClause>> {
         let mut where_clauses = Vec::with_capacity(definition.where_clauses.len());
 
         // commit each where clause operand pair
@@ -78,28 +79,28 @@ impl CheckState<'_> {
             let source = where_clause.source.local_id;
             let left = self
                 .commit_type_operand(module, output, environment, where_clause.left, source)
-                .unwrap_or_else(|| {
-                    panic!(
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!(
                         "extension where clause {:?} has no committed left type",
                         where_clause.source
-                    )
+                    ),
                 });
             let right = self
                 .commit_type_operand(module, output, environment, where_clause.right, source)
-                .unwrap_or_else(|| {
-                    panic!(
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!(
                         "extension where clause {:?} has no committed right type",
                         where_clause.source
-                    )
+                    ),
                 });
 
             where_clauses.push(dir::ExtensionWhereClause {
                 source: where_clause.source,
-                left,
-                right,
+                left: left?,
+                right: right?,
             });
         }
 
-        where_clauses
+        Ok(where_clauses)
     }
 }

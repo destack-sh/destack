@@ -18,7 +18,7 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-    ) {
+    ) -> CompilerResult<()> {
         let node_types = self.inputs.node_types_in(module).collect::<Vec<_>>();
         let symbol_types = self.inputs.symbol_types_in(module).collect::<Vec<_>>();
 
@@ -27,7 +27,7 @@ impl CheckState<'_> {
             let Some(type_id) =
                 self.commit_type_operand(module, output, environment, operand, node.local_id)
             else {
-                self.panic_unresolved_node_type(module, node, operand);
+                return Err(self.unresolved_node_type_error(module, node, operand));
             };
 
             output.types.set_node_type(node, type_id);
@@ -41,11 +41,13 @@ impl CheckState<'_> {
             let Some(type_id) =
                 self.commit_type_operand(module, output, environment, operand, source)
             else {
-                self.panic_unresolved_symbol_type(module, symbol, operand);
+                return Err(self.unresolved_symbol_type_error(module, symbol, operand));
             };
 
             output.types.set_symbol_type(symbol, type_id);
         }
+
+        Ok(())
     }
 
     /// Commit source static operands into the output static table.
@@ -54,18 +56,20 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-    ) {
+    ) -> CompilerResult<()> {
         let symbol_statics = self.inputs.symbol_statics_in(module).collect::<Vec<_>>();
 
         // write source symbol statics
         for (symbol, operand) in symbol_statics {
             let Some(static_id) = self.commit_static_operand(module, output, environment, operand)
             else {
-                self.panic_unresolved_symbol_static(module, symbol, operand);
+                return Err(self.unresolved_symbol_static_error(module, symbol, operand));
             };
 
             output.statics.set_symbol_static(symbol, static_id);
         }
+
+        Ok(())
     }
 
     /// Return the output type already attached to one operand.
@@ -204,8 +208,8 @@ impl CheckState<'_> {
         let reduced =
             match self.reduce_committable_type_term(origin, module, term, can_reduce_members) {
                 Ok(reduced) => reduced?,
-                Err(error) => {
-                    panic!("check type term failed to reduce during commit: {error:?}")
+                Err(_) => {
+                    return None;
                 }
             };
         if reduced != *term {
