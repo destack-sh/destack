@@ -12,8 +12,8 @@ impl SnapshotTable for dir::GenericSegment {
                 .field("symbol", builder.symbol_path_label(template.owner))
                 .list_field(
                     "parameters",
-                    template.slots.iter().map(|slot| {
-                        generic_template_parameter_label(self.get_parameter(*slot), builder)
+                    template.parameters.iter().map(|parameter| {
+                        generic_template_parameter_label(self.get_parameter(*parameter), builder)
                     }),
                 );
 
@@ -60,7 +60,7 @@ impl SnapshotTable for dir::GenericSegment {
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "generic", "summary")
             .count_field("templates", template_count)
-            .count_field("slots", parameter_count)
+            .count_field("parameters", parameter_count)
             .count_field("instances", instance_count)
             .count_field("application_sites", application_site_count);
         builder.push(row);
