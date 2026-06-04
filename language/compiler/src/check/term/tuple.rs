@@ -55,7 +55,7 @@ impl CheckState<'_> {
 
     /// Decide exact equality for tuple element lists.
     pub(in crate::check) fn decide_tuple_elements_equal(
-        &self,
+        &mut self,
         left: &[TupleElement],
         right: &[TupleElement],
     ) -> CompilerResult<Decision> {
@@ -77,7 +77,7 @@ impl CheckState<'_> {
 
     /// Decide tuple element assignability.
     pub(in crate::check) fn decide_tuple_elements_assignable(
-        &self,
+        &mut self,
         source: &[TupleElement],
         target: &[TupleElement],
     ) -> CompilerResult<Decision> {
@@ -161,7 +161,7 @@ impl CheckState<'_> {
 
     /// Decide exact equality for one tuple element.
     fn decide_tuple_element_equal(
-        &self,
+        &mut self,
         left: &TupleElement,
         right: &TupleElement,
     ) -> CompilerResult<Decision> {
@@ -178,7 +178,7 @@ impl CheckState<'_> {
 
     /// Decide one tuple element assignability.
     fn decide_tuple_element_assignable(
-        &self,
+        &mut self,
         source: &TupleElement,
         target: &TupleElement,
     ) -> CompilerResult<Decision> {

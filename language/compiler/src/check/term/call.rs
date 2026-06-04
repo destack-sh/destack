@@ -74,8 +74,8 @@ pub(in crate::check) enum CallCallee {
 /// ```
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct MemberCallTerm {
-    /// The source that introduced this member call.
-    pub(in crate::check) source: MemberCallSource,
+    /// The origin that introduced this member projection.
+    pub(in crate::check) origin: MemberProjectionOrigin,
     /// The receiver type.
     pub(in crate::check) receiver: TypeOperand,
     /// The selected member key.
@@ -84,7 +84,7 @@ pub(in crate::check) struct MemberCallTerm {
     pub(in crate::check) arguments: SmallVec<[GenericArgument; 2]>,
 }
 
-/// How a member call was introduced.
+/// Origin of a member projection used as a call callee.
 ///
 /// Examples:
 /// ```ds
@@ -92,7 +92,7 @@ pub(in crate::check) struct MemberCallTerm {
 /// receiver[index]()
 /// ```
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) enum MemberCallSource {
+pub(in crate::check) enum MemberProjectionOrigin {
     /// Source member call expression.
     ///
     /// Examples:
@@ -192,12 +192,24 @@ impl CheckState<'_> {
             CallableDispatch::CallRejected(failure) => {
                 self.reject_call_from_callable(call, failure.clone())?;
 
-                return Ok(Reduction::progress(progress));
+                return Ok(Reduction {
+                    value: Some(TypeTerm::Literal(TypeLiteralTerm::Error)),
+                    progress,
+                });
             }
             CallableDispatch::ConstructRejected(failure) => {
                 self.reject_construct_from_callable(call, *failure)?;
 
-                return Ok(Reduction::progress(progress));
+                return Ok(Reduction {
+                    value: Some(TypeTerm::Literal(TypeLiteralTerm::Error)),
+                    progress,
+                });
+            }
+            CallableDispatch::Invalid { .. } => {
+                return Ok(Reduction {
+                    value: Some(TypeTerm::Literal(TypeLiteralTerm::Error)),
+                    progress,
+                });
             }
             CallableDispatch::Pending { .. } => return Ok(Reduction::progress(progress)),
         };
@@ -254,13 +266,26 @@ impl CheckState<'_> {
             }
             CallableDispatch::CallRejected(failure) => {
                 self.reject_call_from_callable(call, failure.clone())?;
+                let error = self
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
 
-                progress
+                progress.merge(self.relate_contextual_type_assignability(origin, error, result)?)
             }
             CallableDispatch::ConstructRejected(failure) => {
                 self.reject_construct_from_callable(call, *failure)?;
+                let error = self
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
 
-                progress
+                progress.merge(self.relate_contextual_type_assignability(origin, error, result)?)
+            }
+            CallableDispatch::Invalid { .. } => {
+                let error = self
+                    .inference
+                    .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
+
+                progress.merge(self.relate_contextual_type_assignability(origin, error, result)?)
             }
             CallableDispatch::Pending { .. } => progress,
         };
@@ -345,7 +370,7 @@ impl CheckState<'_> {
             return Ok(());
         };
         let member = self.inference.term(member);
-        let MemberCallSource::Expression { source } = member.source else {
+        let MemberProjectionOrigin::Expression { source } = member.origin else {
             return Ok(());
         };
         let receiver = member.receiver;

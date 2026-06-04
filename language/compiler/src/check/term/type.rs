@@ -5,12 +5,13 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     AwaitTerm, CallCallee, CallTerm, CheckState, ConstructTerm, Decision, FormTerm, FunctionTerm,
-    GenericArgument, GenericParameterId, IdentityTerm, ImportMetaTerm, IndexSetTerm, IndexTerm,
-    InstanceCheckTerm, KeyMembershipTerm, MemberCallSource, MemberCallTerm, MemberProtocol,
-    MemberTerm, OperatorTerm, Origin, Progress, RangeValueTerm, ReceiverTerm, Reduction,
-    ShapeMember, ShapeTerm, StaticOperand, StaticRelation, StaticTerm, Substitution, SuperTerm,
-    TaggedTemplateTerm, TemplateTerm, TermId, TreeTerm, TryFailureTerm, TryTerm, TupleElement,
-    TypeOperand, TypeOperationTerm, TypeRelation, TypeValueTerm, VariableId, YieldTerm,
+    GenericArgument, GenericParameterId, GenericSubstitution, IdentityTerm, ImportMetaTerm,
+    IndexSetTerm, IndexTerm, InstanceCheckTerm, KeyMembershipTerm, MemberCallTerm, MemberLookup,
+    MemberProjectionOrigin, MemberProtocol, MemberTerm, OperatorTerm, Origin, Progress,
+    RangeValueTerm, ReceiverTerm, Reduction, ShapeMember, ShapeTerm, StaticOperand, StaticRelation,
+    StaticTerm, Substitution, SuperTerm, TaggedTemplateTerm, TemplateTerm, TermId, TreeTerm,
+    TryFailureTerm, TryTerm, TupleElement, TypeOperand, TypeOperationTerm, TypeRelation,
+    TypeValueTerm, VariableId, YieldTerm,
 };
 
 /// Literal type value with no nested table references.
@@ -121,6 +122,30 @@ impl TypeLiteralTerm {
     /// Return the builtin bigint type.
     pub(in crate::check) fn bigint() -> Self {
         Self::Primitive(dir::PrimitiveType::Bigint)
+    }
+
+    /// Convert one source type literal into a solver literal.
+    pub(in crate::check) fn from_literal(value: &dir::TypeLiteral) -> Self {
+        match value {
+            dir::TypeLiteral::Never => Self::Never,
+            dir::TypeLiteral::Any => Self::Any,
+            dir::TypeLiteral::Undefined => Self::Undefined,
+            dir::TypeLiteral::Unknown => Self::Unknown,
+            dir::TypeLiteral::Object => Self::Object,
+            dir::TypeLiteral::Void => Self::Void,
+            dir::TypeLiteral::Null => Self::Null,
+            dir::TypeLiteral::Boolean => Self::boolean(),
+            dir::TypeLiteral::Character => Self::Primitive(dir::PrimitiveType::Character),
+            dir::TypeLiteral::String => Self::Primitive(dir::PrimitiveType::String),
+            dir::TypeLiteral::Bigint => Self::bigint(),
+            dir::TypeLiteral::Number => Self::number(),
+            dir::TypeLiteral::Integer(integer) => {
+                Self::Primitive(dir::PrimitiveType::Integer(*integer))
+            }
+            dir::TypeLiteral::Float(float) => Self::Primitive(dir::PrimitiveType::Float(*float)),
+            dir::TypeLiteral::Symbol => Self::Primitive(dir::PrimitiveType::Symbol),
+            dir::TypeLiteral::UniqueSymbol => Self::Primitive(dir::PrimitiveType::UniqueSymbol),
+        }
     }
 
     /// Convert one literal DIR type into a solver literal.
@@ -784,7 +809,7 @@ impl CheckState<'_> {
 
     /// Decide one type term relation.
     pub(in crate::check) fn decide_type_term_relation(
-        &self,
+        &mut self,
         relation: TypeRelation,
         left: &TypeTerm,
         right: &TypeTerm,
@@ -804,7 +829,7 @@ impl CheckState<'_> {
 
     /// Decide one solved type relation.
     pub(in crate::check) fn decide_type_relation(
-        &self,
+        &mut self,
         relation: TypeRelation,
         left: impl Into<TypeOperand>,
         right: impl Into<TypeOperand>,
@@ -845,7 +870,7 @@ impl CheckState<'_> {
 
     /// Decide array literal assignability into a fixed array target.
     fn decide_array_literal_fixed_array_relation(
-        &self,
+        &mut self,
         source: TypeOperand,
         target: TypeOperand,
     ) -> CompilerResult<Option<Decision>> {
@@ -1605,20 +1630,17 @@ impl TypeTerm {
         let substitution = substitution.into();
         let term = match self {
             TypeTerm::Parameter(parameter_id) => {
-                if let Some(argument) =
-                    state.substitution_type_parameter(substitution, *parameter_id)
+                if let Some(argument) = state.substitution_type_operand(substitution, *parameter_id)
                 {
-                    if let Some(term) = state.type_solution(argument)? {
-                        term
-                    } else {
+                    let Some(term) = state.type_operand_term(argument)? else {
                         return Ok(None);
-                    }
+                    };
+
+                    term
                 } else if let Some(argument) =
-                    state.substitution_static_parameter(substitution, *parameter_id)
+                    state.substitution_static_operand(substitution, *parameter_id)
                 {
-                    TypeTerm::StaticValue {
-                        value: argument.into(),
-                    }
+                    TypeTerm::StaticValue { value: argument }
                 } else {
                     self.clone()
                 }
@@ -1640,13 +1662,14 @@ impl TypeTerm {
                 arguments,
             } => {
                 if arguments.is_empty()
-                    && let Some(argument) = state.substitution_type_symbol(substitution, *symbol)
+                    && let Some(argument) =
+                        state.substitution_type_symbol_operand(substitution, *symbol)
                 {
-                    if let Some(term) = state.type_solution(argument)? {
-                        term
-                    } else {
+                    let Some(term) = state.type_operand_term(argument)? else {
                         return Ok(None);
-                    }
+                    };
+
+                    term
                 } else {
                     TypeTerm::Reference {
                         origin: *reference_origin,
@@ -1720,23 +1743,25 @@ impl TypeTerm {
                     },
                     CallCallee::Member(member) => {
                         let member = state.inference.term(member).clone();
-                        let source = match member.source {
-                            MemberCallSource::Expression { source } => {
-                                MemberCallSource::Expression { source }
+                        let origin = match member.origin {
+                            MemberProjectionOrigin::Expression { source } => {
+                                MemberProjectionOrigin::Expression { source }
                             }
-                            MemberCallSource::Protocol { protocol } => MemberCallSource::Protocol {
-                                protocol: MemberProtocol {
-                                    item: protocol.item,
-                                    arguments: state.substitute_arguments(
-                                        module,
-                                        substitution,
-                                        &protocol.arguments,
-                                    )?,
-                                },
-                            },
+                            MemberProjectionOrigin::Protocol { protocol } => {
+                                MemberProjectionOrigin::Protocol {
+                                    protocol: MemberProtocol {
+                                        item: protocol.item,
+                                        arguments: state.substitute_arguments(
+                                            module,
+                                            substitution,
+                                            &protocol.arguments,
+                                        )?,
+                                    },
+                                }
+                            }
                         };
                         let member = MemberCallTerm {
-                            source,
+                            origin,
                             receiver: state.substitute_type_operand(
                                 module,
                                 substitution,
@@ -2082,7 +2107,7 @@ impl TypeTerm {
 impl CheckState<'_> {
     /// Decide exact equality for type variable lists.
     pub(in crate::check) fn decide_type_variable_list_equal<L, R>(
-        &self,
+        &mut self,
         left: &[L],
         right: &[R],
     ) -> CompilerResult<Decision>
@@ -2112,7 +2137,7 @@ impl CheckState<'_> {
 
     /// Decide exact equality for optional type operands.
     pub(in crate::check) fn decide_optional_type_operand_equal(
-        &self,
+        &mut self,
         left: Option<TypeOperand>,
         right: Option<TypeOperand>,
     ) -> CompilerResult<Decision> {
@@ -2251,7 +2276,7 @@ impl CheckState<'_> {
                     return Ok(Progress::Unchanged);
                 };
 
-                self.expect_operator_term(origin, &operator, expected)?
+                self.expect_operator_term(origin, &operator, expected, expected_term)?
             }
             TypeTerm::Index(index) => {
                 let index = self.inference.term(*index).clone();
@@ -2387,7 +2412,7 @@ impl CheckState<'_> {
 
     /// Decide whether an explicit cast is valid.
     fn decide_type_castable(
-        &self,
+        &mut self,
         source: &TypeTerm,
         target: &TypeTerm,
     ) -> CompilerResult<Decision> {
@@ -2407,7 +2432,7 @@ impl CheckState<'_> {
     }
 
     /// Decide exact type equality.
-    fn decide_type_equal(&self, left: &TypeTerm, right: &TypeTerm) -> CompilerResult<Decision> {
+    fn decide_type_equal(&mut self, left: &TypeTerm, right: &TypeTerm) -> CompilerResult<Decision> {
         if left == right {
             return Ok(Decision::Yes);
         }
@@ -2504,13 +2529,16 @@ impl CheckState<'_> {
                 }
             }
             (TypeTerm::Shape(left), TypeTerm::Shape(right)) => {
-                let left = &self.inference.term(*left).members;
-                let right = &self.inference.term(*right).members;
+                let left = self.inference.term(*left).members.clone();
+                let right = self.inference.term(*right).members.clone();
 
-                self.decide_shape_members_equal(left, right)?
+                self.decide_shape_members_equal(&left, &right)?
             }
             (TypeTerm::Function(left), TypeTerm::Function(right)) => {
-                self.decide_function_equal(self.inference.term(*left), self.inference.term(*right))?
+                let left = self.inference.term(*left).clone();
+                let right = self.inference.term(*right).clone();
+
+                self.decide_function_equal(&left, &right)?
             }
             (
                 TypeTerm::Range {
@@ -2546,7 +2574,7 @@ impl CheckState<'_> {
 
     /// Decide assignability from source to target.
     fn decide_type_assignable(
-        &self,
+        &mut self,
         source: &TypeTerm,
         target: &TypeTerm,
     ) -> CompilerResult<Decision> {
@@ -2641,10 +2669,10 @@ impl CheckState<'_> {
                 }
             }
             (TypeTerm::Shape(source), TypeTerm::Shape(target)) => {
-                let source = &self.inference.term(*source).members;
-                let target = &self.inference.term(*target).members;
+                let source = self.inference.term(*source).members.clone();
+                let target = self.inference.term(*target).members.clone();
 
-                self.decide_shape_assignable(source, target)?
+                self.decide_shape_assignable(&source, &target)?
             }
             _ => Decision::Undecidable,
         };
@@ -2654,7 +2682,7 @@ impl CheckState<'_> {
 
     /// Decide whether source satisfies one target constraint.
     fn decide_type_satisfies(
-        &self,
+        &mut self,
         source: &TypeTerm,
         target: &TypeTerm,
     ) -> CompilerResult<Decision> {
@@ -2664,13 +2692,186 @@ impl CheckState<'_> {
 
         let decision = match (source, target) {
             (TypeTerm::Shape(source), TypeTerm::Shape(target)) => {
-                let source = &self.inference.term(*source).members;
-                let target = &self.inference.term(*target).members;
+                let source = self.inference.term(*source).members.clone();
+                let target = self.inference.term(*target).members.clone();
 
-                self.decide_shape_satisfies(source, target)?
+                self.decide_shape_satisfies(&source, &target)?
             }
+            (
+                TypeTerm::Reference {
+                    origin: _,
+                    symbol: source_symbol,
+                    arguments: source_arguments,
+                },
+                TypeTerm::Reference {
+                    origin: _,
+                    symbol: target_symbol,
+                    arguments: target_arguments,
+                },
+            ) => self.decide_nominal_satisfies(
+                *source_symbol,
+                source_arguments,
+                *target_symbol,
+                target_arguments,
+            )?,
             _ => self.decide_type_assignable(source, target)?,
         };
+
+        Ok(decision)
+    }
+
+    /// Decide whether one nominal reference satisfies another nominal constraint.
+    fn decide_nominal_satisfies(
+        &mut self,
+        source_symbol: dir::GlobalSymbolId,
+        source_arguments: &[GenericArgument],
+        target_symbol: dir::GlobalSymbolId,
+        target_arguments: &[GenericArgument],
+    ) -> CompilerResult<Decision> {
+        if !self.symbol_kind(target_symbol).is_interface() {
+            return Ok(Decision::Undecidable);
+        }
+        let target_members = self.named_member_symbols(target_symbol);
+        let target_substitution = self.generic_substitution(target_symbol, target_arguments)?;
+        let source = TypeTerm::Reference {
+            origin: Origin::Symbol(source_symbol),
+            symbol: source_symbol,
+            arguments: source_arguments.to_vec().into(),
+        };
+        let mut decision = Decision::Yes;
+
+        // require every interface member from the source nominal type
+        for (key, target_member) in target_members {
+            let member = self.decide_nominal_member_satisfies(
+                &source,
+                key,
+                target_member,
+                &target_substitution,
+            )?;
+
+            decision = decision.and(member);
+            if decision == Decision::No {
+                return Ok(decision);
+            }
+        }
+
+        Ok(decision)
+    }
+
+    /// Decide whether one source nominal member satisfies one target member.
+    fn decide_nominal_member_satisfies(
+        &mut self,
+        source: &TypeTerm,
+        key: dir::StaticKey,
+        target_member: dir::GlobalSymbolId,
+        target_substitution: &GenericSubstitution,
+    ) -> CompilerResult<Decision> {
+        let target_member_symbol = target_member;
+        let candidates = self.lookup_type_member(
+            Origin::Symbol(target_member),
+            target_member.module_id,
+            source,
+            &key,
+        )?;
+        let MemberLookup::Found(mut candidates) = candidates else {
+            return Ok(Decision::No);
+        };
+        if candidates.len() != 1 {
+            return Ok(Decision::Undecidable);
+        }
+        let source_member = candidates.remove(0);
+        let target_member =
+            self.import_symbol_type_operand(target_member.module_id, target_member)?;
+        let Some(target_member) = self.type_operand_term(target_member)? else {
+            return Ok(Decision::Undecidable);
+        };
+        let target_member = if target_substitution.is_empty() {
+            target_member
+        } else {
+            let Some(term) = target_member.substitute(
+                target_member_symbol.module_id,
+                target_substitution,
+                self,
+            )?
+            else {
+                return Ok(Decision::Undecidable);
+            };
+
+            term
+        };
+
+        self.decide_member_type_satisfies(&source_member.ty, &target_member)
+    }
+
+    /// Decide whether one member type satisfies another member type.
+    fn decide_member_type_satisfies(
+        &mut self,
+        source: &TypeTerm,
+        target: &TypeTerm,
+    ) -> CompilerResult<Decision> {
+        match (source, target) {
+            (TypeTerm::Function(source), TypeTerm::Function(target)) => {
+                let source = self.inference.term(*source).clone();
+                let target = self.inference.term(*target).clone();
+
+                self.decide_member_function_satisfies(&source, &target)
+            }
+            _ => self.decide_type_satisfies(source, target),
+        }
+    }
+
+    /// Decide whether one member function satisfies another member function.
+    fn decide_member_function_satisfies(
+        &mut self,
+        source: &FunctionTerm,
+        target: &FunctionTerm,
+    ) -> CompilerResult<Decision> {
+        if source.asynchrony != target.asynchrony || source.is_generator != target.is_generator {
+            return Ok(Decision::No);
+        }
+
+        self.decide_member_function_signature_satisfies(source, target)
+    }
+
+    /// Decide whether one member function signature satisfies another.
+    fn decide_member_function_signature_satisfies(
+        &mut self,
+        source: &FunctionTerm,
+        target: &FunctionTerm,
+    ) -> CompilerResult<Decision> {
+        if source.parameters.len() != target.parameters.len() {
+            return Ok(Decision::No);
+        }
+        let mut decision = Decision::Yes;
+
+        // compare runtime parameters contravariantly
+        for (source, target) in source.parameters.iter().zip(&target.parameters) {
+            if source.is_optional != target.is_optional || source.is_rest != target.is_rest {
+                return Ok(Decision::No);
+            }
+
+            decision = decision.and(self.decide_type_relation(
+                TypeRelation::Satisfies,
+                target.ty,
+                source.ty,
+            )?);
+            if decision == Decision::No {
+                return Ok(decision);
+            }
+        }
+
+        // compare return types covariantly
+        match (source.return_type, target.return_type) {
+            (Some(source), Some(target)) => {
+                decision = decision.and(self.decide_type_relation(
+                    TypeRelation::Satisfies,
+                    source,
+                    target,
+                )?);
+            }
+            (None, None) => {}
+            _ => return Ok(Decision::No),
+        }
 
         Ok(decision)
     }
@@ -2764,7 +2965,7 @@ impl CheckState<'_> {
                 TypeTerm::Literal(TypeLiteralTerm::Scalar(value.clone()))
             }
             StaticTerm::Literal(dir::StaticTerm::Type { ty }) => {
-                let operand = self.import_type_operand(module, *ty);
+                let operand = self.import_type_operand(module, *ty)?;
                 let Some(term) = self.type_operand_term(operand)? else {
                     return Ok(None);
                 };
@@ -2945,7 +3146,7 @@ impl CheckState<'_> {
 
     /// Decide whether all source union elements assign to a target.
     fn decide_all_sources_assignable(
-        &self,
+        &mut self,
         sources: &[TypeOperand],
         target: &TypeTerm,
     ) -> CompilerResult<Decision> {
@@ -2964,7 +3165,7 @@ impl CheckState<'_> {
 
     /// Decide whether one source assigns to any target union element.
     fn decide_any_target_assignable(
-        &self,
+        &mut self,
         source: &TypeTerm,
         targets: &[TypeOperand],
     ) -> CompilerResult<Decision> {

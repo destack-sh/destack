@@ -5,9 +5,9 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     CandidateResolution, CheckState, GenericArgument, GenericParameterId, GenericSubstitution,
-    MemberCandidate, MemberDecision, MemberFailure, MemberProtocol, MemberResolution,
-    MemberTargetResolution, Origin, ShapeMember, StaticTerm, Substitution, TermId, TupleElement,
-    TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
+    MemberDecision, MemberFailure, MemberLookup, MemberResolution, MemberTargetResolution, Origin,
+    ShapeMember, StaticTerm, Substitution, TermId, TupleElement, TypeOperand, TypeOperationTerm,
+    TypeRelation, TypeTerm, VariableId,
 };
 
 use crate::check::{Decision, Reduction};
@@ -89,47 +89,51 @@ impl CheckState<'_> {
 
         // select solved member for commit and diagnostics
         if let Origin::Node(source) = source {
-            let decision = if let Some(mut members) =
-                self.member_type_candidates(origin, module, &owner, &key)?
-            {
-                let target = if members.len() == 1 {
-                    let member = members.remove(0);
+            match self.lookup_type_member(origin, module, &owner, &key)? {
+                MemberLookup::Pending => {}
+                MemberLookup::Found(mut members) => {
+                    let target = if members.len() == 1 {
+                        let member = members.remove(0);
 
-                    MemberTargetResolution::Symbol {
-                        symbol: member.symbol,
-                        instance: member.instance,
-                    }
-                } else {
-                    let members = members
-                        .into_iter()
-                        .map(|member| CandidateResolution {
+                        MemberTargetResolution::Symbol {
                             symbol: member.symbol,
                             instance: member.instance,
-                        })
-                        .collect();
+                        }
+                    } else {
+                        let members = members
+                            .into_iter()
+                            .map(|member| CandidateResolution {
+                                symbol: member.symbol,
+                                instance: member.instance,
+                            })
+                            .collect();
 
-                    MemberTargetResolution::Union(members)
-                };
-                let member = MemberResolution {
-                    source,
-                    receiver,
-                    target,
-                };
+                        MemberTargetResolution::Union(members)
+                    };
+                    let member = MemberResolution {
+                        source,
+                        receiver,
+                        target,
+                    };
 
-                MemberDecision::Resolved(member)
-            } else if self.type_term_has_field(module, &owner, &key)? {
-                let member = MemberResolution {
-                    source,
-                    receiver,
-                    target: MemberTargetResolution::Field(key),
-                };
+                    self.select_member(source, MemberDecision::Resolved(member))?;
+                }
+                MemberLookup::Missing if self.type_term_has_field(module, &owner, &key)? => {
+                    let member = MemberResolution {
+                        source,
+                        receiver,
+                        target: MemberTargetResolution::Field(key),
+                    };
 
-                MemberDecision::Resolved(member)
-            } else {
-                MemberDecision::Rejected(MemberFailure::Missing)
-            };
-
-            self.select_member(source, decision)?;
+                    self.select_member(source, MemberDecision::Resolved(member))?;
+                }
+                MemberLookup::Missing => {
+                    self.select_member(
+                        source,
+                        MemberDecision::Rejected(MemberFailure::Missing { key }),
+                    )?;
+                }
+            }
         }
 
         self.resolve_member_type(origin, module, &owner, &key, arguments)
@@ -161,6 +165,7 @@ impl CheckState<'_> {
                     self.parameter_member_type(module, origin, parameter, key, member_arguments)
                 } else {
                     self.instantiate_symbol_member_type(
+                        origin,
                         module,
                         *symbol,
                         arguments,
@@ -174,6 +179,7 @@ impl CheckState<'_> {
                 symbol,
                 arguments,
             } => self.instantiate_symbol_member_type(
+                origin,
                 module,
                 *symbol,
                 arguments,
@@ -274,15 +280,17 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         key: dir::StaticKey,
     ) -> CompilerResult<Option<StaticTerm>> {
-        let Some(member) = self.lookup_member_symbols(symbol, key).into_iter().next() else {
+        let members = self.member_symbols(symbol, key);
+        let [member] = members.as_slice() else {
             return Ok(None);
         };
         let substitution = GenericSubstitution::empty();
-        if self.reduce_symbol_availability(module, member, (&substitution).into())? != Decision::Yes
+        if self.reduce_symbol_availability(module, *member, (&substitution).into())?
+            != Decision::Yes
         {
             return Ok(None);
         }
-        let operand = self.import_symbol_static_operand(module, member);
+        let operand = self.import_symbol_static_operand(module, *member)?;
 
         self.static_operand_term(operand)
     }
@@ -290,20 +298,24 @@ impl CheckState<'_> {
     /// Instantiate a member type from one applied nominal declaration.
     fn instantiate_symbol_member_type(
         &mut self,
+        origin: Origin,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
         arguments: &[GenericArgument],
         key: dir::StaticKey,
         member_arguments: &[GenericArgument],
     ) -> CompilerResult<Option<TypeTerm>> {
-        for member in self.lookup_member_symbols(symbol, key) {
+        let mut members = Vec::new();
+
+        // collect inherent member types
+        for member in self.member_symbols(symbol, key) {
             let substitution = self.generic_substitution(symbol, arguments)?;
             if self.reduce_symbol_availability(module, member, (&substitution).into())?
                 != Decision::Yes
             {
-                return Ok(None);
+                continue;
             }
-            let operand = self.import_symbol_type_operand(module, member);
+            let operand = self.import_symbol_type_operand(module, member)?;
             let Some(mut term) = self.type_operand_term(operand)? else {
                 return Ok(None);
             };
@@ -316,32 +328,58 @@ impl CheckState<'_> {
                 term = substituted;
             }
 
-            return self.instantiate_member_type(module, member, member_arguments, term);
-        }
-
-        let Some((_, member, substitution)) =
-            self.extension_member(module, symbol, arguments, key, None)?
-        else {
-            return Ok(None);
-        };
-        if self.reduce_symbol_availability(module, member, (&substitution).into())? != Decision::Yes
-        {
-            return Ok(None);
-        }
-        let operand = self.import_symbol_type_operand(module, member);
-        let Some(mut term) = self.type_operand_term(operand)? else {
-            return Ok(None);
-        };
-
-        if !substitution.is_empty() {
-            let Some(substituted) = term.substitute(module, &substitution, self)? else {
+            let Some(term) =
+                self.instantiate_member_type(module, member, member_arguments, term)?
+            else {
                 return Ok(None);
             };
 
-            term = substituted;
+            members.push(term);
         }
 
-        self.instantiate_member_type(module, member, member_arguments, term)
+        // collect extension member types
+        for (_, member, substitution) in
+            self.lookup_extension_members(origin, module, symbol, arguments, key)?
+        {
+            if self.reduce_symbol_availability(module, member, (&substitution).into())?
+                != Decision::Yes
+            {
+                continue;
+            }
+            let operand = self.import_symbol_type_operand(module, member)?;
+            let Some(mut term) = self.type_operand_term(operand)? else {
+                return Ok(None);
+            };
+
+            if !substitution.is_empty() {
+                let Some(substituted) = term.substitute(module, &substitution, self)? else {
+                    return Ok(None);
+                };
+
+                term = substituted;
+            }
+
+            let Some(term) =
+                self.instantiate_member_type(module, member, member_arguments, term)?
+            else {
+                return Ok(None);
+            };
+
+            members.push(term);
+        }
+
+        match members.as_slice() {
+            [] => Ok(None),
+            [member] => Ok(Some(member.clone())),
+            _ => {
+                let elements = members
+                    .into_iter()
+                    .map(|member| self.inference.push_term(member).into())
+                    .collect();
+
+                Ok(Some(TypeTerm::Union { elements }))
+            }
+        }
     }
 
     /// Instantiate generic arguments declared by the selected member.
@@ -368,15 +406,17 @@ impl CheckState<'_> {
         arguments: &[GenericArgument],
         key: dir::StaticKey,
     ) -> CompilerResult<Option<StaticTerm>> {
-        let Some(member) = self.lookup_member_symbols(symbol, key).into_iter().next() else {
+        let members = self.member_symbols(symbol, key);
+        let [member] = members.as_slice() else {
             return Ok(None);
         };
         let substitution = self.generic_substitution(symbol, arguments)?;
-        if self.reduce_symbol_availability(module, member, (&substitution).into())? != Decision::Yes
+        if self.reduce_symbol_availability(module, *member, (&substitution).into())?
+            != Decision::Yes
         {
             return Ok(None);
         }
-        let operand = self.import_symbol_static_operand(module, member);
+        let operand = self.import_symbol_static_operand(module, *member)?;
         let Some(term) = self.static_operand_term(operand)? else {
             return Ok(None);
         };
@@ -393,7 +433,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<GenericParameterId>> {
-        let Some(slot) = self.inference.generic_parameter_id_for_symbol(symbol) else {
+        let Some(slot) = self.inference.symbol_generic_parameter(symbol) else {
             return Ok(None);
         };
         let generic = self.inference.generic_parameter(slot);
@@ -482,28 +522,23 @@ impl CheckState<'_> {
         module: ModuleId,
         elements: &[TypeOperand],
         key: &dir::StaticKey,
-        protocol: Option<&MemberProtocol>,
-    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
+    ) -> CompilerResult<MemberLookup> {
         let mut candidates = Vec::with_capacity(elements.len());
 
-        // collect one member candidate set per union element
+        // collect one member candidate lookup per union element
         for element in elements {
             let Some(term) = self.type_operand_term(*element)? else {
-                return Ok(None);
+                return Ok(MemberLookup::Pending);
             };
-            let Some(mut members) =
-                self.member_type_candidates_matching(origin, module, &term, key, protocol)?
-            else {
-                return Ok(None);
+            match self.lookup_type_member_matching(origin, module, &term, key)? {
+                MemberLookup::Pending => return Ok(MemberLookup::Pending),
+                MemberLookup::Missing => return Ok(MemberLookup::Missing),
+                MemberLookup::Found(mut members) => {
+                    candidates.append(&mut members);
+                }
             };
-
-            candidates.append(&mut members);
         }
-        if candidates.is_empty() {
-            return Ok(None);
-        }
-
-        Ok(Some(candidates))
+        Ok(MemberLookup::from_candidates(candidates))
     }
 
     /// Return a member type from one type operation.
@@ -534,8 +569,7 @@ impl CheckState<'_> {
         module: ModuleId,
         operation: TermId<TypeOperationTerm>,
         key: &dir::StaticKey,
-        protocol: Option<&MemberProtocol>,
-    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
+    ) -> CompilerResult<MemberLookup> {
         match self.inference.term(operation).clone() {
             TypeOperationTerm::Conditional {
                 left,
@@ -543,9 +577,9 @@ impl CheckState<'_> {
                 then_type,
                 else_type,
             } => self.conditional_member_candidates(
-                origin, module, left, right, then_type, else_type, key, protocol,
+                origin, module, left, right, then_type, else_type, key,
             ),
-            _ => Ok(None),
+            _ => Ok(MemberLookup::Missing),
         }
     }
 
@@ -612,48 +646,46 @@ impl CheckState<'_> {
         then_type: TypeOperand,
         else_type: TypeOperand,
         key: &dir::StaticKey,
-        protocol: Option<&MemberProtocol>,
-    ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
+    ) -> CompilerResult<MemberLookup> {
         let decision = self.decide_type_relation(TypeRelation::Extends, left, right)?;
 
         // select the known branch
         if decision == Decision::Yes {
             let Some(then_type) = self.type_operand_term(then_type)? else {
-                return Ok(None);
+                return Ok(MemberLookup::Pending);
             };
 
-            return self.member_type_candidates_matching(origin, module, &then_type, key, protocol);
+            return self.lookup_type_member_matching(origin, module, &then_type, key);
         }
         if decision == Decision::No {
             let Some(else_type) = self.type_operand_term(else_type)? else {
-                return Ok(None);
+                return Ok(MemberLookup::Pending);
             };
 
-            return self.member_type_candidates_matching(origin, module, &else_type, key, protocol);
+            return self.lookup_type_member_matching(origin, module, &else_type, key);
         }
         let Some(then_type) = self.type_operand_term(then_type)? else {
-            return Ok(None);
+            return Ok(MemberLookup::Pending);
         };
         let Some(else_type) = self.type_operand_term(else_type)? else {
-            return Ok(None);
+            return Ok(MemberLookup::Pending);
         };
-        let Some(mut then_candidates) =
-            self.member_type_candidates_matching(origin, module, &then_type, key, protocol)?
-        else {
-            return Ok(None);
-        };
-        let Some(mut else_candidates) =
-            self.member_type_candidates_matching(origin, module, &else_type, key, protocol)?
-        else {
-            return Ok(None);
+        let then_candidates = self.lookup_type_member_matching(origin, module, &then_type, key)?;
+        let else_candidates = self.lookup_type_member_matching(origin, module, &else_type, key)?;
+        let (mut then_candidates, mut else_candidates) = match (then_candidates, else_candidates) {
+            (MemberLookup::Pending, _) | (_, MemberLookup::Pending) => {
+                return Ok(MemberLookup::Pending);
+            }
+            (MemberLookup::Missing, _) | (_, MemberLookup::Missing) => {
+                return Ok(MemberLookup::Missing);
+            }
+            (MemberLookup::Found(then_candidates), MemberLookup::Found(else_candidates)) => {
+                (then_candidates, else_candidates)
+            }
         };
 
         then_candidates.append(&mut else_candidates);
-        if then_candidates.is_empty() {
-            return Ok(None);
-        }
-
-        Ok(Some(then_candidates))
+        Ok(MemberLookup::from_candidates(then_candidates))
     }
 
     /// Return a member type from one tuple term.

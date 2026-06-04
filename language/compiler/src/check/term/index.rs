@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallCallee, CallTerm, CheckState, FormTerm, MemberCallSource, MemberCallTerm, MemberDecision,
-    MemberProtocol, MemberResolution, MemberTargetResolution, Origin, Progress, Reduction,
-    SubscriptMethod, TypeOperand, TypeTerm, VariableId,
+    CallCallee, CallTerm, CheckState, FormTerm, MemberCallTerm, MemberDecision,
+    MemberProjectionOrigin, MemberProtocol, MemberResolution, MemberTargetResolution, Origin,
+    Progress, Reduction, SubscriptMethod, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Runtime index access term.
@@ -326,7 +326,7 @@ impl CheckState<'_> {
             SubscriptMethod::Index.key(strings)
         };
         let member = MemberCallTerm {
-            source: MemberCallSource::Protocol {
+            origin: MemberProjectionOrigin::Protocol {
                 protocol: MemberProtocol {
                     item: dir::LanguageItem::Index,
                     arguments: Vec::new().into(),
@@ -355,7 +355,7 @@ impl CheckState<'_> {
             SubscriptMethod::IndexSet.key(strings)
         };
         let member = MemberCallTerm {
-            source: MemberCallSource::Protocol {
+            origin: MemberProjectionOrigin::Protocol {
                 protocol: MemberProtocol {
                     item: dir::LanguageItem::IndexSet,
                     arguments: Vec::new().into(),

@@ -62,6 +62,6 @@ impl CheckState<'_> {
         _module: ModuleId,
         _tree: &TreeTerm,
     ) -> CompilerResult<Reduction<TypeTerm>> {
-        todo!("reduce tree expressions through tree dispatch")
+        Ok(Reduction::pending())
     }
 }

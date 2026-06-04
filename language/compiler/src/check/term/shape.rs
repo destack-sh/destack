@@ -204,7 +204,7 @@ impl CheckState<'_> {
 
     /// Decide exact equality for shape members.
     pub(in crate::check) fn decide_shape_members_equal(
-        &self,
+        &mut self,
         left: &[ShapeMember],
         right: &[ShapeMember],
     ) -> CompilerResult<Decision> {
@@ -226,7 +226,7 @@ impl CheckState<'_> {
 
     /// Decide structural shape assignability.
     pub(in crate::check) fn decide_shape_assignable(
-        &self,
+        &mut self,
         source: &[ShapeMember],
         target: &[ShapeMember],
     ) -> CompilerResult<Decision> {
@@ -245,7 +245,7 @@ impl CheckState<'_> {
 
     /// Decide structural shape constraint satisfaction.
     pub(in crate::check) fn decide_shape_satisfies(
-        &self,
+        &mut self,
         source: &[ShapeMember],
         target: &[ShapeMember],
     ) -> CompilerResult<Decision> {
@@ -338,7 +338,7 @@ impl CheckState<'_> {
 
     /// Decide exact equality for one shape member.
     fn decide_shape_member_equal(
-        &self,
+        &mut self,
         left: &ShapeMember,
         right: &ShapeMember,
     ) -> CompilerResult<Decision> {
@@ -409,7 +409,7 @@ impl CheckState<'_> {
 
     /// Decide assignability for one target shape member.
     fn decide_shape_member_assignable(
-        &self,
+        &mut self,
         source: &[ShapeMember],
         target: &ShapeMember,
     ) -> CompilerResult<Decision> {
@@ -426,7 +426,7 @@ impl CheckState<'_> {
 
     /// Decide constraint satisfaction for one target shape member.
     fn decide_shape_member_satisfies(
-        &self,
+        &mut self,
         source: &[ShapeMember],
         target: &ShapeMember,
     ) -> CompilerResult<Decision> {
@@ -483,7 +483,7 @@ impl CheckState<'_> {
 
     /// Decide assignability for two matched shape members.
     fn decide_shape_member_value_assignable(
-        &self,
+        &mut self,
         source: &ShapeMember,
         target: &ShapeMember,
     ) -> CompilerResult<Decision> {
@@ -557,7 +557,7 @@ impl CheckState<'_> {
 
     /// Decide constraint satisfaction for two matched shape members.
     fn decide_shape_member_value_satisfies(
-        &self,
+        &mut self,
         source: &ShapeMember,
         target: &ShapeMember,
     ) -> CompilerResult<Decision> {

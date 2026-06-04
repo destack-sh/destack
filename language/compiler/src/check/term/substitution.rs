@@ -1,12 +1,12 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::CompilerResult;
 use crate::check::{
     CheckState, Decision, GenericArgument, GenericInstance, GenericParameterId, Origin, Reduction,
     StaticOperand, StaticRelation, StaticTerm, TypeOperand, TypeRelation, TypeSolution, TypeTerm,
     VariableId,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// One generic argument substitution entry.
 #[derive(Debug, Clone, PartialEq)]
@@ -112,16 +112,6 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return the type argument for one generic parameter.
-    pub(in crate::check) fn substitution_type_variable<'a>(
-        &self,
-        substitution: impl Into<Substitution<'a>>,
-        parameter: GenericParameterId,
-    ) -> Option<VariableId> {
-        self.substitution_type_operand(substitution, parameter)?
-            .variable()
-    }
-
     /// Return the static argument operand for one generic parameter.
     pub(in crate::check) fn substitution_static_operand<'a>(
         &self,
@@ -140,74 +130,19 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return the static argument for one generic parameter.
-    pub(in crate::check) fn substitution_static_variable<'a>(
-        &self,
-        substitution: impl Into<Substitution<'a>>,
-        parameter: GenericParameterId,
-    ) -> Option<VariableId> {
-        self.substitution_static_operand(substitution, parameter)?
-            .variable()
-    }
-
-    /// Return the type argument for one generic parameter.
-    pub(in crate::check) fn substitution_type_parameter<'a>(
-        &self,
-        substitution: impl Into<Substitution<'a>>,
-        parameter: GenericParameterId,
-    ) -> Option<VariableId> {
-        let substitution = substitution.into();
-        let substitution = substitution.generic?;
-
-        substitution.entries.iter().find_map(|entry| {
-            if entry.parameter == parameter {
-                entry
-                    .argument
-                    .type_operand()
-                    .and_then(|operand| operand.variable())
-            } else {
-                None
-            }
-        })
-    }
-
-    /// Return the static argument for one generic parameter.
-    pub(in crate::check) fn substitution_static_parameter<'a>(
-        &self,
-        substitution: impl Into<Substitution<'a>>,
-        parameter: GenericParameterId,
-    ) -> Option<VariableId> {
-        let substitution = substitution.into();
-        let substitution = substitution.generic?;
-
-        substitution.entries.iter().find_map(|entry| {
-            if entry.parameter == parameter {
-                entry
-                    .argument
-                    .static_operand()
-                    .and_then(|operand| operand.variable())
-            } else {
-                None
-            }
-        })
-    }
-
     /// Return the type argument for one explicit generic symbol.
-    pub(in crate::check) fn substitution_type_symbol<'a>(
+    pub(in crate::check) fn substitution_type_symbol_operand<'a>(
         &self,
         substitution: impl Into<Substitution<'a>>,
         symbol: dir::GlobalSymbolId,
-    ) -> Option<VariableId> {
+    ) -> Option<TypeOperand> {
         let substitution = substitution.into();
         let substitution = substitution.generic?;
 
         substitution.entries.iter().find_map(|entry| {
             let generic = self.inference.generic_parameter(entry.parameter);
             if generic.identity().key == dir::GenericParameterKey::Symbol(symbol) {
-                entry
-                    .argument
-                    .type_operand()
-                    .and_then(|operand| operand.variable())
+                entry.argument.type_operand()
             } else {
                 None
             }
@@ -225,7 +160,7 @@ impl CheckState<'_> {
         }
         let parameters = self
             .inference
-            .generic_parameters_for_owner(owner)
+            .owner_generic_parameters(owner)
             .map(|(_, generic)| {
                 let parameter = generic.identity().id();
 
@@ -255,7 +190,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<GenericInstance>> {
         let parameters = self
             .inference
-            .generic_parameters_for_owner(owner)
+            .owner_generic_parameters(owner)
             .map(|(_, generic)| {
                 let parameter = generic.identity().id();
 
@@ -309,7 +244,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<VariableId> {
         let origin = self.variable(source).source;
         if origin.module() != module {
-            panic!("substituted type variable origin must be local");
+            return Err(CompilerError::Internal {
+                message: "substituted type variable origin must be local".to_owned(),
+            });
         }
 
         let term = match operand {
@@ -502,6 +439,7 @@ impl CheckState<'_> {
     /// Match a type pattern and collect generic substitutions.
     pub(in crate::check) fn match_type_pattern(
         &mut self,
+        origin: Origin,
         module: ModuleId,
         owner: dir::GlobalSymbolId,
         pattern: &TypeTerm,
@@ -511,7 +449,7 @@ impl CheckState<'_> {
         if let Some(parameter) = self.type_pattern_generic(owner, pattern)? {
             let actual = self.type_pattern_term_operand(actual);
 
-            return self.match_type_generic(parameter, actual, substitution);
+            return self.match_type_generic(origin, parameter, actual, substitution);
         }
 
         let pattern = self.normalize_type_pattern_term(pattern)?;
@@ -519,7 +457,7 @@ impl CheckState<'_> {
         if let Some(parameter) = self.type_pattern_generic(owner, &pattern)? {
             let actual = self.type_pattern_term_operand(&actual);
 
-            return self.match_type_generic(parameter, actual, substitution);
+            return self.match_type_generic(origin, parameter, actual, substitution);
         }
 
         let is_match = match (&pattern, &actual) {
@@ -540,8 +478,14 @@ impl CheckState<'_> {
                 } else {
                     let mut is_match = true;
                     for (left, right) in left_arguments.iter().zip(right_arguments) {
-                        is_match =
-                            self.match_argument_pattern(module, owner, left, right, substitution)?;
+                        is_match = self.match_argument_pattern(
+                            origin,
+                            module,
+                            owner,
+                            left,
+                            right,
+                            substitution,
+                        )?;
                         if !is_match {
                             break;
                         }
@@ -566,6 +510,7 @@ impl CheckState<'_> {
     /// Match one generic argument pattern.
     pub(in crate::check) fn match_argument_pattern(
         &mut self,
+        origin: Origin,
         module: ModuleId,
         owner: dir::GlobalSymbolId,
         pattern: &GenericArgument,
@@ -575,14 +520,18 @@ impl CheckState<'_> {
         let is_match = match (pattern, actual) {
             (GenericArgument::Type(pattern), GenericArgument::Type(actual))
             | (GenericArgument::SpreadType(pattern), GenericArgument::SpreadType(actual)) => {
-                let Some(pattern) = self.type_pattern_operand_term(*pattern)? else {
-                    return Ok(false);
-                };
-                let Some(actual) = self.type_pattern_operand_term(*actual)? else {
-                    return Ok(false);
-                };
+                if let Some(parameter) = self.type_operand_pattern_generic(owner, *pattern)? {
+                    self.match_type_generic(origin, parameter, *actual, substitution)?
+                } else {
+                    let Some(pattern) = self.type_pattern_operand_term(*pattern)? else {
+                        return Ok(false);
+                    };
+                    let Some(actual) = self.type_pattern_operand_term(*actual)? else {
+                        return Ok(false);
+                    };
 
-                self.match_type_pattern(module, owner, &pattern, &actual, substitution)?
+                    self.match_type_pattern(origin, module, owner, &pattern, &actual, substitution)?
+                }
             }
             (GenericArgument::Static(pattern), GenericArgument::Static(actual))
             | (GenericArgument::SpreadStatic(pattern), GenericArgument::SpreadStatic(actual)) => {
@@ -597,14 +546,18 @@ impl CheckState<'_> {
                 if let (Some(pattern), Some(actual)) =
                     (pattern.type_operand(), actual.type_operand()) =>
             {
-                let Some(pattern) = self.type_pattern_operand_term(pattern)? else {
-                    return Ok(false);
-                };
-                let Some(actual) = self.type_pattern_operand_term(actual)? else {
-                    return Ok(false);
-                };
+                if let Some(parameter) = self.type_operand_pattern_generic(owner, pattern)? {
+                    self.match_type_generic(origin, parameter, actual, substitution)?
+                } else {
+                    let Some(pattern) = self.type_pattern_operand_term(pattern)? else {
+                        return Ok(false);
+                    };
+                    let Some(actual) = self.type_pattern_operand_term(actual)? else {
+                        return Ok(false);
+                    };
 
-                self.match_type_pattern(module, owner, &pattern, &actual, substitution)?
+                    self.match_type_pattern(origin, module, owner, &pattern, &actual, substitution)?
+                }
             }
             (pattern, actual)
                 if let (Some(pattern), Some(actual)) =
@@ -621,6 +574,19 @@ impl CheckState<'_> {
         };
 
         Ok(is_match)
+    }
+
+    /// Return a generic type parameter represented by a type pattern operand.
+    fn type_operand_pattern_generic(
+        &self,
+        owner: dir::GlobalSymbolId,
+        operand: TypeOperand,
+    ) -> CompilerResult<Option<GenericParameterId>> {
+        let Some(pattern) = self.type_pattern_operand_term(operand)? else {
+            return Ok(None);
+        };
+
+        self.type_pattern_generic(owner, &pattern)
     }
 
     /// Return a type pattern term for one operand.
@@ -662,14 +628,19 @@ impl CheckState<'_> {
     /// Match one generic type parameter against an actual type.
     fn match_type_generic(
         &mut self,
+        origin: Origin,
         parameter: GenericParameterId,
         actual: TypeOperand,
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
         if let Some(existing) = self.substitution_type_operand(&*substitution, parameter) {
-            let decision = self.decide_type_relation(TypeRelation::Equal, existing, actual)?;
+            if self.decide_type_relation(TypeRelation::Equal, existing, actual)? == Decision::No {
+                return Ok(false);
+            }
 
-            return Ok(decision != Decision::No);
+            self.relate_type_equality(origin, existing, actual)?;
+
+            return Ok(true);
         }
 
         substitution.entries.push(GenericSubstitutionEntry {
@@ -688,9 +659,14 @@ impl CheckState<'_> {
         substitution: &mut GenericSubstitution,
     ) -> CompilerResult<bool> {
         if let Some(existing) = self.substitution_static_operand(&*substitution, parameter) {
-            let decision = self.decide_static_relation(StaticRelation::Equal, existing, actual)?;
+            if self.decide_static_relation(StaticRelation::Equal, existing, actual)? == Decision::No
+            {
+                return Ok(false);
+            }
 
-            return Ok(decision != Decision::No);
+            self.relate_static_equality(existing, actual)?;
+
+            return Ok(true);
         }
 
         substitution.entries.push(GenericSubstitutionEntry {
@@ -744,7 +720,7 @@ impl CheckState<'_> {
             && generic.is_static()
             && self
                 .inference
-                .generic_parameters_for_owner(owner)
+                .owner_generic_parameters(owner)
                 .any(|(candidate, _)| candidate == parameter);
 
         Ok(is_match.then_some(parameter))
@@ -758,7 +734,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<GenericParameterId>> {
         let parameter =
             self.inference
-                .generic_parameters_for_owner(owner)
+                .owner_generic_parameters(owner)
                 .find_map(|(parameter, generic)| {
                     if generic.identity().owner == owner
                         && generic.identity().key == dir::GenericParameterKey::Symbol(symbol)
@@ -781,7 +757,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<GenericParameterId>> {
         let parameter =
             self.inference
-                .generic_parameters_for_owner(owner)
+                .owner_generic_parameters(owner)
                 .find_map(|(parameter, generic)| {
                     if generic.identity().id() == parameter_id && generic.is_type() {
                         Some(parameter)

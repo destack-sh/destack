@@ -334,7 +334,7 @@ impl CheckState<'_> {
         _value: TypeOperand,
         _name: &str,
     ) -> CompilerResult<Option<TypeOperand>> {
-        todo!("resolve try associated types through nominal protocol table")
+        Ok(None)
     }
 
     /// Return the `FromFailure<F>` protocol type.
