@@ -71,17 +71,20 @@ Despite incredible hardware advances, accumulated wisdom, and many libraries and
 
 - there is not a single test, or suite of tests, mathematical proof, or specific gate that you can run to convince me that some non-trivial program is correct (irrespective of human written or not)
 - correctness is ultimately about alignment, and we can only align on what we can see
-- I don't know what I want until I see it
-- correctness is iterative
+- I don't know what I want until I see it, and I also don'T know what I _don't_ want until I see it
+
+- correctness is iterative, the shape is changing
 - correctness must be specified acrosss many layers to systematically exclude all the things we do _not_ want
 - the reality of the system must be naked and familiar
 
 - incremental precision
 - who measures the measurer? how do we know that the 1kg calibration stone is really exactly 1kg?
 - alignment requires precision
+- precision must be built on a solid foundation, incrementally
 - precision requires looking at the code, systems
 - .. from many angles, in detail, high low, in motion, statically, all sorts of dynamics, ...
 - incremental granularity (a la casey muratori)
+- you can't engineer precision and alignment (i.e. understanding) into a system post-hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start)
 
 ## one language, one toolchain, one stack
 
