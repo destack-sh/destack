@@ -3,4 +3,4 @@ export type StaticLifetime = "static";
 
 /// Lifetime marker for borrowed validity.
 @languageItem("memory.Lifetime")
-export type Lifetime = intrinsic;
+export newtype Lifetime = intrinsic;
