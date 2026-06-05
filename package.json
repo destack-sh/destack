@@ -16,8 +16,6 @@
         "app/cli/npm-win32-x64-msvc",
         "bridge/napi",
         "bridge/typescript",
-        "bridge/typescript/aliases/destack-js",
-        "bridge/typescript/aliases/destack-ts",
         "bridge/vscode",
         "bridge/wasm",
         "language/grammar",

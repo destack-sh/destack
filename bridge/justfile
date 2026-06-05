@@ -137,8 +137,6 @@ publish-npm dry="--dry-run":
     cd napi && npm publish {{dry}} --access public
     cd wasm && npm publish {{dry}} --access public
     cd typescript && npm publish {{dry}} --access public
-    cd typescript/aliases/destack-js && npm publish {{dry}} --access public
-    cd typescript/aliases/destack-ts && npm publish {{dry}} --access public
 
 # publish cargo sdk crate dry by default
 publish-cargo dry="--dry-run":

@@ -2,7 +2,6 @@
 
 Destack runtime client for TypeScript and JavaScript.
 This package provides unified backend selection across Node-API and WebAssembly environments.
-Legacy alias packages also ship in [`aliases/destack-js`](aliases/destack-js/README.md) and [`aliases/destack-ts`](aliases/destack-ts/README.md).
 
 ## Installation
 
