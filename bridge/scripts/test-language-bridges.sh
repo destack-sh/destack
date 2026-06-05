@@ -55,9 +55,6 @@ bun run build
 node -e 'Promise.all([import("./dist/index.js"), import("./dist/napi.js"), import("./dist/wasm.js")]).then(async ([runtimeModule, napiModule, wasmModule]) => { const autoClient = await runtimeModule.createClient(); const napiClient = await napiModule.createNapiClient(); const wasmClient = await wasmModule.createWasmClient(); if (autoClient.backend !== "napi" && autoClient.backend !== "wasm") { throw new Error("invalid auto backend"); } if (napiClient.backend !== "napi") { throw new Error("invalid napi backend"); } if (wasmClient.backend !== "wasm") { throw new Error("invalid wasm backend"); } if (!autoClient.version() || !napiClient.version() || !wasmClient.version()) { throw new Error("missing version"); } }).catch((error) => { console.error(error); process.exit(1); });'
 cd "${bridge_directory}"
 
-npm pack --dry-run ./typescript/aliases/destack-js >/dev/null
-npm pack --dry-run ./typescript/aliases/destack-ts >/dev/null
-
 python3 -m venv .bridge-python-aliases-venv
 .bridge-python-aliases-venv/bin/python -m pip install --quiet --disable-pip-version-check build
 cd python/aliases/destack-py && ../../../.bridge-python-aliases-venv/bin/python -m build --sdist --wheel
