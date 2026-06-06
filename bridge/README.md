@@ -8,7 +8,7 @@ Destack bridges into the rest of the universe.
 |---------|--------|---------|
 | [`core`](core/README.md) | Experimental | Shared Rust bridge core used by language clients and bindings |
 | [`capi`](capi/README.md) | Experimental | Minimal C ABI bridge surface for FFI language clients |
-| [`typescript`](typescript/README.md) | Alpha | Primary runtime client package published as `@destack/runtime` |
+| [`typescript`](typescript/README.md) | Alpha | Primary language client package published as `@destack/language` |
 | [`rust`](rust/README.md) | Experimental | Rust client crate published as `destack` |
 | [`python`](python/README.md) | Experimental | Python client package published as `destack` |
 | [`vscode`](vscode/README.md) | Experimental | VS Code extension and language support |
@@ -29,7 +29,6 @@ just bridge/build
 just bridge/test
 just bridge/check-quick
 just bridge/check-full
-just bridge/test-language-bridges
 just bridge/install-toolchain
 just bridge/doctor-toolchain
 just bridge/ensure-toolchain

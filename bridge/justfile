@@ -30,8 +30,8 @@ ensure-toolchain:
 # run static checks
 lint:
     cargo clippy --release {{ packages }}
-    bun x tsc --noEmit -p napi/tsconfig.json
-    bun x tsc --noEmit -p wasm/tsconfig.json
+    bun run --cwd napi build
+    bun run --cwd wasm build
     bun x tsc -p typescript/tsconfig.json
     bun x biome lint napi wasm typescript
 
@@ -46,12 +46,10 @@ build:
 
 # build napi package
 build-napi:
-    cargo build --release -p destack_napi
     bun run --cwd napi build
 
 # build wasm package
 build-wasm:
-    cargo build --release -p destack_wasm
     bun run --cwd wasm build
 
 # build vscode extension
@@ -95,6 +93,14 @@ test:
     bun run --cwd napi test
     bun run --cwd wasm test
     bun run --cwd typescript test
+    cargo build --release --manifest-path capi/Cargo.toml
+    @if [ "$(uname -s)" = "Darwin" ]; then \
+        capi_library="../target/release/libdestack_capi.dylib"; \
+    else \
+        capi_library="../target/release/libdestack_capi.so"; \
+    fi; \
+    PYTHONPATH="python/src" DESTACK_CAPI_LIB="$capi_library" python3 -m unittest discover -s python/tests; \
+    PYTHONPATH="python/src:python/aliases/destack-py/src" DESTACK_CAPI_LIB="$capi_library" python3 -m unittest discover -s python/aliases/destack-py/tests
     just test-vscode
 
 # default check
@@ -111,16 +117,10 @@ check-quick *args:
 # check with slow suites
 check-full *args:
     just check-quick {{args}}
-    just test-language-bridges
 
 # test vscode grammar
 test-vscode:
     cd vscode && bun run test:grammar
-
-# test supported clients
-test-language-bridges:
-    just ensure-toolchain
-    bash scripts/test-language-bridges.sh
 
 # validate zed grammar references
 validate-zed-grammars *args:

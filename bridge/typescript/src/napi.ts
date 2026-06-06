@@ -1,3 +1,2 @@
-import { createNapiClient } from "./index.js";
-
-export { createNapiClient };
+export { openNapiPath, openNapiSource } from "./index.js";
+export type { LanguageSession, SourceSnapshot } from "./index.js";

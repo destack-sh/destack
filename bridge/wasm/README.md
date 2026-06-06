@@ -1,7 +1,7 @@
 # wasm
 
-WebAssembly bindings for Destack.
-The npm package is published as `@destack/wasm`.
+WebAssembly language bindings for Destack.
+The npm package is published as `@destack/language-wasm`.
 
 ## Testing
 
