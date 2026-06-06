@@ -1,3 +1,2 @@
-import { createWasmClient } from "./index.js";
-
-export { createWasmClient };
+export { openWasmSource } from "./index.js";
+export type { LanguageSession, SourceSnapshot } from "./index.js";

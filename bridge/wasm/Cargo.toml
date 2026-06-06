@@ -20,7 +20,11 @@ doctest = false
 
 [dependencies]
 destack_bridge_core.workspace = true
+js-sys = "0.3.81"
 wasm-bindgen = { workspace = true }
 
 [lints]
 workspace = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

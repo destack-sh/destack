@@ -14,5 +14,13 @@ homepage = "https://github.com/destack-sh/destack"
 path = "src/lib.rs"
 doctest = false
 
+[dependencies]
+destack_compiler.workspace = true
+destack_linter.workspace = true
+destack_query.workspace = true
+destack_session.workspace = true
+destack_source.workspace = true
+destack_workspace.workspace = true
+
 [lints]
 workspace = true

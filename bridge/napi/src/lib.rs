@@ -1,7 +1,7 @@
-use napi_derive::napi;
+mod bridge;
+mod session;
+mod source;
 
-/// Return the crate version.
-#[napi]
-pub fn version() -> &'static str {
-    destack_bridge_core::version()
-}
+pub use bridge::*;
+pub use session::*;
+pub use source::*;

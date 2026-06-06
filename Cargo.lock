@@ -903,6 +903,14 @@ dependencies = [
 [[package]]
 name = "destack_bridge_core"
 version = "0.55.4"
+dependencies = [
+ "destack_compiler",
+ "destack_linter",
+ "destack_query",
+ "destack_session",
+ "destack_source",
+ "destack_workspace",
+]
 
 [[package]]
 name = "destack_capi"
@@ -1519,6 +1527,7 @@ name = "destack_wasm"
 version = "0.55.4"
 dependencies = [
  "destack_bridge_core",
+ "js-sys",
  "wasm-bindgen",
 ]
 

@@ -1,7 +1,7 @@
 {
-    "name": "@destack/napi",
+    "name": "@destack/language-napi",
     "version": "0.55.4",
-    "description": "Node-API bindings for Destack",
+    "description": "Node-API language bindings for Destack",
     "license": "MIT",
     "type": "module",
     "repository": {
@@ -20,19 +20,23 @@
         "typescript"
     ],
     "files": [
-        "src",
+        "dist",
         "README.md",
-        "Cargo.toml",
-        "tsconfig.json"
+        "Cargo.toml"
     ],
-    "main": "./src/index.ts",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "exports": {
-        ".": "./src/index.ts"
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
+        }
     },
     "sideEffects": false,
     "scripts": {
-        "build": "bun x tsc --noEmit -p tsconfig.json",
-        "test": "bun x tsc --noEmit -p tsconfig.json",
+        "build": "rm -rf dist && bun x @napi-rs/cli build --release --platform --esm --output-dir dist --js index.js --dts index.d.ts",
+        "test": "bun run build",
         "prepublishOnly": "bun run build",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"
@@ -42,6 +46,7 @@
     },
     "dependencies": {},
     "devDependencies": {
+        "@napi-rs/cli": "3.7.0",
         "typescript": "5.8.3"
     }
 }

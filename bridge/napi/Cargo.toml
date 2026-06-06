@@ -27,5 +27,5 @@ napi-derive = "3"
 workspace = true
 
 [package.metadata.napi]
-name = "destack-napi"
+name = "destack-language-napi"
 features = ["napi8"]

@@ -1,7 +1,7 @@
 {
-    "name": "@destack/wasm",
+    "name": "@destack/language-wasm",
     "version": "0.55.4",
-    "description": "WebAssembly bindings for Destack",
+    "description": "WebAssembly language bindings for Destack",
     "license": "MIT",
     "type": "module",
     "repository": {
@@ -20,20 +20,24 @@
         "typescript"
     ],
     "files": [
-        "src",
+        "dist",
         "scripts",
         "README.md",
-        "Cargo.toml",
-        "tsconfig.json"
+        "Cargo.toml"
     ],
-    "main": "./src/index.ts",
+    "main": "./dist/destack_wasm.js",
+    "types": "./dist/destack_wasm.d.ts",
     "exports": {
-        ".": "./src/index.ts"
+        ".": {
+            "types": "./dist/destack_wasm.d.ts",
+            "import": "./dist/destack_wasm.js",
+            "default": "./dist/destack_wasm.js"
+        }
     },
     "sideEffects": false,
     "scripts": {
-        "build": "bun x tsc --noEmit -p tsconfig.json",
-        "test": "bun x tsc --noEmit -p tsconfig.json",
+        "build": "rm -rf dist && bun x wasm-pack build --release --target web --out-dir dist",
+        "test": "bun run build",
         "size:report": "bun ./scripts/size-report.mjs",
         "size:report:all": "bun ./scripts/size-report.mjs",
         "prepublishOnly": "bun run build",
@@ -45,6 +49,7 @@
     },
     "dependencies": {},
     "devDependencies": {
+        "wasm-pack": "0.15.0",
         "typescript": "5.8.3"
     }
 }

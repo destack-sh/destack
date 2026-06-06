@@ -1,32 +1,41 @@
-# @destack/runtime
+# @destack/language
 
-Destack runtime client for TypeScript and JavaScript.
+Destack language client for TypeScript and JavaScript.
 This package provides unified backend selection across Node-API and WebAssembly environments.
 
 ## Installation
 
 ```sh
-npm install @destack/runtime
+npm install @destack/language
 ```
 
 ## API
 
 ```ts
-import { createClient } from "@destack/runtime";
+import { openSession } from "@destack/language";
 
-const client = await createClient("napi");
-console.log(client.backend);
-console.log(client.version());
+const session = await openSession({
+    root: "/workspace",
+    source: {
+        files: [
+            { path: "destack.json", text: "{\"name\":\"@test/app\"}" },
+            { path: "src/index.ds", text: "export const value = 1;" },
+        ],
+    },
+});
+
+console.log(session.backend);
+console.log(session.files());
 ```
 
-## Explicit backends
+## Explicit Backends
 
 ```ts
-import { createNapiClient } from "@destack/runtime/napi";
-import { createWasmClient } from "@destack/runtime/wasm";
+import { openNapiPath } from "@destack/language/napi";
+import { openWasmSource } from "@destack/language/wasm";
 
-const napiClient = await createNapiClient();
-const wasmClient = await createWasmClient();
+const nativeSession = await openNapiPath(".");
+const webSession = await openWasmSource("/workspace", { files: [] });
 ```
 
 ## Testing
@@ -34,12 +43,7 @@ const wasmClient = await createWasmClient();
 Run these from the repository root.
 
 ```sh
-# focused local loop
 just bridge/test
-
-# clean check
 just bridge/check-quick
-
-# exhaustive check
 just bridge/check-full
 ```

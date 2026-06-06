@@ -1,7 +1,7 @@
 {
-    "name": "@destack/runtime",
+    "name": "@destack/language",
     "version": "0.55.4",
-    "description": "Destack runtime client for JavaScript and TypeScript",
+    "description": "Destack language client for JavaScript and TypeScript",
     "license": "MIT",
     "type": "module",
     "repository": {
@@ -15,7 +15,7 @@
     },
     "keywords": [
         "destack",
-        "runtime",
+        "language",
         "javascript",
         "sdk",
         "client"
@@ -45,8 +45,9 @@
     },
     "sideEffects": false,
     "scripts": {
-        "build": "rm -rf dist && bun x tsc -p tsconfig.json",
-        "test": "bun x tsc --noEmit -p tsconfig.json",
+        "generate": "bun scripts/generate.mjs",
+        "build": "bun run generate && rm -rf dist && bun x tsc -p tsconfig.json",
+        "test": "bun run generate && bun x tsc --noEmit -p tsconfig.json && bun run build && node test/session.mjs",
         "prepublishOnly": "bun run build",
         "publish:dry": "npm publish --dry-run --access public",
         "publish:live": "npm publish --access public"
@@ -54,7 +55,10 @@
     "publishConfig": {
         "access": "public"
     },
-    "dependencies": {},
+    "dependencies": {
+        "@destack/language-napi": "0.55.4",
+        "@destack/language-wasm": "0.55.4"
+    },
     "devDependencies": {
         "typescript": "5.8.3"
     }
