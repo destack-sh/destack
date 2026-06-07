@@ -880,7 +880,7 @@ define_language_items! {
         /// `destack:memory/lifetime`.
         lifetime {
             /// Lifetime marker.
-            Lifetime => (Type, "memory/lifetime", "Lifetime"),
+            Lifetime => (Newtype, "memory/lifetime", "Lifetime"),
         }
 
         /// `destack:memory/managed`.
