@@ -82,10 +82,8 @@ pub struct Extension {
     pub symbol: GlobalSymbolId,
     /// The extension declaration form.
     pub form: ExtensionForm,
-    /// The nominal type symbol used to index extension lookup.
-    pub target_symbol: GlobalSymbolId,
-    /// The solved target type being extended.
-    pub target_type: GlobalTypeId,
+    /// The checked receiver target.
+    pub target: ExtensionTarget,
     /// The checked where clauses that gate this extension.
     pub where_clauses: Vec<ExtensionWhereClause>,
 }
@@ -95,15 +93,13 @@ impl Extension {
     pub fn new(
         symbol: GlobalSymbolId,
         form: ExtensionForm,
-        target_symbol: GlobalSymbolId,
-        target_type: GlobalTypeId,
+        target: ExtensionTarget,
         where_clauses: Vec<ExtensionWhereClause>,
     ) -> Self {
         Self {
             symbol,
             form,
-            target_symbol,
-            target_type,
+            target,
             where_clauses,
         }
     }
@@ -121,6 +117,55 @@ impl Extension {
     /// Check if this extension is local.
     pub fn is_local(&self) -> bool {
         matches!(self.form, ExtensionForm::Local)
+    }
+}
+
+/// Extension lookup target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ExtensionTarget {
+    /// Extension whose receiver type has a nominal root.
+    ///
+    /// Example:
+    /// ```ds
+    /// extension<T> of ^Array<T> {}
+    /// ```
+    Nominal {
+        /// The nominal root used for member lookup.
+        root: GlobalSymbolId,
+        /// The checked receiver type.
+        ty: GlobalTypeId,
+    },
+    /// Extension over an open receiver type.
+    ///
+    /// Example:
+    /// ```ds
+    /// extension<T> of T where T: Copy {}
+    /// ```
+    Blanket {
+        /// The checked receiver type.
+        ty: GlobalTypeId,
+    },
+}
+
+impl ExtensionTarget {
+    /// Return the checked receiver type.
+    pub fn r#type(&self) -> GlobalTypeId {
+        match self {
+            Self::Nominal { ty, .. } | Self::Blanket { ty } => *ty,
+        }
+    }
+
+    /// Return the nominal lookup root when this target has one.
+    pub fn nominal_root(&self) -> Option<GlobalSymbolId> {
+        match self {
+            Self::Nominal { root, .. } => Some(*root),
+            Self::Blanket { .. } => None,
+        }
+    }
+
+    /// Return whether this is an open blanket target.
+    pub fn is_blanket(&self) -> bool {
+        matches!(self, Self::Blanket { .. })
     }
 }
 
