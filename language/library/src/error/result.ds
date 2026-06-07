@@ -1,7 +1,6 @@
 import { Promise } from "destack:async";
 import { Default } from "destack:memory";
-import { Equal } from "destack:ops";
-import { FromFailure, Try, TryBranch, TryContinue, TryFailure } from "destack:ops";
+import { Break, Continue, ControlFlow, Equal, FromResidual, Try } from "destack:ops";
 
 import { panic } from "./panic.ds";
 
@@ -149,29 +148,31 @@ extension<T, E> of Result<T, E> {
 
 extension<T, E> of Result<T, E> implements Try {
     /// The success value.
-    type Value = T;
+    type Output = T;
 
-    /// The failure value.
-    type Failure = E;
+    /// The residual result.
+    type Residual = Result<never, E>;
 
     /// Create a successful result.
-    static fromValue(value: T): Result<T, E> {
-        Result.ok(value)
+    static fromOutput(output: T): Result<T, E> {
+        Result.ok(output)
     }
 
     /// Branch into success or failure control flow.
-    branch(): TryBranch<T, E> {
+    branch(): ControlFlow<Result<never, E>, T> {
         match (this) {
-            Ok { value } => TryContinue { kind: "continue", value }
-            Err { error } => TryFailure { kind: "failure", failure: error }
+            Ok { value } => Continue { kind: "continue", value }
+            Err { error } => Break { kind: "break", residual: Result.err(error) }
         }
     }
 }
 
-extension<T, E> of Result<T, E> implements FromFailure<E> {
-    /// Create a result from a propagated failure.
-    static fromFailure(failure: E): Result<T, E> {
-        Result.err(failure)
+extension<T, E> of Result<T, E> implements FromResidual<Result<never, E>> {
+    /// Create a result from a propagated residual.
+    static fromResidual(residual: Result<never, E>): Result<T, E> {
+        match (residual) {
+            Err { error } => Result.err(error)
+        }
     }
 }
 
@@ -305,9 +306,11 @@ extension<T, E> of AsyncResult<T, E> {
     }
 }
 
-extension<T, E> of AsyncResult<T, E> implements FromFailure<E> {
-    /// Create an async result from a propagated failure.
-    static fromFailure(failure: E): AsyncResult<T, E> {
-        AsyncResult.err(failure)
+extension<T, E> of AsyncResult<T, E> implements FromResidual<Result<never, E>> {
+    /// Create an async result from a propagated residual.
+    static fromResidual(residual: Result<never, E>): AsyncResult<T, E> {
+        match (residual) {
+            Err { error } => AsyncResult.err(error)
+        }
     }
 }
