@@ -41,7 +41,7 @@ impl ResolveState<'_> {
     /// ```
     pub(in crate::resolve) fn require_try_language_items(&mut self) {
         self.require_language_item(dir::LanguageItem::Try);
-        self.require_language_item(dir::LanguageItem::FromFailure);
+        self.require_language_item(dir::LanguageItem::FromResidual);
     }
 
     /// Require the iterable item implied by yield delegation.

@@ -296,7 +296,7 @@ impl CheckState<'_> {
         else {
             return Ok(Decision::Undecidable);
         };
-        let target = self.from_failure_type(source, source.module_id, failure)?;
+        let target = self.from_residual_type(source, source.module_id, failure)?;
         let Some(return_type) = self.reduce_type_operand(Origin::Node(source), return_type)? else {
             return Ok(Decision::Undecidable);
         };
@@ -337,14 +337,14 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Return the `FromFailure<F>` protocol type.
-    pub(in crate::check) fn from_failure_type(
+    /// Return the `FromResidual<R>` protocol type.
+    pub(in crate::check) fn from_residual_type(
         &mut self,
         source: dir::GlobalNodeIdAny,
         module: ModuleId,
         failure: TypeOperand,
     ) -> CompilerResult<TypeTerm> {
-        let symbol = self.language_symbol(module, dir::LanguageItem::FromFailure);
+        let symbol = self.language_symbol(module, dir::LanguageItem::FromResidual);
         let argument = GenericArgument::Type(failure);
 
         Ok(TypeTerm::Reference {
