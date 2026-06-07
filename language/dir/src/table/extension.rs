@@ -101,6 +101,13 @@ impl<'a> ExtensionTable<'a> {
         })
     }
 
+    /// Iterate blanket extensions.
+    pub fn blanket_extensions(&self) -> impl Iterator<Item = LocalExtensionId> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.blanket_extensions().iter().copied())
+    }
+
     /// Iterate over all extensions.
     pub fn iter_extensions(&self) -> impl Iterator<Item = (LocalExtensionId, &Extension)> + '_ {
         self.segments
@@ -132,6 +139,8 @@ pub struct ExtensionSegment {
     pub(crate) extensions_by_symbol: IndexMap<GlobalSymbolId, LocalExtensionId>,
     /// Extension ids by target symbol.
     pub(crate) extensions_by_target_symbol: IndexMap<GlobalSymbolId, Vec<LocalExtensionId>>,
+    /// Blanket extension ids.
+    pub(crate) blanket_extensions: Vec<LocalExtensionId>,
 }
 
 impl ExtensionSegment {
@@ -144,6 +153,7 @@ impl ExtensionSegment {
             sources: IndexMap::new(),
             extensions_by_symbol: IndexMap::new(),
             extensions_by_target_symbol: IndexMap::new(),
+            blanket_extensions: Vec::new(),
         }
     }
 
@@ -155,15 +165,21 @@ impl ExtensionSegment {
     ) -> LocalExtensionId {
         let extension_id = LocalExtensionId::new(self.extension_count());
         let extension_symbol = extension.symbol;
-        let target_symbol = extension.target_symbol;
 
         self.sources.insert(extension_id, source);
         self.extensions_by_symbol
             .insert(extension_symbol, extension_id);
-        self.extensions_by_target_symbol
-            .entry(target_symbol)
-            .or_default()
-            .push(extension_id);
+        match extension.target.nominal_root() {
+            Some(target_symbol) => {
+                self.extensions_by_target_symbol
+                    .entry(target_symbol)
+                    .or_default()
+                    .push(extension_id);
+            }
+            None => {
+                self.blanket_extensions.push(extension_id);
+            }
+        }
         self.extensions.allocate(extension);
 
         extension_id
@@ -198,6 +214,11 @@ impl ExtensionSegment {
         target_symbol: GlobalSymbolId,
     ) -> Option<&Vec<LocalExtensionId>> {
         self.extensions_by_target_symbol.get(&target_symbol)
+    }
+
+    /// Get all blanket extensions.
+    pub fn blanket_extensions(&self) -> &Vec<LocalExtensionId> {
+        &self.blanket_extensions
     }
 
     /// Iterate over all extensions.
