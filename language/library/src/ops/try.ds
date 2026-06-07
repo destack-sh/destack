@@ -1,38 +1,38 @@
-/// Successful `Try` branch.
-export struct TryContinue<T> {
+/// Continuing `Try` branch.
+export struct Continue<C> {
     kind: "continue" = "continue";
-    value: T;
+    value: C;
 }
 
-/// Failed `Try` branch.
-export struct TryFailure<F> {
-    kind: "failure" = "failure";
-    failure: F;
+/// Breaking `Try` branch.
+export struct Break<B> {
+    kind: "break" = "break";
+    residual: B;
 }
 
-/// Result of branching a `Try` value.
-@languageItem("ops.TryBranch")
-export type TryBranch<T, F> = TryContinue<T> | TryFailure<F>;
+/// Result of branching a `Try` carrier.
+@languageItem("ops.ControlFlow")
+export newtype ControlFlow<B, C> = Break<B> | Continue<C>;
+
+/// Target protocol for rebuilding a carrier from a propagated residual.
+@languageItem("ops.FromResidual")
+export newtype interface FromResidual<R> {
+    /// Construct this type from a propagated residual.
+    static fromResidual(residual: R): this;
+}
 
 /// Protocol for values that work with `?`, `??`, and postfix `!`.
 @languageItem("ops.Try")
-export newtype interface Try {
-    /// The value produced when evaluation continues.
-    type Value;
+export newtype interface Try extends FromResidual<this.Residual> {
+    /// The output value produced when evaluation continues.
+    type Output;
 
-    /// The value produced when evaluation fails.
-    type Failure;
+    /// The residual value propagated when evaluation breaks.
+    type Residual;
 
-    /// Construct this type from a successful value.
-    static fromValue(value: this.Value): this;
+    /// Construct this type from an output value.
+    static fromOutput(output: this.Output): this;
 
-    /// Branch into success or failure control flow.
-    branch(): TryBranch<this.Value, this.Failure>;
-}
-
-/// Target protocol for rebuilding a return type from a propagated failure.
-@languageItem("ops.FromFailure")
-export newtype interface FromFailure<F> {
-    /// Construct this type from a failure value.
-    static fromFailure(failure: F): this;
+    /// Branch into continuing or breaking control flow.
+    branch(): ControlFlow<this.Residual, this.Output>;
 }

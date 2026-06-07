@@ -122,13 +122,16 @@ global {
     export {
         Add,
         And,
+        Break,
         Compare,
+        Continue,
+        ControlFlow,
         Debug,
         Dereference,
         Display,
         Divide,
         Equal,
-        FromFailure,
+        FromResidual,
         Hash,
         Hasher,
         Index,
@@ -148,9 +151,6 @@ global {
         ShiftRightUnsigned,
         Subtract,
         Try,
-        TryBranch,
-        TryContinue,
-        TryFailure,
         Xor,
     } from "destack:ops";
 

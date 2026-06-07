@@ -2,14 +2,14 @@ import { From } from "destack:convert";
 import { panic, Result, todo } from "destack:error";
 import { Default } from "destack:memory";
 import {
+    Break,
     Compare,
+    Continue,
+    ControlFlow,
     Equal,
-    FromFailure,
+    FromResidual,
     Ordering,
     Try,
-    TryBranch,
-    TryContinue,
-    TryFailure,
 } from "destack:ops";
 
 /// Explicit optional value.
@@ -318,28 +318,28 @@ extension<T> of Option<T> implements From<T> {
 
 extension<T> of Option<T> implements Try {
     /// The present value.
-    type Value = T;
+    type Output = T;
 
-    /// The absent value.
-    type Failure = null;
+    /// The residual option.
+    type Residual = Option<never>;
 
     /// Create an option from a successful value.
-    static fromValue(value: T): Option<T> {
-        Option.some(value)
+    static fromOutput(output: T): Option<T> {
+        Option.some(output)
     }
 
     /// Branch into present or absent control flow.
-    branch(): TryBranch<T, null> {
+    branch(): ControlFlow<Option<never>, T> {
         match (this) {
-            null => TryFailure { kind: "failure", failure: null }
-            value => TryContinue { kind: "continue", value }
+            null => Break { kind: "break", residual: Option.none() }
+            value => Continue { kind: "continue", value }
         }
     }
 }
 
-extension<T> of Option<T> implements FromFailure<null> {
-    /// Create an option from an absent value.
-    static fromFailure(failure: null): Option<T> {
+extension<T> of Option<T> implements FromResidual<Option<never>> {
+    /// Create an option from a propagated residual.
+    static fromResidual(residual: Option<never>): Option<T> {
         Option.none()
     }
 }
