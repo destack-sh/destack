@@ -1176,14 +1176,14 @@ define_language_items! {
 
         /// `destack:ops/try`.
         try {
-            /// Rebuilds a return type from propagated failure.
-            FromFailure => (NewtypeInterface, "ops/try", "FromFailure"),
+            /// Rebuilds a carrier from a propagated residual.
+            FromResidual => (NewtypeInterface, "ops/try", "FromResidual"),
 
             /// `?` operator protocol.
             Try => (NewtypeInterface, "ops/try", "Try"),
 
-            /// Try branch shape for `?` and `??`.
-            TryBranch => (Type, "ops/try", "TryBranch"),
+            /// Try branch shape for `?`, `??`, and postfix `!`.
+            ControlFlow => (Newtype, "ops/try", "ControlFlow"),
         }
     }
 
