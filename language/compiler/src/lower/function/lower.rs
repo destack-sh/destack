@@ -1,19 +1,22 @@
+use destack_dir as dir;
+use destack_mir as mir;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use {destack_dir as dir, destack_mir as mir};
 
-use destack_artifact::{DiagnosticAnchor, DirBound, DirCheckedModule, DirParsed, LanguageIntrinsics};
+use destack_artifact::{
+    DiagnosticAnchor, DirBound, DirCheckedModule, DirParsed, LanguageIntrinsics,
+};
 use destack_core::{StringId, StringPool};
-use destack_source::ModuleId;
 use destack_repository::{ProfileId, ProviderContext};
+use destack_source::ModuleId;
 
 use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 
 use super::constructor::ConstructorState;
 use super::policy::RuntimeCheckConfig;
 use crate::lower::{
-    BreakContext, DispatchTableGlobal, FunctionEnvironmentLayout, GlobalBinding, InstanceKey,
-    DynamicMember, LocalBinding, LoopContext, MethodKey, RuntimeStatusLayout, Terminates,
+    BreakContext, DispatchTableGlobal, DynamicMember, FunctionEnvironmentLayout, GlobalBinding,
+    InstanceKey, LocalBinding, LoopContext, MethodKey, RuntimeStatusLayout, Terminates,
     TypeLowerer, access_for_storage_mutability,
 };
 
@@ -133,9 +136,13 @@ impl FunctionLoweringContext<'_> {
     }
 
     /// Return whether one symbol has the given declaration kind.
-    pub(crate) fn symbol_kind_matches(&self, symbol_id: dir::GlobalSymbolId, kind: dir::SymbolKind) -> bool {
+    pub(crate) fn symbol_kind_matches(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+        kind: dir::SymbolKind,
+    ) -> bool {
         self.symbol_kind(symbol_id)
-            .is_some_and(|actual| actual.matches_kind(kind))
+            .is_some_and(|actual| actual == kind)
     }
 }
 
