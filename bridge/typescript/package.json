@@ -45,7 +45,7 @@
     },
     "sideEffects": false,
     "scripts": {
-        "generate": "bun scripts/generate.mjs",
+        "generate": "cargo run -p destack_bridge_generate",
         "build": "bun run generate && rm -rf dist && bun x tsc -p tsconfig.json",
         "test": "bun run generate && bun x tsc --noEmit -p tsconfig.json && bun run build && node test/session.mjs",
         "prepublishOnly": "bun run build",
