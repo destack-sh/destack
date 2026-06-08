@@ -12,8 +12,14 @@ repository = "https://github.com/destack-sh/destack"
 homepage = "https://github.com/destack-sh/destack"
 
 [lib]
+crate-type = ["cdylib", "rlib"]
 path = "src/lib.rs"
 doctest = false
+
+[dependencies]
+destack.workspace = true
+destack_bridge_language.workspace = true
+pyo3 = { workspace = true, features = ["extension-module"] }
 
 [lints]
 workspace = true

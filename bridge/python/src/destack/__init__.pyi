@@ -1,6 +1,9 @@
 # generated bridge target, do not edit
 
-from ._native import VERSION, Session, version
+from __future__ import annotations
+
+from collections.abc import Sequence
+
 from .artifact.key import (
     ArtifactKey,
 )
@@ -75,47 +78,34 @@ from .source.span import (
 from .source.target import (
     TargetId,
 )
+VERSION: str
 
-__all__ = [
-    "Session",
-    "ArtifactKey",
-    "ArtifactSidecarLabel",
-    "ArtifactSidecar",
-    "ArtifactVersion",
-    "DiagnosticSeverity",
-    "DiagnosticTag",
-    "Applicability",
-    "DiagnosticLabel",
-    "DiagnosticNote",
-    "DiagnosticHelp",
-    "DiagnosticSuggestion",
-    "Diagnostic",
-    "Edit",
-    "FileEdit",
-    "BatchEdit",
-    "Revision",
-    "SessionFile",
-    "Module",
-    "SourceFile",
-    "SourceFileContent",
-    "FileUpdate",
-    "FileUpdateKind",
-    "SourceSnapshot",
-    "TextRange",
-    "TextEdit",
-    "SourceEdit",
-    "SourceUpdate",
-    "SourceUpdateResult",
-    "ComponentId",
-    "FileId",
-    "FileContentId",
-    "FileContent",
-    "ModuleId",
-    "PackageId",
-    "ProfileId",
-    "Span",
-    "LabeledSpan",
-    "TargetId",
-    "VERSION",
-    "version",
-]
+def version() -> str: ...
+
+class Session:
+    """Python language session."""
+
+    @staticmethod
+    def open_path(path: str) -> Session: ...
+
+    @staticmethod
+    def open_source(root: str, source: SourceSnapshot) -> Session: ...
+
+    def revision(self) -> Revision: ...
+
+    def files(self) -> list[SessionFile]: ...
+
+    def update(self, update: SourceUpdate) -> SourceUpdateResult: ...
+
+    def reload(self) -> list[FileUpdate]: ...
+
+    def load_module(self, path: str) -> Module: ...
+
+    def provide(self, revision: Revision, keys: Sequence[ArtifactKey]) -> None: ...
+
+    def require(self, revision: Revision, key: ArtifactKey) -> ArtifactVersion: ...
+
+    def diagnostics(self, revision: Revision, key: ArtifactKey | None = None) -> list[Diagnostic]: ...
+
+    def sidecars(self, revision: Revision, key: ArtifactKey) -> list[ArtifactSidecar]: ...
+
