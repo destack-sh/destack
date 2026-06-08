@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     Expression, FunctionSignature, GenericArgument, GenericParameter, Key, LocalNodeId, Mutability,
     Node, NodeType, Parameter, Path, RangeEnd, ScalarLiteral, ScopeKind, StaticKey, StringId,
-    SymbolKind, SymbolSpace, ThisForm, TupleElement, TypeLiteral, VarianceBound, WhereClause,
+    SymbolKind, SymbolSpace, ThisForm, TupleElement, TypeLiteral, VarianceBound, View, WhereClause,
 };
 
 /// One type-surface member.
@@ -228,6 +228,28 @@ pub struct FunctionTypeExpression {
     pub return_type: Option<LocalNodeId<TypeExpression>>,
 }
 
+impl FunctionTypeExpression {
+    /// Return whether this function type declares a generic template.
+    pub fn declares_generic_template(&self, view: &View<'_>) -> bool {
+        // explicit generic header
+        if !self.generic_parameters.is_empty() {
+            return true;
+        }
+
+        // comptime receiver parameter
+        if let Some(parameter) = self.this_parameter
+            && view.get(parameter).is_comptime()
+        {
+            return true;
+        }
+
+        // comptime parameters
+        self.parameters
+            .iter()
+            .any(|parameter| view.get(*parameter).is_comptime())
+    }
+}
+
 /// One constructor type in type space.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConstructorType {
@@ -241,6 +263,21 @@ pub struct ConstructorType {
     pub return_type: Option<LocalNodeId<TypeExpression>>,
     /// Whether the constructor type is abstract.
     pub is_abstract: bool,
+}
+
+impl ConstructorType {
+    /// Return whether this constructor type declares a generic template.
+    pub fn declares_generic_template(&self, view: &View<'_>) -> bool {
+        // explicit generic header
+        if !self.generic_parameters.is_empty() {
+            return true;
+        }
+
+        // comptime parameters
+        self.parameters
+            .iter()
+            .any(|parameter| view.get(*parameter).is_comptime())
+    }
 }
 
 /// The parsed form of an infer type expression.

@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Asynchrony, FunctionRole, GenericParameter, LocalNodeId, Parameter, TypeExpression, WhereClause,
+    Asynchrony, FunctionRole, GenericParameter, LocalNodeId, Parameter, TypeExpression, View,
+    WhereClause,
 };
 
 /// The source form of a function.
@@ -60,4 +61,26 @@ pub struct FunctionSignature {
     pub is_override: bool,
     /// Whether the function is a generator.
     pub is_generator: bool,
+}
+
+impl FunctionSignature {
+    /// Return whether this signature declares a generic template.
+    pub fn declares_generic_template(&self, view: &View<'_>) -> bool {
+        // explicit generic header
+        if !self.generic_parameters.is_empty() {
+            return true;
+        }
+
+        // comptime receiver parameter
+        if let Some(parameter) = self.this_parameter
+            && view.get(parameter).is_comptime()
+        {
+            return true;
+        }
+
+        // comptime parameters
+        self.parameters
+            .iter()
+            .any(|parameter| view.get(*parameter).is_comptime())
+    }
 }
