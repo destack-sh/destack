@@ -73,7 +73,7 @@ struct WireHeader {
 @repr("transparent")
 /// @type.symbol symbol=FileDescriptor type=FileDescriptor
 /// @layout.type type=FileDescriptor shape=newtype size=4 align=4 backing=scalar(4/4)
-/// @nominal.newtype symbol=FileDescriptor source="newtype FileDescriptor = int32"
+/// @definition.newtype symbol=FileDescriptor source="newtype FileDescriptor = int32" value=int32
 
 newtype FileDescriptor = int32;
 
@@ -82,9 +82,9 @@ newtype FileDescriptor = int32;
 /// @layout.type type=WireHeader shape=struct size=5 align=1
 /// @layout.field parent=WireHeader key=size type=uint32 offset=1 size=4 align=1
 /// @layout.field parent=WireHeader key=tag type=uint8 offset=0 size=1 align=1
-/// @nominal.field symbol=WireHeader.size source="size: uint32" key=size type=uint32
-/// @nominal.field symbol=WireHeader.tag source="tag: uint8" key=tag type=uint8
-/// @nominal.struct symbol=WireHeader
+/// @definition.field symbol=WireHeader.size source="size: uint32" key=size type=uint32
+/// @definition.field symbol=WireHeader.tag source="tag: uint8" key=tag type=uint8
+/// @definition.struct symbol=WireHeader
 
 struct WireHeader {
     tag: uint8;

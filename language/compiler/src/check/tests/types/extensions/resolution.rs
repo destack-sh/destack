@@ -26,9 +26,9 @@ const value = point.sum();
         r#"
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @nominal.field symbol=Point.x source="x: int32" key=x type=int32
-/// @nominal.field symbol=Point.y source="y: int32" key=y type=int32
-/// @nominal.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
+/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -39,7 +39,8 @@ struct Point {
 }
 
 extension PointMath of Point {
-/// @extension.entry symbol=PointMath form=inherent target=Point
+/// @definition.extension symbol=PointMath form=inherent target=Point
+/// @definition.method symbol=PointMath.sum slot=sum type=(this: Point) => int32
 /// @resolution.name source=Point target=Point
 
     sum(): int32 {

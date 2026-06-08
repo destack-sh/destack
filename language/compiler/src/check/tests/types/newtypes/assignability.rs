@@ -16,7 +16,7 @@ const id: UserId = 42;
         r#"
 newtype UserId = int64;
 /// @type.symbol symbol=UserId source="newtype UserId = int64" type=UserId
-/// @nominal.newtype symbol=UserId source="newtype UserId = int64"
+/// @definition.newtype symbol=UserId source="newtype UserId = int64" value=int64
 
 const id: UserId = 42;
 /// @type.symbol symbol=id source=id type=UserId
@@ -46,7 +46,7 @@ const config: Config = { debug: true };
         r#"
 newtype Config = { debug: boolean };
 /// @type.symbol symbol=Config source="newtype Config = { debug: boolean }" type=Config
-/// @nominal.newtype symbol=Config source="newtype Config = { debug: boolean }"
+/// @definition.newtype symbol=Config source="newtype Config = { debug: boolean }" value={ debug: boolean }
 /// @type.symbol symbol=Config.debug source="debug: boolean" type=boolean
 
 const config: Config = { debug: true };

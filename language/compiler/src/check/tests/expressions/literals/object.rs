@@ -134,6 +134,29 @@ const value: { a: number; b: string } = { a: 1, b: 2 };
 }
 
 #[test]
+fn test_contextual_object_literal_contextualizes_empty_array_field() {
+    let session = TestSession::single(
+        r#"
+const state: { reactions: int32[] } = { reactions: [] };
+"#,
+    );
+
+    session.assert_dir_checked(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_check_stats(),
+        r#"
+const state: { reactions: int32[] } = { reactions: [] };
+/// @type.symbol symbol=state source=state type={ reactions: Array<int32> }
+/// @type.symbol symbol=reactions source="reactions: int32[]" type=Array<int32>
+/// @type.node source="{ reactions: [] }" type={ reactions: Array<int32> }
+/// @type.node source=[] type=Array<int32>
+
+/// @check.stats.solve variables=1 terms=8 constraints=1 obligations=0 solutions=1 bounds=2 decisions=0
+"#,
+    );
+}
+
+#[test]
 fn test_satisfies_preserves_object_literal_members() {
     let session = TestSession::single(
         r#"
@@ -258,9 +281,9 @@ const moved = Point { ...point, x: 3 };
         r#"
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @nominal.field symbol=Point.x source="x: int32" key=x type=int32
-/// @nominal.field symbol=Point.y source="y: int32" key=y type=int32
-/// @nominal.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
+/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -310,9 +333,9 @@ const object = { ...point, label: "origin" };
         r#"
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @nominal.field symbol=Point.x source="x: int32" key=x type=int32
-/// @nominal.field symbol=Point.y source="y: int32" key=y type=int32
-/// @nominal.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
+/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -361,9 +384,9 @@ const point: Point = _ { ...base };
         r#"
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @nominal.field symbol=Point.x source="x: int32" key=x type=int32
-/// @nominal.field symbol=Point.y source="y: int32" key=y type=int32
-/// @nominal.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
+/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32

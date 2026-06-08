@@ -26,9 +26,9 @@ point.length();
         r#"
 struct Point {
 /// @type.symbol symbol=Point type=Point
-/// @nominal.field symbol=Point.x source="x: int32" key=x type=int32
-/// @nominal.field symbol=Point.y source="y: int32" key=y type=int32
-/// @nominal.struct symbol=Point
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @definition.field symbol=Point.y source="y: int32" key=y type=int32
+/// @definition.struct symbol=Point
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
@@ -39,7 +39,8 @@ struct Point {
 }
 
 extension PointMath of Point {
-/// @extension.entry symbol=PointMath form=inherent target=Point
+/// @definition.extension symbol=PointMath form=inherent target=Point
+/// @definition.method symbol=PointMath.sum slot=sum type=(this: Point) => int32
 /// @resolution.name source=Point target=Point
 
     sum(): int32 {
@@ -108,17 +109,19 @@ boxed.read();
         r#"
 interface Readable {
 /// @type.symbol symbol=Readable type=Readable
+/// @definition.interface symbol=Readable
+/// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: Readable) => string
 
     read(): string;
-    /// @type.symbol symbol=Readable.read source="read(): string" type=() => string
+    /// @type.symbol symbol=Readable.read source="read(): string" type=(this: Readable) => string
 
 }
 
 struct Box<T> {
 /// @generic.template symbol=Box parameters=[T#1]
 /// @type.symbol symbol=Box type=Box<T#1>
-/// @nominal.field symbol=Box.value source="value: T" key=value type=T#1
-/// @nominal.struct symbol=Box template=LocalGenericTemplateId(0)
+/// @definition.field symbol=Box.value source="value: T" key=value type=T#1
+/// @definition.struct symbol=Box template=LocalGenericTemplateId(0)
 /// @type.symbol symbol=T#1 source=T type=T#1
 
     value: T;
@@ -129,11 +132,13 @@ struct Box<T> {
 
 struct Token {}
 /// @type.symbol symbol=Token source="struct Token {}" type=Token
-/// @nominal.struct symbol=Token source="struct Token {}"
+/// @definition.struct symbol=Token source="struct Token {}"
 
 extension BoxReadable<T> of Box<T> where T: Readable {
 /// @generic.template symbol=BoxReadable parameters=[T#2: Readable]
-/// @extension.entry symbol=BoxReadable form=inherent target=Box<T#2>
+/// @definition.extension symbol=BoxReadable form=inherent target=Box<T#2>
+/// @definition.where symbol=BoxReadable source="T: Readable" left=T#2 right=Readable
+/// @definition.method symbol=BoxReadable.read slot=read type=(this: Box<T#2>) => string
 /// @type.symbol symbol=T#2 source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T#2
@@ -144,7 +149,6 @@ extension BoxReadable<T> of Box<T> where T: Readable {
     /// @type.symbol symbol=BoxReadable.read type=(this: Box<T#2>) => string
 
         return this.value.read();
-        /// @generic.instance source=this.value id=Box<T#2>
         /// @type.node source=this type=Box<T#2>
         /// @type.node source=this.value type=T#2
         /// @type.node source=this.value.read() type=string
