@@ -2,9 +2,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use destack_repository::{Ref, Repository};
 use destack_session::SessionEventHandler;
 use destack_source::{FileWatcher, PhysicalFileWatcher};
-use destack_workspace::{Ref, Repository};
 
 use crate::DaemonError;
 

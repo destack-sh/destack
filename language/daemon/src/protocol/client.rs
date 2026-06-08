@@ -16,7 +16,7 @@ use super::{
     SourceUpdateResponse, Transport, WatchBatchResponse, WatchNextRequest, WatchStartOptions,
     WatchStartRequest, WatchStartedResponse, WatchStopRequest, WatchStoppedResponse,
 };
-use destack_workspace::Revision;
+use destack_repository::Revision;
 
 /// Client configuration for the daemon protocol.
 #[derive(Debug, Clone)]

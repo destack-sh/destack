@@ -1,6 +1,9 @@
-use destack_source::{Diagnostic, DiagnosticCollection};
-use destack_workspace::Revision;
 use std::path::Path;
+use std::sync::Arc;
+
+use destack_compiler::Compiler;
+use destack_repository::Revision;
+use destack_source::{Diagnostic, DiagnosticCollection};
 
 use crate::protocol::{CommandOutputChunk, OutputStream};
 use crate::{Daemon, DaemonWorkspace};
@@ -127,13 +130,8 @@ impl Daemon {
         payload: &CommandPayload,
         revision: CommandRevision,
     ) -> CommandResult<DaemonCommandResult> {
-        let (repository, compiler) =
-            workspace
-                .language_service
-                .root_handles(root)
-                .map_err(|error| {
-                    DaemonCommandError::internal(format!("root repository routing failed: {error}"))
-                })?;
+        let repository = Arc::clone(&workspace.repository);
+        let compiler = Arc::new(Compiler::new(Arc::clone(&repository)));
 
         // gather shared context
         let mut output = CommandOutputBuffer::default();

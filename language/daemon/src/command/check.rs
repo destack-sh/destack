@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
+use destack_repository::Revision;
 use destack_source::{
     Applicability, BatchEdit, DiagnosticCollection, DiffOptions, File, FileId, ModuleId,
     apply_batch_edit, format_diff,
 };
-use destack_workspace::Revision;
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;

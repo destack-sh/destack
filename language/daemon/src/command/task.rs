@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use destack_repository::{DestackFile, Repository, Revision, Root};
 use destack_source::DiagnosticCollection;
-use destack_workspace::{DestackFile, Repository, Revision, Workspace};
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -227,7 +227,7 @@ impl CommandContext<'_> {
         let revision = self.revision()?;
         let workspace = self
             .repository
-            .workspace(revision)
+            .root(revision)
             .map_err(|error| format!("failed to derive workspace: {error}"))?;
         let mut projects = if !options.projects.is_empty() || !options.groups.is_empty() {
             load_workspace_task_projects(self.repository.as_ref(), revision, &workspace)?
@@ -235,7 +235,7 @@ impl CommandContext<'_> {
             let project_path = resolve_task_project_path(
                 self.repository.as_ref(),
                 revision,
-                self.repository.workspace_root(),
+                self.repository.path(),
                 self.common.manifest_path.as_deref(),
             )?;
             vec![load_task_project(
@@ -349,7 +349,7 @@ fn load_task_project(
 fn load_workspace_task_projects(
     repository: &Repository,
     revision: Revision,
-    workspace: &Workspace,
+    workspace: &Root,
 ) -> CommandResult<Vec<TaskProject>> {
     let mut project_paths = Vec::new();
     let mut seen = HashSet::new();

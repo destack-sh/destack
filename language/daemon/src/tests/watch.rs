@@ -77,7 +77,7 @@ fn test_watch_batch_updates_daemon() {
     harness.stop();
 }
 
-/// Applies config changes through language service watch flow.
+/// Applies config changes through toolchain watch flow.
 #[test]
 fn test_watch_batch_requests_rescan_for_config() {
     let policy = WatchPolicy {

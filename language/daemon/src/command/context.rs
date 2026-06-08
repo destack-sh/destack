@@ -6,12 +6,12 @@ use std::sync::Arc;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_session::{FileChange, Session};
-use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
-use destack_workspace::{
+use destack_repository::{
     DestackFile, Edit, ManifestOverride, OptimizeLevel, Ref, Repository, Revision, Target,
     TargetRoot, apply_manifest_overrides_to_json, parse_jsonc_text,
 };
+use destack_session::{FileChange, Session};
+use destack_source::{FileType, ModuleId, ProfileId, TargetId, glob};
 use serde_json::{Map, Value};
 
 use crate::Daemon;
@@ -100,7 +100,7 @@ impl<'a> CommandContext<'a> {
     ) -> CommandResult<Revision> {
         match revision {
             CommandRevision::Current => {
-                let reference = Ref::for_workspace_root(root);
+                let reference = Ref::for_root(root);
                 repository.current(&reference).map_err(|error| {
                     DaemonCommandError::internal(format!(
                         "command workspace revision is missing for {}: {error}",

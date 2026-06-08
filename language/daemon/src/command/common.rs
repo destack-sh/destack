@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
+use destack_repository::{Revision, Target};
 use destack_source::FileType;
-use destack_workspace::{Revision, Target};
 use serde::{Deserialize, Serialize};
 
-pub use destack_workspace::ManifestOverride;
+pub use destack_repository::ManifestOverride;
 
 /// Command input sources.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

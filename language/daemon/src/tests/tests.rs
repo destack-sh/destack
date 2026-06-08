@@ -4,12 +4,12 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use destack_artifact::MemoryCacheStore;
+use destack_repository::{DestackLayoutOverride, Ref, Repository, Revision, Settings};
 use destack_session::open_repository_from_fs;
 use destack_source::{
     FileId, FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
     MemoryFileWatcher,
 };
-use destack_workspace::{DestackLayoutOverride, Ref, Repository, Revision, Settings};
 
 use crate::protocol::{
     DaemonRequest, DaemonResponse, OpenRootRequest, ProtocolClient, ProtocolClientOptions,
@@ -123,7 +123,7 @@ impl TestDaemon {
             open_repository_from_fs(
                 workspace_root,
                 fs.clone(),
-                destack_workspace::Environment::capture_process(),
+                destack_repository::Environment::capture_process(),
                 Settings::default(),
                 DestackLayoutOverride::default(),
             )
@@ -157,7 +157,7 @@ impl TestDaemon {
     /// Return the primary daemon workspace.
     pub fn workspace(&self) -> Arc<DaemonWorkspace> {
         self.daemon
-            .workspace(self.repository.workspace_root())
+            .workspace(self.repository.path())
             .expect("test workspace should be opened")
     }
 
@@ -176,7 +176,7 @@ impl TestDaemon {
     /// Update a file and return all daemon updates.
     pub fn update_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
         let path = self.path_for(path);
-        self.workspace()
+        self.root()
             .update_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("update failed for {}: {error}", path.display()))
             .updates
@@ -185,7 +185,7 @@ impl TestDaemon {
     /// Update an in-memory file and return all daemon updates.
     pub fn update_memory_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
         let path = self.path_for(path);
-        self.workspace()
+        self.root()
             .update_memory_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("virtual update failed for {}: {error}", path.display()))
             .updates
@@ -195,8 +195,8 @@ impl TestDaemon {
     pub fn file_id_for_path(&self, path: impl AsRef<Path>) -> FileId {
         let path = self.path_for(path);
         let view = self
-            .workspace()
-            .language_service
+            .root()
+            .workspace
             .file_view(&path)
             .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
 
@@ -207,8 +207,8 @@ impl TestDaemon {
     pub fn file_for_path(&self, path: impl AsRef<Path>) -> Arc<destack_source::File> {
         let path = self.path_for(path);
         let view = self
-            .workspace()
-            .language_service
+            .root()
+            .workspace
             .file_view(&path)
             .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
 
@@ -219,8 +219,8 @@ impl TestDaemon {
     pub fn module_id_for_path(&self, path: impl AsRef<Path>) -> destack_source::ModuleId {
         let path = self.path_for(path);
         let view = self
-            .workspace()
-            .language_service
+            .root()
+            .workspace
             .file_view(&path)
             .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
         let repository = view.repository();
@@ -299,7 +299,7 @@ impl TestDaemon {
 
     /// Apply a watch batch to the daemon and return the batch result.
     pub fn apply_watch_batch(&self, batch: &WatchBatch) -> DaemonUpdateResult {
-        self.workspace().apply_watch_batch(batch)
+        self.root().apply_watch_batch(batch)
     }
 
     /// Build a protocol harness for this daemon.
@@ -316,7 +316,7 @@ impl TestDaemon {
 /// Return the current root revision for one repository.
 pub fn current_root_revision(repository: &Repository) -> Revision {
     // resolve the root ref first
-    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let reference = Ref::for_root(repository.path());
 
     // return the current published root revision
     repository
@@ -555,7 +555,7 @@ impl TestProtocolHarness {
     /// Open one explicit root and return the handle id.
     pub fn open_root_path(&self, root: PathBuf) -> RootHandleId {
         let open = OpenRootRequest {
-            workspace: self.test.repository.workspace_root().to_path_buf(),
+            workspace: self.test.repository.path().to_path_buf(),
             root,
             options: RootOpenOptions::default(),
         };

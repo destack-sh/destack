@@ -3,12 +3,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_query::QueryModule;
-use destack_service::{DiagnosticView, FileChange, FileImage, LanguageServiceError, QueryRevision};
+use destack_repository::Revision;
 use destack_session as session;
 use destack_source::{
     File, FileType, FileWatchFilter, FileWatchOptions, PackageId, ProfileId, TargetId,
 };
-use destack_workspace::Revision;
+use destack_workspace::{DiagnosticView, Error, FileChange, FileImage, RevisionPolicy};
 use parking_lot::Mutex;
 
 use crate::{
@@ -773,9 +773,9 @@ impl ProtocolServer {
 
         // compare the root against the requested content identity
         let actual = workspace
-            .language_service
+            .workspace
             .revision(root)
-            .map_err(|error| self.protocol_error_from_service("command revision", error))?;
+            .map_err(|error| self.protocol_error_from_workspace("command revision", error))?;
         if actual == expected {
             return Ok(());
         }
@@ -805,10 +805,9 @@ impl ProtocolServer {
             DaemonQuery::CurrentRevision { handle } => {
                 let entry = self.root_for_handle(handle)?;
                 let workspace = self.workspace_for_entry(&entry)?;
-                let revision = workspace
-                    .language_service
-                    .revision(&entry.root)
-                    .map_err(|error| self.protocol_error_from_service("current revision", error))?;
+                let revision = workspace.workspace.revision(&entry.root).map_err(|error| {
+                    self.protocol_error_from_workspace("current revision", error)
+                })?;
                 DaemonQueryResponse::CurrentRevision(revision)
             }
             DaemonQuery::RootSnapshot { handle, target } => {
@@ -868,11 +867,11 @@ impl ProtocolServer {
                 "missing expected revision for query",
             )
         })?;
-        let revision = QueryRevision::Current(revision);
+        let revision = RevisionPolicy::Current(revision);
         let response = workspace
-            .language_service
+            .workspace
             .query_root(root, request.request, revision)
-            .map_err(|error| self.protocol_error_from_service("query", error))?;
+            .map_err(|error| self.protocol_error_from_workspace("query", error))?;
 
         // keep query response variants aligned with query request variants
         if response.response.method_id() != request_method_id {
@@ -1038,23 +1037,18 @@ impl ProtocolServer {
         self.protocol_error(ProtocolErrorCode::Internal, &error.to_string())
     }
 
-    /// Convert a language service error to a protocol error.
-    fn protocol_error_from_service(
-        &self,
-        context: &str,
-        error: LanguageServiceError,
-    ) -> ProtocolError {
-        // map language service errors into protocol domain errors
+    /// Convert a workspace error to a protocol error.
+    fn protocol_error_from_workspace(&self, context: &str, error: Error) -> ProtocolError {
+        // map workspace errors into protocol domain errors
         let code = match error {
-            LanguageServiceError::FileMissing { .. }
-            | LanguageServiceError::PathNotInRoot { .. } => ProtocolErrorCode::NotFound,
-            LanguageServiceError::StaleOpenFile { .. } => ProtocolErrorCode::Conflict,
-            LanguageServiceError::InvalidTextChange { .. } => ProtocolErrorCode::InvalidRequest,
-            LanguageServiceError::StaleRevision { .. } => ProtocolErrorCode::Conflict,
-            LanguageServiceError::Repository(_)
-            | LanguageServiceError::Session(_)
-            | LanguageServiceError::Io { .. }
-            | LanguageServiceError::Internal { .. } => ProtocolErrorCode::Internal,
+            Error::FileMissing { .. } | Error::PathNotInRoot { .. } => ProtocolErrorCode::NotFound,
+            Error::StaleOpenFile { .. } => ProtocolErrorCode::Conflict,
+            Error::InvalidTextChange { .. } => ProtocolErrorCode::InvalidRequest,
+            Error::StaleRevision { .. } => ProtocolErrorCode::Conflict,
+            Error::Repository(_)
+            | Error::Session(_)
+            | Error::Io { .. }
+            | Error::Internal { .. } => ProtocolErrorCode::Internal,
         };
 
         self.protocol_error(code, &format!("{context} failed: {error}"))
@@ -1237,9 +1231,9 @@ impl ProtocolServer {
         let entry = self.root_for_handle(handle)?;
         let workspace = self.workspace_for_entry(&entry)?;
         let images = workspace
-            .language_service
+            .workspace
             .root_diagnostics(&entry.root)
-            .map_err(|error| self.protocol_error_from_service("diagnostics", error))?;
+            .map_err(|error| self.protocol_error_from_workspace("diagnostics", error))?;
         let diagnostics: Vec<_> = images
             .into_iter()
             .flat_map(|image| image.diagnostics)
@@ -1256,13 +1250,13 @@ impl ProtocolServer {
         let entry = self.root_for_handle(handle)?;
         let workspace = self.workspace_for_entry(&entry)?;
         let revision = workspace
-            .language_service
+            .workspace
             .revision(&entry.root)
-            .map_err(|error| self.protocol_error_from_service("diagnostics", error))?;
+            .map_err(|error| self.protocol_error_from_workspace("diagnostics", error))?;
         let diagnostics = workspace
-            .language_service
+            .workspace
             .root_diagnostics(&entry.root)
-            .map_err(|error| self.protocol_error_from_service("diagnostics", error))?;
+            .map_err(|error| self.protocol_error_from_workspace("diagnostics", error))?;
 
         Ok(diagnostics
             .iter()
@@ -1284,14 +1278,14 @@ impl ProtocolServer {
             );
         }
         let revision = workspace
-            .language_service
+            .workspace
             .revision(&entry.root)
-            .map_err(|error| self.protocol_error_from_service("file diagnostics", error))?;
+            .map_err(|error| self.protocol_error_from_workspace("file diagnostics", error))?;
 
         let diagnostics = workspace
-            .language_service
+            .workspace
             .file_diagnostics(path)
-            .map_err(|error| self.protocol_error_from_service("file diagnostics", error))?;
+            .map_err(|error| self.protocol_error_from_workspace("file diagnostics", error))?;
 
         Ok(diagnostics
             .as_ref()
@@ -1307,9 +1301,9 @@ impl ProtocolServer {
         let entry = self.root_for_handle(handle)?;
         let workspace = self.workspace_for_entry(&entry)?;
         let revision = workspace
-            .language_service
+            .workspace
             .revision(&entry.root)
-            .map_err(|error| self.protocol_error_from_service("root snapshot", error))?;
+            .map_err(|error| self.protocol_error_from_workspace("root snapshot", error))?;
         let package_id = workspace
             .repository
             .nearest_package(revision, &entry.root)
@@ -1341,10 +1335,10 @@ impl ProtocolServer {
             );
         }
 
-        let view = match workspace.language_service.file_view(&request.path) {
+        let view = match workspace.workspace.file_view(&request.path) {
             Ok(view) => view,
-            Err(LanguageServiceError::FileMissing { .. }) => return Ok(None),
-            Err(error) => return Err(self.protocol_error_from_service("file snapshot", error)),
+            Err(Error::FileMissing { .. }) => return Ok(None),
+            Err(error) => return Err(self.protocol_error_from_workspace("file snapshot", error)),
         };
         let repository = view.repository();
         let revision = view.revision();
@@ -1444,7 +1438,7 @@ impl ProtocolServer {
     fn protocol_error_from_repository(
         &self,
         context: &str,
-        error: destack_workspace::RepositoryError,
+        error: destack_repository::RepositoryError,
     ) -> ProtocolError {
         self.protocol_error(
             ProtocolErrorCode::Internal,

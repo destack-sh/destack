@@ -1,7 +1,7 @@
 use std::process::Command;
 
+use destack_repository::DestackFile;
 use destack_source::DiagnosticCollection;
-use destack_workspace::DestackFile;
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -101,7 +101,7 @@ impl CommandContext<'_> {
         let revision = self.revision()?;
         let workspace = self
             .repository
-            .workspace(revision)
+            .root(revision)
             .map_err(|error| format!("failed to derive workspace: {error}"))?;
 
         // resolve manifest

@@ -1,5 +1,5 @@
+use destack_repository::DestackFile;
 use destack_source::DiagnosticCollection;
-use destack_workspace::DestackFile;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

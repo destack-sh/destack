@@ -65,7 +65,7 @@ impl CommandContext<'_> {
         let revision = self.revision()?;
         let workspace = self
             .repository
-            .workspace(revision)
+            .root(revision)
             .map_err(|error| format!("failed to derive workspace: {error}"))?;
         let package_roots: Vec<String> = self
             .repository

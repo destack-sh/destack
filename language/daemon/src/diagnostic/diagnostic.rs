@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use destack_service::LanguageServiceError;
+use destack_workspace::Error;
 
 /// Errors produced while applying daemon updates.
 #[derive(Debug)]
@@ -19,10 +19,10 @@ pub enum DaemonError {
         /// The underlying write error.
         error: std::io::Error,
     },
-    /// Language service operation failed.
-    Service {
-        /// The typed language service error.
-        error: LanguageServiceError,
+    /// Workspace operation failed.
+    Workspace {
+        /// The typed workspace error.
+        error: Error,
     },
 }
 
@@ -36,8 +36,8 @@ impl std::fmt::Display for DaemonError {
             DaemonError::FileWrite { path, error } => {
                 write!(f, "failed to write file {}: {}", path.display(), error)
             }
-            DaemonError::Service { error } => {
-                write!(f, "service error: {error}")
+            DaemonError::Workspace { error } => {
+                write!(f, "workspace error: {error}")
             }
         }
     }
@@ -45,8 +45,8 @@ impl std::fmt::Display for DaemonError {
 
 impl std::error::Error for DaemonError {}
 
-impl From<LanguageServiceError> for DaemonError {
-    fn from(error: LanguageServiceError) -> Self {
-        Self::Service { error }
+impl From<Error> for DaemonError {
+    fn from(error: Error) -> Self {
+        Self::Workspace { error }
     }
 }

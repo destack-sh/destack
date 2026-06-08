@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use destack_repository::RegistryAuthentication;
 use destack_source::DiagnosticCollection;
-use destack_workspace::RegistryAuthentication;
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
@@ -99,9 +99,7 @@ impl CommandContext<'_> {
             .repository
             .destack_for_workspace(revision)
             .map_err(|error| format!("failed to load workspace manifest: {error}"))?
-            .map(|manifest| {
-                resolve_workspace_path(self.repository.workspace_root(), &manifest.vendor.path)
-            })
+            .map(|manifest| resolve_workspace_path(self.repository.path(), &manifest.vendor.path))
             .unwrap_or_else(|| layout.vendor.clone());
 
         // redact registry settings for command output
