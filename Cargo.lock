@@ -1329,13 +1329,8 @@ dependencies = [
 name = "destack_napi"
 version = "0.55.4"
 dependencies = [
+ "destack",
  "destack_bridge_language",
- "destack_compiler",
- "destack_linter",
- "destack_query",
- "destack_repository",
- "destack_session",
- "destack_source",
  "napi",
  "napi-derive",
 ]

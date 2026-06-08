@@ -4,6 +4,8 @@ use destack_bridge_language as bridge;
 
 use napi_derive::napi;
 
+use crate::ModuleId;
+
 /// One source file in an explicit source snapshot.
 #[derive(Debug)]
 #[napi(object)]
@@ -58,15 +60,11 @@ impl SourceFileContent {
                 };
                 Ok(bridge::SourceFileContent::Bytes(value))
             }
-            _ => {
-                Err(
-                    napi::Error::from_reason(
-                        format!(
-                            "unknown {}: {}", stringify!(SourceFileContent), self.kind
-                        ),
-                    ),
-                )
-            }
+            _ => Err(napi::Error::from_reason(format!(
+                "unknown {}: {}",
+                stringify!(SourceFileContent),
+                self.kind
+            ))),
         }
     }
 }
@@ -87,14 +85,14 @@ fn unexpected_payload(kind: &str) -> napi::Error {
 pub struct FileUpdate {
     /// Repository logical path.
     pub path: String,
-    /// Client-facing URI.
+    /// External file URI.
     pub uri: String,
     /// Coarse file update kind.
     pub kind: String,
     /// Whether the file was removed.
     pub is_removed: bool,
     /// Updated module id when known.
-    pub module_id: Option<String>,
+    pub module_id: Option<ModuleId>,
 }
 
 impl FileUpdate {
@@ -105,7 +103,7 @@ impl FileUpdate {
             uri: value.uri,
             kind: file_update_kind_label(value.kind),
             is_removed: value.is_removed,
-            module_id: value.module_id,
+            module_id: value.module_id.map(|item| ModuleId::from_bridge(item)),
         }
     }
 }

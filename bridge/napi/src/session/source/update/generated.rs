@@ -91,10 +91,7 @@ impl SourceEdit {
                     return Err(missing_payload("text"));
                 };
                 let text = value;
-                Ok(bridge::SourceEdit::SetText {
-                    path,
-                    text,
-                })
+                Ok(bridge::SourceEdit::SetText { path, text })
             }
             "editText" => {
                 if self.text.is_some() {
@@ -120,10 +117,7 @@ impl SourceEdit {
                     .into_iter()
                     .map(|item| Ok::<_, napi::Error>(item.into_bridge()?))
                     .collect::<napi::Result<Vec<_>>>()?;
-                Ok(bridge::SourceEdit::EditText {
-                    path,
-                    edits,
-                })
+                Ok(bridge::SourceEdit::EditText { path, edits })
             }
             "setBytes" => {
                 if self.text.is_some() {
@@ -146,10 +140,7 @@ impl SourceEdit {
                     return Err(missing_payload("bytes"));
                 };
                 let bytes = value;
-                Ok(bridge::SourceEdit::SetBytes {
-                    path,
-                    bytes,
-                })
+                Ok(bridge::SourceEdit::SetBytes { path, bytes })
             }
             "remove" => {
                 if self.text.is_some() {
@@ -194,18 +185,13 @@ impl SourceEdit {
                     return Err(missing_payload("to"));
                 };
                 let to = value;
-                Ok(bridge::SourceEdit::Move {
-                    from,
-                    to,
-                })
+                Ok(bridge::SourceEdit::Move { from, to })
             }
-            _ => {
-                Err(
-                    napi::Error::from_reason(
-                        format!("unknown {}: {}", stringify!(SourceEdit), self.kind),
-                    ),
-                )
-            }
+            _ => Err(napi::Error::from_reason(format!(
+                "unknown {}: {}",
+                stringify!(SourceEdit),
+                self.kind
+            ))),
         }
     }
 }
