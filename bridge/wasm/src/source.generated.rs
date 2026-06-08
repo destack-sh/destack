@@ -121,14 +121,14 @@ impl Revision {
 }
 
 impl Revision {
-    /// Convert one workspace revision into one WASM revision.
+    /// Convert one source revision into one WASM revision.
     pub(crate) fn from_core(revision: destack_bridge_core::Revision) -> Self {
         Self {
             id: revision.to_string(),
         }
     }
 
-    /// Convert this WASM revision into one workspace revision.
+    /// Convert this WASM revision into one source revision.
     fn into_core(self) -> Result<destack_bridge_core::Revision, JsValue> {
         destack_bridge_core::parse_revision(&self.id).map_err(js_error)
     }
@@ -421,7 +421,7 @@ impl FileUpdate {
 impl FileUpdate {
     /// Convert one session file update into one WASM file update.
     pub(crate) fn from_core(
-        session: &destack_bridge_core::LanguageSession,
+        session: &destack_bridge_core::Session,
         update: destack_bridge_core::FileUpdate,
     ) -> Self {
         let uri = update.uri().to_string();
@@ -473,7 +473,7 @@ impl SourceUpdateResult {
 impl SourceUpdateResult {
     /// Convert one session source update result into one WASM source update result.
     pub(crate) fn from_core(
-        session: &destack_bridge_core::LanguageSession,
+        session: &destack_bridge_core::Session,
         result: destack_bridge_core::SourceUpdateResult,
     ) -> Self {
         let files = Array::new();
