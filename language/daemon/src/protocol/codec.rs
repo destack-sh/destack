@@ -380,10 +380,10 @@ mod tests {
     use crate::CommandRevision;
     use crate::protocol::{
         CommandBuildOptions, CommandInput, CommandPayload, CommandRequest, CommandResponse,
-        CommonCommandOptions, DaemonRequest, DaemonResponse, DiagnosticBatch, FileUpdate,
-        FileUpdateImage, FileUpdateKind, FileUpdateRequest, ProtocolRequest, ProtocolResponse,
-        RequestId, RequestOptions, RootHandleId, SourceEdit, SourceUpdate, SourceUpdateRequest,
-        TextEdit, TextRange, loopback_transport_pair,
+        CommonCommandOptions, DaemonRequest, DaemonResponse, DiagnosticBatch, FileOperation,
+        FileOperationRequest, FileUpdateImage, ProtocolRequest, ProtocolResponse, RequestId,
+        RequestOptions, RootHandleId, SourceEdit, SourceUpdate, SourceUpdateRequest, TextEdit,
+        TextRange, loopback_transport_pair,
     };
 
     #[test]
@@ -452,14 +452,13 @@ mod tests {
         let request = ProtocolRequest {
             id: RequestId::new(4),
             options: RequestOptions::default(),
-            payload: DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
+            payload: DaemonRequest::ApplyFileOperation(FileOperationRequest {
                 handle: RootHandleId::new(1),
-                update: FileUpdate {
+                operation: FileOperation::ChangeText {
                     path: "/root/app.ds".into(),
-                    update: FileUpdateKind::Text {
-                        content: "let x = 1".to_string(),
-                    },
-                    write_to_disk: false,
+                    uri: Uri::from_file_path("/root/app.ds"),
+                    version: 1,
+                    content: "let x = 1".to_string(),
                 },
             }),
         };

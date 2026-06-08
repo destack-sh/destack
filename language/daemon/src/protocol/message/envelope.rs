@@ -3,10 +3,10 @@ use serde::{Deserialize, Serialize};
 use super::super::handshake::{HandshakeRequest, HandshakeResponse};
 use super::{
     CloseRootRequest, CommandRequest, CommandResponse, DaemonNotification, DaemonQuery,
-    DaemonQueryResponse, FileUpdateRequest, FileUpdateResponse, OpenRootRequest, ReloadRootRequest,
-    RootClosedResponse, RootOpenedResponse, RootReloadResponse, SourceUpdateRequest,
-    SourceUpdateResponse, WatchBatchResponse, WatchNextRequest, WatchStartRequest,
-    WatchStartedResponse, WatchStopRequest, WatchStoppedResponse,
+    DaemonQueryResponse, FileOperationRequest, FileOperationResponse, OpenRootRequest,
+    ReloadRootRequest, RootClosedResponse, RootOpenedResponse, RootReloadResponse,
+    SourceUpdateRequest, SourceUpdateResponse, WatchBatchResponse, WatchNextRequest,
+    WatchStartRequest, WatchStartedResponse, WatchStopRequest, WatchStoppedResponse,
 };
 
 /// Unique identifier for protocol requests.
@@ -196,8 +196,8 @@ pub enum DaemonRequest {
     CloseRoot(CloseRootRequest),
     /// Reload a root.
     ReloadRoot(ReloadRootRequest),
-    /// Apply a file update to a root.
-    ApplyFileUpdate(FileUpdateRequest),
+    /// Apply a file operation to a root.
+    ApplyFileOperation(FileOperationRequest),
     /// Apply a source update to a root.
     ApplySourceUpdate(SourceUpdateRequest),
     /// Start watching a root.
@@ -230,8 +230,8 @@ pub enum DaemonResponse {
     RootClosed(RootClosedResponse),
     /// Root reload response.
     RootReloaded(RootReloadResponse),
-    /// File update response.
-    FileUpdated(FileUpdateResponse),
+    /// File operation response.
+    FileOperationApplied(FileOperationResponse),
     /// Source update response.
     SourceUpdated(SourceUpdateResponse),
     /// Watch start response.
