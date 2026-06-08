@@ -1,4 +1,4 @@
-use destack_workspace::Target;
+use destack_repository::Target;
 
 /// Marker trait for code generation backends.
 /// Backends implement this to provide metadata about their capabilities.

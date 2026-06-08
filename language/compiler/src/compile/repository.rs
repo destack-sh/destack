@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactDependency, ArtifactPathState};
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId, Uri};
-use destack_workspace::{
+use destack_repository::{
     CompilerOptions, DestackFile, Module, Package, Profile, ProviderContext, Revision, Target,
 };
 

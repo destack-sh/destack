@@ -1,5 +1,5 @@
 use destack_source::{PackageId, TargetId};
-use destack_workspace::ProviderContext;
+use destack_repository::ProviderContext;
 
 /// State for one link phase provider run.
 pub(in crate::link) struct LinkState<'a> {

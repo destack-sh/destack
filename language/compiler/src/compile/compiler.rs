@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactStore, DiagnosticBuilder, DiagnosticLike};
 use destack_core::StringPool;
-use destack_workspace::{ArtifactReader, ProviderContext, Repository, Target};
+use destack_repository::{ArtifactReader, ProviderContext, Repository, Target};
 
 use crate::CompilerResult;
 

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::declare_mir_pass;
 use destack_mir as mir;
-use destack_workspace::FloatMathPolicy;
+use destack_repository::FloatMathPolicy;
 
 use crate::common::mir::analysis::{ConstantMap, ConstantPropagation};
 use crate::common::mir::{InstructionRef, ValueTypeMap, build_value_instruction_refs, fold_binary};
@@ -596,7 +596,7 @@ mod tests {
     use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
     use crate::optimize::passes::Reassociate;
-    use destack_workspace::FloatMathPolicy;
+    use destack_repository::FloatMathPolicy;
 
     /// Constant reassociation combines adjacent constants.
     #[test]

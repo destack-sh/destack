@@ -1,6 +1,6 @@
 use destack_artifact::{ArtifactPayload, MirVerified};
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext};
 
 use crate::verify::{DropInsert, OwnershipCheck, VerifyState};
 use crate::{Compiler, CompilerError, CompilerResult};

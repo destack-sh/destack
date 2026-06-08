@@ -9,7 +9,7 @@ use destack_artifact::{
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, Span,
 };
-use destack_workspace::{ProviderContext, ProviderError, Repository, Revision};
+use destack_repository::{ProviderContext, ProviderError, Repository, Revision};
 
 use super::module::{parse_module, parsed_dependencies};
 use crate::Compiler;
@@ -23,19 +23,22 @@ pub(crate) struct TestProvider {
     revision: Revision,
     /// The compiler under test.
     compiler: Compiler,
+    /// Whether provider attempts should emit event traces.
+    emit_events: bool,
     /// The active requirement stack.
     active: RefCell<Vec<ArtifactKey>>,
 }
 
 impl TestProvider {
     /// Create one test provider.
-    pub(crate) fn new(repository: Arc<Repository>, revision: Revision) -> Self {
+    pub(crate) fn new(repository: Arc<Repository>, revision: Revision, emit_events: bool) -> Self {
         let compiler = Compiler::new(repository.clone());
 
         Self {
             repository,
             revision,
             compiler,
+            emit_events,
             active: RefCell::new(Vec::new()),
         }
     }
@@ -386,6 +389,11 @@ impl ProviderContext for TestProviderContext<'_> {
     /// Return the artifact key being built.
     fn artifact_key(&self) -> ArtifactKey {
         self.key
+    }
+
+    /// Emit event traces from compiler test attempts.
+    fn emit_events(&self) -> bool {
+        self.provider.emit_events
     }
 
     /// Require one artifact and return its exact version when ready.

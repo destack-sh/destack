@@ -1,7 +1,7 @@
 use destack_artifact::ScriptOutput;
 use destack_codegen_js as js;
 use destack_source::{ModuleId, PackageId, ProfileId, Span, TargetId};
-use destack_workspace::{ProviderContext, Target};
+use destack_repository::{ProviderContext, Target};
 
 use super::super::ModuleSet;
 use crate::{Compiler, LinkError, LinkResult};

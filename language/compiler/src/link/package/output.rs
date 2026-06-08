@@ -1,4 +1,4 @@
-use destack_workspace::ProviderContext;
+use destack_repository::ProviderContext;
 use std::path::Path;
 
 use crate::{Compiler, CompilerResult, LinkResult};
@@ -7,7 +7,7 @@ use destack_artifact::{
     BuildManifest, OutputContent, OutputFile, PackageAssembly, PackageOutput, TargetOutputName,
 };
 use destack_source::{FileType, ModuleId, Uri};
-use destack_workspace::{BundleMode, Target};
+use destack_repository::{BundleMode, Target};
 
 use super::layout::TargetLocation;
 

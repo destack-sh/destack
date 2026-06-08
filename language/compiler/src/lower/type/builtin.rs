@@ -3,7 +3,7 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext};
 use std::sync::Arc;
 use {destack_dir as dir, destack_mir as mir};
 

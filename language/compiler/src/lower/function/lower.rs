@@ -5,7 +5,7 @@ use {destack_dir as dir, destack_mir as mir};
 use destack_artifact::{DiagnosticAnchor, DirBound, DirCheckedModule, DirParsed, LanguageIntrinsics};
 use destack_core::{StringId, StringPool};
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext};
 
 use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 

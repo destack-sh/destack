@@ -1,5 +1,5 @@
 use destack_artifact::{ArtifactFailure, ArtifactKey, ArtifactPayload};
-use destack_workspace::{ProviderContext, ProviderError, ProviderResult};
+use destack_repository::{ProviderContext, ProviderError, ProviderResult};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 

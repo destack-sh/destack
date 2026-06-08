@@ -4,7 +4,7 @@ use super::state::LinkState;
 use crate::{Compiler, CompilerError, CompilerResult, LinkError};
 use destack_artifact::{ArtifactPayload, EmitFormat, PackageOutput};
 use destack_source::{PackageId, TargetId};
-use destack_workspace::{ProviderContext, RepositoryError};
+use destack_repository::{ProviderContext, RepositoryError};
 
 impl Compiler {
     /// Build one package output.
@@ -78,7 +78,7 @@ impl Compiler {
 
     /// Return the package directory used for linked output resolution.
     fn package_directory(&self, package_path: Option<std::path::PathBuf>) -> std::path::PathBuf {
-        package_path.unwrap_or_else(|| self.repository.workspace_root().to_path_buf())
+        package_path.unwrap_or_else(|| self.repository.path().to_path_buf())
     }
 
     /// Map one target module discovery failure into a link diagnostic.

@@ -4,7 +4,7 @@ use destack_artifact::{ArtifactDependency, ArtifactPathState, DirParsed, DirPars
 use destack_dir as dir;
 use destack_parser::{Parser, ParserOptions};
 use destack_source::{File, FileContentId, FileId, LanguageType, ProfileId, Span};
-use destack_workspace::{Module, Repository, Revision};
+use destack_repository::{Module, Repository, Revision};
 
 /// One code module in a compiler test.
 #[derive(Debug)]

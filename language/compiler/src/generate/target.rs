@@ -1,10 +1,10 @@
 use crate::{Compiler, CompilerResult, GenerateError};
 use destack_artifact::ModuleOutput;
-use destack_workspace::ProviderContext;
+use destack_repository::ProviderContext;
 
 use crate::CompilerError;
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::ProfileId;
+use destack_repository::ProfileId;
 
 impl Compiler {
     /// Generate one module output for one target.

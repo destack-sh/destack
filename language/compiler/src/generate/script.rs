@@ -3,7 +3,7 @@ use destack_artifact::ModuleOutput;
 use destack_codegen_js::{CodegenJsError, CodegenJsWarning};
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, ProviderContext, Target};
+use destack_repository::{ProfileId, ProviderContext, Target};
 
 use super::GenerateState;
 

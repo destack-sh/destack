@@ -1,5 +1,5 @@
 use destack_source::ModuleId;
-use destack_workspace::BundleMode;
+use destack_repository::BundleMode;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{LinkError, LinkResult};

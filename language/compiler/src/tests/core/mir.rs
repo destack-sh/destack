@@ -8,7 +8,7 @@ use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, ProfileId,
     Span, TargetId,
 };
-use destack_workspace::{ProviderContext, ProviderError, Revision};
+use destack_repository::{ProviderContext, ProviderError, Revision};
 
 /// MIR program under compiler tests.
 pub(crate) struct TestProgram {

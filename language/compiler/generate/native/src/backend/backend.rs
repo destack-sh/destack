@@ -7,7 +7,7 @@ use destack_artifact::EmitFormat;
 use destack_codegen_lib::CodegenBackend;
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_workspace::{Mode, OptimizeLevel, Target};
+use destack_repository::{Mode, OptimizeLevel, Target};
 use target_lexicon::Triple;
 
 use crate::lower::{ModuleLowerOutput, ModuleLowerer};

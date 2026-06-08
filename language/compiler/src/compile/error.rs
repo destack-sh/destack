@@ -1,7 +1,7 @@
 use destack_artifact::{
     ArtifactFailure, ArtifactKey, ArtifactVersion, DiagnosticError, DiagnosticLike,
 };
-use destack_workspace::ProviderError;
+use destack_repository::ProviderError;
 
 use crate::{
     BindError, CheckError, ElaborateError, ExpandError, ExportError, GenerateError, ImportError,

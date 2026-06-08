@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use destack_artifact::DiagnosticAnchor;
-use destack_workspace::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext};
 
 use crate::{Compiler, CompilerResult, LowerError};
 

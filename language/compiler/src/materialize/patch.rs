@@ -2,7 +2,7 @@ use crate::Compiler;
 
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_repository::ProfileId;
 
 use super::ComptimeOutput;
 

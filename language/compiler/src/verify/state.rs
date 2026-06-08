@@ -1,7 +1,7 @@
 use destack_artifact::{DiagnosticBuilder, DiagnosticLike};
 use destack_mir as mir;
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext};
 
 use crate::DiagnosticAnchor;
 use crate::verify::VerifyError;

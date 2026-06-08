@@ -1,4 +1,4 @@
-use destack_workspace::CheckFailurePolicy;
+use destack_repository::CheckFailurePolicy;
 use {destack_dir as dir, destack_mir as mir};
 
 use crate::{CompilerError, CompilerResult, LowerError, ScalarType};

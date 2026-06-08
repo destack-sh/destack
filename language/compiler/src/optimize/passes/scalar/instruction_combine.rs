@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::declare_mir_pass;
 use destack_mir as mir;
 
-use destack_workspace::FloatMathPolicy;
+use destack_repository::FloatMathPolicy;
 
 use crate::ConstantMap;
 use crate::common::mir::analysis::{ConstantPropagation, RangeAnalysis, RangeMap};
@@ -1054,7 +1054,7 @@ mod tests {
     use super::*;
     use crate::optimize::PipelineOptions;
     use crate::optimize::common::tests::TestProgram;
-    use destack_workspace::FloatMathPolicy;
+    use destack_repository::FloatMathPolicy;
 
     /// x + 0 simplifies to x (instruction removed, uses substituted).
     #[test]

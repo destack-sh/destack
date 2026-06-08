@@ -11,7 +11,7 @@ use destack_source::{
     DiagnosticCollection, DiffOptions, FileContent, MemoryFileSystem, ModuleId, ProfileId,
     TargetId, format_diff,
 };
-use destack_workspace::{
+use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, ProviderError, Ref, Repository,
     Revision, Settings,
 };
@@ -28,6 +28,8 @@ use super::provider::TestProvider;
 pub(crate) struct TestSessionBuilder {
     /// Source files keyed by logical path.
     files: BTreeMap<String, FileContent>,
+    /// Whether provider attempts should emit event traces.
+    emit_events: bool,
 }
 
 impl TestSessionBuilder {
@@ -55,9 +57,17 @@ impl TestSessionBuilder {
         self
     }
 
+    /// Enable provider event traces.
+    pub(crate) fn emit_events(mut self) -> Self {
+        self.emit_events = true;
+
+        self
+    }
+
     /// Build the test session.
     pub(crate) fn build(self) -> TestSession {
         let mut files = self.files;
+        let emit_events = self.emit_events;
 
         // enable sidecar snapshots in compiler tests
         files
@@ -72,7 +82,7 @@ impl TestSessionBuilder {
                 .to_string(),
             });
 
-        TestSession::build(files)
+        TestSession::build(files, emit_events)
     }
 }
 
@@ -114,7 +124,7 @@ impl TestSession {
     }
 
     /// Build one test session from source files.
-    fn build(files: BTreeMap<String, FileContent>) -> Self {
+    fn build(files: BTreeMap<String, FileContent>, emit_events: bool) -> Self {
         let root = PathBuf::new();
         let environment = Environment::default();
         let layout = DestackLayout::resolve(
@@ -133,7 +143,7 @@ impl TestSession {
             Settings::default(),
             layout,
         ));
-        let reference = Ref::for_workspace_root(repository.workspace_root());
+        let reference = Ref::for_root(repository.path());
         let revision = repository
             .current(&reference)
             .expect("test repository root ref should exist");
@@ -153,7 +163,7 @@ impl TestSession {
         let modules_by_path = Self::build_modules(repository.as_ref(), revision, &files);
         let module_path_by_id = Self::module_path_by_id(repository.as_ref(), revision, &files);
         Self::seed_parsed_artifacts(repository.as_ref(), revision, &modules_by_path);
-        let provider = TestProvider::new(repository.clone(), revision);
+        let provider = TestProvider::new(repository.clone(), revision, emit_events);
 
         Self {
             repository,

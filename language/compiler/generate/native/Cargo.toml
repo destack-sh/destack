@@ -18,7 +18,7 @@ destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_fir = { workspace = true }
 destack_mir = { workspace = true }
-destack_workspace = { workspace = true }
+destack_repository = { workspace = true }
 destack_source = { workspace = true }
 
 # cranelift

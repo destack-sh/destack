@@ -1,6 +1,6 @@
 use destack_codegen_js as js;
 use destack_core::StringPool;
-use destack_workspace::Target;
+use destack_repository::Target;
 
 use super::linker::Rewriter;
 
@@ -224,7 +224,7 @@ impl TestModuleBuilder {
 /// One real rewriter harness for direct minify helper tests.
 struct TestRewriter {
     /// The target policy used by the rewriter.
-    target: destack_workspace::Target,
+    target: destack_repository::Target,
     /// The module under test.
     module: js::Module,
 }

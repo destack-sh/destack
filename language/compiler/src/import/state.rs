@@ -4,7 +4,7 @@ use destack_artifact::{ConditionSet, DependencyIndex, DiagnosticAnchor, DirImpor
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::Loader;
-use destack_workspace::{Module, Revision};
+use destack_repository::{Module, Revision};
 
 use crate::import::stats::ImportStats;
 use crate::{ImportError, ImportResult};

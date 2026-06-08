@@ -1,5 +1,5 @@
 use destack_codegen_lib::CodegenBackend;
-use destack_workspace::Target;
+use destack_repository::Target;
 
 /// JavaScript/TypeScript codegen backend.
 #[derive(Debug, Default)]

@@ -1,5 +1,5 @@
 use destack_mir as mir;
-use destack_workspace::{CheckFailurePolicy, CheckPolicy};
+use destack_repository::{CheckFailurePolicy, CheckPolicy};
 
 use crate::TestProgram;
 
