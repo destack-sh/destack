@@ -135,10 +135,7 @@ impl SourceEdit {
     #[wasm_bindgen(js_name = "setText")]
     pub fn set_text(path: String, text: String) -> Self {
         Self {
-            content: SourceEditContent::SetText {
-                path,
-                text,
-            },
+            content: SourceEditContent::SetText { path, text },
         }
     }
 
@@ -146,10 +143,7 @@ impl SourceEdit {
     #[wasm_bindgen(js_name = "editText")]
     pub fn edit_text(path: String, edits: Vec<TextEdit>) -> Self {
         Self {
-            content: SourceEditContent::EditText {
-                path,
-                edits,
-            },
+            content: SourceEditContent::EditText { path, edits },
         }
     }
 
@@ -157,10 +151,7 @@ impl SourceEdit {
     #[wasm_bindgen(js_name = "setBytes")]
     pub fn set_bytes(path: String, bytes: Vec<u8>) -> Self {
         Self {
-            content: SourceEditContent::SetBytes {
-                path,
-                bytes,
-            },
+            content: SourceEditContent::SetBytes { path, bytes },
         }
     }
 
@@ -176,10 +167,7 @@ impl SourceEdit {
     #[wasm_bindgen(js_name = "move")]
     pub fn move_file(from: String, to: String) -> Self {
         Self {
-            content: SourceEditContent::Move {
-                from,
-                to,
-            },
+            content: SourceEditContent::Move { from, to },
         }
     }
 }
@@ -188,31 +176,16 @@ impl SourceEdit {
     /// Convert this WASM payload enum into one bridge enum.
     pub(crate) fn into_bridge(self) -> bridge::SourceEdit {
         match self.content {
-            SourceEditContent::SetText { path, text } => {
-                bridge::SourceEdit::SetText {
-                    path,
-                    text,
-                }
-            }
-            SourceEditContent::EditText { path, edits } => {
-                bridge::SourceEdit::EditText {
-                    path,
-                    edits: edits.into_iter().map(|item| item.into_bridge()).collect(),
-                }
-            }
+            SourceEditContent::SetText { path, text } => bridge::SourceEdit::SetText { path, text },
+            SourceEditContent::EditText { path, edits } => bridge::SourceEdit::EditText {
+                path,
+                edits: edits.into_iter().map(|item| item.into_bridge()).collect(),
+            },
             SourceEditContent::SetBytes { path, bytes } => {
-                bridge::SourceEdit::SetBytes {
-                    path,
-                    bytes,
-                }
+                bridge::SourceEdit::SetBytes { path, bytes }
             }
             SourceEditContent::Remove { path } => bridge::SourceEdit::Remove { path },
-            SourceEditContent::Move { from, to } => {
-                bridge::SourceEdit::Move {
-                    from,
-                    to,
-                }
-            }
+            SourceEditContent::Move { from, to } => bridge::SourceEdit::Move { from, to },
         }
     }
 }
@@ -251,7 +224,11 @@ impl SourceUpdate {
     pub(crate) fn into_bridge(self) -> bridge::SourceUpdate {
         bridge::SourceUpdate {
             base: self.base.map(|item| item.into_bridge()),
-            edits: self.edits.into_iter().map(|item| item.into_bridge()).collect(),
+            edits: self
+                .edits
+                .into_iter()
+                .map(|item| item.into_bridge())
+                .collect(),
         }
     }
 }
@@ -270,7 +247,11 @@ impl SourceUpdateResult {
     /// Create one value.
     #[wasm_bindgen(constructor)]
     pub fn new(before: Revision, after: Revision, files: Vec<FileUpdate>) -> Self {
-        Self { before, after, files }
+        Self {
+            before,
+            after,
+            files,
+        }
     }
 
     /// Previous revision.

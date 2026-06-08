@@ -4,31 +4,35 @@ use destack_bridge_language as bridge;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
+use crate::ModuleId;
+
 /// One module loaded through a live session.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct Module {
-    module_id: String,
+    id: ModuleId,
 }
 
 #[wasm_bindgen]
 impl Module {
     /// Create one value.
     #[wasm_bindgen(constructor)]
-    pub fn new(module_id: String) -> Self {
-        Self { module_id }
+    pub fn new(id: ModuleId) -> Self {
+        Self { id }
     }
 
-    /// Displayed compiler module id.
-    #[wasm_bindgen(getter, js_name = "moduleId")]
-    pub fn module_id(&self) -> String {
-        self.module_id.clone()
+    /// Stable source module id.
+    #[wasm_bindgen(getter, js_name = "id")]
+    pub fn id(&self) -> ModuleId {
+        self.id.clone()
     }
 }
 
 impl Module {
     /// Convert one bridge value into one WASM value.
     pub(crate) fn from_bridge(value: bridge::Module) -> Self {
-        Self { module_id: value.module_id }
+        Self {
+            id: ModuleId::from_bridge(value.id),
+        }
     }
 }
