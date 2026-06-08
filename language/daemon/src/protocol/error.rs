@@ -4,7 +4,7 @@ use super::{
 
 /// Errors returned by protocol clients.
 #[derive(Debug)]
-pub enum ProtocolClientError {
+pub enum ClientError {
     /// Protocol codec error.
     Codec(ProtocolCodecError),
     /// Transport error.
@@ -19,7 +19,7 @@ pub enum ProtocolClientError {
     UnexpectedResponse(String),
 }
 
-impl std::fmt::Display for ProtocolClientError {
+impl std::fmt::Display for ClientError {
     /// Format the protocol client error.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -35,7 +35,7 @@ impl std::fmt::Display for ProtocolClientError {
     }
 }
 
-impl std::error::Error for ProtocolClientError {
+impl std::error::Error for ClientError {
     /// Return the underlying error source when present.
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
@@ -49,7 +49,7 @@ impl std::error::Error for ProtocolClientError {
     }
 }
 
-impl From<TransportError> for ProtocolClientError {
+impl From<TransportError> for ClientError {
     /// Convert a transport error into a client error.
     fn from(error: TransportError) -> Self {
         Self::Transport(error)

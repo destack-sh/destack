@@ -34,7 +34,7 @@ use crate::query::navigation::{
 };
 use crate::query::refactor::batch_edit_to_workspace_edit;
 use crate::query::semantic;
-use crate::server::daemon::DaemonWorkspace;
+use crate::server::daemon::DaemonClient;
 use crate::server::file::{
     build_file_watchers, completion_kind_to_lsp, diagnostic_result_id,
     file_from_image_for_diagnostics, format_file, format_range, formatting_options_for_path,
@@ -203,8 +203,8 @@ pub struct DestackLanguageServer {
     pub(super) client: Client,
     /// The shared repository.
     repository: OnceLock<Arc<Repository>>,
-    /// Daemon workspace used for semantic state.
-    daemon_workspace: OnceLock<Arc<DaemonWorkspace>>,
+    /// Daemon client used for semantic state.
+    daemon_client: OnceLock<Arc<DaemonClient>>,
     /// Notification used to wake requests waiting on progress cancellation.
     progress_cancel_notify: Arc<Notify>,
     /// Cached semantic tokens per document.
@@ -233,7 +233,7 @@ impl DestackLanguageServer {
         Self {
             client,
             repository: OnceLock::new(),
-            daemon_workspace: OnceLock::new(),
+            daemon_client: OnceLock::new(),
             progress_cancel_notify: Arc::new(Notify::new()),
             semantic_tokens_cache: DashMap::new(),
             semantic_tokens_counter: AtomicU64::new(1),
@@ -252,12 +252,12 @@ impl DestackLanguageServer {
         self.repository.get().expect("repository not initialized")
     }
 
-    /// Get the daemon workspace (must be called after initialize).
+    /// Get the daemon client (must be called after initialize).
     #[inline]
-    fn daemon_workspace(&self) -> &Arc<DaemonWorkspace> {
-        self.daemon_workspace
+    fn daemon_client(&self) -> &Arc<DaemonClient> {
+        self.daemon_client
             .get()
-            .expect("daemon workspace not initialized")
+            .expect("daemon client not initialized")
     }
 
     /// Allocate the next semantic tokens result id.
@@ -449,9 +449,7 @@ impl DestackLanguageServer {
         request: query::QueryRequest,
         revision: Revision,
     ) -> Option<destack_daemon::protocol::QueryResponseBody> {
-        let result = self
-            .daemon_workspace()
-            .execute_query(path, request, revision);
+        let result = self.daemon_client().execute_query(path, request, revision);
 
         result.ok()
     }
@@ -491,7 +489,7 @@ impl DestackLanguageServer {
     fn query_file_for_uri(&self, uri: &lsp::Uri) -> Option<QueryFile> {
         let path = uri.to_file_path().map(|path| path.into_owned())?;
         let snapshot = self
-            .daemon_workspace()
+            .daemon_client()
             .file_snapshot(path.clone(), self.query_target())
             .ok()
             .flatten()?;
@@ -518,7 +516,7 @@ impl DestackLanguageServer {
 
     /// Resolve the current semantic revision for the root that owns a path.
     fn revision_at(&self, path: &Path) -> Option<Revision> {
-        self.daemon_workspace()
+        self.daemon_client()
             .root_snapshot(path, self.query_target())
             .ok()
             .map(|snapshot| snapshot.revision)
@@ -532,7 +530,7 @@ impl DestackLanguageServer {
     /// Return true when the uri or path belongs to an open editor document.
     fn is_open_document_uri_or_path(&self, uri: &lsp::Uri, path: &Path) -> bool {
         let _ = uri;
-        self.daemon_workspace().has_open_file(path)
+        self.daemon_client().has_open_file(path)
     }
 
     /// Convert an LSP code action kind into service query kinds.
@@ -675,7 +673,7 @@ impl DestackLanguageServer {
             let Some(path) = snapshot.file.path.as_ref() else {
                 continue;
             };
-            let Ok(images) = self.daemon_workspace().file_images(
+            let Ok(images) = self.daemon_client().file_images(
                 path,
                 snapshot.revision,
                 missing_file_ids.into_iter().collect(),
@@ -833,11 +831,11 @@ impl LanguageServer for DestackLanguageServer {
         let _ = overlay_fs;
 
         // connect the editor adapter to the shared daemon
-        let daemon_workspace = match DaemonWorkspace::connect(repository.as_ref(), opened_roots) {
+        let daemon_client = match DaemonClient::connect(repository.as_ref(), opened_roots) {
             Ok(workspace) => Arc::new(workspace),
             Err(_) => return Err(jsonrpc::Error::internal_error()),
         };
-        if self.daemon_workspace.set(daemon_workspace).is_err() {
+        if self.daemon_client.set(daemon_client).is_err() {
             return Err(jsonrpc::Error::internal_error());
         }
 
@@ -1020,7 +1018,7 @@ impl LanguageServer for DestackLanguageServer {
         self.refresh_configuration().await;
 
         // reload filesystem state so config changes refresh diagnostics
-        let result = self.daemon_workspace().reload_all();
+        let result = self.daemon_client().reload_all();
         let result = match result {
             Ok(result) => result,
             Err(_) => return,
@@ -1046,7 +1044,7 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         let result = self
-            .daemon_workspace()
+            .daemon_client()
             .open_file(path.clone(), version, content);
         let result = match result {
             Ok(result) => result,
@@ -1066,7 +1064,7 @@ impl LanguageServer for DestackLanguageServer {
         };
         let version = params.text_document.version;
         let result =
-            self.daemon_workspace()
+            self.daemon_client()
                 .change_file(path.clone(), version, params.content_changes);
         let result = match result {
             Ok(result) => result,
@@ -1082,7 +1080,7 @@ impl LanguageServer for DestackLanguageServer {
 
         let content = params.text.map(normalize_line_endings);
 
-        let result = self.daemon_workspace().save_file(path.clone(), content);
+        let result = self.daemon_client().save_file(path.clone(), content);
         let result = match result {
             Ok(result) => result,
             Err(_) => return,
@@ -1096,7 +1094,7 @@ impl LanguageServer for DestackLanguageServer {
         let Some(path) = Self::path_from_uri(&params.text_document.uri) else {
             return;
         };
-        let result = self.daemon_workspace().close_file(path.clone());
+        let result = self.daemon_client().close_file(path.clone());
         let result = match result {
             Ok(result) => result,
             Err(_) => return,
@@ -1110,14 +1108,14 @@ impl LanguageServer for DestackLanguageServer {
             let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) else {
                 continue;
             };
-            let _ = self.daemon_workspace().open_root(path);
+            let _ = self.daemon_client().open_root(path);
         }
 
         for folder in params.event.removed {
             let Some(path) = folder.uri.to_file_path().map(|path| path.into_owned()) else {
                 continue;
             };
-            let _ = self.daemon_workspace().close_root(&path);
+            let _ = self.daemon_client().close_root(&path);
         }
     }
 
@@ -1149,8 +1147,8 @@ impl LanguageServer for DestackLanguageServer {
             };
 
             // enforce a single root for rename write consistency
-            let old_root = self.daemon_workspace().root_for_path(&old_path).ok();
-            let new_root = self.daemon_workspace().root_for_path(&new_path).ok();
+            let old_root = self.daemon_client().root_for_path(&old_path).ok();
+            let new_root = self.daemon_client().root_for_path(&new_path).ok();
             let root = old_root.or(new_root);
             let Some(root) = root else {
                 continue;
@@ -1300,7 +1298,7 @@ impl LanguageServer for DestackLanguageServer {
         };
 
         let path = path.clone();
-        let snapshot = match self.daemon_workspace().file_diagnostics(path.clone()) {
+        let snapshot = match self.daemon_client().file_diagnostics(path.clone()) {
             Ok(snapshot) => snapshot,
             Err(_) => return Err(jsonrpc::Error::internal_error()),
         };
@@ -1384,7 +1382,7 @@ impl LanguageServer for DestackLanguageServer {
             .check_cancelled(self, "diagnostics cancelled")
             .await?;
 
-        let snapshots = match self.daemon_workspace().diagnostics() {
+        let snapshots = match self.daemon_client().diagnostics() {
             Ok(snapshots) => snapshots,
             Err(_) => return Err(jsonrpc::Error::internal_error()),
         };
@@ -1503,7 +1501,7 @@ impl LanguageServer for DestackLanguageServer {
     ) -> jsonrpc::Result<Option<lsp::LSPAny>> {
         match params.command.as_str() {
             "destack.reload" | "destack.reindex" => {
-                let result = self.daemon_workspace().reload_all();
+                let result = self.daemon_client().reload_all();
                 let result = match result {
                     Ok(result) => result,
                     Err(_) => return Ok(None),
@@ -2434,7 +2432,7 @@ impl LanguageServer for DestackLanguageServer {
         else {
             return Ok(None);
         };
-        if !self.daemon_workspace().has_open_file(&path) {
+        if !self.daemon_client().has_open_file(&path) {
             return Ok(None);
         }
 

@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use destack_artifact::MemoryCacheStore;
 use destack_daemon::Daemon;
 use destack_daemon::protocol::{
-    DaemonRequest, ProtocolClient, ProtocolServer, ProtocolServerError, loopback_transport_pair,
+    Client, DaemonRequest, Server, ServerError, loopback_transport_pair,
 };
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Ref, Repository, Revision, Settings,
@@ -31,9 +31,9 @@ pub(super) struct TestProgram {
     /// The repository under test.
     pub repository: Arc<Repository>,
     /// The daemon client for this test program.
-    daemon_client: Arc<ProtocolClient>,
+    daemon_client: Arc<Client>,
     /// The daemon server thread.
-    daemon_server: Option<JoinHandle<Result<(), ProtocolServerError>>>,
+    daemon_server: Option<JoinHandle<Result<(), ServerError>>>,
 }
 
 impl TestProgram {
@@ -221,13 +221,10 @@ impl Drop for TestProgram {
 /// Start a loopback daemon server for one test program.
 fn start_test_daemon(
     repository: Arc<Repository>,
-) -> (
-    Arc<ProtocolClient>,
-    JoinHandle<Result<(), ProtocolServerError>>,
-) {
+) -> (Arc<Client>, JoinHandle<Result<(), ServerError>>) {
     // create loopback protocol transports
     let (client_transport, server_transport) = loopback_transport_pair(16);
-    let client = Arc::new(ProtocolClient::new(Arc::new(client_transport)));
+    let client = Arc::new(Client::new(Arc::new(client_transport)));
 
     // build daemon state using the test repository
     let watcher = Arc::new(MemoryFileWatcher::new());
@@ -236,7 +233,7 @@ fn start_test_daemon(
     let daemon = Arc::new(daemon);
 
     // serve requests on a background thread
-    let server = ProtocolServer::new(daemon);
+    let server = Server::new(daemon);
     let server_handle = thread::spawn(move || server.serve(&server_transport));
 
     client

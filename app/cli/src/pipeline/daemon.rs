@@ -4,11 +4,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_daemon::protocol::{
-    CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
+    Client, CommandEnvVar, CommandInput, CommandMessagePayload, CommandOutputChunk, CommandPayload,
     CommandRequest, CommandResponse, CommandRunPayload, CommandTargetOverrides,
     CommonCommandOptions, DaemonMessageRecord, DaemonRequest, DaemonResponse, DiagnosticBatch,
-    FileUpdateImage, ManifestOverride, OutputStream, ProtocolClient, QueryRequestBody,
-    QueryResponseBody, RootHandleId, RootOpenOptions,
+    FileUpdateImage, ManifestOverride, OutputStream, QueryRequestBody, QueryResponseBody,
+    RootHandleId, RootOpenOptions,
 };
 use destack_daemon::{
     CommandRevision, DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonLaunch,
@@ -34,9 +34,9 @@ use crate::pipeline::watch::{WatchBatchSummary, WatchDaemon, WatchMessage, watch
 
 /// Protocol backed daemon client for CLI flows.
 #[derive(Debug)]
-pub struct ProtocolDaemonClient {
+pub struct DaemonClient {
     /// Protocol client for daemon requests.
-    client: Arc<ProtocolClient>,
+    client: Arc<Client>,
     /// Root handles keyed by root path.
     handles: Vec<RootHandle>,
     /// Connection state for the daemon.
@@ -120,7 +120,7 @@ struct DaemonConnector {
     /// Launch values for daemon spawn.
     launch: DaemonLaunch,
     /// Injected daemon client.
-    daemon_client: Option<Arc<ProtocolClient>>,
+    daemon_client: Option<Arc<Client>>,
 }
 
 impl DaemonConnector {
@@ -391,7 +391,7 @@ fn lint_preset_override_value(value: LintPresetArg) -> &'static str {
     }
 }
 
-impl ProtocolDaemonClient {
+impl DaemonClient {
     /// Create a protocol daemon client for the provided roots.
     pub fn new(
         repository: Arc<Repository>,
@@ -528,7 +528,7 @@ impl ProtocolDaemonClient {
     }
 }
 
-impl WatchDaemon for ProtocolDaemonClient {
+impl WatchDaemon for DaemonClient {
     fn start_watch(&self, policy: &destack_daemon::WatchPolicy) -> CliResult<()> {
         let handle = self.watch_handle()?;
         let roots = self
@@ -663,7 +663,7 @@ pub fn run_root_command_with_repository(
         return Err(CliError::message("roots are empty"));
     };
 
-    let daemon = ProtocolDaemonClient::new(repository.clone(), roots, program)?;
+    let daemon = DaemonClient::new(repository.clone(), roots, program)?;
 
     // execute the command and shutdown
     let result = daemon.run_root_command(&root, common, payload)?;
