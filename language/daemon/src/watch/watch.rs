@@ -98,16 +98,16 @@ impl WatchBatch {
     }
 }
 
-/// Coordinates watch event batching.
+/// Active watch subscription with batching policy.
 #[derive(Debug)]
-pub struct WatchCoordinator {
+pub struct Watch {
     /// The watcher subscription.
     pub subscription: FileWatchSubscription,
     /// The batching policy.
     pub policy: WatchPolicy,
 }
 
-impl WatchCoordinator {
+impl Watch {
     /// Start watching roots with the provided policy.
     pub fn new(
         watcher: Arc<dyn FileWatcher>,
@@ -118,7 +118,6 @@ impl WatchCoordinator {
         // start the watcher
         let subscription = watcher.watch(roots, options);
 
-        // return the coordinator
         Self {
             subscription,
             policy,

@@ -9,7 +9,7 @@ use crate::common::{
 use crate::console;
 use crate::error::CliResult;
 use crate::pipeline::daemon::{
-    CommandOptionsBuilder, DaemonCommandResult, ProtocolDaemonClient, command_inputs_from_sources,
+    CommandOptionsBuilder, DaemonClient, DaemonCommandResult, command_inputs_from_sources,
     emit_daemon_text_output, finish_run_command, run_root_command_with_repository_or_report,
     target_overrides_from_args,
 };
@@ -249,7 +249,7 @@ where
     ObserveFn: FnMut(WatchCompileReason, bool, bool),
     CompileFn: FnMut(
         &RunRequest,
-        &ProtocolDaemonClient,
+        &DaemonClient,
         &Path,
         &InputSource,
         &str,
@@ -307,7 +307,7 @@ where
 #[allow(clippy::too_many_arguments)]
 fn compile_and_run_daemon(
     request: &RunRequest,
-    daemon: &ProtocolDaemonClient,
+    daemon: &DaemonClient,
     root: &Path,
     entry_source: &InputSource,
     target_name: &str,

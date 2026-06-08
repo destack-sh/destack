@@ -10,16 +10,13 @@ use destack_source::{
     FileId, FileSystem, FileWatchEvent, FileWatchEventKind, FileWatchOptions, MemoryFileSystem,
     MemoryFileWatcher,
 };
+use destack_workspace::{FileUpdate, UpdateBatch};
 
 use crate::protocol::{
-    DaemonRequest, DaemonResponse, OpenRootRequest, ProtocolClient, ProtocolClientOptions,
-    ProtocolErrorCode, ProtocolServer, ProtocolServerError, ProtocolServerOptions, RootHandleId,
-    RootOpenOptions, loopback_transport_pair,
+    Client, ClientOptions, DaemonRequest, DaemonResponse, OpenRootRequest, ProtocolErrorCode,
+    RootHandleId, RootOpenOptions, Server, ServerError, ServerOptions, loopback_transport_pair,
 };
-use crate::{
-    Daemon, DaemonUpdate, DaemonUpdateResult, DaemonWorkspace, WatchBatch, WatchCoordinator,
-    WatchPolicy,
-};
+use crate::{Daemon, Watch, WatchBatch, WatchPolicy, Workspace};
 
 /// Test harness for daemon flows.
 #[derive(Debug, Clone)]
@@ -38,13 +35,13 @@ pub struct TestDaemon {
     roots: Vec<PathBuf>,
 }
 
-/// Harness for watch coordination in tests.
+/// Harness for watches in tests.
 #[derive(Debug)]
 pub struct TestWatchHarness {
     /// The daemon test state.
     pub test: TestDaemon,
-    /// The watch coordinator under test.
-    coordinator: WatchCoordinator,
+    /// The watch under test.
+    watch: Watch,
 }
 
 /// Wrapper for watch batches in tests.
@@ -60,11 +57,11 @@ pub struct TestProtocolHarness {
     /// The daemon test state.
     pub test: TestDaemon,
     /// The protocol client.
-    pub client: ProtocolClient,
+    pub client: Client,
     /// Captured server error, if any.
     server_error: Arc<Mutex<Option<String>>>,
     /// Server thread handle.
-    server_handle: Option<JoinHandle<Result<(), ProtocolServerError>>>,
+    server_handle: Option<JoinHandle<Result<(), ServerError>>>,
 }
 
 /// Describe retry behavior for protocol requests.
@@ -155,7 +152,7 @@ impl TestDaemon {
     }
 
     /// Return the primary daemon workspace.
-    pub fn workspace(&self) -> Arc<DaemonWorkspace> {
+    pub fn workspace(&self) -> Arc<Workspace> {
         self.daemon
             .workspace(self.repository.path())
             .expect("test workspace should be opened")
@@ -174,18 +171,18 @@ impl TestDaemon {
     }
 
     /// Update a file and return all daemon updates.
-    pub fn update_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
+    pub fn update_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<FileUpdate> {
         let path = self.path_for(path);
-        self.root()
+        self.workspace()
             .update_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("update failed for {}: {error}", path.display()))
             .updates
     }
 
     /// Update an in-memory file and return all daemon updates.
-    pub fn update_memory_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<DaemonUpdate> {
+    pub fn update_memory_file(&self, path: impl AsRef<Path>, content: &str) -> Vec<FileUpdate> {
         let path = self.path_for(path);
-        self.root()
+        self.workspace()
             .update_memory_file(&path, content.to_string())
             .unwrap_or_else(|error| panic!("virtual update failed for {}: {error}", path.display()))
             .updates
@@ -195,8 +192,7 @@ impl TestDaemon {
     pub fn file_id_for_path(&self, path: impl AsRef<Path>) -> FileId {
         let path = self.path_for(path);
         let view = self
-            .root()
-            .workspace
+            .workspace()
             .file_view(&path)
             .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
 
@@ -207,8 +203,7 @@ impl TestDaemon {
     pub fn file_for_path(&self, path: impl AsRef<Path>) -> Arc<destack_source::File> {
         let path = self.path_for(path);
         let view = self
-            .root()
-            .workspace
+            .workspace()
             .file_view(&path)
             .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
 
@@ -219,8 +214,7 @@ impl TestDaemon {
     pub fn module_id_for_path(&self, path: impl AsRef<Path>) -> destack_source::ModuleId {
         let path = self.path_for(path);
         let view = self
-            .root()
-            .workspace
+            .workspace()
             .file_view(&path)
             .unwrap_or_else(|error| panic!("missing file view for {}: {error}", path.display()));
         let repository = view.repository();
@@ -239,9 +233,9 @@ impl TestDaemon {
     /// Return the update for a specific file id.
     pub fn update_for_file_id<'a>(
         &self,
-        updates: &'a [DaemonUpdate],
+        updates: &'a [FileUpdate],
         file_id: FileId,
-    ) -> &'a DaemonUpdate {
+    ) -> &'a FileUpdate {
         updates
             .iter()
             .find(|update| update.file_id == file_id)
@@ -251,23 +245,23 @@ impl TestDaemon {
     /// Return the update for a specific path.
     pub fn update_for_path<'a>(
         &self,
-        updates: &'a [DaemonUpdate],
+        updates: &'a [FileUpdate],
         path: impl AsRef<Path>,
-    ) -> &'a DaemonUpdate {
+    ) -> &'a FileUpdate {
         let file_id = self.file_id_for_path(path);
         self.update_for_file_id(updates, file_id)
     }
 
     /// Update a file and return the update for the target file.
-    pub fn update_file_for_path(&self, path: impl AsRef<Path>, content: &str) -> DaemonUpdate {
+    pub fn update_file_for_path(&self, path: impl AsRef<Path>, content: &str) -> FileUpdate {
         let path = self.path_for(path);
         let updates = self.update_file(&path, content);
         self.update_for_path(&updates, &path).clone()
     }
 
-    /// Build a watch coordinator for the test roots.
-    pub fn watch_coordinator(&self, policy: WatchPolicy) -> WatchCoordinator {
-        WatchCoordinator::new(
+    /// Build a watch for the test roots.
+    pub fn watch(&self, policy: WatchPolicy) -> Watch {
+        Watch::new(
             self.watcher.clone(),
             self.roots.clone(),
             FileWatchOptions::default(),
@@ -298,8 +292,8 @@ impl TestDaemon {
     }
 
     /// Apply a watch batch to the daemon and return the batch result.
-    pub fn apply_watch_batch(&self, batch: &WatchBatch) -> DaemonUpdateResult {
-        self.root().apply_watch_batch(batch)
+    pub fn apply_watch_batch(&self, batch: &WatchBatch) -> UpdateBatch {
+        self.workspace().apply_watch_batch(batch)
     }
 
     /// Build a protocol harness for this daemon.
@@ -308,7 +302,7 @@ impl TestDaemon {
     }
 
     /// Build a protocol harness with custom server options.
-    pub fn protocol_with_options(&self, options: ProtocolServerOptions) -> TestProtocolHarness {
+    pub fn protocol_with_options(&self, options: ServerOptions) -> TestProtocolHarness {
         TestProtocolHarness::from_test_with_options(self.clone(), options)
     }
 }
@@ -363,16 +357,13 @@ impl TestWatchHarness {
     /// Create a watch harness with the provided policy.
     pub fn new(policy: WatchPolicy) -> Self {
         let test = TestDaemon::new();
-        let coordinator = test.watch_coordinator(policy);
-        Self { test, coordinator }
+        let watch = test.watch(policy);
+        Self { test, watch }
     }
 
     /// Consume the initial watch batch.
     pub fn skip_startup(&self) {
-        let _ = self
-            .coordinator
-            .next_batch()
-            .expect("expected startup batch");
+        let _ = self.watch.next_batch().expect("expected startup batch");
     }
 
     /// Emit a watch event.
@@ -389,18 +380,18 @@ impl TestWatchHarness {
 
     /// Return the next watch batch.
     pub fn next_batch(&self) -> TestWatchBatch {
-        let batch = self.coordinator.next_batch().expect("expected watch batch");
+        let batch = self.watch.next_batch().expect("expected watch batch");
         TestWatchBatch::new(batch)
     }
 
     /// Apply a watch batch and return the batch result.
-    pub fn apply_batch(&self, batch: &TestWatchBatch) -> DaemonUpdateResult {
+    pub fn apply_batch(&self, batch: &TestWatchBatch) -> UpdateBatch {
         self.test.apply_watch_batch(batch.batch())
     }
 
-    /// Stop the watch coordinator.
+    /// Stop the watch.
     pub fn stop(&self) {
-        self.coordinator.stop();
+        self.watch.stop();
     }
 }
 
@@ -450,11 +441,11 @@ impl TestProtocolHarness {
 
     /// Create a protocol harness from an existing test daemon.
     pub fn from_test(test: TestDaemon) -> Self {
-        Self::from_test_with_options(test, ProtocolServerOptions::default())
+        Self::from_test_with_options(test, ServerOptions::default())
     }
 
     /// Create a protocol harness with explicit server options.
-    pub fn from_test_with_options(test: TestDaemon, options: ProtocolServerOptions) -> Self {
+    pub fn from_test_with_options(test: TestDaemon, options: ServerOptions) -> Self {
         // create loopback transports
         let (client_transport, server_transport) = loopback_transport_pair(16);
         let daemon = Arc::new(test.daemon.clone());
@@ -464,7 +455,7 @@ impl TestProtocolHarness {
         let error_handle = server_error.clone();
 
         // start the protocol server
-        let server = ProtocolServer::with_options(daemon, options);
+        let server = Server::with_options(daemon, options);
         let server_handle = thread::spawn(move || {
             // run the server loop
             let result = server.serve(&server_transport);
@@ -479,7 +470,7 @@ impl TestProtocolHarness {
         });
 
         // create protocol client
-        let client = ProtocolClient::new(Arc::new(client_transport));
+        let client = Client::new(Arc::new(client_transport));
 
         Self {
             test,
@@ -491,14 +482,11 @@ impl TestProtocolHarness {
 
     /// Perform a handshake and return the response.
     pub fn handshake(&self) -> crate::protocol::HandshakeResponse {
-        self.handshake_with(ProtocolClientOptions::default())
+        self.handshake_with(ClientOptions::default())
     }
 
     /// Perform a handshake with explicit options.
-    pub fn handshake_with(
-        &self,
-        options: ProtocolClientOptions,
-    ) -> crate::protocol::HandshakeResponse {
+    pub fn handshake_with(&self, options: ClientOptions) -> crate::protocol::HandshakeResponse {
         self.client.handshake(options).expect("handshake")
     }
 

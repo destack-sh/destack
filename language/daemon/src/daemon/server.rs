@@ -9,10 +9,7 @@ use destack_session::{Session, SessionEventHandler};
 use super::constants::{DEFAULT_IDLE_SHUTDOWN_MS, IDLE_SHUTDOWN_POLL_MS};
 use super::{DaemonEndpoint, DaemonEndpointError, DaemonMetadata};
 use crate::ipc::{DaemonIpcError, DaemonIpcListener};
-use crate::protocol::{
-    ProtocolServer, ProtocolServerActivity, ProtocolServerControl, ProtocolServerOptions,
-};
-use crate::{Daemon, DaemonError};
+use crate::{Daemon, DaemonError, protocol};
 
 /// Options for the daemon server.
 #[derive(Clone)]
@@ -22,7 +19,7 @@ pub struct DaemonServerOptions {
     /// Optional session event handler for daemon progress.
     pub session_event_handler: Option<SessionEventHandler>,
     /// Protocol options for daemon connections.
-    pub protocol: ProtocolServerOptions,
+    pub protocol: protocol::ServerOptions,
     /// Idle shutdown timeout.
     pub idle_shutdown: Option<Duration>,
 }
@@ -127,8 +124,8 @@ impl DaemonServer {
     fn serve_listener(&self, listener: DaemonIpcListener) -> Result<(), DaemonServerError> {
         // initialize connection state
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
-        let activity = Arc::new(ProtocolServerActivity::new(self.options.idle_shutdown));
-        let control = ProtocolServerControl::with_activity(self.shutdown.clone(), activity);
+        let activity = Arc::new(protocol::ServerActivity::new(self.options.idle_shutdown));
+        let control = protocol::ServerControl::with_activity(self.shutdown.clone(), activity);
         let monitor = self.spawn_idle_monitor(control.clone());
 
         // accept connections until shutdown
@@ -155,7 +152,7 @@ impl DaemonServer {
 
             // spawn a protocol server thread
             let handle = std::thread::spawn(move || {
-                let server = ProtocolServer::with_control(daemon, options, control);
+                let server = protocol::Server::with_control(daemon, options, control);
                 let _ = server.serve(transport.as_ref());
             });
             handles.push(handle);
@@ -176,7 +173,7 @@ impl DaemonServer {
     }
 
     /// Spawn an idle shutdown monitor when configured.
-    fn spawn_idle_monitor(&self, control: ProtocolServerControl) -> Option<JoinHandle<()>> {
+    fn spawn_idle_monitor(&self, control: protocol::ServerControl) -> Option<JoinHandle<()>> {
         // return early when idle shutdown is disabled
         self.options.idle_shutdown?;
 
@@ -260,7 +257,7 @@ impl Default for DaemonServerOptions {
         Self {
             worker_limit: Session::default_worker_count(),
             session_event_handler: None,
-            protocol: ProtocolServerOptions::default(),
+            protocol: protocol::ServerOptions::default(),
             idle_shutdown: Some(Duration::from_millis(DEFAULT_IDLE_SHUTDOWN_MS)),
         }
     }

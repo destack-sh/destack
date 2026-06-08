@@ -17,7 +17,7 @@ use crate::common::{
 };
 use crate::console;
 use crate::error::CliResult;
-use crate::pipeline::daemon::ProtocolDaemonClient;
+use crate::pipeline::daemon::DaemonClient;
 
 /// Summary of watch updates produced by a daemon.
 #[derive(Debug, Clone)]
@@ -307,7 +307,7 @@ where
     StartFn: FnOnce(&mut State),
     RescanFn: FnMut(&mut State, &Repository) -> CliResult<()>,
     CompileFn: FnMut(
-        &ProtocolDaemonClient,
+        &DaemonClient,
         &Path,
         &mut Option<WatchReporter>,
         &mut State,
@@ -326,7 +326,7 @@ where
     } = build_watch_context(command_name, program, report, &repository);
 
     // configure the daemon client for incremental updates
-    let daemon = match ProtocolDaemonClient::new(repository.clone(), roots.clone(), program) {
+    let daemon = match DaemonClient::new(repository.clone(), roots.clone(), program) {
         Ok(daemon) => daemon,
         Err(error) => {
             let message = watch_error(&error.to_string());

@@ -72,7 +72,7 @@ fn test_watch_batch_updates_daemon() {
     let result = harness.apply_batch(&batch);
 
     // check that the daemon applied the watched update
-    assert!(result.updated(), "expected watched update");
+    assert!(!result.updates.is_empty(), "expected watched update");
 
     harness.stop();
 }
@@ -97,7 +97,7 @@ fn test_watch_batch_requests_rescan_for_config() {
     let result = harness.apply_batch(&batch);
 
     // check that config updates are applied without deferred rescan
-    assert!(result.updated());
+    assert!(!result.updates.is_empty());
 
     harness.stop();
 }
@@ -117,7 +117,7 @@ fn test_watch_batch_handles_status_rescan() {
     let result = harness.test.apply_watch_batch(&batch);
 
     // check that status driven rescan is applied immediately
-    assert!(!result.updated());
+    assert!(result.updates.is_empty());
     assert!(!result.messages.is_empty());
 
     harness.stop();
@@ -133,9 +133,9 @@ fn test_watch_batch_handles_multiple_roots() {
     let root_a = PathBuf::from("/root/a");
     let root_b = PathBuf::from("/root/b");
     let test = TestDaemon::new_with_roots(vec![root_a.clone(), root_b.clone()]);
-    let coordinator = test.watch_coordinator(policy);
+    let watch = test.watch(policy);
 
-    let _ = coordinator.next_batch().expect("expected startup batch");
+    let _ = watch.next_batch().expect("expected startup batch");
 
     let file_a = root_a.join("a.ds");
     let file_b = root_b.join("b.ds");
@@ -147,7 +147,7 @@ fn test_watch_batch_handles_multiple_roots() {
     test.watcher
         .emit(test.watch_event(&file_b, FileWatchEventKind::Modified));
 
-    let batch = coordinator.next_batch().expect("expected watch batch");
+    let batch = watch.next_batch().expect("expected watch batch");
     let batch = TestWatchBatch::new(batch);
     batch.assert_event_suffix("a.ds");
     batch.assert_event_suffix("b.ds");
@@ -170,5 +170,5 @@ fn test_watch_batch_handles_multiple_roots() {
             .any(|update| update.file_id == file_b_id)
     );
 
-    coordinator.stop();
+    watch.stop();
 }

@@ -3,22 +3,20 @@ use std::time::{Duration, Instant};
 
 use super::{DaemonEndpoint, DaemonLaunch};
 use crate::ipc::{DaemonIpcError, connect_ipc};
-use crate::protocol::{
-    ProtocolClient, ProtocolClientError, ProtocolClientOptions, ProtocolLimits, Transport,
-};
+use crate::protocol::{Client, ClientError, ClientOptions, ProtocolLimits, Transport};
 
 /// Connection to a daemon.
 #[derive(Debug)]
 pub struct DaemonConnection {
     /// Protocol client for daemon requests.
-    pub client: Arc<ProtocolClient>,
+    pub client: Arc<Client>,
 }
 
 /// Options for connecting to a daemon.
 #[derive(Clone)]
 pub struct DaemonConnectOptions {
     /// Client handshake options.
-    pub client: ProtocolClientOptions,
+    pub client: ClientOptions,
     /// Protocol limits used while connecting.
     pub limits: ProtocolLimits,
     /// Delay between connection attempts.
@@ -44,7 +42,7 @@ impl Default for DaemonConnectOptions {
     /// Return default connect options.
     fn default() -> Self {
         Self {
-            client: ProtocolClientOptions::default(),
+            client: ClientOptions::default(),
             limits: ProtocolLimits::default(),
             retry_delay: Duration::from_millis(50),
             timeout: Duration::from_secs(3),
@@ -77,7 +75,7 @@ pub fn connect_ipc_daemon(
     };
 
     // perform the handshake
-    let client = Arc::new(ProtocolClient::new(transport));
+    let client = Arc::new(Client::new(transport));
     client
         .handshake(options.client)
         .map_err(DaemonConnectError::Client)?;
@@ -134,7 +132,7 @@ pub enum DaemonConnectError {
     /// Ipc connection error.
     Ipc(DaemonIpcError),
     /// Client protocol error.
-    Client(ProtocolClientError),
+    Client(ClientError),
     /// Spawn error.
     Io(std::io::Error),
 }
@@ -159,9 +157,9 @@ impl From<DaemonIpcError> for DaemonConnectError {
     }
 }
 
-impl From<ProtocolClientError> for DaemonConnectError {
+impl From<ClientError> for DaemonConnectError {
     /// Convert a protocol error into a connect error.
-    fn from(error: ProtocolClientError) -> Self {
+    fn from(error: ClientError) -> Self {
         DaemonConnectError::Client(error)
     }
 }

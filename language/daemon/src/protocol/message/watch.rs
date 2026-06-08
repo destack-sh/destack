@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use destack_workspace::UpdateBatch;
 use serde::{Deserialize, Serialize};
 
 use super::{DaemonMessageRecord, DaemonUpdateRecord, ReloadReason, RootHandleId};
@@ -63,6 +64,36 @@ pub struct WatchBatchResponse {
     pub updates: Vec<DaemonUpdateRecord>,
     /// Messages produced by the batch.
     pub messages: Vec<DaemonMessageRecord>,
+}
+
+impl WatchBatchResponse {
+    /// Build an empty watch batch response.
+    pub fn empty(handle: RootHandleId) -> Self {
+        Self {
+            handle,
+            batch: None,
+            updates: Vec::new(),
+            messages: Vec::new(),
+        }
+    }
+
+    /// Build a watch batch response from a workspace update batch.
+    pub fn new(handle: RootHandleId, batch: WatchBatch, updates: &UpdateBatch) -> Self {
+        Self {
+            handle,
+            batch: Some(batch),
+            updates: updates
+                .updates
+                .iter()
+                .map(DaemonUpdateRecord::from)
+                .collect(),
+            messages: updates
+                .messages
+                .iter()
+                .map(DaemonMessageRecord::from)
+                .collect(),
+        }
+    }
 }
 
 /// Watch batch payload used in the protocol.

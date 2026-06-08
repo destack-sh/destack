@@ -6,21 +6,21 @@ use parking_lot::Mutex;
 
 /// Control flags for protocol servers.
 #[derive(Debug, Clone)]
-pub struct ProtocolServerControl {
+pub struct ServerControl {
     /// Shared shutdown flag.
     shutdown: Arc<AtomicBool>,
     /// Activity tracker for connection leases.
-    activity: Arc<ProtocolServerActivity>,
+    activity: Arc<ServerActivity>,
 }
 
-impl ProtocolServerControl {
+impl ServerControl {
     /// Create a new control handle.
     pub fn new(shutdown: Arc<AtomicBool>) -> Self {
-        Self::with_activity(shutdown, Arc::new(ProtocolServerActivity::default()))
+        Self::with_activity(shutdown, Arc::new(ServerActivity::default()))
     }
 
     /// Create a new control handle with explicit activity tracking.
-    pub fn with_activity(shutdown: Arc<AtomicBool>, activity: Arc<ProtocolServerActivity>) -> Self {
+    pub fn with_activity(shutdown: Arc<AtomicBool>, activity: Arc<ServerActivity>) -> Self {
         Self { shutdown, activity }
     }
 
@@ -65,7 +65,7 @@ impl ProtocolServerControl {
     }
 }
 
-impl Default for ProtocolServerControl {
+impl Default for ServerControl {
     /// Return a default control handle.
     fn default() -> Self {
         Self::new(Arc::new(AtomicBool::new(false)))
@@ -74,18 +74,18 @@ impl Default for ProtocolServerControl {
 
 /// Activity tracker for server shutdown policy.
 #[derive(Debug)]
-pub struct ProtocolServerActivity {
+pub struct ServerActivity {
     /// Tracked activity state.
-    state: Mutex<ProtocolServerActivityState>,
+    state: Mutex<ServerActivityState>,
     /// Idle timeout for shutdown.
     idle_shutdown: Option<Duration>,
 }
 
-impl ProtocolServerActivity {
+impl ServerActivity {
     /// Create a new activity tracker.
     pub fn new(idle_shutdown: Option<Duration>) -> Self {
         Self {
-            state: Mutex::new(ProtocolServerActivityState::new()),
+            state: Mutex::new(ServerActivityState::new()),
             idle_shutdown,
         }
     }
@@ -138,7 +138,7 @@ impl ProtocolServerActivity {
     }
 }
 
-impl Default for ProtocolServerActivity {
+impl Default for ServerActivity {
     /// Return default activity tracking state.
     fn default() -> Self {
         Self::new(None)
@@ -147,7 +147,7 @@ impl Default for ProtocolServerActivity {
 
 /// Activity state used for idle shutdown checks.
 #[derive(Debug)]
-struct ProtocolServerActivityState {
+struct ServerActivityState {
     /// Number of active connections.
     active_connections: usize,
     /// Number of active root handles.
@@ -156,7 +156,7 @@ struct ProtocolServerActivityState {
     last_activity: Instant,
 }
 
-impl ProtocolServerActivityState {
+impl ServerActivityState {
     /// Create a fresh activity state.
     fn new() -> Self {
         Self {

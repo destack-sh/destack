@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
 use destack_artifact::MemoryCacheStore;
-use destack_daemon::protocol::{ManifestOverride, ProtocolClient};
+use destack_daemon::protocol::{Client, ManifestOverride};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, FormatterOptions, LintPreset, LintSeverity,
     LinterOptions, Ref, Repository, Settings,
@@ -250,7 +250,7 @@ pub struct ProgramArgs {
 
     /// Injected daemon client.
     #[arg(skip)]
-    pub daemon_client: Option<Arc<ProtocolClient>>,
+    pub daemon_client: Option<Arc<Client>>,
 
     /// The number of worker threads to use (default: number of CPU cores).
     #[arg(
