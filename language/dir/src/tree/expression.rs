@@ -5,10 +5,8 @@ use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Declarator, DependencyForm, DependencyItem, ExportKind, GenericArgument, ImportAttributeClause,
     Keyword, LocalNodeId, MatchCase, MatchForm, Mutability, Node, NodeType, Path, Pattern,
-    Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, Tree, TypeExpression,
-    UnaryOperator,
+    Property, RangeEnd, ScalarLiteral, StaticKey, TemplateLiteral, TypeExpression, UnaryOperator,
 };
-use smallvec::SmallVec;
 
 /// A catch branch.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -830,54 +828,6 @@ pub enum Expression {
 
 impl Node for Expression {
     const TYPE: NodeType = NodeType::Expression;
-}
-
-impl Tree {
-    /// Return one static member path represented by expression syntax.
-    ///
-    /// Examples:
-    /// ```ds
-    /// dep.api.value
-    /// ```
-    pub fn member_path(&self, id: LocalNodeId<Expression>) -> Option<Path> {
-        let mut segments = SmallVec::new();
-        self.collect_member_path_segments(id, &mut segments)?;
-
-        (segments.len() > 1).then_some(Path { segments })
-    }
-
-    /// Collect static member path segments from one expression.
-    fn collect_member_path_segments(
-        &self,
-        id: LocalNodeId<Expression>,
-        segments: &mut SmallVec<[StringId; 1]>,
-    ) -> Option<()> {
-        match self.get(id) {
-            // collect the path root
-            Expression::Identifier { name } => {
-                segments.push(*name);
-            }
-
-            // collect an already path-shaped root
-            Expression::QualifiedReference { path, .. } => {
-                segments.extend(path.segments.iter().copied());
-            }
-
-            // extend through one member segment
-            Expression::Member {
-                left,
-                name: Some(name),
-            } => {
-                self.collect_member_path_segments(*left, segments)?;
-                segments.push(*name);
-            }
-
-            // reject dynamic member syntax
-            _ => return None,
-        }
-
-        Some(())
-    }
 }
 
 impl Expression {

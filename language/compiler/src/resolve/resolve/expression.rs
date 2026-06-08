@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::resolve::state::{PathReference, ResolveState};
 
@@ -39,7 +40,7 @@ impl ResolveState<'_> {
             }
             dir::Expression::Member { .. } => {
                 if self.member_path_collection_depth == 0
-                    && let Some(path) = tree.member_path(id)
+                    && let Some(path) = Self::member_expression_path(tree, id)
                 {
                     self.collect_path_reference(PathReference {
                         source: id.into_global_any(self.module),
@@ -168,6 +169,48 @@ impl ResolveState<'_> {
                 dir::walk_type_expression(self, tree, id, ty);
             }
             _ => dir::walk_type_expression(self, tree, id, ty),
+        }
+    }
+
+    /// Return one static member path represented by member expression syntax.
+    fn member_expression_path(
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<dir::Path> {
+        let mut suffix = SmallVec::<[dir::StringId; 1]>::new();
+        let mut current = id;
+
+        loop {
+            match tree.get(current) {
+                // collect the path root
+                dir::Expression::Identifier { name } => {
+                    suffix.push(*name);
+                    suffix.reverse();
+
+                    return (suffix.len() > 1).then_some(dir::Path { segments: suffix });
+                }
+
+                // collect an already path-shaped root
+                dir::Expression::QualifiedReference { path, .. } => {
+                    let mut segments = path.segments.clone();
+                    suffix.reverse();
+                    segments.extend(suffix);
+
+                    return (segments.len() > 1).then_some(dir::Path { segments });
+                }
+
+                // extend through one member segment
+                dir::Expression::Member {
+                    left,
+                    name: Some(name),
+                } => {
+                    suffix.push(*name);
+                    current = *left;
+                }
+
+                // reject dynamic member syntax
+                _ => return None,
+            }
         }
     }
 }
