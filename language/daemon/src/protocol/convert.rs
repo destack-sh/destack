@@ -6,9 +6,7 @@ use destack_source::{
     Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
     FileWatchStatus,
 };
-use destack_workspace::{FileImage, FileUpdateKind};
-
-use crate::{DaemonMessage, DaemonMessageKind, DaemonUpdate};
+use destack_workspace::{FileImage, FileUpdate, FileUpdateKind, Message, MessageKind};
 
 use super::{
     DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, FileUpdateImage, ReloadReason,
@@ -24,8 +22,8 @@ impl From<FileUpdateKind> for UpdateChangeKind {
     }
 }
 
-impl From<&crate::DaemonUpdate> for UpdateChange {
-    fn from(update: &crate::DaemonUpdate) -> Self {
+impl From<&FileUpdate> for UpdateChange {
+    fn from(update: &FileUpdate) -> Self {
         Self {
             file_id: update.file_id,
             kind: UpdateChangeKind::from(update.kind),
@@ -33,8 +31,8 @@ impl From<&crate::DaemonUpdate> for UpdateChange {
     }
 }
 
-impl From<&DaemonUpdate> for DaemonUpdateRecord {
-    fn from(update: &DaemonUpdate) -> Self {
+impl From<&FileUpdate> for DaemonUpdateRecord {
+    fn from(update: &FileUpdate) -> Self {
         Self {
             module_id: update.module_id,
             file_id: update.file_id,
@@ -57,19 +55,19 @@ fn protocol_image_from_root(image: &FileImage) -> FileUpdateImage {
     }
 }
 
-impl From<&DaemonMessage> for DaemonMessageRecord {
-    fn from(message: &DaemonMessage) -> Self {
+impl From<&Message> for DaemonMessageRecord {
+    fn from(message: &Message) -> Self {
         let kind = match message.kind {
-            DaemonMessageKind::Info => super::DaemonMessageKind::Info,
-            DaemonMessageKind::Warning => super::DaemonMessageKind::Warning,
-            DaemonMessageKind::Error => super::DaemonMessageKind::Error,
+            MessageKind::Info => super::DaemonMessageKind::Info,
+            MessageKind::Warning => super::DaemonMessageKind::Warning,
+            MessageKind::Error => super::DaemonMessageKind::Error,
         };
 
         Self {
             kind,
             code: message.code.clone(),
             message: message.message.clone(),
-            path: message.path.clone(),
+            path: None,
         }
     }
 }
@@ -228,16 +226,6 @@ impl WatchStatus {
     }
 }
 
-/// Convert daemon updates into protocol records.
-pub fn daemon_updates_to_records(updates: &[DaemonUpdate]) -> Vec<DaemonUpdateRecord> {
-    updates.iter().map(DaemonUpdateRecord::from).collect()
-}
-
-/// Convert daemon messages into protocol records.
-pub fn daemon_messages_to_records(messages: &[DaemonMessage]) -> Vec<DaemonMessageRecord> {
-    messages.iter().map(DaemonMessageRecord::from).collect()
-}
-
 /// Convert diagnostics into protocol batches grouped by file id.
 pub fn diagnostics_to_batches(diagnostics: &[Diagnostic]) -> Vec<DiagnosticBatch> {
     // group diagnostics by file
@@ -274,7 +262,7 @@ pub fn diagnostic_file_images(
     for diagnostic in diagnostics {
         let file_id = diagnostic.primary_label().span.file;
         if seen.insert(file_id)
-            && let Some(image) = image_for_file(repository, revision, file_id)
+            && let Some(image) = file_image(repository, revision, file_id)
         {
             images.push(image);
         }
@@ -286,7 +274,7 @@ pub fn diagnostic_file_images(
 }
 
 /// Build an image for a file id.
-fn image_for_file(
+fn file_image(
     repository: &Repository,
     revision: Revision,
     file_id: FileId,

@@ -8,7 +8,7 @@ use destack_source::{FileWatcher, PhysicalFileWatcher};
 
 use crate::DaemonError;
 
-use super::{DaemonWorkspace, WorkspaceTable};
+use super::{Workspace, WorkspaceTable};
 
 /// Persistent process state for daemon clients.
 #[derive(Clone)]
@@ -81,12 +81,12 @@ impl Daemon {
     pub(crate) fn open_workspace(
         &self,
         workspace_root: &Path,
-    ) -> Result<Arc<DaemonWorkspace>, DaemonError> {
+    ) -> Result<Arc<Workspace>, DaemonError> {
         self.workspaces.open(workspace_root)
     }
 
     /// Return one opened workspace.
-    pub(crate) fn workspace(&self, workspace_root: &Path) -> Option<Arc<DaemonWorkspace>> {
+    pub(crate) fn workspace(&self, workspace_root: &Path) -> Option<Arc<Workspace>> {
         self.workspaces.get(workspace_root)
     }
 

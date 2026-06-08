@@ -6,7 +6,7 @@ use destack_repository::Revision;
 use destack_source::{Diagnostic, DiagnosticCollection};
 
 use crate::protocol::{CommandOutputChunk, OutputStream};
-use crate::{Daemon, DaemonWorkspace};
+use crate::{Daemon, Workspace};
 
 use super::context::CommandContext;
 use super::{
@@ -124,7 +124,7 @@ impl Daemon {
     /// Execute a command request for the given root.
     pub fn run_root_command(
         &self,
-        workspace: &DaemonWorkspace,
+        workspace: &Workspace,
         root: &Path,
         common: &CommonCommandOptions,
         payload: &CommandPayload,

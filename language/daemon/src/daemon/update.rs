@@ -2,70 +2,16 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use destack_repository::Revision;
 use destack_session::SourceUpdate;
-use destack_source::{
-    Diagnostic, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus,
-    ModuleId,
-};
-use destack_workspace::{
-    Error, FileChange, FileImage, FileUpdate, FileUpdateKind, Message, MessageKind, UpdateBatch,
-};
+use destack_source::{FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus};
+use destack_workspace::{Error, FileChange, Message, MessageKind, SourceUpdateResult, UpdateBatch};
 
-use crate::{DaemonError, DaemonMessage, DaemonMessageKind, DaemonWorkspace, WatchBatch};
+use crate::{DaemonError, WatchBatch, Workspace};
 
-/// Summary of a daemon update.
-#[derive(Debug, Clone)]
-pub struct DaemonUpdate {
-    /// Module affected by the update.
-    pub module_id: Option<ModuleId>,
-    /// File affected by the update.
-    pub file_id: FileId,
-    /// Current file image, when the file exists.
-    pub file: Option<FileImage>,
-    /// Kind of file update.
-    pub kind: FileUpdateKind,
-    /// Diagnostics produced by the update.
-    pub diagnostics: Vec<Diagnostic>,
-}
-
-/// Result of applying an update through the daemon.
-#[derive(Debug, Clone, Default)]
-pub struct DaemonUpdateResult {
-    /// File updates produced by the daemon.
-    pub updates: Vec<DaemonUpdate>,
-    /// Messages produced while applying the update.
-    pub messages: Vec<DaemonMessage>,
-}
-
-/// Result of applying a source update through the daemon.
-#[derive(Debug, Clone)]
-pub struct DaemonSourceUpdateResult {
-    /// Previous repository revision.
-    pub before: Revision,
-    /// Updated repository revision.
-    pub after: Revision,
-    /// File updates produced by the daemon.
-    pub updates: Vec<DaemonUpdate>,
-    /// Messages produced while applying the update.
-    pub messages: Vec<DaemonMessage>,
-}
-
-impl DaemonUpdateResult {
-    /// Return whether any files changed.
-    pub fn updated(&self) -> bool {
-        !self.updates.is_empty()
-    }
-}
-
-impl DaemonWorkspace {
+impl Workspace {
     /// Apply a text update and write it to disk.
-    pub fn update_file(
-        &self,
-        path: &Path,
-        content: String,
-    ) -> Result<DaemonUpdateResult, DaemonError> {
-        self.apply_file_update(path, FileChange::Text { content }, true)
+    pub fn update_file(&self, path: &Path, content: String) -> Result<UpdateBatch, DaemonError> {
+        self.write_file(path, FileChange::Text { content })
     }
 
     /// Apply a text update without writing to disk.
@@ -73,38 +19,71 @@ impl DaemonWorkspace {
         &self,
         path: &Path,
         content: String,
-    ) -> Result<DaemonUpdateResult, DaemonError> {
-        self.apply_file_update(path, FileChange::Text { content }, false)
+    ) -> Result<UpdateBatch, DaemonError> {
+        self.workspace
+            .apply_file(path, FileChange::Text { content })
+            .map_err(DaemonError::from)
     }
 
     /// Mark a file as removed without touching the filesystem.
-    pub fn remove_virtual_file(&self, path: &Path) -> Result<DaemonUpdateResult, DaemonError> {
-        self.apply_file_update(path, FileChange::Removed, false)
+    pub fn remove_virtual_file(&self, path: &Path) -> Result<UpdateBatch, DaemonError> {
+        self.workspace
+            .apply_file(path, FileChange::Removed)
+            .map_err(DaemonError::from)
     }
 
-    /// Close one open file and restore filesystem truth.
-    pub fn close_file(&self, path: &Path) -> Result<DaemonUpdateResult, DaemonError> {
-        let workspace_result = self.workspace.close_file(path)?;
-
-        Ok(daemon_update_result_from_workspace(workspace_result))
-    }
-
-    /// Apply a file update and optionally write to the filesystem.
-    pub fn apply_file_update(
+    /// Save text content from the editor or filesystem.
+    pub fn save_text_file(
         &self,
         path: &Path,
-        update: FileChange,
-        write_to_disk: bool,
-    ) -> Result<DaemonUpdateResult, DaemonError> {
-        // write the update to disk when requested
-        if write_to_disk {
-            self.write_update_to_disk(path, &update)?;
-        }
+        content: Option<String>,
+    ) -> Result<UpdateBatch, DaemonError> {
+        let content = match content {
+            Some(content) => content,
+            None => self
+                .repository
+                .file_system()
+                .read_to_string(path)
+                .map_err(|error| DaemonError::FileWrite {
+                    path: path.to_path_buf(),
+                    error,
+                })?,
+        };
 
-        // apply the update through workspace
-        let workspace_result = self.workspace.apply_file(path, update)?;
+        self.workspace
+            .save_file(path, FileChange::Text { content })
+            .map_err(DaemonError::from)
+    }
 
-        Ok(daemon_update_result_from_workspace(workspace_result))
+    /// Save binary content from the editor or filesystem.
+    pub fn save_bytes_file(
+        &self,
+        path: &Path,
+        content: Option<Vec<u8>>,
+    ) -> Result<UpdateBatch, DaemonError> {
+        let content = match content {
+            Some(content) => content,
+            None => self.repository.file_system().read(path).map_err(|error| {
+                DaemonError::FileWrite {
+                    path: path.to_path_buf(),
+                    error,
+                }
+            })?,
+        };
+
+        self.workspace
+            .save_file(path, FileChange::Bytes { content })
+            .map_err(DaemonError::from)
+    }
+
+    /// Write a file update to disk and workspace state.
+    pub fn write_file(&self, path: &Path, update: FileChange) -> Result<UpdateBatch, DaemonError> {
+        // write the update to disk first
+        self.write_update_to_disk(path, &update)?;
+
+        self.workspace
+            .apply_file(path, update)
+            .map_err(DaemonError::from)
     }
 
     /// Apply an atomic source update through the daemon.
@@ -112,23 +91,14 @@ impl DaemonWorkspace {
         &self,
         root: &Path,
         update: SourceUpdate,
-    ) -> Result<DaemonSourceUpdateResult, DaemonError> {
-        // apply the source batch through workspace
-        let result = self.workspace.apply_source_update(root, update)?;
-        let before = result.before;
-        let after = result.after;
-        let result = daemon_update_result(result.updates, result.messages);
-
-        Ok(DaemonSourceUpdateResult {
-            before,
-            after,
-            updates: result.updates,
-            messages: result.messages,
-        })
+    ) -> Result<SourceUpdateResult, DaemonError> {
+        self.workspace
+            .apply_source_update(root, update)
+            .map_err(DaemonError::from)
     }
 
     /// Apply a watch event through the daemon.
-    pub fn apply_watch_event(&self, event: &FileWatchEvent) -> DaemonUpdateResult {
+    pub fn apply_watch_event(&self, event: &FileWatchEvent) -> UpdateBatch {
         // reuse the batch flow for single events
         let now = Instant::now();
         let batch = WatchBatch {
@@ -143,8 +113,8 @@ impl DaemonWorkspace {
     }
 
     /// Apply a watch batch through the daemon.
-    pub fn apply_watch_batch(&self, batch: &WatchBatch) -> DaemonUpdateResult {
-        let mut result = DaemonUpdateResult::default();
+    pub fn apply_watch_batch(&self, batch: &WatchBatch) -> UpdateBatch {
+        let mut result = UpdateBatch::default();
 
         // apply watch statuses first
         let mut should_reload = false;
@@ -163,9 +133,8 @@ impl DaemonWorkspace {
             .any(|event| matches!(event.kind, FileWatchEventKind::Overflow));
         match self.workspace.apply_watch_events(batch.events.clone()) {
             Ok(workspace_result) => {
-                let daemon_result = daemon_update_result_from_workspace(workspace_result);
-                result.updates.extend(daemon_result.updates);
-                result.messages.extend(daemon_result.messages);
+                result.updates.extend(workspace_result.updates);
+                result.messages.extend(workspace_result.messages);
             }
             Err(error) => {
                 result
@@ -183,9 +152,8 @@ impl DaemonWorkspace {
         if should_reload {
             match self.workspace.reload_all() {
                 Ok(workspace_result) => {
-                    let daemon_result = daemon_update_result_from_workspace(workspace_result);
-                    result.updates.extend(daemon_result.updates);
-                    result.messages.extend(daemon_result.messages);
+                    result.updates.extend(workspace_result.updates);
+                    result.messages.extend(workspace_result.messages);
                 }
                 Err(error) => {
                     result
@@ -199,14 +167,13 @@ impl DaemonWorkspace {
     }
 
     /// Reload filesystem state for the provided roots.
-    pub fn reload_roots(&self, roots: &[PathBuf]) -> DaemonUpdateResult {
+    pub fn reload_roots(&self, roots: &[PathBuf]) -> UpdateBatch {
         let result = self.workspace.reload_roots(roots);
         match result {
-            Ok(result) => daemon_update_result_from_workspace(result),
-            Err(error) => DaemonUpdateResult {
+            Ok(result) => result,
+            Err(error) => UpdateBatch {
                 updates: Vec::new(),
-                messages: vec![DaemonMessage::new(
-                    DaemonMessageKind::Warning,
+                messages: vec![Message::warning(
                     "reload_filesystem_failed",
                     format!("watch: failed to reload filesystem state: {error}"),
                 )],
@@ -266,19 +233,18 @@ impl DaemonWorkspace {
         match status {
             FileWatchStatus::Error { message } => WatchStatusResult {
                 should_reload: false,
-                message: Some(DaemonMessage::new(
-                    DaemonMessageKind::Warning,
+                message: Some(Message::warning(
                     "watch_status_error",
                     format!("watch: {message}"),
                 )),
             },
             FileWatchStatus::RescanRequested { reason, .. } => WatchStatusResult {
                 should_reload: true,
-                message: Some(DaemonMessage::new(
-                    DaemonMessageKind::Info,
-                    "watch_reload_requested",
-                    watch_reload_requested_message(reason),
-                )),
+                message: Some(Message {
+                    kind: MessageKind::Info,
+                    code: "watch_reload_requested".to_string(),
+                    message: watch_reload_requested_message(reason).to_string(),
+                }),
             },
             FileWatchStatus::Ready { .. } => WatchStatusResult {
                 should_reload: false,
@@ -298,44 +264,16 @@ struct WatchStatusResult {
     /// Whether the status requires a reload.
     should_reload: bool,
     /// Optional surfaced message.
-    message: Option<DaemonMessage>,
-}
-
-/// Convert a workspace update result into daemon shape.
-fn daemon_update_result_from_workspace(result: UpdateBatch) -> DaemonUpdateResult {
-    daemon_update_result(result.updates, result.messages)
-}
-
-/// Convert workspace updates and messages into daemon shape.
-fn daemon_update_result(updates: Vec<FileUpdate>, messages: Vec<Message>) -> DaemonUpdateResult {
-    DaemonUpdateResult {
-        updates: updates
-            .into_iter()
-            .map(daemon_update_from_workspace)
-            .collect(),
-        messages: daemon_messages_from_workspace(messages),
-    }
-}
-
-/// Convert workspace messages to daemon messages.
-fn daemon_messages_from_workspace(messages: Vec<Message>) -> Vec<DaemonMessage> {
-    messages
-        .into_iter()
-        .map(|message| {
-            let kind = match message.kind {
-                MessageKind::Info => DaemonMessageKind::Info,
-                MessageKind::Warning => DaemonMessageKind::Warning,
-                MessageKind::Error => DaemonMessageKind::Error,
-            };
-
-            DaemonMessage::new(kind, message.code, message.message)
-        })
-        .collect()
+    message: Option<Message>,
 }
 
 /// Build a daemon message for workspace failures.
-fn workspace_error_message(code: &str, error: &Error) -> DaemonMessage {
-    DaemonMessage::new(DaemonMessageKind::Error, code, error.to_string())
+fn workspace_error_message(code: &str, error: &Error) -> Message {
+    Message {
+        kind: MessageKind::Error,
+        code: code.to_string(),
+        message: error.to_string(),
+    }
 }
 
 /// Build a watch reload requested message.
@@ -345,16 +283,5 @@ fn watch_reload_requested_message(reason: &FileWatchRescanReason) -> &'static st
         FileWatchRescanReason::Overflow => "watch: filesystem reload requested after overflow",
         FileWatchRescanReason::Manual => "watch: filesystem reload requested",
         FileWatchRescanReason::Update => "watch: filesystem reload requested after update",
-    }
-}
-
-/// Convert a workspace update into daemon shape.
-fn daemon_update_from_workspace(update: FileUpdate) -> DaemonUpdate {
-    DaemonUpdate {
-        module_id: update.module_id,
-        file_id: update.file_id,
-        file: update.file,
-        kind: update.kind,
-        diagnostics: update.diagnostics,
     }
 }
