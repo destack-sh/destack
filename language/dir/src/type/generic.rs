@@ -4,7 +4,8 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalStaticId, GlobalSymbolId, GlobalTypeId, StaticArgument, StringId, VarianceModifier,
+    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, StaticArgument, StringId,
+    VarianceModifier,
 };
 
 /// Unique identifier for generic templates.
@@ -16,6 +17,44 @@ impl LocalGenericTemplateId {
     /// Wrap an id as a local generic template id.
     pub fn new(id: u32) -> Self {
         Self(id)
+    }
+
+    /// Turn into a global generic template id.
+    pub fn into_global(self, module_id: ModuleId) -> GlobalGenericTemplateId {
+        GlobalGenericTemplateId {
+            module_id,
+            local_id: self,
+        }
+    }
+}
+
+/// Global generic template id across modules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct GlobalGenericTemplateId {
+    /// The module id of the global generic template.
+    pub module_id: ModuleId,
+    /// The local generic template id.
+    pub local_id: LocalGenericTemplateId,
+}
+
+impl GlobalGenericTemplateId {
+    /// Create a new global generic template id.
+    pub fn new(module_id: ModuleId, local_id: LocalGenericTemplateId) -> Self {
+        Self {
+            module_id,
+            local_id,
+        }
+    }
+
+    /// Turn into a local generic template id.
+    pub fn into_local(self) -> LocalGenericTemplateId {
+        self.local_id
+    }
+}
+
+impl From<GlobalGenericTemplateId> for LocalGenericTemplateId {
+    fn from(id: GlobalGenericTemplateId) -> Self {
+        id.local_id
     }
 }
 
@@ -154,20 +193,23 @@ pub enum GenericParameterKey {
     Generated(StringId),
 }
 
-/// One owner-level declaration of generic parameters.
+/// One declaration of generic parameters.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GenericTemplate {
-    /// The symbol that owns this generic template.
-    pub owner: GlobalSymbolId,
+    /// The source node that declares this template.
+    pub source: GlobalNodeIdAny,
+    /// The immediately enclosing generic template.
+    pub parent: Option<LocalGenericTemplateId>,
     /// The generic parameters in declaration order.
     pub parameters: Vec<LocalGenericParameterId>,
 }
 
 impl GenericTemplate {
-    /// Create an empty generic template for one owner.
-    pub fn new(owner: GlobalSymbolId) -> Self {
+    /// Create an empty generic template for one source node.
+    pub fn new(source: GlobalNodeIdAny, parent: Option<LocalGenericTemplateId>) -> Self {
         Self {
-            owner,
+            source,
+            parent,
             parameters: Vec::new(),
         }
     }
