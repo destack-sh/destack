@@ -25,12 +25,12 @@ impl Bridge {
     /// Return the crate version.
     #[napi]
     pub fn version(&self) -> &'static str {
-        destack_bridge_core::version()
+        env!("CARGO_PKG_VERSION")
     }
 }
 
 /// Return the crate version.
 #[napi]
 pub fn version() -> &'static str {
-    destack_bridge_core::version()
+    env!("CARGO_PKG_VERSION")
 }
