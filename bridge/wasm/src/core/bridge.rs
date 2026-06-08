@@ -1,4 +1,4 @@
-use wasm_bindgen::prelude::wasm_bindgen;
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 /// The static backend marker for WebAssembly clients.
 pub const BACKEND: &str = "wasm";
@@ -25,12 +25,17 @@ impl Bridge {
     /// Return the crate version.
     #[wasm_bindgen]
     pub fn version(&self) -> String {
-        destack_bridge_core::version().to_string()
+        env!("CARGO_PKG_VERSION").to_string()
     }
 }
 
 /// Return the crate version.
 #[wasm_bindgen]
 pub fn version() -> String {
-    destack_bridge_core::version().to_string()
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Convert one bridge error into a JS error.
+pub(crate) fn js_error(error: impl ToString) -> JsValue {
+    JsValue::from_str(&error.to_string())
 }
