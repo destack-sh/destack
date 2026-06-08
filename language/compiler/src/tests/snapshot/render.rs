@@ -273,7 +273,7 @@ impl<'a> SnapshotRenderer<'a> {
             "resolution" => 4,
             "static" => 5,
             "relation" => 6,
-            "extension" => 7,
+            "definition" => 7,
             "coercion" => 8,
             "module" => 9,
             "dependency" => 10,

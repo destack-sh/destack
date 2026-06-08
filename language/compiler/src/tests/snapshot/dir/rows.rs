@@ -26,14 +26,12 @@ pub(crate) struct DirRows {
     pub(super) resolution: bool,
     /// Whether to render generic table rows.
     pub(super) generics: bool,
-    /// Whether to render nominal table rows.
-    pub(super) nominals: bool,
+    /// Whether to render definition table rows.
+    pub(super) definitions: bool,
     /// Whether to render relation table rows.
     pub(super) relation: bool,
     /// Whether to render coercion table rows.
     pub(super) coercion: bool,
-    /// Whether to render extension table rows.
-    pub(super) extension: bool,
     /// Whether to render module table rows.
     pub(super) module: bool,
     /// Whether to render resolved import table rows.
@@ -68,10 +66,9 @@ impl DirRows {
             statics: false,
             resolution: false,
             generics: false,
-            nominals: false,
+            definitions: false,
             relation: false,
             coercion: false,
-            extension: false,
             module: false,
             import: false,
             export: false,
@@ -132,9 +129,8 @@ impl DirRows {
             type_references: false,
             resolution: true,
             generics: true,
-            nominals: true,
+            definitions: true,
             relation: true,
-            extension: true,
             ..Self::none()
         }
     }
@@ -152,9 +148,9 @@ impl DirRows {
         self
     }
 
-    /// Include nominal table rows.
-    pub(crate) const fn with_nominals(mut self) -> Self {
-        self.nominals = true;
+    /// Include definition table rows.
+    pub(crate) const fn with_definitions(mut self) -> Self {
+        self.definitions = true;
         self
     }
 
@@ -303,7 +299,7 @@ impl DirRows {
             || self.statics
             || self.resolution
             || self.generics
-            || self.nominals
+            || self.definitions
             || self.relation
             || self.coercion
             || self.capture
