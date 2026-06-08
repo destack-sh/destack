@@ -5,8 +5,8 @@ use destack_qir::{
     ImportPathRelevance, ImportRelevance, import_package_rank, import_path_relevance,
     import_relevance, package_import_path_relevance,
 };
+use destack_repository::{Repository, Revision};
 use destack_source::{FileId, ModuleId, PackageId};
-use destack_workspace::{Repository, Revision};
 
 /// Compute import relevance for one candidate.
 #[allow(clippy::too_many_arguments)]

@@ -1,7 +1,9 @@
 use destack_artifact::{ArtifactKey, ArtifactPayload, ModuleQueryIndex, WorkspaceQueryIndex};
 use destack_qir::QueryIndex;
+use destack_repository::{
+    ArtifactReader, ProviderContext, ProviderError, ProviderResult, Revision,
+};
 use destack_source::{ModuleId, ProfileId};
-use destack_workspace::{ArtifactReader, ProviderContext, ProviderError, ProviderResult, Revision};
 
 use super::{
     AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, MemberIndex, ModuleQueryContext,

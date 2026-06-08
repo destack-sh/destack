@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_workspace::ImportSortOrder;
+use destack_repository::ImportSortOrder;
 
 /// The import group category for declaration ordering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

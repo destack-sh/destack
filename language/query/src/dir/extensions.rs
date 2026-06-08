@@ -11,10 +11,14 @@ impl ModuleQueryContext<'_> {
 
         // collect checked extension declarations
         for (extension_id, extension) in self.dir().extensions().iter_extensions() {
+            let Some(target_symbol) = extension.target.nominal_root() else {
+                continue;
+            };
+
             entries.push(ExtensionEntry {
                 module_id,
                 extension_id,
-                target_symbol: self.canonical_symbol(extension.target_symbol),
+                target_symbol: self.canonical_symbol(target_symbol),
             });
         }
 

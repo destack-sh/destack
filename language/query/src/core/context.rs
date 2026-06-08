@@ -6,8 +6,8 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_dir as dir;
+use destack_repository::{ArtifactReader, ProviderError, Repository, Revision};
 use destack_source::{FileId, ModuleId, ProfileId, SourceIndex};
-use destack_workspace::{ArtifactReader, ProviderError, Repository, Revision};
 
 use super::QueryModule;
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_workspace::Repository;
+use destack_repository::Repository;
 
 /// Provider that builds query artifacts for one repository.
 #[derive(Debug, Clone)]
