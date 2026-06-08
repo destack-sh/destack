@@ -4,8 +4,8 @@ use std::sync::Arc;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
+use destack_repository::{DestackLayoutOverride, Environment, Ref, Repository, Revision, Settings};
 use destack_source::{FileSystem, MemoryFileSystem};
-use destack_workspace::{DestackLayoutOverride, Environment, Ref, Repository, Revision, Settings};
 
 use crate::{
     FileUpdate, Session, SessionError, SourceEdit, SourceUpdate, SourceUpdateResult,
@@ -55,8 +55,8 @@ impl TestSession {
             DestackLayoutOverride::default(),
         )?;
         let repository = Arc::new(repository);
-        let root = repository.workspace_root().to_path_buf();
-        let head = Ref::for_workspace_root(&root);
+        let root = repository.path().to_path_buf();
+        let head = Ref::for_root(&root);
         let compiler = Arc::new(Compiler::new(repository.clone()));
         let linter = Arc::new(Linter::new(repository.clone()));
         let query = Arc::new(Query::new(repository.clone()));
@@ -187,7 +187,7 @@ impl TestSession {
 
     /// Return the default session ref.
     fn head(&self) -> Ref {
-        Ref::for_workspace_root(&self.root)
+        Ref::for_root(&self.root)
     }
 
     /// Return editable repository files at the current head.

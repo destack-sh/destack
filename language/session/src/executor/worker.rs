@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_artifact::{ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactProvider};
-use destack_workspace::{ProviderError, ProviderResult};
+use destack_repository::{ProviderError, ProviderResult};
 
 use super::attempt::ProviderAttempt;
 use super::run::{Run, RunId};

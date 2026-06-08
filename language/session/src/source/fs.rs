@@ -3,10 +3,10 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_repository::{Dependency, DestackFile, Repository, RepositoryError};
 use destack_source::{
     File, FileContent, FileId, FileMetadata, FileSystem, FileType, Uri, matches as glob_matches,
 };
-use destack_workspace::{Dependency, DestackFile, Repository, RepositoryError};
 
 use super::{Source, SourceError, SourceImport};
 use crate::SessionError;

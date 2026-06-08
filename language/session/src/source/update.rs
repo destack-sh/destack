@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use destack_repository::{Edit as RepositoryEdit, Ref, RepositoryChange, Revision};
 use destack_source::{
     Edit as SourceTextEdit, FileContent, FileEdit, FileId, Span, Uri, apply_file_edit,
 };
-use destack_workspace::{Edit as RepositoryEdit, Ref, RepositoryChange, Revision};
 
 use crate::{FileChange, FileUpdate, FileUpdateKind, Session, SessionError};
 

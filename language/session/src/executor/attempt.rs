@@ -5,10 +5,10 @@ use destack_artifact::{
     ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
     DiagnosticError, DiagnosticLike,
 };
+use destack_repository::{ProviderContext, ProviderError, Repository, Revision};
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, Span,
 };
-use destack_workspace::{ProviderContext, ProviderError, Repository, Revision};
 use parking_lot::Mutex;
 
 use crate::SessionError;

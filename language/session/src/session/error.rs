@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use destack_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
+use destack_repository::{Ref, RepositoryError, Revision};
 use destack_source::{EditApplyError, FileId, ModuleId, PackageId};
-use destack_workspace::{Ref, RepositoryError, Revision};
 
 use crate::SourceError;
 

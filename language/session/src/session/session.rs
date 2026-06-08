@@ -5,8 +5,8 @@ use std::thread;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
+use destack_repository::{Ref, Repository, Revision};
 use destack_source::{FileId, ModuleId};
-use destack_workspace::{Ref, Repository, Revision};
 
 use crate::executor::Executor;
 use crate::{FileSystemSource, SessionError};
