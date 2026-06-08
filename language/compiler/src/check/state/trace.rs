@@ -1,67 +1,53 @@
+use crate::check::{CheckState, DumpContext, StaticOperand, TypeOperand, VariableId, VariableKind};
 use destack_artifact::{ArtifactEvent, ArtifactEventLog};
 
-use crate::check::{
-    CheckState, DumpContext, Progress, StaticOperand, TypeOperand, VariableId, VariableKind,
-};
-
-/// Trace for one check component.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(in crate::check) struct CheckTrace {
-    /// The check events in emission order.
-    pub(in crate::check) events: Vec<CheckEvent>,
-}
-
-impl CheckTrace {
-    /// Create an empty check trace.
-    pub(in crate::check) fn new() -> Self {
-        Self { events: Vec::new() }
-    }
-
+impl CheckState<'_> {
     /// Record one check event.
-    pub(in crate::check) fn record(&mut self, event: CheckEvent) {
-        self.events.push(event);
+    pub(in crate::check) fn record_event(&mut self, event: CheckEvent) {
+        if cfg!(debug_assertions) && self.emit_events && !self.inference.is_probing() {
+            let context = DumpContext::new(self);
+            let timestamp = self.inference.events().count();
+
+            eprintln!("{}", event.render_plain_at(&context, timestamp));
+        }
+
+        self.inference.push_event(event);
     }
 
-    /// Render this trace as stable artifact events.
-    pub(in crate::check) fn render_events(&self, check: &CheckState<'_>) -> ArtifactEventLog {
-        let context = DumpContext::new(check);
+    /// Return rendered event rows for this component.
+    pub(in crate::check) fn events(&self) -> ArtifactEventLog {
+        let context = DumpContext::new(self);
         let mut log = ArtifactEventLog::new();
+        let events = self.inference.events().collect::<Vec<_>>();
 
         // summarize retained trace state
         log.push(
             ArtifactEvent::new("trace.summary")
                 .info()
-                .usize("events", self.events.len()),
+                .usize("events", events.len()),
         );
 
         // render retained events in order
-        for event in &self.events {
+        for event in events {
             event.render(&context, &mut log);
         }
 
         log
     }
 
-    /// Render this trace as a human readable check dump.
-    pub(in crate::check) fn render_dump(&self, check: &CheckState<'_>) -> String {
-        self.render_events(check)
+    /// Render retained events as a human readable check dump.
+    pub(in crate::check) fn event_dump(&self) -> String {
+        self.events()
             .events
             .iter()
-            .map(ArtifactEvent::render_raw)
+            .map(ArtifactEvent::render_plain)
             .collect::<Vec<_>>()
             .join("\n")
     }
 }
 
-impl CheckState<'_> {
-    /// Return rendered event rows for this component.
-    pub(in crate::check) fn events(&self) -> ArtifactEventLog {
-        self.trace.render_events(self)
-    }
-}
-
 /// One event emitted by check.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::check) enum CheckEvent {
     /// The solver started.
     SolveStart {
@@ -74,8 +60,6 @@ pub(in crate::check) enum CheckEvent {
     SolveStep {
         /// The zero-based step index.
         step: usize,
-        /// The progress produced by the task.
-        progress: SolveProgress,
     },
     /// The solver reached an empty queue.
     SolveFinish {
@@ -124,31 +108,21 @@ pub(in crate::check) enum TraceOperand {
     Static(StaticOperand),
 }
 
-/// Compact progress summary for one solver task step.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum SolveProgress {
-    /// The step changed no variables.
-    Unchanged,
-    /// The step changed variables.
-    Changed {
-        /// The number of changed variables.
-        variables: usize,
-    },
-}
-
-impl From<&Progress> for SolveProgress {
-    /// Return a compact solver progress summary.
-    fn from(progress: &Progress) -> Self {
-        match progress {
-            Progress::Unchanged => Self::Unchanged,
-            Progress::Changed(variables) => Self::Changed {
-                variables: variables.len(),
-            },
-        }
-    }
-}
-
 impl CheckEvent {
+    /// Render this event as one timestamped artifact event line.
+    fn render_plain_at(&self, context: &DumpContext<'_, '_>, timestamp: usize) -> String {
+        let mut log = ArtifactEventLog::new();
+
+        self.render(context, &mut log);
+
+        let Some(mut event) = log.events.into_iter().next() else {
+            return String::new();
+        };
+        event.timestamp = timestamp;
+
+        event.render_plain()
+    }
+
     /// Render this event as stable artifact events.
     fn render(&self, context: &DumpContext<'_, '_>, log: &mut ArtifactEventLog) {
         match self {
@@ -160,14 +134,8 @@ impl CheckEvent {
                         .usize("variables", *variables),
                 );
             }
-            Self::SolveStep { step, progress } => {
-                log.push(
-                    ArtifactEvent::new("solve.step")
-                        .info()
-                        .usize("step", *step)
-                        .text("progress", progress.label())
-                        .usize("changed.variables", progress.changed_variables()),
-                );
+            Self::SolveStep { step } => {
+                log.push(ArtifactEvent::new("solve.step").info().usize("step", *step));
             }
             Self::SolveFinish {
                 iterations,
@@ -230,24 +198,6 @@ impl TraceOperand {
         match self {
             Self::Type(operand) => context.render(&operand),
             Self::Static(operand) => context.render(&operand),
-        }
-    }
-}
-
-impl SolveProgress {
-    /// Return this progress value's stable label.
-    fn label(self) -> &'static str {
-        match self {
-            Self::Unchanged => "unchanged",
-            Self::Changed { .. } => "changed",
-        }
-    }
-
-    /// Return the number of changed variables.
-    fn changed_variables(self) -> usize {
-        match self {
-            Self::Unchanged => 0,
-            Self::Changed { variables } => variables,
         }
     }
 }

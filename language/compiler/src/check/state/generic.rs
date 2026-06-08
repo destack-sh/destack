@@ -1,59 +1,112 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
+use super::VariableId;
 use crate::check::{
     CheckState, GenericArgument, Origin, StaticOperand, TypeOperand, TypeTerm, VariableKind,
 };
 
-use super::VariableId;
-
 /// Stable id for one declaration-side generic parameter.
 pub(in crate::check) type GenericParameterId = dir::GlobalGenericParameterId;
+
+/// Stable id for one generic binding site.
+pub(in crate::check) type GenericTemplateId = dir::GlobalGenericTemplateId;
 
 /// One generic template instance.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct GenericInstance {
-    /// The applied generic owner.
-    pub(in crate::check) owner: dir::GlobalSymbolId,
+    /// The applied generic template.
+    pub(in crate::check) template: GenericTemplateId,
     /// The generic arguments in declaration order.
     pub(in crate::check) arguments: SmallVec<[GenericArgument; 2]>,
+}
+
+impl GenericInstance {
+    /// Create one generic template instance.
+    pub(in crate::check) fn new(
+        template: GenericTemplateId,
+        arguments: SmallVec<[GenericArgument; 2]>,
+    ) -> Self {
+        Self {
+            template,
+            arguments,
+        }
+    }
 }
 
 /// Stable key for one source-level generic instance.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::check) struct GenericInstanceKey {
-    /// The syntax node that applies the generic owner.
+    /// The syntax node that applies the generic template.
     pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The generic owner being applied.
-    pub(in crate::check) owner: dir::GlobalSymbolId,
+    /// The generic template being applied.
+    pub(in crate::check) template: GenericTemplateId,
 }
 
-/// One owner-level declaration of generic parameters.
+impl GenericInstanceKey {
+    /// Create one generic instance key.
+    pub(in crate::check) fn new(source: dir::GlobalNodeIdAny, template: GenericTemplateId) -> Self {
+        Self { source, template }
+    }
+}
+
+/// One declaration of generic parameters.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::check) struct GenericTemplate {
-    /// The symbol that owns this generic template.
-    pub(in crate::check) owner: dir::GlobalSymbolId,
+    /// The stable generic template id.
+    pub(in crate::check) id: GenericTemplateId,
+    /// The source node that declares this template.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The immediately enclosing generic template.
+    pub(in crate::check) parent: Option<GenericTemplateId>,
     /// The generic parameters in declaration order.
     pub(in crate::check) parameters: Vec<GenericParameterId>,
 }
 
 impl GenericTemplate {
     /// Create an empty generic template.
-    pub(in crate::check) fn new(owner: dir::GlobalSymbolId) -> Self {
+    pub(in crate::check) fn new(
+        id: GenericTemplateId,
+        source: dir::GlobalNodeIdAny,
+        parent: Option<GenericTemplateId>,
+    ) -> Self {
         Self {
-            owner,
+            id,
+            source,
+            parent,
             parameters: Vec::new(),
         }
     }
 }
 
-/// One declaration operand that can induce owner generics.
+/// One declaration operand that can induce template generics.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct GenericInductionRoot {
-    /// The declaration that receives induced generic parameters.
-    pub(in crate::check) owner: dir::GlobalSymbolId,
+pub(in crate::check) struct GenericInductionSource {
+    /// The source node that receives induced generic parameters.
+    pub(in crate::check) source: dir::GlobalNodeIdAny,
+    /// The enclosing generic template.
+    pub(in crate::check) parent: Option<GenericTemplateId>,
+    /// The declaration symbol indexed by the generated template.
+    pub(in crate::check) symbol: Option<dir::GlobalSymbolId>,
     /// The declaration operand to traverse.
     pub(in crate::check) operand: TypeOperand,
+}
+
+impl GenericInductionSource {
+    /// Create one symbol-backed induction source.
+    pub(in crate::check) fn symbol(
+        source: dir::GlobalNodeIdAny,
+        parent: Option<GenericTemplateId>,
+        symbol: dir::GlobalSymbolId,
+        operand: TypeOperand,
+    ) -> Self {
+        Self {
+            source,
+            parent,
+            symbol: Some(symbol),
+            operand,
+        }
+    }
 }
 
 /// One escaping inference variable that may become an induced owner generic.
@@ -63,6 +116,19 @@ pub(in crate::check) struct GenericInduction {
     pub(in crate::check) variable: VariableId,
     /// The generated parameter recipe.
     pub(in crate::check) parameter: GenericInductionParameter,
+}
+
+impl GenericInduction {
+    /// Create one generic induction.
+    pub(in crate::check) fn new(
+        variable: VariableId,
+        parameter: GenericInductionParameter,
+    ) -> Self {
+        Self {
+            variable,
+            parameter,
+        }
+    }
 }
 
 /// One generated generic parameter recipe.
@@ -108,20 +174,35 @@ impl GenericInductionParameter {
     }
 }
 
-/// Generic parameter identity shared by explicit and induced generic parameters.
+/// Generic parameter shared by explicit and induced generic parameters.
 #[derive(Debug, Clone, PartialEq)]
-pub(in crate::check) struct GenericParameterIdentity {
+pub(in crate::check) struct GenericParameter {
     /// The stable generic parameter id.
     pub(in crate::check) id: GenericParameterId,
-    /// The generic owner symbol.
-    pub(in crate::check) owner: dir::GlobalSymbolId,
+    /// The generic template that declares this parameter.
+    pub(in crate::check) template: GenericTemplateId,
     /// The parameter key.
     pub(in crate::check) key: dir::GenericParameterKey,
     /// The parameter origin.
     pub(in crate::check) origin: dir::GenericParameterOrigin,
 }
 
-impl GenericParameterIdentity {
+impl GenericParameter {
+    /// Create one generic parameter.
+    pub(in crate::check) fn new(
+        id: GenericParameterId,
+        template: GenericTemplateId,
+        key: dir::GenericParameterKey,
+        origin: dir::GenericParameterOrigin,
+    ) -> Self {
+        Self {
+            id,
+            template,
+            key,
+            origin,
+        }
+    }
+
     /// Return a stable parameter id.
     pub(in crate::check) fn id(&self) -> GenericParameterId {
         self.id
@@ -133,8 +214,8 @@ impl GenericParameterIdentity {
 pub(in crate::check) enum GenericParameterBinding {
     /// Type generic parameter.
     Type {
-        /// The parameter identity.
-        identity: GenericParameterIdentity,
+        /// The generic parameter.
+        parameter: GenericParameter,
         /// The parameter variance.
         variance: Option<dir::VarianceModifier>,
         /// The optional type constraint.
@@ -144,8 +225,8 @@ pub(in crate::check) enum GenericParameterBinding {
     },
     /// Variadic type generic parameter.
     VariadicType {
-        /// The parameter identity.
-        identity: GenericParameterIdentity,
+        /// The generic parameter.
+        parameter: GenericParameter,
         /// The parameter variance.
         variance: Option<dir::VarianceModifier>,
         /// The optional type constraint.
@@ -155,8 +236,8 @@ pub(in crate::check) enum GenericParameterBinding {
     },
     /// Static generic parameter.
     Static {
-        /// The parameter identity.
-        identity: GenericParameterIdentity,
+        /// The generic parameter.
+        parameter: GenericParameter,
         /// The optional static value type constraint.
         constraint: Option<TypeOperand>,
         /// The optional static default.
@@ -164,8 +245,8 @@ pub(in crate::check) enum GenericParameterBinding {
     },
     /// Variadic static generic parameter.
     VariadicStatic {
-        /// The parameter identity.
-        identity: GenericParameterIdentity,
+        /// The generic parameter.
+        parameter: GenericParameter,
         /// The optional static value type constraint.
         constraint: Option<TypeOperand>,
         /// The optional static default.
@@ -174,13 +255,69 @@ pub(in crate::check) enum GenericParameterBinding {
 }
 
 impl GenericParameterBinding {
-    /// Return this generic parameter's parameter identity.
-    pub(in crate::check) fn identity(&self) -> &GenericParameterIdentity {
+    /// Create one type generic parameter binding.
+    pub(in crate::check) fn r#type(
+        parameter: GenericParameter,
+        variance: Option<dir::VarianceModifier>,
+        constraint: Option<TypeOperand>,
+        default: Option<TypeOperand>,
+    ) -> Self {
+        Self::Type {
+            parameter,
+            variance,
+            constraint,
+            default,
+        }
+    }
+
+    /// Create one variadic type generic parameter binding.
+    pub(in crate::check) fn variadic_type(
+        parameter: GenericParameter,
+        variance: Option<dir::VarianceModifier>,
+        constraint: Option<TypeOperand>,
+        default: Option<TypeOperand>,
+    ) -> Self {
+        Self::VariadicType {
+            parameter,
+            variance,
+            constraint,
+            default,
+        }
+    }
+
+    /// Create one static generic parameter binding.
+    pub(in crate::check) fn r#static(
+        parameter: GenericParameter,
+        constraint: Option<TypeOperand>,
+        default: Option<StaticOperand>,
+    ) -> Self {
+        Self::Static {
+            parameter,
+            constraint,
+            default,
+        }
+    }
+
+    /// Create one variadic static generic parameter binding.
+    pub(in crate::check) fn variadic_static(
+        parameter: GenericParameter,
+        constraint: Option<TypeOperand>,
+        default: Option<StaticOperand>,
+    ) -> Self {
+        Self::VariadicStatic {
+            parameter,
+            constraint,
+            default,
+        }
+    }
+
+    /// Return this generic parameter.
+    pub(in crate::check) fn parameter(&self) -> &GenericParameter {
         match self {
-            Self::Type { identity, .. }
-            | Self::VariadicType { identity, .. }
-            | Self::Static { identity, .. }
-            | Self::VariadicStatic { identity, .. } => identity,
+            Self::Type { parameter, .. }
+            | Self::VariadicType { parameter, .. }
+            | Self::Static { parameter, .. }
+            | Self::VariadicStatic { parameter, .. } => parameter,
         }
     }
 
@@ -194,14 +331,6 @@ impl GenericParameterBinding {
         matches!(self, Self::Static { .. } | Self::VariadicStatic { .. })
     }
 
-    /// Return whether this is a variadic generic parameter.
-    pub(in crate::check) fn is_variadic(&self) -> bool {
-        matches!(
-            self,
-            Self::VariadicType { .. } | Self::VariadicStatic { .. }
-        )
-    }
-
     /// Return this generic parameter's type constraint.
     pub(in crate::check) fn type_constraint(&self) -> Option<TypeOperand> {
         match self {
@@ -212,31 +341,25 @@ impl GenericParameterBinding {
 }
 
 impl CheckState<'_> {
-    /// Push one declaration operand that can induce owner generics.
-    pub(in crate::check) fn push_generic_induction_root(
+    /// Return the generic template declared at one source node.
+    pub(in crate::check) fn declare_generic_template(
         &mut self,
-        owner: dir::GlobalSymbolId,
-        operand: TypeOperand,
-    ) {
-        let root = GenericInductionRoot { owner, operand };
+        source: dir::GlobalNodeIdAny,
+        parent: Option<GenericTemplateId>,
+        symbol: Option<dir::GlobalSymbolId>,
+    ) -> GenericTemplateId {
+        if let Some(template) = self.inference.generic_template_by_source(source) {
+            return template;
+        }
 
-        self.inference.push_generic_induction_root(root);
-    }
+        let id = self
+            .module_mut(source.module_id)
+            .allocate_generic_template_id();
+        let template = GenericTemplate::new(id, source, parent);
 
-    /// Induce one static generic from an escaping variable.
-    pub(in crate::check) fn induce_static_generic(
-        &mut self,
-        variable: VariableId,
-        prefix: &'static str,
-        constraint: Option<TypeOperand>,
-        induction: dir::GenericParameterInduction,
-    ) {
-        let generic_induction = GenericInduction {
-            variable,
-            parameter: GenericInductionParameter::r#static(prefix, constraint, induction),
-        };
+        self.inference.insert_generic_template(template, symbol);
 
-        self.inference.insert_generic_induction(generic_induction);
+        id
     }
 
     /// Induce one static generic constrained by a language item type.
@@ -254,159 +377,58 @@ impl CheckState<'_> {
         };
         let constraint = self.inference.push_term(constraint).into();
 
-        self.induce_static_generic(
+        let induction = GenericInduction::new(
             variable,
-            prefix,
-            Some(constraint),
-            dir::GenericParameterInduction::Form,
+            GenericInductionParameter::r#static(
+                prefix,
+                Some(constraint),
+                dir::GenericParameterInduction::Form,
+            ),
         );
+
+        self.inference.insert_generic_induction(induction);
     }
 
-    /// Induce one type generic from an escaping variable.
-    pub(in crate::check) fn induce_type_generic(
+    /// Allocate one induced generic parameter for one template.
+    pub(in crate::check) fn allocate_generic_induction_parameter(
         &mut self,
-        variable: VariableId,
-        prefix: &'static str,
-        constraint: Option<TypeOperand>,
+        template: GenericTemplateId,
+        prefix: &str,
         induction: dir::GenericParameterInduction,
-    ) {
-        let generic_induction = GenericInduction {
-            variable,
-            parameter: GenericInductionParameter::r#type(prefix, constraint, induction),
-        };
+    ) -> GenericParameter {
+        let id = self
+            .module_mut(template.module_id)
+            .allocate_generic_parameter_id();
+        let number = self.inference.next_generic_parameter_number(template);
+        let name = self
+            .module_mut(template.module_id)
+            .strings
+            .intern(&format!("{prefix}{number}"));
 
-        self.inference.insert_generic_induction(generic_induction);
-    }
-
-    /// Insert one generic instance for a source node.
-    pub(in crate::check) fn insert_generic_instance(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        owner: dir::GlobalSymbolId,
-        arguments: SmallVec<[GenericArgument; 2]>,
-    ) -> GenericInstance {
-        let key = GenericInstanceKey { source, owner };
-
-        self.inference.insert_generic_instance(key, arguments)
-    }
-
-    /// Add one type constraint to an existing generic type parameter.
-    pub(in crate::check) fn constrain_generic_type_parameter(
-        &mut self,
-        parameter_id: GenericParameterId,
-        constraint: TypeOperand,
-    ) {
-        let current = self
-            .inference
-            .generic_parameter(parameter_id)
-            .type_constraint();
-        let constraint = match current {
-            Some(current) => TypeOperand::Term(self.inference.push_term(TypeTerm::Intersection {
-                elements: vec![current, constraint],
-            })),
-            None => constraint,
-        };
-        let generic = self.inference.generic_parameter_by_id_mut(parameter_id);
-
-        match generic {
-            GenericParameterBinding::Type {
-                constraint: current,
-                ..
-            }
-            | GenericParameterBinding::VariadicType {
-                constraint: current,
-                ..
-            } => *current = Some(constraint),
-            GenericParameterBinding::Static { .. }
-            | GenericParameterBinding::VariadicStatic { .. } => {
-                unreachable!(
-                    "internal invariant: generic parameter {parameter_id:?} is not a type parameter"
-                )
-            }
-        }
-    }
-
-    /// Insert one generic parameter.
-    pub(in crate::check) fn insert_generic_parameter(&mut self, generic: GenericParameterBinding) {
-        self.inference.insert_generic_parameter(generic);
-    }
-
-    /// Allocate one explicit generic parameter for one owner.
-    pub(in crate::check) fn allocate_explicit_generic_parameter(
-        &mut self,
-        owner: dir::GlobalSymbolId,
-        symbol: dir::GlobalSymbolId,
-    ) -> GenericParameterIdentity {
-        self.allocate_symbol_generic_parameter(owner, symbol, dir::GenericParameterOrigin::Explicit)
-    }
-
-    /// Allocate one induced generic parameter for one source symbol.
-    pub(in crate::check) fn allocate_induced_symbol_generic_parameter(
-        &mut self,
-        owner: dir::GlobalSymbolId,
-        symbol: dir::GlobalSymbolId,
-    ) -> GenericParameterIdentity {
-        self.allocate_symbol_generic_parameter(
-            owner,
-            symbol,
-            dir::GenericParameterOrigin::Induced(dir::GenericParameterInduction::Comptime),
+        GenericParameter::new(
+            id,
+            template,
+            dir::GenericParameterKey::Generated(name),
+            dir::GenericParameterOrigin::Induced(induction),
         )
     }
 
-    /// Allocate one induced generic parameter for one owner.
-    pub(in crate::check) fn allocate_generic_induction_parameter(
+    /// Allocate one symbol-keyed generic parameter for one template.
+    pub(in crate::check) fn allocate_symbol_generic_parameter(
         &mut self,
-        owner: dir::GlobalSymbolId,
-        prefix: &str,
-        induction: dir::GenericParameterInduction,
-    ) -> GenericParameterIdentity {
-        let id = self.allocate_generic_parameter_id(owner);
-        let number = self.next_generic_parameter_number(owner);
-        let name = self.generated_generic_name(owner, prefix, number);
-
-        GenericParameterIdentity {
-            id,
-            owner,
-            key: dir::GenericParameterKey::Generated(name),
-            origin: dir::GenericParameterOrigin::Induced(induction),
-        }
-    }
-
-    /// Return the generated local name for one generic parameter.
-    fn generated_generic_name(
-        &mut self,
-        owner: dir::GlobalSymbolId,
-        prefix: &str,
-        number: u32,
-    ) -> dir::StringId {
-        self.module_mut(owner.module_id)
-            .strings
-            .intern(&format!("{prefix}{number}"))
-    }
-
-    /// Allocate the next generic parameter id for one module.
-    fn allocate_generic_parameter_id(&mut self, owner: dir::GlobalSymbolId) -> GenericParameterId {
-        self.module_mut(owner.module_id)
-            .allocate_generic_parameter_id()
-    }
-
-    /// Return the next generic parameter number for one owner.
-    fn next_generic_parameter_number(&mut self, owner: dir::GlobalSymbolId) -> u32 {
-        self.inference.next_generic_parameter_number(owner)
-    }
-
-    /// Allocate one source-symbol generic parameter for one owner.
-    fn allocate_symbol_generic_parameter(
-        &mut self,
-        owner: dir::GlobalSymbolId,
+        template: GenericTemplateId,
         symbol: dir::GlobalSymbolId,
         origin: dir::GenericParameterOrigin,
-    ) -> GenericParameterIdentity {
-        GenericParameterIdentity {
-            id: self.allocate_generic_parameter_id(owner),
-            owner,
-            key: dir::GenericParameterKey::Symbol(symbol),
+    ) -> GenericParameter {
+        let id = self
+            .module_mut(template.module_id)
+            .allocate_generic_parameter_id();
+
+        GenericParameter::new(
+            id,
+            template,
+            dir::GenericParameterKey::Symbol(symbol),
             origin,
-        }
+        )
     }
 }

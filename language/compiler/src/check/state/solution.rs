@@ -1,10 +1,10 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
 use crate::check::{
-    CheckEvent, CheckState, StaticOperand, StaticTerm, TermId, TraceOperand, TypeOperand, TypeTerm,
-    VariableId,
+    CheckEvent, CheckState, Dump, DumpContext, StaticOperand, StaticTerm, TermId, TraceOperand,
+    TypeOperand, TypeTerm, VariableId,
 };
+use crate::{CompilerError, CompilerResult};
 
 /// Solved value for one check variable.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -84,9 +84,23 @@ impl CheckState<'_> {
         variable: VariableId,
         solution: Solution,
     ) -> CompilerResult<()> {
-        self.inference.set_variable_solution(variable, solution)?;
+        if let Some(existing) = self.inference.variable_solution(variable) {
+            let module = variable.module;
+            let variable = self.dump_in_module(module, &variable);
+            let existing = self.dump_in_module(module, &existing);
+            let solution = self.dump_in_module(module, &solution);
 
-        self.trace.record(CheckEvent::SolutionSet {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "check variable {variable} already has solution {existing}, got {solution}"
+                ),
+            });
+        }
+
+        self.inference.set_variable_solution(variable, solution)?;
+        self.inference.wake_variable(variable);
+
+        self.record_event(CheckEvent::SolutionSet {
             variable,
             kind: self.variable(variable).kind,
             value: solution.trace_operand(),
@@ -114,6 +128,16 @@ impl CheckState<'_> {
         match self.inference.variable_solution(variable) {
             Some(Solution::Static(solution)) => Some(solution.into()),
             Some(Solution::Type(_)) | None => None,
+        }
+    }
+}
+
+impl Dump for Solution {
+    /// Render this solution.
+    fn dump(&self, context: &DumpContext<'_, '_>) -> String {
+        match self {
+            Self::Type(solution) => TypeOperand::from(*solution).dump(context),
+            Self::Static(solution) => StaticOperand::from(*solution).dump(context),
         }
     }
 }

@@ -4,8 +4,7 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    BoundSide, CheckEvent, CheckState, Condition, Origin, StaticOperand, StaticTerm, TraceOperand,
-    TypeOperand,
+    BoundSide, CheckEvent, CheckState, Origin, SolveTask, StaticOperand, TraceOperand, TypeOperand,
 };
 
 /// Component-valid id for one check variable.
@@ -88,24 +87,6 @@ impl CheckState<'_> {
         id
     }
 
-    /// Create one static expression variable without binding a node operand.
-    pub(in crate::check) fn create_static_expression_variable(
-        &mut self,
-        module: ModuleId,
-        id: dir::LocalNodeId<dir::Expression>,
-        condition: Condition,
-    ) -> VariableId {
-        let source = id.into_global_any(module);
-        let origin = Origin::Node(source);
-        let variable = self.create_static_variable(module, origin);
-        let term = StaticTerm::Expression(id.into_global(module));
-        let term = self.inference.push_term(term);
-
-        self.equate_static(origin, variable, term, condition);
-
-        variable
-    }
-
     /// Return the number of allocated variables.
     pub(in crate::check) fn variable_count(&self) -> usize {
         self.inference.variable_count()
@@ -137,7 +118,13 @@ impl CheckState<'_> {
             .inference
             .insert_lower_type_bound(variable, lower_bound);
         if inserted {
-            self.trace.record(CheckEvent::BoundInsert {
+            for source in lower_bound.referenced_variables(self) {
+                self.inference.insert_bound_dependency(source, variable);
+            }
+            self.inference
+                .push_solve_task(SolveTask::Variable(variable));
+
+            self.record_event(CheckEvent::BoundInsert {
                 variable,
                 kind: VariableKind::Type,
                 side: BoundSide::Lower,
@@ -158,7 +145,13 @@ impl CheckState<'_> {
             .inference
             .insert_upper_type_bound(variable, upper_bound);
         if inserted {
-            self.trace.record(CheckEvent::BoundInsert {
+            for source in upper_bound.referenced_variables(self) {
+                self.inference.insert_bound_dependency(source, variable);
+            }
+            self.inference
+                .push_solve_task(SolveTask::Variable(variable));
+
+            self.record_event(CheckEvent::BoundInsert {
                 variable,
                 kind: VariableKind::Type,
                 side: BoundSide::Upper,
@@ -179,7 +172,13 @@ impl CheckState<'_> {
             .inference
             .insert_lower_static_bound(variable, lower_bound);
         if inserted {
-            self.trace.record(CheckEvent::BoundInsert {
+            for source in lower_bound.referenced_variables(self) {
+                self.inference.insert_bound_dependency(source, variable);
+            }
+            self.inference
+                .push_solve_task(SolveTask::Variable(variable));
+
+            self.record_event(CheckEvent::BoundInsert {
                 variable,
                 kind: VariableKind::Static,
                 side: BoundSide::Lower,
@@ -200,7 +199,13 @@ impl CheckState<'_> {
             .inference
             .insert_upper_static_bound(variable, upper_bound);
         if inserted {
-            self.trace.record(CheckEvent::BoundInsert {
+            for source in upper_bound.referenced_variables(self) {
+                self.inference.insert_bound_dependency(source, variable);
+            }
+            self.inference
+                .push_solve_task(SolveTask::Variable(variable));
+
+            self.record_event(CheckEvent::BoundInsert {
                 variable,
                 kind: VariableKind::Static,
                 side: BoundSide::Upper,

@@ -75,8 +75,8 @@ impl CheckState<'_> {
                 .text("operand", self.dump_in_module(module, operand)),
         );
 
-        let report = log.render_raw();
-        let trace = self.trace.render_dump(self);
+        let report = log.render_plain();
+        let trace = self.event_dump();
 
         CompilerError::Internal {
             message: format!(
