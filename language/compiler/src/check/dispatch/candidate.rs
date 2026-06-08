@@ -23,9 +23,4 @@ impl CandidateCardinality {
     pub(in crate::check) fn is_many(self) -> bool {
         self == Self::Many
     }
-
-    /// Return whether pending probe work belongs to a unique candidate.
-    pub(in crate::check) fn keeps_pending_probe(self) -> bool {
-        self == Self::One
-    }
 }

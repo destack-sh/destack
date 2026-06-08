@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, GenericArgument, Reduction, TypeOperand, TypeTerm, VariableId};
+use crate::check::{CheckState, GenericArgument, TypeOperand, TypeTerm, VariableId};
 
 /// Runtime tree expression term.
 ///
@@ -61,7 +61,7 @@ impl CheckState<'_> {
         &mut self,
         _module: ModuleId,
         _tree: &TreeTerm,
-    ) -> CompilerResult<Reduction<TypeTerm>> {
-        Ok(Reduction::pending())
+    ) -> CompilerResult<Option<TypeTerm>> {
+        Ok(None)
     }
 }

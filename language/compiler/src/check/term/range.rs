@@ -4,8 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, GenericArgument, Origin, Progress, Reduction, TypeOperand, TypeOperationTerm,
-    TypeTerm, VariableId,
+    CheckState, GenericArgument, Origin, TypeOperand, TypeOperationTerm, TypeTerm, VariableId,
 };
 
 /// Runtime range expression term.
@@ -50,7 +49,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         range: &RangeValueTerm,
-    ) -> CompilerResult<Reduction<TypeTerm>> {
+    ) -> CompilerResult<Option<TypeTerm>> {
         let Some(item) = Self::range_language_item(range) else {
             return self.range_type(module, range.source, dir::LanguageItem::RangeFull, None);
         };
@@ -65,9 +64,9 @@ impl CheckState<'_> {
         origin: Origin,
         range: &RangeValueTerm,
         expected: &TypeTerm,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let Some(item) = Self::range_language_item(range) else {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         };
         let TypeTerm::Reference {
             origin: _,
@@ -75,27 +74,23 @@ impl CheckState<'_> {
             arguments,
         } = expected
         else {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         };
         if self.environment.language.item(*symbol) != Some(item) {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
         let Some(element) = self.type_argument_variable_at(arguments, 0) else {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         };
-        let mut progress = Progress::Unchanged;
-
         // push element context into present bounds
         if let Some(start) = range.start {
-            progress =
-                progress.merge(self.relate_contextual_type_assignability(origin, start, element)?);
+            self.reduce_contextual_type_assignability(origin, start, element)?;
         }
         if let Some(end) = range.end {
-            progress =
-                progress.merge(self.relate_contextual_type_assignability(origin, end, element)?);
+            self.reduce_contextual_type_assignability(origin, end, element)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Return the language item selected by one range expression shape.
@@ -130,14 +125,14 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         item: dir::LanguageItem,
         element: Option<TypeOperand>,
-    ) -> CompilerResult<Reduction<TypeTerm>> {
+    ) -> CompilerResult<Option<TypeTerm>> {
         let symbol = self.language_symbol(module, item);
         let arguments = element
             .into_iter()
             .map(|element| GenericArgument::Type(element.into()))
             .collect();
 
-        Ok(Reduction::value(TypeTerm::Reference {
+        Ok(Some(TypeTerm::Reference {
             origin: Origin::Node(source),
             symbol,
             arguments,

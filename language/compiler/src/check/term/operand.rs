@@ -71,20 +71,6 @@ impl TypeOperand {
         }
     }
 
-    /// Return the known type term when this operand is not still open.
-    pub(in crate::check) fn known_type_term(self, state: &CheckState<'_>) -> Option<TypeTerm> {
-        let operand = match self {
-            Self::Variable(variable) => state.variable_type_solution_operand(variable)?,
-            Self::Term(_) | Self::Type(_) => self,
-        };
-
-        match operand {
-            Self::Variable(_) => None,
-            Self::Term(term) => Some(state.inference.term(term).clone()),
-            Self::Type(ty) => Some(TypeTerm::Type(ty)),
-        }
-    }
-
     /// Return variables referenced by this operand.
     pub(in crate::check) fn referenced_variables(
         self,
@@ -104,20 +90,6 @@ impl StaticOperand {
         match self {
             Self::Variable(variable) => Some(variable),
             Self::Term(_) | Self::Static(_) => None,
-        }
-    }
-
-    /// Return the known static term when this operand is not still open.
-    pub(in crate::check) fn known_static_term(self, state: &CheckState<'_>) -> Option<StaticTerm> {
-        let operand = match self {
-            Self::Variable(variable) => state.variable_static_solution_operand(variable)?,
-            Self::Term(_) | Self::Static(_) => self,
-        };
-
-        match operand {
-            Self::Variable(_) => None,
-            Self::Term(term) => Some(state.inference.term(term).clone()),
-            Self::Static(value) => Some(StaticTerm::Static(value)),
         }
     }
 

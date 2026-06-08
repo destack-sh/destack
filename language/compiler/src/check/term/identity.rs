@@ -45,6 +45,15 @@ impl CheckState<'_> {
         &mut self,
         identity: &IdentityTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
+        if let Some(decision) = self.inference.identity(identity.source) {
+            return Ok(match decision {
+                IdentityDecision::Resolved(_) => {
+                    Some(TypeTerm::Literal(TypeLiteralTerm::boolean()))
+                }
+                IdentityDecision::Rejected(_) => None,
+            });
+        }
+
         let Some(left) = self.type_operand_term(identity.left)? else {
             return Ok(None);
         };
@@ -61,12 +70,13 @@ impl CheckState<'_> {
                 right: identity.right,
             };
 
-            self.select_identity(identity.source, IdentityDecision::Resolved(resolution))?;
+            self.inference
+                .select_identity(identity.source, IdentityDecision::Resolved(resolution))?;
 
             return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::boolean())));
         }
 
-        self.select_identity(
+        self.inference.select_identity(
             identity.source,
             IdentityDecision::Rejected(IdentityFailure::Incompatible),
         )?;

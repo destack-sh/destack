@@ -7,7 +7,7 @@ use crate::check::{
     CallDecision, CallFailure, CallResolution, CallTargetResolution, CallableDispatch, CheckState,
     ConstructDecision, ConstructFailure, ConstructResolution, ConstructTargetResolution,
     FunctionTerm, GenericArgument, MemberDecision, MemberResolution, MemberTargetResolution,
-    Origin, Progress, Reduction, TermId, TypeLiteralTerm, TypeOperand, TypeTerm, VariableId,
+    Origin, TermId, TypeLiteralTerm, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Runtime call expression term.
@@ -24,9 +24,9 @@ pub(in crate::check) struct CallTerm {
     /// The explicit call generic arguments.
     pub(in crate::check) generic_arguments: SmallVec<[GenericArgument; 2]>,
     /// The argument expression types.
-    pub(in crate::check) arguments: SmallVec<[TypeOperand; 4]>,
+    pub(in crate::check) argument_types: SmallVec<[TypeOperand; 4]>,
     /// The argument expression nodes in argument order.
-    pub(in crate::check) argument_values: SmallVec<[dir::GlobalNodeId<dir::Expression>; 4]>,
+    pub(in crate::check) arguments: SmallVec<[dir::GlobalNodeId<dir::Expression>; 4]>,
 }
 
 /// Runtime expression selected as a call callee.
@@ -155,7 +155,7 @@ impl CallTerm {
                 .flat_map(|argument| argument.referenced_variables(state)),
         );
         variables.extend(
-            self.arguments
+            self.argument_types
                 .iter()
                 .flat_map(|argument| argument.referenced_variables(state)),
         );
@@ -171,20 +171,15 @@ impl CheckState<'_> {
         origin: Origin,
         _module: ModuleId,
         call: &CallTerm,
-    ) -> CompilerResult<Reduction<TypeTerm>> {
+    ) -> CompilerResult<Option<TypeTerm>> {
         let result = self.select_call_target(origin, call, None)?;
-        let progress = result.progress();
         let function = match &result {
-            CallableDispatch::CallSelected {
-                target, function, ..
-            } => {
+            CallableDispatch::CallSelected { target, function } => {
                 self.select_call_resolution(call, target.clone(), function)?;
 
                 function
             }
-            CallableDispatch::ConstructSelected {
-                target, function, ..
-            } => {
+            CallableDispatch::ConstructSelected { target, function } => {
                 self.select_construct_resolution_from_call(call, target.clone(), function)?;
 
                 function
@@ -192,42 +187,30 @@ impl CheckState<'_> {
             CallableDispatch::CallRejected(failure) => {
                 self.reject_call_from_callable(call, failure.clone())?;
 
-                return Ok(Reduction {
-                    value: Some(TypeTerm::Literal(TypeLiteralTerm::Error)),
-                    progress,
-                });
+                return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
             }
             CallableDispatch::ConstructRejected(failure) => {
                 self.reject_construct_from_callable(call, *failure)?;
 
-                return Ok(Reduction {
-                    value: Some(TypeTerm::Literal(TypeLiteralTerm::Error)),
-                    progress,
-                });
+                return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
             }
-            CallableDispatch::Invalid { .. } => {
-                return Ok(Reduction {
-                    value: Some(TypeTerm::Literal(TypeLiteralTerm::Error)),
-                    progress,
-                });
+            CallableDispatch::Invalid => {
+                return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
             }
-            CallableDispatch::Pending { .. } => return Ok(Reduction::progress(progress)),
+            CallableDispatch::Pending => return Ok(None),
         };
 
         let term = match function.return_type {
             Some(return_type) => {
                 let Some(term) = self.type_operand_term(return_type)? else {
-                    return Ok(Reduction::progress(progress));
+                    return Ok(None);
                 };
 
                 term
             }
             None => TypeTerm::Literal(TypeLiteralTerm::Void),
         };
-        Ok(Reduction {
-            value: Some(term),
-            progress,
-        })
+        Ok(Some(term))
     }
 
     /// Expect resolved call candidates to produce the expected result.
@@ -236,32 +219,21 @@ impl CheckState<'_> {
         origin: Origin,
         call: &CallTerm,
         result: VariableId,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let resolved = self.select_call_target(origin, call, Some(result))?;
-        let progress = resolved.progress();
-        let progress = match &resolved {
-            CallableDispatch::CallSelected {
-                target, function, ..
-            } => {
+        match &resolved {
+            CallableDispatch::CallSelected { target, function } => {
                 self.select_call_resolution(call, target.clone(), function)?;
 
-                match function.return_type {
-                    Some(return_type) => progress.merge(
-                        self.relate_contextual_type_assignability(origin, return_type, result)?,
-                    ),
-                    None => progress,
+                if let Some(return_type) = function.return_type {
+                    self.reduce_contextual_type_assignability(origin, return_type, result)?;
                 }
             }
-            CallableDispatch::ConstructSelected {
-                target, function, ..
-            } => {
+            CallableDispatch::ConstructSelected { target, function } => {
                 self.select_construct_resolution_from_call(call, target.clone(), function)?;
 
-                match function.return_type {
-                    Some(return_type) => progress.merge(
-                        self.relate_contextual_type_assignability(origin, return_type, result)?,
-                    ),
-                    None => progress,
+                if let Some(return_type) = function.return_type {
+                    self.reduce_contextual_type_assignability(origin, return_type, result)?;
                 }
             }
             CallableDispatch::CallRejected(failure) => {
@@ -270,7 +242,7 @@ impl CheckState<'_> {
                     .inference
                     .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
 
-                progress.merge(self.relate_contextual_type_assignability(origin, error, result)?)
+                self.reduce_contextual_type_assignability(origin, error, result)?;
             }
             CallableDispatch::ConstructRejected(failure) => {
                 self.reject_construct_from_callable(call, *failure)?;
@@ -278,19 +250,19 @@ impl CheckState<'_> {
                     .inference
                     .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
 
-                progress.merge(self.relate_contextual_type_assignability(origin, error, result)?)
+                self.reduce_contextual_type_assignability(origin, error, result)?;
             }
-            CallableDispatch::Invalid { .. } => {
+            CallableDispatch::Invalid => {
                 let error = self
                     .inference
                     .push_term(TypeTerm::Literal(TypeLiteralTerm::Error));
 
-                progress.merge(self.relate_contextual_type_assignability(origin, error, result)?)
+                self.reduce_contextual_type_assignability(origin, error, result)?;
             }
-            CallableDispatch::Pending { .. } => progress,
-        };
+            CallableDispatch::Pending => {}
+        }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Reject one call for diagnostics.
@@ -301,7 +273,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let decision = CallDecision::Rejected(failure);
 
-        self.select_call(call.source, decision)?;
+        self.inference.select_call(call.source, decision)?;
 
         Ok(())
     }
@@ -323,7 +295,7 @@ impl CheckState<'_> {
 
         let decision = CallDecision::Resolved(resolution);
 
-        self.select_call(call.source, decision)?;
+        self.inference.select_call(call.source, decision)?;
 
         Ok(())
     }
@@ -342,7 +314,7 @@ impl CheckState<'_> {
         };
         let decision = ConstructDecision::Resolved(resolution);
 
-        self.select_construct(call.source, decision)?;
+        self.inference.select_construct(call.source, decision)?;
 
         Ok(())
     }
@@ -355,7 +327,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let decision = ConstructDecision::Rejected(failure);
 
-        self.select_construct(call.source, decision)?;
+        self.inference.select_construct(call.source, decision)?;
 
         Ok(())
     }
@@ -404,7 +376,8 @@ impl CheckState<'_> {
             target,
         };
 
-        self.select_member(source, MemberDecision::Resolved(resolution))?;
+        self.inference
+            .select_member(source, MemberDecision::Resolved(resolution))?;
 
         Ok(())
     }
