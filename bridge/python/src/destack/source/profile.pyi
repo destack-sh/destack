@@ -1,0 +1,15 @@
+# generated bridge target, do not edit
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+
+class ProfileId:
+    """External profile id crossing bridge boundaries."""
+
+    def __init__(self, id: str) -> None: ...
+
+    """Canonical lowercase hex profile id."""
+    @property
+    def id(self) -> str: ...
+

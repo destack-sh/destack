@@ -1,8 +1,7 @@
 # destack (Python)
 
-Python client for Destack.
+Python language bridge for Destack.
 This package is published to PyPI as `destack`.
-Legacy alias package `destack-py` is in [`aliases/destack-py`](aliases/destack-py/README.md).
 
 ## Installation
 
@@ -13,12 +12,9 @@ pip install destack
 ## API
 
 ```python
-from destack import create_client
+from destack import Session
 
-client = create_client()
-assert client.backend == "python"
-assert client.version() == "0.55.4"
-assert client.capi_abi_version() > 0
+session = Session.open_path(".")
 ```
 
 ## Testing

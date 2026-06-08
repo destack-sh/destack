@@ -1,11 +1,11 @@
 [build-system]
-requires = ["hatchling>=1.24"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.13.3,<2"]
+build-backend = "maturin"
 
 [project]
 name = "destack"
 version = "0.55.4"
-description = "Python client for Destack"
+description = "Python language bridge for Destack"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
@@ -30,5 +30,7 @@ Homepage = "https://github.com/destack-sh/destack"
 Repository = "https://github.com/destack-sh/destack"
 Issues = "https://github.com/destack-sh/destack/issues"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/destack"]
+[tool.maturin]
+manifest-path = "rust/Cargo.toml"
+module-name = "destack._native"
+python-source = "src"
