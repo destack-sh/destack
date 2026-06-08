@@ -1,6 +1,6 @@
 [package]
 name = "destack_bridge_language"
-description = "Destack language bridge contract"
+description = "Destack language bridge DTOs"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -15,9 +15,11 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
+destack_artifact.workspace = true
 destack_bridge_language_macros.workspace = true
 destack_repository.workspace = true
 destack_session.workspace = true
+destack_source.workspace = true
 
 [lints]
 workspace = true

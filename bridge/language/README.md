@@ -1,3 +1,3 @@
 # language
 
-Shared Rust contract for Destack language bridge targets.
+Shared Rust DTOs for Destack language bridge targets.

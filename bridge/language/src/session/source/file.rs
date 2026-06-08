@@ -1,6 +1,6 @@
 use destack_session as session;
 
-use crate::bridge;
+use crate::{ModuleId, bridge};
 
 /// One source file in an explicit source snapshot.
 #[bridge]
@@ -28,14 +28,14 @@ pub enum SourceFileContent {
 pub struct FileUpdate {
     /// Repository logical path.
     pub path: String,
-    /// Client-facing URI.
+    /// External file URI.
     pub uri: String,
     /// Coarse file update kind.
     pub kind: FileUpdateKind,
     /// Whether the file was removed.
     pub is_removed: bool,
     /// Updated module id when known.
-    pub module_id: Option<String>,
+    pub module_id: Option<ModuleId>,
 }
 
 /// One coarse kind for a file change.
@@ -79,7 +79,7 @@ impl FileUpdate {
         let uri = update.uri().to_string();
         let kind = FileUpdateKind::from_session(update.kind());
         let is_removed = update.is_removed();
-        let module_id = update.module_id().map(|module_id| format!("{module_id:?}"));
+        let module_id = update.module_id().map(ModuleId::from_source);
 
         Self {
             path,
