@@ -5,46 +5,46 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LocalGenericInstanceId,
-    LocalGenericTemplateId, MemberSlot, SegmentView, StaticKey,
+    Extension, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
+    LocalGenericInstanceId, LocalGenericTemplateId, MemberSlot, SegmentView, StaticKey,
 };
 
-/// Cumulative nominal declarations for one DIR module.
+/// Cumulative declaration definitions for one DIR module.
 #[derive(Debug, Clone)]
-pub struct NominalTable<'a> {
-    /// The module id of the nominal table.
+pub struct DefinitionTable<'a> {
+    /// The module id of the definition table.
     pub module_id: ModuleId,
-    /// The ordered nominal table segments.
-    segments: SegmentView<'a, NominalSegment>,
+    /// The ordered definition table segments.
+    segments: SegmentView<'a, DefinitionSegment>,
 }
 
-impl NominalTable<'static> {
-    /// Create a nominal table from ordered segments.
-    pub fn from_segments(segments: Vec<Arc<NominalSegment>>) -> Self {
+impl DefinitionTable<'static> {
+    /// Create a definition table from ordered segments.
+    pub fn from_segments(segments: Vec<Arc<DefinitionSegment>>) -> Self {
         let segments = SegmentView::from_segments(segments);
 
         Self::from_view(segments)
     }
 
-    /// Create a nominal table from one segment.
-    pub fn from_segment(segment: Arc<NominalSegment>) -> Self {
+    /// Create a definition table from one segment.
+    pub fn from_segment(segment: Arc<DefinitionSegment>) -> Self {
         Self::from_segments(vec![segment])
     }
 }
 
-impl<'a> NominalTable<'a> {
-    /// Create a nominal table from a segment view.
-    pub fn from_view(segments: SegmentView<'a, NominalSegment>) -> Self {
+impl<'a> DefinitionTable<'a> {
+    /// Create a definition table from a segment view.
+    pub fn from_view(segments: SegmentView<'a, DefinitionSegment>) -> Self {
         let first = segments
             .first()
-            .unwrap_or_else(|| panic!("nominal table needs at least one segment"));
+            .unwrap_or_else(|| panic!("definition table needs at least one segment"));
         let module_id = first.module_id;
 
         // require a single module owner
         for segment in segments.iter() {
             assert_eq!(
                 segment.module_id, module_id,
-                "nominal table segment belongs to a different module"
+                "definition table segment belongs to a different module"
             );
         }
 
@@ -54,8 +54,8 @@ impl<'a> NominalTable<'a> {
         }
     }
 
-    /// Return one nominal definition by symbol.
-    pub fn definition(&self, symbol: GlobalSymbolId) -> Option<&NominalDefinition> {
+    /// Return one definition by symbol.
+    pub fn definition(&self, symbol: GlobalSymbolId) -> Option<&Definition> {
         for segment in self.segments.iter().rev() {
             if let Some(definition) = segment.definition(symbol) {
                 return Some(definition);
@@ -65,7 +65,7 @@ impl<'a> NominalTable<'a> {
         None
     }
 
-    /// Return the source declaration node for one nominal definition.
+    /// Return the source declaration node for one definition.
     pub fn definition_source(&self, symbol: GlobalSymbolId) -> Option<GlobalNodeIdAny> {
         for segment in self.segments.iter().rev() {
             if segment.definition(symbol).is_some() {
@@ -79,7 +79,7 @@ impl<'a> NominalTable<'a> {
     /// Return one newtype definition by symbol.
     pub fn newtype_definition(&self, symbol: GlobalSymbolId) -> Option<&NewtypeDefinition> {
         match self.definition(symbol) {
-            Some(NominalDefinition::Newtype(definition)) => Some(definition),
+            Some(Definition::Newtype(definition)) => Some(definition),
             _ => None,
         }
     }
@@ -87,15 +87,49 @@ impl<'a> NominalTable<'a> {
     /// Return one enum definition by symbol.
     pub fn enum_definition(&self, symbol: GlobalSymbolId) -> Option<&EnumDefinition> {
         match self.definition(symbol) {
-            Some(NominalDefinition::Enum(definition)) => Some(definition),
+            Some(Definition::Enum(definition)) => Some(definition),
             _ => None,
         }
     }
 
-    /// Iterate nominal definitions in phase order.
-    pub fn iter_definitions(
+    /// Return one extension definition by symbol.
+    pub fn extension_definition(&self, symbol: GlobalSymbolId) -> Option<&Extension> {
+        match self.definition(symbol) {
+            Some(Definition::Extension(extension)) => Some(extension),
+            _ => None,
+        }
+    }
+
+    /// Iterate extension symbols targeting one nominal symbol.
+    pub fn target_extensions(
         &self,
-    ) -> impl Iterator<Item = (GlobalSymbolId, &NominalDefinition)> + '_ {
+        target_symbol: GlobalSymbolId,
+    ) -> impl Iterator<Item = GlobalSymbolId> + '_ {
+        self.segments
+            .iter()
+            .flat_map(move |segment| segment.target_extensions(target_symbol).iter().copied())
+    }
+
+    /// Iterate blanket extension symbols.
+    pub fn blanket_extensions(&self) -> impl Iterator<Item = GlobalSymbolId> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.blanket_extensions().iter().copied())
+    }
+
+    /// Iterate extensions in phase order.
+    pub fn iter_extensions(&self) -> impl Iterator<Item = (GlobalSymbolId, &Extension)> + '_ {
+        self.iter_definitions().filter_map(|(symbol, definition)| {
+            if let Definition::Extension(extension) = definition {
+                Some((symbol, extension))
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Iterate definitions in phase order.
+    pub fn iter_definitions(&self) -> impl Iterator<Item = (GlobalSymbolId, &Definition)> + '_ {
         let mut definitions = IndexMap::new();
 
         // apply later segment values over earlier ones
@@ -114,55 +148,86 @@ impl<'a> NominalTable<'a> {
     }
 }
 
-/// Nominal declarations added by one DIR phase.
+/// Declaration definitions added by one DIR phase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NominalSegment {
-    /// The module id of the nominal segment.
+pub struct DefinitionSegment {
+    /// The module id of the definition segment.
     pub module_id: ModuleId,
     /// Source declaration nodes keyed by declaring symbol.
     pub(crate) sources: IndexMap<GlobalSymbolId, GlobalNodeIdAny>,
-    /// Nominal definitions keyed by declaring symbol.
-    pub(crate) definitions: IndexMap<GlobalSymbolId, NominalDefinition>,
+    /// Definitions keyed by declaring symbol.
+    pub(crate) definitions: IndexMap<GlobalSymbolId, Definition>,
+    /// Extension symbols by target symbol.
+    pub(crate) extensions_by_target_symbol: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
+    /// Blanket extension symbols.
+    pub(crate) blanket_extensions: Vec<GlobalSymbolId>,
 }
 
-impl NominalSegment {
-    /// Create a new nominal segment.
+impl DefinitionSegment {
+    /// Create a new definition segment.
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
             sources: IndexMap::new(),
             definitions: IndexMap::new(),
+            extensions_by_target_symbol: IndexMap::new(),
+            blanket_extensions: Vec::new(),
         }
     }
 
-    /// Insert one nominal definition.
+    /// Insert one definition.
     pub fn insert_definition(
         &mut self,
         symbol: GlobalSymbolId,
         source: GlobalNodeIdAny,
-        definition: NominalDefinition,
+        definition: Definition,
     ) {
         self.sources.insert(symbol, source);
+        if let Definition::Extension(extension) = &definition {
+            match extension.target.nominal_root() {
+                Some(target_symbol) => {
+                    self.extensions_by_target_symbol
+                        .entry(target_symbol)
+                        .or_default()
+                        .push(symbol);
+                }
+                None => {
+                    self.blanket_extensions.push(symbol);
+                }
+            }
+        }
+
         self.definitions.insert(symbol, definition);
     }
 
-    /// Return the source declaration node for one nominal definition.
+    /// Return the source declaration node for one definition.
     pub fn definition_source(&self, symbol: GlobalSymbolId) -> GlobalNodeIdAny {
         *self
             .sources
             .get(&symbol)
-            .unwrap_or_else(|| panic!("DIR nominal symbol {symbol:?} has no source"))
+            .unwrap_or_else(|| panic!("DIR definition symbol {symbol:?} has no source"))
     }
 
-    /// Return one nominal definition by symbol.
-    pub fn definition(&self, symbol: GlobalSymbolId) -> Option<&NominalDefinition> {
+    /// Return one definition by symbol.
+    pub fn definition(&self, symbol: GlobalSymbolId) -> Option<&Definition> {
         self.definitions.get(&symbol)
     }
 
-    /// Iterate nominal definitions in insertion order.
-    pub fn iter_definitions(
-        &self,
-    ) -> impl Iterator<Item = (GlobalSymbolId, &NominalDefinition)> + '_ {
+    /// Get all extension symbols targeting a specific type symbol.
+    pub fn target_extensions(&self, target_symbol: GlobalSymbolId) -> &[GlobalSymbolId] {
+        self.extensions_by_target_symbol
+            .get(&target_symbol)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    /// Get all blanket extension symbols.
+    pub fn blanket_extensions(&self) -> &[GlobalSymbolId] {
+        &self.blanket_extensions
+    }
+
+    /// Iterate definitions in insertion order.
+    pub fn iter_definitions(&self) -> impl Iterator<Item = (GlobalSymbolId, &Definition)> + '_ {
         self.definitions
             .iter()
             .map(|(symbol, definition)| (*symbol, definition))
@@ -174,9 +239,16 @@ impl NominalSegment {
     }
 }
 
-/// Checked declaration data for one nominal symbol.
+/// Checked declaration data for one symbol.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum NominalDefinition {
+pub enum Definition {
+    /// Transparent type alias declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// type Json = string | number | boolean
+    /// ```
+    TypeAlias(TypeAliasDefinition),
     /// Struct declaration.
     ///
     /// Example:
@@ -195,7 +267,7 @@ pub enum NominalDefinition {
     ///
     /// Example:
     /// ```ds
-    /// nominal interface Reader { read(): string }
+    /// interface Reader { read(): string }
     /// ```
     Interface(InterfaceDefinition),
     /// Enum declaration.
@@ -212,6 +284,33 @@ pub enum NominalDefinition {
     /// newtype UserId = int64
     /// ```
     Newtype(NewtypeDefinition),
+    /// Extension declaration.
+    ///
+    /// Example:
+    /// ```ds
+    /// extension Logger for Writer { write(message: string): void }
+    /// ```
+    Extension(Extension),
+}
+
+impl Definition {
+    /// Return whether this definition has nominal identity.
+    pub fn is_nominal(&self) -> bool {
+        match self {
+            Self::Struct(_) | Self::Class(_) | Self::Enum(_) | Self::Newtype(_) => true,
+            Self::Interface(definition) => definition.is_nominal,
+            Self::TypeAlias(_) | Self::Extension(_) => false,
+        }
+    }
+}
+
+/// Checked declaration data for one transparent type alias.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TypeAliasDefinition {
+    /// The generic template declared by the alias.
+    pub template: Option<LocalGenericTemplateId>,
+    /// The checked alias value.
+    pub value: GlobalTypeId,
 }
 
 /// Checked declaration data for one nominal struct.
@@ -263,6 +362,8 @@ pub struct ClassDefinition {
 pub struct InterfaceDefinition {
     /// The generic template declared by the interface.
     pub template: Option<LocalGenericTemplateId>,
+    /// Whether the interface has nominal identity.
+    pub is_nominal: bool,
     /// The inherited interfaces.
     pub extends: Vec<NominalHeritage>,
     /// The instance fields.
@@ -359,6 +460,8 @@ pub struct AssociatedTypeDefinition {
     pub symbol: GlobalSymbolId,
     /// The source member node.
     pub source: GlobalNodeIdAny,
+    /// The associated type key.
+    pub key: StaticKey,
     /// The upper bound required by this associated type.
     pub constraint: Option<GlobalTypeId>,
     /// The concrete associated type value.
@@ -372,6 +475,8 @@ pub struct AssociatedConstDefinition {
     pub symbol: GlobalSymbolId,
     /// The source member node.
     pub source: GlobalNodeIdAny,
+    /// The associated const key.
+    pub key: StaticKey,
     /// The checked static type.
     pub ty: GlobalTypeId,
     /// The checked static value.
