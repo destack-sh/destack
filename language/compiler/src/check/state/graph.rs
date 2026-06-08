@@ -1,5 +1,5 @@
+use destack_repository::ProviderContext;
 use destack_source::{ModuleId, ProfileId};
-use destack_workspace::ProviderContext;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{Compiler, CompilerError, CompilerResult};

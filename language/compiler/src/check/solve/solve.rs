@@ -1,70 +1,41 @@
 use crate::CompilerResult;
 use crate::check::{
-    CheckEvent, CheckState, Constraint, Decision, PatternRelation, SolveProgress, StaticRelation,
+    CheckEvent, CheckState, Constraint, ConstraintId, Decision, SolveTask, VariableId, VariableKind,
 };
-
-use super::Progress;
 
 impl CheckState<'_> {
     /// Solve collected component constraints to a fixed point.
     pub(in crate::check) fn solve(&mut self) -> CompilerResult<()> {
-        self.trace.record(CheckEvent::SolveStart {
-            tasks: self.inference.constraint_count() + self.variable_count(),
+        self.record_event(CheckEvent::SolveStart {
+            tasks: self.inference.solve_task_count(),
             variables: self.variable_count(),
         });
 
-        let mut iterations = 0;
-        loop {
-            let constraints_before = self.inference.constraint_count();
-            let variables_before = self.variable_count();
-            let progress = self.step_solve_pass()?;
-            let progress_summary = SolveProgress::from(&progress);
-
-            self.trace.record(CheckEvent::SolveStep {
-                step: iterations,
-                progress: progress_summary,
-            });
-            iterations += 1;
-
-            let counts_changed = self.inference.constraint_count() != constraints_before
-                || self.variable_count() != variables_before;
-            if progress.is_unchanged() && !counts_changed {
-                break;
+        let mut steps = 0;
+        while let Some(task) = self.inference.pop_solve_task() {
+            match task {
+                SolveTask::Constraint(constraint) => self.reduce_constraint(constraint)?,
+                SolveTask::Variable(variable) => self.reduce_variable(variable)?,
             }
+
+            self.record_event(CheckEvent::SolveStep { step: steps });
+            steps += 1;
         }
 
-        self.trace.record(CheckEvent::SolveFinish {
-            iterations,
+        self.record_event(CheckEvent::SolveFinish {
+            iterations: steps,
             variables: self.variable_count(),
         });
 
         Ok(())
     }
 
-    /// Step all collected solver work once.
-    fn step_solve_pass(&mut self) -> CompilerResult<Progress> {
-        let mut progress = Progress::Unchanged;
-
-        for index in 0..self.inference.constraint_count() {
-            progress = progress.merge(self.step_constraint(index)?);
-        }
-
-        let variable_count = self.variable_count();
-        for index in 0..variable_count {
-            let variable = self.inference.variable_at(index).id;
-
-            progress = progress.merge(self.solve_variable_from_bounds(variable)?);
-        }
-
-        Ok(progress)
-    }
-
-    /// Step one constraint once.
-    fn step_constraint(&mut self, index: usize) -> CompilerResult<Progress> {
-        let constraint = self.inference.constraint(index).clone();
+    /// Reduce one active constraint once.
+    fn reduce_constraint(&mut self, id: ConstraintId) -> CompilerResult<()> {
+        let constraint = self.inference.constraint_by_id(id).clone();
         let condition = constraint.condition();
         if self.reduce_condition_decision(&condition)? != Decision::Yes {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
 
         match constraint {
@@ -74,28 +45,37 @@ impl CheckState<'_> {
                 right,
                 origin,
                 condition: _,
-            } => self.relate_type_relation(origin, relation, left, right),
+            } => self.reduce_type_relation(origin, relation, left, right)?,
             Constraint::Static {
                 relation,
                 left,
                 right,
                 origin: _,
                 condition: _,
-            } => match relation {
-                StaticRelation::Equal => self.relate_static_equality(left, right),
-                StaticRelation::Assignable => self.relate_static_assignability(left, right),
-            },
+            } => self.reduce_static_relation(relation, left, right)?,
             Constraint::Pattern {
                 relation,
                 value,
                 origin,
                 condition: _,
-            } => match relation {
-                PatternRelation::Match(pattern) => self.expect_pattern_term(origin, value, pattern),
-                PatternRelation::Assign(pattern) => {
-                    self.expect_assign_pattern_term(origin, value, pattern)
-                }
-            },
+            } => self.reduce_pattern_relation(origin, relation, value)?,
+        };
+
+        Ok(())
+    }
+
+    /// Solve one variable from its collected bounds.
+    fn reduce_variable(&mut self, variable: VariableId) -> CompilerResult<()> {
+        // skip solved variables
+        if self.variable_solution(variable).is_some() {
+            return Ok(());
+        }
+
+        // dispatch by variable domain
+        let kind = self.variable(variable).kind;
+        match kind {
+            VariableKind::Type => self.solve_type_variable_from_bounds(variable),
+            VariableKind::Static => self.solve_static_variable_from_bounds(variable),
         }
     }
 }

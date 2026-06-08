@@ -100,12 +100,12 @@ impl InputTable {
     }
 
     /// Return one operand keyed by committed type id.
-    pub(in crate::check) fn type_id_operand(&self, id: dir::GlobalTypeId) -> Option<TypeOperand> {
+    pub(in crate::check) fn r#type(&self, id: dir::GlobalTypeId) -> Option<TypeOperand> {
         self.types.get(&id).copied()
     }
 
-    /// Insert one operand keyed by committed type id.
-    pub(in crate::check) fn insert_type_id_operand(
+    /// Upsert one operand keyed by committed type id.
+    pub(in crate::check) fn upsert_type(
         &mut self,
         id: dir::GlobalTypeId,
         operand: TypeOperand,
@@ -126,15 +126,12 @@ impl InputTable {
     }
 
     /// Return one operand keyed by committed static id.
-    pub(in crate::check) fn static_id_operand(
-        &self,
-        id: dir::GlobalStaticId,
-    ) -> Option<StaticOperand> {
+    pub(in crate::check) fn r#static(&self, id: dir::GlobalStaticId) -> Option<StaticOperand> {
         self.statics.get(&id).copied()
     }
 
-    /// Insert one operand keyed by committed static id.
-    pub(in crate::check) fn insert_static_id_operand(
+    /// Upsert one operand keyed by committed static id.
+    pub(in crate::check) fn upsert_static(
         &mut self,
         id: dir::GlobalStaticId,
         operand: StaticOperand,
@@ -235,7 +232,7 @@ impl CheckState<'_> {
 
         // include the source location for missing walked node types
         let module = self.module(node.module_id);
-        let span = module.parsed.tree.get_span_by_id(node.local_id.id);
+        let span = module.view().get_span_by_id(node.local_id.id);
 
         Err(CompilerError::Internal {
             message: format!(
@@ -245,8 +242,63 @@ impl CheckState<'_> {
         })
     }
 
-    /// Create or return one type variable constrained by one operand.
-    pub(in crate::check) fn create_operand_type_variable(
+    /// Return one required node static operand.
+    pub(in crate::check) fn node_static_operand(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<StaticOperand> {
+        if let Some(operand) = self.inputs.node_static(node) {
+            return Ok(operand);
+        }
+
+        // include the source location for missing walked node statics
+        let module = self.module(node.module_id);
+        let span = module.view().get_span_by_id(node.local_id.id);
+
+        Err(CompilerError::Internal {
+            message: format!(
+                "check node {node:?} in {:?} at {span:?} has no static operand",
+                module.module.uri
+            ),
+        })
+    }
+
+    /// Return one required source symbol type operand.
+    pub(in crate::check) fn symbol_type_operand(
+        &self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<TypeOperand> {
+        if let Some(operand) = self.inputs.symbol_type(symbol) {
+            return Ok(operand);
+        }
+
+        let symbol = self.dump_in_module(module, &symbol);
+
+        Err(CompilerError::Internal {
+            message: format!("check symbol {symbol} has no type operand"),
+        })
+    }
+
+    /// Return one required source symbol static operand.
+    pub(in crate::check) fn symbol_static_operand(
+        &self,
+        module: ModuleId,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<StaticOperand> {
+        if let Some(operand) = self.inputs.symbol_static(symbol) {
+            return Ok(operand);
+        }
+
+        let symbol = self.dump_in_module(module, &symbol);
+
+        Err(CompilerError::Internal {
+            message: format!("check symbol {symbol} has no static operand"),
+        })
+    }
+
+    /// Return one type variable constrained by one operand.
+    pub(in crate::check) fn operand_type_variable(
         &mut self,
         module: ModuleId,
         origin: Origin,

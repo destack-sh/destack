@@ -3,39 +3,27 @@ use std::ops::ControlFlow;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, Origin, Solution, StaticOperand, StaticSolution, StaticTerm, TypeOperand,
-    TypeSolution, TypeTerm, VariableId, VariableKind,
+    TypeSolution, TypeTerm, VariableId,
 };
 
-use super::Progress;
-
-/// Reduced value for one bound.
+/// Contribution from one bound.
 enum BoundReduction<T> {
-    /// The bound contributes no term.
+    /// The bound contributes no value.
     Empty,
-    /// The bound is waiting on more solver progress.
-    Pending(Progress),
-    /// The bound contributes one concrete term.
-    Term {
-        /// The reduced term.
-        term: T,
-        /// The progress made while reducing the term.
-        progress: Progress,
-    },
+    /// The bound is waiting on more solver input.
+    Pending,
+    /// The bound contributes one value.
+    Value(T),
 }
 
 impl<T> BoundReduction<T> {
     /// Add this reduction to one bound collection.
-    fn collect_into(self, progress: &mut Progress, terms: &mut Vec<T>) -> ControlFlow<Progress> {
+    fn collect_into(self, values: &mut Vec<T>) -> ControlFlow<()> {
         match self {
             Self::Empty => ControlFlow::Continue(()),
-            Self::Pending(pending) => ControlFlow::Break(pending),
-            Self::Term {
-                term,
-                progress: reduced,
-            } => {
-                let current = std::mem::replace(progress, Progress::Unchanged);
-                *progress = current.merge(reduced);
-                terms.push(term);
+            Self::Pending => ControlFlow::Break(()),
+            Self::Value(value) => {
+                values.push(value);
 
                 ControlFlow::Continue(())
             }
@@ -49,26 +37,26 @@ impl CheckState<'_> {
         &mut self,
         variable: VariableId,
         solution: Solution,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         // wait for complete candidate solutions
         if !self.solution_is_complete(solution) {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
 
         self.set_variable_solution(variable, solution)?;
 
-        Ok(Progress::changed(variable))
+        Ok(())
     }
 
-    /// Solve one type variable and return solver progress.
+    /// Solve one type variable from its current bounds.
     pub(in crate::check) fn solve_type_variable(
         &mut self,
         variable: VariableId,
         term: TypeTerm,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         // wait for nested operands to solve
         if !term.referenced_variables(self).is_empty() {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
 
         let solution = TypeSolution::Term(self.inference.push_term(term));
@@ -81,44 +69,44 @@ impl CheckState<'_> {
         &mut self,
         variable: VariableId,
         default: TypeOperand,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         // keep real lower bounds stronger than defaults
         if self.inference.has_lower_type_bounds(variable)
             || self.variable_solution(variable).is_some()
         {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
 
         let default = match default {
             // wait for another variable to solve first
             TypeOperand::Variable(source) if source != variable => {
                 let Some(default) = self.variable_type_solution_operand(source) else {
-                    return Ok(Progress::Unchanged);
+                    return Ok(());
                 };
 
                 default
             }
-            TypeOperand::Variable(_) => return Ok(Progress::Unchanged),
+            TypeOperand::Variable(_) => return Ok(()),
             TypeOperand::Term(_) | TypeOperand::Type(_) => default,
         };
         let solution = match default {
             TypeOperand::Term(term) => TypeSolution::Term(term),
             TypeOperand::Type(ty) => TypeSolution::Type(ty),
-            TypeOperand::Variable(_) => return Ok(Progress::Unchanged),
+            TypeOperand::Variable(_) => return Ok(()),
         };
 
         self.solve_complete_variable(variable, solution.into())
     }
 
-    /// Solve one static variable and return solver progress.
+    /// Solve one static variable from its current bounds.
     pub(in crate::check) fn solve_static_variable(
         &mut self,
         variable: VariableId,
         term: StaticTerm,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         // wait for nested operands to solve
         if !term.referenced_variables(self).is_empty() {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
 
         let solution = StaticSolution::Term(self.inference.push_term(term));
@@ -131,83 +119,72 @@ impl CheckState<'_> {
         &mut self,
         variable: VariableId,
         default: StaticOperand,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         // keep real lower bounds stronger than defaults
         if self.inference.has_lower_static_bounds(variable)
             || self.variable_solution(variable).is_some()
         {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
 
         let default = match default {
             // wait for another variable to solve first
             StaticOperand::Variable(source) if source != variable => {
                 let Some(default) = self.variable_static_solution_operand(source) else {
-                    return Ok(Progress::Unchanged);
+                    return Ok(());
                 };
 
                 default
             }
-            StaticOperand::Variable(_) => return Ok(Progress::Unchanged),
+            StaticOperand::Variable(_) => return Ok(()),
             StaticOperand::Term(_) | StaticOperand::Static(_) => default,
         };
         let solution = match default {
             StaticOperand::Term(term) => StaticSolution::Term(term),
             StaticOperand::Static(value) => StaticSolution::Static(value),
-            StaticOperand::Variable(_) => return Ok(Progress::Unchanged),
+            StaticOperand::Variable(_) => return Ok(()),
         };
 
         self.solve_complete_variable(variable, solution.into())
     }
 
-    /// Solve one variable from its collected bounds.
-    pub(in crate::check) fn solve_variable_from_bounds(
-        &mut self,
-        variable: VariableId,
-    ) -> CompilerResult<Progress> {
-        // skip solved variables
-        if self.variable_solution(variable).is_some() {
-            return Ok(Progress::Unchanged);
-        }
-
-        // dispatch by variable domain
-        let kind = self.variable(variable).kind;
-        match kind {
-            VariableKind::Type => self.solve_type_variable_from_bounds(variable),
-            VariableKind::Static => self.solve_static_variable_from_bounds(variable),
-        }
-    }
-
     /// Solve one type variable from lower bounds.
-    fn solve_type_variable_from_bounds(
+    pub(in crate::check) fn solve_type_variable_from_bounds(
         &mut self,
         variable: VariableId,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let lower_bounds = self.inference.lower_type_bounds(variable);
 
         // wait for useful lower bounds
         if lower_bounds.is_empty() {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
 
-        // collect concrete lower bound terms
+        // collect concrete lower bound operands
         let origin = self.variable(variable).source;
-        let mut progress = Progress::Unchanged;
-        let mut terms = Vec::with_capacity(lower_bounds.len());
+        let mut operands = Vec::with_capacity(lower_bounds.len());
         for bound in lower_bounds {
             let reduction = self.reduce_type_bound(origin, variable, bound)?;
-            if let ControlFlow::Break(pending) = reduction.collect_into(&mut progress, &mut terms) {
-                return Ok(pending);
+            if reduction.collect_into(&mut operands).is_break() {
+                return Ok(());
             }
         }
 
-        // solve from the best common concrete term
-        if terms.is_empty() {
-            return Ok(Progress::Unchanged);
+        // solve from the best common concrete operand
+        if operands.is_empty() {
+            return Ok(());
+        }
+        let mut terms = Vec::with_capacity(operands.len());
+        for operand in operands {
+            let Some(term) = self.type_operand_term(operand)? else {
+                return Ok(());
+            };
+
+            terms.push(term);
         }
         let term = self.reduce_best_common_terms(variable.module, terms)?;
 
-        Ok(progress.merge(self.solve_type_variable(variable, term)?))
+        self.solve_type_variable(variable, term)
     }
 
     /// Reduce one lower type bound.
@@ -216,75 +193,53 @@ impl CheckState<'_> {
         origin: Origin,
         variable: VariableId,
         bound: TypeOperand,
-    ) -> CompilerResult<BoundReduction<TypeTerm>> {
+    ) -> CompilerResult<BoundReduction<TypeOperand>> {
         // resolve the bound operand
-        let term = match bound {
-            TypeOperand::Variable(bound) if bound == variable => return Ok(BoundReduction::Empty),
+        let operand = match bound {
+            TypeOperand::Variable(bound) if bound == variable => {
+                return Ok(BoundReduction::Empty);
+            }
             TypeOperand::Variable(bound) => {
-                let Some(term) = self.type_solution(bound)? else {
-                    return Ok(BoundReduction::Pending(Progress::Unchanged));
+                let Some(operand) = self.variable_type_solution_operand(bound) else {
+                    return Ok(BoundReduction::Pending);
                 };
 
-                term
+                operand
             }
-            TypeOperand::Term(term) => self.inference.term(term).clone(),
-            TypeOperand::Type(ty) => TypeTerm::Type(ty),
+            TypeOperand::Term(_) | TypeOperand::Type(_) => bound,
         };
 
-        // push upper bounds into the lower bound term
-        let expected = self.expect_type_term(origin, variable, &term)?;
+        // push upper bounds into the lower bound operand
+        self.expect_type_operand(origin, variable, operand)?;
 
-        // reduce the bound term
-        match self.reduce_type_bound_term(origin, term)? {
-            BoundReduction::Empty => Ok(BoundReduction::Empty),
-            BoundReduction::Pending(progress) => {
-                Ok(BoundReduction::Pending(expected.merge(progress)))
-            }
-            BoundReduction::Term { term, progress } => Ok(BoundReduction::Term {
-                term,
-                progress: expected.merge(progress),
-            }),
-        }
-    }
-
-    /// Reduce one solved lower type bound.
-    fn reduce_type_bound_term(
-        &mut self,
-        origin: Origin,
-        term: TypeTerm,
-    ) -> CompilerResult<BoundReduction<TypeTerm>> {
-        let reduction = self.reduce_type_term(origin, &term)?;
-        let progress = reduction.progress;
-        let Some(term) = reduction.value else {
-            return Ok(BoundReduction::Pending(progress));
+        // reduce the bound operand
+        let Some(operand) = self.reduce_type_operand(origin, operand)? else {
+            return Ok(BoundReduction::Pending);
         };
 
-        Ok(BoundReduction::Term { term, progress })
+        Ok(BoundReduction::Value(operand))
     }
 
     /// Solve one static variable from its bounds.
-    fn solve_static_variable_from_bounds(
+    pub(in crate::check) fn solve_static_variable_from_bounds(
         &mut self,
         variable: VariableId,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let lower_bounds = self.inference.lower_static_bounds(variable);
         let upper_bounds = self.inference.upper_static_bounds(variable);
 
         // wait for useful bounds
         if lower_bounds.is_empty() && upper_bounds.is_empty() {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
 
         // collect lower bound terms
         let origin = self.variable(variable).source;
-        let mut progress = Progress::Unchanged;
         let mut lower_terms = Vec::with_capacity(lower_bounds.len());
         for bound in lower_bounds.iter().copied() {
             let reduction = self.reduce_static_bound(origin, variable, bound)?;
-            if let ControlFlow::Break(pending) =
-                reduction.collect_into(&mut progress, &mut lower_terms)
-            {
-                return Ok(pending);
+            if reduction.collect_into(&mut lower_terms).is_break() {
+                return Ok(());
             }
         }
 
@@ -292,10 +247,8 @@ impl CheckState<'_> {
         let mut upper_terms = Vec::with_capacity(upper_bounds.len());
         for bound in upper_bounds.iter().copied() {
             let reduction = self.reduce_static_bound(origin, variable, bound)?;
-            if let ControlFlow::Break(pending) =
-                reduction.collect_into(&mut progress, &mut upper_terms)
-            {
-                return Ok(pending);
+            if reduction.collect_into(&mut upper_terms).is_break() {
+                return Ok(());
             }
         }
 
@@ -303,10 +256,10 @@ impl CheckState<'_> {
         let Some(term) =
             self.reduce_static_bounds(&lower_bounds, &upper_bounds, &lower_terms, &upper_terms)
         else {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         };
 
-        Ok(progress.merge(self.solve_static_variable(variable, term)?))
+        self.solve_static_variable(variable, term)
     }
 
     /// Reduce one static bound.
@@ -323,7 +276,7 @@ impl CheckState<'_> {
             }
             StaticOperand::Variable(bound) => {
                 let Some(term) = self.static_solution(bound)? else {
-                    return Ok(BoundReduction::Pending(Progress::Unchanged));
+                    return Ok(BoundReduction::Pending);
                 };
 
                 term
@@ -344,13 +297,10 @@ impl CheckState<'_> {
     ) -> CompilerResult<BoundReduction<StaticTerm>> {
         // reduce computed static terms
         let Some(term) = self.reduce_static_term(origin, &term)? else {
-            return Ok(BoundReduction::Pending(Progress::Unchanged));
+            return Ok(BoundReduction::Pending);
         };
 
-        Ok(BoundReduction::Term {
-            term,
-            progress: Progress::Unchanged,
-        })
+        Ok(BoundReduction::Value(term))
     }
 
     /// Return a solved variable value.

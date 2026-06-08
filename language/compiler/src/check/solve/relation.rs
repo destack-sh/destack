@@ -1,185 +1,205 @@
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Origin, StaticOperand, StaticTerm, TypeOperand, TypeRelation, TypeTerm,
+    CheckState, Origin, StaticOperand, StaticRelation, StaticTerm, TypeOperand, TypeRelation,
+    TypeTerm,
 };
 
-use super::Progress;
-
 impl CheckState<'_> {
-    /// Relate one type relation.
-    pub(in crate::check) fn relate_type_relation(
+    /// Reduce one type relation.
+    pub(in crate::check) fn reduce_type_relation(
         &mut self,
         origin: Origin,
         relation: TypeRelation,
         left: impl Into<TypeOperand>,
         right: impl Into<TypeOperand>,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let left = left.into();
         let right = right.into();
 
         match relation {
-            TypeRelation::Equal => self.relate_type_equality(origin, left, right),
+            TypeRelation::Equal => self.reduce_type_equality(origin, left, right),
             TypeRelation::Assignable | TypeRelation::Castable => {
-                self.relate_contextual_type_assignability(origin, left, right)
+                self.reduce_contextual_type_assignability(origin, left, right)
             }
             TypeRelation::Satisfies | TypeRelation::Extends | TypeRelation::Implements => {
-                self.relate_type_assignability(origin, left, right)
+                self.reduce_type_assignability(origin, left, right)
             }
         }
     }
 
-    /// Relate one type equality relation.
-    pub(in crate::check) fn relate_type_equality(
+    /// Reduce one type equality relation.
+    pub(in crate::check) fn reduce_type_equality(
         &mut self,
         origin: Origin,
         left: impl Into<TypeOperand>,
         right: impl Into<TypeOperand>,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let left = left.into();
         let right = right.into();
-        let bounds = self.insert_equal_type_bounds(left, right)?;
+        self.insert_equal_type_bounds(left, right)?;
+
         let left_value = self.reduce_type_operand(origin, left)?;
         let right_value = self.reduce_type_operand(origin, right)?;
 
-        let progress = match (left_value, right_value) {
+        match (left_value, right_value) {
             // push left type into right operand
-            (Some(term), None) => match right.variable() {
-                Some(right) => self.expect_type_term(origin, right, &term),
-                None => Ok(Progress::Unchanged),
-            },
+            (Some(term), None) => {
+                if let Some(right) = right.variable() {
+                    self.expect_type_operand(origin, right, term)?;
+                }
+            }
             // push right type into left operand
-            (None, Some(term)) => match left.variable() {
-                Some(left) => self.expect_type_term(origin, left, &term),
-                None => Ok(Progress::Unchanged),
-            },
+            (None, Some(term)) => {
+                if let Some(left) = left.variable() {
+                    self.expect_type_operand(origin, left, term)?;
+                }
+            }
             // validate reduced terms
-            (Some(left), Some(right)) => self.constrain_solved_type_equal(origin, &left, &right),
+            (Some(left), Some(right)) => {
+                self.constrain_solved_type_operands_equal(origin, left, right)?
+            }
             // wait for operands
-            (None, None) => Ok(Progress::Unchanged),
-        }?;
+            (None, None) => {}
+        }
 
-        Ok(bounds.merge(progress))
+        Ok(())
     }
 
-    /// Relate one contextual assignability relation.
-    pub(in crate::check) fn relate_contextual_type_assignability(
+    /// Reduce one contextual assignability relation.
+    pub(in crate::check) fn reduce_contextual_type_assignability(
         &mut self,
         origin: Origin,
         source: impl Into<TypeOperand>,
         target: impl Into<TypeOperand>,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let source = source.into();
         let target = target.into();
-        let bounds = self.insert_assignable_type_bounds(source, target)?;
+        self.insert_assignable_type_bounds(source, target)?;
         let target_value = self.reduce_type_operand(origin, target)?;
-        let expected = match &target_value {
-            Some(target_term) => {
-                self.expect_type_operand_assignability(origin, source, target, target_term)?
-            }
-            None => Progress::Unchanged,
-        };
+        if let Some(target_value) = target_value {
+            self.expect_type_operand_assignability(origin, source, target_value)?;
+        }
         let source_value = self.reduce_type_operand(origin, source)?;
 
-        let progress = match (source_value, target_value) {
+        match (source_value, target_value) {
             // validate reduced terms
             (Some(source_term), Some(target_term)) => {
-                let constraint =
-                    self.constrain_solved_type_assignable(origin, &source_term, &target_term)?;
-
-                expected.merge(constraint)
+                self.constrain_solved_type_operands_assignable(origin, source_term, target_term)?;
             }
             // wait for operands
-            (Some(_), None) | (None, Some(_)) | (None, None) => Progress::Unchanged,
-        };
+            (Some(_), None) | (None, Some(_)) | (None, None) => {}
+        }
 
-        Ok(bounds.merge(progress))
+        Ok(())
     }
 
-    /// Relate one assignability relation without contextual backpressure.
-    pub(in crate::check) fn relate_type_assignability(
+    /// Reduce one assignability relation without contextual backpressure.
+    pub(in crate::check) fn reduce_type_assignability(
         &mut self,
         origin: Origin,
         source: impl Into<TypeOperand>,
         target: impl Into<TypeOperand>,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let source = source.into();
         let target = target.into();
-        let bounds = self.insert_assignable_type_bounds(source, target)?;
+        self.insert_assignable_type_bounds(source, target)?;
         let target_value = self.reduce_type_operand(origin, target)?;
         let source_value = self.reduce_type_operand(origin, source)?;
 
-        let progress = match (source_value, target_value) {
+        match (source_value, target_value) {
             (Some(source_term), Some(target_term)) => {
-                self.constrain_solved_type_assignable(origin, &source_term, &target_term)
+                self.constrain_solved_type_operands_assignable(origin, source_term, target_term)?;
             }
-            (Some(_), None) | (None, Some(_)) | (None, None) => Ok(Progress::Unchanged),
-        }?;
+            (Some(_), None) | (None, Some(_)) | (None, None) => {}
+        }
 
-        Ok(bounds.merge(progress))
+        Ok(())
     }
 
-    /// Return the reduced term for one type operand when available.
+    /// Return the reduced operand for one type operand when available.
     pub(in crate::check) fn reduce_type_operand(
         &mut self,
         origin: Origin,
         operand: TypeOperand,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(term) = self.type_operand_term(operand)? else {
-            return Ok(None);
-        };
-
-        self.reduce_type_operand_term(origin, term)
-    }
-
-    /// Return the fixed point reduction for one type term.
-    pub(in crate::check) fn reduce_type_operand_term(
-        &mut self,
-        origin: Origin,
-        mut term: TypeTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let mut operand = operand;
         let mut seen = Vec::new();
 
         loop {
-            let reduction = self.reduce_type_term(origin, &term)?;
-            let Some(next) = reduction.value else {
+            let Some(next) = self.reduce_type_operand_once(origin, operand)? else {
                 return Ok(None);
             };
-            if next == term {
-                return Ok(Some(term));
+            if next == operand {
+                return Ok(Some(operand));
             }
             if seen.contains(&next) {
                 return Err(self.circular_type_error(origin).into());
             }
 
-            seen.push(term);
-            term = next;
+            seen.push(operand);
+            operand = next;
         }
     }
 
-    /// Relate one static equality relation.
-    pub(in crate::check) fn relate_static_equality(
+    /// Return one reduction step for one type operand.
+    fn reduce_type_operand_once(
+        &mut self,
+        origin: Origin,
+        operand: TypeOperand,
+    ) -> CompilerResult<Option<TypeOperand>> {
+        let operand = match operand {
+            TypeOperand::Variable(variable) => {
+                let Some(operand) = self.variable_type_solution_operand(variable) else {
+                    return Ok(None);
+                };
+
+                operand
+            }
+            TypeOperand::Term(term) => return self.reduce_type_term_by_id(origin, term),
+            TypeOperand::Type(_) => operand,
+        };
+
+        Ok(Some(operand))
+    }
+
+    /// Reduce one static relation.
+    pub(in crate::check) fn reduce_static_relation(
+        &mut self,
+        relation: StaticRelation,
+        left: impl Into<StaticOperand>,
+        right: impl Into<StaticOperand>,
+    ) -> CompilerResult<()> {
+        let left = left.into();
+        let right = right.into();
+
+        match relation {
+            StaticRelation::Equal => self.reduce_static_equality(left, right),
+            StaticRelation::Assignable => self.reduce_static_assignability(left, right),
+        }
+    }
+
+    /// Reduce one static equality relation.
+    pub(in crate::check) fn reduce_static_equality(
         &mut self,
         left: impl Into<StaticOperand>,
         right: impl Into<StaticOperand>,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let left = left.into();
         let right = right.into();
-        let bounds = self.insert_equal_static_bounds(left, right)?;
 
-        Ok(bounds)
+        self.insert_equal_static_bounds(left, right)
     }
 
-    /// Relate one static assignability relation.
-    pub(in crate::check) fn relate_static_assignability(
+    /// Reduce one static assignability relation.
+    pub(in crate::check) fn reduce_static_assignability(
         &mut self,
         source: impl Into<StaticOperand>,
         target: impl Into<StaticOperand>,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let source = source.into();
         let target = target.into();
-        let bounds = self.insert_assignable_static_bounds(source, target)?;
 
-        Ok(bounds)
+        self.insert_assignable_static_bounds(source, target)
     }
 
     /// Return the solved term for one type operand when available.
@@ -215,11 +235,11 @@ impl CheckState<'_> {
         &mut self,
         left: TypeOperand,
         right: TypeOperand,
-    ) -> CompilerResult<Progress> {
-        let left_to_right = self.insert_assignable_type_bounds(left, right)?;
-        let right_to_left = self.insert_assignable_type_bounds(right, left)?;
+    ) -> CompilerResult<()> {
+        self.insert_assignable_type_bounds(left, right)?;
+        self.insert_assignable_type_bounds(right, left)?;
 
-        Ok(left_to_right.merge(right_to_left))
+        Ok(())
     }
 
     /// Insert equality bounds between two static operands.
@@ -227,11 +247,11 @@ impl CheckState<'_> {
         &mut self,
         left: StaticOperand,
         right: StaticOperand,
-    ) -> CompilerResult<Progress> {
-        let left_to_right = self.insert_assignable_static_bounds(left, right)?;
-        let right_to_left = self.insert_assignable_static_bounds(right, left)?;
+    ) -> CompilerResult<()> {
+        self.insert_assignable_static_bounds(left, right)?;
+        self.insert_assignable_static_bounds(right, left)?;
 
-        Ok(left_to_right.merge(right_to_left))
+        Ok(())
     }
 
     /// Insert assignability bounds between two type operands.
@@ -239,27 +259,22 @@ impl CheckState<'_> {
         &mut self,
         source: TypeOperand,
         target: TypeOperand,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         if source == target {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
-        let mut progress = Progress::Unchanged;
 
         // wake users of the constrained target
-        if let Some(target) = target.variable()
-            && self.insert_lower_type_bound(target, source)?
-        {
-            progress = progress.merge(Progress::changed(target));
+        if let Some(target) = target.variable() {
+            self.insert_lower_type_bound(target, source)?;
         }
 
         // wake users of the constrained source
-        if let Some(source) = source.variable()
-            && self.insert_upper_type_bound(source, target)?
-        {
-            progress = progress.merge(Progress::changed(source));
+        if let Some(source) = source.variable() {
+            self.insert_upper_type_bound(source, target)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Insert assignability bounds between two static operands.
@@ -267,26 +282,21 @@ impl CheckState<'_> {
         &mut self,
         source: StaticOperand,
         target: StaticOperand,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         if source == target {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
-        let mut progress = Progress::Unchanged;
 
         // wake users of the constrained target
-        if let Some(target) = target.variable()
-            && self.insert_lower_static_bound(target, source)?
-        {
-            progress = progress.merge(Progress::changed(target));
+        if let Some(target) = target.variable() {
+            self.insert_lower_static_bound(target, source)?;
         }
 
         // wake users of the constrained source
-        if let Some(source) = source.variable()
-            && self.insert_upper_static_bound(source, target)?
-        {
-            progress = progress.merge(Progress::changed(source));
+        if let Some(source) = source.variable() {
+            self.insert_upper_static_bound(source, target)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 }

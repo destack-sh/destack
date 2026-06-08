@@ -199,12 +199,9 @@ impl CheckState<'_> {
         module: ModuleId,
         source: dir::LocalNodeIdAny,
     ) -> DiagnosticAnchor {
-        let span = match self.module(module).parsed.tree.get_span_by_id(source.id) {
+        let span = match self.module(module).view().get_span_by_id(source.id) {
             Some(span) => span,
-            None => unreachable!(
-                "internal invariant: check node {} has no source span",
-                source.id
-            ),
+            None => unreachable!("check node {} has no source span", source.id),
         };
 
         DiagnosticAnchor::from(span)
