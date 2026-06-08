@@ -7,7 +7,7 @@ mod runner;
 mod session;
 mod workspace;
 
-pub use destack_workspace::LintCategory;
+pub use destack_repository::LintCategory;
 pub use linter::*;
 pub use module::*;
 pub use package::*;

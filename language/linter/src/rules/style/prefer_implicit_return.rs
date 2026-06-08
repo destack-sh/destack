@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, Block, Declaration, Expression, FunctionForm};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::source_text_contains_comment_token;
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};

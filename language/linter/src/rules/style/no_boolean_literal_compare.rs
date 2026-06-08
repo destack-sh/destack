@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, BinaryOperator, ScalarLiteral};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::expression_negated_source_text;
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};

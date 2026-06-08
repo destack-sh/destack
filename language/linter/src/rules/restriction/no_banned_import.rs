@@ -1,6 +1,6 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_repository::LintSeverity;
 use destack_source::ModuleId;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{expression_import_target_specifier, glob_matches};
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

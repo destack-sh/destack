@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_dir::LanguageItem;
-use destack_workspace::{LintSeverity, ReturnAwaitMode};
+use destack_repository::{LintSeverity, ReturnAwaitMode};
 
 use crate::rules::common::{
     expression_affects_error_handling_context, expression_affects_resource_management_context,

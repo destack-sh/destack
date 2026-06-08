@@ -1,6 +1,6 @@
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_target_symbol, expression_unwrap_parenthesized, pattern_binding_name_and_symbol,

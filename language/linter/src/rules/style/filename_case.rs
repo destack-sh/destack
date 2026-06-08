@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_workspace::{FilenameCase, LintSeverity};
+use destack_repository::{FilenameCase, LintSeverity};
 
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 

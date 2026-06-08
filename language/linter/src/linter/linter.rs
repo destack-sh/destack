@@ -5,11 +5,11 @@ use std::sync::{Arc, LazyLock};
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ModuleLinted, PackageLinted, WorkspaceLinted,
 };
-use destack_source::{FileId, ModuleId, PackageId};
-use destack_workspace::{
+use destack_repository::{
     ArtifactReader, LintPreset, LinterOptions, Module, Profile, ProfileId, ProviderContext,
     ProviderError, ProviderResult, Repository, Revision,
 };
+use destack_source::{FileId, ModuleId, PackageId};
 
 use crate::{LintLevel, LintReport, LintRunner};
 

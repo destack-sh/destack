@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     has_doc_terminal_punctuation, is_directive_comment, is_doc_comment_source,

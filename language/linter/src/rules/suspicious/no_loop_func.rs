@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use destack_dir::{
     self as dir, NodeVisitor, NodeVisitorOptions, walk_declaration, walk_expression,
 };
+use destack_repository::LintSeverity;
 use destack_source::LabeledSpan;
-use destack_workspace::LintSeverity;
 
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 

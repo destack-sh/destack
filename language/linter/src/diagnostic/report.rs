@@ -1,8 +1,8 @@
 use destack_artifact::{DiagnosticAnchor, DiagnosticContext, DiagnosticError, ToDiagnostic};
+use destack_repository::{LintCategory, LintSeverity};
 use destack_source::{
     Diagnostic, DiagnosticHelp, DiagnosticNote, DiagnosticSeverity, LabeledSpan, Span,
 };
-use destack_workspace::{LintCategory, LintSeverity};
 
 use super::LintFix;
 

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir::{self as dir, LanguageItem};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{

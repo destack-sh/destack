@@ -4,8 +4,8 @@ use destack_dir::{
     self as dir, GlobalSymbolId, LocalNodeId, LocalSymbolId, Mutability, NodeVisitor,
     NodeVisitorOptions, walk_expression,
 };
+use destack_repository::{LintSeverity, PreferConstDestructuring};
 use destack_source::ModuleId;
-use destack_workspace::{LintSeverity, PreferConstDestructuring};
 
 use crate::rules::common::{
     collect_local_symbol_direct_reference_expression_ids, collect_pattern_value_binding_symbols,

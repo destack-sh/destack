@@ -4,7 +4,7 @@ use destack_dir::{
     self as dir, AssignOperator, Block, Declarator, Expression, IfCondition, IfForm, LetKind,
     LocalNodeId, Pattern, Tree,
 };
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{assign_pattern_expression, expression_path_segments};
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};

@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use destack_source::{File, FileId, ModuleId, PackageId};
-use destack_workspace::{
+use destack_repository::{
     ArtifactCache, LintCategory, LintPreset, LinterOptions, Module, Package, Profile, ProfileId,
-    Repository, Revision, Workspace,
+    Repository, Revision, Root,
 };
+use destack_source::{File, FileId, ModuleId, PackageId};
 
 use crate::{
     BoxedLintRule, LintLevel, LintModuleContext, LintPackageContext, LintReport, LintScope,
@@ -248,8 +248,8 @@ impl LintRunner {
     }
 
     /// Return workspace metadata for one revision when present.
-    fn repository_workspace(repository: &Repository, revision: Revision) -> Option<Arc<Workspace>> {
-        repository.workspace(revision).ok()
+    fn repository_root(repository: &Repository, revision: Revision) -> Option<Arc<Root>> {
+        repository.root(revision).ok()
     }
 
     /// Lint a module at a specific IR level.
@@ -521,7 +521,7 @@ impl LintRunner {
         }
 
         let mut performance = LintPerformanceReport::default();
-        let Some(workspace) = Self::repository_workspace(repository.as_ref(), revision) else {
+        let Some(workspace) = Self::repository_root(repository.as_ref(), revision) else {
             return LintRunReport::default();
         };
         let artifacts = Arc::new(ArtifactCache::new(repository.clone(), revision));

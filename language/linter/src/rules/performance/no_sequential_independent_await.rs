@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_repository::LintSeverity;
 use destack_source::LabeledSpan;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{assign_pattern_target_symbol, collect_pattern_value_binding_symbols};
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

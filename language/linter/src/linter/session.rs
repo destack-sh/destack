@@ -5,10 +5,10 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{File, FileId, ModuleId, PackageId};
-use destack_workspace::{
+use destack_repository::{
     ArtifactCache, LinterOptions, Module, Package, ProfileId, Repository, Revision,
 };
+use destack_source::{File, FileId, ModuleId, PackageId};
 
 /// Shared state for one DIR lint pass.
 #[derive(Debug, Clone)]

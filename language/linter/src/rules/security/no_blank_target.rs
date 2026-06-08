@@ -1,5 +1,5 @@
 use destack_dir::{self as dir, Argument, Expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 use url::Url;
 
 use crate::rules::common::{

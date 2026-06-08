@@ -1,5 +1,5 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     expression_method_call, expression_unwrap_parenthesized, is_float_type,

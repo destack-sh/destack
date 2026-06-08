@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, BinaryOperator, Expression, UnaryOperator};
-use destack_workspace::{LintSeverity, YodaMode};
+use destack_repository::{LintSeverity, YodaMode};
 
 use crate::rules::common::{
     expression_is_equal, expression_is_literal, expression_outer_parenthesized_source_form,

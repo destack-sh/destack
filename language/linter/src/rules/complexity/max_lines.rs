@@ -1,5 +1,5 @@
 use crate::LintMeta;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::count_file_lines;
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};

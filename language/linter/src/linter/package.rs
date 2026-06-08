@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_dir::{self as dir, LanguageItem, StringId};
+use destack_repository::{LintSeverity, LinterOptions, Package, Repository, Revision};
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::{LintSeverity, LinterOptions, Package, Repository, Revision};
 
 use crate::linter::library::is_library_module;
 use crate::{LintMeta, LintReport, LintRequirement, LintSession};

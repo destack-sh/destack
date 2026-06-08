@@ -2,8 +2,8 @@ use crate::LintMeta;
 use std::str::FromStr;
 
 use destack_dir::{self as dir, Expression, ScalarLiteral, is_identifier};
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 use regex::Regex;
 
 use crate::rules::common::{expression_static_string_literal_source_form, span_has_comment};

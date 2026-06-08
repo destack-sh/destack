@@ -3,7 +3,7 @@ use destack_dir::{
     self as dir, BinaryOperator, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree,
     walk_expression, walk_member, walk_property,
 };
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     CallableOwnerId, expression_starts_nested_declaration_scope,

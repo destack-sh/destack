@@ -3,8 +3,8 @@ use destack_dir::{
     self as dir, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
     walk_member,
 };
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_is_else_if_branch;
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::LabeledSpan;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     binary_expression_chain_members, binary_expression_is_nested_same_operator,

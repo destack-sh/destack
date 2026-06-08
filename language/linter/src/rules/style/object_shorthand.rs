@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, Declaration, FunctionForm, FunctionRole, Key, Name};
-use destack_workspace::{LintSeverity, ObjectShorthandMode};
+use destack_repository::{LintSeverity, ObjectShorthandMode};
 use regex::Regex;
 
 use crate::rules::common::{expression_path_segments, span_has_comment};

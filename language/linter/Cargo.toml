@@ -19,7 +19,7 @@ destack_linter_macros = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { path = "../workspace", default-features = false }
+destack_repository = { path = "../repository", default-features = false }
 
 # general
 aho-corasick = { workspace = true }

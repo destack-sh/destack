@@ -1,7 +1,7 @@
 use destack_dir::{
     self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, StringId, walk_expression,
 };
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     expression_method_call, expression_target_symbol, has_useful_to_string_type,

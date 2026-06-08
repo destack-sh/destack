@@ -1,4 +1,4 @@
-use destack_workspace::WarningCommentLocation;
+use destack_repository::WarningCommentLocation;
 use regex::Regex;
 
 /// Parsed keyword comment metadata.

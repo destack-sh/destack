@@ -2,7 +2,7 @@ use crate::LintMeta;
 use aho_corasick::{AhoCorasick, MatchKind};
 use destack_core::StringId;
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 use indexmap::IndexMap;
 use regex::bytes::{
     Regex as BytesRegex, RegexBuilder as BytesRegexBuilder, RegexSet as BytesRegexSet,

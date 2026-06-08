@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     expression_target_symbol, expression_unwrap_parenthesized, tuple_type_arity,

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_dir::{self as dir, LanguageItem, StringId};
+use destack_repository::{LintSeverity, LinterOptions, Repository, Revision, Root};
 use destack_source::{ModuleId, PackageId};
-use destack_workspace::{LintSeverity, LinterOptions, Repository, Revision, Workspace};
 
 use crate::linter::library::is_library_module;
 use crate::{LintMeta, LintReport, LintRequirement, LintSession};
@@ -12,7 +12,7 @@ pub struct LintWorkspaceContext {
     /// Shared lint pass state.
     pub session: LintSession,
     /// The workspace being linted.
-    pub workspace: Arc<Workspace>,
+    pub root: Arc<Root>,
     /// Collected diagnostics.
     diagnostics: Vec<LintReport>,
 }
@@ -20,7 +20,7 @@ pub struct LintWorkspaceContext {
 impl std::fmt::Debug for LintWorkspaceContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LintWorkspaceContext")
-            .field("root", &self.workspace.root)
+            .field("root", &self.root.root)
             .field("profile_id", &self.session.profile_id)
             .finish()
     }
@@ -28,10 +28,10 @@ impl std::fmt::Debug for LintWorkspaceContext {
 
 impl LintWorkspaceContext {
     /// Create a new workspace lint context.
-    pub fn new(session: LintSession, workspace: Arc<Workspace>) -> Self {
+    pub fn new(session: LintSession, root: Arc<Root>) -> Self {
         Self {
             session,
-            workspace,
+            root,
             diagnostics: Vec::new(),
         }
     }

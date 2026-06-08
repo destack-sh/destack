@@ -1,5 +1,5 @@
 use destack_dir::{self as dir, Expression, ScalarLiteral};
-use destack_workspace::{LintSeverity, UnicodeRegexpRequireFlag};
+use destack_repository::{LintSeverity, UnicodeRegexpRequireFlag};
 
 use crate::rules::common::{
     expression_path_segments, expression_unwrap_parenthesized_source_form,

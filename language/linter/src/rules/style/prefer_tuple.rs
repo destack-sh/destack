@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, Argument, Expression, ScalarLiteral};
+use destack_repository::LintSeverity;
 use destack_source::LanguageType;
-use destack_workspace::LintSeverity;
 
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};
 

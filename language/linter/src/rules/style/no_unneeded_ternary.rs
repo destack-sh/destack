@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, ScalarLiteral};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     expression_is_equal, expression_negated_source_text, source_text_contains_comment_token,

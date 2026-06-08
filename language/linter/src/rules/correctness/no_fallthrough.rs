@@ -1,8 +1,8 @@
 use regex::Regex;
 
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{compiled_no_fallthrough_comment_pattern, fallthrough_comment_matches};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

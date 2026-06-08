@@ -1,6 +1,6 @@
 use destack_core::StringId;
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, UnaryOperator, walk_expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     expression_parent_id, expression_target_symbol, expression_unwrap_parenthesized,

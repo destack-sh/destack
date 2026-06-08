@@ -3,8 +3,8 @@ use std::sync::LazyLock;
 
 use destack_dir as dir;
 use destack_dir::LanguageItem;
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_is_unqualified_path_name, is_simple_identifier, subtree_mentions_identifier_name,

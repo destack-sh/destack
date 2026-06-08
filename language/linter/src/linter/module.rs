@@ -3,8 +3,8 @@ use std::sync::Arc;
 use destack_artifact::{DirExpanded, DirParsed};
 use destack_dir as dir;
 use destack_dir::{LanguageItem, StringId, StringPool};
+use destack_repository::{LintSeverity, LinterOptions, Module, Profile};
 use destack_source::{EditBuilder, File, FileId, ModuleId, Span};
-use destack_workspace::{LintSeverity, LinterOptions, Module, Profile};
 
 use crate::linter::library::is_library_module;
 use crate::rules::common::expression_path_segments;

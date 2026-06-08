@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, AssignOperator, BinaryOperator, UnaryOperator};
-use destack_workspace::{BitwiseOperator, LintSeverity};
+use destack_repository::{BitwiseOperator, LintSeverity};
 
 use crate::rules::common::expression_unwrap_parenthesized_source_form;
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};

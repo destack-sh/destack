@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     is_simple_identifier, rename_local_symbol_fix, resolution_target_symbols,

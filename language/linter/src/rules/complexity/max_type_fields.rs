@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, Member, TypeExpression, TypeMember};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 

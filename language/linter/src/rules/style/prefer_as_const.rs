@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, Declarator, Expression, Member, ScalarLiteral, TypeExpression};
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::span_has_comment;
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};

@@ -2,7 +2,7 @@ use crate::LintMeta;
 use destack_dir::{
     self as dir, Expression, LocalNodeId, NodeVisitor, NodeVisitorOptions, Tree, walk_expression,
 };
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::expression_starts_nested_declaration_scope;
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};

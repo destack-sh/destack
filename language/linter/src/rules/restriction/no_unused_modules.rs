@@ -3,8 +3,8 @@ use std::collections::HashSet;
 
 use destack_artifact::DirExported;
 use destack_dir as dir;
+use destack_repository::TargetRoot;
 use destack_source::{FileType, ModuleId, Span};
-use destack_workspace::TargetRoot;
 
 use crate::{LintReport, LintRule, LintWorkspaceContext, declare_lint};
 
@@ -288,7 +288,7 @@ mod tests {
     fn lint_workspace_with_modules(
         modules: &[(&str, &str)],
         entry_paths: &[&str],
-        configure: impl FnOnce(&mut destack_workspace::LinterOptions),
+        configure: impl FnOnce(&mut destack_repository::LinterOptions),
     ) -> (TestProgram, Vec<LintReport>) {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoUnusedModules)])
             .with_options(configure);
