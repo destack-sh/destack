@@ -2,8 +2,8 @@ use std::ptr::NonNull;
 
 use crate::CompilerResult;
 use crate::check::{
-    Condition, ConditionPredicate, FlowState, NameLookup, Origin, ReceiverCapture,
-    StaticIfCondition, StaticOperand, StaticTerm, VariableId, WalkState,
+    Condition, ConditionPredicate, FlowState, NameLookup, Origin, Receiver, StaticIfCondition,
+    StaticOperand, StaticTerm, VariableId, WalkState,
 };
 use crate::common::dir::r#static::{StaticContext, StaticFailure};
 use destack_dir as dir;
@@ -33,21 +33,19 @@ impl Drop for StaticGuard {
 }
 
 impl WalkState<'_, '_> {
-    /// Evaluate the static guard attached to one owner.
+    /// Evaluate the static guard attached to one decorated node.
     ///
     /// Example:
     /// ```ds
     /// @if(Target.isShared)
     /// function f() {}
     /// ```
-    pub(in crate::check) fn evaluate_owner_static_guard(
+    pub(in crate::check) fn static_guard_condition(
         &mut self,
-        owner: dir::LocalNodeIdAny,
-        receiver: Option<ReceiverCapture>,
+        decorated: dir::LocalNodeIdAny,
+        receiver: Option<Receiver>,
     ) -> CompilerResult<Condition> {
-        let invocations = self
-            .check
-            .decorator_invocations_for_owner(self.module, owner);
+        let invocations = self.check.decorator_invocations(self.module, decorated);
         let mut condition = Condition::Always;
 
         // combine visible static guards in source order
@@ -90,23 +88,23 @@ impl WalkState<'_, '_> {
         StaticGuard::new(self.flow_mut())
     }
 
-    /// Enter the static guard attached to one owner.
+    /// Enter the static guard attached to one decorated node.
     ///
     /// Example:
     /// ```ds
     /// @if(Enabled)
     /// const value = 1;
     /// ```
-    pub(in crate::check) fn enter_static_guard_for(
+    pub(in crate::check) fn enter_decorated_static_guard(
         &mut self,
-        owner: dir::LocalNodeIdAny,
-        receiver: Option<ReceiverCapture>,
+        decorated: dir::LocalNodeIdAny,
+        receiver: Option<Receiver>,
     ) -> CompilerResult<Option<StaticGuard>> {
-        let owner_condition = self.evaluate_owner_static_guard(owner, receiver)?;
-        let condition = self.active_static_guard().and(owner_condition.clone());
+        let decorated_condition = self.static_guard_condition(decorated, receiver)?;
+        let condition = self.active_static_guard().and(decorated_condition.clone());
 
         // store symbol availability after combining guards
-        if let Some(symbol) = self.check.module(self.module).declaration_symbol(owner) {
+        if let Some(symbol) = self.check.module(self.module).declaration_symbol(decorated) {
             self.check
                 .module_mut(self.module)
                 .availability
@@ -119,7 +117,7 @@ impl WalkState<'_, '_> {
         }
         // actually push and keep going (conditionally)
         else {
-            self.flow_mut().push_static_guard(owner_condition);
+            self.flow_mut().push_static_guard(decorated_condition);
 
             Ok(Some(StaticGuard::new(self.flow_mut())))
         }
@@ -138,64 +136,47 @@ impl WalkState<'_, '_> {
     /// ```
     fn evaluate_static_guard(
         &mut self,
-        receiver: Option<ReceiverCapture>,
+        receiver: Option<Receiver>,
         condition: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Condition> {
         let module = self.module;
+        let condition_node = condition;
 
-        self.with_static_receiver(receiver, |this| {
-            let context = StaticContext::new(
-                this.check.module(module).view(),
-                this.check.module(module).module.as_ref(),
-                &this.check.module(module).profile,
-                &this.check.module(module).profile.conditions,
-                &this.check.module(module).strings,
-            );
+        let _receiver = self.enter_receiver_maybe(receiver);
+        let input = self.check.module(module);
+        let context = StaticContext::new(
+            input.view(),
+            input.module.as_ref(),
+            &input.profile,
+            &input.profile.conditions,
+            &input.strings,
+        );
+        let evaluated = context.evaluate_boolean(condition_node);
 
-            match context.evaluate_boolean(condition) {
-                Ok(true) => Ok(Condition::Always),
-                Ok(false) => Ok(Condition::Never),
-                Err(StaticFailure::NotBoolean(expression)) => {
-                    this.check
-                        .report_invalid_static_guard(module, expression.into_any());
+        match evaluated {
+            Ok(true) => Ok(Condition::Always),
+            Ok(false) => Ok(Condition::Never),
+            Err(StaticFailure::NotBoolean(expression)) => {
+                self.check
+                    .report_invalid_static_guard(module, expression.into_any());
 
-                    Ok(Condition::Never)
-                }
-                Err(StaticFailure::NotStatic(expression)) => {
-                    let condition_guard = this.active_static_guard();
-                    let variable =
-                        this.allocate_static_expression_variable(condition, condition_guard)?;
-
-                    // walk static guard leaves without runtime condition constraints
-                    this.walk_static_expression(expression)?;
-
-                    Ok(Condition::When {
-                        conditions: smallvec::smallvec![ConditionPredicate {
-                            origin: Origin::Node(condition.into_global_any(module)),
-                            operand: variable.into(),
-                        }],
-                    })
-                }
+                Ok(Condition::Never)
             }
-        })
-    }
+            Err(StaticFailure::NotStatic(expression)) => {
+                let condition_guard = self.active_static_guard();
+                let variable = self.static_expression_variable(condition_node, condition_guard)?;
 
-    /// Run one callback with a static receiver visible.
-    fn with_static_receiver<R>(
-        &mut self,
-        receiver: Option<ReceiverCapture>,
-        walk: impl FnOnce(&mut Self) -> R,
-    ) -> R {
-        let has_receiver = receiver.is_some();
-        if let Some(receiver) = receiver {
-            self.flow_mut().push_receiver(receiver);
-        }
-        let result = walk(self);
-        if has_receiver {
-            self.flow_mut().pop_receiver();
-        }
+                // walk static guard leaves without runtime condition constraints
+                self.walk_static_expression(expression)?;
 
-        result
+                Ok(Condition::When {
+                    conditions: smallvec::smallvec![ConditionPredicate {
+                        origin: Origin::Node(condition_node.into_global_any(module)),
+                        operand: variable.into(),
+                    }],
+                })
+            }
+        }
     }
 
     /// Walk leaves needed by one static expression.
@@ -216,7 +197,7 @@ impl WalkState<'_, '_> {
             // this
             dir::Expression::This => {
                 let source = expression.into_global_any(self.module);
-                if let Some(term) = self.lower_this_receiver_type_term(source) {
+                if let Some(term) = self.this_receiver_type_term(source)? {
                     self.bind_node_type(expression, term)?;
                 }
             }
@@ -304,11 +285,9 @@ impl WalkState<'_, '_> {
         self.walk_static_expression(expression)?;
         self.restore_flow(before_expression);
 
-        // allocate the argument local static variable
+        // return the argument local static variable
         let condition = self.active_static_guard();
-        let variable =
-            self.check
-                .create_static_expression_variable(self.module, expression, condition);
+        let variable = self.static_expression_variable(expression, condition)?;
 
         Ok(variable.into())
     }
@@ -328,7 +307,7 @@ impl WalkState<'_, '_> {
         let origin = Origin::Node(source);
         let variable = self.check.create_static_variable(module, origin);
 
-        if let Some(operand) = self.lower_direct_static_argument_operand(id)? {
+        if let Some(operand) = self.direct_static_argument_operand(id)? {
             let condition = self.active_static_guard();
 
             self.check
@@ -338,20 +317,20 @@ impl WalkState<'_, '_> {
         Ok(variable)
     }
 
-    /// Lower one directly representable static argument term.
+    /// Return one directly representable static argument operand.
     ///
     /// Example:
     /// ```ds
     /// <{ a: 2, b: [1, 2, 3] }>
     /// ```
-    fn lower_direct_static_argument_operand(
+    fn direct_static_argument_operand(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<Option<StaticOperand>> {
         let term = match self.tree.get(id) {
             // <(C)>
             dir::TypeExpression::Parenthesized { expression } => {
-                return self.lower_direct_static_argument_operand(*expression);
+                return self.direct_static_argument_operand(*expression);
             }
             // <1>
             dir::TypeExpression::ScalarLiteral { value } => {
@@ -367,7 +346,7 @@ impl WalkState<'_, '_> {
             }
             // <{ name: "value" }>
             dir::TypeExpression::Object { members } => {
-                let Some(term) = self.lower_direct_static_object_term(members)? else {
+                let Some(term) = self.direct_static_object_term(members)? else {
                     return Ok(None);
                 };
 
@@ -375,7 +354,7 @@ impl WalkState<'_, '_> {
             }
             // <[1, 2]>
             dir::TypeExpression::Tuple { elements } => {
-                let Some(term) = self.lower_direct_static_tuple_term(elements)? else {
+                let Some(term) = self.direct_static_tuple_term(elements)? else {
                     return Ok(None);
                 };
 
@@ -396,7 +375,7 @@ impl WalkState<'_, '_> {
             },
             // <readonly [1, 2]>
             dir::TypeExpression::ArrayTuple { elements } => {
-                let Some(term) = self.lower_direct_static_tuple_term(elements)? else {
+                let Some(term) = self.direct_static_tuple_term(elements)? else {
                     return Ok(None);
                 };
 
@@ -407,7 +386,7 @@ impl WalkState<'_, '_> {
                 path,
                 generic_arguments,
             } => {
-                return self.lower_static_reference_argument_operand(id, path, generic_arguments);
+                return self.static_reference_argument_operand(id, path, generic_arguments);
             }
             // <T.Value>
             dir::TypeExpression::Member {
@@ -419,7 +398,7 @@ impl WalkState<'_, '_> {
 
                 StaticTerm::Member {
                     source: id.into_global_any(self.module),
-                    owner: self.allocate_node_type_operand(*left)?,
+                    owner: self.node_type_operand(*left)?,
                     key: dir::StaticKey::Name(*name),
                     arguments: arguments.into_vec(),
                 }
@@ -431,13 +410,13 @@ impl WalkState<'_, '_> {
         Ok(Some(self.check.inference.push_term(term).into()))
     }
 
-    /// Lower one static reference argument operand.
+    /// Return one static reference argument operand.
     ///
     /// Example:
     /// ```ds
     /// <LifetimeOf<T>>
     /// ```
-    fn lower_static_reference_argument_operand(
+    fn static_reference_argument_operand(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         path: &dir::Path,
@@ -453,9 +432,9 @@ impl WalkState<'_, '_> {
         {
             operand
         }
-        // lower static memory intrinsic
+        // build static memory intrinsic
         else if let Some(term) =
-            self.lower_static_intrinsic_argument_term(id, *name, generic_arguments)?
+            self.static_intrinsic_argument_term(id, *name, generic_arguments)?
         {
             self.check.inference.push_term(term).into()
         }
@@ -508,20 +487,18 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
-        let operand = self
-            .check
-            .import_symbol_static_operand(self.module, symbol)?;
+        let operand = self.check.symbol_static_operand(self.module, symbol)?;
 
         Ok(Some(operand))
     }
 
-    /// Lower one static intrinsic argument term.
+    /// Return one static intrinsic argument term.
     ///
     /// Example:
     /// ```ds
     /// <LifetimeOf<T>>
     /// ```
-    fn lower_static_intrinsic_argument_term(
+    fn static_intrinsic_argument_term(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         name: dir::StringId,
@@ -568,13 +545,13 @@ impl WalkState<'_, '_> {
         }))
     }
 
-    /// Lower one directly representable static object term.
+    /// Return one directly representable static object term.
     ///
     /// Example:
     /// ```ds
     /// { a: 2, b: [1, 2, 3] }
     /// ```
-    fn lower_direct_static_object_term(
+    fn direct_static_object_term(
         &mut self,
         members: &[dir::LocalNodeId<dir::TypeMember>],
     ) -> CompilerResult<Option<StaticTerm>> {
@@ -590,13 +567,14 @@ impl WalkState<'_, '_> {
                     is_optional: false,
                     ..
                 } => {
-                    let Some(key) = key.static_key(self.tree) else {
+                    let Some(key) = key.static_key(&self.tree) else {
                         return Ok(None);
                     };
-                    let Some(operand) = self.lower_direct_static_argument_operand(*value)? else {
+                    let Some(operand) = self.direct_static_argument_operand(*value)? else {
                         return Ok(None);
                     };
-                    let Some(StaticTerm::Literal(value)) = operand.known_static_term(self.check)
+                    let Some(StaticTerm::Literal(value)) =
+                        self.check.static_operand_term(operand)?
                     else {
                         return Ok(None);
                     };
@@ -613,13 +591,13 @@ impl WalkState<'_, '_> {
         })))
     }
 
-    /// Lower one directly representable static tuple term.
+    /// Return one directly representable static tuple term.
     ///
     /// Example:
     /// ```ds
     /// [1, 2, 3]
     /// ```
-    fn lower_direct_static_tuple_term(
+    fn direct_static_tuple_term(
         &mut self,
         elements: &[dir::LocalNodeId<dir::TupleElement>],
     ) -> CompilerResult<Option<StaticTerm>> {
@@ -633,10 +611,11 @@ impl WalkState<'_, '_> {
                     is_optional: false,
                     ..
                 } => {
-                    let Some(operand) = self.lower_direct_static_argument_operand(*value)? else {
+                    let Some(operand) = self.direct_static_argument_operand(*value)? else {
                         return Ok(None);
                     };
-                    let Some(StaticTerm::Literal(value)) = operand.known_static_term(self.check)
+                    let Some(StaticTerm::Literal(value)) =
+                        self.check.static_operand_term(operand)?
                     else {
                         return Ok(None);
                     };

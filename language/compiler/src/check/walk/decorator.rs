@@ -17,13 +17,13 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let invocation = self.check.decorator_invocation(self.module, id);
 
-        // select ordinary decorator target
+        // bind ordinary decorator target names
         if self
             .check
             .static_if_decorator_from_invocation(self.module, &invocation)
             .is_none()
         {
-            self.select_decorator_target(invocation.target);
+            self.bind_decorator_target_name(invocation.target)?;
         }
 
         // walk annotation arguments as static metadata
@@ -38,19 +38,22 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Select one ordinary decorator target.
+    /// Bind one ordinary decorator target name.
     ///
     /// Example:
     /// ```ds
     /// @repr("C")
     /// struct Header {}
     /// ```
-    fn select_decorator_target(&mut self, target: dir::LocalNodeId<dir::Expression>) {
+    fn bind_decorator_target_name(
+        &mut self,
+        target: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
         let source = target.into_global_any(self.module);
         let guard = self.active_static_guard();
 
         match self.tree.get(target) {
-            // select bare decorator target
+            // bind bare decorator target
             dir::Expression::Identifier { name } => {
                 if let Some(symbol) = self.check.symbol_by_name_under(
                     self.module,
@@ -59,11 +62,13 @@ impl WalkState<'_, '_> {
                     dir::SymbolSpace::Value,
                     &guard,
                 ) {
-                    self.check.select_name(source, symbol);
+                    self.check
+                        .inference
+                        .select_name(source, dir::NameResolution::new(symbol))?;
                 }
             }
 
-            // select qualified decorator target
+            // bind qualified decorator target
             dir::Expression::QualifiedReference { path, .. } => {
                 if let Some(symbol) = self.check.symbol_by_path_under(
                     self.module,
@@ -72,12 +77,16 @@ impl WalkState<'_, '_> {
                     dir::SymbolSpace::Value,
                     &guard,
                 ) {
-                    self.check.select_name(source, symbol);
+                    self.check
+                        .inference
+                        .select_name(source, dir::NameResolution::new(symbol))?;
                 }
             }
 
             // leave non-reference decorator targets unresolved
             _ => {}
         }
+
+        Ok(())
     }
 }

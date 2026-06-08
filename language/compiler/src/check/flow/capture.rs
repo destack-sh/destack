@@ -1,38 +1,41 @@
 use destack_dir as dir;
 
-use crate::check::{ReceiverCapture, ReceiverResolution, WalkState};
+use crate::CompilerResult;
+use crate::check::{Receiver, ReceiverBinding, ReceiverResolution, WalkState};
 
 impl WalkState<'_, '_> {
     /// Resolve `this` at the current walk point.
     pub(in crate::check) fn resolve_this_receiver(
         &mut self,
         source: dir::GlobalNodeIdAny,
-    ) -> Option<ReceiverCapture> {
+    ) -> CompilerResult<Option<Receiver>> {
         // prefer receiver from an active function frame
         if let Some((index, receiver)) = self.flow().lexical_receiver() {
             let is_current = self.flow().is_current_function(index);
 
             // select local receiver directly
             if is_current {
-                self.select_this_receiver(source, receiver);
+                self.select_this_receiver_binding(source, receiver)?;
             }
             // capture receiver from an outer function
             else {
                 self.flow_mut().capture_receiver(receiver);
-                self.check.select_name(source, receiver.symbol);
+                let resolution = dir::NameResolution::new(receiver.symbol);
+
+                self.check.inference.select_name(source, resolution)?;
             }
 
-            return Some(receiver);
+            return Ok(Some(receiver.receiver));
         }
 
         // fall back to contextual receiver outside function bodies
         if let Some(receiver) = self.flow().current_receiver() {
-            self.select_this_receiver(source, receiver);
+            self.select_this_receiver(source, receiver)?;
 
-            return Some(receiver);
+            return Ok(Some(receiver));
         }
 
-        None
+        Ok(None)
     }
 
     /// Capture one lexical value reference when required.
@@ -108,12 +111,35 @@ impl WalkState<'_, '_> {
     }
 
     /// Select the contextual receiver for one `this` expression.
-    fn select_this_receiver(&mut self, source: dir::GlobalNodeIdAny, receiver: ReceiverCapture) {
+    fn select_this_receiver_binding(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        receiver: ReceiverBinding,
+    ) -> CompilerResult<()> {
         // select bare receiver symbols directly
-        let Some(owner) = receiver.owner else {
-            self.check.select_name(source, receiver.symbol);
+        let Some(owner) = receiver.receiver.owner else {
+            let resolution = dir::NameResolution::new(receiver.symbol);
 
-            return;
+            return self.check.inference.select_name(source, resolution);
+        };
+
+        self.select_this_receiver(
+            source,
+            Receiver {
+                owner: Some(owner),
+                ty: receiver.receiver.ty,
+            },
+        )
+    }
+
+    /// Select the contextual receiver type for one `this` expression.
+    fn select_this_receiver(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        receiver: Receiver,
+    ) -> CompilerResult<()> {
+        let Some(owner) = receiver.owner else {
+            return Ok(());
         };
 
         // select receiver with owner metadata
@@ -124,6 +150,6 @@ impl WalkState<'_, '_> {
             ty: receiver.ty,
         };
 
-        self.check.select_receiver(resolution);
+        self.check.inference.select_receiver(resolution)
     }
 }

@@ -1,9 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::check::{FlowPath, PatternRelation, TypeOperand, WalkState};
-
-use super::expression::ConditionBranch;
+use crate::check::{ConditionBranch, FlowPath, PatternRelation, TypeOperand, WalkState};
 
 impl WalkState<'_, '_> {
     /// Walk one match case.
@@ -55,7 +53,7 @@ impl WalkState<'_, '_> {
                 // walk pattern and constrain it against the matched value
                 self.walk_pattern(*pattern, self.tree.get(*pattern))?;
 
-                let term = self.lower_pattern_term(self.module, *pattern)?;
+                let term = self.pattern_term(self.module, *pattern)?;
 
                 if let (Some((value, path)), Some(term)) = (value, term) {
                     let condition = self.active_static_guard();
@@ -80,7 +78,7 @@ impl WalkState<'_, '_> {
                 if let Some(guard) = guard {
                     self.walk_expression(*guard, self.tree.get(*guard))?;
 
-                    let variable = self.allocate_node_type_operand(*guard)?;
+                    let variable = self.node_type_operand(*guard)?;
                     let condition = self.active_static_guard();
 
                     self.check.constrain_condition(

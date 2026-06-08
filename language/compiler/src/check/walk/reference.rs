@@ -3,8 +3,9 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    Condition, GenericArgument, GenericParameterId, NameLookup, Obligation, Origin, PathLookup,
-    ReceiverTerm, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, WalkState,
+    Condition, GenericArgument, GenericInduction, GenericInductionParameter, NameLookup,
+    Obligation, Origin, PathLookup, ReceiverTerm, TypeOperand, TypeOperationTerm, TypeRelation,
+    TypeTerm, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -31,8 +32,7 @@ impl WalkState<'_, '_> {
         };
         let source = id.into_global_any(self.module);
 
-        self.select_value_reference(source, symbol);
-        self.check_value_read_assigned(source, id.into_any(), symbol);
+        self.bind_value_read(source, id.into_any(), symbol)?;
 
         Ok(Some(self.walk_value_reference_operand(id, symbol, &[])?))
     }
@@ -61,8 +61,7 @@ impl WalkState<'_, '_> {
         };
         let source = id.into_global_any(self.module);
 
-        self.select_value_reference(source, symbol);
-        self.check_value_read_assigned(source, id.into_any(), symbol);
+        self.bind_value_read(source, id.into_any(), symbol)?;
 
         Ok(Some(self.walk_value_reference_operand(
             id,
@@ -109,8 +108,7 @@ impl WalkState<'_, '_> {
                 let source = id.into_global_any(self.module);
                 let operand = self.walk_value_reference_operand(id, symbol, &[])?;
 
-                self.select_value_reference(source, symbol);
-                self.check_value_read_assigned(source, id.into_any(), symbol);
+                self.bind_value_read(source, id.into_any(), symbol)?;
                 self.bind_node_type_operand(id, operand)?;
             }
             // report missing namespace member
@@ -197,8 +195,7 @@ impl WalkState<'_, '_> {
                 }
                 let operand = self.walk_value_reference_operand(id, symbol, generic_arguments)?;
 
-                self.select_value_reference(source, symbol);
-                self.check_value_read_assigned(source, id.into_any(), symbol);
+                self.bind_value_read(source, id.into_any(), symbol)?;
                 self.bind_node_type_operand(id, operand)?;
 
                 Ok(Some(operand))
@@ -254,19 +251,25 @@ impl WalkState<'_, '_> {
             }
         };
 
-        self.check.select_name(source, symbol);
+        self.check
+            .inference
+            .select_name(source, dir::NameResolution::new(symbol))?;
 
-        // lower bare type parameter receiver
-        let term = if generic_arguments.is_empty()
-            && let Some(slot) = self.generic_type_parameter(symbol)
-        {
-            TypeTerm::Parameter(slot)
-        }
-        // lower selected type receiver
-        else {
+        let parameter = self.check.inference.symbol_generic_parameter(symbol);
+        let is_type_parameter =
+            self.check.symbol_kind(symbol) == dir::SymbolKind::GenericTypeParameter;
+
+        // return bare type parameter receiver
+        let term = if generic_arguments.is_empty() && is_type_parameter {
+            let Some(parameter) = parameter else {
+                return Ok(None);
+            };
+
+            TypeTerm::Parameter(parameter)
+        } else {
             let arguments = self.walk_generic_arguments(generic_arguments)?;
 
-            self.lower_type_symbol_reference_term(source, symbol, arguments)
+            self.type_symbol_reference_term(source, symbol, arguments)
         };
 
         Ok(Some(self.bind_node_type(id, term)?))
@@ -293,6 +296,7 @@ impl WalkState<'_, '_> {
         // instantiate explicit generic references
         else {
             let arguments = self.walk_generic_arguments(generic_arguments)?;
+
             self.check
                 .inference
                 .push_term(TypeTerm::Reference {
@@ -321,7 +325,7 @@ impl WalkState<'_, '_> {
             return Ok(narrowed);
         }
 
-        self.allocate_symbol_type_operand(symbol)
+        self.symbol_type_operand(symbol)
     }
 
     /// Bind one reference type expression and return its type term.
@@ -339,9 +343,12 @@ impl WalkState<'_, '_> {
         let source = id.into_global_any(self.module);
 
         // bind bare static parameter
-        let term = if generic_arguments.is_empty()
-            && let Some(term) = self.bind_bare_static_parameter_term(id, path)
-        {
+        let bare_static_parameter = if generic_arguments.is_empty() {
+            self.bind_bare_static_parameter_term(id, path)?
+        } else {
+            None
+        };
+        let term = if let Some(term) = bare_static_parameter {
             term
         }
         // bind type symbol reference
@@ -356,30 +363,38 @@ impl WalkState<'_, '_> {
             ) else {
                 return Ok(None);
             };
-            self.check.select_name(source, symbol);
+            self.check
+                .inference
+                .select_name(source, dir::NameResolution::new(symbol))?;
 
-            // lower bare type parameter
-            if generic_arguments.is_empty()
-                && let Some(slot) = self.generic_type_parameter(symbol)
-            {
-                TypeTerm::Parameter(slot)
+            let parameter = self.check.inference.symbol_generic_parameter(symbol);
+            let is_type_parameter =
+                self.check.symbol_kind(symbol) == dir::SymbolKind::GenericTypeParameter;
+
+            // return bare type parameter
+            if generic_arguments.is_empty() && is_type_parameter {
+                let Some(parameter) = parameter else {
+                    return Ok(None);
+                };
+
+                TypeTerm::Parameter(parameter)
             } else {
                 let arguments = self.walk_generic_arguments(generic_arguments)?;
 
-                self.lower_type_symbol_reference_term(source, symbol, arguments)
+                self.type_symbol_reference_term(source, symbol, arguments)
             }
         };
 
         Ok(Some(term))
     }
 
-    /// Lower the term for one selected type symbol reference.
+    /// Return the term for one selected type symbol reference.
     ///
     /// Example:
     /// ```ds
     /// Box<T>
     /// ```
-    fn lower_type_symbol_reference_term(
+    fn type_symbol_reference_term(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
@@ -390,22 +405,19 @@ impl WalkState<'_, '_> {
             self.constrain_language_item_type_reference(source, item, &arguments);
         }
 
-        // lower language item reference
-        let term = if let Some(item) = item
-            && let Some(term) = self.lower_language_item_type_term(item, &arguments)
+        // return language item reference
+        if let Some(item) = item
+            && let Some(term) = self.language_item_type_term(item, &arguments)
         {
-            term
+            return term;
         }
-        // return reference term
-        else {
-            TypeTerm::Reference {
-                origin: Origin::Node(source),
-                symbol,
-                arguments: arguments.into_vec(),
-            }
-        };
 
-        term
+        // return nominal or structural reference term
+        TypeTerm::Reference {
+            origin: Origin::Node(source),
+            symbol,
+            arguments: arguments.into_vec(),
+        }
     }
 
     /// Return an inducible variable for one transparent storage constraint.
@@ -427,12 +439,16 @@ impl WalkState<'_, '_> {
             .check
             .create_type_variable(source.module_id, Origin::Node(source));
 
-        self.check.induce_type_generic(
+        let induction = GenericInduction::new(
             variable,
-            "T",
-            Some(operand),
-            dir::GenericParameterInduction::Constraint,
+            GenericInductionParameter::r#type(
+                "T",
+                Some(operand),
+                dir::GenericParameterInduction::Constraint,
+            ),
         );
+
+        self.check.inference.insert_generic_induction(induction);
         self.check.relate_type(
             Origin::Node(source),
             TypeRelation::Assignable,
@@ -486,18 +502,18 @@ impl WalkState<'_, '_> {
         )
     }
 
-    /// Lower one language item type term.
+    /// Return one language item type term.
     ///
     /// Example:
     /// ```ds
     /// LifetimeOf<T>
     /// ```
-    fn lower_language_item_type_term(
+    fn language_item_type_term(
         &mut self,
         item: dir::LanguageItem,
         arguments: &[GenericArgument],
     ) -> Option<TypeTerm> {
-        // lower memory intrinsic
+        // build memory intrinsic
         if Self::is_memory_type_intrinsic(item) {
             let operation = self
                 .check
@@ -525,7 +541,7 @@ impl WalkState<'_, '_> {
         item: dir::LanguageItem,
         arguments: &[GenericArgument],
     ) {
-        let Some(constraint) = lower_dynamic_safe_constraint(item, arguments) else {
+        let Some(constraint) = dynamic_safe_constraint(item, arguments) else {
             return;
         };
         let condition = self.active_static_guard();
@@ -547,9 +563,9 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
         path: &dir::Path,
-    ) -> Option<TypeTerm> {
+    ) -> CompilerResult<Option<TypeTerm>> {
         let [name] = path.segments.as_slice() else {
-            return None;
+            return Ok(None);
         };
 
         let guard = self.active_static_guard();
@@ -558,98 +574,115 @@ impl WalkState<'_, '_> {
             .lookup_name_by_name(self.module, id.into_any(), *name, dir::SymbolSpace::Value)
             .available_under(&guard);
         let symbol = match lookup {
-            NameLookup::Found(candidate) => candidate.symbol()?,
-            NameLookup::Missing => return None,
+            NameLookup::Found(candidate) => {
+                let Some(symbol) = candidate.symbol() else {
+                    return Ok(None);
+                };
+
+                symbol
+            }
+            NameLookup::Missing => return Ok(None),
             NameLookup::Ambiguous(_) => {
                 self.check
                     .report_ambiguous_reference(self.module, id.into_any(), path);
 
-                return None;
+                return Ok(None);
             }
         };
 
         if self.check.symbol_kind(symbol) != dir::SymbolKind::GenericValueParameter {
-            return None;
+            return Ok(None);
         }
 
         let source = id.into_global_any(self.module);
-        self.check.select_name(source, symbol);
+        self.check
+            .inference
+            .select_name(source, dir::NameResolution::new(symbol))?;
 
-        let parameter_id = self.check.inference.symbol_generic_parameter(symbol)?;
+        let Some(parameter_id) = self.check.inference.symbol_generic_parameter(symbol) else {
+            return Ok(None);
+        };
 
-        Some(TypeTerm::Parameter(parameter_id))
+        Ok(Some(TypeTerm::Parameter(parameter_id)))
     }
 
-    /// Return the generic slot for one type parameter symbol.
-    ///
-    /// Example:
-    /// ```ds
-    /// T
-    /// ```
-    fn generic_type_parameter(&self, symbol: dir::GlobalSymbolId) -> Option<GenericParameterId> {
-        if self.check.symbol_kind(symbol) != dir::SymbolKind::GenericTypeParameter {
-            return None;
-        }
-
-        self.check.inference.symbol_generic_parameter(symbol)
-    }
-
-    /// Lower the contextual receiver type term.
+    /// Return the contextual receiver type term.
     ///
     /// Example:
     /// ```ds
     /// this
     /// ```
-    pub(in crate::check) fn lower_this_receiver_type_term(
+    pub(in crate::check) fn this_receiver_type_term(
         &mut self,
         source: dir::GlobalNodeIdAny,
-    ) -> Option<TypeTerm> {
-        let receiver = self.resolve_this_receiver(source)?;
+    ) -> CompilerResult<Option<TypeTerm>> {
+        let Some(receiver) = self.resolve_this_receiver(source)? else {
+            return Ok(None);
+        };
         let receiver = self.check.inference.push_term(ReceiverTerm {
             source,
             kind: dir::ReceiverKind::This,
             ty: receiver.ty,
         });
 
-        Some(TypeTerm::Receiver(receiver))
+        Ok(Some(TypeTerm::Receiver(receiver)))
     }
 
-    /// Select one resolved value reference.
+    /// Bind one resolved value name.
     ///
     /// Example:
     /// ```ds
     /// value
     /// ```
-    pub(in crate::check) fn select_value_reference(
+    pub(in crate::check) fn bind_value_reference(
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) {
-        self.capture_symbol_reference(symbol);
-        self.check.select_name(source, symbol);
+    ) -> CompilerResult<()> {
+        self.check
+            .inference
+            .select_name(source, dir::NameResolution::new(symbol))
     }
 
-    /// Check one value read against definite assignment flow.
-    pub(in crate::check) fn check_value_read_assigned(
+    /// Bind one resolved value read.
+    ///
+    /// Example:
+    /// ```ds
+    /// value
+    /// ```
+    fn bind_value_read(
         &mut self,
         source: dir::GlobalNodeIdAny,
         anchor: dir::LocalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) {
-        if symbol.module_id != source.module_id {
-            return;
-        }
-        let bindings = self.check.module(symbol.module_id).binding_table();
-        let binding = bindings.get_symbol(symbol.local_id);
-        if binding.binding_mutability.is_none() {
-            return;
-        }
-        if self.flow().is_assigned(symbol) {
-            return;
+    ) -> CompilerResult<()> {
+        self.capture_symbol_reference(symbol);
+        self.bind_value_reference(source, symbol)?;
+
+        // validate active module bindings
+        if symbol.module_id == source.module_id {
+            self.check_local_binding_read_assigned(anchor, symbol);
         }
 
-        self.check
-            .report_use_before_assigned(source.module_id, anchor);
+        Ok(())
+    }
+
+    /// Report one local binding read that is not definitely assigned.
+    fn check_local_binding_read_assigned(
+        &mut self,
+        anchor: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) {
+        // read local binding metadata
+        let bindings = self.check.module(symbol.module_id).binding_table();
+        let binding = bindings.get_symbol(symbol.local_id);
+
+        // report local bindings that have not been definitely assigned
+        let is_local_binding = binding.binding_mutability.is_some();
+        if is_local_binding && !self.flow().is_assigned(symbol) {
+            self.check
+                .report_use_before_assigned(symbol.module_id, anchor);
+        }
     }
 }
 
@@ -659,7 +692,7 @@ impl WalkState<'_, '_> {
 /// ```ds
 /// Dynamic<T>
 /// ```
-fn lower_dynamic_safe_constraint(
+fn dynamic_safe_constraint(
     item: dir::LanguageItem,
     arguments: &[GenericArgument],
 ) -> Option<TypeOperand> {

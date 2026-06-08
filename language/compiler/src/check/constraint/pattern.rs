@@ -1,8 +1,10 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use smallvec::SmallVec;
 
 use crate::check::{
     AssignPatternTerm, CheckState, Condition, Constraint, Origin, PatternTerm, TermId, TypeOperand,
+    VariableId,
 };
 
 /// Relation between a value type and a pattern.
@@ -28,6 +30,19 @@ pub(in crate::check) enum PatternRelation {
     /// const { name } = user
     /// ```
     Assign(TermId<AssignPatternTerm>),
+}
+
+impl PatternRelation {
+    /// Return variables referenced by this pattern relation.
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
+        match self {
+            Self::Match(pattern) => state.inference.term(*pattern).referenced_variables(state),
+            Self::Assign(pattern) => state.inference.term(*pattern).referenced_variables(state),
+        }
+    }
 }
 
 impl CheckState<'_> {

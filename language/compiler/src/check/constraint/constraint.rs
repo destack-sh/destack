@@ -1,6 +1,29 @@
+use smallvec::SmallVec;
+
 use super::{PatternRelation, StaticRelation};
 
-use crate::check::{CheckState, Condition, Origin, StaticOperand, TypeOperand, TypeRelation};
+use crate::check::{
+    CheckState, Condition, Origin, StaticOperand, TypeOperand, TypeRelation, VariableId,
+};
+
+/// Component-valid id for one check constraint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(in crate::check) struct ConstraintId {
+    /// The constraint index inside the checked component.
+    pub(in crate::check) index: u32,
+}
+
+impl ConstraintId {
+    /// Create one constraint id.
+    pub(in crate::check) fn new(index: u32) -> Self {
+        Self { index }
+    }
+
+    /// Return the constraint index.
+    pub(in crate::check) fn index(self) -> usize {
+        self.index as usize
+    }
+}
 
 /// One check constraint.
 #[derive(Debug, Clone, PartialEq)]
@@ -65,11 +88,42 @@ impl Constraint {
             | Self::Pattern { condition, .. } => condition.clone(),
         }
     }
+
+    /// Return variables referenced by this constraint.
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 4]> {
+        let mut variables = SmallVec::new();
+
+        variables.extend(self.condition().referenced_variables(state));
+
+        match self {
+            Self::Type { left, right, .. } => {
+                variables.extend(left.referenced_variables(state));
+                variables.extend(right.referenced_variables(state));
+            }
+            Self::Static { left, right, .. } => {
+                variables.extend(left.referenced_variables(state));
+                variables.extend(right.referenced_variables(state));
+            }
+            Self::Pattern {
+                relation, value, ..
+            } => {
+                variables.extend(value.referenced_variables(state));
+                variables.extend(relation.referenced_variables(state));
+            }
+        }
+
+        variables
+    }
 }
 
 impl CheckState<'_> {
     /// Store one solver constraint.
     pub(super) fn push_constraint(&mut self, constraint: Constraint) {
-        self.inference.push_constraint(constraint);
+        let variables = constraint.referenced_variables(self);
+
+        self.inference.push_constraint(constraint, variables);
     }
 }

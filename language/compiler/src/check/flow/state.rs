@@ -2,8 +2,8 @@ use destack_dir as dir;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{
-    Capture, Condition, ControlTarget, FlowPath, FunctionFrame, ReceiverCapture, TryTarget,
-    TypeOperand, VariableId,
+    Capture, Condition, ControlTarget, FlowPath, FunctionFrame, Receiver, ReceiverBinding,
+    TryTarget, TypeOperand, VariableId,
 };
 
 /// Flow state while walking one module.
@@ -14,7 +14,7 @@ pub(in crate::check) struct FlowState {
     /// Static guards currently guarding walked work.
     pub(in crate::check::flow) guards: Vec<Condition>,
     /// Contextual receivers currently visible outside function bodies.
-    pub(in crate::check::flow) receivers: Vec<ReceiverCapture>,
+    pub(in crate::check::flow) receivers: Vec<Receiver>,
     /// Control targets currently visible to `break` and `continue`.
     pub(in crate::check::flow) targets: Vec<ControlTarget>,
     /// Try targets currently visible to `?`.
@@ -144,7 +144,7 @@ impl FlowState {
     }
 
     /// Enter one contextual receiver.
-    pub(in crate::check) fn push_receiver(&mut self, receiver: ReceiverCapture) {
+    pub(in crate::check) fn push_receiver(&mut self, receiver: Receiver) {
         self.receivers.push(receiver);
     }
 
@@ -156,7 +156,7 @@ impl FlowState {
     }
 
     /// Return the current contextual receiver.
-    pub(in crate::check) fn current_receiver(&self) -> Option<ReceiverCapture> {
+    pub(in crate::check) fn current_receiver(&self) -> Option<Receiver> {
         self.receivers.last().copied()
     }
 
@@ -271,9 +271,7 @@ impl FlowState {
     /// Take continue branches collected by the current control target.
     pub(in crate::check) fn take_continue_branches(&mut self) -> Vec<FlowBranch> {
         let Some(target) = self.targets.last_mut() else {
-            unreachable!(
-                "internal invariant: continue branch collection requires an active control target"
-            );
+            unreachable!("continue branch collection requires an active control target");
         };
 
         std::mem::take(&mut target.continue_branches)
@@ -289,7 +287,7 @@ impl FlowState {
     }
 
     /// Capture one receiver in the current function body.
-    pub(in crate::check) fn capture_receiver(&mut self, receiver: ReceiverCapture) {
+    pub(in crate::check) fn capture_receiver(&mut self, receiver: ReceiverBinding) {
         let Some(function) = self.functions.last_mut() else {
             unreachable!("receiver capture requires an active function");
         };
@@ -298,7 +296,7 @@ impl FlowState {
     }
 
     /// Return the lexical receiver visible to the current function.
-    pub(in crate::check) fn lexical_receiver(&self) -> Option<(usize, ReceiverCapture)> {
+    pub(in crate::check) fn lexical_receiver(&self) -> Option<(usize, ReceiverBinding)> {
         self.functions
             .iter()
             .enumerate()

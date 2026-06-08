@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 
 use crate::check::{CheckState, DecoratorInvocation};
 
-/// Static `@if` decorator attached to one owner node.
+/// Static `@if` decorator attached to one decorated node.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::check) struct StaticIfDecorator {
     /// The decorator node.

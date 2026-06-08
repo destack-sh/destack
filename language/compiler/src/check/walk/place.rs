@@ -49,20 +49,20 @@ impl WalkState<'_, '_> {
         }
 
         // place
-        if let Some(place) = self.lower_place(id)? {
+        if let Some(place) = self.place_term(id)? {
             self.bind_node_type_operand(id, place.ty)?;
         }
 
         Ok(())
     }
 
-    /// Lower one writable place from an expression.
+    /// Return one writable place from an expression.
     ///
     /// Example:
     /// ```ds
     /// value[index]
     /// ```
-    pub(in crate::check) fn lower_place(
+    pub(in crate::check) fn place_term(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<Place>> {
@@ -82,8 +82,9 @@ impl WalkState<'_, '_> {
                     return Ok(None);
                 };
 
-                self.select_value_reference(source, symbol);
-                let ty = self.allocate_symbol_type_operand(symbol)?;
+                self.capture_symbol_reference(symbol);
+                self.bind_value_reference(source, symbol)?;
+                let ty = self.symbol_type_operand(symbol)?;
 
                 (ty, PlaceTarget::Binding { symbol })
             }
@@ -100,8 +101,9 @@ impl WalkState<'_, '_> {
                     return Ok(None);
                 };
 
-                self.select_value_reference(source, symbol);
-                let ty = self.allocate_symbol_type_operand(symbol)?;
+                self.capture_symbol_reference(symbol);
+                self.bind_value_reference(source, symbol)?;
+                let ty = self.symbol_type_operand(symbol)?;
 
                 (ty, PlaceTarget::Binding { symbol })
             }
@@ -115,7 +117,7 @@ impl WalkState<'_, '_> {
                 left,
                 name: Some(name),
             } => {
-                let owner = self.allocate_node_type_operand(*left)?;
+                let owner = self.node_type_operand(*left)?;
                 let key = dir::StaticKey::Name(*name);
                 let member = self.check.inference.push_term(MemberTerm {
                     origin: Origin::Node(source),
@@ -134,8 +136,8 @@ impl WalkState<'_, '_> {
                 ..
             } => {
                 let index_node = *index;
-                let receiver = self.allocate_node_type_operand(*left)?;
-                let index = self.allocate_node_type_operand(index_node)?;
+                let receiver = self.node_type_operand(*left)?;
+                let index = self.node_type_operand(index_node)?;
                 let kind = if matches!(self.tree.get(index_node), dir::Expression::RangeExpression { .. }) {
                     IndexKind::Slice
                 } else {
@@ -157,7 +159,7 @@ impl WalkState<'_, '_> {
                 operator: dir::UnaryOperator::Dereference,
                 right,
             } => {
-                let ty = self.allocate_node_type_operand(*right)?;
+                let ty = self.node_type_operand(*right)?;
 
                 (ty.into(), PlaceTarget::Dereference)
             }

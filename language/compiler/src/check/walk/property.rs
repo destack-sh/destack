@@ -1,21 +1,51 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
+use std::ptr::NonNull;
 
 use crate::CompilerResult;
-use crate::check::{Origin, ReceiverCapture, TypeOperand, TypeRelation, TypeTerm, WalkState};
+use crate::check::{
+    GenericInductionSource, Origin, Receiver, ReceiverBinding, TypeOperand, TypeRelation, TypeTerm,
+    WalkState,
+};
 
-/// Receiver type available to instance members of one declaration.
-#[derive(Debug, Clone, Copy)]
-pub(in crate::check) struct MemberReceiverContext {
-    /// The module that owns the member declaration.
-    pub(in crate::check) module: ModuleId,
-    /// The nominal declaration that introduces the receiver, when any.
-    pub(in crate::check) owner: Option<dir::GlobalSymbolId>,
-    /// The receiver type.
-    pub(in crate::check) ty: TypeOperand,
+/// One active receiver scope.
+pub(in crate::check) struct ReceiverGuard {
+    /// The guarded flow state.
+    flow: NonNull<crate::check::FlowState>,
+}
+
+impl ReceiverGuard {
+    /// Return one active receiver scope.
+    fn new(flow: &mut crate::check::FlowState) -> Self {
+        Self {
+            flow: NonNull::from(flow),
+        }
+    }
+}
+
+impl Drop for ReceiverGuard {
+    fn drop(&mut self) {
+        // pop the receiver owned by this scope
+        unsafe {
+            self.flow.as_mut().pop_receiver();
+        }
+    }
 }
 
 impl WalkState<'_, '_> {
+    /// Enter one contextual receiver scope.
+    pub(in crate::check) fn enter_receiver_maybe(
+        &mut self,
+        receiver: Option<Receiver>,
+    ) -> Option<ReceiverGuard> {
+        if let Some(receiver) = receiver {
+            self.flow_mut().push_receiver(receiver);
+            Some(ReceiverGuard::new(self.flow_mut()))
+        } else {
+            None
+        }
+    }
+
     /// Walk one property.
     ///
     /// Example:
@@ -27,7 +57,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Property>,
         property: &dir::Property,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -54,27 +84,23 @@ impl WalkState<'_, '_> {
                     }
                 }
 
-                // walk signature before reading its term inputs
-                self.walk_function_signature(signature)?;
-
                 let symbol = self
                     .check
                     .module(self.module)
                     .declaration_symbol(id.into_any());
-                let result = self.allocate_function_result_operand(
-                    self.module,
-                    id.into_any(),
-                    signature,
-                    *body,
-                )?;
+
+                // walk signature before reading its term inputs
+                let source = id.into_global_any(self.module);
+                let template = self.signature_template(source, None, symbol, signature);
+
+                self.walk_function_signature(template, signature)?;
+                let result =
+                    self.function_result_operand(self.module, id.into_any(), signature, *body)?;
 
                 // commit method property symbol type
                 if let Some(symbol) = symbol {
-                    let term = self.lower_function_signature_term(
-                        signature,
-                        None,
-                        result.map(Into::into),
-                    )?;
+                    let term =
+                        self.function_signature_term(signature, None, result.map(Into::into))?;
                     let condition = self.active_static_guard();
 
                     self.bind_symbol_type(symbol, TypeTerm::Function(term), condition)?;
@@ -106,10 +132,9 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Member>,
         member: &dir::Member,
-        receiver_context: Option<MemberReceiverContext>,
+        receiver_scope: Option<Receiver>,
     ) -> CompilerResult<()> {
-        let static_receiver = self.member_static_guard_receiver(id, receiver_context);
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), static_receiver)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), receiver_scope)? else {
             return Ok(());
         };
 
@@ -122,12 +147,27 @@ impl WalkState<'_, '_> {
                 value,
                 ..
             } => {
+                let symbol = self
+                    .check
+                    .module(self.module)
+                    .declaration_symbol(id.into_any());
+
                 // walk generic parameters
-                for generic_parameter in generic_parameters {
-                    self.walk_generic_parameter(
-                        *generic_parameter,
-                        self.tree.get(*generic_parameter),
-                    )?;
+                if let Some(symbol) = symbol {
+                    let parent = receiver_scope
+                        .and_then(|receiver| receiver.owner)
+                        .and_then(|symbol| self.check.inference.symbol_generic_template(symbol));
+                    let source = id.into_global_any(self.module);
+                    let template = (!generic_parameters.is_empty())
+                        .then(|| self.check.declare_generic_template(source, parent, Some(symbol)));
+
+                    for generic_parameter in generic_parameters {
+                        self.walk_generic_parameter(
+                            template.unwrap(),
+                            *generic_parameter,
+                            self.tree.get(*generic_parameter),
+                        )?;
+                    }
                 }
 
                 // walk where clauses
@@ -147,9 +187,9 @@ impl WalkState<'_, '_> {
 
                 // commit associated type value
                 if let Some(value) = value
-                    && let Some(symbol) = self.check.module(self.module).declaration_symbol(id.into_any())
+                    && let Some(symbol) = symbol
                 {
-                    let value = self.allocate_node_type_operand(*value)?;
+                    let value = self.node_type_operand(*value)?;
                     let condition = self.active_static_guard();
 
                     self.bind_symbol_type_operand(symbol, value, condition)?;
@@ -179,7 +219,7 @@ impl WalkState<'_, '_> {
                     // associated const type lives in type space
                     if let Some(declared_type) = declared_type {
                         let declared_type =
-                            self.allocate_node_type_operand(*declared_type)?;
+                            self.node_type_operand(*declared_type)?;
                         let condition = self.active_static_guard();
 
                         self.bind_symbol_type_operand(
@@ -191,10 +231,10 @@ impl WalkState<'_, '_> {
 
                     // associated const value lives in static space
                     if let Some(value) = value {
-                        let variable = self.allocate_symbol_static_variable(symbol)?;
+                        let variable = self.symbol_static_variable(symbol)?;
                         let condition = self.active_static_guard();
                         let value =
-                            self.allocate_static_expression_variable(*value, condition.clone())?;
+                            self.static_expression_variable(*value, condition.clone())?;
                         let origin = self.check.variable(variable).source;
                         self.check.equate_static(origin, variable, value, condition);
                     }
@@ -236,14 +276,18 @@ impl WalkState<'_, '_> {
                         self.check.module(self.module).declaration_symbol(id.into_any())
                 {
                     let declared_type =
-                        self.allocate_node_type_operand(*declared_type)?;
+                        self.node_type_operand(*declared_type)?;
                     let condition = self.active_static_guard();
                     let source = id.into_global_any(self.module);
                     let declared_type =
                         self.induce_transparent_type_operand(source, declared_type, condition.clone());
 
-                    if let Some(owner) = receiver_context.and_then(|receiver| receiver.owner) {
-                        self.check.push_generic_induction_root(owner, declared_type);
+                    if let Some(owner) = receiver_scope.and_then(|receiver| receiver.owner) {
+                        let parent = self.check.inference.symbol_generic_template(owner);
+
+                        self.check.inference.add_generic_induction_source(
+                            GenericInductionSource::symbol(source, parent, symbol, declared_type),
+                        );
                     }
 
                     self.bind_symbol_type_operand(symbol, declared_type, condition)?;
@@ -252,9 +296,9 @@ impl WalkState<'_, '_> {
                 // defaults must fit the declared field type
                 if let (Some(declared_type), Some(default)) = (declared_type, default) {
                     let origin = Origin::Node((*default).into_global_any(self.module));
-                    let value = self.allocate_node_type_operand(*default)?;
+                    let value = self.node_type_operand(*default)?;
                     let declared_type =
-                        self.allocate_node_type_operand(*declared_type)?;
+                        self.node_type_operand(*declared_type)?;
                     let condition = self.active_static_guard();
 
                     self.check.relate_type(
@@ -285,11 +329,16 @@ impl WalkState<'_, '_> {
 
                 let symbol = self.check.module(self.module).declaration_symbol(id.into_any());
 
+                let owner = receiver_scope.and_then(|scope| scope.owner);
+                let parent = owner.and_then(|symbol| self.check.inference.symbol_generic_template(symbol));
+                let source = id.into_global_any(self.module);
+                let template = self.signature_template(source, parent, symbol, signature);
+
                 // walk signature before reading its term inputs
-                self.walk_function_signature(signature)?;
-                let receiver =
-                    self.bind_member_receiver(id, signature, *is_static, receiver_context)?;
-                let result = self.allocate_method_result_operand(
+                self.walk_function_signature(template, signature)?;
+                let implicit_receiver_scope = if *is_static { None } else { receiver_scope };
+                let receiver = self.bind_method_receiver(id, signature, owner, implicit_receiver_scope)?;
+                let result = self.method_result_operand(
                     self.module,
                     id,
                     signature,
@@ -299,21 +348,20 @@ impl WalkState<'_, '_> {
 
                 // bind method symbol type
                 if let Some(symbol) = symbol {
-                    let term = self.lower_function_signature_term(
+                    let term = self.function_signature_term(
                         signature,
                         receiver
                             .filter(|_| Self::is_receiver_visible_in_method_type(signature))
-                            .map(|receiver| receiver.ty),
+                            .map(|receiver| receiver.receiver.ty),
                         result.map(Into::into),
                     )?;
                     let condition = self.active_static_guard();
 
                     let operand = self.check.inference.push_term(TypeTerm::Function(term)).into();
 
-                    if let Some(receiver) = receiver {
-                        self.check.push_generic_induction_root(symbol, receiver.ty);
-                    }
-                    self.check.push_generic_induction_root(symbol, operand);
+                    self.check
+                        .inference
+                        .add_generic_induction_source(GenericInductionSource::symbol(source, parent, symbol, operand));
                     self.bind_symbol_type_operand(symbol, operand, condition)?;
                 }
 
@@ -339,40 +387,19 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Return the receiver visible to decorators on one member.
-    fn member_static_guard_receiver(
-        &self,
-        id: dir::LocalNodeId<dir::Member>,
-        receiver_context: Option<MemberReceiverContext>,
-    ) -> Option<ReceiverCapture> {
-        let context = receiver_context?;
-        let symbol = self
-            .check
-            .module(context.module)
-            .implicit_receiver_symbol(id.into_any())?;
-
-        Some(ReceiverCapture {
-            symbol,
-            owner: context.owner,
-            ty: context.ty,
-        })
-    }
-
     /// Bind the lexical receiver visible inside one method body.
     ///
     /// Example:
     /// ```ds
     /// method(this: Box): number { this.value }
     /// ```
-    fn bind_member_receiver(
+    fn bind_method_receiver(
         &mut self,
         id: dir::LocalNodeId<dir::Member>,
         signature: &dir::FunctionSignature,
-        is_static: bool,
-        receiver_context: Option<MemberReceiverContext>,
-    ) -> CompilerResult<Option<ReceiverCapture>> {
-        let owner = receiver_context.and_then(|context| context.owner);
-
+        owner: Option<dir::GlobalSymbolId>,
+        implicit_receiver_scope: Option<Receiver>,
+    ) -> CompilerResult<Option<ReceiverBinding>> {
         // bind explicit `this` parameters before implicit receivers
         if let Some(parameter) = signature.this_parameter {
             let receiver = self.bind_this_parameter_receiver(parameter, owner)?;
@@ -380,13 +407,8 @@ impl WalkState<'_, '_> {
             return Ok(Some(receiver));
         }
 
-        // skip implicit receiver for static methods
-        if is_static {
-            return Ok(None);
-        }
-
         // bind the implicit instance receiver
-        let Some(context) = receiver_context else {
+        let Some(scope) = implicit_receiver_scope else {
             return Ok(None);
         };
         let Some(symbol) = self
@@ -407,10 +429,9 @@ impl WalkState<'_, '_> {
                 .report_implicit_receiver(self.module, id.into_any());
         }
 
-        Ok(Some(ReceiverCapture {
+        Ok(Some(ReceiverBinding {
             symbol,
-            owner: context.owner,
-            ty: context.ty,
+            receiver: scope,
         }))
     }
 
@@ -428,23 +449,23 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// method(): number { 1 }
     /// ```
-    fn allocate_method_result_operand(
+    fn method_result_operand(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Member>,
         signature: &dir::FunctionSignature,
         body: Option<dir::LocalNodeId<dir::Expression>>,
-        receiver: Option<ReceiverCapture>,
+        receiver: Option<ReceiverBinding>,
     ) -> CompilerResult<Option<TypeOperand>> {
         // use the receiver as the constructor result
         if matches!(
             signature.role,
             Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
         ) {
-            return Ok(receiver.map(|receiver| receiver.ty));
+            return Ok(receiver.map(|receiver| receiver.receiver.ty));
         }
 
         // return regular method result
-        self.allocate_function_result_operand(module, id.into_any(), signature, body)
+        self.function_result_operand(module, id.into_any(), signature, body)
     }
 }

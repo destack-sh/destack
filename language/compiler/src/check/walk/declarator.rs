@@ -18,7 +18,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -54,11 +54,11 @@ impl WalkState<'_, '_> {
 
         // set binding type from annotation or initializer
         if let Some(ty) = declarator.ty {
-            let operand = self.allocate_node_type_operand(ty)?;
+            let operand = self.node_type_operand(ty)?;
             self.bind_symbol_type_operand(symbol, operand, condition)?;
         } else if let Some(value) = declarator.value {
-            let operand = self.allocate_node_type_operand(value)?;
-            if let Some(term) = self.lower_name_declarator_widened_type(symbol, value, operand) {
+            let operand = self.node_type_operand(value)?;
+            if let Some(term) = self.widen_declarator_initializer_type(symbol, value, operand)? {
                 self.bind_symbol_type(symbol, term, condition)?;
             } else {
                 self.bind_symbol_type_operand(symbol, operand, condition)?;
@@ -68,8 +68,8 @@ impl WalkState<'_, '_> {
         // check initializers against explicit annotations
         if let (Some(ty), Some(value)) = (declarator.ty, declarator.value) {
             let origin = Origin::Node(value.into_global_any(self.module));
-            let value = self.allocate_node_type_operand(value)?;
-            let target = self.allocate_node_type_operand(ty)?;
+            let value = self.node_type_operand(value)?;
+            let target = self.node_type_operand(ty)?;
             let condition = self.active_static_guard();
 
             self.check
@@ -103,13 +103,13 @@ impl WalkState<'_, '_> {
         }
 
         let matched_value = if let Some(value) = declarator.value {
-            Some(self.allocate_node_type_operand(value)?)
+            Some(self.node_type_operand(value)?)
         } else if let Some(ty) = declarator.ty {
-            Some(self.allocate_node_type_operand(ty)?)
+            Some(self.node_type_operand(ty)?)
         } else {
             None
         };
-        let pattern = self.lower_pattern_term(self.module, declarator.pattern)?;
+        let pattern = self.pattern_term(self.module, declarator.pattern)?;
 
         if let (Some(value), Some(pattern)) = (matched_value, pattern) {
             let condition = self.active_static_guard();
@@ -150,37 +150,43 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Lower the widened inferred type term for one name declarator value.
+    /// Return the widened inferred type term for one declarator initializer.
     ///
     /// Example:
     /// ```ds
     /// let value = 1
     /// ```
-    fn lower_name_declarator_widened_type(
+    fn widen_declarator_initializer_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         value: dir::LocalNodeId<dir::Expression>,
         source: TypeOperand,
-    ) -> Option<TypeTerm> {
-        if !self.is_declarator_initializer_widened(symbol, value) {
-            return None;
-        }
-        if let Some(TypeTerm::Literal(TypeLiteralTerm::Scalar(literal))) =
-            source.known_type_term(self.check)
-        {
-            return Some(TypeTerm::Literal(CheckState::widen_scalar_literal(literal)));
+    ) -> CompilerResult<Option<TypeTerm>> {
+        // keep precise initializer types when widening is not requested
+        if !self.should_widen_declarator_initializer(symbol, value) {
+            return Ok(None);
         }
 
+        // widen known scalar literals without an operation term
+        if let Some(TypeTerm::Literal(TypeLiteralTerm::Scalar(literal))) =
+            self.check.type_operand_term(source)?
+        {
+            return Ok(Some(TypeTerm::Literal(CheckState::widen_scalar_literal(
+                literal,
+            ))));
+        }
+
+        // defer non scalar widening to reduction
         let operation = self
             .check
             .inference
             .push_term(TypeOperationTerm::Widen { source });
 
-        Some(TypeTerm::Operation(operation))
+        Ok(Some(TypeTerm::Operation(operation)))
     }
 
-    /// Return whether one declarator widens its inferred initializer type.
-    fn is_declarator_initializer_widened(
+    /// Return whether one declarator should widen its inferred initializer type.
+    fn should_widen_declarator_initializer(
         &self,
         symbol: dir::GlobalSymbolId,
         value: dir::LocalNodeId<dir::Expression>,
@@ -189,28 +195,25 @@ impl WalkState<'_, '_> {
         let binding = bindings.get_symbol(symbol.local_id);
 
         match self.tree.get(value) {
+            // (value)
             dir::Expression::Parenthesized { expression } => {
-                return self.is_declarator_initializer_widened(symbol, *expression);
+                self.should_widen_declarator_initializer(symbol, *expression)
             }
-            dir::Expression::Satisfies { .. } => {
-                return false;
-            }
+            // value satisfies T
+            dir::Expression::Satisfies { .. } => false,
+            // value as const
             dir::Expression::As { target_type, .. }
                 if matches!(self.tree.get(*target_type), dir::TypeExpression::Const) =>
             {
-                return false;
+                false
             }
-            _ => {}
-        }
-
-        if binding.binding_mutability != Some(dir::Mutability::Immutable) {
-            return true;
-        }
-
-        match self.tree.get(value) {
+            // mutable bindings widen ordinary initializers
+            _ if binding.binding_mutability != Some(dir::Mutability::Immutable) => true,
+            // immutable aggregate bindings keep mutable contents usable
             dir::Expression::ArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
             | dir::Expression::ObjectExpression { .. } => true,
+            // immutable scalar bindings stay literal
             _ => false,
         }
     }
@@ -294,20 +297,20 @@ impl WalkState<'_, '_> {
             }
             // value
             dir::Pattern::Expression { value } => {
-                let ty = self.allocate_node_type_operand(*value)?;
+                let ty = self.node_type_operand(*value)?;
 
                 self.narrow_flow_path(path, ty);
             }
             // value is T
             dir::Pattern::TypeExpression { value } => {
-                let ty = self.allocate_node_type_operand(*value)?;
+                let ty = self.node_type_operand(*value)?;
 
                 self.narrow_flow_path(path, ty);
             }
             // T(a, b), T { name }
             dir::Pattern::Newtype { ty, fields }
             | dir::Pattern::NominalObject { ty, fields } => {
-                let narrowed = self.allocate_node_type_operand(*ty)?;
+                let narrowed = self.node_type_operand(*ty)?;
 
                 self.narrow_flow_path(path.clone(), narrowed);
                 self.narrow_pattern_fields_success(path, fields)?;

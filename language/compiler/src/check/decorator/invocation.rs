@@ -15,14 +15,14 @@ pub(in crate::check) struct DecoratorInvocation {
 }
 
 impl CheckState<'_> {
-    /// Return decorator invocations attached to one owner node.
-    pub(in crate::check) fn decorator_invocations_for_owner(
+    /// Return decorator invocations attached to one decorated node.
+    pub(in crate::check) fn decorator_invocations(
         &self,
         module: ModuleId,
-        owner: dir::LocalNodeIdAny,
+        decorated: dir::LocalNodeIdAny,
     ) -> Vec<DecoratorInvocation> {
         let view = self.module(module).view();
-        let decorators = view.get_decorators_any(owner);
+        let decorators = view.get_decorators_any(decorated);
         let mut invocations = Vec::with_capacity(decorators.len());
 
         // extract attached decorator invocations in source order

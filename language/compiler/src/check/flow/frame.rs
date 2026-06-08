@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use indexmap::IndexSet;
 
-use crate::check::{FlowBranch, FlowCheckpoint, ReceiverCapture, TypeOperand, VariableId};
+use crate::check::{FlowBranch, FlowCheckpoint, ReceiverBinding, TypeOperand, VariableId};
 
 /// A function body currently being walked.
 #[derive(Debug)]
@@ -15,7 +15,7 @@ pub(in crate::check) struct FunctionFrame {
     /// The first try target visible inside this function.
     pub(in crate::check::flow) try_start: usize,
     /// The lexical receiver visible inside this function.
-    pub(in crate::check::flow) receiver: Option<ReceiverCapture>,
+    pub(in crate::check::flow) receiver: Option<ReceiverBinding>,
     /// The value accepted by `return` inside this function body.
     pub(in crate::check::flow) return_target: TypeOperand,
     /// The value accepted by `yield` inside this generator body.
@@ -27,7 +27,7 @@ pub(in crate::check) struct FunctionFrame {
     /// Outer symbols read by this function.
     pub(in crate::check::flow) captured_symbols: IndexSet<dir::GlobalSymbolId>,
     /// Outer receiver read by this function.
-    pub(in crate::check::flow) captured_receiver: Option<ReceiverCapture>,
+    pub(in crate::check::flow) captured_receiver: Option<ReceiverBinding>,
 }
 
 /// A structured control target currently visible to flow analysis.
