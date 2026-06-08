@@ -1,4 +1,4 @@
-use crate::{BACKEND, capi_abi_version, capi_is_available, version};
+use crate::{BACKEND, version};
 
 /// A client type for Destack.
 #[derive(Debug, Clone, Default)]
@@ -13,16 +13,6 @@ impl Client {
     /// Return the backend marker.
     pub fn backend(&self) -> &'static str {
         BACKEND
-    }
-
-    /// Return the loaded C ABI version.
-    pub fn capi_abi_version(&self) -> u32 {
-        capi_abi_version()
-    }
-
-    /// Return whether the C ABI surface is available.
-    pub fn capi_is_available(&self) -> bool {
-        capi_is_available()
     }
 
     /// Return the crate version.

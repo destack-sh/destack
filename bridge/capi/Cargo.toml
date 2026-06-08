@@ -16,8 +16,5 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 path = "src/lib.rs"
 doctest = false
 
-[dependencies]
-destack_bridge_core.workspace = true
-
 [lints]
 workspace = true
