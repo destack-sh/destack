@@ -5,8 +5,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, MatchCase, Origin, PatternRelation, Progress, TermId, TypeLiteralTerm,
-    TypeOperand, TypeRelation, TypeTerm, VariableId,
+    CheckState, Decision, MatchCase, Origin, PatternRelation, TermId, TypeLiteralTerm, TypeOperand,
+    TypeRelation, TypeTerm, VariableId,
 };
 
 /// Pattern relation term with source ownership.
@@ -436,9 +436,175 @@ pub(in crate::check) enum AssignPatternField {
     Elision,
 }
 
+impl PatternTerm {
+    /// Return variables referenced by this pattern.
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
+        self.target.referenced_variables(state)
+    }
+}
+
+impl PatternTarget {
+    /// Return variables referenced by this pattern target.
+    fn referenced_variables(&self, state: &CheckState<'_>) -> SmallVec<[VariableId; 2]> {
+        let mut variables = SmallVec::new();
+
+        match self {
+            Self::Wildcard | Self::Binding { pattern: None, .. } => {}
+            Self::Must { pattern }
+            | Self::BorrowOf { pattern, .. }
+            | Self::MoveOf { pattern, .. }
+            | Self::DereferenceOf { pattern }
+            | Self::Binding {
+                pattern: Some(pattern),
+                ..
+            } => {
+                variables.extend(state.inference.term(*pattern).referenced_variables(state));
+            }
+            Self::Assign { pattern, value } => {
+                variables.extend(state.inference.term(*pattern).referenced_variables(state));
+                variables.extend(value.referenced_variables(state));
+            }
+            Self::Expression { value } | Self::Type { ty: value } => {
+                variables.extend(value.referenced_variables(state));
+            }
+            Self::Range {
+                start,
+                end,
+                end_kind: _,
+            } => {
+                variables.extend(
+                    start
+                        .into_iter()
+                        .flat_map(|value| value.referenced_variables(state)),
+                );
+                variables.extend(
+                    end.into_iter()
+                        .flat_map(|value| value.referenced_variables(state)),
+                );
+            }
+            Self::Tuple { fields } | Self::Sequence { fields } | Self::Object { fields } => {
+                variables.extend(
+                    fields
+                        .iter()
+                        .flat_map(|field| field.referenced_variables(state)),
+                );
+            }
+            Self::Newtype { ty, fields } | Self::NominalObject { ty, fields } => {
+                variables.extend(ty.referenced_variables(state));
+                variables.extend(
+                    fields
+                        .iter()
+                        .flat_map(|field| field.referenced_variables(state)),
+                );
+            }
+            Self::Union { patterns } => {
+                variables.extend(patterns.iter().flat_map(|pattern| {
+                    state.inference.term(*pattern).referenced_variables(state)
+                }));
+            }
+        }
+
+        variables
+    }
+}
+
+impl PatternField {
+    /// Return variables referenced by this pattern field.
+    fn referenced_variables(&self, state: &CheckState<'_>) -> SmallVec<[VariableId; 2]> {
+        let mut variables = SmallVec::new();
+
+        match self {
+            Self::Named { value, pattern, .. } => {
+                variables.extend(value.iter().copied());
+                variables.extend(pattern.into_iter().flat_map(|pattern| {
+                    state.inference.term(*pattern).referenced_variables(state)
+                }));
+            }
+            Self::Computed { key, pattern } => {
+                variables.extend(key.referenced_variables(state));
+                variables.extend(state.inference.term(*pattern).referenced_variables(state));
+            }
+            Self::Positional { pattern } => {
+                variables.extend(state.inference.term(*pattern).referenced_variables(state));
+            }
+            Self::Spread { pattern } => {
+                variables.extend(pattern.into_iter().flat_map(|pattern| {
+                    state.inference.term(*pattern).referenced_variables(state)
+                }));
+            }
+            Self::Elision => {}
+        }
+
+        variables
+    }
+}
+
+impl AssignPatternTerm {
+    /// Return variables referenced by this assignment pattern.
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
+        let mut variables = SmallVec::new();
+
+        match self {
+            Self::Expression { target } => {
+                variables.extend(target.referenced_variables(state));
+            }
+            Self::Assign { pattern, value } => {
+                variables.extend(state.inference.term(*pattern).referenced_variables(state));
+                variables.extend(value.referenced_variables(state));
+            }
+            Self::Sequence { fields } | Self::Object { fields } => {
+                variables.extend(
+                    fields
+                        .iter()
+                        .flat_map(|field| field.referenced_variables(state)),
+                );
+            }
+        }
+
+        variables
+    }
+}
+
+impl AssignPatternField {
+    /// Return variables referenced by this assignment pattern field.
+    fn referenced_variables(&self, state: &CheckState<'_>) -> SmallVec<[VariableId; 2]> {
+        let mut variables = SmallVec::new();
+
+        match self {
+            Self::Named { value, pattern, .. } => {
+                variables.extend(value.iter().copied());
+                variables.extend(pattern.into_iter().flat_map(|pattern| {
+                    state.inference.term(*pattern).referenced_variables(state)
+                }));
+            }
+            Self::Computed { key, pattern } => {
+                variables.extend(key.referenced_variables(state));
+                variables.extend(state.inference.term(*pattern).referenced_variables(state));
+            }
+            Self::Positional { pattern } => {
+                variables.extend(state.inference.term(*pattern).referenced_variables(state));
+            }
+            Self::Spread { pattern } => {
+                variables.extend(pattern.into_iter().flat_map(|pattern| {
+                    state.inference.term(*pattern).referenced_variables(state)
+                }));
+            }
+            Self::Elision => {}
+        }
+
+        variables
+    }
+}
+
 impl CheckState<'_> {
     /// Decide whether one pattern relation holds.
-    pub(in crate::check) fn reduce_pattern_relation(
+    pub(in crate::check) fn decide_pattern_relation(
         &mut self,
         origin: Origin,
         value: TypeOperand,
@@ -458,6 +624,21 @@ impl CheckState<'_> {
         };
 
         Ok(decision)
+    }
+
+    /// Reduce one pattern relation.
+    pub(in crate::check) fn reduce_pattern_relation(
+        &mut self,
+        origin: Origin,
+        relation: PatternRelation,
+        value: TypeOperand,
+    ) -> CompilerResult<()> {
+        match relation {
+            PatternRelation::Match(pattern) => self.expect_pattern_term(origin, value, pattern),
+            PatternRelation::Assign(pattern) => {
+                self.expect_assign_pattern_term(origin, value, pattern)
+            }
+        }
     }
 
     /// Decide whether one pattern can match one value type.
@@ -999,11 +1180,12 @@ impl CheckState<'_> {
         origin: Origin,
         value: TypeOperand,
         pattern: TermId<PatternTerm>,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let module = origin.module();
         let pattern = self.inference.term(pattern).clone();
-        let progress = match pattern.target {
-            PatternTarget::Wildcard => Progress::Unchanged,
+
+        match pattern.target {
+            PatternTarget::Wildcard => (),
             PatternTarget::Must { pattern }
             | PatternTarget::BorrowOf { pattern, .. }
             | PatternTarget::MoveOf { pattern, .. }
@@ -1014,51 +1196,38 @@ impl CheckState<'_> {
                 pattern,
                 value: default,
             } => {
-                let default =
-                    self.relate_type_relation(origin, TypeRelation::Assignable, default, value)?;
-                let pattern = self.expect_pattern_term(origin, value, pattern)?;
-
-                default.merge(pattern)
+                self.reduce_type_relation(origin, TypeRelation::Assignable, default, value)?;
+                self.expect_pattern_term(origin, value, pattern)?;
             }
             PatternTarget::Binding { symbol, pattern } => {
-                let binding = if let Some(symbol) = symbol {
-                    let binding = self.import_symbol_type_operand(module, symbol)?;
+                if let Some(symbol) = symbol {
+                    let binding = self.symbol_type_operand(module, symbol)?;
 
-                    self.relate_type_relation(origin, TypeRelation::Equal, binding, value)?
-                } else {
-                    Progress::Unchanged
-                };
-                let pattern = if let Some(pattern) = pattern {
-                    self.expect_pattern_term(origin, value, pattern)?
-                } else {
-                    Progress::Unchanged
-                };
+                    self.reduce_type_relation(origin, TypeRelation::Equal, binding, value)?;
+                }
 
-                binding.merge(pattern)
+                if let Some(pattern) = pattern {
+                    self.expect_pattern_term(origin, value, pattern)?;
+                }
             }
             PatternTarget::Expression { value: expected } => {
-                self.relate_type_relation(origin, TypeRelation::Assignable, expected, value)?
+                self.reduce_type_relation(origin, TypeRelation::Assignable, expected, value)?
             }
             PatternTarget::Range {
                 start,
                 end,
                 end_kind: _,
             } => {
-                let start = if let Some(start) = start {
-                    self.relate_type_relation(origin, TypeRelation::Assignable, start, value)?
-                } else {
-                    Progress::Unchanged
-                };
-                let end = if let Some(end) = end {
-                    self.relate_type_relation(origin, TypeRelation::Assignable, end, value)?
-                } else {
-                    Progress::Unchanged
-                };
+                if let Some(start) = start {
+                    self.reduce_type_relation(origin, TypeRelation::Assignable, start, value)?;
+                }
 
-                start.merge(end)
+                if let Some(end) = end {
+                    self.reduce_type_relation(origin, TypeRelation::Assignable, end, value)?;
+                }
             }
             PatternTarget::Type { ty } => {
-                self.relate_type_relation(origin, TypeRelation::Satisfies, value, ty)?
+                self.reduce_type_relation(origin, TypeRelation::Satisfies, value, ty)?
             }
             PatternTarget::Tuple { fields } | PatternTarget::Sequence { fields } => {
                 self.expect_pattern_field_terms(origin, value, &fields)?
@@ -1067,22 +1236,17 @@ impl CheckState<'_> {
                 self.expect_pattern_field_terms(origin, value, &fields)?
             }
             PatternTarget::Newtype { ty, fields } | PatternTarget::NominalObject { ty, fields } => {
-                let tag = self.relate_type_relation(origin, TypeRelation::Satisfies, value, ty)?;
-                let fields = self.expect_pattern_field_terms(origin, value, &fields)?;
-
-                tag.merge(fields)
+                self.reduce_type_relation(origin, TypeRelation::Satisfies, value, ty)?;
+                self.expect_pattern_field_terms(origin, value, &fields)?;
             }
             PatternTarget::Union { patterns } => {
-                let mut progress = Progress::Unchanged;
                 for pattern in patterns {
-                    progress = progress.merge(self.expect_pattern_term(origin, value, pattern)?);
+                    self.expect_pattern_term(origin, value, pattern)?;
                 }
-
-                progress
             }
         };
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Expect pattern fields to match one value type.
@@ -1091,14 +1255,12 @@ impl CheckState<'_> {
         origin: Origin,
         value: TypeOperand,
         fields: &[PatternField],
-    ) -> CompilerResult<Progress> {
-        let mut progress = Progress::Unchanged;
-
+    ) -> CompilerResult<()> {
         for field in fields {
-            progress = progress.merge(self.expect_pattern_field(origin, value, field.clone())?);
+            self.expect_pattern_field(origin, value, field.clone())?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Expect one pattern field to match one value type.
@@ -1107,31 +1269,29 @@ impl CheckState<'_> {
         origin: Origin,
         value: TypeOperand,
         field: PatternField,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let field = field;
         let module = origin.module();
-        let progress = match field {
+
+        match field {
             PatternField::Named {
                 key,
                 value: field,
                 pattern,
             } => {
                 let Some(pattern) = pattern else {
-                    return Ok(Progress::Unchanged);
+                    return Ok(());
                 };
                 let Some(field) = field else {
-                    return Ok(Progress::Unchanged);
+                    return Ok(());
                 };
                 let Some(ty) = self.pattern_member_type(origin, module, value, &key)? else {
-                    return Ok(Progress::Unchanged);
+                    return Ok(());
                 };
                 let ty = self.inference.push_term(ty);
-                let field_type =
-                    self.relate_type_equality(origin, TypeOperand::Variable(field), ty)?;
-                let pattern =
-                    self.expect_pattern_term(origin, TypeOperand::Variable(field), pattern)?;
 
-                field_type.merge(pattern)
+                self.reduce_type_equality(origin, TypeOperand::Variable(field), ty)?;
+                self.expect_pattern_term(origin, TypeOperand::Variable(field), pattern)?;
             }
             PatternField::Computed { key: _, pattern } | PatternField::Positional { pattern } => {
                 self.expect_pattern_term(origin, value, pattern)?
@@ -1140,13 +1300,13 @@ impl CheckState<'_> {
                 if let Some(pattern) = pattern {
                     self.expect_pattern_term(origin, value, pattern)?
                 } else {
-                    Progress::Unchanged
+                    ()
                 }
             }
-            PatternField::Elision => Progress::Unchanged,
+            PatternField::Elision => (),
         };
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Expect an assignment pattern to accept one value type.
@@ -1155,28 +1315,26 @@ impl CheckState<'_> {
         origin: Origin,
         value: TypeOperand,
         pattern: TermId<AssignPatternTerm>,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let pattern = self.inference.term(pattern).clone();
-        let progress = match pattern {
+
+        match pattern {
             AssignPatternTerm::Expression { target } => {
-                self.relate_type_relation(origin, TypeRelation::Assignable, value, target)?
+                self.reduce_type_relation(origin, TypeRelation::Assignable, value, target)?
             }
             AssignPatternTerm::Assign {
                 pattern,
                 value: default,
             } => {
-                let default =
-                    self.relate_type_relation(origin, TypeRelation::Assignable, default, value)?;
-                let pattern = self.expect_assign_pattern_term(origin, value, pattern)?;
-
-                default.merge(pattern)
+                self.reduce_type_relation(origin, TypeRelation::Assignable, default, value)?;
+                self.expect_assign_pattern_term(origin, value, pattern)?;
             }
             AssignPatternTerm::Sequence { fields } | AssignPatternTerm::Object { fields } => {
                 self.expect_assign_pattern_field_terms(origin, value, &fields)?
             }
         };
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Expect assignment pattern fields to accept one value type.
@@ -1185,15 +1343,12 @@ impl CheckState<'_> {
         origin: Origin,
         value: TypeOperand,
         fields: &[AssignPatternField],
-    ) -> CompilerResult<Progress> {
-        let mut progress = Progress::Unchanged;
-
+    ) -> CompilerResult<()> {
         for field in fields {
-            progress =
-                progress.merge(self.expect_assign_pattern_field(origin, value, field.clone())?);
+            self.expect_assign_pattern_field(origin, value, field.clone())?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Expect one assignment pattern field to accept one value type.
@@ -1202,31 +1357,29 @@ impl CheckState<'_> {
         origin: Origin,
         value: TypeOperand,
         field: AssignPatternField,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let field = field;
         let module = origin.module();
-        let progress = match field {
+
+        match field {
             AssignPatternField::Named {
                 key,
                 value: field,
                 pattern,
             } => {
                 let Some(pattern) = pattern else {
-                    return Ok(Progress::Unchanged);
+                    return Ok(());
                 };
                 let Some(field) = field else {
-                    return Ok(Progress::Unchanged);
+                    return Ok(());
                 };
                 let Some(ty) = self.pattern_member_type(origin, module, value, &key)? else {
-                    return Ok(Progress::Unchanged);
+                    return Ok(());
                 };
                 let ty = self.inference.push_term(ty);
-                let field_type =
-                    self.relate_type_equality(origin, TypeOperand::Variable(field), ty)?;
-                let pattern =
-                    self.expect_assign_pattern_term(origin, TypeOperand::Variable(field), pattern)?;
 
-                field_type.merge(pattern)
+                self.reduce_type_equality(origin, TypeOperand::Variable(field), ty)?;
+                self.expect_assign_pattern_term(origin, TypeOperand::Variable(field), pattern)?;
             }
             AssignPatternField::Computed { key: _, pattern }
             | AssignPatternField::Positional { pattern } => {
@@ -1236,13 +1389,13 @@ impl CheckState<'_> {
                 if let Some(pattern) = pattern {
                     self.expect_assign_pattern_term(origin, value, pattern)?
                 } else {
-                    Progress::Unchanged
+                    ()
                 }
             }
-            AssignPatternField::Elision => Progress::Unchanged,
+            AssignPatternField::Elision => (),
         };
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Decide one relation from a pattern operand to a solved term.

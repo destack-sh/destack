@@ -28,7 +28,7 @@ impl CheckState<'_> {
                 self.memory_with_base_type(module, target, base)?
             }
             dir::LanguageItem::WithPlace => {
-                let Some(place) = self.generic_argument_static_operand(arguments, 1) else {
+                let Some(place) = self.generic_argument_static_operand(arguments, 1)? else {
                     return Ok(None);
                 };
                 let Some(place) = self.place_value(module, place)? else {
@@ -41,7 +41,7 @@ impl CheckState<'_> {
                 self.memory_with_place_type(module, target, place.into())?
             }
             dir::LanguageItem::WithSpace => {
-                let Some(space) = self.generic_argument_static_operand(arguments, 1) else {
+                let Some(space) = self.generic_argument_static_operand(arguments, 1)? else {
                     return Ok(None);
                 };
                 let Some(space) = self.space_value(module, space)? else {
@@ -56,24 +56,24 @@ impl CheckState<'_> {
                 self.memory_with_place_type(module, target, place.into())?
             }
             dir::LanguageItem::WithLifetime => {
-                let Some(lifetime) = self.generic_argument_static_operand(arguments, 1) else {
+                let Some(lifetime) = self.generic_argument_static_operand(arguments, 1)? else {
                     return Ok(None);
                 };
 
                 self.memory_with_lifetime_type(module, target, lifetime)?
             }
             dir::LanguageItem::WithAccess => {
-                let Some(access) = self.generic_argument_static_operand(arguments, 1) else {
+                let Some(access) = self.generic_argument_static_operand(arguments, 1)? else {
                     return Ok(None);
                 };
 
                 self.memory_with_access_type(module, target, access)?
             }
             dir::LanguageItem::WithOwnership => {
-                let Some(ownership) = self.generic_argument_static_operand(arguments, 1) else {
+                let Some(ownership) = self.generic_argument_static_operand(arguments, 1)? else {
                     return Ok(None);
                 };
-                let Some(lifetime) = self.generic_argument_static_operand(arguments, 2) else {
+                let Some(lifetime) = self.generic_argument_static_operand(arguments, 2)? else {
                     return Ok(None);
                 };
 
@@ -101,18 +101,29 @@ impl CheckState<'_> {
         &mut self,
         arguments: &[GenericArgument],
         index: usize,
-    ) -> Option<StaticOperand> {
-        let argument = arguments.get(index)?;
+    ) -> CompilerResult<Option<StaticOperand>> {
+        let Some(argument) = arguments.get(index) else {
+            return Ok(None);
+        };
         if let Some(operand) = argument.static_operand() {
-            return Some(operand);
+            return Ok(Some(operand));
         }
 
-        self.type_operand_static_operand(argument.type_operand()?)
+        let Some(operand) = argument.type_operand() else {
+            return Ok(None);
+        };
+
+        self.type_operand_static_operand(operand)
     }
 
     /// Return the static interpretation of one type operand.
-    fn type_operand_static_operand(&mut self, operand: TypeOperand) -> Option<StaticOperand> {
-        let term = self.type_operand_term(operand).ok()??;
+    fn type_operand_static_operand(
+        &mut self,
+        operand: TypeOperand,
+    ) -> CompilerResult<Option<StaticOperand>> {
+        let Some(term) = self.type_operand_term(operand)? else {
+            return Ok(None);
+        };
         let term = match term {
             TypeTerm::Literal(TypeLiteralTerm::Scalar(value)) => {
                 StaticTerm::Literal(dir::StaticTerm::ScalarLiteral { value })
@@ -123,20 +134,26 @@ impl CheckState<'_> {
                 symbol,
                 arguments,
             } => {
-                let item = self.environment.language.item(symbol)?;
+                let Some(item) = self.environment.language.item(symbol) else {
+                    return Ok(None);
+                };
                 if !Self::static_memory_item(item) {
-                    return None;
+                    return Ok(None);
                 }
 
                 StaticTerm::Intrinsic { item, arguments }
             }
-            TypeTerm::StaticValue { value } => return Some(value.into()),
-            TypeTerm::Type(_) => return None,
+            TypeTerm::StaticValue { value } => return Ok(Some(value.into())),
+            TypeTerm::Type(_) => return Ok(None),
             TypeTerm::Union { elements } => {
                 let mut values = Vec::with_capacity(elements.len());
 
                 for element in elements {
-                    values.push(self.type_operand_static_operand(element)?);
+                    let Some(value) = self.type_operand_static_operand(element)? else {
+                        return Ok(None);
+                    };
+
+                    values.push(value);
                 }
 
                 StaticTerm::Union { elements: values }
@@ -176,11 +193,11 @@ impl CheckState<'_> {
             | TypeTerm::InstanceCheck(_)
             | TypeTerm::KeyMembership(_)
             | TypeTerm::Index(_)
-            | TypeTerm::IndexSet(_) => return None,
+            | TypeTerm::IndexSet(_) => return Ok(None),
         };
         let term = self.inference.push_term(term);
 
-        Some(term.into())
+        Ok(Some(term.into()))
     }
 
     /// Return whether one language item is a static returning memory intrinsic.
@@ -496,7 +513,7 @@ impl CheckState<'_> {
                 }
             }
             dir::LanguageItem::PlaceIn => {
-                let Some(space) = self.generic_argument_static_operand(arguments, 1) else {
+                let Some(space) = self.generic_argument_static_operand(arguments, 1)? else {
                     return Ok(None);
                 };
 
@@ -534,7 +551,7 @@ impl CheckState<'_> {
             }
             dir::LanguageItem::IsShared => self.memory_shared_value(module, target)?,
             dir::LanguageItem::IsSharedIn => {
-                let Some(space) = self.generic_argument_static_operand(arguments, 1) else {
+                let Some(space) = self.generic_argument_static_operand(arguments, 1)? else {
                     return Ok(None);
                 };
 
@@ -768,7 +785,7 @@ impl CheckState<'_> {
         arguments: &[GenericArgument],
         index: usize,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(operand) = self.generic_argument_static_operand(arguments, index) else {
+        let Some(operand) = self.generic_argument_static_operand(arguments, index)? else {
             return Ok(None);
         };
 

@@ -1,6 +1,7 @@
 mod call;
 mod candidate;
 mod construct;
+mod instance;
 mod operator;
 
 pub(in crate::check) use call::*;

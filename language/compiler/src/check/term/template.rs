@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CallCallee, CallTerm, CheckState, GenericArgument, Origin, Progress, Reduction,
-    TypeLiteralTerm, TypeOperand, TypeTerm, VariableId,
+    CallCallee, CallTerm, CheckState, GenericArgument, Origin, TypeLiteralTerm, TypeOperand,
+    TypeTerm, VariableId,
 };
 
 /// Runtime template string term.
@@ -103,9 +103,9 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         template: &TaggedTemplateTerm,
-    ) -> CompilerResult<Reduction<TypeTerm>> {
+    ) -> CompilerResult<Option<TypeTerm>> {
         if self.tagged_template_has_unresolved_input(template)? {
-            return Ok(Reduction::pending());
+            return Ok(None);
         }
 
         let call = self.tagged_template_call(template)?;
@@ -119,9 +119,9 @@ impl CheckState<'_> {
         origin: Origin,
         template: &TaggedTemplateTerm,
         result: VariableId,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         if self.tagged_template_has_unresolved_input(template)? {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
 
         let call = self.tagged_template_call(template)?;
@@ -146,8 +146,8 @@ impl CheckState<'_> {
             source: template.source,
             callee: CallCallee::Expression(template.tag),
             generic_arguments: template.generic_arguments.clone(),
-            arguments: arguments.into(),
-            argument_values: Default::default(),
+            argument_types: arguments.into(),
+            arguments: Default::default(),
         })
     }
 

@@ -2,9 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::check::{
-    CheckState, Decision, Origin, Progress, Substitution, TypeOperand, TypeRelation,
-};
+use crate::check::{CheckState, Decision, Origin, SubstitutionSet, TypeOperand, TypeRelation};
 
 /// Tuple element payload.
 #[derive(Debug, Clone, PartialEq)]
@@ -26,7 +24,7 @@ impl TupleElement {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         Ok(Self {
@@ -44,7 +42,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn substitute_tuple_elements(
         &mut self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         elements: &[TupleElement],
     ) -> CompilerResult<Vec<TupleElement>> {
         elements
@@ -103,18 +101,16 @@ impl CheckState<'_> {
         origin: Origin,
         left: &[TupleElement],
         right: &[TupleElement],
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         if left.len() != right.len() {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
-        let mut progress = Progress::Unchanged;
-
         // constrain each matching element
         for (left, right) in left.iter().zip(right) {
-            progress = progress.merge(self.relate_type_equality(origin, left.ty, right.ty)?);
+            self.reduce_type_equality(origin, left.ty, right.ty)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Relate matching tuple elements by assignability.
@@ -123,19 +119,16 @@ impl CheckState<'_> {
         origin: Origin,
         source: &[TupleElement],
         target: &[TupleElement],
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         if source.len() != target.len() {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
-        let mut progress = Progress::Unchanged;
-
         // constrain each matching element
         for (source, target) in source.iter().zip(target) {
-            progress =
-                progress.merge(self.relate_type_assignability(origin, source.ty, target.ty)?);
+            self.reduce_type_assignability(origin, source.ty, target.ty)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Expect tuple elements to satisfy expected elements.
@@ -144,19 +137,16 @@ impl CheckState<'_> {
         origin: Origin,
         elements: &[TupleElement],
         targets: &[TupleElement],
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         if elements.len() != targets.len() {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
-        let mut progress = Progress::Unchanged;
-
         // push each expected element type
         for (element, target) in elements.iter().zip(targets) {
-            progress = progress
-                .merge(self.relate_contextual_type_assignability(origin, element.ty, target.ty)?);
+            self.reduce_contextual_type_assignability(origin, element.ty, target.ty)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Decide exact equality for one tuple element.

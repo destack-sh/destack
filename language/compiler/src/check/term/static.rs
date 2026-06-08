@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, Condition, Decision, GenericArgument, GenericParameterId, LayoutQuery, LayoutTerm,
-    NameLookup, Obligation, Origin, PathLookup, Reduction, StaticOperand, StaticRelation,
-    Substitution, TypeOperand, TypeRelation, VariableId,
+    NameLookup, Obligation, Origin, PathLookup, StaticOperand, StaticRelation, SubstitutionSet,
+    TypeOperand, TypeRelation, VariableId,
 };
 
 /// Term used to define a static variable.
@@ -186,12 +186,12 @@ impl StaticTerm {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<StaticTerm> {
         let term = match self {
             StaticTerm::Expression(expression) => {
-                if let Some(term) = state.build_static_expression_term(expression.clone())? {
+                if let Some(term) = state.static_expression_term(expression.clone())? {
                     term.substitute(module, substitution, state)?
                 } else {
                     self.clone()
@@ -336,7 +336,7 @@ impl CheckState<'_> {
         let term = match term {
             StaticTerm::Parameter(_) | StaticTerm::Static(_) => term.clone(),
             StaticTerm::Expression(expression) => {
-                let Some(term) = self.build_static_expression_term(expression.clone())? else {
+                let Some(term) = self.static_expression_term(expression.clone())? else {
                     return Ok(None);
                 };
 
@@ -355,18 +355,11 @@ impl CheckState<'_> {
                 if !arguments.is_empty() {
                     return Ok(None);
                 }
-                let Some(owner) = self.type_operand_term(*owner)? else {
+                let Some(owner) = self.reduce_type_operand(origin, *owner)? else {
                     return Ok(None);
                 };
-                let owner = match self.reduce_type_term(origin, &owner)? {
-                    Reduction {
-                        value: Some(value),
-                        progress: _,
-                    } => value,
-                    Reduction {
-                        value: None,
-                        progress: _,
-                    } => owner,
+                let Some(owner) = self.type_operand_term(owner)? else {
+                    return Ok(None);
                 };
                 let Some(term) = self.member_static_term(module, &owner, key)? else {
                     return Ok(None);
@@ -863,7 +856,7 @@ impl CheckState<'_> {
 
 impl CheckState<'_> {
     /// Return one static expression as a solver static term.
-    pub(in crate::check) fn build_static_expression_term(
+    pub(in crate::check) fn static_expression_term(
         &mut self,
         expression: dir::GlobalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<StaticTerm>> {
@@ -873,7 +866,7 @@ impl CheckState<'_> {
         let source = expression.into_any();
         let term = match expression_node {
             dir::Expression::Parenthesized { expression } => {
-                self.build_static_expression_term(expression.into_global(module))?
+                self.static_expression_term(expression.into_global(module))?
             }
             dir::Expression::ScalarLiteral(value) => {
                 Some(StaticTerm::Literal(dir::StaticTerm::ScalarLiteral {
@@ -897,9 +890,7 @@ impl CheckState<'_> {
                     arguments: Vec::new(),
                 })
             }
-            dir::Expression::Type { value } => {
-                self.build_static_type_expression_term(module, value)?
-            }
+            dir::Expression::Type { value } => self.static_type_expression_term(module, value)?,
             dir::Expression::Binary {
                 left,
                 operator,
@@ -912,12 +903,10 @@ impl CheckState<'_> {
                     | dir::BinaryOperator::NotEqualStrict
             ) =>
             {
-                let Some(left) = self.build_static_expression_term(left.into_global(module))?
-                else {
+                let Some(left) = self.static_expression_term(left.into_global(module))? else {
                     return Ok(None);
                 };
-                let Some(right) = self.build_static_expression_term(right.into_global(module))?
-                else {
+                let Some(right) = self.static_expression_term(right.into_global(module))? else {
                     return Ok(None);
                 };
                 let is_negated = matches!(
@@ -941,17 +930,17 @@ impl CheckState<'_> {
                 ..
             } => {
                 let Some(condition) =
-                    self.build_static_expression_term(condition_expression.into_global(module))?
+                    self.static_expression_term(condition_expression.into_global(module))?
                 else {
                     return Ok(None);
                 };
                 let Some(then_value) =
-                    self.build_static_expression_term(then_expression.into_global(module))?
+                    self.static_expression_term(then_expression.into_global(module))?
                 else {
                     return Ok(None);
                 };
                 let Some(else_value) =
-                    self.build_static_expression_term(else_expression.into_global(module))?
+                    self.static_expression_term(else_expression.into_global(module))?
                 else {
                     return Ok(None);
                 };
@@ -967,13 +956,9 @@ impl CheckState<'_> {
                 generic_arguments,
                 arguments,
                 ..
-            } => self.build_static_layout_call_term(
-                module,
-                source,
-                left,
-                &generic_arguments,
-                &arguments,
-            )?,
+            } => {
+                self.static_layout_call_term(module, source, left, &generic_arguments, &arguments)?
+            }
             _ => self
                 .static_expression_literal(module, expression_id)?
                 .map(StaticTerm::Literal),
@@ -983,7 +968,7 @@ impl CheckState<'_> {
     }
 
     /// Return one type-space expression as a static term.
-    fn build_static_type_expression_term(
+    fn static_type_expression_term(
         &mut self,
         module: ModuleId,
         value: dir::LocalNodeId<dir::TypeExpression>,
@@ -991,7 +976,7 @@ impl CheckState<'_> {
         let type_expression = self.module(module).view().get(value).clone();
         let term = match type_expression {
             dir::TypeExpression::Parenthesized { expression } => {
-                return self.build_static_type_expression_term(module, expression);
+                return self.static_type_expression_term(module, expression);
             }
             dir::TypeExpression::ScalarLiteral { value } => {
                 StaticTerm::Literal(dir::StaticTerm::ScalarLiteral { value })
@@ -1020,12 +1005,10 @@ impl CheckState<'_> {
                     left: self.node_type_operand(left.into_global_any(module))?,
                     right: self.node_type_operand(extends_type.into_global_any(module))?,
                 };
-                let Some(then_value) = self.build_static_type_expression_term(module, then_type)?
-                else {
+                let Some(then_value) = self.static_type_expression_term(module, then_type)? else {
                     return Ok(None);
                 };
-                let Some(else_value) = self.build_static_type_expression_term(module, else_type)?
-                else {
+                let Some(else_value) = self.static_type_expression_term(module, else_type)? else {
                     return Ok(None);
                 };
 
@@ -1123,14 +1106,18 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
-        let Some(slot) = self.inference.symbol_generic_parameter(symbol) else {
+        let Some(parameter) = self.inference.symbol_generic_parameter(symbol) else {
             return Ok(None);
         };
-        if !self.inference.generic_parameter(slot).is_static() {
+        if !self
+            .inference
+            .require_generic_parameter(parameter)
+            .is_static()
+        {
             return Ok(None);
         }
 
-        Ok(Some(dir::StaticTerm::Parameter(slot)))
+        Ok(Some(dir::StaticTerm::Parameter(parameter)))
     }
 
     /// Return one locally concrete static object expression value.
@@ -1147,7 +1134,7 @@ impl CheckState<'_> {
             let dir::Property::Field { key, value, .. } = view.get(*property) else {
                 return Ok(None);
             };
-            let Some(key) = key.static_key(view.tree()) else {
+            let Some(key) = key.static_key(&view) else {
                 return Ok(None);
             };
 
@@ -1169,7 +1156,7 @@ impl CheckState<'_> {
     }
 
     /// Return a layout query term for one static reflection call.
-    fn build_static_layout_call_term(
+    fn static_layout_call_term(
         &mut self,
         module: ModuleId,
         source: dir::GlobalNodeIdAny,

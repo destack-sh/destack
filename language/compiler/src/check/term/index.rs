@@ -5,7 +5,7 @@ use crate::CompilerResult;
 use crate::check::{
     CallCallee, CallTerm, CheckState, FormTerm, MemberCallTerm, MemberDecision,
     MemberProjectionOrigin, MemberProtocol, MemberResolution, MemberTargetResolution, Origin,
-    Progress, Reduction, SubscriptMethod, TypeOperand, TypeTerm, VariableId,
+    SubscriptMethod, TypeOperand, TypeTerm, VariableId,
 };
 
 /// Runtime index access term.
@@ -110,9 +110,9 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         index: &IndexTerm,
-    ) -> CompilerResult<Reduction<TypeTerm>> {
+    ) -> CompilerResult<Option<TypeTerm>> {
         if let Some(term) = self.reduce_structural_index_type(origin, module, index)? {
-            return Ok(Reduction::value(term));
+            return Ok(Some(term));
         }
 
         let call = self.index_call_term(index)?;
@@ -126,29 +126,26 @@ impl CheckState<'_> {
         origin: Origin,
         module: ModuleId,
         set: &IndexSetTerm,
-    ) -> CompilerResult<Reduction<TypeTerm>> {
+    ) -> CompilerResult<Option<TypeTerm>> {
         if self.reduce_structural_index_set(origin, module, set)? {
             let Some(value) = self.type_operand_term(set.value)? else {
-                return Ok(Reduction::pending());
+                return Ok(None);
             };
 
-            return Ok(Reduction::value(value));
+            return Ok(Some(value));
         }
 
         let call = self.index_set_call_term(set)?;
         let reduction = self.reduce_call_term(origin, module, &call)?;
-        if reduction.value.is_none() {
-            return Ok(Reduction::progress(reduction.progress));
+        if reduction.is_none() {
+            return Ok(None);
         };
 
         let Some(value) = self.type_operand_term(set.value)? else {
-            return Ok(Reduction::progress(reduction.progress));
+            return Ok(None);
         };
 
-        Ok(Reduction {
-            value: Some(value),
-            progress: reduction.progress,
-        })
+        Ok(Some(value))
     }
 
     /// Expect structural or protocol index selection to produce the expected result.
@@ -157,11 +154,11 @@ impl CheckState<'_> {
         origin: Origin,
         index: &IndexTerm,
         result: VariableId,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         if let Some(term) = self.reduce_structural_index_type(origin, result.module, index)? {
             let term = self.inference.push_term(term);
 
-            return self.relate_contextual_type_assignability(origin, term, result);
+            return self.reduce_contextual_type_assignability(origin, term, result);
         }
         let call = self.index_call_term(index)?;
 
@@ -174,8 +171,8 @@ impl CheckState<'_> {
         origin: Origin,
         set: &IndexSetTerm,
         result: VariableId,
-    ) -> CompilerResult<Progress> {
-        self.relate_contextual_type_assignability(origin, set.value, result)
+    ) -> CompilerResult<()> {
+        self.reduce_contextual_type_assignability(origin, set.value, result)
     }
 
     /// Reduce one structural tuple or shape index.
@@ -210,18 +207,11 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: TypeOperand,
     ) -> CompilerResult<Option<IndexReceiver>> {
-        let Some(receiver) = self.type_operand_term(receiver)? else {
+        let Some(receiver) = self.reduce_type_operand(origin, receiver)? else {
             return Ok(None);
         };
-        let receiver = match self.reduce_type_term(origin, &receiver)? {
-            Reduction {
-                value: Some(value),
-                progress: _,
-            } => value,
-            Reduction {
-                value: None,
-                progress: _,
-            } => receiver,
+        let Some(receiver) = self.type_operand_term(receiver)? else {
+            return Ok(None);
         };
 
         let TypeTerm::Form { form, payload } = receiver else {
@@ -288,7 +278,8 @@ impl CheckState<'_> {
             target: MemberTargetResolution::Builtin(builtin),
         };
 
-        self.select_member(index.source, MemberDecision::Resolved(resolution))?;
+        self.inference
+            .select_member(index.source, MemberDecision::Resolved(resolution))?;
 
         Ok(())
     }
@@ -313,7 +304,7 @@ impl CheckState<'_> {
             return Ok(false);
         };
         let term = self.inference.push_term(term);
-        self.relate_contextual_type_assignability(origin, set.value, term)?;
+        self.reduce_contextual_type_assignability(origin, set.value, term)?;
 
         Ok(true)
     }
@@ -342,8 +333,8 @@ impl CheckState<'_> {
             source: index.source,
             callee: CallCallee::Member(member),
             generic_arguments: Default::default(),
-            arguments: vec![index.index.into()].into(),
-            argument_values: Default::default(),
+            argument_types: vec![index.index.into()].into(),
+            arguments: Default::default(),
         })
     }
 
@@ -371,8 +362,8 @@ impl CheckState<'_> {
             source: set.source,
             callee: CallCallee::Member(member),
             generic_arguments: Default::default(),
-            arguments: vec![set.index.into(), set.value.into()].into(),
-            argument_values: Default::default(),
+            argument_types: vec![set.index.into(), set.value.into()].into(),
+            arguments: Default::default(),
         })
     }
 }

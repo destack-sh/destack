@@ -4,8 +4,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, Origin, Progress, Substitution, TypeOperand, TypeRelation, TypeTerm,
-    VariableId,
+    CheckState, Decision, Origin, SubstitutionSet, TypeOperand, TypeRelation, TypeTerm, VariableId,
 };
 
 /// Shape member payload.
@@ -134,7 +133,7 @@ impl ShapeMember {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let member = match self {
@@ -193,7 +192,7 @@ impl CheckState<'_> {
     pub(in crate::check) fn substitute_shape_members(
         &mut self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         members: &[ShapeMember],
     ) -> CompilerResult<Vec<ShapeMember>> {
         members
@@ -268,9 +267,7 @@ impl CheckState<'_> {
         origin: Origin,
         left: &[ShapeMember],
         right: &[ShapeMember],
-    ) -> CompilerResult<Progress> {
-        let mut progress = Progress::Unchanged;
-
+    ) -> CompilerResult<()> {
         // constrain common fields in both directions
         for left in left {
             let Some((left_key, left_ty)) = shape_field(left) else {
@@ -280,10 +277,10 @@ impl CheckState<'_> {
                 continue;
             };
 
-            progress = progress.merge(self.relate_type_equality(origin, left_ty, right_ty)?);
+            self.reduce_type_equality(origin, left_ty, right_ty)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Relate matching shape fields by assignability.
@@ -292,9 +289,7 @@ impl CheckState<'_> {
         origin: Origin,
         source: &[ShapeMember],
         target: &[ShapeMember],
-    ) -> CompilerResult<Progress> {
-        let mut progress = Progress::Unchanged;
-
+    ) -> CompilerResult<()> {
         // push target field types into source fields
         for target in target {
             let Some((target_key, target_ty)) = shape_field(target) else {
@@ -304,11 +299,10 @@ impl CheckState<'_> {
                 continue;
             };
 
-            progress =
-                progress.merge(self.relate_type_assignability(origin, source_ty, target_ty)?);
+            self.reduce_type_assignability(origin, source_ty, target_ty)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Expect shape fields to satisfy expected fields.
@@ -317,9 +311,7 @@ impl CheckState<'_> {
         origin: Origin,
         members: &[ShapeMember],
         targets: &[ShapeMember],
-    ) -> CompilerResult<Progress> {
-        let mut progress = Progress::Unchanged;
-
+    ) -> CompilerResult<()> {
         // expect common fields to satisfy expected types
         for target in targets {
             let Some((target_key, target_ty)) = shape_field(target) else {
@@ -329,11 +321,10 @@ impl CheckState<'_> {
                 continue;
             };
 
-            progress = progress
-                .merge(self.relate_contextual_type_assignability(origin, member_ty, target_ty)?);
+            self.reduce_contextual_type_assignability(origin, member_ty, target_ty)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Decide exact equality for one shape member.

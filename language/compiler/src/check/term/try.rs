@@ -3,22 +3,8 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericArgument, Origin, Progress, TypeLiteralTerm, TypeOperand,
-    TypeRelation, TypeTerm, VariableId,
+    CheckState, Decision, GenericArgument, Origin, TypeOperand, TypeRelation, TypeTerm, VariableId,
 };
-
-/// Runtime await expression term.
-///
-/// ```ds
-/// await value
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) struct AwaitTerm {
-    /// The source await expression.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The awaited expression type.
-    pub(in crate::check) value: TypeOperand,
-}
 
 /// Runtime try operator term.
 ///
@@ -44,6 +30,7 @@ impl TryTerm {
     ) -> smallvec::SmallVec<[VariableId; 2]> {
         let mut variables = smallvec::SmallVec::new();
         variables.extend(self.value.referenced_variables(state));
+
         variables
     }
 }
@@ -69,45 +56,6 @@ impl TryFailureTerm {
     ) -> smallvec::SmallVec<[VariableId; 2]> {
         let mut variables = smallvec::SmallVec::new();
         variables.extend(self.value.referenced_variables(state));
-        variables
-    }
-}
-
-/// Runtime yield expression term.
-///
-/// ```ds
-/// yield value
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(in crate::check) struct YieldTerm {
-    /// The source yield expression.
-    pub(in crate::check) source: dir::GlobalNodeIdAny,
-    /// The yielded value type.
-    pub(in crate::check) value: Option<TypeOperand>,
-    /// The current generator yield target.
-    pub(in crate::check) yield_target: Option<VariableId>,
-    /// The current generator resume target.
-    pub(in crate::check) resume_target: Option<VariableId>,
-    /// The completion target of a delegated generator.
-    pub(in crate::check) delegate_return_target: Option<VariableId>,
-    /// The yield cardinality.
-    pub(in crate::check) cardinality: dir::YieldCardinality,
-}
-
-impl YieldTerm {
-    /// Return variables referenced by this term.
-    pub(in crate::check) fn referenced_variables(
-        &self,
-        state: &CheckState<'_>,
-    ) -> smallvec::SmallVec<[VariableId; 2]> {
-        let mut variables = smallvec::SmallVec::new();
-
-        if let Some(value) = self.value {
-            variables.extend(value.referenced_variables(state));
-        }
-        variables.extend(self.yield_target);
-        variables.extend(self.resume_target);
-        variables.extend(self.delegate_return_target);
 
         variables
     }
@@ -139,57 +87,6 @@ pub(in crate::check) enum TryTermKind {
 }
 
 impl CheckState<'_> {
-    /// Reduce one await term.
-    pub(in crate::check) fn reduce_await_term(
-        &mut self,
-        awaited: &AwaitTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(term) = self.type_operand_term(awaited.value)? else {
-            return Ok(None);
-        };
-
-        self.promise_value_type(&term)
-    }
-
-    /// Reduce one yield expression result from the active generator channel.
-    pub(in crate::check) fn reduce_yield_term(
-        &self,
-        yielded: &YieldTerm,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let ty = match yielded.cardinality {
-            dir::YieldCardinality::Scalar => yielded.resume_target,
-            dir::YieldCardinality::Generator => yielded.delegate_return_target,
-        };
-
-        let Some(ty) = ty else {
-            return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Error)));
-        };
-        let Some(term) = self.type_operand_term(ty.into())? else {
-            return Ok(None);
-        };
-
-        Ok(Some(term))
-    }
-
-    /// Expect an awaited operand to produce the expected result.
-    pub(in crate::check) fn expect_await_term(
-        &mut self,
-        origin: Origin,
-        awaited: &AwaitTerm,
-        result: VariableId,
-    ) -> CompilerResult<Progress> {
-        let symbol = self.language_symbol(awaited.source.module_id, dir::LanguageItem::Promise);
-        let argument = GenericArgument::Type(result.into());
-        let expected = TypeTerm::Reference {
-            origin: Origin::Node(awaited.source),
-            symbol,
-            arguments: vec![argument].into(),
-        };
-        let expected = self.inference.push_term(expected);
-
-        self.relate_contextual_type_assignability(origin, awaited.value, expected)
-    }
-
     /// Reduce one try operator term.
     pub(in crate::check) fn reduce_try_term(
         &mut self,
@@ -233,15 +130,16 @@ impl CheckState<'_> {
         origin: Origin,
         tried: &TryTerm,
         result: VariableId,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let Some(value) =
             self.try_associated_type_operand(origin, result.module, tried.value, "Value")?
         else {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         };
-        let progress = self.relate_contextual_type_assignability(origin, value, result)?;
 
-        Ok(progress)
+        self.reduce_contextual_type_assignability(origin, value, result)?;
+
+        Ok(())
     }
 
     /// Expect a try failure projection to produce the expected result.
@@ -250,34 +148,16 @@ impl CheckState<'_> {
         origin: Origin,
         tried: &TryFailureTerm,
         result: VariableId,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let Some(failure) =
             self.try_associated_type_operand(origin, result.module, tried.value, "Failure")?
         else {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         };
-        let progress = self.relate_contextual_type_assignability(origin, failure, result)?;
 
-        Ok(progress)
-    }
+        self.reduce_contextual_type_assignability(origin, failure, result)?;
 
-    /// Expect a yield expression result to match its resume channel.
-    pub(in crate::check) fn expect_yield_term(
-        &mut self,
-        origin: Origin,
-        yielded: &YieldTerm,
-        result: VariableId,
-    ) -> CompilerResult<Progress> {
-        let source = match yielded.cardinality {
-            dir::YieldCardinality::Scalar => yielded.resume_target,
-            dir::YieldCardinality::Generator => yielded.delegate_return_target,
-        };
-        let Some(source) = source else {
-            return Ok(Progress::Unchanged);
-        };
-        let progress = self.relate_contextual_type_assignability(origin, source, result)?;
-
-        Ok(progress)
+        Ok(())
     }
 
     /// Decide whether a propagated try failure fits an enclosing return type.
@@ -301,29 +181,9 @@ impl CheckState<'_> {
             return Ok(Decision::Undecidable);
         };
 
-        self.decide_type_term_relation(TypeRelation::Implements, &return_type, &target)
-    }
+        let target = self.inference.push_term(target);
 
-    /// Return the fulfilled value type from one promise term.
-    fn promise_value_type(&mut self, term: &TypeTerm) -> CompilerResult<Option<TypeTerm>> {
-        match term {
-            TypeTerm::Reference {
-                origin: _,
-                symbol,
-                arguments,
-            } if self.environment.language.item(*symbol) == Some(dir::LanguageItem::Promise) => {
-                let Some(value) = self.type_argument_variable_at(arguments, 0) else {
-                    return Ok(None);
-                };
-
-                let Some(term) = self.type_operand_term(value.into())? else {
-                    return Ok(None);
-                };
-
-                Ok(Some(term))
-            }
-            _ => Ok(None),
-        }
+        self.decide_type_relation(TypeRelation::Implements, return_type, target)
     }
 
     /// Return one try associated type.

@@ -5,7 +5,7 @@ use destack_source::ModuleId;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, FormTerm, GenericArgument, LayoutDecision, LayoutFailure, LayoutResolution,
-    RepresentationConstraint, ShapeMember, StaticOperand, StaticTerm, Substitution, TypeOperand,
+    RepresentationConstraint, ShapeMember, StaticOperand, StaticTerm, SubstitutionSet, TypeOperand,
     TypeTerm, VariableId,
 };
 
@@ -452,7 +452,7 @@ impl LayoutTerm {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         Ok(Self {
@@ -485,6 +485,19 @@ impl CheckState<'_> {
         module: ModuleId,
         term: &LayoutTerm,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
+        if let Some(decision) = self.inference.layout(term.source) {
+            return Ok(match decision {
+                LayoutDecision::Resolved(resolution) => {
+                    term.query.value(&resolution.layout).map(|value| {
+                        dir::StaticTerm::ScalarLiteral {
+                            value: dir::ScalarLiteral::Integer(i64::from(value)),
+                        }
+                    })
+                }
+                LayoutDecision::Rejected(_) => None,
+            });
+        }
+
         let pointer_bytes = self.target_pointer_bytes()?;
         let Some(layout) = self.type_operand_layout(module, term.target, pointer_bytes)? else {
             return Ok(None);
@@ -1080,7 +1093,7 @@ impl CheckState<'_> {
             layout,
         });
 
-        self.select_layout(term.source, decision)?;
+        self.inference.select_layout(term.source, decision)?;
 
         Ok(())
     }
@@ -1093,7 +1106,7 @@ impl CheckState<'_> {
             query: term.query,
         });
 
-        self.select_layout(term.source, decision)?;
+        self.inference.select_layout(term.source, decision)?;
 
         Ok(())
     }

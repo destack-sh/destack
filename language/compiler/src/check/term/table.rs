@@ -79,17 +79,46 @@ macro_rules! define_term_table {
             }
         )+
 
+        /// Rollback cursor for component check terms.
+        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+        pub(in crate::check) struct TermCursor {
+            $(
+                pub(in crate::check) $field: usize,
+            )+
+        }
+
+        impl TermCursor {
+            /// Return the cursor for one term table.
+            fn new(table: &TermTable) -> Self {
+                Self {
+                    $(
+                        $field: table.$field.len(),
+                    )+
+                }
+            }
+
+            /// Truncate one term table to this cursor.
+            fn truncate(self, table: &mut TermTable) {
+                $(
+                    table.$field.truncate(self.$field);
+                )+
+            }
+        }
+
         impl TermTable {
             /// Return the total number of stored terms.
             pub(in crate::check) fn len(&self) -> usize {
                 0 $(+ self.$field.len())+
             }
 
-            /// Append another term table into this table.
-            pub(in crate::check) fn append(&mut self, mut other: Self) {
-                $(
-                    self.$field.append(&mut other.$field);
-                )+
+            /// Return one rollback cursor.
+            pub(in crate::check) fn cursor(&self) -> TermCursor {
+                TermCursor::new(self)
+            }
+
+            /// Truncate this table to one rollback cursor.
+            pub(in crate::check) fn truncate(&mut self, cursor: TermCursor) {
+                cursor.truncate(self);
             }
         }
     };
@@ -136,7 +165,17 @@ impl TermTable {
     }
 
     /// Push one term into its arena.
-    pub(in crate::check) fn push<T: Term>(&mut self, term: T) {
-        T::arena_mut(self).push(term);
+    pub(in crate::check) fn push<T: Term>(&mut self, term: T) -> TermId<T> {
+        let arena = T::arena_mut(self);
+        let id = TermId::new(arena.len() as u32);
+
+        arena.push(term);
+
+        id
+    }
+
+    /// Return one term by id.
+    pub(in crate::check) fn get<T: Term>(&self, id: TermId<T>) -> &T {
+        &T::arena(self)[id.index()]
     }
 }

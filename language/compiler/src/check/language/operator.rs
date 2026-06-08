@@ -3,12 +3,12 @@ use destack_dir as dir;
 use destack_core::StringPool;
 use smallvec::{SmallVec, smallvec};
 
-/// Type selected by one operator protocol step.
+/// Result produced by one operator expression protocol.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::check) enum OperatorType {
-    /// Use the selected method return type.
+pub(in crate::check) enum OperatorExpressionResult {
+    /// Use the selected method return.
     MethodReturn,
-    /// Use the builtin boolean type.
+    /// Use the builtin boolean result.
     Boolean,
 }
 
@@ -103,22 +103,30 @@ pub(in crate::check) struct OperatorProtocol {
     pub(in crate::check) arguments: SmallVec<[OperatorProtocolArgument; 2]>,
     /// The required operator method.
     pub(in crate::check) method: OperatorMethod,
-    /// The type required from the selected method.
-    pub(in crate::check) method_return: OperatorType,
-    /// The type produced by the operator expression.
-    pub(in crate::check) expression_type: OperatorType,
+    /// The result produced by the operator expression.
+    pub(in crate::check) expression_result: OperatorExpressionResult,
 }
 
 impl OperatorProtocol {
-    /// Return one protocol whose expression type is the selected method return.
-    fn returning_method(item: dir::LanguageItem, method: OperatorMethod) -> Self {
+    /// Return one operator protocol.
+    fn new(
+        item: dir::LanguageItem,
+        method: OperatorMethod,
+        expression_result: OperatorExpressionResult,
+    ) -> Self {
         Self {
             item,
             arguments: SmallVec::new(),
             method,
-            method_return: OperatorType::MethodReturn,
-            expression_type: OperatorType::MethodReturn,
+            expression_result,
         }
+    }
+
+    /// Return this operator protocol with static generic arguments.
+    fn with_arguments(mut self, arguments: SmallVec<[OperatorProtocolArgument; 2]>) -> Self {
+        self.arguments = arguments;
+
+        self
     }
 }
 
@@ -127,22 +135,29 @@ pub(in crate::check) fn unary_operator_protocols(
     operator: dir::UnaryOperator,
 ) -> SmallVec<[OperatorProtocol; 2]> {
     let protocol = match operator {
-        dir::UnaryOperator::Negate => {
-            OperatorProtocol::returning_method(dir::LanguageItem::Negate, OperatorMethod::Negate)
-        }
-        dir::UnaryOperator::Plus => {
-            OperatorProtocol::returning_method(dir::LanguageItem::Plus, OperatorMethod::Plus)
-        }
-        dir::UnaryOperator::ElementwiseNot => {
-            OperatorProtocol::returning_method(dir::LanguageItem::Not, OperatorMethod::Not)
-        }
-        dir::UnaryOperator::Dereference => OperatorProtocol {
-            item: dir::LanguageItem::Dereference,
-            arguments: smallvec![OperatorProtocolArgument::Access(dir::Access::Readonly)],
-            method: OperatorMethod::Dereference,
-            method_return: OperatorType::MethodReturn,
-            expression_type: OperatorType::MethodReturn,
-        },
+        dir::UnaryOperator::Negate => OperatorProtocol::new(
+            dir::LanguageItem::Negate,
+            OperatorMethod::Negate,
+            OperatorExpressionResult::MethodReturn,
+        ),
+        dir::UnaryOperator::Plus => OperatorProtocol::new(
+            dir::LanguageItem::Plus,
+            OperatorMethod::Plus,
+            OperatorExpressionResult::MethodReturn,
+        ),
+        dir::UnaryOperator::ElementwiseNot => OperatorProtocol::new(
+            dir::LanguageItem::Not,
+            OperatorMethod::Not,
+            OperatorExpressionResult::MethodReturn,
+        ),
+        dir::UnaryOperator::Dereference => OperatorProtocol::new(
+            dir::LanguageItem::Dereference,
+            OperatorMethod::Dereference,
+            OperatorExpressionResult::MethodReturn,
+        )
+        .with_arguments(smallvec![OperatorProtocolArgument::Access(
+            dir::Access::Readonly
+        )]),
         dir::UnaryOperator::PostIncrement
         | dir::UnaryOperator::PostDecrement
         | dir::UnaryOperator::PreIncrement
@@ -162,71 +177,82 @@ pub(in crate::check) fn binary_operator_protocols(
 ) -> SmallVec<[OperatorProtocol; 2]> {
     match operator {
         dir::BinaryOperator::Add => {
-            smallvec![OperatorProtocol::returning_method(
+            smallvec![OperatorProtocol::new(
                 dir::LanguageItem::Add,
                 OperatorMethod::Add,
+                OperatorExpressionResult::MethodReturn,
             )]
         }
-        dir::BinaryOperator::Subtract => smallvec![OperatorProtocol::returning_method(
+        dir::BinaryOperator::Subtract => smallvec![OperatorProtocol::new(
             dir::LanguageItem::Subtract,
             OperatorMethod::Subtract,
+            OperatorExpressionResult::MethodReturn,
         )],
-        dir::BinaryOperator::Multiply => smallvec![OperatorProtocol::returning_method(
+        dir::BinaryOperator::Multiply => smallvec![OperatorProtocol::new(
             dir::LanguageItem::Multiply,
             OperatorMethod::Multiply,
+            OperatorExpressionResult::MethodReturn,
         )],
         dir::BinaryOperator::Divide => {
-            smallvec![OperatorProtocol::returning_method(
+            smallvec![OperatorProtocol::new(
                 dir::LanguageItem::Divide,
                 OperatorMethod::Divide,
+                OperatorExpressionResult::MethodReturn,
             )]
         }
-        dir::BinaryOperator::Remainder => smallvec![OperatorProtocol::returning_method(
+        dir::BinaryOperator::Remainder => smallvec![OperatorProtocol::new(
             dir::LanguageItem::Remainder,
             OperatorMethod::Remainder,
+            OperatorExpressionResult::MethodReturn,
         )],
         dir::BinaryOperator::Exponent => {
-            smallvec![OperatorProtocol::returning_method(
+            smallvec![OperatorProtocol::new(
                 dir::LanguageItem::Power,
                 OperatorMethod::Power,
+                OperatorExpressionResult::MethodReturn,
             )]
         }
-        dir::BinaryOperator::ShiftLeft => smallvec![OperatorProtocol::returning_method(
+        dir::BinaryOperator::ShiftLeft => smallvec![OperatorProtocol::new(
             dir::LanguageItem::ShiftLeft,
             OperatorMethod::ShiftLeft,
+            OperatorExpressionResult::MethodReturn,
         )],
-        dir::BinaryOperator::ShiftRight => smallvec![OperatorProtocol::returning_method(
+        dir::BinaryOperator::ShiftRight => smallvec![OperatorProtocol::new(
             dir::LanguageItem::ShiftRight,
             OperatorMethod::ShiftRight,
+            OperatorExpressionResult::MethodReturn,
         )],
-        dir::BinaryOperator::UnsignedShiftRight => smallvec![OperatorProtocol::returning_method(
+        dir::BinaryOperator::UnsignedShiftRight => smallvec![OperatorProtocol::new(
             dir::LanguageItem::ShiftRightUnsigned,
             OperatorMethod::ShiftRightUnsigned,
+            OperatorExpressionResult::MethodReturn,
         )],
         dir::BinaryOperator::ElementwiseAnd => {
-            smallvec![OperatorProtocol::returning_method(
+            smallvec![OperatorProtocol::new(
                 dir::LanguageItem::And,
                 OperatorMethod::And,
+                OperatorExpressionResult::MethodReturn,
             )]
         }
         dir::BinaryOperator::ElementwiseXor => {
-            smallvec![OperatorProtocol::returning_method(
+            smallvec![OperatorProtocol::new(
                 dir::LanguageItem::Xor,
                 OperatorMethod::Xor,
+                OperatorExpressionResult::MethodReturn,
             )]
         }
         dir::BinaryOperator::ElementwiseOr => {
-            smallvec![OperatorProtocol::returning_method(
+            smallvec![OperatorProtocol::new(
                 dir::LanguageItem::Or,
                 OperatorMethod::Or,
+                OperatorExpressionResult::MethodReturn,
             )]
         }
         dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual => smallvec![OperatorProtocol {
             item: dir::LanguageItem::PartialEqual,
             arguments: SmallVec::new(),
             method: OperatorMethod::Equal,
-            method_return: OperatorType::Boolean,
-            expression_type: OperatorType::Boolean,
+            expression_result: OperatorExpressionResult::MethodReturn,
         }],
         dir::BinaryOperator::LessThan
         | dir::BinaryOperator::LessThanOrEqual
@@ -236,15 +262,13 @@ pub(in crate::check) fn binary_operator_protocols(
                 item: dir::LanguageItem::Compare,
                 arguments: SmallVec::new(),
                 method: OperatorMethod::Compare,
-                method_return: OperatorType::MethodReturn,
-                expression_type: OperatorType::Boolean,
+                expression_result: OperatorExpressionResult::Boolean,
             },
             OperatorProtocol {
                 item: dir::LanguageItem::PartialCompare,
                 arguments: SmallVec::new(),
                 method: OperatorMethod::PartialCompare,
-                method_return: OperatorType::MethodReturn,
-                expression_type: OperatorType::Boolean,
+                expression_result: OperatorExpressionResult::Boolean,
             },
         ],
         dir::BinaryOperator::EqualStrict

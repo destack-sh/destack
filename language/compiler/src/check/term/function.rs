@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::check::{
-    CheckState, Decision, GenericParameterId, Origin, Progress, ReceiverSubstitution, Substitution,
-    TypeOperand, TypeRelation, VariableId,
+    CheckState, Decision, GenericParameterId, Origin, SubstitutionSet, TypeOperand, TypeRelation,
+    VariableId,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -27,30 +27,21 @@ pub(in crate::check) struct FunctionParameter {
 
 impl FunctionParameter {
     /// Substitute generic arguments through this function parameter.
-    pub(in crate::check) fn substitute<'a>(
+    pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: impl Into<Substitution<'a>> + Copy,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
+        let static_parameter = if substitution.has_generics() {
+            None
+        } else {
+            self.static_parameter
+        };
+
         Ok(Self {
             ty: state.substitute_type_operand(module, substitution, self.ty)?,
-            static_parameter: None,
-            is_optional: self.is_optional,
-            is_rest: self.is_rest,
-        })
-    }
-
-    /// Substitute the selected receiver through this function parameter.
-    pub(in crate::check) fn substitute_receiver(
-        &self,
-        module: ModuleId,
-        substitution: ReceiverSubstitution,
-        state: &mut CheckState<'_>,
-    ) -> CompilerResult<Self> {
-        Ok(Self {
-            ty: state.substitute_receiver_type_operand(module, self.ty, substitution)?,
-            static_parameter: self.static_parameter.clone(),
+            static_parameter,
             is_optional: self.is_optional,
             is_rest: self.is_rest,
         })
@@ -67,7 +58,7 @@ pub(in crate::check) struct FunctionTerm {
     /// The function asynchrony.
     pub(in crate::check) asynchrony: dir::Asynchrony,
     /// The generic parameter parameters.
-    pub(in crate::check) generic_parameters: Vec<GenericParameterId>,
+    pub(in crate::check) generic_parameters: SmallVec<[GenericParameterId; 2]>,
     /// The optional `this` parameter type.
     pub(in crate::check) this_parameter: Option<TypeOperand>,
     /// The parameter types.
@@ -83,23 +74,16 @@ impl FunctionTerm {
     pub(in crate::check) fn substitute<'a>(
         &self,
         module: ModuleId,
-        substitution: impl Into<Substitution<'a>> + Copy,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
-        let mut generic_parameters = Vec::new();
-        let substitution = substitution.into();
-        if let Some(generic) = substitution.generic {
-            for parameter in &self.generic_parameters {
-                let is_substituted = generic
-                    .entries
-                    .iter()
-                    .any(|entry| entry.parameter == *parameter);
-                if !is_substituted {
-                    generic_parameters.push(*parameter);
-                }
+        let mut generic_parameters = SmallVec::<[GenericParameterId; 2]>::new();
+
+        // retain generic parameters that are not applied by this substitution
+        for parameter in &self.generic_parameters {
+            if !substitution.has_generic(*parameter) {
+                generic_parameters.push(*parameter);
             }
-        } else {
-            generic_parameters.extend(self.generic_parameters.iter().copied());
         }
 
         Ok(Self {
@@ -122,39 +106,6 @@ impl FunctionTerm {
         })
     }
 
-    /// Substitute the selected receiver through this function term.
-    pub(in crate::check) fn substitute_receiver(
-        &self,
-        module: ModuleId,
-        substitution: ReceiverSubstitution,
-        state: &mut CheckState<'_>,
-    ) -> CompilerResult<Self> {
-        Ok(Self {
-            asynchrony: self.asynchrony,
-            generic_parameters: self.generic_parameters.clone(),
-            this_parameter: self
-                .this_parameter
-                .map(|parameter| {
-                    state.substitute_receiver_type_operand(module, parameter, substitution)
-                })
-                .transpose()?,
-            parameters: self
-                .parameters
-                .iter()
-                .map(|parameter| parameter.substitute_receiver(module, substitution, state))
-                .collect::<CompilerResult<SmallVec<_>>>()?,
-            return_type: self
-                .return_type
-                .map(|return_type| {
-                    state.substitute_receiver_type_operand(module, return_type, substitution)
-                })
-                .transpose()?,
-            is_generator: self.is_generator,
-        })
-    }
-}
-
-impl FunctionTerm {
     /// Return variables referenced by this term.
     pub(in crate::check) fn referenced_variables(
         &self,
@@ -224,7 +175,7 @@ impl CheckState<'_> {
 
         Ok(FunctionTerm {
             asynchrony: function.asynchrony,
-            generic_parameters,
+            generic_parameters: generic_parameters.into(),
             this_parameter,
             parameters: parameters.into(),
             return_type,
@@ -238,18 +189,16 @@ impl CheckState<'_> {
         origin: Origin,
         function: &FunctionTerm,
         expected: &FunctionTerm,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         if function.asynchrony != expected.asynchrony
             || function.is_generator != expected.is_generator
         {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         }
-        let mut progress = Progress::Unchanged;
 
         // push receiver context into the function input
         if let (Some(source), Some(target)) = (function.this_parameter, expected.this_parameter) {
-            progress =
-                progress.merge(self.relate_contextual_type_assignability(origin, target, source)?);
+            self.reduce_contextual_type_assignability(origin, target, source)?;
         }
 
         // push parameter context contravariantly
@@ -258,17 +207,15 @@ impl CheckState<'_> {
                 continue;
             }
 
-            progress = progress
-                .merge(self.relate_contextual_type_assignability(origin, target.ty, source.ty)?);
+            self.reduce_contextual_type_assignability(origin, target.ty, source.ty)?;
         }
 
         // push return context covariantly
         if let (Some(source), Some(target)) = (function.return_type, expected.return_type) {
-            progress =
-                progress.merge(self.relate_contextual_type_assignability(origin, source, target)?);
+            self.reduce_contextual_type_assignability(origin, source, target)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Decide exact equality for function terms.

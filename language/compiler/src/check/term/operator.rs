@@ -3,8 +3,8 @@ use destack_dir as dir;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, FunctionTerm, OperatorCandidateDispatch, OperatorDecision, OperatorFailure,
-    OperatorFailureReason, OperatorResolution, Origin, Progress, TypeLiteralTerm, TypeOperand,
-    TypeTerm, VariableId,
+    OperatorFailureReason, OperatorResolution, Origin, TypeLiteralTerm, TypeOperand, TypeTerm,
+    VariableId,
 };
 
 /// Runtime operator expression term.
@@ -76,6 +76,10 @@ impl CheckState<'_> {
         origin: Origin,
         operator: &OperatorTerm,
     ) -> CompilerResult<Option<TypeTerm>> {
+        if let Some(term) = self.selected_operator_type(operator)? {
+            return Ok(Some(term));
+        }
+
         let result = self.select_operator_candidate(origin, operator, None)?;
         match &result {
             OperatorCandidateDispatch::Builtin { return_type } => {
@@ -105,10 +109,11 @@ impl CheckState<'_> {
         origin: Origin,
         operator: &OperatorTerm,
         result: VariableId,
-        expected: &TypeTerm,
-    ) -> CompilerResult<Progress> {
+        expected: TypeOperand,
+    ) -> CompilerResult<()> {
         let resolved = self.select_operator_candidate(origin, operator, Some(expected))?;
-        let progress = match &resolved {
+
+        match &resolved {
             OperatorCandidateDispatch::Builtin { return_type } => {
                 self.select_builtin_operator(operator, result)?;
 
@@ -126,16 +131,46 @@ impl CheckState<'_> {
             OperatorCandidateDispatch::NoMatch { reason } => {
                 self.reject_operator(operator, *reason)?;
 
-                self.constrain_solved_type_assignable(
+                self.expect_operator_return_type(
                     origin,
                     &TypeTerm::Literal(TypeLiteralTerm::Error),
                     expected,
                 )?
             }
-            OperatorCandidateDispatch::Pending => Progress::Unchanged,
+            OperatorCandidateDispatch::Pending => (),
         };
 
-        Ok(progress)
+        Ok(())
+    }
+
+    /// Return the type produced by one selected operator decision.
+    fn selected_operator_type(&self, operator: &OperatorTerm) -> CompilerResult<Option<TypeTerm>> {
+        let Some(decision) = self.inference.operator(operator.source) else {
+            return Ok(None);
+        };
+
+        let term = match decision {
+            OperatorDecision::Resolved(OperatorResolution::Builtin { result, .. }) => {
+                let Some(term) = self.type_operand_term(result.into())? else {
+                    return Ok(None);
+                };
+
+                term
+            }
+            OperatorDecision::Resolved(OperatorResolution::Method { function, .. }) => {
+                let Some(return_type) = function.return_type else {
+                    return Ok(Some(TypeTerm::Literal(TypeLiteralTerm::Void)));
+                };
+                let Some(term) = self.type_operand_term(return_type)? else {
+                    return Ok(None);
+                };
+
+                term
+            }
+            OperatorDecision::Rejected(_) => TypeTerm::Literal(TypeLiteralTerm::Error),
+        };
+
+        Ok(Some(term))
     }
 
     /// Expect one selected operator return type to satisfy the result variable.
@@ -143,9 +178,11 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         return_type: &TypeTerm,
-        expected: &TypeTerm,
-    ) -> CompilerResult<Progress> {
-        self.constrain_solved_type_assignable(origin, return_type, expected)
+        expected: TypeOperand,
+    ) -> CompilerResult<()> {
+        let return_type = self.inference.push_term(return_type.clone());
+
+        self.reduce_type_assignability(origin, return_type, expected)
     }
 
     /// Reject one operator for diagnostics.
@@ -161,7 +198,7 @@ impl CheckState<'_> {
         };
         let decision = OperatorDecision::Rejected(failure);
 
-        self.select_operator(decision)?;
+        self.inference.select_operator(operator.source, decision)?;
 
         Ok(())
     }
@@ -182,7 +219,7 @@ impl CheckState<'_> {
 
         let decision = OperatorDecision::Resolved(resolution);
 
-        self.select_operator(decision)?;
+        self.inference.select_operator(operator.source, decision)?;
 
         Ok(())
     }
@@ -203,7 +240,7 @@ impl CheckState<'_> {
 
         let decision = OperatorDecision::Resolved(resolution);
 
-        self.select_operator(decision)?;
+        self.inference.select_operator(operator.source, decision)?;
 
         Ok(())
     }

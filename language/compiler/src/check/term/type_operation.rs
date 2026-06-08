@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, GenericArgument, Origin, Progress, Reduction, ShapeMember, Solution,
-    Substitution, TupleElement, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm, VariableId,
+    CheckState, Decision, GenericArgument, Origin, ShapeMember, Solution, SubstitutionSet,
+    TupleElement, TypeLiteralTerm, TypeOperand, TypeRelation, TypeTerm, VariableId,
 };
 
 /// Type-level operation term.
@@ -253,7 +253,7 @@ impl TypeOperationTerm {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let operation = match self {
@@ -343,7 +343,7 @@ impl MappedParameter {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         Ok(Self {
@@ -386,23 +386,22 @@ impl CheckState<'_> {
         then_type: TypeOperand,
         else_type: TypeOperand,
         expected: TypeOperand,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let decision = self.decide_type_relation(TypeRelation::Extends, left, right)?;
-        let progress = match decision {
+
+        match decision {
             // constrain the selected branch
             Decision::Yes => self.expect_conditional_branch(origin, then_type, expected)?,
             // constrain the selected branch
             Decision::No => self.expect_conditional_branch(origin, else_type, expected)?,
             // constrain every possible branch
             Decision::Undecidable => {
-                let then_type = self.expect_conditional_branch(origin, then_type, expected)?;
-                let else_type = self.expect_conditional_branch(origin, else_type, expected)?;
-
-                then_type.merge(else_type)
+                self.expect_conditional_branch(origin, then_type, expected)?;
+                self.expect_conditional_branch(origin, else_type, expected)?;
             }
         };
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Reduce one indexed access type with a literal key.
@@ -413,14 +412,11 @@ impl CheckState<'_> {
         left: TypeOperand,
         index: TypeOperand,
     ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(left) = self.type_operand_term(left)? else {
+        let Some(left) = self.reduce_type_operand(origin, left)? else {
             return Ok(None);
         };
-        let left = match self.reduce_type_term(origin, &left)? {
-            Reduction {
-                value: Some(term), ..
-            } => term,
-            Reduction { value: None, .. } => left,
+        let Some(left) = self.type_operand_term(left)? else {
+            return Ok(None);
         };
         let Some(index) = self.type_operand_term(index)? else {
             return Ok(None);
@@ -440,14 +436,15 @@ impl CheckState<'_> {
         left: TypeOperand,
         index: TypeOperand,
         expected: TypeOperand,
-    ) -> CompilerResult<Progress> {
+    ) -> CompilerResult<()> {
         let Some(term) = self.reduce_type_index_term(origin, module, left, index)? else {
-            return Ok(Progress::Unchanged);
+            return Ok(());
         };
         let term = self.inference.push_term(term);
-        let progress = self.relate_contextual_type_assignability(origin, term, expected)?;
 
-        Ok(progress)
+        self.reduce_contextual_type_assignability(origin, term, expected)?;
+
+        Ok(())
     }
 
     /// Reduce one string mapping application.
@@ -459,6 +456,9 @@ impl CheckState<'_> {
         argument: TypeOperand,
     ) -> CompilerResult<Option<TypeTerm>> {
         let Some(argument) = self.reduce_type_operand(origin, argument)? else {
+            return Ok(None);
+        };
+        let Some(argument) = self.type_operand_term(argument)? else {
             return Ok(None);
         };
         let literal = match argument {
@@ -623,16 +623,16 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: TypeOperand,
-    ) -> CompilerResult<Reduction<TypeTerm>> {
+    ) -> CompilerResult<Option<TypeTerm>> {
         let Some(source_term) = self.type_operand_term(source)? else {
-            return Ok(Reduction::pending());
+            return Ok(None);
         };
         let Some(term) = self.widen_inferred_type(origin, origin.module(), source_term.clone())?
         else {
-            return Ok(Reduction::pending());
+            return Ok(None);
         };
 
-        Ok(Reduction::value(term))
+        Ok(Some(term))
     }
 
     /// Widen one scalar literal.
@@ -664,10 +664,10 @@ impl CheckState<'_> {
         module: ModuleId,
         operand: TypeOperand,
     ) -> CompilerResult<Option<TypeOperand>> {
-        let Some(term) = self.type_operand_term(operand)? else {
+        let Some(operand) = self.reduce_type_operand(origin, operand)? else {
             return Ok(None);
         };
-        let Some(term) = self.reduce_type_operand_term(origin, term)? else {
+        let Some(term) = self.type_operand_term(operand)? else {
             return Ok(None);
         };
         let Some(widened) = self.widen_inferred_type(origin, module, term.clone())? else {
@@ -757,8 +757,8 @@ impl CheckState<'_> {
         source: TypeOperand,
         expected: TypeOperand,
         _expected_term: &TypeTerm,
-    ) -> CompilerResult<Progress> {
-        self.relate_contextual_type_assignability(origin, source, expected)
+    ) -> CompilerResult<()> {
+        self.reduce_contextual_type_assignability(origin, source, expected)
     }
 
     /// Reduce one best common type term.
@@ -795,16 +795,13 @@ impl CheckState<'_> {
         elements: &[TypeOperand],
         expected: TypeOperand,
         _expected_term: &TypeTerm,
-    ) -> CompilerResult<Progress> {
-        let mut progress = Progress::Unchanged;
-
+    ) -> CompilerResult<()> {
         // push the expected type into every element
         for element in elements {
-            progress = progress
-                .merge(self.relate_contextual_type_assignability(origin, *element, expected)?);
+            self.reduce_contextual_type_assignability(origin, *element, expected)?;
         }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Reduce a concrete set of candidate terms to their best common type.
@@ -950,8 +947,8 @@ impl CheckState<'_> {
         origin: Origin,
         branch: TypeOperand,
         expected: TypeOperand,
-    ) -> CompilerResult<Progress> {
-        self.relate_contextual_type_assignability(origin, branch, expected)
+    ) -> CompilerResult<()> {
+        self.reduce_contextual_type_assignability(origin, branch, expected)
     }
 
     /// Return the structural key represented by one literal type.

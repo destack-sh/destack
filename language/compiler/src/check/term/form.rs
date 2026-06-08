@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Decision, Progress, StaticOperand, StaticRelation, Substitution, VariableId,
+    CheckState, Decision, StaticOperand, StaticRelation, SubstitutionSet, VariableId,
 };
 
 /// Check-local memory form term.
@@ -106,7 +106,7 @@ impl FormTerm {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let form = match self {
@@ -225,8 +225,8 @@ impl CheckState<'_> {
         &mut self,
         left: &FormTerm,
         right: &FormTerm,
-    ) -> CompilerResult<Progress> {
-        let progress = match (left, right) {
+    ) -> CompilerResult<()> {
+        match (left, right) {
             (
                 FormTerm::Borrowed {
                     lifetime: left_lifetime,
@@ -237,22 +237,20 @@ impl CheckState<'_> {
                     access: right_access,
                 },
             ) => {
-                let lifetime = self.relate_static_equality(*left_lifetime, *right_lifetime)?;
-                let access = self.relate_static_equality(*left_access, *right_access)?;
-
-                lifetime.merge(access)
+                self.reduce_static_equality(*left_lifetime, *right_lifetime)?;
+                self.reduce_static_equality(*left_access, *right_access)?;
             }
             (FormTerm::Placed { place: left }, FormTerm::Placed { place: right }) => {
-                self.relate_static_equality(*left, *right)?
+                self.reduce_static_equality(*left, *right)?
             }
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
             | (FormTerm::Raw, FormTerm::Raw)
-            | (FormTerm::Readonly, FormTerm::Readonly) => Progress::Unchanged,
-            _ => Progress::Unchanged,
-        };
+            | (FormTerm::Readonly, FormTerm::Readonly) => (),
+            _ => (),
+        }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Constrain two memory forms by assignability.
@@ -260,10 +258,10 @@ impl CheckState<'_> {
         &mut self,
         source: &FormTerm,
         target: &FormTerm,
-    ) -> CompilerResult<Progress> {
-        let progress = match (source, target) {
+    ) -> CompilerResult<()> {
+        match (source, target) {
             (FormTerm::Placed { place: source }, FormTerm::Placed { place: target }) => {
-                self.relate_static_equality(*source, *target)?
+                self.reduce_static_equality(*source, *target)?
             }
             (
                 FormTerm::Borrowed {
@@ -275,20 +273,17 @@ impl CheckState<'_> {
                     access: target_access,
                 },
             ) => {
-                let lifetime =
-                    self.relate_static_assignability(*source_lifetime, *target_lifetime)?;
-                let access = self.relate_static_assignability(*source_access, *target_access)?;
-
-                lifetime.merge(access)
+                self.reduce_static_assignability(*source_lifetime, *target_lifetime)?;
+                self.reduce_static_assignability(*source_access, *target_access)?;
             }
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
             | (FormTerm::Raw, FormTerm::Raw)
-            | (FormTerm::Readonly, FormTerm::Readonly) => Progress::Unchanged,
-            _ => Progress::Unchanged,
-        };
+            | (FormTerm::Readonly, FormTerm::Readonly) => (),
+            _ => (),
+        }
 
-        Ok(progress)
+        Ok(())
     }
 
     /// Expect one form term to satisfy expected form fields.
@@ -296,8 +291,8 @@ impl CheckState<'_> {
         &mut self,
         form: &FormTerm,
         target: &FormTerm,
-    ) -> CompilerResult<Progress> {
-        let progress = match (form, target) {
+    ) -> CompilerResult<()> {
+        match (form, target) {
             (
                 FormTerm::Borrowed { lifetime, access },
                 FormTerm::Borrowed {
@@ -305,24 +300,22 @@ impl CheckState<'_> {
                     access: target_access,
                 },
             ) => {
-                let lifetime = self.relate_static_equality(*lifetime, *target_lifetime)?;
-                let access = self.relate_static_equality(*access, *target_access)?;
-
-                lifetime.merge(access)
+                self.reduce_static_assignability(*lifetime, *target_lifetime)?;
+                self.reduce_static_assignability(*access, *target_access)?;
             }
             (
                 FormTerm::Placed { place },
                 FormTerm::Placed {
                     place: target_place,
                 },
-            ) => self.relate_static_equality(*place, *target_place)?,
+            ) => self.reduce_static_equality(*place, *target_place)?,
             (FormTerm::Managed, FormTerm::Managed)
             | (FormTerm::Owned, FormTerm::Owned)
             | (FormTerm::Raw, FormTerm::Raw)
-            | (FormTerm::Readonly, FormTerm::Readonly) => Progress::Unchanged,
-            _ => Progress::Unchanged,
-        };
+            | (FormTerm::Readonly, FormTerm::Readonly) => (),
+            _ => (),
+        }
 
-        Ok(progress)
+        Ok(())
     }
 }
