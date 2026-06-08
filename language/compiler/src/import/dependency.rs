@@ -1,8 +1,8 @@
 use destack_artifact::{
     ConditionSet, DependencyIndex, ExportIndex, ExportPattern, ExportTarget, PackageImportIndex,
 };
-use destack_source::{PackageId, ProfileId};
 use destack_repository::{ExportKind, Package, Revision};
+use destack_source::{PackageId, ProfileId};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 

@@ -4,8 +4,8 @@ use std::sync::Arc;
 use destack_artifact::{DiagnosticAnchor, DirExported, DirResolved};
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{ModuleId, ProfileId};
 use destack_repository::ArtifactReader;
+use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexSet;
 
 use crate::resolve::resolve::ExportLookup;

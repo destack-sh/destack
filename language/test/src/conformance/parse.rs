@@ -7,12 +7,12 @@ use destack_artifact::{ArtifactKey, MemoryCacheStore};
 use destack_compiler::{Compiler, ImportError};
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions, source_colorizer};
+use destack_repository::{
+    DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
+};
 use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType,
     LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri,
-};
-use destack_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
 };
 
 use crate::core::{

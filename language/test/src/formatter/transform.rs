@@ -8,11 +8,11 @@ use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode, source_colorizer};
+use destack_repository::FormatterOptions;
 use destack_source::{
     DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle, LanguageType,
     PrintOptions, Uri, print_diff,
 };
-use destack_repository::FormatterOptions;
 
 /// Run a single formatter transform test.
 ///

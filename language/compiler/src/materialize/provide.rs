@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactPayload, DirMaterialized};
 use destack_dir as dir;
-use destack_source::ModuleId;
 use destack_repository::{ProfileId, ProviderContext};
+use destack_source::ModuleId;
 
 use crate::{Compiler, CompilerError, CompilerResult};
 

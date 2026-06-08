@@ -2,8 +2,8 @@ use std::iter;
 
 use destack_artifact::{ArtifactPayload, ArtifactSidecar, DirParsed};
 use destack_dir as dir;
-use destack_source::{FileContent, ModuleId, ProfileId};
 use destack_repository::{ConditionSet, Module, ProviderContext};
+use destack_source::{FileContent, ModuleId, ProfileId};
 use dir::NodeVisitor as _;
 
 use super::state::BindState;

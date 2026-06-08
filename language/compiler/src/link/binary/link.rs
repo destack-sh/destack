@@ -2,8 +2,8 @@ use destack_artifact::{
     ArtifactKey, BuildManifest, BuildManifestFile, ModuleOutput, OutputFile, PackageOutput,
     TargetOutputName,
 };
-use destack_source::{FileType, ModuleId};
 use destack_repository::ProviderError;
+use destack_source::{FileType, ModuleId};
 use indexmap::IndexMap;
 
 use crate::link::TargetLocation;

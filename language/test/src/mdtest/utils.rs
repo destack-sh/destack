@@ -9,12 +9,12 @@ use destack_artifact::{EmitFormat, MemoryCacheStore, Platform, Runtime};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_session::Session;
-use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Mode, Profile, Ref, Repository, Revision,
     Settings,
 };
+use destack_session::Session;
+use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
 use indexmap::IndexSet;
 
 use crate::core::{CaseResult, discover_file_cases, load_expected_failures};

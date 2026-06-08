@@ -2,8 +2,8 @@ use std::collections::VecDeque;
 
 use destack_artifact::{ModuleOutput, ScriptOutput};
 use destack_codegen_js::DependencyForm;
-use destack_source::{ModuleId, PackageId, Span, TargetId};
 use destack_repository::{ProviderContext, Target};
+use destack_source::{ModuleId, PackageId, Span, TargetId};
 use indexmap::{IndexMap, IndexSet};
 
 use crate::{Compiler, CompilerError, LinkError, LinkResult};

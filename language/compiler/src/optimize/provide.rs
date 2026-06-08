@@ -5,8 +5,8 @@ use std::str::FromStr;
 
 use destack_artifact::{ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
 use destack_mir as mir;
-use destack_source::{ModuleId, TargetId};
 use destack_repository::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
+use destack_source::{ModuleId, TargetId};
 use target_lexicon::Triple;
 
 use super::{

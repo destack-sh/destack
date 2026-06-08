@@ -6,8 +6,8 @@ use std::time::{Duration, Instant};
 use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_query::{self as query, ModuleQueryContext, WorkspaceQueryContext};
-use destack_source::{FileId, FileType, MemoryFileSystem, ModuleId};
 use destack_repository::{ProfileId, Ref, Repository, Revision};
+use destack_source::{FileId, FileType, MemoryFileSystem, ModuleId};
 
 use super::{TestMarkers, parse_markers};
 use crate::core::{

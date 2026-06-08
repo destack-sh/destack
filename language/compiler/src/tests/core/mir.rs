@@ -4,11 +4,11 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_mir as mir;
+use destack_repository::{ProviderContext, ProviderError, Revision};
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, PackageId, ProfileId,
     Span, TargetId,
 };
-use destack_repository::{ProviderContext, ProviderError, Revision};
 
 /// MIR program under compiler tests.
 pub(crate) struct TestProgram {

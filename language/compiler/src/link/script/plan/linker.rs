@@ -1,8 +1,8 @@
 use std::collections::{HashSet, VecDeque};
 
 use destack_artifact::{ArtifactKey, ModuleOutput};
-use destack_source::ModuleId;
 use destack_repository::ProviderError;
+use destack_source::ModuleId;
 use indexmap::IndexSet;
 
 use crate::{CompilerResult, LinkError, LinkResult};

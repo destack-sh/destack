@@ -6,8 +6,8 @@ use destack_dir::{NodeParentIndex, TokenSpan};
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
-use destack_source::{DiffOptions, File, FileId, FileType, LanguageType, Uri, print_diff};
 use destack_repository::FormatterOptions;
+use destack_source::{DiffOptions, File, FileId, FileType, LanguageType, Uri, print_diff};
 
 /// Run a single formatter roundtrip test.
 ///

@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use destack_artifact::{OutputContent, OutputFile};
-use destack_source::{File, FileContent, FileType, ModuleId};
 use destack_repository::{BundleAssetMode, Module, Target};
+use destack_source::{File, FileContent, FileType, ModuleId};
 use indexmap::{IndexMap, IndexSet};
 
 use super::super::ScriptLinker;

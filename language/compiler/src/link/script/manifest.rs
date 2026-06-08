@@ -4,8 +4,8 @@ use destack_artifact::{
     BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, OutputFile,
     PackageOutput,
 };
-use destack_source::FileType;
 use destack_repository::BundleMode;
+use destack_source::FileType;
 
 use super::ScriptLinker;
 use super::plan::{Output, OutputId, Plan};

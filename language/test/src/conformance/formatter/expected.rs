@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use destack_source::{IndentStyle, LineEnding};
 use destack_repository::FormatterOptions;
+use destack_source::{IndentStyle, LineEnding};
 
 use crate::conformance::ExpectedOutput;
 
@@ -334,8 +334,8 @@ mod tests {
     use super::{
         apply_oxfmt_options_line, parse_oxfmt_snapshot_output, parse_oxfmt_snapshot_variant,
     };
-    use destack_source::IndentStyle;
     use destack_repository::FormatterOptions;
+    use destack_source::IndentStyle;
 
     #[test]
     fn test_parse_oxfmt_snapshot_output_with_options_block() {

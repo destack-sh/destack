@@ -7,13 +7,13 @@ use destack_artifact::{
     DirExpanded, DirExported, DirImported, DirParsed, DirResolved, MemoryCacheStore,
 };
 use destack_dir as dir;
-use destack_source::{
-    DiagnosticCollection, DiffOptions, FileContent, MemoryFileSystem, ModuleId, ProfileId,
-    TargetId, format_diff,
-};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, ProviderError, Ref, Repository,
     Revision, Settings,
+};
+use destack_source::{
+    DiagnosticCollection, DiffOptions, FileContent, MemoryFileSystem, ModuleId, ProfileId,
+    TargetId, format_diff,
 };
 
 use crate::tests::snapshot::{

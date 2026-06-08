@@ -3,8 +3,8 @@ use super::script::ScriptLinker;
 use super::state::LinkState;
 use crate::{Compiler, CompilerError, CompilerResult, LinkError};
 use destack_artifact::{ArtifactPayload, EmitFormat, PackageOutput};
-use destack_source::{PackageId, TargetId};
 use destack_repository::{ProviderContext, RepositoryError};
+use destack_source::{PackageId, TargetId};
 
 impl Compiler {
     /// Build one package output.

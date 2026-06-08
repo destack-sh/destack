@@ -1,8 +1,8 @@
 use crate::{Compiler, LinkError, LinkResult};
 use destack_artifact::OutputFile;
 use destack_codegen_js as js;
-use destack_source::{FileType, ModuleId};
 use destack_repository::BundleMode;
+use destack_source::{FileType, ModuleId};
 
 use super::super::plan::Plan;
 use super::super::{OutputId, ScriptLinker};

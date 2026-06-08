@@ -3,8 +3,8 @@ use std::sync::Arc;
 use destack_artifact::{ConditionSet, DependencyIndex, DiagnosticAnchor, DirImported, ProfileKey};
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::Loader;
 use destack_repository::{Module, Revision};
+use destack_source::Loader;
 
 use crate::import::stats::ImportStats;
 use crate::{ImportError, ImportResult};

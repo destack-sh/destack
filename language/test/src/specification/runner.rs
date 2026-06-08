@@ -6,12 +6,12 @@ use std::time::Duration;
 use destack_artifact::{ArtifactKey, MemoryCacheStore};
 use destack_compiler::Compiler;
 use destack_parser::source_colorizer;
-use destack_source::{
-    DiagnosticSeverity, File, FileType, MemoryFileSystem, ModuleId, PrintOptions, TargetId, Uri,
-};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
     parse_jsonc_file,
+};
+use destack_source::{
+    DiagnosticSeverity, File, FileType, MemoryFileSystem, ModuleId, PrintOptions, TargetId, Uri,
 };
 use serde_json::json;
 

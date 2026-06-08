@@ -3,8 +3,8 @@ use std::path::Path;
 
 use crate::{Compiler, LinkResult};
 
-use destack_source::{PackageId, TargetId};
 use destack_repository::Target;
+use destack_source::{PackageId, TargetId};
 
 /// One binary target linker.
 pub(crate) struct BinaryLinker<'a> {

@@ -2,8 +2,8 @@ use std::iter;
 
 use destack_artifact::{ArtifactPayload, ArtifactSidecar};
 use destack_dir as dir;
-use destack_source::{FileContent, ModuleId, ProfileId};
 use destack_repository::ProviderContext;
+use destack_source::{FileContent, ModuleId, ProfileId};
 
 use crate::resolve::state::ResolveState;
 use crate::{Compiler, CompilerError, CompilerResult};

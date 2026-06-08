@@ -4,8 +4,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use destack_artifact::DiagnosticBuilder;
 use destack_core::StringPool;
 use destack_mir as mir;
-use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use destack_repository::FloatMathPolicy;
+use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use parking_lot::Mutex;
 
 use crate::common::mir::{MirAnalysisOptions, TypeContext};

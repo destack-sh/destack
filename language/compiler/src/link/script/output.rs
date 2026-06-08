@@ -8,8 +8,8 @@ use destack_codegen_js::{
     JsFormatOptions, Module as ScriptModule, PrintedScriptModule,
     print_script_module as print_codegen_script_module,
 };
-use destack_source::{FileType, ModuleId, Uri};
 use destack_repository::{Module, ProviderContext, SourceMapMode, Target};
+use destack_source::{FileType, ModuleId, Uri};
 
 /// One final script text output policy derived from one target.
 #[derive(Debug, Clone, Copy)]
