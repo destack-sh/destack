@@ -16,6 +16,11 @@ pub trait ProviderContext: DiagnosticContext {
     /// Return the artifact key being built.
     fn artifact_key(&self) -> ArtifactKey;
 
+    /// Return whether this attempt should emit event traces.
+    fn emit_events(&self) -> bool {
+        false
+    }
+
     /// Require one artifact and return its exact version when ready.
     fn require(&self, key: ArtifactKey) -> Result<ArtifactVersion, ProviderError>;
 

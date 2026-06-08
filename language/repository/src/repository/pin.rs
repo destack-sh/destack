@@ -5,7 +5,7 @@ use destack_artifact::{ArtifactKey, ArtifactVersion};
 use destack_source::{File, FileContentId, FileId, ModuleId, PackageId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{Module, Package, Workspace};
+use crate::{Module, Package, Root};
 
 impl Repository {
     /// Pin one revision for the lifetime of the returned guard.
@@ -133,9 +133,9 @@ impl RevisionPin {
         self.repository.file(self.revision, file_id)
     }
 
-    /// Return workspace metadata.
-    pub fn workspace(&self) -> Result<Arc<Workspace>, RepositoryError> {
-        self.repository.workspace(self.revision)
+    /// Return root metadata.
+    pub fn root(&self) -> Result<Arc<Root>, RepositoryError> {
+        self.repository.root(self.revision)
     }
 
     /// Return one package for one package id.
@@ -214,10 +214,10 @@ mod tests {
             Settings::default(),
             layout,
         ));
-        let reference = Ref::for_workspace_root(&root);
+        let reference = Ref::for_root(&root);
         let base_revision = repository
             .current(&reference)
-            .expect("workspace root ref should exist");
+            .expect("root ref should exist");
         let anonymous_revision = repository
             .fork_with_edits(
                 base_revision,
@@ -246,7 +246,7 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    /// Build one unique workspace root for one repository test.
+    /// Build one unique root for one repository test.
     fn unique_test_root(prefix: &str) -> PathBuf {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -281,7 +281,7 @@ mod tests {
             Settings::default(),
             layout,
         ));
-        let reference = Ref::for_workspace_root(&root);
+        let reference = Ref::for_root(&root);
 
         let revision_1 = publish_edits(
             repository.as_ref(),

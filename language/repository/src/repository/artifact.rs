@@ -371,7 +371,7 @@ pub struct ArtifactCache {
     mir_optimized: DashMap<(ModuleId, ProfileId, TargetId), Arc<MirOptimized>>,
     /// Module query indexes by module and profile.
     module_query_index: DashMap<(ModuleId, ProfileId), Arc<ModuleQueryIndex>>,
-    /// Workspace query indexes by profile.
+    /// Root query indexes by profile.
     workspace_query_index: DashMap<ProfileId, Arc<WorkspaceQueryIndex>>,
     /// Module outputs by module and target.
     module_output: DashMap<(ModuleId, TargetId), Arc<ModuleOutput>>,
@@ -381,7 +381,7 @@ pub struct ArtifactCache {
     module_linted: DashMap<(ModuleId, ProfileId), Arc<ModuleLinted>>,
     /// Package lint markers by package.
     package_linted: DashMap<PackageId, Arc<PackageLinted>>,
-    /// Workspace lint marker.
+    /// Root lint marker.
     workspace_linted: DashMap<(), Arc<WorkspaceLinted>>,
 }
 

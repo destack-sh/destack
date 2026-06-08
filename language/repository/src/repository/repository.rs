@@ -14,12 +14,12 @@ use crate::repository::{
     BuiltinPackage, FileCache, FileEntry, FileStore, Ref, RepositoryError, Revision, RevisionEntry,
     RevisionState,
 };
-use crate::{DestackLayout, Environment, Settings, Workspace, WorkspaceKind};
+use crate::{DestackLayout, Environment, Root, RootKind, Settings};
 
 /// Content-addressed store for revision source state and derived artifacts.
 #[derive(Debug)]
 pub struct Repository {
-    /// The workspace root directory.
+    /// The repository root directory.
     pub(crate) root: PathBuf,
 
     /// Movable refs pointing at revision identities.
@@ -65,7 +65,7 @@ impl Repository {
         let refs = DashMap::new();
         let artifact_versions = DashMap::new();
         let file_cache = FileCache::new();
-        let workspace_reference = Ref::for_workspace_root(&root);
+        let root_reference = Ref::for_root(&root);
 
         let repository = Self {
             root,
@@ -83,7 +83,7 @@ impl Repository {
             settings,
         };
 
-        // initial repository revision
+        // create initial repository revision
         let initial_revision = Arc::new(RevisionState::new(
             Arc::new(OrdMap::<FileId, FileEntry>::new()),
             Arc::new(environment),
@@ -93,9 +93,7 @@ impl Repository {
             initial_revision_id,
             Arc::new(RevisionEntry::new(initial_revision)),
         );
-        repository
-            .refs
-            .insert(workspace_reference, initial_revision_id);
+        repository.refs.insert(root_reference, initial_revision_id);
 
         repository
     }
@@ -136,37 +134,37 @@ impl Repository {
         &self.settings
     }
 
-    /// Return the repository workspace root.
-    pub fn workspace_root(&self) -> &Path {
+    /// Return the repository root path.
+    pub fn path(&self) -> &Path {
         &self.root
     }
 
-    /// Return workspace metadata for one revision.
-    pub fn workspace(&self, revision: Revision) -> Result<Arc<Workspace>, RepositoryError> {
+    /// Return root metadata for one revision.
+    pub fn root(&self, revision: Revision) -> Result<Arc<Root>, RepositoryError> {
         let revision_state = self.revision(revision)?;
         let revision_cache = revision_state.cache();
 
-        if let Some(workspace) = revision_cache.workspace.get() {
-            return Ok(Arc::clone(workspace));
+        if let Some(root) = revision_cache.root.get() {
+            return Ok(Arc::clone(root));
         }
 
-        let workspace_config = self.destack_for_workspace(revision)?;
+        let root_config = self.destack_for_workspace(revision)?;
         let packages = self.package_index(revision)?;
         let kind = if packages.len() > 1 {
-            WorkspaceKind::Monorepo
+            RootKind::Monorepo
         } else {
-            WorkspaceKind::SinglePackage
+            RootKind::SinglePackage
         };
 
-        let workspace = Arc::new(Workspace {
-            file_id: workspace_config.as_ref().map(|config| config.file_id),
+        let root = Arc::new(Root {
+            file_id: root_config.as_ref().map(|config| config.file_id),
             root: self.root.clone(),
             kind,
         });
 
-        let workspace = revision_cache.workspace.get_or_init(|| workspace);
+        let root = revision_cache.root.get_or_init(|| root);
 
-        Ok(Arc::clone(workspace))
+        Ok(Arc::clone(root))
     }
 
     /// Resolve the repository cache directory.
@@ -177,14 +175,9 @@ impl Repository {
     /// Build one persisted artifact cache layout.
     pub fn artifact_image_cache_layout(&self, cache_abi: &str) -> ArtifactImageCacheLayout {
         let cache_root = self.cache_directory();
-        let is_shared_root = !cache_root.starts_with(self.workspace_root());
+        let is_shared_root = !cache_root.starts_with(self.path());
 
-        ArtifactImageCacheLayout::new(
-            &cache_root,
-            self.workspace_root(),
-            cache_abi,
-            is_shared_root,
-        )
+        ArtifactImageCacheLayout::new(&cache_root, self.path(), cache_abi, is_shared_root)
     }
 
     /// Build one persisted artifact cache.
