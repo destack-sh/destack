@@ -102,13 +102,11 @@ test:
     bun run --cwd wasm test
     bun run --cwd typescript test
     cargo build --release --manifest-path capi/Cargo.toml
-    @if [ "$(uname -s)" = "Darwin" ]; then \
-        capi_library="../target/release/libdestack_capi.dylib"; \
-    else \
-        capi_library="../target/release/libdestack_capi.so"; \
-    fi; \
-    PYTHONPATH="python/src" DESTACK_CAPI_LIB="$capi_library" python3 -m unittest discover -s python/tests; \
-    PYTHONPATH="python/src:python/aliases/destack-py/src" DESTACK_CAPI_LIB="$capi_library" python3 -m unittest discover -s python/aliases/destack-py/tests
+    python3 -m venv .test-python-venv
+    .test-python-venv/bin/python -m pip install --quiet --disable-pip-version-check maturin
+    cd python && ../.test-python-venv/bin/python -m maturin develop --quiet
+    .test-python-venv/bin/python -m unittest discover -s python/tests
+    rm -rf .test-python-venv
     just test-vscode
 
 # default check
@@ -179,25 +177,11 @@ publish-pypi dry="--dry-run":
         fi; \
         cd python && TWINE_USERNAME="__token__" TWINE_PASSWORD="${PYPI_TOKEN}" ../.publish-python-venv/bin/python -m twine upload --non-interactive dist/*; \
     fi
-    cd python/aliases/destack-py && ../../../.publish-python-venv/bin/python -m build
-    cd python/aliases/destack-py && ../../../.publish-python-venv/bin/python -m twine check dist/*
-    @if [ "{{dry}}" = "--dry-run" ]; then \
-        echo "Dry run: built and validated python legacy alias package"; \
-    else \
-        if [ -z "${PYPI_TOKEN:-}" ]; then \
-            echo "missing PYPI_TOKEN env var for live pypi publish"; \
-            exit 1; \
-        fi; \
-        cd python/aliases/destack-py && TWINE_USERNAME="__token__" TWINE_PASSWORD="${PYPI_TOKEN}" ../../../.publish-python-venv/bin/python -m twine upload --non-interactive dist/*; \
-    fi
     @if [ -d ".publish-python-venv" ]; then \
         rm -r .publish-python-venv; \
     fi
     @if [ -d "python/dist" ]; then \
         rm -r python/dist; \
-    fi
-    @if [ -d "python/aliases/destack-py/dist" ]; then \
-        rm -r python/aliases/destack-py/dist; \
     fi
 
 # publish vscode extension dry by default

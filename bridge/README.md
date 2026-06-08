@@ -6,11 +6,11 @@ Destack bridges into the rest of the universe.
 
 | Project | Status | Summary |
 |---------|--------|---------|
-| [`core`](core/README.md) | Experimental | Shared Rust bridge core used by language clients and bindings |
+| [`language`](language/README.md) | Experimental | Shared Rust language DTO schema used by generated bindings |
 | [`capi`](capi/README.md) | Experimental | Minimal C ABI bridge surface for FFI language clients |
-| [`typescript`](typescript/README.md) | Alpha | Primary language client package published as `@destack/language` |
-| [`rust`](rust/README.md) | Experimental | Rust client crate published as `destack` |
-| [`python`](python/README.md) | Experimental | Python client package published as `destack` |
+| [`typescript`](typescript/README.md) | Alpha | Primary language bridge package published as `@destack/language` |
+| [`rust`](rust/README.md) | Experimental | Rust language bridge crate published as `destack` |
+| [`python`](python/README.md) | Experimental | Python language bridge package published as `destack` |
 | [`vscode`](vscode/README.md) | Experimental | VS Code extension and language support |
 | [`zed`](zed/README.md) | Experimental | Zed extension integration |
 
