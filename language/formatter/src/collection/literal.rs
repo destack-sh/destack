@@ -16,8 +16,8 @@ use destack_fir::format::{
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
+use destack_repository::QuoteStyle;
 use destack_source::Span;
-use destack_workspace::QuoteStyle;
 
 /// Format a path with dot separated segments.
 impl<'ast> Format<DestackFormatContext<'ast>> for Path {

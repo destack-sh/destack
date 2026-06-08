@@ -20,8 +20,8 @@ use destack_dir::{
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token};
 use destack_fir::write;
+use destack_repository::QuoteProperty;
 use destack_source::Span;
-use destack_workspace::QuoteProperty;
 
 /// Return the initial comment range before the first class member.
 fn member_block_initial_gap(

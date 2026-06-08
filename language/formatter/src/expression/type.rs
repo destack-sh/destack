@@ -32,8 +32,8 @@ use destack_dir::{
 use destack_fir::format::{Buffer, FormatResult};
 use destack_fir::prelude::{space, token, *};
 use destack_fir::{format_args, write};
+use destack_repository::TrailingComma;
 use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
-use destack_workspace::TrailingComma;
 
 /// Return the innermost type that can own one postfix type operator.
 fn normalize_postfix_type_operand(

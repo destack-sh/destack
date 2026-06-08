@@ -22,8 +22,8 @@ use destack_fir::prelude::{
     space, token,
 };
 use destack_fir::{best_fitting, format_args, write};
+use destack_repository::TrailingComma;
 use destack_source::{NodeSpanRegion, NodeSpanType};
-use destack_workspace::TrailingComma;
 
 /// Return whether any argument carries annotations.
 fn arguments_have_annotations(

@@ -6,8 +6,8 @@ use destack_core::StringPool;
 use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format as fir_format;
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
+use destack_repository::FormatterOptions;
 use destack_source::{File, LanguageType};
-use destack_workspace::FormatterOptions;
 
 use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
 
@@ -164,8 +164,8 @@ fn render_program_roots<'a>(
 #[cfg(test)]
 mod tests {
     use super::format_file_source;
+    use destack_repository::FormatterOptions;
     use destack_source::{File, FileId, FileType, Uri};
-    use destack_workspace::FormatterOptions;
 
     /// Source formatting should use the provided source text.
     #[test]

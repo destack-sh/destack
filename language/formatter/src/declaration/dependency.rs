@@ -16,8 +16,8 @@ use destack_dir::{
 use destack_fir::format::{FormatError, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_repository::{ImportSortOrder, QuoteProperty, TrailingComma};
 use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
-use destack_workspace::{ImportSortOrder, QuoteProperty, TrailingComma};
 use std::cmp::Ordering;
 
 /// The import group category for declaration ordering.

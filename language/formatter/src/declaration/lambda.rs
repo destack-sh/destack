@@ -22,8 +22,8 @@ use destack_dir::{
 use destack_fir::format::{FormatResult, RemoveSoftLinesBuffer};
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
+use destack_repository::TrailingComma;
 use destack_source::Span;
-use destack_workspace::TrailingComma;
 
 /// The grouped call-argument layout shared with lambda formatting.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

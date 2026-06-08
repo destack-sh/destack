@@ -16,7 +16,7 @@ cargo-fuzz = true
 destack_formatter = { path = ".." }
 destack_source = { path = "../../source" }
 destack_test = { path = "../../test" }
-destack_workspace = { path = "../../workspace" }
+destack_repository = { path = "../../repository" }
 
 arbitrary = { version = "1.4.2", features = ["derive"] }
 libfuzzer-sys = "0.4.10"

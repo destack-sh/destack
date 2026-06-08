@@ -28,8 +28,8 @@ use destack_dir::{
 use destack_fir::format::{FormatNodes, FormatResult, Formatter as FirFormatter, VecBuffer, text};
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_repository::{QuoteProperty, QuoteStyle};
 use destack_source::{NodeSpanRegion, NodeSpanType};
-use destack_workspace::{QuoteProperty, QuoteStyle};
 
 impl<'ast> Format<DestackFormatContext<'ast>> for StringId {
     #[inline]

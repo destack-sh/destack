@@ -21,8 +21,8 @@ use destack_dir::{
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
+use destack_repository::ArrowParentheses;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
-use destack_workspace::ArrowParentheses;
 
 /// The cached content wrapper keyed by source span.
 pub(crate) struct FormatContentWithCacheMode<T> {

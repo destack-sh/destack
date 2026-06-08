@@ -16,7 +16,7 @@ use destack_dir::{
 };
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
-use destack_workspace::TrailingComma;
+use destack_repository::TrailingComma;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
