@@ -28,7 +28,7 @@ impl CheckState<'_> {
 
             // commit captured binding types and split managed fields
             for symbol in capture.symbols {
-                let operand = self.import_symbol_type_operand(module, symbol)?;
+                let operand = self.symbol_type_operand(module, symbol)?;
                 let source = self
                     .module(symbol.module_id)
                     .symbol_declaration_node(symbol.local_id);
@@ -50,13 +50,14 @@ impl CheckState<'_> {
                 let source = self
                     .module(receiver.symbol.module_id)
                     .symbol_declaration_node(receiver.symbol.local_id);
+                let receiver_type = receiver.receiver.ty;
                 let Some(ty) =
-                    self.commit_type_operand(module, output, environment, receiver.ty, source)
+                    self.commit_type_operand(module, output, environment, receiver_type, source)
                 else {
                     return Err(self.unresolved_symbol_type_error(
                         module,
                         receiver.symbol,
-                        receiver.ty,
+                        receiver_type,
                     ));
                 };
                 let mode = directive

@@ -5,8 +5,9 @@ use destack_source::ModuleId;
 use crate::CompilerResult;
 use crate::check::{
     CheckState, Constraint, FormTerm, FunctionParameter, FunctionTerm, GenericArgument,
-    GenericInstance, MemberTerm, Origin, ShapeMember, ShapeTerm, StaticOperand, StaticTerm, TermId,
-    TupleElement, TypeOperand, TypeOperationTerm, TypeRelation, TypeTerm, VariableId,
+    GenericInstance, GenericParameterBinding, GenericParameterId, MemberTerm, Origin, ShapeMember,
+    ShapeTerm, StaticOperand, StaticTerm, TermId, TupleElement, TypeOperand, TypeOperationTerm,
+    TypeRelation, TypeTerm, VariableId,
 };
 
 use super::CheckModuleOutput;
@@ -18,7 +19,7 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<dir::TypeSegment> {
         let node_types = self.inputs.node_types_in(module).collect::<Vec<_>>();
         let symbol_types = self.inputs.symbol_types_in(module).collect::<Vec<_>>();
 
@@ -47,7 +48,12 @@ impl CheckState<'_> {
             output.types.set_symbol_type(symbol, type_id);
         }
 
-        Ok(())
+        // return the built type segment
+        let state = self.module(module);
+        let base = dir::TypeSegment::from_base(&state.expanded.types);
+        let types = std::mem::replace(&mut output.types, base);
+
+        Ok(types)
     }
 
     /// Commit source static operands into the output static table.
@@ -56,7 +62,7 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<dir::StaticSegment> {
         let symbol_statics = self.inputs.symbol_statics_in(module).collect::<Vec<_>>();
 
         // write source symbol statics
@@ -69,7 +75,12 @@ impl CheckState<'_> {
             output.statics.set_symbol_static(symbol, static_id);
         }
 
-        Ok(())
+        // return the built static segment
+        let state = self.module(module);
+        let base = dir::StaticSegment::from_base(&state.expanded.statics);
+        let statics = std::mem::replace(&mut output.statics, base);
+
+        Ok(statics)
     }
 
     /// Return the output type already attached to one operand.
@@ -235,7 +246,18 @@ impl CheckState<'_> {
                 arguments,
             } => {
                 let arguments =
-                    self.commit_argument_terms(module, output, environment, arguments, source)?;
+                    if let Some(template) = self.inference.symbol_generic_template(*symbol) {
+                        self.commit_reference_arguments(
+                            module,
+                            output,
+                            environment,
+                            template,
+                            arguments,
+                            source,
+                        )?
+                    } else {
+                        self.commit_argument_terms(module, output, environment, arguments, source)?
+                    };
 
                 dir::Type::Reference(dir::ReferenceType {
                     symbol: *symbol,
@@ -405,7 +427,11 @@ impl CheckState<'_> {
                 self.reduce_committable_member_term(origin, module, &member, can_reduce_members)
             }
             TypeTerm::Shape(shape) if can_reduce_members || self.shape_has_spread(*shape) => {
-                Ok(self.reduce_type_term(origin, term)?.value)
+                let Some(reduced) = self.reduce_type_term(origin, term)? else {
+                    return Ok(None);
+                };
+
+                self.type_operand_term(reduced)
             }
             _ => Ok(Some(term.clone())),
         }
@@ -555,12 +581,12 @@ impl CheckState<'_> {
         }
     }
 
-    /// Commit generic parameter slots as parameter types.
+    /// Commit generic parameters as parameter types.
     fn commit_generic_parameter_types(
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
-        parameters: &[crate::check::GenericParameterId],
+        parameters: &[GenericParameterId],
         source: dir::LocalNodeIdAny,
     ) -> Option<Vec<dir::GlobalTypeId>> {
         parameters
@@ -642,23 +668,23 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-        node: dir::GlobalNodeIdAny,
+        source: dir::LocalNodeIdAny,
         instance: &GenericInstance,
     ) -> Option<dir::LocalGenericInstanceId> {
-        let source = node.local_id;
-        let arguments =
-            self.commit_argument_terms(module, output, environment, &instance.arguments, source)?;
-        let template = output
-            .generics
-            .iter_templates()
-            .find_map(|(id, template)| (template.owner == instance.owner).then_some(id))?;
+        let arguments = self.commit_reference_arguments(
+            module,
+            output,
+            environment,
+            instance.template,
+            &instance.arguments,
+            source,
+        )?;
+        let template = instance.template.local_id;
         let instance = dir::GenericInstance::new(template, arguments);
         let instance_id = output
             .generics
             .find_instance(&instance)
             .unwrap_or_else(|| output.generics.push_instance(instance));
-
-        output.generics.set_node_instance(node, instance_id);
 
         Some(instance_id)
     }
@@ -678,6 +704,78 @@ impl CheckState<'_> {
                 self.commit_argument_term(module, output, environment, argument, source)
             })
             .collect()
+    }
+
+    /// Commit generic arguments for one known template.
+    fn commit_reference_arguments(
+        &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+        template: dir::GlobalGenericTemplateId,
+        arguments: &[GenericArgument],
+        source: dir::LocalNodeIdAny,
+    ) -> Option<Vec<dir::StaticArgument>> {
+        let parameters = self
+            .inference
+            .generic_template_parameters(template)
+            .map(|(_, parameter)| parameter.clone())
+            .collect::<Vec<_>>();
+
+        arguments
+            .iter()
+            .enumerate()
+            .map(|(index, argument)| {
+                if let Some(parameter) = parameters.get(index) {
+                    self.commit_owner_argument_term(
+                        module,
+                        output,
+                        environment,
+                        parameter,
+                        argument,
+                        source,
+                    )
+                } else {
+                    self.commit_argument_term(module, output, environment, argument, source)
+                }
+            })
+            .collect()
+    }
+
+    /// Commit one generic argument for one known parameter.
+    fn commit_owner_argument_term(
+        &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+        parameter: &GenericParameterBinding,
+        argument: &GenericArgument,
+        source: dir::LocalNodeIdAny,
+    ) -> Option<dir::StaticArgument> {
+        let argument = match (parameter, argument) {
+            (
+                GenericParameterBinding::Type { .. } | GenericParameterBinding::VariadicType { .. },
+                GenericArgument::TypeOrStatic { source },
+            ) => {
+                let operand = self.inputs.node_type(source.value.clone().into_any())?;
+
+                GenericArgument::Type(operand)
+            }
+            (
+                GenericParameterBinding::Static { .. }
+                | GenericParameterBinding::VariadicStatic { .. },
+                GenericArgument::TypeOrStatic { source },
+            ) => {
+                let operand = self
+                    .node_static_operand(source.value.clone().into_any())
+                    .ok()?;
+
+                GenericArgument::Static(operand)
+            }
+            _ => argument.clone(),
+        };
+
+        self.commit_argument_term(module, output, environment, &argument, source)
     }
 
     /// Commit one generic argument term.

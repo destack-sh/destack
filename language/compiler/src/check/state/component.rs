@@ -2,13 +2,12 @@ use std::sync::Arc;
 
 use destack_artifact::GlobalEnvironment;
 use destack_dir as dir;
+use destack_repository::ProviderContext;
 use destack_source::{ModuleId, ProfileId};
-use destack_workspace::ProviderContext;
 use indexmap::IndexMap;
 
 use crate::check::{
-    CheckDependencyState, CheckModuleState, CheckTrace, ExtensionTable, InferenceTable, InputTable,
-    NominalTable,
+    CheckDependencyState, CheckModuleState, DefinitionTable, InferenceTable, InputTable,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -32,12 +31,11 @@ pub(in crate::check) struct CheckState<'a> {
     pub(in crate::check) inputs: InputTable,
     /// Component-wide inference graph.
     pub(in crate::check) inference: InferenceTable,
-    /// Checked nominal declarations built from walked operands.
-    pub(in crate::check) nominals: NominalTable,
-    /// Checked extension declarations built from walked operands.
-    pub(in crate::check) extensions: ExtensionTable,
-    /// Trace events emitted during checking.
-    pub(in crate::check) trace: CheckTrace,
+    /// Checked declarations built from walked operands.
+    pub(in crate::check) definitions: DefinitionTable,
+
+    /// Whether check events should print as they are recorded in debug builds.
+    pub(in crate::check) emit_events: bool,
 }
 
 impl<'a> CheckState<'a> {
@@ -47,6 +45,7 @@ impl<'a> CheckState<'a> {
         context: &'a dyn ProviderContext,
         profile: ProfileId,
         environment: Arc<GlobalEnvironment>,
+        emit_events: bool,
     ) -> Self {
         Self {
             compiler,
@@ -57,9 +56,8 @@ impl<'a> CheckState<'a> {
             dependencies: IndexMap::new(),
             inputs: InputTable::new(),
             inference: InferenceTable::new(),
-            nominals: NominalTable::new(),
-            extensions: ExtensionTable::new(),
-            trace: CheckTrace::new(),
+            definitions: DefinitionTable::new(),
+            emit_events,
         }
     }
 
@@ -77,7 +75,7 @@ impl<'a> CheckState<'a> {
     pub(in crate::check) fn walk(&mut self) -> CompilerResult<()> {
         let modules = self.modules.keys().copied().collect::<Vec<_>>();
 
-        // import checked dependency artifacts before walk classifies references
+        // import checked dependency artifacts
         self.import_component_dependencies()?;
 
         // walk modules in stable component order
@@ -85,7 +83,7 @@ impl<'a> CheckState<'a> {
             self.walk_module(module)?;
         }
 
-        self.propagate_walk_state(modules.as_slice())
+        self.finish_walk_generics(modules.as_slice())
     }
 
     /// Load one module into component state.
