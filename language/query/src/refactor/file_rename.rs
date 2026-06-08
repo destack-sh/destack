@@ -93,7 +93,7 @@ impl WorkspaceQueryContext<'_> {
         }
 
         // shared specifier policy
-        let workspace_root = repository.workspace_root().to_path_buf().normalize();
+        let workspace_root = repository.path().to_path_buf().normalize();
         let specifier_policy = SpecifierPolicy {
             fs: &**repository.file_system(),
             workspace_root: &workspace_root,

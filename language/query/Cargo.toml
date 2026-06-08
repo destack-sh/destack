@@ -18,7 +18,7 @@ destack_core = { workspace = true }
 destack_dir = { workspace = true }
 destack_qir = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { path = "../workspace", default-features = false }
+destack_repository = { path = "../repository", default-features = false }
 
 # general
 parking_lot = { workspace = true }

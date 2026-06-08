@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_workspace::{Module, Package};
+use destack_repository::{Module, Package};
 
 use crate::core::ModuleQueryContext;
 

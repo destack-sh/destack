@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
+use destack_repository::{Repository, Revision};
 use destack_source::{ModuleId, PathExt};
-use destack_workspace::{Repository, Revision};
 
 use super::module_specifier_in_expression;
 use crate::core::{
@@ -26,7 +26,7 @@ pub(crate) struct ExportedSymbol {
 }
 
 /// Resolve the importable module path for a module.
-fn module_path_for_import(module: &destack_workspace::Module) -> Option<String> {
+fn module_path_for_import(module: &destack_repository::Module) -> Option<String> {
     // prefer a filesystem path when available
     if let Some(path) = module.path.as_ref() {
         return Some(path.to_string_lossy().to_string());

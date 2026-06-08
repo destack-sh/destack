@@ -174,8 +174,10 @@ impl ModuleQueryContext<'_> {
             .extensions()
             .iter_extensions()
             .find(|(_, extension)| extension.symbol == extension_symbol)?;
-
-        Some(self.canonical_symbol(extension.target_symbol))
+        extension
+            .target
+            .nominal_root()
+            .map(|target_symbol| self.canonical_symbol(target_symbol))
     }
 
     /// Return the searchable name introduced by one declaration member.
