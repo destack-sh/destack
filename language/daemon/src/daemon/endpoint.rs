@@ -228,10 +228,10 @@ mod tests {
     use std::sync::Arc;
 
     use destack_artifact::DiskCacheStore;
-    use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
-    use destack_workspace::{
+    use destack_repository::{
         DestackLayout, DestackLayoutOverride, Environment, Repository, Settings,
     };
+    use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
 
     use super::{DaemonEndpoint, DaemonEndpointError};
 

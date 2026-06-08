@@ -2,16 +2,15 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use destack_service::{
-    FileChange, FileImage, FileUpdate, FileUpdateKind, LanguageServiceError,
-    LanguageServiceMessage, LanguageServiceMessageKind, LanguageServiceResult,
-};
+use destack_repository::Revision;
 use destack_session::SourceUpdate;
 use destack_source::{
     Diagnostic, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason, FileWatchStatus,
     ModuleId,
 };
-use destack_workspace::Revision;
+use destack_workspace::{
+    Error, FileChange, FileImage, FileUpdate, FileUpdateKind, Message, MessageKind, UpdateBatch,
+};
 
 use crate::{DaemonError, DaemonMessage, DaemonMessageKind, DaemonWorkspace, WatchBatch};
 
@@ -85,9 +84,9 @@ impl DaemonWorkspace {
 
     /// Close one open file and restore filesystem truth.
     pub fn close_file(&self, path: &Path) -> Result<DaemonUpdateResult, DaemonError> {
-        let service_result = self.language_service.close_file(path)?;
+        let workspace_result = self.workspace.close_file(path)?;
 
-        Ok(daemon_update_result_from_service(service_result))
+        Ok(daemon_update_result_from_workspace(workspace_result))
     }
 
     /// Apply a file update and optionally write to the filesystem.
@@ -102,10 +101,10 @@ impl DaemonWorkspace {
             self.write_update_to_disk(path, &update)?;
         }
 
-        // apply the update through language service
-        let service_result = self.language_service.apply_file(path, update)?;
+        // apply the update through workspace
+        let workspace_result = self.workspace.apply_file(path, update)?;
 
-        Ok(daemon_update_result_from_service(service_result))
+        Ok(daemon_update_result_from_workspace(workspace_result))
     }
 
     /// Apply an atomic source update through the daemon.
@@ -114,8 +113,8 @@ impl DaemonWorkspace {
         root: &Path,
         update: SourceUpdate,
     ) -> Result<DaemonSourceUpdateResult, DaemonError> {
-        // apply the source batch through language service
-        let result = self.language_service.apply_source_update(root, update)?;
+        // apply the source batch through workspace
+        let result = self.workspace.apply_source_update(root, update)?;
         let before = result.before;
         let after = result.after;
         let result = daemon_update_result(result.updates, result.messages);
@@ -157,24 +156,21 @@ impl DaemonWorkspace {
             }
         }
 
-        // apply file events through language service
+        // apply file events through workspace
         let has_overflow_event = batch
             .events
             .iter()
             .any(|event| matches!(event.kind, FileWatchEventKind::Overflow));
-        match self
-            .language_service
-            .apply_watch_events(batch.events.clone())
-        {
-            Ok(service_result) => {
-                let daemon_result = daemon_update_result_from_service(service_result);
+        match self.workspace.apply_watch_events(batch.events.clone()) {
+            Ok(workspace_result) => {
+                let daemon_result = daemon_update_result_from_workspace(workspace_result);
                 result.updates.extend(daemon_result.updates);
                 result.messages.extend(daemon_result.messages);
             }
             Err(error) => {
                 result
                     .messages
-                    .push(language_service_error_message("watch_apply_failed", &error));
+                    .push(workspace_error_message("watch_apply_failed", &error));
             }
         }
 
@@ -185,17 +181,16 @@ impl DaemonWorkspace {
 
         // reload eagerly when status requests a full refresh
         if should_reload {
-            match self.language_service.reload_all() {
-                Ok(service_result) => {
-                    let daemon_result = daemon_update_result_from_service(service_result);
+            match self.workspace.reload_all() {
+                Ok(workspace_result) => {
+                    let daemon_result = daemon_update_result_from_workspace(workspace_result);
                     result.updates.extend(daemon_result.updates);
                     result.messages.extend(daemon_result.messages);
                 }
                 Err(error) => {
-                    result.messages.push(language_service_error_message(
-                        "watch_reload_failed",
-                        &error,
-                    ));
+                    result
+                        .messages
+                        .push(workspace_error_message("watch_reload_failed", &error));
                 }
             }
         }
@@ -205,9 +200,9 @@ impl DaemonWorkspace {
 
     /// Reload filesystem state for the provided roots.
     pub fn reload_roots(&self, roots: &[PathBuf]) -> DaemonUpdateResult {
-        let result = self.language_service.reload_roots(roots);
+        let result = self.workspace.reload_roots(roots);
         match result {
-            Ok(result) => daemon_update_result_from_service(result),
+            Ok(result) => daemon_update_result_from_workspace(result),
             Err(error) => DaemonUpdateResult {
                 updates: Vec::new(),
                 messages: vec![DaemonMessage::new(
@@ -306,34 +301,31 @@ struct WatchStatusResult {
     message: Option<DaemonMessage>,
 }
 
-/// Convert a service update result into daemon shape.
-fn daemon_update_result_from_service(result: LanguageServiceResult) -> DaemonUpdateResult {
+/// Convert a workspace update result into daemon shape.
+fn daemon_update_result_from_workspace(result: UpdateBatch) -> DaemonUpdateResult {
     daemon_update_result(result.updates, result.messages)
 }
 
-/// Convert service updates and messages into daemon shape.
-fn daemon_update_result(
-    updates: Vec<FileUpdate>,
-    messages: Vec<LanguageServiceMessage>,
-) -> DaemonUpdateResult {
+/// Convert workspace updates and messages into daemon shape.
+fn daemon_update_result(updates: Vec<FileUpdate>, messages: Vec<Message>) -> DaemonUpdateResult {
     DaemonUpdateResult {
         updates: updates
             .into_iter()
-            .map(daemon_update_from_service)
+            .map(daemon_update_from_workspace)
             .collect(),
-        messages: daemon_messages_from_service(messages),
+        messages: daemon_messages_from_workspace(messages),
     }
 }
 
-/// Convert language service messages to daemon messages.
-fn daemon_messages_from_service(messages: Vec<LanguageServiceMessage>) -> Vec<DaemonMessage> {
+/// Convert workspace messages to daemon messages.
+fn daemon_messages_from_workspace(messages: Vec<Message>) -> Vec<DaemonMessage> {
     messages
         .into_iter()
         .map(|message| {
             let kind = match message.kind {
-                LanguageServiceMessageKind::Info => DaemonMessageKind::Info,
-                LanguageServiceMessageKind::Warning => DaemonMessageKind::Warning,
-                LanguageServiceMessageKind::Error => DaemonMessageKind::Error,
+                MessageKind::Info => DaemonMessageKind::Info,
+                MessageKind::Warning => DaemonMessageKind::Warning,
+                MessageKind::Error => DaemonMessageKind::Error,
             };
 
             DaemonMessage::new(kind, message.code, message.message)
@@ -341,8 +333,8 @@ fn daemon_messages_from_service(messages: Vec<LanguageServiceMessage>) -> Vec<Da
         .collect()
 }
 
-/// Build a daemon message for language service failures.
-fn language_service_error_message(code: &str, error: &LanguageServiceError) -> DaemonMessage {
+/// Build a daemon message for workspace failures.
+fn workspace_error_message(code: &str, error: &Error) -> DaemonMessage {
     DaemonMessage::new(DaemonMessageKind::Error, code, error.to_string())
 }
 
@@ -356,8 +348,8 @@ fn watch_reload_requested_message(reason: &FileWatchRescanReason) -> &'static st
     }
 }
 
-/// Convert a service update into daemon shape.
-fn daemon_update_from_service(update: FileUpdate) -> DaemonUpdate {
+/// Convert a workspace update into daemon shape.
+fn daemon_update_from_workspace(update: FileUpdate) -> DaemonUpdate {
     DaemonUpdate {
         module_id: update.module_id,
         file_id: update.file_id,

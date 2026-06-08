@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
+use destack_repository::{Environment, Profile, Repository, Revision};
 use destack_runtime::runtime::World;
 use destack_runtime::runtime::engine::{EngineId, Entry, Value};
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Machine, MachineOptions};
-use destack_workspace::{Environment, Profile, Repository, Revision};
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;

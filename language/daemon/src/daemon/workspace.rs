@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_service::LanguageService;
+use destack_repository::{DestackLayoutOverride, Environment, Repository};
 use destack_session::{SessionEventHandler, open_repository_from_fs};
-use destack_workspace::{DestackLayoutOverride, Environment, Repository};
+use destack_workspace::Workspace;
 use parking_lot::Mutex;
 
 use crate::DaemonError;
@@ -16,8 +16,8 @@ use super::RootLeaseTable;
 pub struct DaemonWorkspace {
     /// Repository loaded for this workspace.
     pub repository: Arc<Repository>,
-    /// Language service for this workspace.
-    pub language_service: Arc<LanguageService>,
+    /// Workspace for this workspace.
+    pub workspace: Arc<Workspace>,
     /// Root leases held by protocol clients.
     root_lease_table: RootLeaseTable,
 }
@@ -30,7 +30,7 @@ impl DaemonWorkspace {
         worker_limit: usize,
         session_event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, DaemonError> {
-        let language_service = LanguageService::new(
+        let workspace = Workspace::new(
             repository.clone(),
             None,
             roots,
@@ -40,19 +40,19 @@ impl DaemonWorkspace {
 
         Ok(Self {
             repository,
-            language_service: Arc::new(language_service),
+            workspace: Arc::new(workspace),
             root_lease_table: RootLeaseTable::default(),
         })
     }
 
     /// Return the workspace root.
     pub fn root(&self) -> &Path {
-        self.repository.workspace_root()
+        self.repository.path()
     }
 
     /// Acquire a root lease.
     pub fn acquire_root(&self, root: &Path) -> Result<(), DaemonError> {
-        self.language_service.open_root(root.to_path_buf())?;
+        self.workspace.open_root(root.to_path_buf())?;
 
         self.root_lease_table.acquire(root);
 
@@ -64,7 +64,7 @@ impl DaemonWorkspace {
         let should_close = self.root_lease_table.release(root);
 
         if should_close {
-            self.language_service.close_root(root)?;
+            self.workspace.close_root(root)?;
             return Ok(true);
         }
 
@@ -74,7 +74,7 @@ impl DaemonWorkspace {
     /// Return the number of tracked roots.
     #[cfg(test)]
     pub fn root_count(&self) -> usize {
-        self.language_service.root_count()
+        self.workspace.root_count()
     }
 }
 
@@ -86,7 +86,7 @@ pub struct WorkspaceTable {
     workspaces: Mutex<HashMap<PathBuf, Arc<DaemonWorkspace>>>,
     /// Number of workers for each opened workspace.
     worker_limit: usize,
-    /// Optional session event handler for workspace services.
+    /// Optional session event handler for opened workspaces.
     session_event_handler: Option<SessionEventHandler>,
 }
 
@@ -113,7 +113,7 @@ impl WorkspaceTable {
         worker_limit: usize,
         session_event_handler: Option<SessionEventHandler>,
     ) -> Result<Self, DaemonError> {
-        let workspace_root = repository.workspace_root().to_path_buf();
+        let workspace_root = repository.path().to_path_buf();
         let roots = vec![workspace_root.clone()];
         let workspace = Arc::new(DaemonWorkspace::new(
             repository.clone(),
@@ -141,7 +141,7 @@ impl WorkspaceTable {
 
         // load the requested workspace from the shared file system
         let repository = self.load_repository(workspace_root)?;
-        let workspace_root = repository.workspace_root().to_path_buf();
+        let workspace_root = repository.path().to_path_buf();
         let roots = vec![workspace_root.clone()];
         let workspace = Arc::new(DaemonWorkspace::new(
             Arc::new(repository),

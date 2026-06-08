@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use destack_query::{QueryModule, QueryRequest, QueryResponse};
+use destack_repository::Revision;
 use destack_source::{Diagnostic, FileId, ProfileId, Uri};
-use destack_workspace::Revision;
 
 use super::{
     BinaryPayload, BinaryPayloadDecodeError, DiagnosticBatch, FileUpdateImage, RootHandleId,

@@ -1,12 +1,12 @@
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant};
 
-use destack_service::{FileImage, FileUpdateKind};
+use destack_repository::{Repository, Revision};
 use destack_source::{
     Diagnostic, FileContent, FileId, FileWatchEvent, FileWatchEventKind, FileWatchRescanReason,
     FileWatchStatus,
 };
-use destack_workspace::{Repository, Revision};
+use destack_workspace::{FileImage, FileUpdateKind};
 
 use crate::{DaemonMessage, DaemonMessageKind, DaemonUpdate};
 

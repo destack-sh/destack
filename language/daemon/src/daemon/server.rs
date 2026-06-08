@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use destack_repository::Repository;
 use destack_session::{Session, SessionEventHandler};
-use destack_workspace::Repository;
 
 use super::constants::{DEFAULT_IDLE_SHUTDOWN_MS, IDLE_SHUTDOWN_POLL_MS};
 use super::{DaemonEndpoint, DaemonEndpointError, DaemonMetadata};

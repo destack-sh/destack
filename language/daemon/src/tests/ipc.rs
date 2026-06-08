@@ -4,8 +4,8 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::Duration;
 
 use destack_artifact::DiskCacheStore;
+use destack_repository::{DestackLayout, DestackLayoutOverride, Environment, Repository, Settings};
 use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::{DestackLayout, DestackLayoutOverride, Environment, Repository, Settings};
 
 use crate::daemon::{DaemonEndpoint, DaemonServer, DaemonServerOptions};
 use crate::protocol::{

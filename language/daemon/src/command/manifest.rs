@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use destack_repository::{Repository, Revision, parse_jsonc_text};
 use destack_source::DiagnosticCollection;
-use destack_workspace::{Repository, Revision, parse_jsonc_text};
 use serde::{Deserialize, Serialize};
 
 use super::CommandResult;

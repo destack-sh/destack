@@ -7,11 +7,11 @@ use destack_dir::NodeParentIndex;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_json::{JsonFormatOptions, format_json};
 use destack_parser::{Parser, colorize_source, source_colorizer};
+use destack_repository::{FormatterOptions, Repository, Revision};
 use destack_source::{
     DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId, FileSystem,
     FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
 };
-use destack_workspace::{FormatterOptions, Repository, Revision};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
@@ -113,7 +113,7 @@ impl CommandContext<'_> {
         let fs = self.repository.file_system().clone();
         let mut paths = Vec::new();
         if format_options.files.is_empty() {
-            paths = collect_formattable_files(fs.as_ref(), self.repository.workspace_root());
+            paths = collect_formattable_files(fs.as_ref(), self.repository.path());
         } else {
             for path in &format_options.files {
                 paths.push(path.clone());

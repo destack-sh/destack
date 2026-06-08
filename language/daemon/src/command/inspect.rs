@@ -102,7 +102,7 @@ impl CommandContext<'_> {
     /// Execute diagnostics inspect.
     fn run_diagnostics_inspect(
         &mut self,
-        revision: destack_workspace::Revision,
+        revision: destack_repository::Revision,
         modules: &[ModuleId],
     ) -> CommandResult<CommandOutcome> {
         // provide checked roots
@@ -135,7 +135,7 @@ impl CommandContext<'_> {
     /// Return one artifact record for a revision-scoped key.
     fn artifact_record(
         &self,
-        revision: destack_workspace::Revision,
+        revision: destack_repository::Revision,
         key: ArtifactKey,
     ) -> CommandResult<ArtifactRecord> {
         let version = self
@@ -156,7 +156,7 @@ impl CommandContext<'_> {
     /// Count unique profiles used by inspect targets.
     fn inspect_profile_count(
         &self,
-        revision: destack_workspace::Revision,
+        revision: destack_repository::Revision,
         module_targets: &[(ModuleId, SelectedTarget)],
     ) -> CommandResult<usize> {
         let mut profiles = BTreeSet::new();

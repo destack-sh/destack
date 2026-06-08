@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use destack_workspace::Revision;
+use destack_repository::Revision;
 use serde::{Deserialize, Serialize};
 
 use super::{DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, RootHandleId};
