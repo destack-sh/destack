@@ -25,8 +25,8 @@ use destack_daemon::WatchPolicy;
 use destack_daemon::protocol::{
     CommandPayload, CommandRunMode, CommandRunOptions, CommonCommandOptions,
 };
+use destack_repository::Repository;
 use destack_source::FileSystem;
-use destack_workspace::Repository;
 
 /// Arguments for the run command.
 #[derive(Args, Debug, Clone)]

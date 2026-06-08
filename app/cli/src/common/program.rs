@@ -4,12 +4,12 @@ use std::sync::Arc;
 use clap::{Args, ValueEnum};
 use destack_artifact::MemoryCacheStore;
 use destack_daemon::protocol::{ManifestOverride, ProtocolClient};
-use destack_session::{Session, open_repository_from_fs};
-use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
-use destack_workspace::{
+use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, FormatterOptions, LintPreset, LintSeverity,
     LinterOptions, Ref, Repository, Settings,
 };
+use destack_session::{Session, open_repository_from_fs};
+use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
 
 use crate::pipeline::daemon::manifest_overrides_from_program;
 
@@ -344,17 +344,17 @@ impl ProgramArgs {
         }
 
         let repository = Arc::new(repository);
-        let reference = Ref::for_workspace_root(repository.workspace_root());
+        let reference = Ref::for_root(repository.path());
         let revision = repository
             .current(&reference)
             .expect("failed to resolve current workspace revision");
-        let workspace = repository
-            .workspace(revision)
-            .expect("failed to derive workspace view");
-        let root = workspace.root.clone();
-        let workspace_kind = workspace.kind;
+        let root = repository
+            .root(revision)
+            .expect("failed to derive root view");
+        let root_path = root.root.clone();
+        let root_kind = root.kind;
 
-        tracing::trace!(?cwd, ?root, workspace_kind = ?workspace_kind, workers = self.workers, "program.setup");
+        tracing::trace!(?cwd, ?root_path, root_kind = ?root_kind, workers = self.workers, "program.setup");
 
         repository
     }

@@ -7,9 +7,9 @@ use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
+use destack_repository::{Ref, Repository, Revision};
 use destack_session::{FileChange, Session, SessionEventHandler};
 use destack_source::{DiagnosticCollection, FileType, ModuleId, ProfileId, TargetId};
-use destack_workspace::{Ref, Repository, Revision};
 
 use crate::common::{DiagnosticArgs, InputArgs, InputSource, ProgramArgs, print_diagnostics};
 use crate::console;
@@ -132,15 +132,15 @@ impl CompilerContext {
         let repository = program_args.setup();
 
         let compiler = Arc::new(Compiler::new(repository.clone()));
-        let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+        let reference = destack_repository::Ref::for_root(repository.path());
         let revision = repository
             .current(&reference)
             .expect("cli workspace revision should exist");
         let session = Session::fork(
-            repository.workspace_root().to_path_buf(),
+            repository.path().to_path_buf(),
             program_args.effective_cwd(),
             repository.clone(),
-            Ref::new(format!("cli:{}", repository.workspace_root().display())),
+            Ref::new(format!("cli:{}", repository.path().display())),
             revision,
             compiler.clone(),
             Arc::new(Linter::new(repository.clone())),
@@ -338,7 +338,7 @@ impl CompilerContext {
         let extension = name.rsplit('.').next().unwrap_or("ds");
         let file_type = FileType::from_extension_or_unknown(extension);
         let logical_path = cli_input_logical_path(kind, name, file_type);
-        let path = self.repository.workspace_root().join(&logical_path);
+        let path = self.repository.path().join(&logical_path);
         self.session
             .apply_file(
                 self.session.head(),

@@ -11,10 +11,10 @@ use destack_daemon::Daemon;
 use destack_daemon::protocol::{
     DaemonRequest, ProtocolClient, ProtocolServer, ProtocolServerError, loopback_transport_pair,
 };
-use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
-use destack_workspace::{
+use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Ref, Repository, Revision, Settings,
 };
+use destack_source::{FileSystem, MemoryFileSystem, MemoryFileWatcher};
 use serde_json::{Value, json};
 
 use crate::common::{InputArgs, ProgramArgs};
@@ -86,7 +86,7 @@ impl TestProgram {
 
     /// Return the current workspace revision.
     pub(super) fn current_revision(&self) -> Revision {
-        let reference = Ref::for_workspace_root(&self.root);
+        let reference = Ref::for_root(&self.root);
         self.repository
             .current(&reference)
             .expect("expected current workspace revision")
@@ -118,7 +118,7 @@ impl TestProgram {
         write_file(self.fs.as_ref(), &path, contents);
 
         let logical_path = self.repository.logical_path(&path);
-        let reference = Ref::for_workspace_root(&self.root);
+        let reference = Ref::for_root(&self.root);
 
         // current repository state
         let revision = self.repository.current(&reference).unwrap_or_else(|error| {

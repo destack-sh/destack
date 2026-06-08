@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_workspace::{DestackFile, Repository, Revision, Workspace};
+use destack_repository::{DestackFile, Repository, Revision, Root};
 
 use crate::common::ProgramArgs;
 use crate::error::{CliError, CliResult};
@@ -14,8 +14,8 @@ pub struct WorkspaceContext {
     pub repository: Arc<Repository>,
     /// Active repository revision.
     pub revision: Revision,
-    /// Discovered workspace.
-    pub workspace: Arc<Workspace>,
+    /// Discovered root.
+    pub root: Arc<Root>,
 }
 
 /// Build a workspace context for CLI commands.
@@ -31,17 +31,17 @@ pub fn workspace_context(
 
     // initialize
     let repository = args.setup();
-    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+    let reference = destack_repository::Ref::for_root(repository.path());
     let revision = repository.current(&reference).map_err(|error| {
         CliError::message(format!("failed to resolve current revision: {error}"))
     })?;
-    let workspace = repository
-        .workspace(revision)
-        .map_err(|error| CliError::message(format!("failed to derive workspace: {error}")))?;
+    let root = repository
+        .root(revision)
+        .map_err(|error| CliError::message(format!("failed to derive root: {error}")))?;
     Ok(WorkspaceContext {
         repository,
         revision,
-        workspace,
+        root,
     })
 }
 
@@ -176,17 +176,12 @@ pub fn default_target_for_repository(
     repository: Arc<Repository>,
 ) -> CliResult<Option<String>> {
     // resolve current repository revision
-    let reference = destack_workspace::Ref::for_workspace_root(repository.workspace_root());
+    let reference = destack_repository::Ref::for_root(repository.path());
     let revision = repository.current(&reference).map_err(|error| {
         CliError::message(format!("failed to resolve current revision: {error}"))
     })?;
 
-    default_target_for_program(
-        program_args,
-        &repository,
-        revision,
-        repository.workspace_root(),
-    )
+    default_target_for_program(program_args, &repository, revision, repository.path())
 }
 
 /// Resolve a destack.json for a path and load it.

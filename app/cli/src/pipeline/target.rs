@@ -1,5 +1,5 @@
+use destack_repository::{Ref, Repository, Target};
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{Ref, Repository, Target};
 
 use crate::common::TargetArgs;
 use crate::error::{CliError, CliResult};
@@ -28,7 +28,7 @@ pub fn resolve_target_for_module(
     target_name: &str,
     target_args: &TargetArgs,
 ) -> CliResult<SelectedTarget> {
-    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let reference = Ref::for_root(repository.path());
     let revision = repository.current(&reference).map_err(|error| {
         CliError::message(format!("failed to resolve current revision: {error}"))
     })?;

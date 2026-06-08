@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_daemon::{DaemonMessageKind, WatchBatch, WatchPolicy};
+use destack_repository::Repository;
 use destack_source::{DiagnosticCollection, File, FileId, FileWatchRescanReason, FileWatchStatus};
-use destack_workspace::Repository;
 
 use crate::common::format::{
     FormatOptions, FormatResult, LineWriter, format_diagnostics_with_writer,
@@ -84,7 +84,7 @@ pub fn watch_roots(program: &ProgramArgs, repository: &Repository) -> Vec<PathBu
     }
 
     // fall back to the repository working directory
-    vec![repository.workspace_root().to_path_buf()]
+    vec![repository.path().to_path_buf()]
 }
 
 /// Watch context shared by CLI watch commands.
