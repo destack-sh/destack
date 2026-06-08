@@ -60,24 +60,27 @@ const value = choose(1);
         DirRows::checked().with_reference_types(),
         r#"
 function choose<comptime Flag: boolean = true>(value: int32): int32 {
-/// @generic.template symbol=choose parameters=[comptime Flag: boolean = true]
+/// @generic.template source=declaration parameters=[comptime Flag: boolean = true]
+/// @type.symbol symbol=choose type=<Flag: boolean = true>(int32) => int32
 /// @type.node source=true type=true
-/// @type.symbol symbol=value#1 type=int32
+/// @type.symbol symbol=value#1 source="value: int32" type=int32
 
     return value;
-    /// @resolution.name source=value target=value#1
     /// @type.node source=value type=int32
+    /// @resolution.name source=value target=value#1
 
 }
 
 const value = choose(1);
-/// @type.symbol symbol=value#2 type=int32
+/// @type.symbol symbol=value#2 source=value type=int32
+/// @generic.instance source=choose(1) id=choose<true>
+/// @type.node source=choose type=<Flag: boolean = true>(int32) => int32
+/// @type.node source=choose(1) type=int32
 /// @resolution.name source=choose target=choose
 /// @resolution.call source=choose(1) parameters=(int32) return=int32 kind=symbol target=choose instance=choose<true>
-/// @generic.instance source=choose(1) id=choose<true>
-/// @type.node source=choose(1) type=int32
-/// @type.node source=1 type=int32
-/// @generic.instance id=choose<true> symbol=choose arguments=[true]
+/// @type.node source=1 type=1
+
+/// @generic.instance id=choose<true> template=choose arguments=[true]
 "#);
 }
 
@@ -98,24 +101,32 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
         DirRows::checked().with_reference_types(),
         r#"
 type Tagged<comptime Tag: string> = { tag: Tag };
-/// @generic.template symbol=Tagged parameters=[comptime Tag: string]
-/// @type.symbol symbol=Tagged type={ tag: Tag }
+/// @generic.template source=declaration parameters=[comptime Tag: string]
+/// @type.symbol symbol=Tagged source="type Tagged<comptime Tag: string> = { tag: Tag }" type={ tag: Tag }
+/// @definition.type symbol=Tagged source="type Tagged<comptime Tag: string> = { tag: Tag }" template=LocalGenericTemplateId(0) value={ tag: Tag }
+/// @type.symbol symbol=Tagged.tag source="tag: Tag" type=Tag
+/// @resolution.name source=Tag target=Tagged.Tag
 
 type Flagged<comptime Config: { name: string; enabled: boolean }> = Config;
-/// @generic.template symbol=Flagged parameters=[comptime Config: { name: string; enabled: boolean }]
-/// @type.symbol symbol=Flagged type=Config
+/// @generic.template source=declaration parameters=[comptime Config: { name: string; enabled: boolean }]
+/// @type.symbol symbol=Flagged source="type Flagged<comptime Config: { name: string; enabled: boolean }> = Config" type=Config
+/// @definition.type symbol=Flagged source="type Flagged<comptime Config: { name: string; enabled: boolean }> = Config" template=LocalGenericTemplateId(1) value=Config
+/// @type.symbol symbol=Flagged.name source="name: string" type=string
+/// @type.symbol symbol=Flagged.enabled source="enabled: boolean" type=boolean
+/// @resolution.name source=Config target=Flagged.Config
 
 declare const tagged: Tagged<"alpha">;
-/// @type.symbol symbol=tagged type={ tag: "alpha" }
-/// @resolution.name source=Tagged target=Tagged
+/// @type.symbol symbol=tagged source=tagged type=Tagged<"alpha">
 /// @generic.instance source="Tagged<\"alpha\">" id="Tagged<\"alpha\">"
+/// @resolution.name source=Tagged target=Tagged
 
 declare const flagged: Flagged<{ name: "search"; enabled: true }>;
-/// @type.symbol symbol=flagged type={ name: "search"; enabled: true }
-/// @resolution.name source=Flagged target=Flagged
+/// @type.symbol symbol=flagged source=flagged type=Flagged<{ name: "search"; enabled: true }>
 /// @generic.instance source="Flagged<{ name: \"search\"; enabled: true }>" id="Flagged<{ name: \"search\"; enabled: true }>"
-/// @generic.instance id="Flagged<{ name: \"search\"; enabled: true }>" symbol=Flagged arguments=[{ name: "search"; enabled: true }]
-/// @generic.instance id="Tagged<\"alpha\">" symbol=Tagged arguments=["alpha"]
+/// @resolution.name source=Flagged target=Flagged
+
+/// @generic.instance id="Flagged<{ name: \"search\"; enabled: true }>" template=Flagged arguments=[{ name: "search"; enabled: true }]
+/// @generic.instance id="Tagged<\"alpha\">" template=Tagged arguments=["alpha"]
 "#,
     );
 }
