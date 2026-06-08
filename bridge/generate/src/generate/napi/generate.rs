@@ -5,17 +5,25 @@ use anyhow::Result;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::generate::core::{Field, Item, Payload, Schema, Shape, Type, Variant, write_rust};
+use crate::generate::core::{
+    Field, Item, Payload, PayloadNames, Schema, SchemaModule, Shape, Type, Variant, write_rust,
+};
 
 /// Generate NAPI bridge bindings.
 pub(in crate::generate) fn generate(root: &Path, schema: &Schema) -> Result<()> {
-    for (module, names) in &schema.modules {
-        let tokens = render_module(schema, names);
+    for module in &schema.modules {
+        let tokens = render_module(schema, &module.names);
+        let path = generated_path(module);
 
-        write_rust(root, module.napi_file(), tokens)?;
+        write_rust(root, &path, tokens)?;
     }
 
     Ok(())
+}
+
+/// Return one generated NAPI module path.
+fn generated_path(module: &SchemaModule) -> String {
+    format!("bridge/napi/src/{}/generated.rs", module.path.slash_path())
 }
 
 /// Render one generated NAPI module.
@@ -163,7 +171,8 @@ fn render_struct_from_bridge(schema: &Schema, ty: &Item) -> TokenStream {
 fn render_payload_enum(schema: &Schema, ty: &Item, variants: &[Variant]) -> TokenStream {
     let name = ty.ident();
     let docs = ty.docs();
-    let payload_fields = payload_enum_fields(variants);
+    let payload_names = PayloadNames::new(variants);
+    let payload_fields = payload_enum_fields(variants, &payload_names);
     let fields = payload_fields
         .iter()
         .map(|field| render_payload_enum_field(schema, field));
@@ -172,7 +181,7 @@ fn render_payload_enum(schema: &Schema, ty: &Item, variants: &[Variant]) -> Toke
         .then(|| render_payload_enum_into_bridge(schema, ty, variants));
     let from_bridge = ty
         .generates_from_bridge()
-        .then(|| render_payload_enum_from_bridge(schema, ty, variants));
+        .then(|| render_payload_enum_from_bridge(schema, ty, variants, &payload_fields));
 
     quote! {
         #docs
@@ -202,7 +211,7 @@ fn render_payload_enum_field(schema: &Schema, field: &Field) -> TokenStream {
 }
 
 /// Return unique payload enum fields across variants.
-fn payload_enum_fields(variants: &[Variant]) -> Vec<Field> {
+fn payload_enum_fields(variants: &[Variant], payload_names: &PayloadNames) -> Vec<Field> {
     let mut fields = Vec::new();
     let mut names = BTreeSet::new();
 
@@ -210,7 +219,7 @@ fn payload_enum_fields(variants: &[Variant]) -> Vec<Field> {
         match &variant.payload {
             Payload::Unit => {}
             Payload::Tuple(_) => {
-                let name = variant.payload_field_name();
+                let name = payload_names.tuple_label(variant);
                 if names.insert(name.clone()) {
                     fields.push(Field {
                         name,
@@ -224,8 +233,11 @@ fn payload_enum_fields(variants: &[Variant]) -> Vec<Field> {
             }
             Payload::Struct(variant_fields) => {
                 for field in variant_fields {
-                    if names.insert(field.name.clone()) {
-                        fields.push(field.clone());
+                    let name = payload_names.field_name(variant, field);
+                    if names.insert(name.clone()) {
+                        let mut field = field.clone();
+                        field.name = name;
+                        fields.push(field);
                     }
                 }
             }
@@ -242,11 +254,13 @@ fn render_payload_enum_into_bridge(
     variants: &[Variant],
 ) -> TokenStream {
     let name = ty.ident();
-    let payload_fields = payload_enum_fields(variants);
+    let payload_names = PayloadNames::new(variants);
+    let payload_fields = payload_enum_fields(variants, &payload_names);
     let arms = variants.iter().map(|variant| {
         let label = variant.label();
         let variant_name = variant.ident();
-        let unexpected_payloads = render_unexpected_payload_checks(&payload_fields, variant);
+        let unexpected_payloads =
+            render_unexpected_payload_checks(&payload_fields, variant, &payload_names);
 
         match &variant.payload {
             Payload::Unit => quote! {
@@ -257,7 +271,7 @@ fn render_payload_enum_into_bridge(
                 }
             },
             Payload::Tuple(ty) => {
-                let field = variant.payload_field_ident();
+                let field = payload_names.tuple_ident(variant);
                 let value = render_into_bridge_value(schema, quote!(value), ty);
 
                 quote! {
@@ -274,12 +288,13 @@ fn render_payload_enum_into_bridge(
             }
             Payload::Struct(fields) => {
                 let payload = fields.iter().map(|field| {
+                    let transport_name = payload_names.field_ident(variant, field);
                     let field_name = field.ident();
                     let value = render_into_bridge_value(schema, quote!(value), &field.ty);
-                    let label = field.name.as_str();
+                    let label = payload_names.field_label(variant, field);
 
                     quote! {
-                        let Some(value) = self.#field_name else {
+                        let Some(value) = self.#transport_name else {
                             return Err(missing_payload(#label));
                         };
                         let #field_name = #value;
@@ -334,8 +349,12 @@ fn render_payload_enum_into_bridge(
 }
 
 /// Render unexpected payload checks for one payload variant.
-fn render_unexpected_payload_checks(payload_fields: &[Field], variant: &Variant) -> TokenStream {
-    let expected = payload_field_names(variant);
+fn render_unexpected_payload_checks(
+    payload_fields: &[Field],
+    variant: &Variant,
+    payload_names: &PayloadNames,
+) -> TokenStream {
+    let expected = payload_field_names(variant, payload_names);
     let checks = payload_fields
         .iter()
         .filter(|field| !expected.contains(&field.name))
@@ -354,11 +373,14 @@ fn render_unexpected_payload_checks(payload_fields: &[Field], variant: &Variant)
 }
 
 /// Return payload field names used by one variant.
-fn payload_field_names(variant: &Variant) -> BTreeSet<String> {
+fn payload_field_names(variant: &Variant, payload_names: &PayloadNames) -> BTreeSet<String> {
     match &variant.payload {
         Payload::Unit => BTreeSet::new(),
-        Payload::Tuple(_) => BTreeSet::from([variant.payload_field_name()]),
-        Payload::Struct(fields) => fields.iter().map(|field| field.name.clone()).collect(),
+        Payload::Tuple(_) => BTreeSet::from([payload_names.tuple_label(variant)]),
+        Payload::Struct(fields) => fields
+            .iter()
+            .map(|field| payload_names.field_name(variant, field))
+            .collect(),
     }
 }
 
@@ -367,16 +389,28 @@ fn render_payload_enum_from_bridge(
     schema: &Schema,
     ty: &Item,
     variants: &[Variant],
+    payload_fields: &[Field],
 ) -> TokenStream {
     let name = ty.ident();
+    let payload_names = PayloadNames::new(variants);
     let arms = variants.iter().map(|variant| {
         let label = variant.label();
         let variant_name = variant.ident();
+        let expected_fields = payload_field_names(variant, &payload_names);
+        let empty_fields = payload_fields
+            .iter()
+            .filter(|field| !expected_fields.contains(&field.name))
+            .map(|field| {
+                let field_name = field.ident();
+
+                quote!(#field_name: None,)
+            });
 
         match &variant.payload {
             Payload::Unit => quote! {
                 bridge::#name::#variant_name => Self {
                     kind: #label.to_string(),
+                    #(#empty_fields)*
                 },
             },
             Payload::Tuple(ty) => {
@@ -387,23 +421,26 @@ fn render_payload_enum_from_bridge(
                     bridge::#name::#variant_name(value) => Self {
                         kind: #label.to_string(),
                         #field: Some(#field_value),
+                        #(#empty_fields)*
                     },
                 }
             }
             Payload::Struct(fields) => {
                 let bindings = fields.iter().map(Field::ident);
                 let field_values = fields.iter().map(|field| {
+                    let transport_name = payload_names.field_ident(variant, field);
                     let field_name = field.ident();
                     let field_value =
                         render_from_bridge_value(schema, quote!(#field_name), &field.ty);
 
-                    quote!(#field_name: Some(#field_value),)
+                    quote!(#transport_name: Some(#field_value),)
                 });
 
                 quote! {
                     bridge::#name::#variant_name { #(#bindings,)* } => Self {
                         kind: #label.to_string(),
                         #(#field_values)*
+                        #(#empty_fields)*
                     },
                 }
             }

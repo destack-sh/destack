@@ -1,6 +1,7 @@
 mod command;
 mod core;
 mod napi;
+mod python;
 mod typescript;
 mod wasm;
 
