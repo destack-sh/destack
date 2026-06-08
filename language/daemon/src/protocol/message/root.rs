@@ -1,6 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use destack_repository::Revision;
+use destack_source::Uri;
+use destack_workspace::{SourceUpdateResult, UpdateBatch};
 use serde::{Deserialize, Serialize};
 
 use super::{DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, RootHandleId};
@@ -24,6 +26,7 @@ pub struct RootOpenOptions {
 }
 
 impl Default for RootOpenOptions {
+    /// Return default root open options.
     fn default() -> Self {
         Self { load_index: true }
     }
@@ -87,18 +90,33 @@ pub struct RootReloadResponse {
     pub messages: Vec<DaemonMessageRecord>,
 }
 
-/// Request to apply a file update.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FileUpdateRequest {
-    /// Root handle.
-    pub handle: RootHandleId,
-    /// Update payload.
-    pub update: FileUpdate,
+impl RootReloadResponse {
+    /// Build a reload response from a workspace update batch.
+    pub fn new(handle: RootHandleId, batch: &UpdateBatch) -> Self {
+        Self {
+            handle,
+            updates: batch.updates.iter().map(DaemonUpdateRecord::from).collect(),
+            messages: batch
+                .messages
+                .iter()
+                .map(DaemonMessageRecord::from)
+                .collect(),
+        }
+    }
 }
 
-/// Response to a file update.
+/// Request to apply a file operation.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FileUpdateResponse {
+pub struct FileOperationRequest {
+    /// Root handle.
+    pub handle: RootHandleId,
+    /// Operation payload.
+    pub operation: FileOperation,
+}
+
+/// Response to a file operation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FileOperationResponse {
     /// Root handle.
     pub handle: RootHandleId,
     /// Updates produced by the change.
@@ -107,12 +125,27 @@ pub struct FileUpdateResponse {
     pub messages: Vec<DaemonMessageRecord>,
 }
 
+impl FileOperationResponse {
+    /// Build a file operation response from a workspace update batch.
+    pub fn new(handle: RootHandleId, batch: &UpdateBatch) -> Self {
+        Self {
+            handle,
+            updates: batch.updates.iter().map(DaemonUpdateRecord::from).collect(),
+            messages: batch
+                .messages
+                .iter()
+                .map(DaemonMessageRecord::from)
+                .collect(),
+        }
+    }
+}
+
 /// Request to apply a source update.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SourceUpdateRequest {
     /// Root handle.
     pub handle: RootHandleId,
-    /// Update payload.
+    /// Source update payload.
     pub update: SourceUpdate,
 }
 
@@ -129,6 +162,27 @@ pub struct SourceUpdateResponse {
     pub updates: Vec<DaemonUpdateRecord>,
     /// Messages produced by the change.
     pub messages: Vec<DaemonMessageRecord>,
+}
+
+impl SourceUpdateResponse {
+    /// Build a source update response from a workspace source update.
+    pub fn new(handle: RootHandleId, update: &SourceUpdateResult) -> Self {
+        Self {
+            handle,
+            before: update.before,
+            after: update.after,
+            updates: update
+                .updates
+                .iter()
+                .map(DaemonUpdateRecord::from)
+                .collect(),
+            messages: update
+                .messages
+                .iter()
+                .map(DaemonMessageRecord::from)
+                .collect(),
+        }
+    }
 }
 
 /// Source update payload.
@@ -196,26 +250,107 @@ pub struct TextRange {
     pub end: u32,
 }
 
-/// File update payload.
+/// File operation payload from a protocol client.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FileUpdate {
-    /// Path being updated.
-    pub path: PathBuf,
-    /// The update payload.
-    pub update: FileUpdateKind,
-    /// Whether to write to disk.
-    pub write_to_disk: bool,
+pub enum FileOperation {
+    /// Open editor text content.
+    OpenText {
+        /// Path being opened.
+        path: PathBuf,
+        /// Editor document URI.
+        uri: Uri,
+        /// Editor document version.
+        version: i32,
+        /// Current text content.
+        content: String,
+    },
+    /// Open editor binary content.
+    OpenBytes {
+        /// Path being opened.
+        path: PathBuf,
+        /// Editor document URI.
+        uri: Uri,
+        /// Editor document version.
+        version: i32,
+        /// Current binary content.
+        content: Vec<u8>,
+    },
+    /// Change editor text content.
+    ChangeText {
+        /// Path being changed.
+        path: PathBuf,
+        /// Editor document URI.
+        uri: Uri,
+        /// Editor document version.
+        version: i32,
+        /// Current text content.
+        content: String,
+    },
+    /// Change editor binary content.
+    ChangeBytes {
+        /// Path being changed.
+        path: PathBuf,
+        /// Editor document URI.
+        uri: Uri,
+        /// Editor document version.
+        version: i32,
+        /// Current binary content.
+        content: Vec<u8>,
+    },
+    /// Save editor text content.
+    SaveText {
+        /// Path being saved.
+        path: PathBuf,
+        /// Current text content.
+        content: Option<String>,
+    },
+    /// Save editor binary content.
+    SaveBytes {
+        /// Path being saved.
+        path: PathBuf,
+        /// Current binary content.
+        content: Option<Vec<u8>>,
+    },
+    /// Close editor overlay state and restore filesystem truth.
+    Close {
+        /// Path being closed.
+        path: PathBuf,
+    },
+    /// Write text content to disk and workspace state.
+    WriteText {
+        /// Path being written.
+        path: PathBuf,
+        /// Current text content.
+        content: String,
+    },
+    /// Write binary content to disk and workspace state.
+    WriteBytes {
+        /// Path being written.
+        path: PathBuf,
+        /// Current binary content.
+        content: Vec<u8>,
+    },
+    /// Remove a file from disk and workspace state.
+    Remove {
+        /// Path being removed.
+        path: PathBuf,
+    },
 }
 
-/// File update kinds for content changes.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum FileUpdateKind {
-    /// Replace with new text content.
-    Text { content: String },
-    /// Replace with new binary content.
-    Bytes { content: Vec<u8> },
-    /// Close the editor overlay and restore filesystem truth.
-    Closed,
-    /// Mark the file as missing.
-    Removed,
+impl FileOperation {
+    /// Return the source path for this operation.
+    pub fn path(&self) -> &Path {
+        match self {
+            Self::OpenText { path, .. }
+            | Self::OpenBytes { path, .. }
+            | Self::ChangeText { path, .. }
+            | Self::ChangeBytes { path, .. }
+            | Self::SaveText { path, .. }
+            | Self::SaveBytes { path, .. }
+            | Self::Close { path }
+            | Self::WriteText { path, .. }
+            | Self::WriteBytes { path, .. }
+            | Self::Remove { path } => path,
+        }
+    }
 }

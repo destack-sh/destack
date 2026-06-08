@@ -5,10 +5,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use parking_lot::Mutex;
 
 use super::{
-    ClientDescriptor, CloseRootRequest, DaemonQuery, DaemonQueryResponse, DaemonRequest,
-    DaemonResponse, DiagnosticBatch, DiagnosticSnapshot, FileImagesRequest, FileSnapshot,
-    FileSnapshotRequest, FileUpdate, FileUpdateImage, FileUpdateRequest, FileUpdateResponse,
-    HandshakeRequest, HandshakeResponse, OpenRootRequest, PayloadReceiver, ProtocolClientError,
+    ClientDescriptor, ClientError, CloseRootRequest, DaemonQuery, DaemonQueryResponse,
+    DaemonRequest, DaemonResponse, DiagnosticBatch, DiagnosticSnapshot, FileImagesRequest,
+    FileOperation, FileOperationRequest, FileOperationResponse, FileSnapshot, FileSnapshotRequest,
+    FileUpdateImage, HandshakeRequest, HandshakeResponse, OpenRootRequest, PayloadReceiver,
     ProtocolCodec, ProtocolLimits, ProtocolMessage, ProtocolRange, ProtocolRequest,
     QueryRequestBody, QueryRequestPayload, QueryResponseBody, ReloadReason, ReloadRootRequest,
     RepositoryId, RequestId, RequestOptions, RootClosedResponse, RootHandleId, RootOpenOptions,
@@ -20,7 +20,7 @@ use destack_repository::Revision;
 
 /// Client configuration for the daemon protocol.
 #[derive(Debug, Clone)]
-pub struct ProtocolClientOptions {
+pub struct ClientOptions {
     /// Supported protocol range for the client.
     pub protocol: ProtocolRange,
     /// Client requested protocol limits.
@@ -29,7 +29,8 @@ pub struct ProtocolClientOptions {
     pub client: ClientDescriptor,
 }
 
-impl Default for ProtocolClientOptions {
+impl Default for ClientOptions {
+    /// Return default client options.
     fn default() -> Self {
         Self {
             protocol: ProtocolRange::new(super::MIN_PROTOCOL_VERSION, super::PROTOCOL_VERSION),
@@ -44,8 +45,8 @@ impl Default for ProtocolClientOptions {
     }
 }
 
-/// Protocol client for sending requests to a daemon.
-pub struct ProtocolClient {
+/// Client for sending daemon protocol requests.
+pub struct Client {
     /// Transport used to send and receive messages.
     transport: Arc<dyn Transport>,
     /// Codec used for protocol payloads.
@@ -58,22 +59,22 @@ pub struct ProtocolClient {
     next_request_id: AtomicU64,
 }
 
-impl std::fmt::Debug for ProtocolClient {
+impl std::fmt::Debug for Client {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
-            .debug_struct("ProtocolClient")
+            .debug_struct("Client")
             .field("session_id", &self.session_id())
             .finish()
     }
 }
 
-impl ProtocolClient {
-    /// Create a new protocol client for a transport.
+impl Client {
+    /// Create a new client for a transport.
     pub fn new(transport: Arc<dyn Transport>) -> Self {
         Self::with_codec(transport, ProtocolCodec::default())
     }
 
-    /// Create a new protocol client with a custom codec.
+    /// Create a new client with a custom codec.
     pub fn with_codec(transport: Arc<dyn Transport>, codec: ProtocolCodec) -> Self {
         Self {
             transport,
@@ -90,10 +91,7 @@ impl ProtocolClient {
     }
 
     /// Perform a handshake with the daemon.
-    pub fn handshake(
-        &self,
-        options: ProtocolClientOptions,
-    ) -> Result<HandshakeResponse, ProtocolClientError> {
+    pub fn handshake(&self, options: ClientOptions) -> Result<HandshakeResponse, ClientError> {
         let request = HandshakeRequest {
             protocol: options.protocol,
             client: options.client,
@@ -107,10 +105,10 @@ impl ProtocolClient {
         let response = match response {
             DaemonResponse::Handshake(response) => response,
             DaemonResponse::Error(error) => {
-                return Err(ProtocolClientError::Server(error));
+                return Err(ClientError::Server(error));
             }
             other => {
-                return Err(ProtocolClientError::UnexpectedResponse(format!(
+                return Err(ClientError::UnexpectedResponse(format!(
                     "expected handshake response, got {other:?}"
                 )));
             }
@@ -124,10 +122,7 @@ impl ProtocolClient {
     }
 
     /// Send a protocol request with default options.
-    pub fn send_request(
-        &self,
-        payload: DaemonRequest,
-    ) -> Result<DaemonResponse, ProtocolClientError> {
+    pub fn send_request(&self, payload: DaemonRequest) -> Result<DaemonResponse, ClientError> {
         self.send_request_with_options(payload, RequestOptions::default())
     }
 
@@ -136,7 +131,7 @@ impl ProtocolClient {
         &self,
         payload: DaemonRequest,
         options: RequestOptions,
-    ) -> Result<DaemonResponse, ProtocolClientError> {
+    ) -> Result<DaemonResponse, ClientError> {
         // serialize the current non-multiplexed protocol client
         let _request = self.requests.lock();
 
@@ -168,7 +163,7 @@ impl ProtocolClient {
                     payloads.ingest_notification(*notification)?;
                 }
                 ProtocolMessage::Request(_) => {
-                    return Err(ProtocolClientError::UnexpectedResponse(
+                    return Err(ClientError::UnexpectedResponse(
                         "client received request".to_string(),
                     ));
                 }
@@ -192,7 +187,7 @@ impl ProtocolClient {
         workspace: PathBuf,
         root: PathBuf,
         options: RootOpenOptions,
-    ) -> Result<RootOpenedResponse, ProtocolClientError> {
+    ) -> Result<RootOpenedResponse, ClientError> {
         // send the open root request
         let request = OpenRootRequest {
             workspace,
@@ -204,16 +199,13 @@ impl ProtocolClient {
         // decode the root response
         match response {
             DaemonResponse::RootOpened(response) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("root opened", other)),
         }
     }
 
     /// Close a daemon root handle.
-    pub fn close_root(
-        &self,
-        handle: RootHandleId,
-    ) -> Result<RootClosedResponse, ProtocolClientError> {
+    pub fn close_root(&self, handle: RootHandleId) -> Result<RootClosedResponse, ClientError> {
         // send the close root request
         let request = CloseRootRequest { handle };
         let response = self.send_request(DaemonRequest::CloseRoot(request))?;
@@ -221,7 +213,7 @@ impl ProtocolClient {
         // decode the close response
         match response {
             DaemonResponse::RootClosed(response) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("root closed", other)),
         }
     }
@@ -231,7 +223,7 @@ impl ProtocolClient {
         &self,
         handle: RootHandleId,
         reason: ReloadReason,
-    ) -> Result<RootReloadResponse, ProtocolClientError> {
+    ) -> Result<RootReloadResponse, ClientError> {
         // send the reload request
         let request = ReloadRootRequest { handle, reason };
         let response = self.send_request(DaemonRequest::ReloadRoot(request))?;
@@ -239,26 +231,26 @@ impl ProtocolClient {
         // decode the reload response
         match response {
             DaemonResponse::RootReloaded(response) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("root reloaded", other)),
         }
     }
 
-    /// Apply a file update to a daemon root handle.
-    pub fn apply_file_update(
+    /// Apply a file operation to a daemon root handle.
+    pub fn apply_file_operation(
         &self,
         handle: RootHandleId,
-        update: FileUpdate,
-    ) -> Result<FileUpdateResponse, ProtocolClientError> {
-        // send the file update request
-        let request = FileUpdateRequest { handle, update };
-        let response = self.send_request(DaemonRequest::ApplyFileUpdate(request))?;
+        operation: FileOperation,
+    ) -> Result<FileOperationResponse, ClientError> {
+        // send the file operation request
+        let request = FileOperationRequest { handle, operation };
+        let response = self.send_request(DaemonRequest::ApplyFileOperation(request))?;
 
-        // decode the file update response
+        // decode the file operation response
         match response {
-            DaemonResponse::FileUpdated(response) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
-            other => Err(Self::unexpected_response("file update applied", other)),
+            DaemonResponse::FileOperationApplied(response) => Ok(response),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
+            other => Err(Self::unexpected_response("file operation applied", other)),
         }
     }
 
@@ -267,7 +259,7 @@ impl ProtocolClient {
         &self,
         handle: RootHandleId,
         update: SourceUpdate,
-    ) -> Result<SourceUpdateResponse, ProtocolClientError> {
+    ) -> Result<SourceUpdateResponse, ClientError> {
         // send the source update request
         let request = SourceUpdateRequest { handle, update };
         let response = self.send_request(DaemonRequest::ApplySourceUpdate(request))?;
@@ -275,7 +267,7 @@ impl ProtocolClient {
         // decode the source update response
         match response {
             DaemonResponse::SourceUpdated(response) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("source update applied", other)),
         }
     }
@@ -286,7 +278,7 @@ impl ProtocolClient {
         handle: RootHandleId,
         roots: Vec<PathBuf>,
         options: WatchStartOptions,
-    ) -> Result<WatchStartedResponse, ProtocolClientError> {
+    ) -> Result<WatchStartedResponse, ClientError> {
         // send the watch start request
         let request = WatchStartRequest {
             handle,
@@ -298,7 +290,7 @@ impl ProtocolClient {
         // decode the watch start response
         match response {
             DaemonResponse::WatchStarted(response) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("watch started", other)),
         }
     }
@@ -307,7 +299,7 @@ impl ProtocolClient {
     pub fn next_watch_batch(
         &self,
         handle: RootHandleId,
-    ) -> Result<WatchBatchResponse, ProtocolClientError> {
+    ) -> Result<WatchBatchResponse, ClientError> {
         // send the watch next request
         let request = WatchNextRequest { handle };
         let response = self.send_request(DaemonRequest::NextWatchBatch(request))?;
@@ -315,16 +307,13 @@ impl ProtocolClient {
         // decode the watch batch response
         match response {
             DaemonResponse::WatchBatchReady(response) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("watch batch ready", other)),
         }
     }
 
     /// Stop watching a daemon root handle.
-    pub fn stop_watch(
-        &self,
-        handle: RootHandleId,
-    ) -> Result<WatchStoppedResponse, ProtocolClientError> {
+    pub fn stop_watch(&self, handle: RootHandleId) -> Result<WatchStoppedResponse, ClientError> {
         // send the watch stop request
         let request = WatchStopRequest { handle };
         let response = self.send_request(DaemonRequest::StopWatch(request))?;
@@ -332,16 +321,13 @@ impl ProtocolClient {
         // decode the watch stop response
         match response {
             DaemonResponse::WatchStopped(response) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("watch stopped", other)),
         }
     }
 
     /// Request diagnostics for a daemon root handle.
-    pub fn diagnostics(
-        &self,
-        handle: RootHandleId,
-    ) -> Result<Vec<DiagnosticBatch>, ProtocolClientError> {
+    pub fn diagnostics(&self, handle: RootHandleId) -> Result<Vec<DiagnosticBatch>, ClientError> {
         // send the diagnostics query
         let response =
             self.send_request(DaemonRequest::Query(DaemonQuery::Diagnostics { handle }))?;
@@ -349,7 +335,7 @@ impl ProtocolClient {
         // decode the diagnostics response
         match response {
             DaemonResponse::QueryResult(DaemonQueryResponse::Diagnostics(response)) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("diagnostics query", other)),
         }
     }
@@ -358,7 +344,7 @@ impl ProtocolClient {
     pub fn diagnostic_snapshots(
         &self,
         handle: RootHandleId,
-    ) -> Result<Vec<DiagnosticSnapshot>, ProtocolClientError> {
+    ) -> Result<Vec<DiagnosticSnapshot>, ClientError> {
         // send the diagnostics query
         let response =
             self.send_request(DaemonRequest::Query(DaemonQuery::DiagnosticSnapshots {
@@ -370,7 +356,7 @@ impl ProtocolClient {
             DaemonResponse::QueryResult(DaemonQueryResponse::DiagnosticSnapshots(response)) => {
                 Ok(response)
             }
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response(
                 "diagnostic snapshots query",
                 other,
@@ -383,7 +369,7 @@ impl ProtocolClient {
         &self,
         handle: RootHandleId,
         path: PathBuf,
-    ) -> Result<Option<DiagnosticSnapshot>, ProtocolClientError> {
+    ) -> Result<Option<DiagnosticSnapshot>, ClientError> {
         // send the file diagnostics query
         let response = self.send_request(DaemonRequest::Query(DaemonQuery::FileDiagnostics {
             handle,
@@ -395,13 +381,13 @@ impl ProtocolClient {
             DaemonResponse::QueryResult(DaemonQueryResponse::FileDiagnostics(response)) => {
                 Ok(response)
             }
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("file diagnostics query", other)),
         }
     }
 
     /// Request the current semantic revision for a daemon root handle.
-    pub fn current_revision(&self, handle: RootHandleId) -> Result<Revision, ProtocolClientError> {
+    pub fn current_revision(&self, handle: RootHandleId) -> Result<Revision, ClientError> {
         // send the revision query
         let response = self.send_request(DaemonRequest::Query(DaemonQuery::CurrentRevision {
             handle,
@@ -412,7 +398,7 @@ impl ProtocolClient {
             DaemonResponse::QueryResult(DaemonQueryResponse::CurrentRevision(response)) => {
                 Ok(response)
             }
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("revision query", other)),
         }
     }
@@ -422,7 +408,7 @@ impl ProtocolClient {
         &self,
         handle: RootHandleId,
         target: Option<String>,
-    ) -> Result<RootSnapshot, ProtocolClientError> {
+    ) -> Result<RootSnapshot, ClientError> {
         // send the root snapshot query
         let response = self.send_request(DaemonRequest::Query(DaemonQuery::RootSnapshot {
             handle,
@@ -434,7 +420,7 @@ impl ProtocolClient {
             DaemonResponse::QueryResult(DaemonQueryResponse::RootSnapshot(response)) => {
                 Ok(response)
             }
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("root snapshot query", other)),
         }
     }
@@ -444,7 +430,7 @@ impl ProtocolClient {
         &self,
         handle: RootHandleId,
         request: FileSnapshotRequest,
-    ) -> Result<Option<FileSnapshot>, ProtocolClientError> {
+    ) -> Result<Option<FileSnapshot>, ClientError> {
         // send the file snapshot query
         let response = self.send_request(DaemonRequest::Query(DaemonQuery::FileSnapshot {
             handle,
@@ -456,7 +442,7 @@ impl ProtocolClient {
             DaemonResponse::QueryResult(DaemonQueryResponse::FileSnapshot(response)) => {
                 Ok(response)
             }
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("file snapshot query", other)),
         }
     }
@@ -466,7 +452,7 @@ impl ProtocolClient {
         &self,
         handle: RootHandleId,
         request: FileImagesRequest,
-    ) -> Result<Vec<FileUpdateImage>, ProtocolClientError> {
+    ) -> Result<Vec<FileUpdateImage>, ClientError> {
         // send the file images query
         let response = self.send_request(DaemonRequest::Query(DaemonQuery::FileImages {
             handle,
@@ -476,7 +462,7 @@ impl ProtocolClient {
         // decode the file images response
         match response {
             DaemonResponse::QueryResult(DaemonQueryResponse::FileImages(response)) => Ok(response),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("file images query", other)),
         }
     }
@@ -486,10 +472,9 @@ impl ProtocolClient {
         &self,
         handle: RootHandleId,
         request: QueryRequestBody,
-    ) -> Result<QueryResponseBody, ProtocolClientError> {
+    ) -> Result<QueryResponseBody, ClientError> {
         // encode the query request
-        let request =
-            QueryRequestPayload::from_body(request).map_err(ProtocolClientError::QueryPayload)?;
+        let request = QueryRequestPayload::from_body(request).map_err(ClientError::QueryPayload)?;
 
         // send the semantic query
         let response = self.send_request(DaemonRequest::Query(DaemonQuery::Execute {
@@ -501,8 +486,8 @@ impl ProtocolClient {
         match response {
             DaemonResponse::QueryResult(DaemonQueryResponse::Query(response)) => response
                 .decode_response()
-                .map_err(ProtocolClientError::QueryPayload),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+                .map_err(ClientError::QueryPayload),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("query", other)),
         }
     }
@@ -512,13 +497,13 @@ impl ProtocolClient {
         &self,
         handle: RootHandleId,
         requests: Vec<QueryRequestBody>,
-    ) -> Result<Vec<QueryResponseBody>, ProtocolClientError> {
+    ) -> Result<Vec<QueryResponseBody>, ClientError> {
         // encode query requests
         let requests = requests
             .into_iter()
             .map(QueryRequestPayload::from_body)
             .collect::<Result<Vec<_>, _>>()
-            .map_err(ProtocolClientError::QueryPayload)?;
+            .map_err(ClientError::QueryPayload)?;
 
         // send the semantic query batch
         let response = self.send_request(DaemonRequest::Query(DaemonQuery::ExecuteBatch {
@@ -532,26 +517,26 @@ impl ProtocolClient {
                 .into_iter()
                 .map(|response| response.decode_response())
                 .collect::<Result<Vec<_>, _>>()
-                .map_err(ProtocolClientError::QueryPayload),
-            DaemonResponse::Error(error) => Err(ProtocolClientError::Server(error)),
+                .map_err(ClientError::QueryPayload),
+            DaemonResponse::Error(error) => Err(ClientError::Server(error)),
             other => Err(Self::unexpected_response("query batch", other)),
         }
     }
 
     /// Send a raw protocol message.
-    pub fn send_message(&self, message: &ProtocolMessage) -> Result<(), ProtocolClientError> {
+    pub fn send_message(&self, message: &ProtocolMessage) -> Result<(), ClientError> {
         let codec = self.codec.lock();
         codec
             .send_message(self.transport.as_ref(), message)
-            .map_err(ProtocolClientError::Codec)
+            .map_err(ClientError::Codec)
     }
 
     /// Receive a raw protocol message.
-    pub fn recv_message(&self) -> Result<ProtocolMessage, ProtocolClientError> {
+    pub fn recv_message(&self) -> Result<ProtocolMessage, ClientError> {
         let codec = self.codec.lock();
         codec
             .recv_message(self.transport.as_ref())
-            .map_err(ProtocolClientError::Codec)
+            .map_err(ClientError::Codec)
     }
 
     /// Allocate the next request id.
@@ -561,9 +546,7 @@ impl ProtocolClient {
     }
 
     /// Build an unexpected response error.
-    fn unexpected_response(expected: &str, response: DaemonResponse) -> ProtocolClientError {
-        ProtocolClientError::UnexpectedResponse(format!(
-            "expected {expected} response, got {response:?}"
-        ))
+    fn unexpected_response(expected: &str, response: DaemonResponse) -> ClientError {
+        ClientError::UnexpectedResponse(format!("expected {expected} response, got {response:?}"))
     }
 }

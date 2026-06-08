@@ -9,7 +9,7 @@ use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem
 
 use crate::daemon::{DaemonEndpoint, DaemonServer, DaemonServerOptions};
 use crate::protocol::{
-    DaemonRequest, DaemonResponse, FileUpdate, FileUpdateKind, FileUpdateRequest, OpenRootRequest,
+    DaemonRequest, DaemonResponse, FileOperation, FileOperationRequest, OpenRootRequest,
     RootOpenOptions,
 };
 use crate::{DaemonConnectOptions, connect_ipc_daemon};
@@ -356,23 +356,20 @@ fn test_daemon_ipc_restart_resubscribe() {
         other => panic!("unexpected response: {other:?}"),
     };
 
-    // apply a file update
+    // apply a file operation
     let file_path = daemon.root_path().join("main.ds");
-    let update = FileUpdate {
+    let operation = FileOperation::WriteText {
         path: file_path.clone(),
-        update: FileUpdateKind::Text {
-            content: "export const value = 1".to_string(),
-        },
-        write_to_disk: true,
+        content: "export const value = 1".to_string(),
     };
     let response = connection
         .client
-        .send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
+        .send_request(DaemonRequest::ApplyFileOperation(FileOperationRequest {
             handle: handle_id,
-            update,
+            operation,
         }));
     match response {
-        Ok(DaemonResponse::FileUpdated(response)) => {
+        Ok(DaemonResponse::FileOperationApplied(response)) => {
             assert!(!response.updates.is_empty());
         }
         other => panic!("unexpected response: {other:?}"),
@@ -398,22 +395,19 @@ fn test_daemon_ipc_restart_resubscribe() {
         other => panic!("unexpected response: {other:?}"),
     };
 
-    // apply another file update
-    let update = FileUpdate {
+    // apply another file operation
+    let operation = FileOperation::WriteText {
         path: file_path,
-        update: FileUpdateKind::Text {
-            content: "export const value = 2".to_string(),
-        },
-        write_to_disk: true,
+        content: "export const value = 2".to_string(),
     };
     let response = connection
         .client
-        .send_request(DaemonRequest::ApplyFileUpdate(FileUpdateRequest {
+        .send_request(DaemonRequest::ApplyFileOperation(FileOperationRequest {
             handle: handle_id,
-            update,
+            operation,
         }));
     match response {
-        Ok(DaemonResponse::FileUpdated(response)) => {
+        Ok(DaemonResponse::FileOperationApplied(response)) => {
             assert!(!response.updates.is_empty());
         }
         other => panic!("unexpected response: {other:?}"),

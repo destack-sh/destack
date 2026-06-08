@@ -3,21 +3,20 @@ use std::sync::Arc;
 
 use dashmap::DashMap;
 use destack_daemon::protocol::{
-    DiagnosticSnapshot, FileImagesRequest, FileSnapshot, FileSnapshotRequest, FileUpdate,
-    FileUpdateKind, ProtocolClient, QueryRequestBody, QueryResponseBody, RootHandleId,
-    RootOpenOptions, RootSnapshot,
+    self, DiagnosticSnapshot, FileImagesRequest, FileOperation, FileSnapshot, FileSnapshotRequest,
+    QueryRequestBody, QueryResponseBody, RootHandleId, RootOpenOptions, RootSnapshot,
 };
 use destack_daemon::{
     DaemonConnectError, DaemonConnectOptions, DaemonEndpoint, DaemonLaunch, connect_ipc_daemon,
 };
 use destack_repository::{Repository, Revision};
-use destack_source::{TextChange, TextPosition, TextRange, apply_text_changes};
+use destack_source::{TextChange, TextPosition, TextRange, Uri, apply_text_changes};
 
-/// Editor-side daemon workspace used by the LSP adapter.
+/// Editor-side daemon client used by the LSP adapter.
 #[derive(Debug)]
-pub(super) struct DaemonWorkspace {
+pub(super) struct DaemonClient {
     /// Protocol client connected to the language daemon.
-    client: Arc<ProtocolClient>,
+    client: Arc<protocol::Client>,
     /// Workspace root used for daemon root routing.
     workspace_root: PathBuf,
     /// Open root handles keyed by root path.
@@ -26,7 +25,7 @@ pub(super) struct DaemonWorkspace {
     text_by_path: DashMap<PathBuf, OpenText>,
 }
 
-impl DaemonWorkspace {
+impl DaemonClient {
     /// Connect to the language daemon and open the requested roots.
     pub(super) fn connect(
         repository: &Repository,
@@ -38,7 +37,7 @@ impl DaemonWorkspace {
         let connection =
             connect_ipc_daemon(&endpoint, DaemonConnectOptions::default(), Some(launch))
                 .map_err(DaemonError::Connect)?;
-        let workspace = Self {
+        let client = Self {
             client: connection.client,
             workspace_root: repository.path().to_path_buf(),
             root_by_path: DashMap::new(),
@@ -46,10 +45,10 @@ impl DaemonWorkspace {
         };
 
         for root in roots {
-            workspace.open_root(root)?;
+            client.open_root(root)?;
         }
 
-        Ok(workspace)
+        Ok(client)
     }
 
     /// Open one root and retain its daemon handle.
@@ -83,22 +82,7 @@ impl DaemonWorkspace {
 
     /// Return the open root that owns one path.
     pub(super) fn root_for_path(&self, path: &Path) -> Result<PathBuf, DaemonError> {
-        let mut best: Option<(usize, PathBuf)> = None;
-        for entry in self.root_by_path.iter() {
-            let root = entry.key();
-            if !path.starts_with(root) {
-                continue;
-            }
-            let size = root.as_os_str().len();
-            if best.as_ref().is_none_or(|(best_size, _)| size > *best_size) {
-                best = Some((size, root.clone()));
-            }
-        }
-
-        best.map(|(_, root)| root)
-            .ok_or_else(|| DaemonError::PathNotInRoot {
-                path: path.to_path_buf(),
-            })
+        self.open_root_for_path(path).map(|root| root.path)
     }
 
     /// Return true when a path is currently open in the editor.
@@ -113,15 +97,22 @@ impl DaemonWorkspace {
         version: i32,
         text: String,
     ) -> Result<Vec<DiagnosticSnapshot>, DaemonError> {
-        self.text_by_path.insert(
-            path.clone(),
-            OpenText {
-                version,
-                text: text.clone(),
-            },
-        );
+        let handle = self.handle_for_path(&path)?;
+        self.client
+            .apply_file_operation(
+                handle,
+                FileOperation::OpenText {
+                    path: path.clone(),
+                    uri: Uri::from_file_path(&path),
+                    version,
+                    content: text.clone(),
+                },
+            )
+            .map_err(DaemonError::Protocol)?;
 
-        self.replace_text(path, text)
+        self.text_by_path.insert(path.clone(), OpenText { text });
+
+        self.diagnostic_snapshots_for_handle(handle)
     }
 
     /// Apply incremental editor changes and replace daemon text.
@@ -131,18 +122,36 @@ impl DaemonWorkspace {
         version: i32,
         changes: Vec<destack_lsp_types::TextDocumentContentChangeEvent>,
     ) -> Result<Vec<DiagnosticSnapshot>, DaemonError> {
-        let mut entry = self
+        let entry = self
             .text_by_path
-            .get_mut(&path)
+            .get(&path)
             .ok_or_else(|| DaemonError::FileNotOpen { path: path.clone() })?;
         let text_changes = text_changes_from_lsp(changes);
         let text = apply_text_changes(entry.text.clone(), &text_changes)
             .map_err(|error| DaemonError::TextChange(error.to_string()))?;
-        entry.version = version;
-        entry.text = text.clone();
         drop(entry);
 
-        self.replace_text(path, text)
+        let handle = self.handle_for_path(&path)?;
+        self.client
+            .apply_file_operation(
+                handle,
+                FileOperation::ChangeText {
+                    path: path.clone(),
+                    uri: Uri::from_file_path(&path),
+                    version,
+                    content: text.clone(),
+                },
+            )
+            .map_err(DaemonError::Protocol)?;
+
+        let mut entry = self
+            .text_by_path
+            .get_mut(&path)
+            .ok_or_else(|| DaemonError::FileNotOpen { path: path.clone() })?;
+        entry.text = text;
+        drop(entry);
+
+        self.diagnostic_snapshots_for_handle(handle)
     }
 
     /// Save one editor file through the daemon.
@@ -151,16 +160,27 @@ impl DaemonWorkspace {
         path: PathBuf,
         text: Option<String>,
     ) -> Result<Vec<DiagnosticSnapshot>, DaemonError> {
-        let text = if let Some(text) = text {
-            text
-        } else {
-            self.text_by_path
-                .get(&path)
-                .map(|entry| entry.text.clone())
-                .ok_or_else(|| DaemonError::FileNotOpen { path: path.clone() })?
-        };
+        let handle = self.handle_for_path(&path)?;
+        let saved_text = text.clone();
+        let saved_path = saved_text.as_ref().map(|_| path.clone());
+        self.client
+            .apply_file_operation(
+                handle,
+                FileOperation::SaveText {
+                    path,
+                    content: text,
+                },
+            )
+            .map_err(DaemonError::Protocol)?;
 
-        self.replace_text(path, text)
+        if let Some(text) = saved_text
+            && let Some(path) = saved_path
+            && let Some(mut entry) = self.text_by_path.get_mut(&path)
+        {
+            entry.text = text;
+        }
+
+        self.diagnostic_snapshots_for_handle(handle)
     }
 
     /// Close one editor file through the daemon.
@@ -181,14 +201,7 @@ impl DaemonWorkspace {
         // close daemon overlay state
         let result = self
             .client
-            .apply_file_update(
-                handle,
-                FileUpdate {
-                    path,
-                    update: FileUpdateKind::Closed,
-                    write_to_disk: false,
-                },
-            )
+            .apply_file_operation(handle, FileOperation::Close { path })
             .map_err(DaemonError::Protocol);
         if let Err(error) = result {
             // restore local state when close fails
@@ -297,27 +310,6 @@ impl DaemonWorkspace {
             .map_err(DaemonError::Protocol)
     }
 
-    /// Replace the daemon text for one source file.
-    fn replace_text(
-        &self,
-        path: PathBuf,
-        text: String,
-    ) -> Result<Vec<DiagnosticSnapshot>, DaemonError> {
-        let handle = self.handle_for_path(&path)?;
-        self.client
-            .apply_file_update(
-                handle,
-                FileUpdate {
-                    path,
-                    update: FileUpdateKind::Text { content: text },
-                    write_to_disk: false,
-                },
-            )
-            .map_err(DaemonError::Protocol)?;
-
-        self.diagnostic_snapshots_for_handle(handle)
-    }
-
     /// Return rich diagnostics for one root handle.
     fn diagnostic_snapshots_for_handle(
         &self,
@@ -330,19 +322,28 @@ impl DaemonWorkspace {
 
     /// Find the daemon root handle for one path.
     fn handle_for_path(&self, path: &Path) -> Result<RootHandleId, DaemonError> {
-        let mut best: Option<(usize, RootHandleId)> = None;
+        self.open_root_for_path(path).map(|root| root.handle)
+    }
+
+    /// Find the open daemon root for one path.
+    fn open_root_for_path(&self, path: &Path) -> Result<OpenRoot, DaemonError> {
+        let mut best: Option<(usize, OpenRoot)> = None;
         for entry in self.root_by_path.iter() {
             let root = entry.key();
             if !path.starts_with(root) {
                 continue;
             }
             let size = root.as_os_str().len();
-            if best.is_none_or(|(best_size, _)| size > best_size) {
-                best = Some((size, *entry.value()));
+            if best.as_ref().is_none_or(|(best_size, _)| size > *best_size) {
+                let open_root = OpenRoot {
+                    path: root.clone(),
+                    handle: *entry.value(),
+                };
+                best = Some((size, open_root));
             }
         }
 
-        best.map(|(_, handle)| handle)
+        best.map(|(_, root)| root)
             .ok_or_else(|| DaemonError::PathNotInRoot {
                 path: path.to_path_buf(),
             })
@@ -352,10 +353,17 @@ impl DaemonWorkspace {
 /// Open editor text cached by the LSP adapter.
 #[derive(Debug, Clone)]
 struct OpenText {
-    /// Editor document version.
-    version: i32,
     /// Current normalized text.
     text: String,
+}
+
+/// Open daemon root selected for an editor path.
+#[derive(Debug, Clone)]
+struct OpenRoot {
+    /// Root path.
+    path: PathBuf,
+    /// Daemon root handle.
+    handle: RootHandleId,
 }
 
 /// Errors produced by the daemon-backed LSP workspace.
@@ -364,7 +372,7 @@ pub(super) enum DaemonError {
     /// Daemon connection failed.
     Connect(DaemonConnectError),
     /// Daemon protocol request failed.
-    Protocol(destack_daemon::protocol::ProtocolClientError),
+    Protocol(protocol::ClientError),
     /// Text change application failed.
     TextChange(String),
     /// Path is not inside an open root.
@@ -374,7 +382,7 @@ pub(super) enum DaemonError {
 }
 
 impl std::fmt::Display for DaemonError {
-    /// Format the daemon workspace error.
+    /// Format the daemon client error.
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Connect(error) => write!(formatter, "daemon connection failed: {error}"),
