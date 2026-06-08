@@ -248,14 +248,12 @@ pub struct DirCheckedModule {
     pub resolutions: Arc<dir::ResolutionSegment>,
     /// New generic slots and instances.
     pub generics: Arc<dir::GenericSegment>,
-    /// New nominal declaration facts.
-    pub nominals: Arc<dir::NominalSegment>,
+    /// New declaration definitions.
+    pub definitions: Arc<dir::DefinitionSegment>,
     /// New type relations.
     pub relations: Arc<dir::RelationSegment>,
     /// New implicit coercions.
     pub coercions: Arc<dir::CoercionSegment>,
-    /// New extension records.
-    pub extensions: Arc<dir::ExtensionSegment>,
     /// New layouts.
     pub layouts: Arc<dir::LayoutSegment>,
     /// New captures.
@@ -309,9 +307,9 @@ impl DirCheckedModule {
         dir::GenericTable::from_segment(self.generics.clone())
     }
 
-    /// Return the cumulative nominal table for checked DIR.
-    pub fn nominal_table(&self) -> dir::NominalTable<'static> {
-        dir::NominalTable::from_segment(self.nominals.clone())
+    /// Return the cumulative definition table for checked DIR.
+    pub fn definition_table(&self) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segment(self.definitions.clone())
     }
 
     /// Return the cumulative relation table for checked DIR.
@@ -322,11 +320,6 @@ impl DirCheckedModule {
     /// Return the cumulative coercion table for checked DIR.
     pub fn coercion_table(&self) -> dir::CoercionTable<'static> {
         dir::CoercionTable::from_segment(self.coercions.clone())
-    }
-
-    /// Return the cumulative extension table for checked DIR.
-    pub fn extension_table(&self) -> dir::ExtensionTable<'static> {
-        dir::ExtensionTable::from_segment(self.extensions.clone())
     }
 
     /// Return the cumulative capture table for checked DIR.
@@ -424,9 +417,9 @@ impl DirMaterialized {
         dir::GenericTable::from_segments(vec![checked.generics.clone(), self.generics.clone()])
     }
 
-    /// Return the cumulative nominal table for materialized DIR.
-    pub fn nominal_table(&self, checked: &DirCheckedModule) -> dir::NominalTable<'static> {
-        dir::NominalTable::from_segment(checked.nominals.clone())
+    /// Return the cumulative definition table for materialized DIR.
+    pub fn definition_table(&self, checked: &DirCheckedModule) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segment(checked.definitions.clone())
     }
 
     /// Return the cumulative relation table for materialized DIR.
@@ -437,11 +430,6 @@ impl DirMaterialized {
     /// Return the cumulative coercion table for materialized DIR.
     pub fn coercion_table(&self, checked: &DirCheckedModule) -> dir::CoercionTable<'static> {
         dir::CoercionTable::from_segments(vec![checked.coercions.clone(), self.coercions.clone()])
-    }
-
-    /// Return the cumulative extension table for materialized DIR.
-    pub fn extension_table(&self, checked: &DirCheckedModule) -> dir::ExtensionTable<'static> {
-        dir::ExtensionTable::from_segment(checked.extensions.clone())
     }
 
     /// Return the cumulative capture table for materialized DIR.
@@ -560,9 +548,9 @@ impl DirElaborated {
         ])
     }
 
-    /// Return the cumulative nominal table for elaborated DIR.
-    pub fn nominal_table(&self, checked: &DirCheckedModule) -> dir::NominalTable<'static> {
-        dir::NominalTable::from_segment(checked.nominals.clone())
+    /// Return the cumulative definition table for elaborated DIR.
+    pub fn definition_table(&self, checked: &DirCheckedModule) -> dir::DefinitionTable<'static> {
+        dir::DefinitionTable::from_segment(checked.definitions.clone())
     }
 
     /// Return the cumulative relation table for elaborated DIR.
@@ -589,11 +577,6 @@ impl DirElaborated {
             materialized.coercions.clone(),
             self.coercions.clone(),
         ])
-    }
-
-    /// Return the cumulative extension table for elaborated DIR.
-    pub fn extension_table(&self, checked: &DirCheckedModule) -> dir::ExtensionTable<'static> {
-        dir::ExtensionTable::from_segment(checked.extensions.clone())
     }
 
     /// Return the cumulative capture table for elaborated DIR.
