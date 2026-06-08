@@ -9,7 +9,7 @@ use destack_parser::source_colorizer;
 use destack_source::{
     DiagnosticSeverity, File, FileType, MemoryFileSystem, ModuleId, PrintOptions, TargetId, Uri,
 };
-use destack_workspace::{
+use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
     parse_jsonc_file,
 };

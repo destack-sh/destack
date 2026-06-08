@@ -11,7 +11,7 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, MemoryFileSystem, ModuleId, TargetId};
-use destack_workspace::{
+use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Mode, Profile, Ref, Repository, Revision,
     Settings,
 };
@@ -264,12 +264,12 @@ pub fn setup_test_environment_with_repository(
 
     // choose the main file and create the repository root
     let main_path = main_path.expect("test should have at least one file");
-    let head = Ref::for_workspace_root(repository.workspace_root());
+    let head = Ref::for_root(repository.path());
     let compiler = Arc::new(Compiler::new(repository.clone()));
     let linter = Arc::new(Linter::new(repository.clone()));
     let query = Arc::new(Query::new(repository.clone()));
     let session = Session::new(
-        repository.workspace_root().to_path_buf(),
+        repository.path().to_path_buf(),
         root.clone(),
         repository.clone(),
         head,

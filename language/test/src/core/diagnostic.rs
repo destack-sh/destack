@@ -7,7 +7,7 @@ use destack_source::{
     AnnotateOptions, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId,
     PrintOptions, annotate_file,
 };
-use destack_workspace::{Repository, Revision};
+use destack_repository::{Repository, Revision};
 
 use super::{Case, CaseResult};
 
