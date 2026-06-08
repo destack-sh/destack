@@ -22,7 +22,7 @@ destack_mir = { workspace = true }
 destack_parser = { workspace = true }
 destack_query = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { path = "../workspace", default-features = false }
+destack_repository = { path = "../repository", default-features = false }
 
 # general
 parking_lot = { workspace = true }

@@ -1,8 +1,8 @@
 use std::io;
 use std::path::Path;
 
+use destack_repository::Ref;
 use destack_source::FileType;
-use destack_workspace::Ref;
 
 use crate::{
     FileChange, FileSystemSource, FileUpdate, FileUpdateKind, Session, SessionError, Source,

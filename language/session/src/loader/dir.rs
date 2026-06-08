@@ -3,8 +3,8 @@ use std::sync::Arc;
 use destack_artifact::{ArtifactPayload, DirParsed, DirParsedFile};
 use destack_dir as dir;
 use destack_parser::{Parser, ParserOptions};
+use destack_repository::{Module, ModuleFile, ProviderContext};
 use destack_source::{File, LanguageType, ModuleId, Span};
-use destack_workspace::{Module, ModuleFile, ProviderContext};
 
 use crate::{ProviderAttempt, SessionError, SessionState};
 

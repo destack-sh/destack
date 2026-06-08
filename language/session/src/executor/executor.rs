@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::thread::{Builder, JoinHandle};
 
 use destack_artifact::{ArtifactKey, ArtifactOutcome, ArtifactVersion};
-use destack_workspace::Revision;
+use destack_repository::Revision;
 
 use super::run::Run;
 use super::scheduler::Scheduler;

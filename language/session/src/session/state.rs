@@ -5,7 +5,7 @@ use destack_artifact::ArtifactOutcome;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_workspace::Repository;
+use destack_repository::Repository;
 
 use crate::SessionError;
 use crate::executor::{RunId, Task};

@@ -2,16 +2,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::DiskCacheStore;
-use destack_source::{FileSystem, MemoryFileSystem};
-use destack_workspace::{
+use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Ref, Repository, RepositoryError, Settings,
 };
+use destack_source::{FileSystem, MemoryFileSystem};
 
 use super::fs::{FileSystemSource, read_destack_config};
 use super::{Source, SourceSnapshot};
 use crate::SessionError;
 
-/// Open one repository after discovering the workspace root from one path.
+/// Open one repository after discovering the source root from one path.
 pub fn open_repository_from_fs(
     path: PathBuf,
     fs: Arc<dyn FileSystem>,
@@ -33,8 +33,8 @@ pub fn open_repository_from_fs(
         settings,
         layout,
     );
-    let workspace_ref = Ref::for_workspace_root(&root);
-    let base_revision = repository.current(&workspace_ref)?;
+    let root_ref = Ref::for_root(&root);
+    let base_revision = repository.current(&root_ref)?;
 
     // import the complete source snapshot
     let mut source = FileSystemSource::new(&repository, &root);
@@ -42,7 +42,7 @@ pub fn open_repository_from_fs(
     let change = source_import.change(&repository, base_revision)?;
     let revision = repository.commit_change(base_revision, change)?;
 
-    repository.set_ref(&workspace_ref, revision)?;
+    repository.set_ref(&root_ref, revision)?;
 
     Ok(repository)
 }
@@ -83,7 +83,7 @@ fn find_source_root(file_system: &dyn FileSystem, path: &Path) -> Result<PathBuf
     };
     let mut current = input_directory.clone();
 
-    // walk up directories looking for a workspace root
+    // walk up directories looking for a source root
     loop {
         if read_destack_config(file_system, &current)?.is_some() {
             return Ok(current);

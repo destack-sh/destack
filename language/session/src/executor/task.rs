@@ -1,5 +1,5 @@
 use destack_artifact::ArtifactKey;
-use destack_workspace::Revision;
+use destack_repository::Revision;
 
 /// One artifact task inside the executor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

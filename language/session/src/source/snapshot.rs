@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use destack_repository::{Edit, Repository, RepositoryChange, Revision};
 use destack_source::{FileContent, FileContentId, FileId, FileSystem, StringId};
-use destack_workspace::{Edit, Repository, RepositoryChange, Revision};
 
 use crate::{SessionError, SourceError};
 
