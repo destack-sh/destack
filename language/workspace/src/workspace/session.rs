@@ -1,13 +1,14 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_compiler::Compiler;
+use destack_repository::{Ref, Revision};
 use destack_session::Session;
-use destack_workspace::{Ref, Repository, Revision};
 
-use super::{LanguageService, LanguageServiceError};
+use crate::diagnostic::Error;
 
-impl LanguageService {
+use super::Workspace;
+
+impl Workspace {
     /// Resolve the configured root that owns a path.
     pub(super) fn owned_root(&self, path: &Path) -> Option<PathBuf> {
         let canonical_path = Self::normalized_path(path);
@@ -37,18 +38,14 @@ impl LanguageService {
     }
 
     /// Resolve the configured root that owns a path.
-    pub fn root_at(&self, path: &Path) -> Result<PathBuf, LanguageServiceError> {
-        self.owned_root(path)
-            .ok_or_else(|| LanguageServiceError::PathNotInRoot {
-                path: path.to_path_buf(),
-            })
+    pub fn root_at(&self, path: &Path) -> Result<PathBuf, Error> {
+        self.owned_root(path).ok_or_else(|| Error::PathNotInRoot {
+            path: path.to_path_buf(),
+        })
     }
 
     /// Resolve the root whose current revision tracks a path.
-    pub(super) fn tracked_root(
-        &self,
-        path: &Path,
-    ) -> Result<Option<PathBuf>, LanguageServiceError> {
+    pub(super) fn tracked_root(&self, path: &Path) -> Result<Option<PathBuf>, Error> {
         let canonical_path = Self::normalized_path(path);
         let mut best_root = None;
         let mut best_depth = 0usize;
@@ -82,7 +79,7 @@ impl LanguageService {
     }
 
     /// Resolve the session that should own one file edit.
-    pub(super) fn edit_session(&self, path: &Path) -> Result<Arc<Session>, LanguageServiceError> {
+    pub(crate) fn edit_session(&self, path: &Path) -> Result<Arc<Session>, Error> {
         // prefer configured root ownership for local edits
         if let Some(root) = self.owned_root(path) {
             return self.session(&root);
@@ -93,7 +90,7 @@ impl LanguageService {
     }
 
     /// Return the canonical path when available, otherwise the original path.
-    pub(super) fn normalized_path(path: &Path) -> PathBuf {
+    pub(crate) fn normalized_path(path: &Path) -> PathBuf {
         match std::fs::canonicalize(path) {
             Ok(path) => path,
             Err(_error) => path.to_path_buf(),
@@ -101,7 +98,7 @@ impl LanguageService {
     }
 
     /// Open one root.
-    pub fn open_root(&self, root: PathBuf) -> Result<(), LanguageServiceError> {
+    pub fn open_root(&self, root: PathBuf) -> Result<(), Error> {
         if self.roots.contains_key(&root) {
             return Ok(());
         }
@@ -109,20 +106,20 @@ impl LanguageService {
         let session = Arc::new(self.build_session(root.clone())?);
         self.roots.insert(root.clone(), Arc::clone(&session));
 
-        // synchronize the current source state for the new workspace ref
+        // synchronize the current source state for the new root ref
         let result = session.reload_from_fs(session.head());
         let Err(error) = result else {
             return Ok(());
         };
 
-        // rollback a failed root open so service state stays consistent
+        // rollback a failed root open so workspace state stays consistent
         self.roots.remove(root.as_path());
 
-        Err(LanguageServiceError::from(error))
+        Err(Error::from(error))
     }
 
     /// Close one root.
-    pub fn close_root(&self, root: &Path) -> Result<(), LanguageServiceError> {
+    pub fn close_root(&self, root: &Path) -> Result<(), Error> {
         let root = root.to_path_buf();
         let _session = self.roots.remove(root.as_path());
 
@@ -130,13 +127,13 @@ impl LanguageService {
     }
 
     /// Clear all cache entries for every root.
-    pub fn clear_cache_all(&self) -> Result<(), LanguageServiceError> {
+    pub fn clear_cache_all(&self) -> Result<(), Error> {
         let cache_dir = self.repository.cache_directory();
         if !cache_dir.exists() {
             return Ok(());
         }
 
-        std::fs::remove_dir_all(&cache_dir).map_err(|error| LanguageServiceError::Io {
+        std::fs::remove_dir_all(&cache_dir).map_err(|error| Error::Io {
             path: cache_dir.clone(),
             source: error,
         })?;
@@ -150,7 +147,7 @@ impl LanguageService {
     }
 
     /// Resolve or create the session for a root.
-    pub(super) fn session(&self, root: &Path) -> Result<Arc<Session>, LanguageServiceError> {
+    pub(crate) fn session(&self, root: &Path) -> Result<Arc<Session>, Error> {
         let root = root.to_path_buf();
 
         if !self.roots.contains_key(&root) {
@@ -161,10 +158,10 @@ impl LanguageService {
             .roots
             .get(root.as_path())
             .map(|entry| Arc::clone(entry.value()))
-            .ok_or_else(|| LanguageServiceError::PathNotInRoot { path: root.clone() })?;
+            .ok_or_else(|| Error::PathNotInRoot { path: root.clone() })?;
 
         if session.root() != root {
-            return Err(LanguageServiceError::Internal {
+            return Err(Error::Internal {
                 detail: format!(
                     "session root mismatch: expected {}, found {}",
                     root.display(),
@@ -177,9 +174,9 @@ impl LanguageService {
     }
 
     /// Resolve or create the session that owns a path.
-    pub(super) fn session_at(&self, path: &Path) -> Result<Arc<Session>, LanguageServiceError> {
+    pub(super) fn session_at(&self, path: &Path) -> Result<Arc<Session>, Error> {
         let Some(root) = self.tracked_root(path)? else {
-            return Err(LanguageServiceError::PathNotInRoot {
+            return Err(Error::PathNotInRoot {
                 path: path.to_path_buf(),
             });
         };
@@ -188,38 +185,26 @@ impl LanguageService {
     }
 
     /// Resolve the current revision for the session that owns a path.
-    pub fn revision_at(&self, path: &Path) -> Result<Revision, LanguageServiceError> {
+    pub fn revision_at(&self, path: &Path) -> Result<Revision, Error> {
         let root = self.root_at(path)?;
         self.revision(&root)
     }
 
     /// Resolve the current revision for a root.
-    pub fn revision(&self, root: &Path) -> Result<Revision, LanguageServiceError> {
+    pub fn revision(&self, root: &Path) -> Result<Revision, Error> {
         let session = self.session(root)?;
-        session
-            .revision(session.head())
-            .map_err(LanguageServiceError::from)
-    }
-
-    /// Return repository and compiler handles for one root.
-    pub fn root_handles(
-        &self,
-        root: &Path,
-    ) -> Result<(Arc<Repository>, Arc<Compiler>), LanguageServiceError> {
-        let session = self.session(root)?;
-
-        Ok((session.repository(), session.compiler()))
+        session.revision(session.head()).map_err(Error::from)
     }
 
     /// Build one session for a root.
-    fn build_session(&self, root: PathBuf) -> Result<Session, LanguageServiceError> {
-        let revision_ref = Ref::for_workspace_root(root.as_path());
+    fn build_session(&self, root: PathBuf) -> Result<Session, Error> {
+        let revision_ref = Ref::for_root(root.as_path());
 
         if self.repository.current(&revision_ref).is_err() {
-            let repository_root_ref = Ref::for_workspace_root(self.repository.workspace_root());
+            let repository_root_ref = Ref::for_root(self.repository.path());
             self.repository
                 .fork_ref(&repository_root_ref, revision_ref.clone())
-                .map_err(LanguageServiceError::from)?;
+                .map_err(Error::from)?;
         }
 
         let cwd = root.clone();

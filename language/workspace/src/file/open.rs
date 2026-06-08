@@ -1,13 +1,15 @@
 use std::path::{Path, PathBuf};
 
+use destack_repository::{Repository, Revision};
 use destack_source::{FileContentId, FileId, Uri};
-use destack_workspace::{Repository, Revision};
 
-use super::{FileChange, LanguageService, LanguageServiceError};
+use crate::FileChange;
+use crate::diagnostic::Error;
+use crate::workspace::Workspace;
 
-/// One currently open file tracked by the language service.
+/// One currently open file tracked by the workspace.
 #[derive(Debug, Clone)]
-pub(super) struct OpenFile {
+pub(crate) struct OpenFile {
     /// Client-facing uri for this file.
     pub uri: Uri,
     /// Client-provided file version.
@@ -18,9 +20,9 @@ pub(super) struct OpenFile {
     pub content: FileChange,
 }
 
-impl LanguageService {
+impl Workspace {
     /// Return the open file for one path.
-    pub(super) fn open_state(&self, path: &Path) -> Option<OpenFile> {
+    pub(crate) fn open_state(&self, path: &Path) -> Option<OpenFile> {
         // open file paths are stored by normalized path
         let path = Self::normalized_path(path);
 
@@ -30,12 +32,12 @@ impl LanguageService {
     }
 
     /// Return the client version for one open file path.
-    pub(super) fn open_file_version(&self, path: &Path) -> Option<i32> {
+    pub(crate) fn open_file_version(&self, path: &Path) -> Option<i32> {
         self.open_state(path).map(|file| file.version)
     }
 
     /// Set one open file.
-    pub(super) fn set_open_state(
+    pub(crate) fn set_open_state(
         &self,
         path: &Path,
         uri: Uri,
@@ -69,7 +71,7 @@ impl LanguageService {
     }
 
     /// Remove one open file.
-    pub(super) fn remove_open_state(&self, path: &Path) -> Option<OpenFile> {
+    pub(crate) fn remove_open_state(&self, path: &Path) -> Option<OpenFile> {
         // remove overlay state before dropping open file metadata
         let path = Self::normalized_path(path);
 
@@ -83,7 +85,7 @@ impl LanguageService {
     }
 
     /// Return the current text for one open file.
-    pub(super) fn open_file_text(&self, path: &Path) -> Option<String> {
+    pub(crate) fn open_file_text(&self, path: &Path) -> Option<String> {
         let file = self.open_state(path)?;
         let FileChange::Text { content } = file.content else {
             return None;
@@ -101,7 +103,7 @@ impl LanguageService {
     }
 
     /// Return open files contained by one root.
-    pub(super) fn open_files_under(&self, root: &Path) -> Vec<(PathBuf, OpenFile)> {
+    pub(crate) fn open_files_under(&self, root: &Path) -> Vec<(PathBuf, OpenFile)> {
         self.open_file_by_path
             .iter()
             .filter(|entry| entry.key().starts_with(root))
@@ -110,13 +112,13 @@ impl LanguageService {
     }
 
     /// Return the open file diagnostic version when it matches a revision.
-    pub(super) fn open_file_version_in_revision(
+    pub(crate) fn open_file_version_in_revision(
         &self,
         repository: &Repository,
         revision: Revision,
         file_id: FileId,
         path: &Path,
-    ) -> Result<Option<i32>, LanguageServiceError> {
+    ) -> Result<Option<i32>, Error> {
         // missing open files have no client version
         let Some(file) = self.open_state(path) else {
             return Ok(None);

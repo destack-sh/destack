@@ -1,11 +1,12 @@
-#![feature(default_field_values)]
-
-pub mod config;
-pub mod provider;
-pub mod repository;
+mod diagnostic;
+mod file;
 pub mod workspace;
 
-pub use config::*;
-pub use provider::*;
-pub use repository::*;
-pub use workspace::*;
+pub use destack_session::{FileChange, FileUpdateKind};
+pub use destack_source::{TextChange, TextPosition, TextRange};
+pub use diagnostic::{DiagnosticView, Error};
+pub use file::{FileImage, FileUpdate, SourceUpdateResult};
+pub use workspace::{Message, MessageKind, QueryResult, RevisionPolicy, UpdateBatch, Workspace};
+
+#[cfg(test)]
+mod tests;

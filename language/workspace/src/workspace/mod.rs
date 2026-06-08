@@ -1,11 +1,10 @@
-mod environment;
-mod module;
-mod package;
-mod profile;
+mod message;
+mod query;
+mod session;
+mod view;
 mod workspace;
 
-pub use environment::*;
-pub use module::*;
-pub use package::*;
-pub use profile::*;
-pub use workspace::*;
+pub use message::{Message, MessageKind, UpdateBatch};
+pub use query::{QueryResult, RevisionPolicy};
+pub use view::{FileView, Snapshot};
+pub use workspace::Workspace;

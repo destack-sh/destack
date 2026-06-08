@@ -1,26 +1,32 @@
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 
+use destack_repository::{Repository, Revision, RevisionPin};
 use destack_session::{Session, SessionError};
 use destack_source::{File, FileId};
-use destack_workspace::{Repository, Revision, RevisionPin};
 
-use super::{LanguageService, LanguageServiceError};
+use crate::diagnostic::Error;
+
+use super::Workspace;
 
 /// Read view over one session at one pinned repository revision.
 #[derive(Debug)]
-pub struct SessionRevisionView {
+pub struct Snapshot {
     /// The live session.
     session: Arc<Session>,
     /// The retained repository revision.
     revision: RevisionPin,
 }
 
-impl SessionRevisionView {
-    /// Create one session revision view.
+impl Snapshot {
+    /// Create one snapshot.
     pub(super) fn new(session: Arc<Session>, revision: RevisionPin) -> Self {
         Self { session, revision }
+    }
+
+    /// Return the live session for workspace internals.
+    pub(super) fn session(&self) -> &Session {
+        self.session.as_ref()
     }
 
     /// Return the pinned revision id.
@@ -34,7 +40,7 @@ impl SessionRevisionView {
     }
 
     /// Return one tracked file id for a path in this revision.
-    pub fn file_id(&self, path: &Path) -> Result<Option<FileId>, LanguageServiceError> {
+    pub fn file_id(&self, path: &Path) -> Result<Option<FileId>, Error> {
         let file_id = self.session.file_id(path);
         let file = self.repository().file(self.revision(), file_id)?;
 
@@ -42,7 +48,7 @@ impl SessionRevisionView {
     }
 
     /// Return one tracked file by id from this revision.
-    pub fn file(&self, file_id: FileId) -> Result<Arc<File>, LanguageServiceError> {
+    pub fn file(&self, file_id: FileId) -> Result<Arc<File>, Error> {
         let file = self
             .repository()
             .file(self.revision(), file_id)?
@@ -52,12 +58,10 @@ impl SessionRevisionView {
     }
 
     /// Return one file view for a path in this revision.
-    pub fn file_view(self, path: &Path) -> Result<FileView, LanguageServiceError> {
-        let file_id = self
-            .file_id(path)?
-            .ok_or_else(|| LanguageServiceError::FileMissing {
-                path: path.to_path_buf(),
-            })?;
+    pub fn file_view(self, path: &Path) -> Result<FileView, Error> {
+        let file_id = self.file_id(path)?.ok_or_else(|| Error::FileMissing {
+            path: path.to_path_buf(),
+        })?;
         let file = self.file(file_id)?;
 
         Ok(FileView {
@@ -68,20 +72,11 @@ impl SessionRevisionView {
     }
 }
 
-impl Deref for SessionRevisionView {
-    type Target = Session;
-
-    /// Return the live session behind this pinned revision.
-    fn deref(&self) -> &Self::Target {
-        self.session.as_ref()
-    }
-}
-
 /// Read view over one file inside a pinned session revision.
 #[derive(Debug)]
 pub struct FileView {
     /// The pinned session revision.
-    pub session: SessionRevisionView,
+    pub session: Snapshot,
     /// The source file id.
     pub file_id: FileId,
     /// The source file image.
@@ -100,24 +95,21 @@ impl FileView {
     }
 }
 
-impl LanguageService {
+impl Workspace {
     /// Return a read view over the current revision for one root session.
-    pub fn session_revision_view(
-        &self,
-        root: &Path,
-    ) -> Result<SessionRevisionView, LanguageServiceError> {
+    pub fn snapshot(&self, root: &Path) -> Result<Snapshot, Error> {
         let session = self.session(root)?;
         let repository = session.repository();
         let revision = session.revision(session.head())?;
         let revision = repository.pin(revision)?;
 
-        Ok(SessionRevisionView::new(session, revision))
+        Ok(Snapshot::new(session, revision))
     }
 
     /// Return a read view over one file at the current revision.
-    pub fn file_view(&self, path: &Path) -> Result<FileView, LanguageServiceError> {
+    pub fn file_view(&self, path: &Path) -> Result<FileView, Error> {
         let root = self.root_at(path)?;
-        let session = self.session_revision_view(&root)?;
+        let session = self.snapshot(&root)?;
 
         session.file_view(path)
     }

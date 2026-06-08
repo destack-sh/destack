@@ -1,27 +1,26 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use destack_repository::{DestackLayoutOverride, Environment, Settings};
 use destack_session::open_repository_from_fs;
 use destack_source::{
-    FileSystem, FileWatchEvent, FileWatchEventKind, OverlayFileSystem, PhysicalFileSystem,
-    TemporaryPhysicalFileSystem, Uri,
+    FileSystem, OverlayFileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri,
 };
-use destack_workspace::{DestackLayoutOverride, Environment, Settings};
 
-use crate::{FileChange, LanguageService, LanguageServiceResult};
+use crate::{FileChange, UpdateBatch, Workspace};
 
-/// Test harness for language service integration tests.
+/// Test harness for workspace integration tests.
 #[derive(Debug)]
-pub(super) struct TestLanguageService {
+pub(super) struct TestWorkspace {
     /// Temporary filesystem root.
     pub fs: TemporaryPhysicalFileSystem,
-    /// Language service under test.
-    pub service: LanguageService,
-    /// Workspace roots registered in the service.
+    /// Workspace under test.
+    pub workspace: Workspace,
+    /// Workspace roots registered in the workspace.
     pub roots: Vec<PathBuf>,
 }
 
-impl TestLanguageService {
+impl TestWorkspace {
     /// Create a new harness rooted at a temporary source root.
     pub(super) fn new(prefix: &str) -> Self {
         Self::new_with_roots(prefix, 1)
@@ -48,11 +47,14 @@ impl TestLanguageService {
             )
             .expect("failed to import repository from overlay fs"),
         );
-        let service =
-            LanguageService::new(repository.clone(), Some(overlay), roots.clone(), 1, None)
-                .expect("expected language service");
+        let workspace = Workspace::new(repository.clone(), Some(overlay), roots.clone(), 1, None)
+            .expect("expected workspace");
 
-        Self { fs, service, roots }
+        Self {
+            fs,
+            workspace,
+            roots,
+        }
     }
 
     /// Resolve a path under the temporary root.
@@ -83,23 +85,9 @@ impl TestLanguageService {
         path
     }
 
-    /// Write text under a specific root.
-    pub(super) fn write_text_for_root(
-        &self,
-        root_index: usize,
-        path: impl AsRef<Path>,
-        source: &str,
-    ) -> PathBuf {
-        let path = self.path_for_root(root_index, path);
-        self.fs
-            .write_text(&path, source)
-            .unwrap_or_else(|error| panic!("failed to write {}: {error}", path.display()));
-        path
-    }
-
     /// Apply a text source update for a path.
-    pub(super) fn apply_text(&self, path: &Path, source: &str) -> LanguageServiceResult {
-        self.service
+    pub(super) fn apply_text(&self, path: &Path, source: &str) -> UpdateBatch {
+        self.workspace
             .apply_file(
                 path,
                 FileChange::Text {
@@ -107,19 +95,6 @@ impl TestLanguageService {
                 },
             )
             .unwrap_or_else(|error| panic!("failed file update for {}: {error}", path.display()))
-    }
-
-    /// Apply a modified watch event for a path.
-    pub(super) fn apply_watch_modified(&self, path: &Path) -> LanguageServiceResult {
-        let event = FileWatchEvent {
-            path: path.to_path_buf(),
-            previous_path: None,
-            kind: FileWatchEventKind::Modified,
-        };
-
-        self.service
-            .apply_watch_events(vec![event])
-            .unwrap_or_else(|error| panic!("failed watch apply for {}: {error}", path.display()))
     }
 }
 
