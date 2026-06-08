@@ -4,7 +4,7 @@ use destack_dir::{
     MatchForm, NodeVisitor, NodeVisitorOptions, PatternField, Tree, walk_expression,
     walk_parameter, walk_pattern_field,
 };
-use destack_workspace::{CyclomaticComplexityVariant, LintSeverity};
+use destack_repository::{CyclomaticComplexityVariant, LintSeverity};
 
 use crate::rules::common::{
     expression_starts_nested_declaration_scope, parameter_default_expression_id,

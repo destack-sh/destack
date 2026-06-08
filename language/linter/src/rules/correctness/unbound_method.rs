@@ -1,5 +1,5 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, StringId, walk_expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     assign_pattern_contains_expression, call_like_invocation_is_receiver_bound,

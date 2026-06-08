@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{self as dir, Member};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{collect_assigned_symbol_usage, expression_unwrap_parenthesized};
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

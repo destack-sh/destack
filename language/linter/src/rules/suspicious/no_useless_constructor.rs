@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     declaration_has_extends_heritage, expression_target_symbol, expression_unwrap_statement,

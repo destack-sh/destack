@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     block_expression_ancestor, block_is_empty_without_comment, block_is_function_body,

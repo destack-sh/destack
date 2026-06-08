@@ -17,17 +17,17 @@ use destack_dir::NodeParentIndex;
 use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions};
+use destack_repository::{
+    DestackLayoutOverride, Edit as RepositoryEdit, Environment, LintCategory, LintSeverity,
+    LinterOptions, Module, Profile, ProviderContext, ProviderError, Ref, Repository, Revision,
+    Settings,
+};
 use destack_session::open_repository_from_fs;
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity, DiffOptions, Edit as SourceEdit,
     File, FileContentId, FileId, FileSystem, FileType, LanguageType, Loader, ModuleId,
     OverlayFileSystem, PackageId, PhysicalFileSystem, PrintOptions, Span, TargetId, Uri,
     print_diagnostics, print_diff,
-};
-use destack_workspace::{
-    DestackLayoutOverride, Edit as RepositoryEdit, Environment, LintCategory, LintSeverity,
-    LinterOptions, Module, Profile, ProviderContext, ProviderError, Ref, Repository, Revision,
-    Settings,
 };
 use parking_lot::Mutex;
 
@@ -665,7 +665,7 @@ pub(crate) use test_modules;
 impl TestProgram {
     /// Return the current workspace reference.
     fn current_reference(&self) -> Ref {
-        Ref::for_workspace_root(self.repository.workspace_root())
+        Ref::for_root(self.repository.path())
     }
 
     /// Return the current published workspace revision.
@@ -754,7 +754,7 @@ impl TestProgram {
 
         // profile
         let _libs = explicit_libs.unwrap_or_else(|| collect_required_libs_from_rules(&rules));
-        let reference = Ref::for_workspace_root(repository.workspace_root());
+        let reference = Ref::for_root(repository.path());
         let revision = repository
             .current(&reference)
             .expect("linter test repository should publish a workspace revision");
@@ -845,7 +845,7 @@ impl TestProgram {
 
     /// Set one source file in the filesystem and current workspace revision.
     pub(crate) fn add_file(&self, path: &str, content: &str) {
-        let overlay_path = self.repository.workspace_root().join(path);
+        let overlay_path = self.repository.path().join(path);
         self.fs.set_overlay(&overlay_path, content.to_string());
 
         self.apply_edits([RepositoryEdit::set_text(path, content)]);

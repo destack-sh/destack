@@ -1,5 +1,5 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, SymbolKind, walk_expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{symbol_declaration_for, symbol_for};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

@@ -2,8 +2,8 @@ use destack_dir::{
     self as dir, Asynchrony, Expression, LanguageItem, NodeVisitor, NodeVisitorOptions,
     walk_expression,
 };
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 use std::collections::HashSet;
 
 use crate::rules::common::{

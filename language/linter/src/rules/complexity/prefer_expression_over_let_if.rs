@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, Pattern};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     assign_pattern_is_unqualified_path_name, expression_unwrap_statement_source_form,

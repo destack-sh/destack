@@ -93,7 +93,7 @@ struct DuplicateCodeOptions {
 
 impl DuplicateCodeOptions {
     /// Build rule options from linter options.
-    fn from_linter_options(options: &destack_workspace::LinterOptions) -> Self {
+    fn from_linter_options(options: &destack_repository::LinterOptions) -> Self {
         Self {
             min_lines: options.complexity.min_duplicate_code_lines,
             min_tokens: options.complexity.min_duplicate_code_tokens,
@@ -830,7 +830,7 @@ impl DisjointSet {
 /// Emit diagnostics for one duplicate group.
 fn report_group_diagnostics(
     ctx: &mut LintWorkspaceContext,
-    severity: destack_workspace::LintSeverity,
+    severity: destack_repository::LintSeverity,
     occurrences: &[CodeOccurrence],
     group: &[usize],
     duplicate_kind: DuplicateKind,
@@ -1807,7 +1807,7 @@ function {function_name}(input: int32): int32 {{
     fn lint_pair(
         first_source: &str,
         second_source: &str,
-        configure: impl FnOnce(&mut destack_workspace::LinterOptions),
+        configure: impl FnOnce(&mut destack_repository::LinterOptions),
     ) -> Vec<LintReport> {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoDuplicateCode)])
             .with_options(|options| {

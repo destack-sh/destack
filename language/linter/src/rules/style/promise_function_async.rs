@@ -1,5 +1,5 @@
 use destack_dir::{self as dir, Asynchrony, LanguageItem};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{function_return_type, is_promise_type};

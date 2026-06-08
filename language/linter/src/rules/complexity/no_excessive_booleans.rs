@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, TypeExpression, TypeLiteral};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     CallableOwnerId, callable_owner_span, for_each_callable_signature, parameter_type_expression_id,

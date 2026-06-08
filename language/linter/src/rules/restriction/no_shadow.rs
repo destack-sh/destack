@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{fresh_name_in_symbol_scope, rename_local_symbol_fix};
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

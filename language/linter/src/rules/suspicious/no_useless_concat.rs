@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_unwrap_parenthesized_source_form, single_quoted_string_literal,

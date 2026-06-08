@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     collect_module_read_symbol_usage, collect_parameter_value_binding_symbols,

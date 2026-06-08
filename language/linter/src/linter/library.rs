@@ -1,4 +1,4 @@
-use destack_workspace::Module;
+use destack_repository::Module;
 
 /// Return true when one module path belongs to one required library package.
 pub(crate) fn is_library_module(module: &Module, libraries: &[&str]) -> bool {

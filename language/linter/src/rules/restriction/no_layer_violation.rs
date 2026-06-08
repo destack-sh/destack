@@ -3,8 +3,8 @@ use std::collections::HashMap;
 
 use destack_artifact::DirExported;
 use destack_dir as dir;
+use destack_repository::{DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity};
 use destack_source::{FileId, FileType, ModuleId, Span};
-use destack_workspace::{DiagnosticPolicy, LintModuleBoundariesOptions, LintSeverity};
 
 use crate::rules::common::glob_matches;
 use crate::{LintReport, LintRule, LintWorkspaceContext, declare_lint};
@@ -427,7 +427,7 @@ fn is_declaration_file(file_type: FileType, ctx: &LintWorkspaceContext) -> bool 
 
 #[cfg(test)]
 mod tests {
-    use destack_workspace::{
+    use destack_repository::{
         LintModuleBoundariesOptions, LintModuleComponent, LintModuleDependencyException,
         LintModuleDependencyRule,
     };
@@ -439,7 +439,7 @@ mod tests {
     /// Add modules, run analysis, and lint the workspace at DIR level.
     fn lint_workspace_with_modules(
         modules: &[(&str, &str)],
-        configure: impl FnOnce(&mut destack_workspace::LinterOptions),
+        configure: impl FnOnce(&mut destack_repository::LinterOptions),
     ) -> (TestProgram, Vec<LintReport>) {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoLayerViolation)])
             .with_options(configure);

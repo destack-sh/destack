@@ -2,7 +2,7 @@ use crate::LintMeta;
 use std::collections::HashSet;
 
 use destack_dir::{self as dir, Parameter};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};
 

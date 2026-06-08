@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::all_rules;
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

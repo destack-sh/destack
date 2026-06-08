@@ -1,6 +1,6 @@
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::LabeledSpan;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{pattern_is_total, pattern_subsumes_semantically};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     argument_value_expression_id, expression_path_segments, type_expression_path_segments,

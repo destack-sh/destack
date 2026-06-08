@@ -1,5 +1,5 @@
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLibSymbol;
 use crate::rules::common::{TaintAnalysis, TaintCache, expression_is_symbol};

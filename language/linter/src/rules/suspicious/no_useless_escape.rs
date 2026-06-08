@@ -1,6 +1,6 @@
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 use std::collections::HashSet;
 
 use crate::rules::common::{regex_pattern_info, regexp_global_qualifier_names};

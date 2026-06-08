@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use destack_dir::{self as dir, LanguageItem, NodeVisitor, NodeVisitorOptions, walk_expression};
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{const_i64, flip_binary_operator, is_array_type, member_receiver_text};

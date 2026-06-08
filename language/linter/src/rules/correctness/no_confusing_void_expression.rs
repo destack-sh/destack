@@ -1,7 +1,7 @@
 use destack_dir::{
     self as dir, BinaryOperator, NodeVisitor, NodeVisitorOptions, UnaryOperator, walk_expression,
 };
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     expression_is_standalone_statement, expression_outer_transparent_ancestor,

@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, UnaryOperator};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     expression_has_side_effects, expression_unwrap_parenthesized_source_form,

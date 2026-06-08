@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir::{self as dir, LanguageItem};
-use destack_workspace::{ArrayTypeStyle, LintSeverity};
+use destack_repository::{ArrayTypeStyle, LintSeverity};
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{expression_type_map, is_array_type};

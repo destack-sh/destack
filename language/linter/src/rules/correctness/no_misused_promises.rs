@@ -2,7 +2,7 @@ use destack_dir::{
     self as dir, LanguageItem, MatchSelector, NodeVisitor, NodeVisitorOptions, walk_expression,
     walk_match_case,
 };
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::LintRequirement::RequireLanguageItem;
 use crate::rules::common::{

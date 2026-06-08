@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir::{self as dir, AssignOperator, BinaryOperator, ScalarLiteral};
-use destack_workspace::{LintSeverity, OperatorAssignmentMode};
+use destack_repository::{LintSeverity, OperatorAssignmentMode};
 
 use crate::rules::common::{
     assign_pattern_expression, expression_is_equal, expression_path_segments,

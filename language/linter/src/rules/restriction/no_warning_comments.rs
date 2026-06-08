@@ -1,6 +1,6 @@
 use destack_dir as dir;
+use destack_repository::{LintSeverity, WarningCommentLocation};
 use destack_source::Span;
-use destack_workspace::{LintSeverity, WarningCommentLocation};
 
 use crate::rules::common::{comment_contains_warning_term, is_directive_comment};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
@@ -44,7 +44,7 @@ impl LintRule for NoWarningComments {
                 && comment_contains_warning_term(
                     &comment_text,
                     "no-warning-comments",
-                    destack_workspace::WarningCommentLocation::Anywhere,
+                    destack_repository::WarningCommentLocation::Anywhere,
                     &[],
                 )
             {
@@ -262,7 +262,7 @@ const value = 1;
         let test =
             TestProgram::for_rule_without_prelude(NoWarningComments).with_options(|options| {
                 options.restriction.warning_comment_location =
-                    destack_workspace::WarningCommentLocation::Anywhere;
+                    destack_repository::WarningCommentLocation::Anywhere;
             });
         let result = test.lint(
             "no_warning_comments/test_detects_warning_term_anywhere_when_enabled.ts",

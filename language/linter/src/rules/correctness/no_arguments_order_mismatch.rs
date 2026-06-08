@@ -1,7 +1,7 @@
 use destack_core::StringId;
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::LabeledSpan;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     argument_expression_id, expression_candidate_symbols, expression_unwrap_parenthesized,

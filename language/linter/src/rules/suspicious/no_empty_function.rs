@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_workspace::{EmptyFunctionKind, LintSeverity};
+use destack_repository::{EmptyFunctionKind, LintSeverity};
 
 use crate::rules::common::{
     CallableOwnerId, block_is_empty_without_comment, callable_owner_span,

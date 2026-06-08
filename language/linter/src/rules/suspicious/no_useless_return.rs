@@ -1,7 +1,7 @@
 use crate::LintMeta;
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::Span;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     CallableOwnerId, callable_owner_span, for_each_callable_signature, span_has_comment,

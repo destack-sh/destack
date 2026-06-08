@@ -1,6 +1,6 @@
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::ModuleId;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::{
     expression_signature_for_tree, symbol_declaration_for, trailing_argument_removal_span,

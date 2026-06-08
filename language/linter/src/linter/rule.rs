@@ -1,6 +1,6 @@
 use destack_dir::LanguageItem;
+use destack_repository::{LintCategory, LintSeverity};
 use destack_source::{DiagnosticSeverity, FileType};
-use destack_workspace::{LintCategory, LintSeverity};
 
 use super::{LintModuleContext, LintPackageContext, LintWorkspaceContext};
 

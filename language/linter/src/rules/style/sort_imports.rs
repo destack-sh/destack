@@ -1,6 +1,6 @@
 use destack_dir::{self as dir, DependencyBinding, DependencyItem, Expression};
+use destack_repository::{LintSeverity, SortImportsMemberSyntax};
 use destack_source::Span;
-use destack_workspace::{LintSeverity, SortImportsMemberSyntax};
 
 use crate::rules::common::source_text_contains_comment_token;
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

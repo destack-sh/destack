@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{self as dir, NodeVisitor, NodeVisitorOptions, walk_expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{find_cycle_path, strongly_connected_components};
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

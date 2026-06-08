@@ -1,6 +1,6 @@
 use crate::{LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};
 use destack_dir::{self as dir, LocalNodeId, Tree, TypeExpression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 declare_lint! {
     /// Warn on overly complex type expressions.

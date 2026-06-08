@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use destack_dir::{self as dir, Declaration, DependencyBinding, ExportKind, Expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{expression_path_segments, expression_unwrap_parenthesized_source_form};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

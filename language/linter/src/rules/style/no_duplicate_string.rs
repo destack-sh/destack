@@ -3,8 +3,8 @@ use std::collections::HashMap;
 
 use destack_core::StringId;
 use destack_dir as dir;
+use destack_repository::LintSeverity;
 use destack_source::LabeledSpan;
-use destack_workspace::LintSeverity;
 
 use crate::rules::common::expression_statement_ancestor;
 use crate::{LintModuleContext, LintReport, LintRule, declare_lint};

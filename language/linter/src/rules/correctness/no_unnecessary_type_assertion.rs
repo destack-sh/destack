@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{expression_target_symbol, is_any_type, unwrap_form_payload_type_id};
 use crate::{LintFix, LintMeta, LintModuleContext, LintReport, LintRule, declare_lint};

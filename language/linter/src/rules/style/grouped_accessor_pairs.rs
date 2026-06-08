@@ -2,8 +2,8 @@ use crate::LintMeta;
 use std::collections::HashMap;
 
 use destack_dir::{self as dir, Declaration, FunctionRole, Key, Member, Property, TypeMember};
+use destack_repository::{GroupedAccessorPairsOrder, LintSeverity};
 use destack_source::Span;
-use destack_workspace::{GroupedAccessorPairsOrder, LintSeverity};
 
 use crate::rules::common::{expression_signature_for_tree, span_has_comment};
 use crate::{LintFix, LintModuleContext, LintReport, LintRule, declare_lint};

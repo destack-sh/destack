@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     expression_is_else_if_branch, expression_is_equal, if_expression_branch_chain,

@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use destack_dir::{self as dir, GlobalSymbolId, NodeVisitor, NodeVisitorOptions, walk_expression};
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     assign_pattern_target_symbol, collect_expression_read_symbol_usage,

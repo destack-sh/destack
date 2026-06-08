@@ -96,7 +96,7 @@ fn build_cycle_diagnostic(
     module_id: ModuleId,
     members_note: &str,
     cycle_path_note: Option<&str>,
-    severity: destack_workspace::LintSeverity,
+    severity: destack_repository::LintSeverity,
     rule_id: &str,
     ctx: &LintPackageContext,
 ) -> LintReport {
@@ -301,7 +301,7 @@ mod tests {
     /// Add modules, run analysis, and lint the package at DIR level.
     fn lint_package_with_modules(
         modules: &[(&str, &str)],
-        configure: impl FnOnce(&mut destack_workspace::LinterOptions),
+        configure: impl FnOnce(&mut destack_repository::LinterOptions),
     ) -> (TestProgram, Vec<LintReport>) {
         let test = TestProgram::new_without_prelude(vec![crate::boxed(NoCircularDependency)])
             .with_options(configure);

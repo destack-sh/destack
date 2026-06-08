@@ -1,6 +1,6 @@
 use crate::LintMeta;
 use destack_dir as dir;
-use destack_workspace::LintSeverity;
+use destack_repository::LintSeverity;
 
 use crate::rules::common::{
     ConditionAssignmentStyle, condition_assignment_style, control_flow_condition_expression,
