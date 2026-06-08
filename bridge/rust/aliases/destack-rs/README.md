@@ -13,6 +13,5 @@ destack-rs = "0.55.4"
 ## API
 
 ```rust
-let client = destack_rs::Client::new();
-assert_eq!(client.backend(), "rust");
+let session = destack_rs::Session::open_path(".")?;
 ```

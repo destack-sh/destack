@@ -1,6 +1,6 @@
 # destack (Rust)
 
-Rust client for Destack.
+Rust language bridge for Destack.
 This crate is published to crates.io as `destack`.
 Legacy alias crate `destack-rs` is in [`aliases/destack-rs`](aliases/destack-rs/README.md).
 
@@ -14,8 +14,7 @@ destack = "0.55.4"
 ## API
 
 ```rust
-let client = destack::Client::new();
-assert_eq!(client.backend(), "rust");
+let session = destack::Session::open_path(".")?;
 assert_eq!(destack::version(), "0.55.4");
 ```
 
