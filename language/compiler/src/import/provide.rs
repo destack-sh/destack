@@ -4,7 +4,7 @@ use std::path::Path;
 use destack_artifact::{ArtifactPayload, ArtifactSidecar, GlobalEnvironment};
 use destack_dir as dir;
 use destack_source::{FileContent, ModuleId};
-use destack_workspace::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext};
 
 use crate::import::state::ImportState;
 use crate::{Compiler, CompilerError, CompilerResult};

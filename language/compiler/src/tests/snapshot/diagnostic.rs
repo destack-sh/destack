@@ -3,7 +3,7 @@ use std::sync::Arc;
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileId, PrintOptions, print_diagnostics,
 };
-use destack_workspace::{Repository, Revision};
+use destack_repository::{Repository, Revision};
 
 /// Render one diagnostic collection as stable tripleslash rows.
 pub(crate) fn render_diagnostics(

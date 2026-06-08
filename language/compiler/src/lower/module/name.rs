@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use {destack_dir as dir, destack_mir as mir};
 
 use destack_core::{StringId, StringPool, stable_hash_text};
-use destack_workspace::{Module, Package};
+use destack_repository::{Module, Package};
 
 use crate::lower::ModuleLowerer;
 use crate::{LowerError, LowerResult};

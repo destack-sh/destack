@@ -4,7 +4,7 @@ use destack_codegen_js as js;
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::{ModuleId, PackageId, TargetId};
-use destack_workspace::{ProviderContext, Target};
+use destack_repository::{ProviderContext, Target};
 
 use crate::{Compiler, LinkError, LinkResult};
 

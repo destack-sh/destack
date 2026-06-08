@@ -3,7 +3,7 @@ use {destack_dir as dir, destack_mir as mir};
 
 use destack_artifact::DiagnosticAnchor;
 use destack_source::ModuleId;
-use destack_workspace::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext};
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
 use crate::lower::static_key_to_field_name;

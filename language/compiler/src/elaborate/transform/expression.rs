@@ -1,7 +1,7 @@
 use destack_dir::{
     BindingTable, GuardTable, ResolutionSegment, ResolutionTable, Tree, TypeSegment, TypeTable,
 };
-use destack_workspace::{Module, ProfileId, ProviderContext};
+use destack_repository::{Module, ProfileId, ProviderContext};
 
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, ElaborateResult};

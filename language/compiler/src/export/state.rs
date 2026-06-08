@@ -2,7 +2,7 @@ use destack_artifact::{ConditionSet, DiagnosticAnchor, DirExported, ProfileKey};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::ModuleId;
-use destack_workspace::Module;
+use destack_repository::Module;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::export::stats::ExportStats;

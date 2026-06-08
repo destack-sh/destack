@@ -9,7 +9,7 @@ use destack_codegen_js::{
     print_script_module as print_codegen_script_module,
 };
 use destack_source::{FileType, ModuleId, Uri};
-use destack_workspace::{Module, ProviderContext, SourceMapMode, Target};
+use destack_repository::{Module, ProviderContext, SourceMapMode, Target};
 
 /// One final script text output policy derived from one target.
 #[derive(Debug, Clone, Copy)]

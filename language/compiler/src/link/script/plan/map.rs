@@ -1,4 +1,4 @@
-use destack_workspace::ProviderContext;
+use destack_repository::ProviderContext;
 use std::path::{Component, Path, PathBuf};
 
 use crate::link::{SourceMapBuilder, SourceMapMarker};

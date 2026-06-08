@@ -5,7 +5,7 @@ use destack_artifact::{DiagnosticAnchor, DirExported, DirResolved};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::{ModuleId, ProfileId};
-use destack_workspace::ArtifactReader;
+use destack_repository::ArtifactReader;
 use indexmap::IndexSet;
 
 use crate::resolve::resolve::ExportLookup;

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_dir::GuardTable;
 use destack_source::ModuleId;
-use destack_workspace::{Module, ProfileId, ProviderContext};
+use destack_repository::{Module, ProfileId, ProviderContext};
 
 use crate::elaborate::ElaborateOptions;
 

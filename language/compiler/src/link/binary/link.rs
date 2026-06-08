@@ -3,7 +3,7 @@ use destack_artifact::{
     TargetOutputName,
 };
 use destack_source::{FileType, ModuleId};
-use destack_workspace::ProviderError;
+use destack_repository::ProviderError;
 use indexmap::IndexMap;
 
 use crate::link::TargetLocation;

@@ -3,7 +3,7 @@ use destack_artifact::ModuleOutput;
 use destack_codegen_native::{CodegenCraneliftError, CodegenCraneliftWarning};
 use destack_mir as mir;
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{ProfileId, ProviderContext, Target};
+use destack_repository::{ProfileId, ProviderContext, Target};
 
 use super::GenerateState;
 

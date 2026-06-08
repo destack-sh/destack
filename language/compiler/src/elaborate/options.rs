@@ -1,4 +1,4 @@
-use destack_workspace::{CompilerOptions, Module, ProviderContext};
+use destack_repository::{CompilerOptions, Module, ProviderContext};
 
 use crate::Compiler;
 

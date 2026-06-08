@@ -1,5 +1,5 @@
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext};
 
 /// State for one lower phase provider run.
 pub(in crate::lower) struct LowerState<'a> {

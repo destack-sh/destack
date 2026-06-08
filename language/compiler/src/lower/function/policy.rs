@@ -1,4 +1,4 @@
-use destack_workspace::{CheckFailurePolicy, CheckPolicy, Target};
+use destack_repository::{CheckFailurePolicy, CheckPolicy, Target};
 
 /// Runtime check configuration for lowering.
 #[derive(Debug, Clone, Copy)]

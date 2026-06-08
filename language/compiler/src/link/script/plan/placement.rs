@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::{LinkError, LinkResult};
 use destack_core::{StableHasher, stable_hash_bytes};
 use destack_source::{FileContent, FileType, ModuleId};
-use destack_workspace::{BundleFormat, BundleMode, Module, Target};
+use destack_repository::{BundleFormat, BundleMode, Module, Target};
 
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation, module_source_path};
 
@@ -422,7 +422,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     use destack_source::{FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri};
-    use destack_workspace::{Module, Target};
+    use destack_repository::{Module, Target};
 
     use crate::link::{OutputLayout, TargetLocation};
 

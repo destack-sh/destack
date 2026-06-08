@@ -1,10 +1,10 @@
-use destack_workspace::ProviderContext;
+use destack_repository::ProviderContext;
 use std::path::Path;
 
 use crate::{Compiler, LinkResult};
 
 use destack_source::{PackageId, TargetId};
-use destack_workspace::Target;
+use destack_repository::Target;
 
 /// One binary target linker.
 pub(crate) struct BinaryLinker<'a> {

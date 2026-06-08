@@ -1,7 +1,7 @@
 use crate::{Compiler, MaterializeError, MaterializeResult};
 
 use destack_source::ModuleId;
-use destack_workspace::ProfileId;
+use destack_repository::ProfileId;
 use {destack_dir as dir, destack_engine as engine, destack_heap as heap, destack_vm as vm};
 
 #[allow(dead_code)]

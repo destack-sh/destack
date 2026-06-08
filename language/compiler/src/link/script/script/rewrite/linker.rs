@@ -1,5 +1,5 @@
 use destack_codegen_js as js;
-use destack_workspace::Target;
+use destack_repository::Target;
 
 use super::super::linker::OutputModule;
 use crate::{LinkResult, ScriptLinker};

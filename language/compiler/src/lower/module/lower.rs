@@ -7,7 +7,7 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{
+use destack_repository::{
     CheckFailurePolicy, Mode, Module, ProfileId, ProviderContext, Target,
 };
 use indexmap::IndexSet;

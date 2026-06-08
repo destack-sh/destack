@@ -2,7 +2,7 @@ use destack_artifact::{DirBound, DirParsed};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_js as js;
-use destack_workspace::{Module, Target};
+use destack_repository::{Module, Target};
 
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning, ScriptSymbolId};
 

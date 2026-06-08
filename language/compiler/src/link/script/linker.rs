@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{Data, ModuleOutput};
 use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
-use destack_workspace::{Module, ProviderContext, Revision, Target};
+use destack_repository::{Module, ProviderContext, Revision, Target};
 
 use crate::{Compiler, CompilerError, LinkError, LinkResult};
 

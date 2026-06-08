@@ -6,7 +6,7 @@ use destack_linter::Linter;
 use destack_query::Query;
 use destack_session::Session;
 use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
-use destack_workspace::{
+use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Ref, Repository, Revision, Settings,
 };
 use pprof::ProfilerGuard;
@@ -142,7 +142,7 @@ fn build_workspace(
 
     // materialize modules into the workspace revision
     let mut modules = Vec::with_capacity(sources.len());
-    let reference = Ref::for_workspace_root(&workspace_root);
+    let reference = Ref::for_root(&workspace_root);
     for source in sources.iter() {
         let logical_path = repository.logical_path(&source.path);
 
@@ -195,7 +195,7 @@ fn build_workspace(
 
 /// Return the current workspace revision for one compiler repository.
 fn current_workspace_revision(compiler: &Compiler) -> Revision {
-    let reference = Ref::for_workspace_root(compiler.repository.workspace_root());
+    let reference = Ref::for_root(compiler.repository.path());
 
     compiler
         .repository

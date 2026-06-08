@@ -1,7 +1,7 @@
 use destack_artifact::{DirBound, DirCheckedModule, DirExpanded, DirImported, DirParsed};
 use destack_core::StringPool;
 use destack_js as js;
-use destack_workspace::{Module, Target};
+use destack_repository::{Module, Target};
 
 use crate::lower::ModuleLowerer;
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning};

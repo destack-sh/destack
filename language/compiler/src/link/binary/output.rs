@@ -2,7 +2,7 @@ use std::path::Path;
 
 use destack_artifact::{BinaryOutput, OutputContent, OutputFile};
 use destack_source::{FileType, Uri};
-use destack_workspace::{Module, Target};
+use destack_repository::{Module, Target};
 
 use crate::link::module_source_path;
 

@@ -3,7 +3,7 @@ use std::iter;
 use destack_artifact::{ArtifactPayload, ArtifactSidecar};
 use destack_dir as dir;
 use destack_source::{FileContent, ModuleId};
-use destack_workspace::{ProfileId, ProviderContext};
+use destack_repository::{ProfileId, ProviderContext};
 
 use crate::export::state::ExportState;
 use crate::{Compiler, CompilerError, CompilerResult};

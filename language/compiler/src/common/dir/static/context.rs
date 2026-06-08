@@ -1,7 +1,7 @@
 use destack_artifact::{ConditionSet, EmitFormat, ProfileKey};
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_workspace::Module;
+use destack_repository::Module;
 
 use super::{StaticFailure, StaticValue};
 

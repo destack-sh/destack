@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_core::StringPool;
 use destack_js as js;
-use destack_workspace::{Module, Target};
+use destack_repository::{Module, Target};
 
 use super::lower_module;
 use crate::{CodegenJsError, CodegenJsResult, CodegenJsWarning};

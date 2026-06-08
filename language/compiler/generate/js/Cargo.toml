@@ -21,7 +21,7 @@ destack_fir = { workspace = true }
 destack_js = { workspace = true }
 destack_mir = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { path = "../../../workspace", default-features = false }
+destack_repository = { path = "../../../repository", default-features = false }
 
 # general
 base64 = { workspace = true }

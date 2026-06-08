@@ -1,5 +1,5 @@
 use destack_codegen_js as js;
-use destack_workspace::EsTarget;
+use destack_repository::EsTarget;
 
 use super::linker::Rewriter;
 

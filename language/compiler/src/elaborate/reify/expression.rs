@@ -1,9 +1,9 @@
-use destack_workspace::ProviderContext;
+use destack_repository::ProviderContext;
 use std::collections::HashSet;
 
 use destack_dir as dir;
 use destack_dir::GuardTable;
-use destack_workspace::{Module, ProfileId};
+use destack_repository::{Module, ProfileId};
 use dir::{Expression, IfCondition, IfForm, LocalNodeId, MatchForm};
 
 use crate::elaborate::ElaborateState;

@@ -1,12 +1,12 @@
 use crate::{Compiler, CompilerResult, OptimizeError, OptimizeResult, OptimizeWarning};
-use destack_workspace::ProviderContext;
+use destack_repository::ProviderContext;
 use std::mem;
 use std::str::FromStr;
 
 use destack_artifact::{ArtifactPayload, EmitFormat, MirOptimized, TargetArch};
 use destack_mir as mir;
 use destack_source::{ModuleId, TargetId};
-use destack_workspace::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
+use destack_repository::{Module, OptimizeLevel as WorkspaceOptimizeLevel, ProfileId, Target};
 use target_lexicon::Triple;
 
 use super::{

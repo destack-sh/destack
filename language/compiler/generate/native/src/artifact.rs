@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{BinaryOutput, EmitFormat, MirLowered, MirOptimized};
 use destack_core::StringPool;
-use destack_workspace::{Module, Target};
+use destack_repository::{Module, Target};
 
 use crate::{CodegenCraneliftError, CodegenCraneliftResult, CodegenCraneliftWarning};
 

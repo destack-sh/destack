@@ -2,7 +2,7 @@ use std::collections::{HashSet, VecDeque};
 
 use destack_artifact::{ArtifactKey, ModuleOutput};
 use destack_source::ModuleId;
-use destack_workspace::ProviderError;
+use destack_repository::ProviderError;
 use indexmap::IndexSet;
 
 use crate::{CompilerResult, LinkError, LinkResult};
@@ -150,7 +150,7 @@ impl<'a> ScriptLinker<'a> {
 
                 // chunked outputs can retain internal dynamic edges as output links
                 if should_bundle {
-                    if self.target.assembly == destack_workspace::BundleMode::Chunked {
+                    if self.target.assembly == destack_repository::BundleMode::Chunked {
                         continue;
                     }
 
