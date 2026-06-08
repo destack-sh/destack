@@ -8,7 +8,7 @@ use destack_fir::format::{
 };
 use destack_fir::print::{PrintOptions, Printer};
 use destack_source::{File, FileType, IndentStyle, LineEnding};
-use destack_workspace::FormatterOptions;
+use destack_repository::FormatterOptions;
 
 use crate::JsonDocument;
 
