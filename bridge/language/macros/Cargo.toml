@@ -1,6 +1,6 @@
 [package]
 name = "destack_bridge_language_macros"
-description = "Destack bridge language contract macros"
+description = "Destack bridge language DTO macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
