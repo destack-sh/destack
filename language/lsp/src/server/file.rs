@@ -9,8 +9,8 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_li
 use destack_lsp_types as lsp;
 use destack_parser::Parser;
 use destack_query as query;
+use destack_repository::{FormatterOptions, Ref, Repository};
 use destack_source::{DiagnosticSeverity, File, FileId, LanguageType, Span, WATCHABLE_FILE_TYPES};
-use destack_workspace::{FormatterOptions, Ref, Repository};
 
 /// Globs for config files tracked by the LSP.
 pub(super) const CONFIG_GLOBS: [&str; 1] = ["**/destack.json"];
@@ -185,7 +185,7 @@ pub(super) fn formatting_options_for_path(
     repository: &Repository,
     path: &std::path::Path,
 ) -> FormatterOptions {
-    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let reference = Ref::for_root(repository.path());
     let Ok(revision) = repository.current(&reference) else {
         return FormatterOptions::default();
     };

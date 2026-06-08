@@ -1,7 +1,7 @@
 use destack_lsp_types as lsp;
 use destack_query as query;
+use destack_repository::{Repository, Revision};
 use destack_source::File;
-use destack_workspace::{Repository, Revision};
 use serde_json::{from_value, json, to_value};
 
 use super::common::{byte_span_to_range, span_to_location, symbol_kind_to_lsp};

@@ -12,12 +12,12 @@ use destack_daemon::protocol::DiagnosticSnapshot;
 use destack_lsp_server::{Client, LanguageServer, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
 use destack_query as query;
+use destack_repository::{DestackLayoutOverride, Environment, Repository, Revision, Settings};
 use destack_session::open_repository_from_fs;
 use destack_source::{
     BatchEdit, File, FileId, FileSystem, ModuleId, OverlayFileSystem, PhysicalFileSystem,
     ProfileId, Span, TargetId,
 };
-use destack_workspace::{DestackLayoutOverride, Environment, Repository, Revision, Settings};
 use serde::{Deserialize, Serialize};
 use serde_json::{from_value, to_value};
 use tokio::sync::Notify;
@@ -815,7 +815,7 @@ impl LanguageServer for DestackLanguageServer {
         .map_err(|_| jsonrpc::Error::internal_error())?;
         #[cfg(test)]
         let repository = repository.with_cache(Arc::new(MemoryCacheStore::new()));
-        let root = repository.workspace_root().to_path_buf();
+        let root = repository.path().to_path_buf();
 
         // merge discovery root with initialize roots
         let mut opened_roots = vec![root.clone()];
@@ -1812,7 +1812,7 @@ impl LanguageServer for DestackLanguageServer {
         let repository = self.repository();
 
         // query workspace symbols
-        let root = self.repository().workspace_root();
+        let root = self.repository().path();
         let Some(revision) = self.revision_at(root) else {
             return Ok(None);
         };
