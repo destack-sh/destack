@@ -58,7 +58,8 @@ export type SourceEdit =
           readonly from: string;
           /** Destination repository logical path. */
           readonly to: string;
-      };
+      }
+;
 
 /** Source update applied through one session ref. */
 export type SourceUpdate = {

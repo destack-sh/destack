@@ -5,27 +5,45 @@ import { openNapiSource } from "../dist/napi.js";
 
 const source = {
     files: [
-        { path: "destack.json", text: '{"name":"@test/app"}' },
-        { path: "src/index.ds", text: "export const value = 1;" },
+        {
+            path: "destack.json",
+            content: { kind: "text", text: '{"name":"@test/app"}' },
+        },
+        {
+            path: "src/index.ds",
+            content: { kind: "text", text: "export const value = 1;" },
+        },
     ],
 };
 
 const session = await openSession({ root: "/workspace", source });
 const napiSession = await openNapiSource("/workspace", source);
 
-assert.equal(session.backend, "napi");
-assert.equal(napiSession.backend, "napi");
-assert.deepEqual(session.files(), ["destack.json", "src/index.ds"]);
-assert.deepEqual(napiSession.files(), ["destack.json", "src/index.ds"]);
+assert.deepEqual(
+    session.files().map((file) => file.path),
+    ["destack.json", "src/index.ds"],
+);
+assert.deepEqual(
+    napiSession.files().map((file) => file.path),
+    ["destack.json", "src/index.ds"],
+);
+
+const module = session.loadModule("src/index.ds");
+const version = session.require(session.revision(), {
+    kind: "dirParsed",
+    module: module.id,
+});
+
+assert.equal(version.key.kind, "dirParsed");
+assert.deepEqual(version.key.module, module.id);
+assert.match(version.fingerprint, /^f[0-9a-f]{32}$/);
 
 const update = session.update({
     edits: [
         {
             kind: "setText",
-            setText: {
-                path: "src/next.ds",
-                text: "export const next = 2;",
-            },
+            path: "src/next.ds",
+            text: "export const next = 2;",
         },
     ],
 });

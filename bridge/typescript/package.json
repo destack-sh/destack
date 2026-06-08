@@ -1,7 +1,7 @@
 {
     "name": "@destack/language",
     "version": "0.55.4",
-    "description": "Destack language client for JavaScript and TypeScript",
+    "description": "Destack language bridge for JavaScript and TypeScript",
     "license": "MIT",
     "type": "module",
     "repository": {
@@ -18,7 +18,7 @@
         "language",
         "javascript",
         "sdk",
-        "client"
+        "bridge"
     ],
     "files": [
         "dist",
@@ -41,6 +41,96 @@
             "types": "./dist/wasm.d.ts",
             "import": "./dist/wasm.js",
             "default": "./dist/wasm.js"
+        },
+        "./artifact/key": {
+            "types": "./dist/artifact/key.generated.d.ts",
+            "import": "./dist/artifact/key.generated.js",
+            "default": "./dist/artifact/key.generated.js"
+        },
+        "./artifact/sidecar": {
+            "types": "./dist/artifact/sidecar.generated.d.ts",
+            "import": "./dist/artifact/sidecar.generated.js",
+            "default": "./dist/artifact/sidecar.generated.js"
+        },
+        "./artifact/version": {
+            "types": "./dist/artifact/version.generated.d.ts",
+            "import": "./dist/artifact/version.generated.js",
+            "default": "./dist/artifact/version.generated.js"
+        },
+        "./diagnostic/diagnostic": {
+            "types": "./dist/diagnostic/diagnostic.generated.d.ts",
+            "import": "./dist/diagnostic/diagnostic.generated.js",
+            "default": "./dist/diagnostic/diagnostic.generated.js"
+        },
+        "./diagnostic/edit": {
+            "types": "./dist/diagnostic/edit.generated.d.ts",
+            "import": "./dist/diagnostic/edit.generated.js",
+            "default": "./dist/diagnostic/edit.generated.js"
+        },
+        "./repository/revision": {
+            "types": "./dist/repository/revision.generated.d.ts",
+            "import": "./dist/repository/revision.generated.js",
+            "default": "./dist/repository/revision.generated.js"
+        },
+        "./session/file": {
+            "types": "./dist/session/file.generated.d.ts",
+            "import": "./dist/session/file.generated.js",
+            "default": "./dist/session/file.generated.js"
+        },
+        "./session/module": {
+            "types": "./dist/session/module.generated.d.ts",
+            "import": "./dist/session/module.generated.js",
+            "default": "./dist/session/module.generated.js"
+        },
+        "./session/source/file": {
+            "types": "./dist/session/source/file.generated.d.ts",
+            "import": "./dist/session/source/file.generated.js",
+            "default": "./dist/session/source/file.generated.js"
+        },
+        "./session/source/snapshot": {
+            "types": "./dist/session/source/snapshot.generated.d.ts",
+            "import": "./dist/session/source/snapshot.generated.js",
+            "default": "./dist/session/source/snapshot.generated.js"
+        },
+        "./session/source/update": {
+            "types": "./dist/session/source/update.generated.d.ts",
+            "import": "./dist/session/source/update.generated.js",
+            "default": "./dist/session/source/update.generated.js"
+        },
+        "./source/component": {
+            "types": "./dist/source/component.generated.d.ts",
+            "import": "./dist/source/component.generated.js",
+            "default": "./dist/source/component.generated.js"
+        },
+        "./source/file": {
+            "types": "./dist/source/file.generated.d.ts",
+            "import": "./dist/source/file.generated.js",
+            "default": "./dist/source/file.generated.js"
+        },
+        "./source/module": {
+            "types": "./dist/source/module.generated.d.ts",
+            "import": "./dist/source/module.generated.js",
+            "default": "./dist/source/module.generated.js"
+        },
+        "./source/package": {
+            "types": "./dist/source/package.generated.d.ts",
+            "import": "./dist/source/package.generated.js",
+            "default": "./dist/source/package.generated.js"
+        },
+        "./source/profile": {
+            "types": "./dist/source/profile.generated.d.ts",
+            "import": "./dist/source/profile.generated.js",
+            "default": "./dist/source/profile.generated.js"
+        },
+        "./source/span": {
+            "types": "./dist/source/span.generated.d.ts",
+            "import": "./dist/source/span.generated.js",
+            "default": "./dist/source/span.generated.js"
+        },
+        "./source/target": {
+            "types": "./dist/source/target.generated.d.ts",
+            "import": "./dist/source/target.generated.js",
+            "default": "./dist/source/target.generated.js"
         }
     },
     "sideEffects": false,

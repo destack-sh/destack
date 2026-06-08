@@ -1,6 +1,11 @@
-export { detectBackend } from "./backend.js";
-export type { LanguageBackend } from "./backend.js";
+export type { ArtifactKey } from "./artifact/key.generated.js";
+export type { ArtifactVersion } from "./artifact/version.generated.js";
 export type { Revision } from "./repository/revision.generated.js";
+export type { ComponentId } from "./source/component.generated.js";
+export type { ModuleId } from "./source/module.generated.js";
+export type { PackageId } from "./source/package.generated.js";
+export type { ProfileId } from "./source/profile.generated.js";
+export type { TargetId } from "./source/target.generated.js";
 export type { SessionFile } from "./session/file.generated.js";
 export type { Module } from "./session/module.generated.js";
 export { openSession } from "./session/session.js";
