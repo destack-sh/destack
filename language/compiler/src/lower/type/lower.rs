@@ -1,13 +1,14 @@
+use destack_dir as dir;
+use destack_mir as mir;
 use std::collections::{HashMap, HashSet};
-use {destack_dir as dir, destack_mir as mir};
 
 use destack_artifact::DiagnosticAnchor;
-use destack_source::ModuleId;
 use destack_repository::{ProfileId, ProviderContext};
+use destack_source::ModuleId;
 
 use super::{FieldInput, FieldLayoutKind, LayoutPolicy, StructLayout, TypeLayoutPolicy};
 use crate::lower::static_key_to_field_name;
-use crate::{DynamicValueLayout, Compiler, LowerError, LowerResult, UnionLayout};
+use crate::{Compiler, DynamicValueLayout, LowerError, LowerResult, UnionLayout};
 
 // synthetic field names for function value layouts
 const FUNCTION_PTR_FIELD: &str = "@function_ptr";
@@ -153,9 +154,13 @@ impl<'a> TypeLowerer<'a> {
     }
 
     /// Return whether one symbol has the given declaration kind.
-    pub(crate) fn symbol_kind_matches(&self, symbol: dir::GlobalSymbolId, kind: dir::SymbolKind) -> bool {
+    pub(crate) fn symbol_kind_matches(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        kind: dir::SymbolKind,
+    ) -> bool {
         self.symbol_kind(symbol)
-            .is_some_and(|actual| actual.matches_kind(kind))
+            .is_some_and(|actual| actual == kind)
     }
 
     /// Return the diagnostic anchor for one DIR node.
@@ -748,7 +753,8 @@ impl<'a> TypeLowerer<'a> {
         node: dir::AnchoredGlobalNodeId,
         builder: &mut mir::ModuleBuilder,
     ) -> LowerResult<Option<mir::LocalNodeId<mir::Type>>> {
-        if symbol.module_id == current_module_id || !self.symbol_kind_matches(symbol, dir::SymbolKind::Struct)
+        if symbol.module_id == current_module_id
+            || !self.symbol_kind_matches(symbol, dir::SymbolKind::Struct)
         {
             return Ok(None);
         }

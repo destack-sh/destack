@@ -48,9 +48,13 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return whether one symbol has the given declaration kind.
-    pub(crate) fn symbol_kind_matches(&self, symbol_id: dir::GlobalSymbolId, kind: dir::SymbolKind) -> bool {
+    pub(crate) fn symbol_kind_matches(
+        &self,
+        symbol_id: dir::GlobalSymbolId,
+        kind: dir::SymbolKind,
+    ) -> bool {
         self.symbol_kind(symbol_id)
-            .is_some_and(|actual| actual.matches_kind(kind))
+            .is_some_and(|actual| actual == kind)
     }
 
     /// Get the name of a symbol as a String.
