@@ -1,7 +1,7 @@
 # @destack/language
 
-Destack language client for TypeScript and JavaScript.
-This package provides unified backend selection across Node-API and WebAssembly environments.
+Destack language bridge for TypeScript and JavaScript.
+This package opens language sessions across Node-API and WebAssembly environments.
 
 ## Installation
 
@@ -18,13 +18,18 @@ const session = await openSession({
     root: "/workspace",
     source: {
         files: [
-            { path: "destack.json", text: "{\"name\":\"@test/app\"}" },
-            { path: "src/index.ds", text: "export const value = 1;" },
+            {
+                path: "destack.json",
+                content: { kind: "text", text: "{\"name\":\"@test/app\"}" },
+            },
+            {
+                path: "src/index.ds",
+                content: { kind: "text", text: "export const value = 1;" },
+            },
         ],
     },
 });
 
-console.log(session.backend);
 console.log(session.files());
 ```
 

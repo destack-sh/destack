@@ -1,4 +1,8 @@
 import type * as Wasm from "@destack/language-wasm";
+import type { ArtifactKey } from "../artifact/key.generated.js";
+import type { ArtifactSidecar } from "../artifact/sidecar.generated.js";
+import type { ArtifactVersion } from "../artifact/version.generated.js";
+import type { Diagnostic } from "../diagnostic/diagnostic.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
 import type { Module } from "../session/module.generated.js";
 import type { FileUpdate } from "../session/source/file.generated.js";
@@ -8,9 +12,13 @@ import type { Revision } from "../repository/revision.generated.js";
 import type { Session } from "../session/session.js";
 import {
     fromWasmFileUpdate,
+    fromWasmArtifactSidecar,
+    fromWasmDiagnostic,
     fromWasmModule,
     fromWasmSessionFile,
     fromWasmSourceUpdateResult,
+    toWasmArtifactKey,
+    toWasmRevision,
     toWasmSourceSnapshot,
     toWasmSourceUpdate,
 } from "./generated.js";
@@ -27,8 +35,6 @@ export async function openWasmSource(root: string, source: SourceSnapshot): Prom
 }
 
 class WasmSession implements Session {
-    public readonly backend = "wasm";
-
     public constructor(
         private readonly wasm: WasmModule,
         private readonly session: Wasm.Session,
@@ -54,5 +60,41 @@ class WasmSession implements Session {
 
     public loadModule(path: string): Module {
         return fromWasmModule(this.session.loadModule(path));
+    }
+
+    public provide(revision: Revision, keys: readonly ArtifactKey[]): void {
+        const transportKeys = keys.map((key) => toWasmArtifactKey(this.wasm, key));
+
+        this.session.provide(toWasmRevision(this.wasm, revision), transportKeys);
+    }
+
+    public require(revision: Revision, key: ArtifactKey): ArtifactVersion {
+        const version = this.session.require(
+            toWasmRevision(this.wasm, revision),
+            toWasmArtifactKey(this.wasm, key),
+        );
+
+        return {
+            key,
+            fingerprint: version.fingerprint,
+        };
+    }
+
+    public diagnostics(revision: Revision, key?: ArtifactKey): readonly Diagnostic[] {
+        const diagnostics = this.session.diagnostics(
+            toWasmRevision(this.wasm, revision),
+            key == null ? undefined : toWasmArtifactKey(this.wasm, key),
+        );
+
+        return diagnostics.map(fromWasmDiagnostic);
+    }
+
+    public sidecars(revision: Revision, key: ArtifactKey): readonly ArtifactSidecar[] {
+        const sidecars = this.session.sidecars(
+            toWasmRevision(this.wasm, revision),
+            toWasmArtifactKey(this.wasm, key),
+        );
+
+        return sidecars.map(fromWasmArtifactSidecar);
     }
 }

@@ -1,4 +1,8 @@
 import type * as Napi from "@destack/language-napi";
+import type { ArtifactKey } from "../artifact/key.generated.js";
+import type { ArtifactSidecar } from "../artifact/sidecar.generated.js";
+import type { ArtifactVersion } from "../artifact/version.generated.js";
+import type { Diagnostic } from "../diagnostic/diagnostic.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
 import type { Module } from "../session/module.generated.js";
 import type { FileUpdate } from "../session/source/file.generated.js";
@@ -8,9 +12,13 @@ import type { Revision } from "../repository/revision.generated.js";
 import type { Session } from "../session/session.js";
 import {
     fromNapiFileUpdate,
+    fromNapiArtifactSidecar,
+    fromNapiArtifactVersion,
+    fromNapiDiagnostic,
     fromNapiModule,
     fromNapiSessionFile,
     fromNapiSourceUpdateResult,
+    toNapiArtifactKey,
     toNapiSourceSnapshot,
     toNapiSourceUpdate,
 } from "./generated.js";
@@ -34,8 +42,6 @@ export async function openNapiSource(root: string, source: SourceSnapshot): Prom
 }
 
 class NativeSession implements Session {
-    public readonly backend = "napi";
-
     public constructor(private readonly session: InstanceType<NapiModule["Session"]>) {}
 
     public revision(): Revision {
@@ -58,5 +64,30 @@ class NativeSession implements Session {
 
     public loadModule(path: string): Module {
         return fromNapiModule(this.session.loadModule(path));
+    }
+
+    public provide(revision: Revision, keys: readonly ArtifactKey[]): void {
+        this.session.provide(revision, keys.map(toNapiArtifactKey));
+    }
+
+    public require(revision: Revision, key: ArtifactKey): ArtifactVersion {
+        const version = this.session.require(revision, toNapiArtifactKey(key));
+
+        return fromNapiArtifactVersion(version);
+    }
+
+    public diagnostics(revision: Revision, key?: ArtifactKey): readonly Diagnostic[] {
+        const diagnostics = this.session.diagnostics(
+            revision,
+            key == null ? undefined : toNapiArtifactKey(key),
+        );
+
+        return diagnostics.map(fromNapiDiagnostic);
+    }
+
+    public sidecars(revision: Revision, key: ArtifactKey): readonly ArtifactSidecar[] {
+        const sidecars = this.session.sidecars(revision, toNapiArtifactKey(key));
+
+        return sidecars.map(fromNapiArtifactSidecar);
     }
 }
