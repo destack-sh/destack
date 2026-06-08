@@ -1,11 +1,93 @@
 use destack_dir as dir;
 
-use crate::core::{DirQueryContext, ModuleQueryContext, NominalEntry};
+use crate::core::{DirQueryContext, ModuleQueryContext, NominalEntry, NominalRelation};
 
 impl ModuleQueryContext<'_> {
     /// Build nominal index entries for this module.
     pub(crate) fn build_nominal_relations(&self) -> Vec<NominalEntry> {
-        Vec::new()
+        let mut entries = Vec::new();
+
+        // collect checked definition relations
+        for (symbol, definition) in self.dir().definitions().iter_definitions() {
+            self.collect_definition_relations(symbol, definition, &mut entries);
+        }
+
+        entries
+    }
+
+    /// Collect nominal relation entries from one checked definition.
+    fn collect_definition_relations(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        definition: &dir::Definition,
+        entries: &mut Vec<NominalEntry>,
+    ) {
+        let source_symbol = self.canonical_symbol(symbol);
+
+        // collect relation fields by declaration kind
+        match definition {
+            dir::Definition::Struct(definition) => {
+                self.collect_implements(source_symbol, &definition.implements, entries);
+            }
+            dir::Definition::Class(definition) => {
+                if let Some(extends) = &definition.extends {
+                    self.collect_extends(source_symbol, extends, entries);
+                }
+
+                self.collect_implements(source_symbol, &definition.implements, entries);
+            }
+            dir::Definition::Interface(definition) => {
+                for extends in &definition.extends {
+                    self.collect_extends(source_symbol, extends, entries);
+                }
+            }
+            dir::Definition::Enum(definition) => {
+                self.collect_implements(source_symbol, &definition.implements, entries);
+            }
+            dir::Definition::Extension(extension) => {
+                let Some(root) = extension.target.nominal_root() else {
+                    return;
+                };
+                let source_symbol = self.canonical_symbol(root);
+
+                self.collect_implements(source_symbol, &extension.implements, entries);
+            }
+            dir::Definition::TypeAlias(_) | dir::Definition::Newtype(_) => {}
+        }
+    }
+
+    /// Collect one extends relation.
+    fn collect_extends(
+        &self,
+        source_symbol: dir::GlobalSymbolId,
+        heritage: &dir::NominalHeritage,
+        entries: &mut Vec<NominalEntry>,
+    ) {
+        let target_symbol = self.canonical_symbol(heritage.symbol);
+
+        entries.push(NominalEntry {
+            source_symbol,
+            target_symbol,
+            relation: NominalRelation::Extends,
+        });
+    }
+
+    /// Collect implements relations.
+    fn collect_implements(
+        &self,
+        source_symbol: dir::GlobalSymbolId,
+        implements: &[dir::NominalHeritage],
+        entries: &mut Vec<NominalEntry>,
+    ) {
+        for heritage in implements {
+            let target_symbol = self.canonical_symbol(heritage.symbol);
+
+            entries.push(NominalEntry {
+                source_symbol,
+                target_symbol,
+                relation: NominalRelation::Implements,
+            });
+        }
     }
 }
 

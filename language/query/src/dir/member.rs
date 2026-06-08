@@ -171,7 +171,7 @@ impl ModuleQueryContext<'_> {
     ) -> Option<dir::GlobalSymbolId> {
         let (_, extension) = self
             .dir()
-            .extensions()
+            .definitions()
             .iter_extensions()
             .find(|(_, extension)| extension.symbol == extension_symbol)?;
         extension

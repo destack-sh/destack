@@ -6,8 +6,8 @@ use destack_repository::{
 use destack_source::{ModuleId, ProfileId};
 
 use super::{
-    AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, MemberIndex, ModuleQueryContext,
-    NominalIndex, Query, ReferenceEntry, ReferenceIndex, SpecifierIndex, SymbolIndex,
+    AnnotationIndex, CallIndex, DefinitionIndex, ImportIndex, MemberIndex, ModuleQueryContext,
+    Query, ReferenceEntry, ReferenceIndex, SpecifierIndex, SymbolIndex,
     require_module_query_context,
 };
 
@@ -123,8 +123,10 @@ impl Query {
 
         // navigation relations
         let calls = CallIndex::new(context.build_call_candidates());
-        let nominal = NominalIndex::new(context.build_nominal_relations());
-        let extensions = ExtensionIndex::new(context.build_extension_candidates());
+        let definitions = DefinitionIndex::new(
+            context.build_nominal_relations(),
+            context.build_extension_entries(),
+        );
 
         // refactor targets
         let specifiers = SpecifierIndex::new(context.build_specifier_candidates());
@@ -136,8 +138,7 @@ impl Query {
             imports,
             references,
             calls,
-            nominal,
-            extensions,
+            definitions,
             specifiers,
             annotations,
         }

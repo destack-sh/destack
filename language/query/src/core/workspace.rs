@@ -194,7 +194,7 @@ impl WorkspaceQueryContext<'_> {
         // collect nominal relations from each indexed module
         for profile in self.indexes() {
             for index in profile.modules() {
-                entries.extend(index.index.nominal.for_target(target_symbol));
+                entries.extend(index.index.definitions.relations_for_target(target_symbol));
             }
         }
         entries.sort();
@@ -203,8 +203,8 @@ impl WorkspaceQueryContext<'_> {
         entries
     }
 
-    /// Collect extension candidates for one target symbol.
-    pub(crate) fn extension_candidates_for_target(
+    /// Collect extension index entries for one target symbol.
+    pub(crate) fn extension_entries_for_target(
         &self,
         target_symbol: dir::GlobalSymbolId,
     ) -> Vec<ExtensionEntry> {
@@ -213,7 +213,7 @@ impl WorkspaceQueryContext<'_> {
         // collect extension declarations from each indexed module
         for profile in self.indexes() {
             for index in profile.modules() {
-                entries.extend(index.index.extensions.for_target(target_symbol));
+                entries.extend(index.index.definitions.extensions_for_target(target_symbol));
             }
         }
         entries.sort();

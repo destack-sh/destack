@@ -1,23 +1,20 @@
 use destack_dir as dir;
-use destack_source::ModuleId;
 
 use crate::core::{DirQueryContext, ExtensionEntry, ModuleQueryContext, WorkspaceQueryContext};
 
 impl ModuleQueryContext<'_> {
     /// Build extension index entries for this module.
-    pub(crate) fn build_extension_candidates(&self) -> Vec<ExtensionEntry> {
+    pub(crate) fn build_extension_entries(&self) -> Vec<ExtensionEntry> {
         let mut entries = Vec::new();
-        let module_id = self.module_id();
 
         // collect checked extension declarations
-        for (extension_id, extension) in self.dir().extensions().iter_extensions() {
+        for (extension_symbol, extension) in self.dir().definitions().iter_extensions() {
             let Some(target_symbol) = extension.target.nominal_root() else {
                 continue;
             };
 
             entries.push(ExtensionEntry {
-                module_id,
-                extension_id,
+                extension_symbol,
                 target_symbol: self.canonical_symbol(target_symbol),
             });
         }
@@ -38,16 +35,18 @@ impl ModuleQueryContext<'_> {
         let canonical_target = self.canonical_symbol(target_symbol);
 
         // scan cached extensions for the canonical target
-        for entry in workspace.extension_candidates_for_target(canonical_target) {
-            let Some(module_ctx) = self.module_context(entry.module_id) else {
+        for entry in workspace.extension_entries_for_target(canonical_target) {
+            let Some(module_ctx) = self.module_context(entry.extension_symbol.module_id) else {
                 continue;
             };
 
-            let extensions = module_ctx.dir().extensions();
-            let extension = extensions.get_extension(entry.extension_id);
+            let definitions = module_ctx.dir().definitions();
+            let Some(extension) = definitions.extension_definition(entry.extension_symbol) else {
+                continue;
+            };
 
             // filter out not visible extensions
-            if !extension_is_visible(extension, self.module_id()) {
+            if !extension.is_visible_from(self.module_id()) {
                 continue;
             }
 
@@ -56,15 +55,5 @@ impl ModuleQueryContext<'_> {
                 return;
             }
         }
-    }
-}
-
-/// Check whether an extension is visible from a module.
-fn extension_is_visible(extension: &dir::Extension, current_module_id: ModuleId) -> bool {
-    // choose visibility rules by extension form
-    match extension.form {
-        dir::ExtensionForm::Inherent => true,
-        dir::ExtensionForm::Local => extension.symbol.module_id == current_module_id,
-        dir::ExtensionForm::Named => true,
     }
 }
