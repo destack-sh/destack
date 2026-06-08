@@ -375,7 +375,7 @@ impl CheckState<'_> {
                             module,
                             output,
                             environment,
-                            member.source,
+                            member.source.local_id,
                             instance,
                         )
                     });
@@ -396,7 +396,7 @@ impl CheckState<'_> {
                                     module,
                                     output,
                                     environment,
-                                    member.source,
+                                    member.source.local_id,
                                     instance,
                                 )
                             });
@@ -464,7 +464,13 @@ impl CheckState<'_> {
         match &call.target {
             CallTargetResolution::Expression { instance } => {
                 let instance = instance.as_ref().and_then(|instance| {
-                    self.commit_generic_instance(module, output, environment, call.source, instance)
+                    self.commit_generic_instance(
+                        module,
+                        output,
+                        environment,
+                        call.source.local_id,
+                        instance,
+                    )
                 });
 
                 dir::CallTarget::Expression { instance }
@@ -484,7 +490,13 @@ impl CheckState<'_> {
                     )
                 });
                 let instance = instance.as_ref().and_then(|instance| {
-                    self.commit_generic_instance(module, output, environment, call.source, instance)
+                    self.commit_generic_instance(
+                        module,
+                        output,
+                        environment,
+                        call.source.local_id,
+                        instance,
+                    )
                 });
                 let candidate = dir::CallCandidate {
                     receiver,
@@ -515,7 +527,7 @@ impl CheckState<'_> {
                                 module,
                                 output,
                                 environment,
-                                call.source,
+                                call.source.local_id,
                                 instance,
                             )
                         });
@@ -586,7 +598,7 @@ impl CheckState<'_> {
         instance: Option<&crate::check::GenericInstance>,
     ) -> dir::ClassConstructCandidate {
         let instance = instance.and_then(|instance| {
-            self.commit_generic_instance(module, output, environment, source, instance)
+            self.commit_generic_instance(module, output, environment, source.local_id, instance)
         });
 
         dir::ClassConstructCandidate {
@@ -607,7 +619,7 @@ impl CheckState<'_> {
         instance: Option<&crate::check::GenericInstance>,
     ) -> dir::NewtypeConstructCandidate {
         let instance = instance.and_then(|instance| {
-            self.commit_generic_instance(module, output, environment, source, instance)
+            self.commit_generic_instance(module, output, environment, source.local_id, instance)
         });
 
         dir::NewtypeConstructCandidate { symbol, instance }
@@ -709,7 +721,7 @@ impl CheckState<'_> {
                         module,
                         output,
                         environment,
-                        pattern.source,
+                        pattern.source.local_id,
                         instance,
                     )
                 });
@@ -729,7 +741,7 @@ impl CheckState<'_> {
                         module,
                         output,
                         environment,
-                        pattern.source,
+                        pattern.source.local_id,
                         instance,
                     )
                 });
@@ -748,7 +760,7 @@ impl CheckState<'_> {
                         module,
                         output,
                         environment,
-                        pattern.source,
+                        pattern.source.local_id,
                         instance,
                     )
                 });

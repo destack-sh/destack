@@ -1,13 +1,12 @@
 mod annotation;
 mod capture;
 mod component;
+mod definition;
 mod diagnostic;
-mod extension;
 mod generic;
 mod intern;
 mod layout;
 mod module;
-mod nominal;
 mod output;
 mod resolution;
 mod term;

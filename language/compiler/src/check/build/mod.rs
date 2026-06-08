@@ -1,3 +1,2 @@
 mod component;
-mod extension;
-mod nominal;
+mod definition;

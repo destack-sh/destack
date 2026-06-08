@@ -111,8 +111,7 @@ impl CheckState<'_> {
         let types = checked.type_table(bound.as_ref(), expanded.as_ref());
         let statics = checked.static_table(bound.as_ref(), expanded.as_ref());
         let generics = checked.generic_table();
-        let nominals = checked.nominal_table();
-        let extensions = checked.extension_table();
+        let definitions = checked.definition_table();
 
         Ok(CheckDependencyState {
             parsed,
@@ -121,8 +120,7 @@ impl CheckState<'_> {
             types,
             statics,
             generics,
-            nominals,
-            extensions,
+            definitions,
         })
     }
 }

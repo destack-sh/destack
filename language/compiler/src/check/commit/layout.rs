@@ -30,9 +30,9 @@ impl CheckState<'_> {
             })
             .collect::<Vec<_>>();
         let nominals = output
-            .nominals
+            .definitions
             .iter_definitions()
-            .map(|(symbol, _)| symbol)
+            .filter_map(|(symbol, definition)| definition.is_nominal().then_some(symbol))
             .collect::<Vec<_>>();
 
         // write concrete nominal layouts

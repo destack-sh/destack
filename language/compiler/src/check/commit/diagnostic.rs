@@ -181,11 +181,11 @@ impl CheckState<'_> {
                 origin,
                 condition: _,
             } => {
-                let left_term = self.reduce_type_operand(*origin, *left)?;
-                let right_term = self.reduce_type_operand(*origin, *right)?;
-                let decision = match (&left_term, &right_term) {
+                let reduced_left = self.reduce_type_operand(*origin, *left)?;
+                let reduced_right = self.reduce_type_operand(*origin, *right)?;
+                let decision = match (reduced_left, reduced_right) {
                     (Some(left), Some(right)) => {
-                        self.decide_type_term_relation(*relation, left, right)?
+                        self.decide_type_relation(*relation, left, right)?
                     }
                     _ => self.decide_type_relation(*relation, *left, *right)?,
                 };
@@ -202,7 +202,7 @@ impl CheckState<'_> {
                 origin,
                 condition: _,
             } => {
-                let decision = self.reduce_pattern_relation(*origin, *value, relation)?;
+                let decision = self.decide_pattern_relation(*origin, *value, relation)?;
                 if decision != Decision::Yes {
                     let diagnostic =
                         self.type_relation_diagnostic(TypeRelation::Satisfies, *origin)?;

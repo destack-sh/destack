@@ -3,15 +3,14 @@ use std::sync::Arc;
 use destack_artifact::{DirBound, DirExpanded, DirParsed, DirResolved, ProfileKey};
 use destack_core::StringPool;
 use destack_dir as dir;
+use destack_repository::Module;
 use destack_source::ModuleId;
-use destack_workspace::Module;
 use indexmap::{IndexMap, IndexSet};
 
 use crate::check::{Capture, CheckError, CheckState, Condition};
 
 /// State owned by one module inside a checked component.
 pub(in crate::check) struct CheckModuleState {
-    // input state
     /// The requested source module.
     pub(in crate::check) module: Arc<Module>,
     /// The active semantic profile.
@@ -27,7 +26,6 @@ pub(in crate::check) struct CheckModuleState {
     /// The expanded DIR input.
     pub(in crate::check) expanded: Arc<DirExpanded>,
 
-    // working state
     /// Out-of-component modules visible from this module.
     pub(in crate::check) dependencies: IndexSet<ModuleId>,
     /// Captures discovered while walking this module.
@@ -36,6 +34,9 @@ pub(in crate::check) struct CheckModuleState {
     pub(in crate::check) availability: IndexMap<dir::GlobalSymbolId, Condition>,
     /// Diagnostics reported while walking this module.
     pub(in crate::check) diagnostics: Vec<CheckError>,
+
+    /// Next check-owned generic template id.
+    next_generic_template_id: u32,
     /// Next check-owned generic parameter id.
     next_generic_parameter_id: u32,
 }
@@ -63,6 +64,7 @@ impl CheckModuleState {
             captures: Vec::new(),
             availability: IndexMap::new(),
             diagnostics: Vec::new(),
+            next_generic_template_id: 0,
             next_generic_parameter_id: 0,
         }
     }
@@ -88,6 +90,20 @@ impl CheckModuleState {
     /// Return the cumulative static table visible to check inputs.
     pub(in crate::check) fn static_table(&self) -> dir::StaticTable<'static> {
         self.expanded.static_table(&self.bound)
+    }
+
+    /// Return whether this module can read one dependency module.
+    pub(in crate::check) fn imports_dependency(&self, module: ModuleId) -> bool {
+        self.dependencies.contains(&module)
+    }
+
+    /// Allocate one generic template id owned by this module.
+    pub(in crate::check) fn allocate_generic_template_id(
+        &mut self,
+    ) -> dir::GlobalGenericTemplateId {
+        let local_id = dir::LocalGenericTemplateId::new(self.next_generic_template_id);
+        self.next_generic_template_id += 1;
+        local_id.into_global(self.module.id)
     }
 
     /// Return one local input type visible to check.
