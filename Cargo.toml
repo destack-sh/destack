@@ -52,8 +52,8 @@ members = [
 	"language/source",
 	"language/test",
 	"language/unicode",
+	"language/repository",
 	"language/workspace",
-	"language/service",
 	# app
 	"app/cli",
 	# bridge
@@ -103,8 +103,8 @@ destack_session = { path = "language/session" }
 destack_source = { path = "language/source" }
 destack_test = { path = "language/test" }
 destack_unicode = { path = "language/unicode" }
-destack_service = { path = "language/service" }
 destack_workspace = { path = "language/workspace" }
+destack_repository = { path = "language/repository" }
 destack_daemon = { path = "language/daemon" }
 destack_lsp = { path = "language/lsp" }
 destack_lsp_server = { path = "language/lsp/server" }

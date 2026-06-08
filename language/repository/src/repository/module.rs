@@ -454,7 +454,7 @@ mod tests {
         // strip aliases before preserving the compound declaration extension
         let base_path = Repository::condition_base_path(
             Path::new("src/user.test.d.ds"),
-            FileType::Destack,
+            FileType::DestackDeclaration,
             &aliases,
         );
 

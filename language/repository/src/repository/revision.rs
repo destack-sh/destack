@@ -61,8 +61,8 @@ impl Ref {
         Self(name.into())
     }
 
-    /// Build the canonical ref for one workspace root.
-    pub fn for_workspace_root(root: &Path) -> Self {
+    /// Build the canonical ref for one repository root.
+    pub fn for_root(root: &Path) -> Self {
         Self::new(format!("root:{}", root.display()))
     }
 

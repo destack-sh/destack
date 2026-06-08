@@ -76,7 +76,7 @@ pub enum RepositoryError {
         path: PathBuf,
         message: String,
     },
-    /// Workspace root discovery or parsing failed.
+    /// Root root discovery or parsing failed.
     WorkspaceRootDiscovery { path: PathBuf, message: String },
 }
 
