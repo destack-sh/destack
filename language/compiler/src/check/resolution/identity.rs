@@ -1,7 +1,6 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{CheckState, TypeOperand};
+use crate::check::TypeOperand;
 
 /// Runtime identity equality failure resolved by the solver.
 ///
@@ -58,25 +57,4 @@ pub(in crate::check) struct IdentityResolution {
     pub(in crate::check) left: TypeOperand,
     /// The right operand type.
     pub(in crate::check) right: TypeOperand,
-}
-
-impl CheckState<'_> {
-    /// Select one identity equality decision.
-    pub(in crate::check) fn select_identity(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        decision: IdentityDecision,
-    ) -> CompilerResult<()> {
-        if let Some(existing) = self.inference.identity(source) {
-            if existing == decision {
-                return Ok(());
-            }
-
-            return Err(self.selection_conflict_error("identity", source, &existing, &decision));
-        }
-
-        self.inference.select_identity(source, decision);
-
-        Ok(())
-    }
 }

@@ -1,7 +1,6 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{CandidateResolution, CheckState, GenericInstance, TypeOperand};
+use crate::check::{CandidateResolution, GenericInstance, TypeOperand};
 
 /// Runtime member failure resolved by the solver.
 ///
@@ -107,25 +106,4 @@ pub(in crate::check) enum MemberTargetResolution {
     /// value.method
     /// ```
     Union(Vec<CandidateResolution>),
-}
-
-impl CheckState<'_> {
-    /// Select one member decision.
-    pub(in crate::check) fn select_member(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        decision: MemberDecision,
-    ) -> CompilerResult<()> {
-        if let Some(existing) = self.inference.member(source) {
-            if existing == decision {
-                return Ok(());
-            }
-
-            return Err(self.selection_conflict_error("member", source, &existing, &decision));
-        }
-
-        self.inference.select_member(source, decision);
-
-        Ok(())
-    }
 }
