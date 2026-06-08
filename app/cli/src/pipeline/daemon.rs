@@ -14,8 +14,8 @@ use destack_daemon::{
     CommandRevision, DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonLaunch,
     DaemonMessageKind, WatchBatch, connect_ipc_daemon, protocol,
 };
+use destack_repository::{Repository, Revision};
 use destack_source::{DiagnosticCollection, File, FileId, FileType};
-use destack_workspace::{Repository, Revision};
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value, json};
 
@@ -132,8 +132,7 @@ impl DaemonConnector {
         // resolve daemon endpoint metadata
         let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
         let launch_context = DaemonLaunchContext::from_program(program);
-        let launch =
-            launch_context.build_launch(&endpoint, repository.workspace_root().to_path_buf());
+        let launch = launch_context.build_launch(&endpoint, repository.path().to_path_buf());
 
         Self {
             options,
@@ -403,7 +402,7 @@ impl ProtocolDaemonClient {
         let connector = DaemonConnector::new(repository.clone(), program);
         let connection = connector.connect()?;
         let client = connection.client.clone();
-        let workspace_root = repository.workspace_root().to_path_buf();
+        let workspace_root = repository.path().to_path_buf();
 
         // open each root
         let mut handles = Vec::new();

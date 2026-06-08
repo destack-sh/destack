@@ -1,9 +1,9 @@
 use destack_parser::source_colorizer;
+use destack_repository::{Repository, Revision};
 use destack_source::{
     DiagnosticCollection, DiagnosticRenderError, PrintOptions,
     print_diagnostics as print_diagnostics_impl,
 };
-use destack_workspace::{Repository, Revision};
 
 use clap::Args;
 

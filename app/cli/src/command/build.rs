@@ -66,7 +66,7 @@ pub fn run(args: &BuildArgs) -> i32 {
             &args.program,
             &context.repository,
             context.revision,
-            context.repository.workspace_root(),
+            context.repository.path(),
         ) {
             Ok(config) => config,
             Err(error) => return report_error("build", &args.report, &error.to_string()),

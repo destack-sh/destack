@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use destack_repository::TargetRoot;
 use destack_source::glob;
-use destack_workspace::TargetRoot;
 
 use crate::common::{InputArgs, InputSource, ProgramArgs};
 use crate::error::CliResult;
@@ -56,7 +56,7 @@ pub fn collect_sources_from_destack_config(
         program_args,
         &context.repository,
         context.revision,
-        context.repository.workspace_root(),
+        context.repository.path(),
     )?;
 
     // select target options from explicit or default target name

@@ -280,17 +280,17 @@ fn format_inspect_artifact(view: InspectView, artifact: &ArtifactRecord) -> Resu
 
     match (view, image.payload) {
         (InspectView::MirLowered, ArtifactPayload::MirLowered(payload)) => {
-            Ok(format_inspect_mir(&payload.tree, artifact))
+            format_inspect_mir(&payload.tree, artifact)
         }
         (InspectView::MirVerified, ArtifactPayload::MirVerified(payload)) => {
-            Ok(format_inspect_mir(&payload.patch.tree, artifact))
+            format_inspect_mir(&payload.patch.tree, artifact)
         }
         (InspectView::MirOptimized, ArtifactPayload::MirOptimized(payload)) => {
             let tree = payload
                 .latest_patch_tree()
                 .ok_or_else(|| "optimized MIR artifact has no patches".to_string())?;
 
-            Ok(format_inspect_mir(tree, artifact))
+            format_inspect_mir(tree, artifact)
         }
         (InspectView::Diagnostics, _) => {
             Err("diagnostics inspect does not render artifact payloads".to_string())
@@ -303,10 +303,11 @@ fn format_inspect_artifact(view: InspectView, artifact: &ArtifactRecord) -> Resu
 }
 
 /// Format one MIR tree with inspect defaults.
-fn format_inspect_mir(tree: &Tree, artifact: &ArtifactRecord) -> String {
+fn format_inspect_mir(tree: &Tree, artifact: &ArtifactRecord) -> Result<String, String> {
     let options = MirFormatOptions::default().with_type_aliases(true);
 
     format_mir(tree, &artifact.strings, options)
+        .map_err(|error| format!("failed to format MIR: {error}"))
 }
 
 /// Format text labels for one sidecar header.

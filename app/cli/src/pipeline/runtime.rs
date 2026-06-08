@@ -1,8 +1,8 @@
 use destack_artifact::ArtifactKey;
 use destack_engine::{EngineId, Value};
+use destack_repository::{Environment, Repository, Revision};
 use destack_source::{ModuleId, ProfileId, TargetId};
 use destack_vm::{Machine, MachineOptions};
-use destack_workspace::{Environment, Repository, Revision};
 
 use crate::common::InputSource;
 use crate::error::{CliError, CliResult};

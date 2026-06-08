@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Args;
+use destack_repository::Repository;
 use destack_source::{File, FileId, FileType, Uri};
-use destack_workspace::Repository;
 
 use crate::error::{CliError, CliResult};
 

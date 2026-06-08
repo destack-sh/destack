@@ -1,5 +1,5 @@
 use clap::{Args, ValueEnum};
-use destack_workspace::ManifestOverride;
+use destack_repository::ManifestOverride;
 use serde_json::{Map, Value};
 use std::path::PathBuf;
 

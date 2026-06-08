@@ -105,7 +105,7 @@ fn run_start(args: &DaemonLifecycleArgs) -> i32 {
     let repository = args.program.setup();
     let endpoint = DaemonEndpoint::new(repository.layout().home.clone());
     let launch_context = DaemonLaunchContext::from_program(&args.program);
-    let launch = launch_context.build_launch(&endpoint, repository.workspace_root().to_path_buf());
+    let launch = launch_context.build_launch(&endpoint, repository.path().to_path_buf());
     let options = DaemonConnectOptions::default();
     let result = connect_ipc_daemon(&endpoint, options, Some(launch));
 

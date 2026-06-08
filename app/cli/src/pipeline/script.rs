@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use destack_workspace::DestackFile;
+use destack_repository::DestackFile;
 
 use crate::common::ProgramArgs;
 use crate::error::{CliError, CliResult};
@@ -56,8 +56,8 @@ pub fn resolve_script_command(
 
 /// Load task specifications from a destack.json file.
 pub fn load_tasks(
-    repository: &destack_workspace::Repository,
-    revision: destack_workspace::Revision,
+    repository: &destack_repository::Repository,
+    revision: destack_repository::Revision,
     destack_config_path: &Path,
 ) -> CliResult<Vec<TaskSpec>> {
     // read the config file from repository truth
@@ -107,8 +107,8 @@ pub fn shell_command(command: &str) -> Command {
 fn resolve_destack_config_task(
     program_args: &ProgramArgs,
     name: &str,
-    repository: &destack_workspace::Repository,
-    revision: destack_workspace::Revision,
+    repository: &destack_repository::Repository,
+    revision: destack_repository::Revision,
     cwd: &Path,
 ) -> CliResult<Option<TaskSpec>> {
     let destack_config_path = if program_args.manifest.is_some() {
@@ -134,8 +134,8 @@ fn resolve_destack_config_task(
 pub(crate) fn resolve_script_command_for_repository(
     program_args: &ProgramArgs,
     script_name: &str,
-    repository: &destack_workspace::Repository,
-    revision: destack_workspace::Revision,
+    repository: &destack_repository::Repository,
+    revision: destack_repository::Revision,
     cwd: &Path,
 ) -> CliResult<Option<ScriptCommand>> {
     if let Some(task) =
@@ -159,8 +159,8 @@ pub(crate) fn resolve_script_command_for_repository(
 /// Resolve the base directory for destack.json tasks.
 fn task_base_dir(
     program_args: &ProgramArgs,
-    repository: &destack_workspace::Repository,
-    revision: destack_workspace::Revision,
+    repository: &destack_repository::Repository,
+    revision: destack_repository::Revision,
     cwd: &Path,
 ) -> PathBuf {
     // resolve base dir for tasks when no cwd override is provided
