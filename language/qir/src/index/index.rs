@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    AnnotationIndex, CallIndex, ExtensionIndex, ImportIndex, MemberIndex, NominalIndex,
-    ReferenceIndex, SpecifierIndex, SymbolIndex,
+    AnnotationIndex, CallIndex, DefinitionIndex, ImportIndex, MemberIndex, ReferenceIndex,
+    SpecifierIndex, SymbolIndex,
 };
 
 /// Durable query index payload for one artifact scope.
@@ -18,10 +18,8 @@ pub struct QueryIndex {
     pub references: ReferenceIndex,
     /// Call graph edges.
     pub calls: CallIndex,
-    /// Nominal type relations.
-    pub nominal: NominalIndex,
-    /// Extension declarations by target symbol.
-    pub extensions: ExtensionIndex,
+    /// Definition relations and extension declarations.
+    pub definitions: DefinitionIndex,
     /// Import specifier rewrite candidates.
     pub specifiers: SpecifierIndex,
     /// Annotation and decorator entries.
@@ -36,8 +34,7 @@ impl QueryIndex {
         self.imports.finish();
         self.references.finish();
         self.calls.finish();
-        self.nominal.finish();
-        self.extensions.finish();
+        self.definitions.finish();
         self.specifiers.finish();
         self.annotations.finish();
     }
