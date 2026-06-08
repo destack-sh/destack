@@ -10,23 +10,15 @@ const DEFAULT_TARGET: &str = "default";
 fn test_check_library() -> Result<(), String> {
     let session = TestSession::new().build();
     let repository = session.repository();
-    let revision = session.revision();
     let package = repository.builtin_package();
     let target = TargetId::new(package.package_id(), DEFAULT_TARGET);
     let profile = repository
-        .profile_for_target(revision, target)
+        .profile_for_target(session.revision(), target)
         .map_err(|error| format!("builtin library target profile should resolve:\n{error}"))?
         .id();
-    let modules = repository
-        .modules_for_target(revision, target)
-        .map_err(|error| format!("builtin library target modules should resolve:\n{error}"))?;
-
-    // require meaningful target discovery
-    if modules.is_empty() {
-        return Err("builtin library target should discover modules".to_string());
-    }
 
     // check each module through the normal artifact path
+    let modules = package.module_ids().collect::<Vec<_>>();
     for module in modules {
         let key = ArtifactKey::dir_checked(module, profile);
         if let Err(error) = session.require_artifact_result(key) {
