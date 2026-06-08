@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, StaticKey, StringId, Tree};
+use crate::{Expression, LocalNodeId, StaticKey, StringId, View};
 
 /// A name is a regular, string, or numeric identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -56,7 +56,7 @@ impl Key {
     }
 
     /// Return this key as a static lookup key when locally obvious.
-    pub fn static_key(self, tree: &Tree) -> Option<StaticKey> {
+    pub fn static_key(self, tree: &View<'_>) -> Option<StaticKey> {
         match self {
             Self::Name(name) => Some(name.static_key()),
             Self::Private(_) => None,
