@@ -32,7 +32,11 @@ impl SourceSnapshot {
     /// Convert this WASM value into one bridge value.
     pub(crate) fn into_bridge(self) -> bridge::SourceSnapshot {
         bridge::SourceSnapshot {
-            files: self.files.into_iter().map(|item| item.into_bridge()).collect(),
+            files: self
+                .files
+                .into_iter()
+                .map(|item| item.into_bridge())
+                .collect(),
         }
     }
 }

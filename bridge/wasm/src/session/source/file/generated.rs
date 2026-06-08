@@ -4,6 +4,8 @@ use destack_bridge_language as bridge;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
+use crate::ModuleId;
+
 /// One source file in an explicit source snapshot.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
@@ -82,12 +84,8 @@ impl SourceFileContent {
     /// Convert this WASM payload enum into one bridge enum.
     pub(crate) fn into_bridge(self) -> bridge::SourceFileContent {
         match self.content {
-            SourceFileContentContent::Text(value) => {
-                bridge::SourceFileContent::Text(value)
-            }
-            SourceFileContentContent::Bytes(value) => {
-                bridge::SourceFileContent::Bytes(value)
-            }
+            SourceFileContentContent::Text(value) => bridge::SourceFileContent::Text(value),
+            SourceFileContentContent::Bytes(value) => bridge::SourceFileContent::Bytes(value),
         }
     }
 }
@@ -100,7 +98,7 @@ pub struct FileUpdate {
     uri: String,
     kind: String,
     is_removed: bool,
-    module_id: Option<String>,
+    module_id: Option<ModuleId>,
 }
 
 #[wasm_bindgen]
@@ -112,7 +110,7 @@ impl FileUpdate {
         uri: String,
         kind: String,
         is_removed: bool,
-        module_id: Option<String>,
+        module_id: Option<ModuleId>,
     ) -> Self {
         Self {
             path,
@@ -129,7 +127,7 @@ impl FileUpdate {
         self.path.clone()
     }
 
-    /// Client-facing URI.
+    /// External file URI.
     #[wasm_bindgen(getter, js_name = "uri")]
     pub fn uri(&self) -> String {
         self.uri.clone()
@@ -149,7 +147,7 @@ impl FileUpdate {
 
     /// Updated module id when known.
     #[wasm_bindgen(getter, js_name = "moduleId")]
-    pub fn module_id(&self) -> Option<String> {
+    pub fn module_id(&self) -> Option<ModuleId> {
         self.module_id.clone()
     }
 }
@@ -162,7 +160,7 @@ impl FileUpdate {
             uri: value.uri,
             kind: file_update_kind_label(value.kind),
             is_removed: value.is_removed,
-            module_id: value.module_id,
+            module_id: value.module_id.map(|item| ModuleId::from_bridge(item)),
         }
     }
 }
