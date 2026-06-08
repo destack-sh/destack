@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use destack_core::pluralize;
 use destack_parser::source_colorizer;
+use destack_repository::{Repository, Revision};
 use destack_source::{
     AnnotateOptions, DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId,
     PrintOptions, annotate_file,
 };
-use destack_repository::{Repository, Revision};
 
 use super::{Case, CaseResult};
 

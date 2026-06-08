@@ -4,8 +4,8 @@ use destack_artifact::{Data, EmitFormat, ScriptDeclaration, ScriptLanguage, Scri
 use destack_codegen_js as js;
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{FileContent, Loader, ModuleId};
 use destack_repository::Module;
+use destack_source::{FileContent, Loader, ModuleId};
 use serde_json::Value as JsonValue;
 
 use crate::link::TargetLocation;

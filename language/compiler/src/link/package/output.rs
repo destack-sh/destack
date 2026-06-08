@@ -6,8 +6,8 @@ use crate::{Compiler, CompilerResult, LinkResult};
 use destack_artifact::{
     BuildManifest, OutputContent, OutputFile, PackageAssembly, PackageOutput, TargetOutputName,
 };
-use destack_source::{FileType, ModuleId, Uri};
 use destack_repository::{BundleMode, Target};
+use destack_source::{FileType, ModuleId, Uri};
 
 use super::layout::TargetLocation;
 

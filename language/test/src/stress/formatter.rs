@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use destack_formatter::format_file_source;
-use destack_source::{File, FileId, Uri};
 use destack_repository::FormatterOptions;
+use destack_source::{File, FileId, Uri};
 
 use crate::core::{Case, CaseResult, RunContext, RunOptions, Suite};
 

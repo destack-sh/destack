@@ -1,5 +1,5 @@
-use destack_source::ModuleId;
 use destack_repository::BundleMode;
+use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 
 use super::super::AssetReference;

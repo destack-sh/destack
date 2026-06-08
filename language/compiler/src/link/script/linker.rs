@@ -2,8 +2,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use destack_artifact::{Data, ModuleOutput};
-use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
 use destack_repository::{Module, ProviderContext, Revision, Target};
+use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
 
 use crate::{Compiler, CompilerError, LinkError, LinkResult};
 

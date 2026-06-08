@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use destack_formatter::format_file_source;
-use destack_source::{DiffOptions, File, FileId, FileType, IndentStyle, Uri, print_diff};
 use destack_repository::FormatterOptions;
+use destack_source::{DiffOptions, File, FileId, FileType, IndentStyle, Uri, print_diff};
 
 use crate::core::{Case, CaseResult, RunContext, RunOptions, Suite, fixtures_dir};
 use crate::mdtest::{MdTestCase, discover_md_files, parse_mdtest_file, slug};

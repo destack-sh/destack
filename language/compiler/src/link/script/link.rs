@@ -1,8 +1,8 @@
 use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
 use destack_artifact::{OutputFile, PackageOutput, TargetOutputName};
-use destack_source::{FileType, ModuleId};
 use destack_repository::BundleFormat;
+use destack_source::{FileType, ModuleId};
 
 use super::ScriptLinker;
 

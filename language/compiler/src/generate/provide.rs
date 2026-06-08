@@ -2,8 +2,8 @@ use crate::{Compiler, CompilerResult};
 use destack_artifact::ArtifactPayload;
 use destack_repository::ProviderContext;
 
-use destack_source::{ModuleId, TargetId};
 use destack_repository::ProfileId;
+use destack_source::{ModuleId, TargetId};
 
 impl Compiler {
     /// Build one module output.

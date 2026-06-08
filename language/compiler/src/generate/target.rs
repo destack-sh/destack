@@ -3,8 +3,8 @@ use destack_artifact::ModuleOutput;
 use destack_repository::ProviderContext;
 
 use crate::CompilerError;
-use destack_source::{ModuleId, TargetId};
 use destack_repository::ProfileId;
+use destack_source::{ModuleId, TargetId};
 
 impl Compiler {
     /// Generate one module output for one target.

@@ -4,11 +4,11 @@ use destack_artifact::{ArtifactKey, DiskCacheStore};
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
-use destack_session::Session;
-use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
 use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Ref, Repository, Revision, Settings,
 };
+use destack_session::Session;
+use destack_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use std::fs;

@@ -6,10 +6,10 @@ use destack_artifact::{
     ArtifactSidecar, ArtifactVersion, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
     DiagnosticError, DiagnosticLike,
 };
+use destack_repository::{ProviderContext, ProviderError, Repository, Revision};
 use destack_source::{
     DiagnosticCollection, DiagnosticLabel, FileContentId, FileId, ModuleId, Span,
 };
-use destack_repository::{ProviderContext, ProviderError, Repository, Revision};
 
 use super::module::{parse_module, parsed_dependencies};
 use crate::Compiler;
