@@ -1,23 +1,21 @@
 mod annotation;
 mod call;
-mod extension;
+mod definition;
 mod import;
 mod index;
 mod member;
 mod name;
-mod nominal;
 mod reference;
 mod specifier;
 mod symbol;
 
 pub use annotation::*;
 pub use call::*;
-pub use extension::*;
+pub use definition::*;
 pub use import::*;
 pub use index::*;
 pub use member::*;
 pub use name::*;
-pub use nominal::*;
 pub use reference::*;
 pub use specifier::*;
 pub use symbol::*;
