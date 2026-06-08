@@ -3,7 +3,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::check::{CheckState, Decision, Origin, StaticOperand, StaticTerm, Substitution};
+use crate::check::{
+    CheckState, Decision, Origin, StaticOperand, StaticTerm, SubstitutionSet, VariableId,
+};
 
 /// One static boolean predicate with its reduction context.
 ///
@@ -60,7 +62,7 @@ impl ConditionPredicate {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let predicate = Self {
@@ -115,7 +117,7 @@ impl Condition {
     pub(in crate::check) fn substitute(
         &self,
         module: ModuleId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
         state: &mut CheckState<'_>,
     ) -> CompilerResult<Self> {
         let condition = match self {
@@ -130,6 +132,20 @@ impl Condition {
         };
 
         Ok(condition)
+    }
+
+    /// Return variables referenced by this condition.
+    pub(in crate::check) fn referenced_variables(
+        &self,
+        state: &CheckState<'_>,
+    ) -> SmallVec<[VariableId; 2]> {
+        match self {
+            Self::Always | Self::Never => SmallVec::new(),
+            Self::When { conditions } => conditions
+                .iter()
+                .flat_map(|condition| condition.operand.referenced_variables(state))
+                .collect(),
+        }
     }
 }
 
@@ -149,7 +165,7 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         symbol: dir::GlobalSymbolId,
-        substitution: Substitution<'_>,
+        substitution: &SubstitutionSet,
     ) -> CompilerResult<Decision> {
         let condition = self.symbol_availability(symbol);
         let condition = condition.substitute(module, substitution, self)?;

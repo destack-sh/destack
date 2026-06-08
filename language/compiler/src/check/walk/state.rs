@@ -7,32 +7,12 @@ use crate::check::{
 };
 use crate::{CompilerError, CompilerResult};
 
-/// Source node whose type can be read or allocated during walk.
-pub(in crate::check) trait NodeTypeSource {
-    /// Return this source node as a global DIR node id.
-    fn into_global_node(self, module: ModuleId) -> dir::GlobalNodeIdAny;
-}
-
-impl<T: dir::Node + Clone> NodeTypeSource for dir::LocalNodeId<T> {
-    /// Return this local source node as a global DIR node id.
-    fn into_global_node(self, module: ModuleId) -> dir::GlobalNodeIdAny {
-        self.into_global_any(module)
-    }
-}
-
-impl NodeTypeSource for dir::GlobalNodeIdAny {
-    /// Return this global source node unchanged.
-    fn into_global_node(self, _module: ModuleId) -> dir::GlobalNodeIdAny {
-        self
-    }
-}
-
 /// State used only while walking one module.
 pub(in crate::check) struct WalkState<'check, 'state> {
     /// The component check state being populated.
     pub(in crate::check) check: &'check mut CheckState<'state>,
-    /// The DIR tree being walked.
-    pub(in crate::check) tree: &'check dir::Tree,
+    /// The visible DIR tree being walked.
+    pub(in crate::check) tree: dir::View<'check>,
     /// The module being walked.
     pub(in crate::check) module: ModuleId,
     /// Flow state for the current module walk.
@@ -43,7 +23,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Create walk state for one module.
     pub(in crate::check) fn new(
         module: ModuleId,
-        tree: &'check dir::Tree,
+        tree: dir::View<'check>,
         check: &'check mut CheckState<'state>,
     ) -> Self {
         Self {
@@ -64,12 +44,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self.flow
     }
 
-    /// Allocate one node type operand when missing.
-    pub(in crate::check) fn allocate_node_type_operand<S: NodeTypeSource>(
+    /// Return one node type operand, creating it when missing.
+    pub(in crate::check) fn node_type_operand<T: dir::Node + Clone>(
         &mut self,
-        source: S,
+        id: dir::LocalNodeId<T>,
     ) -> CompilerResult<TypeOperand> {
-        let node = source.into_global_node(self.module);
+        let node = id.into_global_any(self.module);
         if let Some(operand) = self.check.inputs.node_type(node) {
             return Ok(operand);
         }
@@ -82,21 +62,20 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.inputs.insert_node_type(node, operand)
     }
 
-    /// Allocate one node type variable when missing.
-    pub(in crate::check) fn allocate_node_type_variable<S: NodeTypeSource>(
+    /// Return one node type variable, creating it when missing.
+    pub(in crate::check) fn node_type_variable<T: dir::Node + Clone>(
         &mut self,
-        source: S,
+        id: dir::LocalNodeId<T>,
     ) -> CompilerResult<VariableId> {
-        let node = source.into_global_node(self.module);
+        let node = id.into_global_any(self.module);
 
-        match self.allocate_node_type_operand(node)? {
-            TypeOperand::Variable(variable) => Ok(variable),
-            TypeOperand::Term(_) | TypeOperand::Type(_) => Err(CompilerError::Internal {
+        self.node_type_operand(id)?
+            .variable()
+            .ok_or_else(|| CompilerError::Internal {
                 message: format!(
                     "check node {node:?} has a type operand, not an inference variable"
                 ),
-            }),
-        }
+            })
     }
 
     /// Bind one node type term.
@@ -122,8 +101,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.inputs.insert_node_type(node, operand)
     }
 
-    /// Allocate one symbol type operand when missing.
-    pub(in crate::check) fn allocate_symbol_type_operand(
+    /// Return one symbol type operand, creating it when missing.
+    pub(in crate::check) fn symbol_type_operand(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<TypeOperand> {
@@ -142,11 +121,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .is_import_alias(symbol.local_id)
         {
             return Err(CompilerError::Internal {
-                message: format!("import alias {symbol:?} reached type operand allocation"),
+                message: format!("import alias {symbol:?} reached type operand creation"),
             });
         }
 
-        // allocate walked local declarations on first use
+        // create walked local declarations on first use
         let variable = self
             .check
             .create_type_variable(self.module, Origin::Symbol(symbol));
@@ -155,27 +134,26 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.inputs.insert_symbol_type(symbol, operand)
     }
 
-    /// Allocate one symbol type variable when missing.
-    pub(in crate::check) fn allocate_symbol_type_variable(
+    /// Return one symbol type variable, creating it when missing.
+    pub(in crate::check) fn symbol_type_variable(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<VariableId> {
         if symbol.module_id != self.module {
             return Err(CompilerError::Internal {
                 message:
-                    "check type variable allocation requires a source symbol in the active module"
+                    "check type variable creation requires a source symbol in the active module"
                         .to_owned(),
             });
         }
 
-        match self.allocate_symbol_type_operand(symbol)? {
-            TypeOperand::Variable(variable) => Ok(variable),
-            TypeOperand::Term(_) | TypeOperand::Type(_) => Err(CompilerError::Internal {
+        self.symbol_type_operand(symbol)?
+            .variable()
+            .ok_or_else(|| CompilerError::Internal {
                 message: format!(
                     "check symbol {symbol:?} has a type operand, not an inference variable"
                 ),
-            }),
-        }
+            })
     }
 
     /// Bind one symbol type term.
@@ -234,8 +212,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.inputs.insert_symbol_type(symbol, operand)
     }
 
-    /// Allocate one node static operand when missing.
-    pub(in crate::check) fn allocate_node_static_operand<T: dir::Node + Clone>(
+    /// Return one node static operand, creating it when missing.
+    pub(in crate::check) fn node_static_operand<T: dir::Node + Clone>(
         &mut self,
         id: dir::LocalNodeId<T>,
     ) -> CompilerResult<StaticOperand> {
@@ -252,26 +230,23 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.inputs.insert_node_static(node, operand)
     }
 
-    /// Allocate one symbol static variable when missing.
-    pub(in crate::check) fn allocate_symbol_static_variable(
+    /// Return one symbol static variable, creating it when missing.
+    pub(in crate::check) fn symbol_static_variable(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<VariableId> {
         if let Some(operand) = self.check.inputs.symbol_static(symbol) {
-            return match operand {
-                StaticOperand::Variable(variable) => Ok(variable),
-                StaticOperand::Term(_) | StaticOperand::Static(_) => Err(CompilerError::Internal {
-                    message: format!(
-                        "check symbol {symbol:?} has a static operand, not an inference variable"
-                    ),
-                }),
-            };
+            return operand.variable().ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "check symbol {symbol:?} has a static operand, not an inference variable"
+                ),
+            });
         }
 
         if symbol.module_id != self.module {
             return Err(CompilerError::Internal {
                 message:
-                    "check static variable allocation requires a source symbol in the active module"
+                    "check static variable creation requires a source symbol in the active module"
                         .to_owned(),
             });
         }
@@ -282,11 +257,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
             .is_import_alias(symbol.local_id)
         {
             return Err(CompilerError::Internal {
-                message: format!("import alias {symbol:?} reached static operand allocation"),
+                message: format!("import alias {symbol:?} reached static operand creation"),
             });
         }
 
-        // allocate walked local declarations on first use
+        // create walked local declarations on first use
         let variable = self
             .check
             .create_static_variable(self.module, Origin::Symbol(symbol));
@@ -325,41 +300,28 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.inputs.insert_symbol_static(symbol, operand)
     }
 
-    /// Allocate one static expression variable.
-    pub(in crate::check) fn allocate_static_expression_variable(
+    /// Return one static expression variable, creating it when missing.
+    pub(in crate::check) fn static_expression_variable(
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
         condition: Condition,
     ) -> CompilerResult<VariableId> {
         let node = id.into_global_any(self.module);
         let origin = Origin::Node(node);
-        let variable = match self.allocate_node_static_operand(id)? {
-            StaticOperand::Variable(variable) => variable,
-            StaticOperand::Term(_) | StaticOperand::Static(_) => {
-                return Err(CompilerError::Internal {
+        let variable =
+            self.node_static_operand(id)?
+                .variable()
+                .ok_or_else(|| CompilerError::Internal {
                     message: format!(
                         "check node {node:?} has a static operand, not an inference variable"
                     ),
-                });
-            }
-        };
+                })?;
         let term = StaticTerm::Expression(id.into_global(self.module));
         let term = self.check.inference.push_term(term);
 
         self.check.equate_static(origin, variable, term, condition);
 
         Ok(variable)
-    }
-
-    /// Create or return one type variable constrained by one operand.
-    pub(in crate::check) fn create_operand_type_variable(
-        &mut self,
-        origin: Origin,
-        operand: TypeOperand,
-        condition: Condition,
-    ) -> VariableId {
-        self.check
-            .create_operand_type_variable(self.module, origin, operand, condition)
     }
 
     /// Create one operand for a type term.

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use indexmap::IndexSet;
 
 use crate::check::{
-    FunctionFrame, GenericArgument, Origin, ReceiverCapture, TypeLiteralTerm, TypeOperand,
+    FunctionFrame, GenericArgument, Origin, ReceiverBinding, TypeLiteralTerm, TypeOperand,
     TypeRelation, TypeTerm, VariableId, WalkState,
 };
 
@@ -15,7 +15,7 @@ impl WalkState<'_, '_> {
         yield_target: Option<VariableId>,
         resume_target: Option<VariableId>,
         asynchrony: dir::Asynchrony,
-        receiver: Option<ReceiverCapture>,
+        receiver: Option<ReceiverBinding>,
     ) {
         // capture enclosing flow stack boundaries
         let flow = self.flow();
@@ -85,7 +85,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
         cardinality: dir::YieldCardinality,
         value: Option<TypeOperand>,
-        delegate_return_target: Option<VariableId>,
+        delegate_return_target: Option<TypeOperand>,
     ) {
         // require a surrounding function body
         let Some(function) = self.flow().current_function() else {
@@ -137,7 +137,7 @@ impl WalkState<'_, '_> {
 
             // apply yield delegate channels
             let yield_target = GenericArgument::Type(yield_target.into());
-            let delegate_return_target = GenericArgument::Type(delegate_return_target.into());
+            let delegate_return_target = GenericArgument::Type(delegate_return_target);
             let resume_target = GenericArgument::Type(resume_target.into());
             let expected = TypeTerm::Reference {
                 origin: Origin::Node(source.into_global(self.module)),
@@ -176,17 +176,19 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the current generator yield target.
-    pub(in crate::check) fn current_yield_target(&self) -> Option<VariableId> {
+    pub(in crate::check) fn current_yield_target(&self) -> Option<TypeOperand> {
         self.flow()
             .current_function()
             .and_then(|function| function.yield_target)
+            .map(TypeOperand::from)
     }
 
     /// Return the current generator resume target.
-    pub(in crate::check) fn current_resume_target(&self) -> Option<VariableId> {
+    pub(in crate::check) fn current_resume_target(&self) -> Option<TypeOperand> {
         self.flow()
             .current_function()
             .and_then(|function| function.resume_target)
+            .map(TypeOperand::from)
     }
 
     /// Return the enclosing function return target.

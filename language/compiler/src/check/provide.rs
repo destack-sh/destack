@@ -3,8 +3,8 @@ use std::iter;
 use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactSidecar, DirChecked, DirCheckedComponent,
 };
+use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ComponentId, FileContent, ModuleId};
-use destack_workspace::{ProfileId, ProviderContext};
 use smallvec::SmallVec;
 
 use crate::check::CheckState;
@@ -67,7 +67,8 @@ impl Compiler {
         let options = self.workspace_compiler_options(context, entry_module.as_ref())?;
 
         // check component
-        let mut check = CheckState::new(self, context, profile, environment);
+        let emit_events = options.emit_events || context.emit_events();
+        let mut check = CheckState::new(self, context, profile, environment, emit_events);
         check.load(component_modules.as_slice())?;
         check.walk()?;
         check.build()?;
@@ -84,7 +85,7 @@ impl Compiler {
                 },
             ));
         }
-        let events = options.emit_events.then(|| check.events());
+        let events = emit_events.then(|| check.events());
 
         // commit output DIR tables
         let (modules, diagnostics) = check.commit()?;

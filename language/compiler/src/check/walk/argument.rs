@@ -16,7 +16,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Argument>,
         argument: &dir::Argument,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -76,20 +76,28 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<GenericArgument> {
         let term = match self.tree.get(id) {
             // <T>
-            dir::GenericArgument::Type { value } => GenericArgument::type_or_static(
-                self.lower_type_expression_operand(*value)?.into(),
-                self.create_static_argument_variable(*value)?.into(),
-            ),
+            dir::GenericArgument::Type { value } => {
+                self.walk_type_expression(*value, self.tree.get(*value))?;
+
+                GenericArgument::type_or_static(
+                    id.into_global(self.module),
+                    value.into_global(self.module),
+                )
+            }
             // <...T>
-            dir::GenericArgument::SpreadType { value } => GenericArgument::spread_type_or_static(
-                self.lower_type_expression_operand(*value)?.into(),
-                self.create_static_argument_variable(*value)?.into(),
-            ),
+            dir::GenericArgument::SpreadType { value } => {
+                self.walk_type_expression(*value, self.tree.get(*value))?;
+
+                GenericArgument::spread_type_or_static(
+                    id.into_global(self.module),
+                    value.into_global(self.module),
+                )
+            }
             // <type Item = T>
             dir::GenericArgument::AssociatedType { name, value } => {
                 GenericArgument::AssociatedType {
                     name: *name,
-                    value: self.lower_type_expression_operand(*value)?.into(),
+                    value: self.type_expression_operand(*value)?.into(),
                 }
             }
             // <C>

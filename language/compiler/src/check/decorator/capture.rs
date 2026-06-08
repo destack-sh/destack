@@ -11,7 +11,7 @@ impl CheckState<'_> {
     ) -> Option<dir::CaptureDirective> {
         let module = symbol.module_id;
         let source = self.module(module).symbol_declaration_node(symbol.local_id);
-        let invocations = self.decorator_invocations_for_owner(module, source);
+        let invocations = self.decorator_invocations(module, source);
         let mut directive = None;
 
         // use the last capture decorator in source order
@@ -69,7 +69,7 @@ impl CheckState<'_> {
                 return None;
             };
             let view = self.module(module).view();
-            let key = key.static_key(view.tree())?;
+            let key = key.static_key(&view)?;
             let dir::StaticKey::Name(name) = key else {
                 return None;
             };

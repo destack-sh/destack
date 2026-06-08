@@ -1,9 +1,10 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use super::property::MemberReceiverContext;
-
-use crate::check::{Origin, ReceiverCapture, TypeOperand, TypeTerm, WalkState};
+use crate::check::{
+    GenericInductionSource, GenericTemplateId, Origin, Receiver, ReceiverBinding, TypeOperand,
+    TypeTerm, WalkState,
+};
 use crate::{CompilerError, CompilerResult};
 
 impl WalkState<'_, '_> {
@@ -18,7 +19,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::Declaration,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -109,14 +110,6 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::TypeDeclaration,
     ) -> CompilerResult<()> {
-        // walk generic header
-        for parameter in &declaration.generic_parameters {
-            self.walk_generic_parameter(*parameter, self.tree.get(*parameter))?;
-        }
-        for where_clause in &declaration.where_clauses {
-            self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
-        }
-
         // get declaration symbol
         let Some(symbol) = self
             .check
@@ -125,6 +118,27 @@ impl WalkState<'_, '_> {
         else {
             return Ok(());
         };
+        let receiver = if declaration.is_nominal {
+            self.declaration_member_receiver(Some(symbol))?
+        } else {
+            None
+        };
+
+        let _receiver = self.enter_receiver_maybe(receiver);
+
+        // walk generic header
+        let source = id.into_global_any(self.module);
+        let template = (!declaration.generic_parameters.is_empty()).then(|| {
+            self.check
+                .declare_generic_template(source, None, Some(symbol))
+        });
+        for parameter in &declaration.generic_parameters {
+            self.walk_generic_parameter(template.unwrap(), *parameter, self.tree.get(*parameter))?;
+        }
+        for where_clause in &declaration.where_clauses {
+            self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
+        }
+
         let value_expression = self.tree.get(declaration.value);
         let is_intrinsic = matches!(value_expression, dir::TypeExpression::Intrinsic);
 
@@ -133,31 +147,40 @@ impl WalkState<'_, '_> {
             self.bind_node_type(declaration.value, TypeTerm::Intrinsic)?;
 
             if declaration.is_nominal {
-                self.allocate_symbol_type_variable(symbol)?;
+                self.symbol_type_variable(symbol)?;
             } else {
                 self.check
                     .report_invalid_intrinsic_type(self.module, declaration.value.into_any());
             }
+
             return Ok(());
         }
 
         // walk type expression itself
         self.walk_type_expression(declaration.value, value_expression)?;
 
-        // bind transparent aliases to their right-hand side
+        // bind transparent aliases to their right hand side
         if !declaration.is_nominal {
-            let value = self.allocate_node_type_operand(declaration.value)?;
+            let value = self.node_type_operand(declaration.value)?;
             let condition = self.active_static_guard();
 
-            self.check.push_generic_induction_root(symbol, value);
+            self.check
+                .inference
+                .add_generic_induction_source(GenericInductionSource::symbol(
+                    source, None, symbol, value,
+                ));
             self.bind_symbol_type_operand(symbol, value, condition)?;
         }
         // bind nominal declarations to a fresh symbol type
         else {
-            let backing = self.allocate_node_type_operand(declaration.value)?;
+            let backing = self.node_type_operand(declaration.value)?;
 
-            self.check.push_generic_induction_root(symbol, backing);
-            self.allocate_symbol_type_variable(symbol)?;
+            self.check
+                .inference
+                .add_generic_induction_source(GenericInductionSource::symbol(
+                    source, None, symbol, backing,
+                ));
+            self.symbol_type_variable(symbol)?;
         }
 
         Ok(())
@@ -174,15 +197,25 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::StructDeclaration,
     ) -> CompilerResult<()> {
-        let symbol = self
+        let Some(symbol) = self
             .check
             .module(self.module)
-            .declaration_symbol(id.into_any());
-        let receiver = self.allocate_declaration_member_receiver(self.module, symbol)?;
+            .declaration_symbol(id.into_any())
+        else {
+            return Ok(());
+        };
+        let receiver = self.declaration_member_receiver(Some(symbol))?;
+
+        let _receiver = self.enter_receiver_maybe(receiver);
 
         // walk generic header
+        let source = id.into_global_any(self.module);
+        let template = (!declaration.generic_parameters.is_empty()).then(|| {
+            self.check
+                .declare_generic_template(source, None, Some(symbol))
+        });
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_parameter(*parameter, self.tree.get(*parameter))?;
+            self.walk_generic_parameter(template.unwrap(), *parameter, self.tree.get(*parameter))?;
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
@@ -212,15 +245,25 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::ClassDeclaration,
     ) -> CompilerResult<()> {
-        let symbol = self
+        let Some(symbol) = self
             .check
             .module(self.module)
-            .declaration_symbol(id.into_any());
-        let receiver = self.allocate_declaration_member_receiver(self.module, symbol)?;
+            .declaration_symbol(id.into_any())
+        else {
+            return Ok(());
+        };
+        let receiver = self.declaration_member_receiver(Some(symbol))?;
+
+        let _receiver = self.enter_receiver_maybe(receiver);
 
         // walk generic header
+        let source = id.into_global_any(self.module);
+        let template = (!declaration.generic_parameters.is_empty()).then(|| {
+            self.check
+                .declare_generic_template(source, None, Some(symbol))
+        });
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_parameter(*parameter, self.tree.get(*parameter))?;
+            self.walk_generic_parameter(template.unwrap(), *parameter, self.tree.get(*parameter))?;
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
@@ -255,15 +298,25 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::EnumDeclaration,
     ) -> CompilerResult<()> {
-        let symbol = self
+        let Some(symbol) = self
             .check
             .module(self.module)
-            .declaration_symbol(id.into_any());
-        let receiver = self.allocate_declaration_member_receiver(self.module, symbol)?;
+            .declaration_symbol(id.into_any())
+        else {
+            return Ok(());
+        };
+        let receiver = self.declaration_member_receiver(Some(symbol))?;
+
+        let _receiver = self.enter_receiver_maybe(receiver);
 
         // walk generic header
+        let source = id.into_global_any(self.module);
+        let template = (!declaration.generic_parameters.is_empty()).then(|| {
+            self.check
+                .declare_generic_template(source, None, Some(symbol))
+        });
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_parameter(*parameter, self.tree.get(*parameter))?;
+            self.walk_generic_parameter(template.unwrap(), *parameter, self.tree.get(*parameter))?;
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
@@ -298,17 +351,25 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::InterfaceDeclaration,
     ) -> CompilerResult<()> {
-        if let Some(symbol) = self
+        let Some(symbol) = self
             .check
             .module(self.module)
             .declaration_symbol(id.into_any())
-        {
-            self.allocate_symbol_type_variable(symbol)?;
-        }
+        else {
+            return Ok(());
+        };
+        let receiver = self.declaration_member_receiver(Some(symbol))?;
+
+        let _receiver = self.enter_receiver_maybe(receiver);
 
         // walk generic header
+        let source = id.into_global_any(self.module);
+        let template = (!declaration.generic_parameters.is_empty()).then(|| {
+            self.check
+                .declare_generic_template(source, None, Some(symbol))
+        });
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_parameter(*parameter, self.tree.get(*parameter))?;
+            self.walk_generic_parameter(template.unwrap(), *parameter, self.tree.get(*parameter))?;
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
@@ -335,22 +396,41 @@ impl WalkState<'_, '_> {
     /// ```
     fn walk_extension_declaration(
         &mut self,
-        _id: dir::LocalNodeId<dir::Declaration>,
+        id: dir::LocalNodeId<dir::Declaration>,
         declaration: &dir::ExtensionDeclaration,
     ) -> CompilerResult<()> {
+        let Some(symbol) = self
+            .check
+            .module(self.module)
+            .declaration_symbol(id.into_any())
+        else {
+            return Ok(());
+        };
+
         // walk generic header
+        let source = id.into_global_any(self.module);
+        let template = (!declaration.generic_parameters.is_empty()).then(|| {
+            self.check
+                .declare_generic_template(source, None, Some(symbol))
+        });
         for parameter in &declaration.generic_parameters {
-            self.walk_generic_parameter(*parameter, self.tree.get(*parameter))?;
+            self.walk_generic_parameter(template.unwrap(), *parameter, self.tree.get(*parameter))?;
         }
         for where_clause in &declaration.where_clauses {
             self.walk_where_clause(*where_clause, self.tree.get(*where_clause))?;
         }
 
-        // walk target
+        // walk target before exposing receiver
         self.walk_type_expression(
             declaration.target_type,
             self.tree.get(declaration.target_type),
         )?;
+        let receiver = Some(Receiver {
+            owner: None,
+            ty: self.node_type_operand(declaration.target_type)?,
+        });
+
+        let _receiver = self.enter_receiver_maybe(receiver);
 
         // walk implements
         for implemented_type in &declaration.implements_types {
@@ -358,11 +438,6 @@ impl WalkState<'_, '_> {
         }
 
         // walk members
-        let receiver = Some(MemberReceiverContext {
-            module: self.module,
-            owner: None,
-            ty: self.allocate_node_type_operand(declaration.target_type)?,
-        });
         for member in &declaration.members {
             self.walk_member(*member, self.tree.get(*member), receiver)?;
         }
@@ -387,9 +462,13 @@ impl WalkState<'_, '_> {
             .declaration_symbol(id.into_any())
         {
             // walk signature before reading its term inputs
-            self.walk_function_signature(&declaration.signature)?;
+            let source = id.into_global_any(self.module);
+            let template =
+                self.signature_template(source, None, Some(symbol), &declaration.signature);
 
-            let result = self.allocate_function_result_operand(
+            self.walk_function_signature(template, &declaration.signature)?;
+
+            let result = self.function_result_operand(
                 self.module,
                 id.into_any(),
                 &declaration.signature,
@@ -397,11 +476,8 @@ impl WalkState<'_, '_> {
             )?;
 
             // commit function symbol type
-            let term = self.lower_function_signature_term(
-                &declaration.signature,
-                None,
-                result.map(Into::into),
-            )?;
+            let term =
+                self.function_signature_term(&declaration.signature, None, result.map(Into::into))?;
             let condition = self.active_static_guard();
 
             let operand = self
@@ -410,7 +486,11 @@ impl WalkState<'_, '_> {
                 .push_term(TypeTerm::Function(term))
                 .into();
 
-            self.check.push_generic_induction_root(symbol, operand);
+            self.check
+                .inference
+                .add_generic_induction_source(GenericInductionSource::symbol(
+                    source, None, symbol, operand,
+                ));
             self.bind_symbol_type_operand(symbol, operand, condition)?;
 
             // walk body after its result operand exists
@@ -425,7 +505,7 @@ impl WalkState<'_, '_> {
             }
         } else {
             // still validate local signature syntax
-            self.walk_function_signature(&declaration.signature)?;
+            self.walk_function_signature(None, &declaration.signature)?;
         }
 
         Ok(())
@@ -442,7 +522,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::EnumField>,
         enum_field: &dir::EnumField,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -474,7 +554,7 @@ impl WalkState<'_, '_> {
                 if block.context == dir::BlockContext::Expression
                     && let Some(tail) = block.tail_expression
                 {
-                    let value = self.allocate_node_type_operand(tail)?;
+                    let value = self.node_type_operand(tail)?;
 
                     self.constrain_return_value(tail.into_any(), value);
                 } else {
@@ -483,7 +563,7 @@ impl WalkState<'_, '_> {
             }
             // expression
             _ => {
-                let value = self.allocate_node_type_operand(body)?;
+                let value = self.node_type_operand(body)?;
 
                 self.constrain_return_value(body.into_any(), value);
             }
@@ -500,20 +580,33 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn walk_function_signature(
         &mut self,
+        template: Option<GenericTemplateId>,
         signature: &dir::FunctionSignature,
     ) -> CompilerResult<()> {
         // walk generic parameters
-        for parameter in &signature.generic_parameters {
-            self.walk_generic_parameter(*parameter, self.tree.get(*parameter))?;
+        if let Some(template) = template {
+            for parameter in &signature.generic_parameters {
+                self.walk_generic_parameter(template, *parameter, self.tree.get(*parameter))?;
+            }
+        } else if !signature.generic_parameters.is_empty() {
+            return Err(CompilerError::Internal {
+                message: "generic function signature has no template".to_owned(),
+            });
         }
 
         // walk receiver and runtime parameters
         let is_annotation_required = signature.form != dir::FunctionForm::Lambda;
         if let Some(parameter) = signature.this_parameter {
-            self.walk_parameter(parameter, self.tree.get(parameter), is_annotation_required)?;
+            self.walk_parameter(
+                template,
+                parameter,
+                self.tree.get(parameter),
+                is_annotation_required,
+            )?;
         }
         for parameter in &signature.parameters {
             self.walk_parameter(
+                template,
                 *parameter,
                 self.tree.get(*parameter),
                 is_annotation_required,
@@ -533,6 +626,21 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
+    /// Return the generic template declared by one function signature.
+    pub(in crate::check) fn signature_template(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+        parent: Option<GenericTemplateId>,
+        symbol: Option<dir::GlobalSymbolId>,
+        signature: &dir::FunctionSignature,
+    ) -> Option<GenericTemplateId> {
+        if !signature.declares_generic_template(&self.tree) {
+            return None;
+        }
+
+        Some(self.check.declare_generic_template(source, parent, symbol))
+    }
+
     /// Bind the receiver introduced by one `this` parameter.
     ///
     /// Example:
@@ -543,7 +651,7 @@ impl WalkState<'_, '_> {
         &mut self,
         parameter: dir::LocalNodeId<dir::Parameter>,
         owner: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<ReceiverCapture> {
+    ) -> CompilerResult<ReceiverBinding> {
         // read the receiver binding
         let Some(symbol) = self
             .check
@@ -567,11 +675,10 @@ impl WalkState<'_, '_> {
                 ),
             });
         };
-        if let Some(owner) = owner {
-            self.check.push_generic_induction_root(owner, ty);
-        }
-
-        Ok(ReceiverCapture { symbol, owner, ty })
+        Ok(ReceiverBinding {
+            symbol,
+            receiver: Receiver { owner, ty },
+        })
     }
 
     /// Return one public function result operand.
@@ -580,7 +687,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// function value(): number { 1 }
     /// ```
-    pub(in crate::check) fn allocate_function_result_operand(
+    pub(in crate::check) fn function_result_operand(
         &mut self,
         module: ModuleId,
         source: dir::LocalNodeIdAny,
@@ -589,7 +696,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<Option<TypeOperand>> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
-            return Ok(Some(self.allocate_node_type_operand(return_type)?));
+            return Ok(Some(self.node_type_operand(return_type)?));
         }
 
         // skip ambient signatures
@@ -604,24 +711,22 @@ impl WalkState<'_, '_> {
         Ok(Some(TypeOperand::Variable(variable)))
     }
 
-    /// Return one nominal declaration member receiver context.
+    /// Return one nominal declaration receiver scope.
     ///
     /// Example:
     /// ```ds
     /// struct Box { value: number }
     /// ```
-    fn allocate_declaration_member_receiver(
+    fn declaration_member_receiver(
         &mut self,
-        module: ModuleId,
         symbol: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<Option<MemberReceiverContext>> {
+    ) -> CompilerResult<Option<Receiver>> {
         let Some(symbol) = symbol else {
             return Ok(None);
         };
-        let ty = self.allocate_symbol_type_variable(symbol)?.into();
+        let ty = self.symbol_type_variable(symbol)?.into();
 
-        Ok(Some(MemberReceiverContext {
-            module,
+        Ok(Some(Receiver {
             owner: Some(symbol),
             ty,
         }))

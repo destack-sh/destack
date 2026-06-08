@@ -22,7 +22,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Pattern>,
         pattern: &dir::Pattern,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -130,7 +130,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::PatternField>,
         pattern_field: &dir::PatternField,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -182,7 +182,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::AssignPattern>,
         assign_pattern: &dir::AssignPattern,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -225,7 +225,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::AssignPatternField>,
         assign_pattern_field: &dir::AssignPatternField,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -267,7 +267,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// Some(value)
     /// ```
-    pub(in crate::check) fn lower_pattern_term(
+    pub(in crate::check) fn pattern_term(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Pattern>,
@@ -277,7 +277,7 @@ impl WalkState<'_, '_> {
             dir::Pattern::Wildcard => PatternTarget::Wildcard,
             // pattern!
             dir::Pattern::Must(pattern) => {
-                let Some(pattern) = self.lower_pattern_term(module, *pattern)? else {
+                let Some(pattern) = self.pattern_term(module, *pattern)? else {
                     return Ok(None);
                 };
 
@@ -285,16 +285,16 @@ impl WalkState<'_, '_> {
             }
             // pattern = value
             dir::Pattern::Assign { pattern, value } => {
-                let Some(pattern) = self.lower_pattern_term(module, *pattern)? else {
+                let Some(pattern) = self.pattern_term(module, *pattern)? else {
                     return Ok(None);
                 };
-                let value = self.allocate_node_type_operand(*value)?;
+                let value = self.node_type_operand(*value)?;
 
                 PatternTarget::Assign { pattern, value }
             }
             // &pattern
             dir::Pattern::BorrowOf { mutability, right } => {
-                let Some(pattern) = self.lower_pattern_term(module, *right)? else {
+                let Some(pattern) = self.pattern_term(module, *right)? else {
                     return Ok(None);
                 };
 
@@ -305,7 +305,7 @@ impl WalkState<'_, '_> {
             }
             // ^pattern
             dir::Pattern::MoveOf { mutability, right } => {
-                let Some(pattern) = self.lower_pattern_term(module, *right)? else {
+                let Some(pattern) = self.pattern_term(module, *right)? else {
                     return Ok(None);
                 };
 
@@ -316,7 +316,7 @@ impl WalkState<'_, '_> {
             }
             // *pattern
             dir::Pattern::DereferenceOf { right } => {
-                let Some(pattern) = self.lower_pattern_term(module, *right)? else {
+                let Some(pattern) = self.pattern_term(module, *right)? else {
                     return Ok(None);
                 };
 
@@ -329,13 +329,13 @@ impl WalkState<'_, '_> {
                     .module(self.module)
                     .declaration_symbol(id.into_any()),
                 pattern: pattern
-                    .map(|pattern| self.lower_pattern_term(module, pattern))
+                    .map(|pattern| self.pattern_term(module, pattern))
                     .transpose()?
                     .flatten(),
             },
             // value
             dir::Pattern::Expression { value } => PatternTarget::Expression {
-                value: self.allocate_node_type_operand(*value)?,
+                value: self.node_type_operand(*value)?,
             },
             // start..end
             dir::Pattern::Range {
@@ -344,22 +344,20 @@ impl WalkState<'_, '_> {
                 end_kind,
             } => PatternTarget::Range {
                 start: start
-                    .map(|start| self.allocate_node_type_operand(start))
+                    .map(|start| self.node_type_operand(start))
                     .transpose()?,
-                end: end
-                    .map(|end| self.allocate_node_type_operand(end))
-                    .transpose()?,
+                end: end.map(|end| self.node_type_operand(end)).transpose()?,
                 end_kind: *end_kind,
             },
             // value is T
             dir::Pattern::TypeExpression { value } => PatternTarget::Type {
-                ty: self.allocate_node_type_operand(*value)?,
+                ty: self.node_type_operand(*value)?,
             },
             // [a, b]
             dir::Pattern::Tuple { fields } => PatternTarget::Tuple {
                 fields: fields
                     .iter()
-                    .map(|field| self.lower_pattern_field_term(module, *field))
+                    .map(|field| self.pattern_field_term(module, *field))
                     .collect::<CompilerResult<Vec<_>>>()?
                     .into_iter()
                     .flatten()
@@ -367,10 +365,10 @@ impl WalkState<'_, '_> {
             },
             // T(a, b)
             dir::Pattern::Newtype { ty, fields } => PatternTarget::Newtype {
-                ty: self.allocate_node_type_operand(*ty)?,
+                ty: self.node_type_operand(*ty)?,
                 fields: fields
                     .iter()
-                    .map(|field| self.lower_pattern_field_term(module, *field))
+                    .map(|field| self.pattern_field_term(module, *field))
                     .collect::<CompilerResult<Vec<_>>>()?
                     .into_iter()
                     .flatten()
@@ -380,7 +378,7 @@ impl WalkState<'_, '_> {
             dir::Pattern::Sequence { fields } => PatternTarget::Sequence {
                 fields: fields
                     .iter()
-                    .map(|field| self.lower_pattern_field_term(module, *field))
+                    .map(|field| self.pattern_field_term(module, *field))
                     .collect::<CompilerResult<Vec<_>>>()?
                     .into_iter()
                     .flatten()
@@ -390,7 +388,7 @@ impl WalkState<'_, '_> {
             dir::Pattern::Object { fields } => PatternTarget::Object {
                 fields: fields
                     .iter()
-                    .map(|field| self.lower_pattern_field_term(module, *field))
+                    .map(|field| self.pattern_field_term(module, *field))
                     .collect::<CompilerResult<Vec<_>>>()?
                     .into_iter()
                     .flatten()
@@ -398,10 +396,10 @@ impl WalkState<'_, '_> {
             },
             // T { name }
             dir::Pattern::NominalObject { ty, fields } => PatternTarget::NominalObject {
-                ty: self.allocate_node_type_operand(*ty)?,
+                ty: self.node_type_operand(*ty)?,
                 fields: fields
                     .iter()
-                    .map(|field| self.lower_pattern_field_term(module, *field))
+                    .map(|field| self.pattern_field_term(module, *field))
                     .collect::<CompilerResult<Vec<_>>>()?
                     .into_iter()
                     .flatten()
@@ -411,7 +409,7 @@ impl WalkState<'_, '_> {
             dir::Pattern::Union { patterns } => PatternTarget::Union {
                 patterns: patterns
                     .iter()
-                    .map(|pattern| self.lower_pattern_term(module, *pattern))
+                    .map(|pattern| self.pattern_term(module, *pattern))
                     .collect::<CompilerResult<Vec<_>>>()?
                     .into_iter()
                     .flatten()
@@ -425,11 +423,12 @@ impl WalkState<'_, '_> {
             .check
             .inference
             .push_term(PatternTerm::node(source, term));
-        if let Some(target) = self.lower_pattern_resolution(module, id) {
+        if let Some(target) = self.pattern_resolution(module, id) {
             let selection = PatternResolution { source, target };
 
             self.check
-                .select_pattern(source, PatternDecision::Resolved(selection));
+                .inference
+                .select_pattern(source, PatternDecision::Resolved(selection))?;
         }
 
         Ok(Some(term))
@@ -441,7 +440,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// { name, age }
     /// ```
-    fn lower_pattern_resolution(
+    fn pattern_resolution(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::Pattern>,
@@ -492,7 +491,7 @@ impl WalkState<'_, '_> {
             }
             // [a, b]
             dir::Pattern::Tuple { fields } => {
-                let fields = self.lower_indexed_pattern_field_resolutions(module, fields)?;
+                let fields = self.indexed_pattern_field_resolutions(module, fields)?;
 
                 Some(PatternTargetResolution::Tuple(PatternTupleResolution {
                     fields,
@@ -500,7 +499,7 @@ impl WalkState<'_, '_> {
             }
             // { name }
             dir::Pattern::Object { fields } => {
-                let fields = self.lower_keyed_pattern_field_resolutions(module, fields)?;
+                let fields = self.keyed_pattern_field_resolutions(module, fields)?;
 
                 Some(PatternTargetResolution::Shape(PatternShapeResolution {
                     fields,
@@ -535,7 +534,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// [first, second]
     /// ```
-    fn lower_indexed_pattern_field_resolutions(
+    fn indexed_pattern_field_resolutions(
         &mut self,
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -584,7 +583,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// { name: value }
     /// ```
-    fn lower_keyed_pattern_field_resolutions(
+    fn keyed_pattern_field_resolutions(
         &mut self,
         module: ModuleId,
         fields: &[dir::LocalNodeId<dir::PatternField>],
@@ -616,7 +615,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// { name: pattern }
     /// ```
-    fn lower_pattern_field_term(
+    fn pattern_field_term(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::PatternField>,
@@ -625,7 +624,7 @@ impl WalkState<'_, '_> {
             // { name: pattern }
             dir::PatternField::Named { name, pattern, .. } => {
                 let pattern = pattern
-                    .map(|pattern| self.lower_pattern_term(module, pattern))
+                    .map(|pattern| self.pattern_term(module, pattern))
                     .transpose()?
                     .flatten();
                 let value = pattern.map(|_| {
@@ -641,8 +640,8 @@ impl WalkState<'_, '_> {
             }
             // { [key]: pattern }
             dir::PatternField::Computed { key, pattern } => {
-                let key = self.allocate_node_type_operand(*key)?;
-                let Some(pattern) = self.lower_pattern_term(module, *pattern)? else {
+                let key = self.node_type_operand(*key)?;
+                let Some(pattern) = self.pattern_term(module, *pattern)? else {
                     return Ok(None);
                 };
 
@@ -650,7 +649,7 @@ impl WalkState<'_, '_> {
             }
             // [pattern]
             dir::PatternField::Positional { pattern } => {
-                let Some(pattern) = self.lower_pattern_term(module, *pattern)? else {
+                let Some(pattern) = self.pattern_term(module, *pattern)? else {
                     return Ok(None);
                 };
 
@@ -659,7 +658,7 @@ impl WalkState<'_, '_> {
             // { ...pattern }
             dir::PatternField::Spread { pattern } => PatternField::Spread {
                 pattern: pattern
-                    .map(|pattern| self.lower_pattern_term(module, pattern))
+                    .map(|pattern| self.pattern_term(module, pattern))
                     .transpose()?
                     .flatten(),
             },
@@ -676,7 +675,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// [first, ...rest]
     /// ```
-    pub(in crate::check) fn lower_assign_pattern_term(
+    pub(in crate::check) fn assign_pattern_term(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::AssignPattern>,
@@ -684,7 +683,7 @@ impl WalkState<'_, '_> {
         let term = match self.tree.get(id) {
             // target
             dir::AssignPattern::Expression { value } => {
-                let Some(place) = self.lower_place(*value)? else {
+                let Some(place) = self.place_term(*value)? else {
                     return Ok(None);
                 };
 
@@ -692,10 +691,10 @@ impl WalkState<'_, '_> {
             }
             // target = value
             dir::AssignPattern::Assign { pattern, value } => {
-                let Some(pattern) = self.lower_assign_pattern_term(module, *pattern)? else {
+                let Some(pattern) = self.assign_pattern_term(module, *pattern)? else {
                     return Ok(None);
                 };
-                let value = self.allocate_node_type_operand(*value)?;
+                let value = self.node_type_operand(*value)?;
 
                 AssignPatternTerm::Assign { pattern, value }
             }
@@ -703,7 +702,7 @@ impl WalkState<'_, '_> {
             dir::AssignPattern::Sequence { fields } => AssignPatternTerm::Sequence {
                 fields: fields
                     .iter()
-                    .map(|field| self.lower_assign_pattern_field_term(module, *field))
+                    .map(|field| self.assign_pattern_field_term(module, *field))
                     .collect::<CompilerResult<Vec<_>>>()?
                     .into_iter()
                     .flatten()
@@ -713,7 +712,7 @@ impl WalkState<'_, '_> {
             dir::AssignPattern::Object { fields } => AssignPatternTerm::Object {
                 fields: fields
                     .iter()
-                    .map(|field| self.lower_assign_pattern_field_term(module, *field))
+                    .map(|field| self.assign_pattern_field_term(module, *field))
                     .collect::<CompilerResult<Vec<_>>>()?
                     .into_iter()
                     .flatten()
@@ -730,7 +729,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// { name: target }
     /// ```
-    fn lower_assign_pattern_field_term(
+    fn assign_pattern_field_term(
         &mut self,
         module: ModuleId,
         id: dir::LocalNodeId<dir::AssignPatternField>,
@@ -739,7 +738,7 @@ impl WalkState<'_, '_> {
             // { name: pattern }
             dir::AssignPatternField::Named { name, pattern, .. } => {
                 let pattern = pattern
-                    .map(|pattern| self.lower_assign_pattern_term(module, pattern))
+                    .map(|pattern| self.assign_pattern_term(module, pattern))
                     .transpose()?
                     .flatten();
                 let value = pattern.map(|_| {
@@ -755,8 +754,8 @@ impl WalkState<'_, '_> {
             }
             // { [key]: pattern }
             dir::AssignPatternField::Computed { key, pattern } => {
-                let key = self.allocate_node_type_operand(*key)?;
-                let Some(pattern) = self.lower_assign_pattern_term(module, *pattern)? else {
+                let key = self.node_type_operand(*key)?;
+                let Some(pattern) = self.assign_pattern_term(module, *pattern)? else {
                     return Ok(None);
                 };
 
@@ -764,7 +763,7 @@ impl WalkState<'_, '_> {
             }
             // [pattern]
             dir::AssignPatternField::Positional { pattern } => {
-                let Some(pattern) = self.lower_assign_pattern_term(module, *pattern)? else {
+                let Some(pattern) = self.assign_pattern_term(module, *pattern)? else {
                     return Ok(None);
                 };
 
@@ -773,7 +772,7 @@ impl WalkState<'_, '_> {
             // { ...pattern }
             dir::AssignPatternField::Spread { pattern } => AssignPatternField::Spread {
                 pattern: pattern
-                    .map(|pattern| self.lower_assign_pattern_term(module, pattern))
+                    .map(|pattern| self.assign_pattern_term(module, pattern))
                     .transpose()?
                     .flatten(),
             },

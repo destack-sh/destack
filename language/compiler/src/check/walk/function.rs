@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use crate::CompilerResult;
 use crate::check::{
-    FunctionParameter, FunctionTerm, GenericArgument, GenericParameterId, Origin, ReceiverCapture,
-    TermId, TypeOperand, TypeRelation, TypeTerm, WalkState,
+    FunctionParameter, FunctionTerm, GenericArgument, GenericParameterId, Origin, ReceiverBinding,
+    SubstitutionSet, TermId, TypeOperand, TypeRelation, TypeTerm, WalkState,
 };
 
 impl WalkState<'_, '_> {
@@ -13,7 +13,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// function run<T>(value: T): T { value }
     /// ```
-    pub(in crate::check) fn lower_function_signature_term(
+    pub(in crate::check) fn function_signature_term(
         &mut self,
         signature: &dir::FunctionSignature,
         receiver_type: Option<TypeOperand>,
@@ -30,7 +30,7 @@ impl WalkState<'_, '_> {
 
         // collect comptime parameters
         for parameter in &signature.parameters {
-            if let Some(parameter) = self.comptime_parameter_slot(*parameter)? {
+            if let Some(parameter) = self.comptime_parameter(*parameter)? {
                 generic_parameters.push(parameter);
             }
         }
@@ -45,18 +45,25 @@ impl WalkState<'_, '_> {
 
         // collect runtime parameters
         for parameter in &signature.parameters {
-            if let Some(parameter) = self.lower_function_parameter_term(*parameter)? {
+            if let Some(parameter) = self.function_parameter_term(*parameter)? {
                 parameters.push(parameter);
             }
         }
 
         let function = FunctionTerm {
             asynchrony: signature.asynchrony,
-            generic_parameters,
+            generic_parameters: generic_parameters.into(),
             this_parameter,
             parameters: parameters.into(),
             return_type,
             is_generator: signature.is_generator,
+        };
+        let function = if let Some(receiver_type) = receiver_type {
+            let substitution = SubstitutionSet::with_receiver(receiver_type);
+
+            function.substitute(self.module, &substitution, self.check)?
+        } else {
+            function
         };
 
         Ok(self.check.inference.push_term(function))
@@ -68,7 +75,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// (value: T) => U
     /// ```
-    pub(in crate::check) fn lower_function_type_term(
+    pub(in crate::check) fn function_type_term(
         &mut self,
         declaration: &dir::FunctionTypeExpression,
         return_type: Option<TypeOperand>,
@@ -84,7 +91,7 @@ impl WalkState<'_, '_> {
 
         // collect comptime parameters
         for parameter in &declaration.parameters {
-            if let Some(parameter) = self.comptime_parameter_slot(*parameter)? {
+            if let Some(parameter) = self.comptime_parameter(*parameter)? {
                 generic_parameters.push(parameter);
             }
         }
@@ -99,14 +106,14 @@ impl WalkState<'_, '_> {
 
         // collect runtime parameters
         for parameter in &declaration.parameters {
-            if let Some(parameter) = self.lower_function_parameter_term(*parameter)? {
+            if let Some(parameter) = self.function_parameter_term(*parameter)? {
                 parameters.push(parameter);
             }
         }
 
         let function = FunctionTerm {
             asynchrony: dir::Asynchrony::Sync,
-            generic_parameters,
+            generic_parameters: generic_parameters.into(),
             this_parameter,
             parameters: parameters.into(),
             return_type,
@@ -122,7 +129,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// new (value: T) => Box<T>
     /// ```
-    pub(in crate::check) fn lower_constructor_type_term(
+    pub(in crate::check) fn constructor_type_term(
         &mut self,
         declaration: &dir::ConstructorType,
         return_type: Option<TypeOperand>,
@@ -138,7 +145,7 @@ impl WalkState<'_, '_> {
 
         // collect comptime parameters
         for parameter in &declaration.parameters {
-            if let Some(parameter) = self.comptime_parameter_slot(*parameter)? {
+            if let Some(parameter) = self.comptime_parameter(*parameter)? {
                 generic_parameters.push(parameter);
             }
         }
@@ -147,14 +154,14 @@ impl WalkState<'_, '_> {
 
         // collect runtime parameters
         for parameter in &declaration.parameters {
-            if let Some(parameter) = self.lower_function_parameter_term(*parameter)? {
+            if let Some(parameter) = self.function_parameter_term(*parameter)? {
                 parameters.push(parameter);
             }
         }
 
         let function = FunctionTerm {
             asynchrony: dir::Asynchrony::Sync,
-            generic_parameters,
+            generic_parameters: generic_parameters.into(),
             this_parameter: None,
             parameters: parameters.into(),
             return_type,
@@ -178,7 +185,7 @@ impl WalkState<'_, '_> {
         signature: &dir::FunctionSignature,
         body: dir::LocalNodeId<dir::Expression>,
         result: TypeOperand,
-        receiver: Option<ReceiverCapture>,
+        receiver: Option<ReceiverBinding>,
     ) -> CompilerResult<()> {
         let mut return_target = result;
         let mut yield_target = None;
@@ -294,7 +301,7 @@ impl WalkState<'_, '_> {
     /// ```ds
     /// (value?: T, ...rest: U[])
     /// ```
-    fn lower_function_parameter_term(
+    fn function_parameter_term(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
     ) -> CompilerResult<Option<FunctionParameter>> {
@@ -361,7 +368,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the parameter bound to one comptime runtime parameter.
-    fn comptime_parameter_slot(
+    fn comptime_parameter(
         &mut self,
         id: dir::LocalNodeId<dir::Parameter>,
     ) -> CompilerResult<Option<GenericParameterId>> {
@@ -404,13 +411,13 @@ impl WalkState<'_, '_> {
             if let Some(ty) = self.check.inputs.node_type(node) {
                 return Ok(Some(ty));
             }
-            let variable = self.allocate_node_type_variable(id)?;
+            let variable = self.node_type_variable(id)?;
 
             return Ok(Some(variable.into()));
         };
 
         let source = id.into_global_any(self.module);
-        let operand = self.allocate_node_type_operand(declared_type)?;
+        let operand = self.node_type_operand(declared_type)?;
         let condition = self.active_static_guard();
         let operand = self.induce_transparent_type_operand(source, operand, condition);
 

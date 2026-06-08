@@ -18,7 +18,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Block>,
         block: &dir::Block,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -55,7 +55,7 @@ impl WalkState<'_, '_> {
         // set expression block type
         if block.context == dir::BlockContext::Expression {
             if let Some(expression) = block.tail_expression {
-                let tail = self.allocate_node_type_operand(expression)?;
+                let tail = self.node_type_operand(expression)?;
                 self.bind_node_type_operand(id, tail)?;
             } else {
                 let term = TypeTerm::Literal(TypeLiteralTerm::Void);

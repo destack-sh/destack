@@ -1,11 +1,9 @@
-use destack_dir as dir;
-use destack_source::ModuleId;
-
-use crate::CompilerResult;
 use crate::check::{
-    GenericParameterBinding, GenericParameterId, Origin, PatternRelation, StaticTerm, TypeOperand,
-    TypeRelation, TypeTerm, WalkState,
+    GenericParameter, GenericParameterBinding, GenericParameterId, GenericTemplateId, Origin,
+    PatternRelation, StaticTerm, TypeOperand, TypeRelation, TypeTerm, WalkState,
 };
+use crate::{CompilerError, CompilerResult};
+use destack_dir as dir;
 
 impl WalkState<'_, '_> {
     /// Walk one generic parameter.
@@ -16,21 +14,25 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn walk_generic_parameter(
         &mut self,
+        template: GenericTemplateId,
         id: dir::LocalNodeId<dir::GenericParameter>,
         generic_parameter: &dir::GenericParameter,
     ) -> CompilerResult<()> {
-        // enter static owner guard
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        // enter static decorator guard
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
         match generic_parameter {
             // <T>
             dir::GenericParameter::Type {
+                variance,
                 constraint,
                 default,
                 ..
             } => {
+                let parameter = self.bind_type_generic_parameter(template, id)?;
+
                 // walk optional bounds
                 if let Some(constraint) = constraint {
                     self.walk_type_expression(*constraint, self.tree.get(*constraint))?;
@@ -38,14 +40,31 @@ impl WalkState<'_, '_> {
                 if let Some(default) = default {
                     self.walk_type_expression(*default, self.tree.get(*default))?;
                 }
-                self.bind_generic_parameter(self.module, id, generic_parameter)?;
+
+                // insert checked parameter
+                {
+                    let constraint = constraint
+                        .map(|id| self.node_type_operand(id))
+                        .transpose()?
+                        .map(Into::into);
+                    let default = default.map(|id| self.node_type_operand(id)).transpose()?;
+
+                    self.check
+                        .inference
+                        .insert_generic_parameter(GenericParameterBinding::r#type(
+                            parameter, *variance, constraint, default,
+                        ));
+                }
             }
             // <...T>
             dir::GenericParameter::VariadicType {
+                variance,
                 constraint,
                 default,
                 ..
             } => {
+                let parameter = self.bind_type_generic_parameter(template, id)?;
+
                 // walk optional bounds
                 if let Some(constraint) = constraint {
                     self.walk_type_expression(*constraint, self.tree.get(*constraint))?;
@@ -53,7 +72,21 @@ impl WalkState<'_, '_> {
                 if let Some(default) = default {
                     self.walk_type_expression(*default, self.tree.get(*default))?;
                 }
-                self.bind_generic_parameter(self.module, id, generic_parameter)?;
+
+                // insert checked parameter
+                {
+                    let constraint = constraint
+                        .map(|id| self.node_type_operand(id))
+                        .transpose()?
+                        .map(Into::into);
+                    let default = default.map(|id| self.node_type_operand(id)).transpose()?;
+
+                    self.check.inference.insert_generic_parameter(
+                        GenericParameterBinding::variadic_type(
+                            parameter, *variance, constraint, default,
+                        ),
+                    );
+                }
             }
             // <comptime C: T>
             dir::GenericParameter::Value {
@@ -61,6 +94,8 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
+                let parameter = self.bind_static_generic_parameter(template, id)?;
+
                 // static parameters require an explicit value type
                 if declared_type.is_none() {
                     self.check
@@ -78,7 +113,26 @@ impl WalkState<'_, '_> {
                     self.walk_expression(*default, self.tree.get(*default))?;
                     self.restore_flow(before_default);
                 }
-                self.bind_generic_parameter(self.module, id, generic_parameter)?;
+
+                // insert checked parameter
+                {
+                    let constraint = declared_type
+                        .map(|id| self.node_type_operand(id))
+                        .transpose()?
+                        .map(Into::into);
+                    let default = default
+                        .map(|id| {
+                            let condition = self.active_static_guard();
+
+                            self.static_expression_variable(id, condition)
+                        })
+                        .transpose()?
+                        .map(Into::into);
+
+                    self.check.inference.insert_generic_parameter(
+                        GenericParameterBinding::r#static(parameter, constraint, default),
+                    );
+                }
             }
             // <comptime ...C: T>
             dir::GenericParameter::VariadicValue {
@@ -86,6 +140,8 @@ impl WalkState<'_, '_> {
                 default,
                 ..
             } => {
+                let parameter = self.bind_static_generic_parameter(template, id)?;
+
                 // static parameters require an explicit value type
                 if declared_type.is_none() {
                     self.check
@@ -103,7 +159,26 @@ impl WalkState<'_, '_> {
                     self.walk_expression(*default, self.tree.get(*default))?;
                     self.restore_flow(before_default);
                 }
-                self.bind_generic_parameter(self.module, id, generic_parameter)?;
+
+                // insert checked parameter
+                {
+                    let constraint = declared_type
+                        .map(|id| self.node_type_operand(id))
+                        .transpose()?
+                        .map(Into::into);
+                    let default = default
+                        .map(|id| {
+                            let condition = self.active_static_guard();
+
+                            self.static_expression_variable(id, condition)
+                        })
+                        .transpose()?
+                        .map(Into::into);
+
+                    self.check.inference.insert_generic_parameter(
+                        GenericParameterBinding::variadic_static(parameter, constraint, default),
+                    );
+                }
             }
             // ignore damaged syntax
             dir::GenericParameter::Error => {}
@@ -112,164 +187,72 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Bind the generic parameter introduced by one generic parameter.
+    /// Allocate the type parameter introduced by one generic parameter.
+    ///
+    /// Example:
+    /// ```ds
+    /// <T extends Serializable = string>
+    /// ```
+    fn bind_type_generic_parameter(
+        &mut self,
+        template: GenericTemplateId,
+        id: dir::LocalNodeId<dir::GenericParameter>,
+    ) -> CompilerResult<GenericParameter> {
+        let symbol = self.generic_parameter_symbol(id)?;
+        let parameter = self.check.allocate_symbol_generic_parameter(
+            template,
+            symbol,
+            dir::GenericParameterOrigin::Explicit,
+        );
+        let parameter_id = parameter.id();
+        let condition = self.active_static_guard();
+
+        self.bind_symbol_type(symbol, TypeTerm::Parameter(parameter_id), condition)?;
+
+        Ok(parameter)
+    }
+
+    /// Allocate the static parameter introduced by one generic parameter.
     ///
     /// Example:
     /// ```ds
     /// <comptime Size: number = 4>
     /// ```
-    pub(in crate::check) fn bind_generic_parameter(
+    fn bind_static_generic_parameter(
         &mut self,
-        module: ModuleId,
+        template: GenericTemplateId,
         id: dir::LocalNodeId<dir::GenericParameter>,
-        generic_parameter: &dir::GenericParameter,
-    ) -> CompilerResult<Option<GenericParameterId>> {
+    ) -> CompilerResult<GenericParameter> {
+        let symbol = self.generic_parameter_symbol(id)?;
+        let parameter = self.check.allocate_symbol_generic_parameter(
+            template,
+            symbol,
+            dir::GenericParameterOrigin::Explicit,
+        );
+        let parameter_id = parameter.id();
+        let condition = self.active_static_guard();
+
+        self.bind_symbol_static(symbol, StaticTerm::Parameter(parameter_id), condition)?;
+
+        Ok(parameter)
+    }
+
+    /// Return the symbol declared by one generic parameter.
+    fn generic_parameter_symbol(
+        &self,
+        id: dir::LocalNodeId<dir::GenericParameter>,
+    ) -> CompilerResult<dir::GlobalSymbolId> {
         let source = id.into_any();
-        let Some(owner) = self.check.module(module).scope_owner_symbol(source) else {
-            return Ok(None);
+        let Some(symbol) = self.check.module(self.module).declaration_symbol(source) else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "generic parameter {:?} has no declaration symbol",
+                    id.into_global(self.module)
+                ),
+            });
         };
-        let Some(symbol) = self.check.module(module).declaration_symbol(source) else {
-            return Ok(None);
-        };
 
-        match generic_parameter {
-            // <T>
-            dir::GenericParameter::Type {
-                variance,
-                constraint,
-                default,
-                ..
-            } => {
-                let parameter = self
-                    .check
-                    .allocate_explicit_generic_parameter(owner, symbol);
-                let parameter_id = parameter.id();
-                let constraint = constraint
-                    .map(|id| self.allocate_node_type_operand(id))
-                    .transpose()?
-                    .map(Into::into);
-                let default = default
-                    .map(|id| self.allocate_node_type_operand(id))
-                    .transpose()?;
-                let generic = GenericParameterBinding::Type {
-                    identity: parameter,
-                    variance: *variance,
-                    constraint,
-                    default,
-                };
-
-                self.check.insert_generic_parameter(generic);
-                let condition = self.active_static_guard();
-
-                self.bind_symbol_type(symbol, TypeTerm::Parameter(parameter_id), condition)?;
-
-                Ok(Some(parameter_id))
-            }
-            // <...T>
-            dir::GenericParameter::VariadicType {
-                variance,
-                constraint,
-                default,
-                ..
-            } => {
-                let parameter = self
-                    .check
-                    .allocate_explicit_generic_parameter(owner, symbol);
-                let parameter_id = parameter.id();
-                let constraint = constraint
-                    .map(|id| self.allocate_node_type_operand(id))
-                    .transpose()?
-                    .map(Into::into);
-                let default = default
-                    .map(|id| self.allocate_node_type_operand(id))
-                    .transpose()?;
-                let generic = GenericParameterBinding::VariadicType {
-                    identity: parameter,
-                    variance: *variance,
-                    constraint,
-                    default,
-                };
-
-                self.check.insert_generic_parameter(generic);
-                let condition = self.active_static_guard();
-
-                self.bind_symbol_type(symbol, TypeTerm::Parameter(parameter_id), condition)?;
-
-                Ok(Some(parameter_id))
-            }
-            // <comptime C: T>
-            dir::GenericParameter::Value {
-                declared_type,
-                default,
-                ..
-            } => {
-                let parameter = self
-                    .check
-                    .allocate_explicit_generic_parameter(owner, symbol);
-                let parameter_id = parameter.id();
-                let constraint = declared_type
-                    .map(|id| self.allocate_node_type_operand(id))
-                    .transpose()?
-                    .map(Into::into);
-                let default = default
-                    .map(|id| {
-                        let condition = self.active_static_guard();
-
-                        self.allocate_static_expression_variable(id, condition)
-                    })
-                    .transpose()?
-                    .map(Into::into);
-                let generic = GenericParameterBinding::Static {
-                    identity: parameter,
-                    constraint,
-                    default,
-                };
-
-                self.check.insert_generic_parameter(generic);
-                let condition = self.active_static_guard();
-
-                self.bind_symbol_static(symbol, StaticTerm::Parameter(parameter_id), condition)?;
-
-                Ok(Some(parameter_id))
-            }
-            // <comptime ...C: T>
-            dir::GenericParameter::VariadicValue {
-                declared_type,
-                default,
-                ..
-            } => {
-                let parameter = self
-                    .check
-                    .allocate_explicit_generic_parameter(owner, symbol);
-                let parameter_id = parameter.id();
-                let constraint = declared_type
-                    .map(|id| self.allocate_node_type_operand(id))
-                    .transpose()?
-                    .map(Into::into);
-                let default = default
-                    .map(|id| {
-                        let condition = self.active_static_guard();
-
-                        self.allocate_static_expression_variable(id, condition)
-                    })
-                    .transpose()?
-                    .map(Into::into);
-                let generic = GenericParameterBinding::VariadicStatic {
-                    identity: parameter,
-                    constraint,
-                    default,
-                };
-
-                self.check.insert_generic_parameter(generic);
-                let condition = self.active_static_guard();
-
-                self.bind_symbol_static(symbol, StaticTerm::Parameter(parameter_id), condition)?;
-
-                Ok(Some(parameter_id))
-            }
-            // ignore damaged syntax
-            dir::GenericParameter::Error => Ok(None),
-        }
+        Ok(symbol)
     }
 
     /// Walk one parameter.
@@ -280,11 +263,12 @@ impl WalkState<'_, '_> {
     /// ```
     pub(in crate::check) fn walk_parameter(
         &mut self,
+        template: Option<GenericTemplateId>,
         id: dir::LocalNodeId<dir::Parameter>,
         parameter: &dir::Parameter,
         is_annotation_required: bool,
     ) -> CompilerResult<()> {
-        let Some(_guard) = self.enter_static_guard_for(id.into_any(), None)? else {
+        let Some(_guard) = self.enter_decorated_static_guard(id.into_any(), None)? else {
             return Ok(());
         };
 
@@ -323,7 +307,7 @@ impl WalkState<'_, '_> {
                 if let Some(symbol) = symbol {
                     if *is_comptime {
                         self.bind_comptime_parameter(
-                            self.module,
+                            template,
                             id,
                             symbol,
                             parameter_type,
@@ -339,7 +323,7 @@ impl WalkState<'_, '_> {
 
                 // constrain default value
                 if let (Some(default), Some(parameter_type)) = (default, parameter_type) {
-                    self.constrain_parameter_default(self.module, *default, parameter_type)?;
+                    self.constrain_parameter_default(*default, parameter_type)?;
                 }
             }
             // (p: ...T)
@@ -369,7 +353,7 @@ impl WalkState<'_, '_> {
                 if let Some(symbol) = symbol {
                     if *is_comptime {
                         self.bind_comptime_parameter(
-                            self.module,
+                            template,
                             id,
                             symbol,
                             parameter_type,
@@ -412,7 +396,7 @@ impl WalkState<'_, '_> {
 
                 // constrain the pattern against the parameter type
                 if let Some(parameter_type) = parameter_type {
-                    if let Some(term) = self.lower_pattern_term(self.module, *pattern)? {
+                    if let Some(term) = self.pattern_term(self.module, *pattern)? {
                         let condition = self.active_static_guard();
 
                         self.check.relate_pattern(
@@ -425,7 +409,7 @@ impl WalkState<'_, '_> {
                     }
 
                     if let Some(default) = default {
-                        self.constrain_parameter_default(self.module, *default, parameter_type)?;
+                        self.constrain_parameter_default(*default, parameter_type)?;
                     }
                 }
             }
@@ -449,7 +433,7 @@ impl WalkState<'_, '_> {
 
                 // constrain the pattern against the parameter type
                 if let Some(parameter_type) = self.parameter_type(id)? {
-                    if let Some(term) = self.lower_pattern_term(self.module, *pattern)? {
+                    if let Some(term) = self.pattern_term(self.module, *pattern)? {
                         let condition = self.active_static_guard();
 
                         self.check.relate_pattern(
@@ -477,44 +461,42 @@ impl WalkState<'_, '_> {
     /// ```
     fn bind_comptime_parameter(
         &mut self,
-        module: ModuleId,
+        template: Option<GenericTemplateId>,
         id: dir::LocalNodeId<dir::Parameter>,
         symbol: dir::GlobalSymbolId,
         parameter_type: Option<TypeOperand>,
         default: Option<dir::LocalNodeId<dir::Expression>>,
         is_variadic: bool,
     ) -> CompilerResult<Option<GenericParameterId>> {
-        let source = id.into_any();
-        let Some(owner) = self.check.module(module).scope_owner_symbol(source) else {
-            return Ok(None);
+        let Some(template) = template else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "comptime parameter {:?} has no generic template",
+                    id.into_global(self.module)
+                ),
+            });
         };
-        let parameter = self
-            .check
-            .allocate_induced_symbol_generic_parameter(owner, symbol);
+        let parameter = self.check.allocate_symbol_generic_parameter(
+            template,
+            symbol,
+            dir::GenericParameterOrigin::Induced(dir::GenericParameterInduction::Comptime),
+        );
         let parameter_id = parameter.id();
         let default = default
             .map(|id| {
                 let condition = self.active_static_guard();
 
-                self.allocate_static_expression_variable(id, condition)
+                self.static_expression_variable(id, condition)
             })
             .transpose()?
             .map(Into::into);
         let generic = if is_variadic {
-            GenericParameterBinding::VariadicStatic {
-                identity: parameter,
-                constraint: parameter_type,
-                default,
-            }
+            GenericParameterBinding::variadic_static(parameter, parameter_type, default)
         } else {
-            GenericParameterBinding::Static {
-                identity: parameter,
-                constraint: parameter_type,
-                default,
-            }
+            GenericParameterBinding::r#static(parameter, parameter_type, default)
         };
 
-        self.check.insert_generic_parameter(generic);
+        self.check.inference.insert_generic_parameter(generic);
         let condition = self.active_static_guard();
 
         self.bind_symbol_static(symbol, StaticTerm::Parameter(parameter_id), condition)?;
@@ -530,12 +512,11 @@ impl WalkState<'_, '_> {
     /// ```
     fn constrain_parameter_default(
         &mut self,
-        module: ModuleId,
         default: dir::LocalNodeId<dir::Expression>,
         declared_type: TypeOperand,
     ) -> CompilerResult<()> {
-        let value = self.allocate_node_type_operand(default)?;
-        let origin = Origin::Node(default.into_global_any(module));
+        let value = self.node_type_operand(default)?;
+        let origin = Origin::Node(default.into_global_any(self.module));
         let condition = self.active_static_guard();
 
         self.check.relate_type(
