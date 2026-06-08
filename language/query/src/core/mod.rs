@@ -14,9 +14,9 @@ pub use context::{
     module_query_context_from_checked, workspace_query_context,
 };
 pub(crate) use destack_qir::{
-    AnnotationIndex, CallEntry, CallIndex, ExtensionEntry, ExtensionIndex, ImportEntry,
+    AnnotationIndex, CallEntry, CallIndex, DefinitionIndex, ExtensionEntry, ImportEntry,
     ImportIndex, ImportSortKey, MatchKind, MatchQuality, MemberEntry, MemberIndex,
-    MemberKind as MemberEntryKind, MemberSource, Name, NominalEntry, NominalIndex, NominalRelation,
+    MemberKind as MemberEntryKind, MemberSource, Name, NominalEntry, NominalRelation,
     ReferenceEntry, ReferenceIndex, SpecifierEntry, SpecifierIndex, SymbolEntry, SymbolIndex,
     SymbolKind as SymbolEntryKind, import_sort_key, import_sort_text, match_quality,
     symbol_relevance, symbol_sort_key,
