@@ -190,13 +190,34 @@ impl SymbolKind {
         )
     }
 
-    /// Check whether this kind satisfies one requested kind.
-    pub fn matches_kind(self, kind: SymbolKind) -> bool {
-        if kind == Self::Interface {
-            self.is_interface()
-        } else {
-            self == kind
-        }
+    /// Check whether this kind has a checked declaration definition.
+    #[inline]
+    pub fn is_definition(self) -> bool {
+        matches!(
+            self,
+            Self::Class
+                | Self::Enum
+                | Self::Extension
+                | Self::Interface
+                | Self::Newtype
+                | Self::NewtypeInterface
+                | Self::Struct
+                | Self::TypeAlias
+        )
+    }
+
+    /// Check whether this kind declares a reference-shaped type.
+    #[inline]
+    pub fn declares_reference_type(self) -> bool {
+        matches!(
+            self,
+            Self::Class
+                | Self::Enum
+                | Self::Interface
+                | Self::Newtype
+                | Self::NewtypeInterface
+                | Self::Struct
+        )
     }
 
     /// Return the symbol space normally introduced by this symbol kind.

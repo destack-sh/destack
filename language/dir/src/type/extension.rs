@@ -1,65 +1,10 @@
-use std::fmt::Display;
-
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId};
-
-/// Unique identifier for extensions.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct LocalExtensionId(pub u32);
-
-impl LocalExtensionId {
-    /// Wrap an id as a local extension id.
-    pub fn new(id: u32) -> Self {
-        Self(id)
-    }
-
-    /// Turn into a global extension id.
-    pub fn into_global(self, module_id: ModuleId) -> GlobalExtensionId {
-        GlobalExtensionId {
-            module_id,
-            local_id: self,
-        }
-    }
-}
-
-/// Global extension id across modules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct GlobalExtensionId {
-    /// The module id of the global extension.
-    pub module_id: ModuleId,
-    /// The local id of the global extension.
-    pub local_id: LocalExtensionId,
-}
-
-impl GlobalExtensionId {
-    /// Create a new global extension id.
-    pub fn new(module_id: ModuleId, local_id: LocalExtensionId) -> Self {
-        Self {
-            module_id,
-            local_id,
-        }
-    }
-
-    /// Turn into a local extension id.
-    pub fn into_local(self) -> LocalExtensionId {
-        self.local_id
-    }
-}
-
-impl From<GlobalExtensionId> for LocalExtensionId {
-    fn from(id: GlobalExtensionId) -> Self {
-        id.local_id
-    }
-}
-
-impl Display for LocalExtensionId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "~{}", self.0)
-    }
-}
+use crate::{
+    AssociatedConstDefinition, AssociatedTypeDefinition, FieldDefinition, GlobalNodeIdAny,
+    GlobalSymbolId, GlobalTypeId, MethodDefinition, NominalHeritage,
+};
 
 /// How an extension declaration relates to its target type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -76,7 +21,7 @@ pub enum ExtensionForm {
 }
 
 /// A resolved extension declaration.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Extension {
     /// The extension declaration's symbol.
     pub symbol: GlobalSymbolId,
@@ -84,8 +29,22 @@ pub struct Extension {
     pub form: ExtensionForm,
     /// The checked receiver target.
     pub target: ExtensionTarget,
+    /// The implemented interfaces.
+    pub implements: Vec<NominalHeritage>,
     /// The checked where clauses that gate this extension.
     pub where_clauses: Vec<ExtensionWhereClause>,
+    /// The extension fields.
+    pub fields: Vec<FieldDefinition>,
+    /// The extension static fields.
+    pub static_fields: Vec<FieldDefinition>,
+    /// The extension methods.
+    pub methods: Vec<MethodDefinition>,
+    /// The extension static methods.
+    pub static_methods: Vec<MethodDefinition>,
+    /// The associated types.
+    pub associated_types: Vec<AssociatedTypeDefinition>,
+    /// The associated constants.
+    pub associated_consts: Vec<AssociatedConstDefinition>,
 }
 
 impl Extension {
@@ -94,13 +53,27 @@ impl Extension {
         symbol: GlobalSymbolId,
         form: ExtensionForm,
         target: ExtensionTarget,
+        implements: Vec<NominalHeritage>,
         where_clauses: Vec<ExtensionWhereClause>,
+        fields: Vec<FieldDefinition>,
+        static_fields: Vec<FieldDefinition>,
+        methods: Vec<MethodDefinition>,
+        static_methods: Vec<MethodDefinition>,
+        associated_types: Vec<AssociatedTypeDefinition>,
+        associated_consts: Vec<AssociatedConstDefinition>,
     ) -> Self {
         Self {
             symbol,
             form,
             target,
+            implements,
             where_clauses,
+            fields,
+            static_fields,
+            methods,
+            static_methods,
+            associated_types,
+            associated_consts,
         }
     }
 
@@ -117,6 +90,14 @@ impl Extension {
     /// Check if this extension is local.
     pub fn is_local(&self) -> bool {
         matches!(self.form, ExtensionForm::Local)
+    }
+
+    /// Return whether this extension is visible from one module.
+    pub fn is_visible_from(&self, module_id: ModuleId) -> bool {
+        match self.form {
+            ExtensionForm::Inherent | ExtensionForm::Named => true,
+            ExtensionForm::Local => self.symbol.module_id == module_id,
+        }
     }
 }
 
