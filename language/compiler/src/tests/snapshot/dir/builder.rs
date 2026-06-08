@@ -266,8 +266,8 @@ impl<'a> DirSnapshotBuilder<'a> {
             self.add_table(checked.generics.as_ref());
         }
 
-        if selection.nominals {
-            self.add_table(checked.nominals.as_ref());
+        if selection.definitions {
+            self.add_table(checked.definitions.as_ref());
         }
 
         if selection.relation {
@@ -276,10 +276,6 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.coercion {
             self.add_table(checked.coercions.as_ref());
-        }
-
-        if selection.extension {
-            self.add_table(checked.extensions.as_ref());
         }
 
         if selection.layout {
