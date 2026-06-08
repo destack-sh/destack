@@ -865,9 +865,6 @@ dependencies = [
 [[package]]
 name = "destack"
 version = "0.55.4"
-dependencies = [
- "destack_bridge_core",
-]
 
 [[package]]
 name = "destack_artifact"
@@ -901,23 +898,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_bridge_core"
+name = "destack_bridge_generate"
 version = "0.55.4"
 dependencies = [
- "destack_compiler",
- "destack_linter",
- "destack_query",
+ "anyhow",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "destack_bridge_language"
+version = "0.55.4"
+dependencies = [
+ "destack_bridge_language_macros",
  "destack_repository",
  "destack_session",
- "destack_source",
 ]
+
+[[package]]
+name = "destack_bridge_language_macros"
+version = "0.55.4"
 
 [[package]]
 name = "destack_capi"
 version = "0.55.4"
-dependencies = [
- "destack_bridge_core",
-]
 
 [[package]]
 name = "destack_cli"
@@ -1314,7 +1320,13 @@ dependencies = [
 name = "destack_napi"
 version = "0.55.4"
 dependencies = [
- "destack_bridge_core",
+ "destack_bridge_language",
+ "destack_compiler",
+ "destack_linter",
+ "destack_query",
+ "destack_repository",
+ "destack_session",
+ "destack_source",
  "napi",
  "napi-derive",
 ]
@@ -1350,9 +1362,6 @@ dependencies = [
 [[package]]
 name = "destack_python"
 version = "0.55.4"
-dependencies = [
- "destack_bridge_core",
-]
 
 [[package]]
 name = "destack_qir"
@@ -1535,7 +1544,13 @@ dependencies = [
 name = "destack_wasm"
 version = "0.55.4"
 dependencies = [
- "destack_bridge_core",
+ "destack_bridge_language",
+ "destack_compiler",
+ "destack_linter",
+ "destack_query",
+ "destack_repository",
+ "destack_session",
+ "destack_source",
  "js-sys",
  "wasm-bindgen",
 ]

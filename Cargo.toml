@@ -58,7 +58,9 @@ members = [
 	"app/cli",
 	# bridge
 	"bridge/capi",
-	"bridge/core",
+	"bridge/generate",
+	"bridge/language",
+	"bridge/language/macros",
 	"bridge/napi",
 	"bridge/python/rust",
 	"bridge/rust",
@@ -114,7 +116,9 @@ destack_lsp_types = { path = "language/lsp/types" }
 destack_cli = { path = "app/cli" }
 
 # bridge
-destack_bridge_core = { path = "bridge/core", version = "=0.55.4" }
+destack_bridge_generate = { path = "bridge/generate" }
+destack_bridge_language = { path = "bridge/language", version = "=0.55.4" }
+destack_bridge_language_macros = { path = "bridge/language/macros", version = "=0.55.4" }
 destack_capi = { path = "bridge/capi" }
 destack_napi = { path = "bridge/napi" }
 destack_wasm = { path = "bridge/wasm" }
@@ -206,6 +210,7 @@ markdown = "1.0.0"
 mime_guess = "2.0.5"
 notify = "8.2.0"
 proc-macro2 = "1.0"
+prettyplease = "0.2.37"
 papaya = "0.2.3"
 parking_lot = "0.12.5"
 pulldown-cmark = "0.13.1"
