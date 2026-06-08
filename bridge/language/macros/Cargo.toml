@@ -1,0 +1,18 @@
+[package]
+name = "destack_bridge_language_macros"
+description = "Destack bridge language contract macros"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lib]
+proc-macro = true
+path = "src/lib.rs"
+doctest = false
+
+[dependencies]
+
+[lints]
+workspace = true

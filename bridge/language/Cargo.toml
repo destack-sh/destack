@@ -1,6 +1,6 @@
 [package]
-name = "destack_bridge_core"
-description = "Shared core for Destack bridge clients"
+name = "destack_bridge_language"
+description = "Destack language bridge contract"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -15,12 +15,9 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_compiler.workspace = true
-destack_linter.workspace = true
-destack_query.workspace = true
-destack_session.workspace = true
-destack_source.workspace = true
+destack_bridge_language_macros.workspace = true
 destack_repository.workspace = true
+destack_session.workspace = true
 
 [lints]
 workspace = true

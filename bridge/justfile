@@ -4,9 +4,9 @@ set dotenv-load := true
 set dotenv-filename := "../.env.local"
 
 # selected crates
-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
-format-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
-test-packages := "-p destack_bridge_core -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
+packages := "-p destack_bridge_generate -p destack_bridge_language -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
+format-packages := "-p destack_bridge_generate -p destack_bridge_language -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
+test-packages := "-p destack_bridge_generate -p destack_bridge_language -p destack_capi -p destack_napi -p destack_wasm -p destack -p destack_python -p destack_zed"
 
 _default:
     @just --list --unsorted
@@ -27,8 +27,13 @@ ensure-toolchain:
 
 # --- build ---
 
+# generate bridge target bindings
+generate:
+    cargo run -p destack_bridge_generate
+
 # run static checks
 lint:
+    just generate
     cargo clippy --release {{ packages }}
     bun run --cwd napi build
     bun run --cwd wasm build
@@ -37,6 +42,7 @@ lint:
 
 # build packages
 build:
+    just generate
     cargo build --release {{ packages }}
     just build-napi
     just build-wasm
@@ -66,6 +72,7 @@ wasm-size:
 
 # format code
 format:
+    just generate
     cargo fmt {{ format-packages }}
     bun x biome format --write napi wasm typescript
 
@@ -89,6 +96,7 @@ clean:
 
 # run tests
 test:
+    just generate
     cargo test --release --all-targets {{ test-packages }}
     bun run --cwd napi test
     bun run --cwd wasm test
@@ -141,9 +149,9 @@ publish-npm dry="--dry-run":
 # publish cargo sdk crate dry by default
 publish-cargo dry="--dry-run":
     @if [ "{{dry}}" = "--dry-run" ]; then \
-        cargo check -p destack_bridge_core -p destack; \
+        cargo check -p destack_bridge_language -p destack; \
         cargo check --manifest-path rust/aliases/destack-rs/Cargo.toml; \
-        (cd core && cargo package --allow-dirty --list >/dev/null); \
+        (cd language && cargo package --allow-dirty --list >/dev/null); \
         (cd rust && cargo package --allow-dirty --list >/dev/null); \
         (cd rust/aliases/destack-rs && cargo package --allow-dirty --list >/dev/null); \
     else \
@@ -151,7 +159,7 @@ publish-cargo dry="--dry-run":
             echo "missing CARGO_TOKEN env var for live cargo publish"; \
             exit 1; \
         fi; \
-        (cd core && cargo publish --token "${CARGO_TOKEN}"); \
+        (cd language && cargo publish --token "${CARGO_TOKEN}"); \
         (cd rust && cargo publish --token "${CARGO_TOKEN}"); \
         (cd rust/aliases/destack-rs && cargo publish --token "${CARGO_TOKEN}"); \
     fi
