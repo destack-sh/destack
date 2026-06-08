@@ -18,5 +18,4 @@ pub use message::*;
 pub use metadata::*;
 pub(crate) use root::*;
 pub use server::*;
-pub use update::*;
 pub use workspace::*;
