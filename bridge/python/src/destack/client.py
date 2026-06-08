@@ -18,9 +18,6 @@ class _CapiBindings:
         self._version = library.destack_capi_version
         self._version.restype = ctypes.c_char_p
 
-        self._is_available = library.destack_capi_is_available
-        self._is_available.restype = ctypes.c_bool
-
     @classmethod
     def try_load(cls) -> _CapiBindings | None:
         explicit_path = os.environ.get("DESTACK_CAPI_LIB")
@@ -50,9 +47,6 @@ class _CapiBindings:
 
     def capi_abi_version(self) -> int:
         return int(self._abi_version())
-
-    def capi_is_available(self) -> bool:
-        return bool(self._is_available())
 
     def capi_version(self) -> str:
         value = self._version()
@@ -97,14 +91,6 @@ class DestackClient:
             return 0
 
         return _CAPI.capi_abi_version()
-
-    def capi_is_available(self) -> bool:
-        """Return whether the capi surface is available."""
-
-        if _CAPI is None:
-            return False
-
-        return _CAPI.capi_is_available()
 
 
 def create_client() -> DestackClient:

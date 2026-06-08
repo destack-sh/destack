@@ -1,23 +1,18 @@
 use std::ffi::c_char;
 
+const CAPI_ABI_VERSION: u32 = 1;
 const VERSION_CSTR_BYTES: &[u8] = concat!(env!("CARGO_PKG_VERSION"), "\0").as_bytes();
 
 /// Return the C ABI version for the bridge C surface.
 #[unsafe(no_mangle)]
 pub extern "C" fn destack_capi_abi_version() -> u32 {
-    destack_bridge_core::capi_abi_version()
+    CAPI_ABI_VERSION
 }
 
 /// Return the bridge package version as a nul terminated C string.
 #[unsafe(no_mangle)]
 pub extern "C" fn destack_capi_version() -> *const c_char {
     VERSION_CSTR_BYTES.as_ptr().cast::<c_char>()
-}
-
-/// Return whether the bridge C surface is available.
-#[unsafe(no_mangle)]
-pub extern "C" fn destack_capi_is_available() -> bool {
-    destack_bridge_core::is_available()
 }
 
 #[cfg(test)]
@@ -38,10 +33,5 @@ mod tests {
         let fields = version.split('.').collect::<Vec<_>>();
 
         assert_eq!(fields.len(), 3);
-    }
-
-    #[test]
-    fn test_capi_is_available_is_true() {
-        assert!(destack_capi_is_available());
     }
 }

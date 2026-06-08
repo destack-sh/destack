@@ -18,14 +18,13 @@ class DestackClientTest(unittest.TestCase):
         self.assertNotEqual(client.version(), "")
         self.assertNotEqual(VERSION, "")
 
-    def test_explicit_capi_library_is_available(self) -> None:
+    def test_explicit_capi_library_reports_abi_version(self) -> None:
         if "DESTACK_CAPI_LIB" not in os.environ:
             self.skipTest("DESTACK_CAPI_LIB is not configured")
 
         client = create_client()
 
         self.assertGreater(client.capi_abi_version(), 0)
-        self.assertTrue(client.capi_is_available())
 
 
 if __name__ == "__main__":

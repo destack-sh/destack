@@ -16,8 +16,6 @@ destack = "0.55.4"
 ```rust
 let client = destack::Client::new();
 assert_eq!(client.backend(), "rust");
-assert!(client.capi_abi_version() > 0);
-assert!(client.capi_is_available());
 assert_eq!(destack::version(), "0.55.4");
 ```
 
