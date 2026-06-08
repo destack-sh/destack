@@ -1,5 +1,5 @@
+use destack_repository::FormatterOptions;
 use destack_source::{File, FileId, FileType, LanguageType, Uri};
-use destack_workspace::FormatterOptions;
 
 use crate::{DestackFormatOptions, format_file_source};
 

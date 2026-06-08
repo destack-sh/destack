@@ -13,8 +13,8 @@ use destack_fir::prelude::{
     soft_block_indent, soft_line_break_or_space, space, token,
 };
 use destack_fir::{format_args, write};
+use destack_repository::TrailingComma;
 use destack_source::Span;
-use destack_workspace::TrailingComma;
 use smallvec::SmallVec;
 
 // object literal shape thresholds

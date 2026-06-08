@@ -20,8 +20,8 @@ use destack_fir::prelude::{
     text, token,
 };
 use destack_fir::{format_args, write};
+use destack_repository::QuoteStyle;
 use destack_source::Span;
-use destack_workspace::QuoteStyle;
 
 /// Return the value expression id for one tree child argument.
 fn tree_child_value_id(

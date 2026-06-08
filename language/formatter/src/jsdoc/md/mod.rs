@@ -8,7 +8,7 @@ use std::borrow::Cow;
 use markdown::{Constructs, ParseOptions, to_mdast};
 
 use crate::DestackFormatOptions;
-use destack_workspace::JsdocLineWrappingStyle;
+use destack_repository::JsdocLineWrappingStyle;
 
 use super::line::LineBuffer;
 use super::wrap::{wrap_plain_paragraphs, wrap_plain_paragraphs_balance};

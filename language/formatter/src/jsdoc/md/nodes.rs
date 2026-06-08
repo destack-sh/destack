@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use destack_workspace::JsdocLineWrappingStyle;
+use destack_repository::JsdocLineWrappingStyle;
 use markdown::mdast::Node;
 
 use super::super::embedded::{

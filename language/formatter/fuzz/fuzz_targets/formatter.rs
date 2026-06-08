@@ -3,7 +3,7 @@
 use destack_formatter::format_file_source;
 use destack_source::{File, FileId, FileType, Uri};
 use destack_test::stress::{StressExpectation, generate_formatter_fuzz_case};
-use destack_workspace::FormatterOptions;
+use destack_repository::FormatterOptions;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

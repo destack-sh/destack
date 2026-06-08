@@ -19,8 +19,8 @@ use destack_dir::{
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::{format_args, write};
+use destack_repository::TrailingComma;
 use destack_source::{NodeSpanRegion, NodeSpanType};
-use destack_workspace::TrailingComma;
 
 impl<'ast> Format<DestackFormatContext<'ast>> for Visibility {
     #[inline]

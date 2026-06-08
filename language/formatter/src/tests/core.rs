@@ -6,10 +6,10 @@ use destack_dir::{Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
 use destack_fir::format;
 use destack_fir::format::Format;
 use destack_parser::{Parser, ParserOptions, ParserResult, ParserTriviaMode};
+use destack_repository::FormatterOptions;
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, MultiSpan, Uri, print_diff,
 };
-use destack_workspace::FormatterOptions;
 
 /// Parse and format one source string for tests.
 #[derive(Debug)]

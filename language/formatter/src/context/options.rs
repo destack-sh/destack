@@ -1,11 +1,11 @@
 use destack_fir::format::FormatOptions;
 use destack_fir::print::PrintOptions;
-use destack_source::{IndentStyle, LanguageType, LineEnding};
-use destack_workspace::{
+use destack_repository::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, JsdocCommentLineStrategy,
     JsdocLineWrappingStyle, JsdocOptions, OrganizeImports, QuoteProperty, QuoteStyle,
     TrailingComma,
 };
+use destack_source::{IndentStyle, LanguageType, LineEnding};
 
 /// Destack format options.
 #[derive(Debug, Default, PartialEq, Clone)]

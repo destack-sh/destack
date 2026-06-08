@@ -4,11 +4,11 @@ use std::sync::Arc;
 
 use destack_core::StringPool;
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode, source_colorizer};
+use destack_repository::FormatterOptions;
 use destack_source::{
     DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri, print_diagnostics,
     print_diff,
 };
-use destack_workspace::FormatterOptions;
 
 use crate::format_file_source;
 

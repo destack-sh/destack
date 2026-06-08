@@ -4,8 +4,8 @@ use destack_dir::Comment;
 use destack_fir::format::{Buffer, Format, FormatResult, Formatter};
 use destack_fir::prelude::{hard_line_break, text, token};
 use destack_fir::write;
+use destack_repository::{JsdocCommentLineStrategy, JsdocOptions, QuoteStyle};
 use destack_source::Span;
-use destack_workspace::{JsdocCommentLineStrategy, JsdocOptions, QuoteStyle};
 
 use crate::{DestackFormatContext, DestackFormatOptions};
 
