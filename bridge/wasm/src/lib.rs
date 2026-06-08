@@ -1,7 +1,7 @@
-mod bridge;
+mod core;
+mod repository;
 mod session;
-mod source;
 
-pub use bridge::*;
+pub use core::*;
+pub use repository::*;
 pub use session::*;
-pub use source::*;
