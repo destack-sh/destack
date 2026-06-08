@@ -1,6 +1,6 @@
 [package]
 name = "destack"
-description = "Rust client for Destack"
+description = "Rust language bridge for Destack"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -16,6 +16,15 @@ categories = ["compilers", "development-tools"]
 [lib]
 path = "src/lib.rs"
 doctest = false
+
+[dependencies]
+destack_bridge_language.workspace = true
+destack_compiler.workspace = true
+destack_linter.workspace = true
+destack_query.workspace = true
+destack_repository.workspace = true
+destack_session.workspace = true
+destack_source.workspace = true
 
 [lints]
 workspace = true

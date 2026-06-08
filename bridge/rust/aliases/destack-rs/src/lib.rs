@@ -1,3 +1,2 @@
-pub use destack::BACKEND;
-pub use destack::Client;
+pub use destack::Session;
 pub use destack::version;

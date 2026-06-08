@@ -865,6 +865,15 @@ dependencies = [
 [[package]]
 name = "destack"
 version = "0.55.4"
+dependencies = [
+ "destack_bridge_language",
+ "destack_compiler",
+ "destack_linter",
+ "destack_query",
+ "destack_repository",
+ "destack_session",
+ "destack_source",
+]
 
 [[package]]
 name = "destack_artifact"

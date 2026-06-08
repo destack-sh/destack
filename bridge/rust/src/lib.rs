@@ -1,5 +1,6 @@
 mod bridge;
-mod client;
+mod session;
 
 pub use bridge::*;
-pub use client::*;
+pub use destack_bridge_language::*;
+pub use session::*;
