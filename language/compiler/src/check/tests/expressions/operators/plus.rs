@@ -66,7 +66,7 @@ struct Vector {
 
 extension VectorAdd of Vector implements Add<Vector> {
 /// @relation.entry symbol=VectorAdd kind=implements type=ops.plus.Add<Vector>
-/// @extension.entry symbol=VectorAdd form=inherent target=Vector
+/// @definition.extension symbol=VectorAdd form=inherent target=Vector
 /// @generic.instance source=Add<Vector> id=ops.plus.Add<Vector>
 
     type Output = Vector;
