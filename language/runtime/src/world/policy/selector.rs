@@ -4,11 +4,11 @@ use crate::host::binding::{
     BindingAffinity, BindingDescriptor, BindingDeterminism, BindingProvider, current_platform_name,
 };
 use crate::world::{EdgeId, EntityId};
-use destack_source::matches as glob_matches;
-use destack_workspace::{
+use destack_repository::{
     ConditionGate, ConditionSelector, ConditionSet, ExecutionMode, PackageSelector,
     RuntimeIdentitySelector, RuntimeLabelOperator, RuntimeLabelRequirement, RuntimeLabelSelector,
 };
+use destack_source::matches as glob_matches;
 use serde::{Deserialize, Serialize};
 
 /// Selector clauses for policy subjects.

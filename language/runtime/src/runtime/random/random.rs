@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use destack_core::{Capture, CaptureMode};
-use destack_workspace::{ExecutionMode, RandomOptions};
+use destack_repository::{ExecutionMode, RandomOptions};
 
 #[cfg(test)]
 use super::r#virtual::StreamStateDecodeError;

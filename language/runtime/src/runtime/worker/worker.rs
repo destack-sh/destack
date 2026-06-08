@@ -14,7 +14,7 @@ use crate::runtime::engine::{Continuation, Engine, EngineMemory, Image};
 use crate::runtime::heap::resolve_local_heap_options;
 use crate::runtime::scheduler::{EventLoop, EventLoopSnapshot, Readiness, Waiter};
 use crate::world::{Entity, EntityKind, RuntimeId, WorldState};
-use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
+use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
 /// Execution worker owned by one runtime.
 pub struct Worker {

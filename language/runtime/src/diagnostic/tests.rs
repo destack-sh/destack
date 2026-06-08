@@ -1,5 +1,5 @@
 use super::*;
-use destack_workspace::{RuntimeDiagnosticLevel, RuntimeDiagnosticOptions};
+use destack_repository::{RuntimeDiagnosticLevel, RuntimeDiagnosticOptions};
 
 /// Record diagnostics at or above the configured severity threshold.
 #[test]

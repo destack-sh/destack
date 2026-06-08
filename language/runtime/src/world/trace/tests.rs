@@ -14,9 +14,9 @@ use crate::runtime::time::Instant;
 use crate::world::policy::{ActionSelector, Rule};
 use crate::world::trace::{EntropySubject, EntrypointCall, Trace, TraceError, TraceHeader};
 use crate::world::{Entity, EntityDefinition, EntityKind, Mutation, RuntimeId};
+use destack_repository::Environment;
+use destack_repository::config::ExecutionMode;
 use destack_vm as vm;
-use destack_workspace::Environment;
-use destack_workspace::config::ExecutionMode;
 use serde::{Deserialize, Serialize};
 
 /// Build one replay entropy subject for tests.

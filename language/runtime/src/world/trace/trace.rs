@@ -8,7 +8,7 @@ use crate::world::trace::{
     TraceCursorImage, TraceHeader, TraceLog, TraceRecord, TraceSequence,
 };
 use crate::world::{BranchId, Mutation};
-use destack_workspace::ExecutionMode;
+use destack_repository::ExecutionMode;
 use parking_lot::Mutex;
 use postcard::experimental::serialized_size;
 use serde::de::DeserializeOwned;

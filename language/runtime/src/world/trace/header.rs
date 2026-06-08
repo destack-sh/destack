@@ -7,7 +7,7 @@ use crate::runtime::random::RandomSource;
 use crate::runtime::time::ClockSource;
 use crate::world::trace::TraceSequence;
 use crate::world::{BranchId, CheckpointId, RevisionId};
-use destack_workspace::{Environment, ExecutionMode};
+use destack_repository::{Environment, ExecutionMode};
 
 /// Current trace format version.
 pub const TRACE_FORMAT_VERSION: u32 = 1;

@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::trace::{EntropySample, EntropySubject, Outcome, Trace, TraceError, TraceRecord};
-use destack_workspace::ExecutionMode;
+use destack_repository::ExecutionMode;
 
 impl Trace {
     /// Run one monotonic-clock read binding through the entropy replay channel.

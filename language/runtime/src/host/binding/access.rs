@@ -1,7 +1,7 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::{BindingDescriptor, BindingDeterminism, BindingReplayPayload};
 use crate::world::policy::ActionSet;
-use destack_workspace::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
+use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 
 /// Per-worker binding access.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -3,9 +3,9 @@ use std::sync::Arc;
 use destack_engine as engine;
 use destack_mir::TraceTable;
 use destack_mir::parse::{ParseOptions, Parser};
+use destack_repository::{Environment, RuntimeOptions};
 use destack_source::FileId;
 use destack_vm as vm;
-use destack_workspace::{Environment, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeFailure, RuntimeResult};
 use crate::host::core::{Host, HostQueue, poll_host_events};
@@ -546,7 +546,7 @@ fn worker_for_options(
 
     let runtime_static = engine::StaticSpace::empty();
     let mut worker = Worker::new_in_world(
-        destack_workspace::Environment::default(),
+        destack_repository::Environment::default(),
         options,
         world_state,
         &shared,

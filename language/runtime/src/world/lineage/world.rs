@@ -12,7 +12,7 @@ use crate::world::trace::{
     Observations, Outcome, Trace, TraceHeader, TraceImage, TraceRecord, TraceSequence,
 };
 use destack_core::CaptureMode;
-use destack_workspace::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
+use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 
 use crate::world::{World, WorldImage, WorldSnapshot, WorldState};
 

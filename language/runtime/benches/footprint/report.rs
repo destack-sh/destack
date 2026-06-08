@@ -6,6 +6,7 @@ use destack_heap::{
     AllocationCache, Allocator, GcWorker, Heap, HeapOptions, SharedHeap, SharedHeapOptions,
     SizeClassTable,
 };
+use destack_repository::{Environment, RuntimeOptions};
 use destack_runtime::diagnostic::DiagnosticStore;
 use destack_runtime::host::HostPollResult;
 use destack_runtime::host::binding::BindingRegistry;
@@ -16,7 +17,6 @@ use destack_runtime::runtime::{Runtime, Worker};
 use destack_runtime::world::trace::{Observations, Trace, TraceLog};
 use destack_runtime::world::{Entity, Policy, World};
 use destack_vm::{Continuation, ContinuationImage, Machine, StackImage};
-use destack_workspace::{Environment, RuntimeOptions};
 
 use crate::ALLOCATOR;
 use crate::measure::AllocationSample;

@@ -3,7 +3,7 @@ use crate::host::binding::{BindingDescriptor, RuntimeAccess};
 use crate::runtime::WorkerId;
 use crate::world::topology::Topology;
 use crate::world::{RuntimeId, WorldState};
-use destack_workspace::{ConditionSet, ExecutionMode};
+use destack_repository::{ConditionSet, ExecutionMode};
 
 use super::Subject;
 

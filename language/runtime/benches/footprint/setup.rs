@@ -6,13 +6,13 @@ use destack_heap::{
     SharedHeapLimits, SharedHeapOptions,
 };
 use destack_mir::parse::{ParseOptions, Parser};
+use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use destack_runtime::launch::Launch;
 use destack_runtime::runtime::WorkerOptions;
 use destack_runtime::runtime::engine::{Engine, Entry};
 use destack_runtime::world::{RuntimeId, World};
 use destack_source::FileId;
 use destack_vm::{Continuation, ContinuationImage, Machine, MachineOptions, Outcome};
-use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
 
 /// MIR program used by footprint setups.
 const VM_PROGRAM: &str = r#"

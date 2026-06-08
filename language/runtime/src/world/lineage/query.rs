@@ -1,4 +1,4 @@
-use destack_workspace::ExecutionMode;
+use destack_repository::ExecutionMode;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::World;

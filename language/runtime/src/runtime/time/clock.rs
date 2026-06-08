@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::time::{Instant, Nanos};
 use destack_core::{Capture, CaptureMode};
-use destack_workspace::{ClockOptions, ExecutionMode};
+use destack_repository::{ClockOptions, ExecutionMode};
 
 /// Runtime clock sources and time policies.
 #[derive(Debug, Clone)]

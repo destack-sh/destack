@@ -5,7 +5,7 @@ use parking_lot::RwLock;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::binding::{BindingAccess, BindingDescriptor, BindingId};
 use crate::world::policy::ActionSet;
-use destack_workspace::{ExecutionMode, RuntimeOptions};
+use destack_repository::{ExecutionMode, RuntimeOptions};
 
 /// Registry for runtime bindings and shims.
 #[derive(Debug)]

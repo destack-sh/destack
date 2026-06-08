@@ -17,7 +17,7 @@ use crate::world::trace::{
     EntrypointCall, Observation, ObservationSequence, Observations, Outcome, Trace, TraceHeader,
     TraceSequence,
 };
-use destack_workspace::{Environment, ReplayPayloadMode, RuntimeOptions};
+use destack_repository::{Environment, ReplayPayloadMode, RuntimeOptions};
 
 use super::topology::Topology;
 pub(crate) use super::topology::{
