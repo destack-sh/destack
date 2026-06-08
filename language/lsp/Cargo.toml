@@ -26,12 +26,12 @@ destack_fir = { workspace = true }
 destack_formatter = { workspace = true }
 destack_query = { workspace = true }
 destack_session = { workspace = true }
-destack_workspace = { workspace = true }
+destack_repository = { workspace = true }
 destack_lsp_server = { workspace = true }
 destack_lsp_types = { workspace = true }
 destack_parser = { workspace = true }
 destack_source = { workspace = true }
-destack_service = { workspace = true }
+destack_workspace = { workspace = true }
 
 # general
 dashmap = { workspace = true }

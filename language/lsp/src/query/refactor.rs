@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use destack_lsp_types as lsp;
+use destack_repository::{Repository, Revision};
 use destack_source::{BatchEdit, File, FileId};
-use destack_workspace::{Repository, Revision};
 
 use super::common::byte_span_to_range;
 use crate::uri::lsp_uri_for_file;
