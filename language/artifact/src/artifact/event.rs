@@ -76,13 +76,13 @@ impl ArtifactEventLog {
         content
     }
 
-    /// Render events without quoting text values.
-    pub fn render_raw(&self) -> String {
+    /// Render events as plain line-oriented text.
+    pub fn render_plain(&self) -> String {
         let mut content = String::new();
 
         // write one event per line
         for event in &self.events {
-            content.push_str(&event.render_raw());
+            content.push_str(&event.render_plain());
             content.push('\n');
         }
 
@@ -170,12 +170,12 @@ impl ArtifactEvent {
         line
     }
 
-    /// Render this event without quoting text values.
-    pub fn render_raw(&self) -> String {
+    /// Render this event as one plain text line.
+    pub fn render_plain(&self) -> String {
         let fields = self
             .fields
             .iter()
-            .map(|field| format!("{}={}", field.key, field.value.render_raw()))
+            .map(|field| format!("{}={}", field.key, field.value.render_plain()))
             .collect::<Vec<_>>()
             .join(" ");
         let prefix = format!("{} timestamp={}", self.name, self.timestamp);
@@ -216,8 +216,8 @@ impl ArtifactEventValue {
         }
     }
 
-    /// Render this value without quoting text.
-    pub fn render_raw(&self) -> String {
+    /// Render this value as plain text.
+    pub fn render_plain(&self) -> String {
         match self {
             Self::Bool(value) => value.to_string(),
             Self::Integer(value) => value.to_string(),

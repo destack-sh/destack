@@ -2,8 +2,8 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
 # selected crates
-packages := "-p destack_artifact -p destack_artifact_macros -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_native -p destack_parser -p destack_qir -p destack_query -p destack_runtime -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
-packages-no-linter := "-p destack_artifact -p destack_artifact_macros -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_native -p destack_parser -p destack_qir -p destack_query -p destack_runtime -p destack_service -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_workspace"
+packages := "-p destack_artifact -p destack_artifact_macros -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_linter -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_native -p destack_parser -p destack_qir -p destack_query -p destack_runtime -p destack_workspace -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_repository"
+packages-no-linter := "-p destack_artifact -p destack_artifact_macros -p destack_codegen_js -p destack_codegen_lib -p destack_codegen_native -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_engine -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_linter_macros -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_native -p destack_parser -p destack_qir -p destack_query -p destack_runtime -p destack_workspace -p destack_session -p destack_source -p destack_test -p destack_unicode -p destack_vm -p destack_repository"
 
 _default:
     @just --list --unsorted
@@ -108,7 +108,7 @@ generate-unicode:
 # generate JSON schema
 generate-schema:
     mkdir -p workspace/generated
-    cargo run -p destack_workspace --features schema --bin generate-schema --release > workspace/generated/destack.schema.json
+    cargo run -p destack_repository --features schema --bin generate-schema --release > workspace/generated/destack.schema.json
     cp workspace/generated/destack.schema.json ../bridge/vscode/destack.schema.json
     @echo "generated workspace/generated/destack.schema.json"
 

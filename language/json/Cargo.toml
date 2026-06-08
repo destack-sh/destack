@@ -16,7 +16,7 @@ doctest = false
 destack_artifact = { workspace = true }
 destack_fir = { workspace = true }
 destack_source = { workspace = true }
-destack_workspace = { workspace = true }
+destack_repository = { workspace = true }
 
 # general
 serde_json = { workspace = true }

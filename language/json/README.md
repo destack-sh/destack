@@ -49,8 +49,8 @@ Run these from the repository root.
 ```sh
 # focused local loop
 cargo test -p destack_json
+cargo test -p destack_repository
 cargo test -p destack_workspace
-cargo test -p destack_service
 
 # clean check
 just language/check-quick
