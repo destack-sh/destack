@@ -4,23 +4,24 @@ use std::sync::Arc;
 use destack_compiler::Compiler;
 use destack_linter::Linter;
 use destack_query::Query;
+use destack_repository::{DestackLayoutOverride, Environment, Ref, Revision, Settings};
+use destack_session as session;
 use destack_session::{
-    FileUpdate, Session, SourceSnapshot, SourceUpdate, SourceUpdateResult, open_repository_from_fs,
+    FileUpdate, SourceSnapshot, SourceUpdate, SourceUpdateResult, open_repository_from_fs,
     open_repository_from_source,
 };
 use destack_source::{FileSystem, PhysicalFileSystem};
-use destack_workspace::{DestackLayoutOverride, Environment, Ref, Revision, Settings};
 
 use crate::{Error, Result};
 
 /// Bridge session over one live language session.
 #[derive(Debug)]
-pub struct LanguageSession {
+pub struct Session {
     /// Live language session.
-    inner: Session,
+    inner: session::Session,
 }
 
-impl LanguageSession {
+impl Session {
     /// Open one language session from a physical filesystem path.
     pub fn open_path(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
@@ -107,15 +108,15 @@ impl LanguageSession {
     }
 
     /// Open one bridge session from one prepared repository.
-    fn open(repository: destack_workspace::Repository) -> Result<Self> {
+    fn open(repository: destack_repository::Repository) -> Result<Self> {
         let repository = Arc::new(repository);
-        let root = repository.workspace_root().to_path_buf();
-        let head = Ref::for_workspace_root(&root);
+        let root = repository.path().to_path_buf();
+        let head = Ref::for_root(&root);
         let compiler = Arc::new(Compiler::new(Arc::clone(&repository)));
         let linter = Arc::new(Linter::new(Arc::clone(&repository)));
         let query = Arc::new(Query::new(Arc::clone(&repository)));
-        let worker_count = Session::default_worker_count();
-        let inner = Session::new(
+        let worker_count = session::Session::default_worker_count();
+        let inner = session::Session::new(
             root.clone(),
             root,
             repository,
@@ -131,7 +132,7 @@ impl LanguageSession {
     }
 }
 
-/// Parse one displayed workspace revision.
+/// Parse one displayed source revision.
 pub fn parse_revision(value: &str) -> Result<Revision> {
     let Some(hex) = value.strip_prefix('r') else {
         return Err(Error::InvalidRevision {
@@ -167,7 +168,7 @@ mod tests {
 
     #[test]
     fn test_session_opens_source_snapshot() {
-        let session = LanguageSession::open_source(
+        let session = Session::open_source(
             "/workspace",
             SourceSnapshot::new(vec![
                 SourceFile::text("destack.json", r#"{"name":"@test/app"}"#),
@@ -184,7 +185,7 @@ mod tests {
 
     #[test]
     fn test_session_updates_source_snapshot_revision() {
-        let session = LanguageSession::open_source(
+        let session = Session::open_source(
             "/workspace",
             SourceSnapshot::new(vec![
                 SourceFile::text("destack.json", r#"{"name":"@test/app"}"#),

@@ -20,7 +20,7 @@ destack_linter.workspace = true
 destack_query.workspace = true
 destack_session.workspace = true
 destack_source.workspace = true
-destack_workspace.workspace = true
+destack_repository.workspace = true
 
 [lints]
 workspace = true

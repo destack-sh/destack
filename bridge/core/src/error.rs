@@ -1,6 +1,6 @@
 use std::fmt::{self, Display, Formatter};
 
-use destack_workspace::RepositoryError;
+use destack_repository::RepositoryError;
 
 /// Bridge core result.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -18,7 +18,7 @@ pub enum Error {
         /// The failure detail.
         error: RepositoryError,
     },
-    /// A revision id is not a displayed workspace revision.
+    /// A revision id is not a displayed source revision.
     InvalidRevision {
         /// The invalid revision id.
         revision: String,

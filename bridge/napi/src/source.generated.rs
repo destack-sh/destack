@@ -184,14 +184,14 @@ impl SourceFile {
 }
 
 impl Revision {
-    /// Convert one workspace revision into one NAPI revision.
+    /// Convert one source revision into one NAPI revision.
     pub(crate) fn from_core(revision: destack_bridge_core::Revision) -> Self {
         Self {
             id: revision.to_string(),
         }
     }
 
-    /// Convert this NAPI revision into one workspace revision.
+    /// Convert this NAPI revision into one source revision.
     fn into_core(self) -> napi::Result<destack_bridge_core::Revision> {
         destack_bridge_core::parse_revision(&self.id)
             .map_err(|error| napi::Error::from_reason(error.to_string()))
@@ -281,7 +281,7 @@ impl SourceUpdate {
 impl FileUpdate {
     /// Convert one session file update into one NAPI file update.
     pub(crate) fn from_core(
-        session: &destack_bridge_core::LanguageSession,
+        session: &destack_bridge_core::Session,
         update: destack_bridge_core::FileUpdate,
     ) -> Self {
         let uri = update.uri().to_string();
@@ -303,7 +303,7 @@ impl FileUpdate {
 impl SourceUpdateResult {
     /// Convert one session source update result into one NAPI source update result.
     pub(crate) fn from_core(
-        session: &destack_bridge_core::LanguageSession,
+        session: &destack_bridge_core::Session,
         result: destack_bridge_core::SourceUpdateResult,
     ) -> Self {
         Self {

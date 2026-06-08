@@ -44,7 +44,7 @@ export type OpenSessionInput =
       };
 
 /** A live language session. */
-export interface LanguageSession {
+export interface Session {
     /** Selected backend. */
     readonly backend: LanguageBackend;
     /** Return the current session revision. */
@@ -70,7 +70,7 @@ export function detectBackend(): LanguageBackend {
 }
 
 /** Open one language session. */
-export async function openSession(input: OpenSessionInput): Promise<LanguageSession> {
+export async function openSession(input: OpenSessionInput): Promise<Session> {
     const backend = input.backend ?? detectBackend();
 
     // native path sessions require node api filesystem access
@@ -91,34 +91,34 @@ export async function openSession(input: OpenSessionInput): Promise<LanguageSess
 }
 
 /** Open one NAPI language session from a native filesystem path. */
-export async function openNapiPath(path: string): Promise<LanguageSession> {
+export async function openNapiPath(path: string): Promise<Session> {
     const napi = await import("@destack/language-napi");
-    const session = napi.LanguageSession.openPath(path);
+    const session = napi.Session.openPath(path);
 
-    return new NapiLanguageSession(session);
+    return new NativeSession(session);
 }
 
 /** Open one NAPI language session from an explicit source snapshot. */
-export async function openNapiSource(root: string, source: SourceSnapshot): Promise<LanguageSession> {
+export async function openNapiSource(root: string, source: SourceSnapshot): Promise<Session> {
     const napi = await import("@destack/language-napi");
-    const session = napi.LanguageSession.openSource(root, source);
+    const session = napi.Session.openSource(root, source);
 
-    return new NapiLanguageSession(session);
+    return new NativeSession(session);
 }
 
 /** Open one WASM language session from an explicit source snapshot. */
-export async function openWasmSource(root: string, source: SourceSnapshot): Promise<LanguageSession> {
+export async function openWasmSource(root: string, source: SourceSnapshot): Promise<Session> {
     const wasm = await import("@destack/language-wasm");
     await wasm.default();
-    const session = wasm.LanguageSession.openSource(root, lowerWasmSourceSnapshot(wasm, source));
+    const session = wasm.Session.openSource(root, lowerWasmSourceSnapshot(wasm, source));
 
-    return new WasmLanguageSession(wasm, session);
+    return new WasmSession(wasm, session);
 }
 
-class NapiLanguageSession implements LanguageSession {
+class NativeSession implements Session {
     public readonly backend = "napi";
 
-    public constructor(private readonly session: InstanceType<NapiModule["LanguageSession"]>) {}
+    public constructor(private readonly session: InstanceType<NapiModule["Session"]>) {}
 
     public revision(): Revision {
         return this.session.revision();
@@ -141,12 +141,12 @@ class NapiLanguageSession implements LanguageSession {
     }
 }
 
-class WasmLanguageSession implements LanguageSession {
+class WasmSession implements Session {
     public readonly backend = "wasm";
 
     public constructor(
         private readonly wasm: WasmModule,
-        private readonly session: Wasm.LanguageSession,
+        private readonly session: Wasm.Session,
     ) {}
 
     public revision(): Revision {

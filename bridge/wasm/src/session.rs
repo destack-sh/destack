@@ -6,18 +6,17 @@ use crate::{FileUpdate, Revision, SourceSnapshot, SourceUpdate, SourceUpdateResu
 /// Live language session exposed to WebAssembly clients.
 #[derive(Debug)]
 #[wasm_bindgen]
-pub struct LanguageSession {
-    inner: destack_bridge_core::LanguageSession,
+pub struct Session {
+    inner: destack_bridge_core::Session,
 }
 
 #[wasm_bindgen]
-impl LanguageSession {
+impl Session {
     /// Open one session from an explicit source snapshot.
     #[wasm_bindgen(js_name = openSource)]
-    pub fn open_source(root: String, source: SourceSnapshot) -> Result<LanguageSession, JsValue> {
+    pub fn open_source(root: String, source: SourceSnapshot) -> Result<Session, JsValue> {
         let source = source.into_core();
-        let inner =
-            destack_bridge_core::LanguageSession::open_source(root, source).map_err(js_error)?;
+        let inner = destack_bridge_core::Session::open_source(root, source).map_err(js_error)?;
 
         Ok(Self { inner })
     }

@@ -6,18 +6,18 @@ use crate::{FileUpdate, Revision, SourceSnapshot, SourceUpdate, SourceUpdateResu
 /// Live language session exposed to Node API clients.
 #[derive(Debug)]
 #[napi]
-pub struct LanguageSession {
+pub struct Session {
     /// Shared bridge core session.
-    inner: destack_bridge_core::LanguageSession,
+    inner: destack_bridge_core::Session,
 }
 
 #[napi]
-impl LanguageSession {
+impl Session {
     /// Open one session from an explicit source snapshot.
     #[napi(factory)]
     pub fn open_source(root: String, source: SourceSnapshot) -> Result<Self> {
         let source = source.into_core()?;
-        let inner = destack_bridge_core::LanguageSession::open_source(root, source)
+        let inner = destack_bridge_core::Session::open_source(root, source)
             .map_err(|error| napi::Error::from_reason(error.to_string()))?;
 
         Ok(Self { inner })
@@ -26,7 +26,7 @@ impl LanguageSession {
     /// Open one session from a native filesystem path.
     #[napi(factory)]
     pub fn open_path(path: String) -> Result<Self> {
-        let inner = destack_bridge_core::LanguageSession::open_path(path)
+        let inner = destack_bridge_core::Session::open_path(path)
             .map_err(|error| napi::Error::from_reason(error.to_string()))?;
 
         Ok(Self { inner })
