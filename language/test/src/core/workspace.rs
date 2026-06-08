@@ -10,7 +10,7 @@ use destack_session::Session;
 use destack_source::{
     DiagnosticCollection, FileContent, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId,
 };
-use destack_workspace::{
+use destack_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, FormatterOptions, LinterOptions, Ref,
     Repository, Revision, Settings,
 };
@@ -113,7 +113,7 @@ pub fn open_repository_with_options(
         Settings::default(),
         layout,
     ));
-    let root = repository.workspace_root().to_path_buf();
+    let root = repository.path().to_path_buf();
     materialize_workspace_root(repository.clone(), &root);
     materialize_workspace_options(repository.as_ref(), formatter, linter);
 
@@ -126,7 +126,7 @@ fn materialize_workspace_options(
     formatter: FormatterOptions,
     linter: LinterOptions,
 ) {
-    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let reference = Ref::for_root(repository.path());
     let json = json!({
         "formatter": formatter_json_value(formatter),
         "linter": linter_json_value(&linter),
@@ -174,10 +174,10 @@ fn linter_json_value(linter: &LinterOptions) -> Value {
     rules.insert(
         "preset".to_string(),
         json!(match linter.preset {
-            destack_workspace::LintPreset::None => "none",
-            destack_workspace::LintPreset::Recommended => "recommended",
-            destack_workspace::LintPreset::Strict => "strict",
-            destack_workspace::LintPreset::All => "all",
+            destack_repository::LintPreset::None => "none",
+            destack_repository::LintPreset::Recommended => "recommended",
+            destack_repository::LintPreset::Strict => "strict",
+            destack_repository::LintPreset::All => "all",
         }),
     );
 
@@ -213,18 +213,18 @@ fn linter_json_value(linter: &LinterOptions) -> Value {
 }
 
 /// Convert lint severity to one config json value.
-fn lint_severity_json_value(severity: destack_workspace::LintSeverity) -> Value {
+fn lint_severity_json_value(severity: destack_repository::LintSeverity) -> Value {
     json!(match severity {
-        destack_workspace::LintSeverity::Off => "off",
-        destack_workspace::LintSeverity::Note => "off",
-        destack_workspace::LintSeverity::Warning => "warn",
-        destack_workspace::LintSeverity::Error => "error",
+        destack_repository::LintSeverity::Off => "off",
+        destack_repository::LintSeverity::Note => "off",
+        destack_repository::LintSeverity::Warning => "warn",
+        destack_repository::LintSeverity::Error => "error",
     })
 }
 
 /// Return the current workspace revision for one repository.
 pub fn current_workspace_revision(repository: &Repository) -> Revision {
-    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let reference = Ref::for_root(repository.path());
 
     repository
         .current(&reference)
@@ -245,7 +245,7 @@ pub fn write_workspace_file(
     path: &Path,
     content: FileContent,
 ) -> Revision {
-    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let reference = Ref::for_root(repository.path());
     let logical_path = repository.logical_path(path);
     let edit = Edit::SetFile {
         logical_path,
@@ -364,8 +364,8 @@ pub fn provide_workspace_artifacts(
     compiler: Arc<Compiler>,
     artifact_keys: &[ArtifactKey],
 ) -> Revision {
-    let root = repository.workspace_root().to_path_buf();
-    let head = Ref::for_workspace_root(&root);
+    let root = repository.path().to_path_buf();
+    let head = Ref::for_root(&root);
     let linter = Arc::new(Linter::new(repository.clone()));
     let query = Arc::new(Query::new(repository.clone()));
     let session = Session::new(
@@ -395,7 +395,7 @@ pub fn provide_workspace_artifacts(
 
 /// Materialize one workspace root through one session driven reload.
 fn materialize_workspace_root(repository: Arc<Repository>, root: &Path) {
-    let head = Ref::for_workspace_root(root);
+    let head = Ref::for_root(root);
     let compiler = Arc::new(Compiler::new(repository.clone()));
     let linter = Arc::new(Linter::new(repository.clone()));
     let query = Arc::new(Query::new(repository.clone()));

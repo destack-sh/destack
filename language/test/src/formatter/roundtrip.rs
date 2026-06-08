@@ -7,7 +7,7 @@ use destack_fir::format as fir_format;
 use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
 use destack_parser::{Parser, ParserOptions, ParserTriviaMode};
 use destack_source::{DiffOptions, File, FileId, FileType, LanguageType, Uri, print_diff};
-use destack_workspace::FormatterOptions;
+use destack_repository::FormatterOptions;
 
 /// Run a single formatter roundtrip test.
 ///

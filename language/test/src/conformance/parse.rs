@@ -11,7 +11,7 @@ use destack_source::{
     DiagnosticCollection, DiagnosticSeverity, File, FileContent, FileId, FileSystem, FileType,
     LanguageType, MemoryFileSystem, ModuleId, PrintOptions, Uri,
 };
-use destack_workspace::{
+use destack_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Repository, Revision, Settings,
 };
 

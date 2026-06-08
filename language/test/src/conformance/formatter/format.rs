@@ -10,7 +10,7 @@ use destack_source::{
     DiagnosticSeverity, DiffOptions, File, FileId, FileType, LanguageType, PrintOptions, Uri,
     print_diff,
 };
-use destack_workspace::{FormatterOptions, OrganizeImports};
+use destack_repository::{FormatterOptions, OrganizeImports};
 
 use crate::core::format_diagnostics;
 

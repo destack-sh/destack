@@ -12,7 +12,7 @@ use destack_source::{
     DiagnosticSeverity, DiffOptions, File, FileId, FileType, IndentStyle, LanguageType,
     PrintOptions, Uri, print_diff,
 };
-use destack_workspace::FormatterOptions;
+use destack_repository::FormatterOptions;
 
 /// Run a single formatter transform test.
 ///

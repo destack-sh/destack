@@ -7,7 +7,7 @@ use destack_artifact::ArtifactKey;
 use destack_compiler::Compiler;
 use destack_query::{self as query, ModuleQueryContext, WorkspaceQueryContext};
 use destack_source::{FileId, FileType, MemoryFileSystem, ModuleId};
-use destack_workspace::{ProfileId, Ref, Repository, Revision};
+use destack_repository::{ProfileId, Ref, Repository, Revision};
 
 use super::{TestMarkers, parse_markers};
 use crate::core::{
@@ -562,7 +562,7 @@ fn log_query_session_build_timing(root: &Path, timings: &QuerySessionBuildTiming
 
 /// Return the current workspace revision for one repository.
 fn current_workspace_revision(repository: &Repository) -> Revision {
-    let reference = Ref::for_workspace_root(repository.workspace_root());
+    let reference = Ref::for_root(repository.path());
 
     repository
         .current(&reference)
