@@ -1,7 +1,6 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{CheckState, FunctionTerm, GenericInstance, TypeOperand};
+use crate::check::{FunctionTerm, GenericInstance, TypeOperand};
 
 /// Runtime call target resolved by the solver.
 ///
@@ -142,25 +141,4 @@ pub(in crate::check) enum CallDecision {
     /// 1()
     /// ```
     Rejected(CallFailure),
-}
-
-impl CheckState<'_> {
-    /// Select one call decision.
-    pub(in crate::check) fn select_call(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        decision: CallDecision,
-    ) -> CompilerResult<()> {
-        if let Some(existing) = self.inference.call(source) {
-            if existing == decision {
-                return Ok(());
-            }
-
-            return Err(self.selection_conflict_error("call", source, &existing, &decision));
-        }
-
-        self.inference.select_call(source, decision);
-
-        Ok(())
-    }
 }

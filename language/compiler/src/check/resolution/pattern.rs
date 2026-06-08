@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, GenericInstance, StaticOperand, TypeOperand};
+use crate::check::{GenericInstance, StaticOperand, TypeOperand};
 
 /// Pattern decision resolved by check before commit.
 ///
@@ -445,15 +445,4 @@ pub(in crate::check) struct PatternRestResolution {
     pub(in crate::check) source: dir::GlobalNodeIdAny,
     /// The nested pattern matched for the rest field.
     pub(in crate::check) pattern: Option<dir::GlobalNodeIdAny>,
-}
-
-impl CheckState<'_> {
-    /// Select one pattern decision.
-    pub(in crate::check) fn select_pattern(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        decision: PatternDecision,
-    ) {
-        self.inference.select_pattern(source, decision);
-    }
 }

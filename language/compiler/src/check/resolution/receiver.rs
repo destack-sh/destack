@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::check::{CheckState, TypeOperand};
+use crate::check::TypeOperand;
 
 /// Resolved contextual receiver selected by check.
 ///
@@ -19,11 +19,4 @@ pub(in crate::check) struct ReceiverResolution {
     pub(in crate::check) owner: dir::GlobalSymbolId,
     /// The receiver type variable.
     pub(in crate::check) ty: TypeOperand,
-}
-
-impl CheckState<'_> {
-    /// Select one receiver resolution.
-    pub(in crate::check) fn select_receiver(&mut self, receiver: ReceiverResolution) {
-        self.inference.select_receiver(receiver);
-    }
 }

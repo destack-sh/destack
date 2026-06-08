@@ -1,7 +1,6 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{CheckState, FunctionTerm, OperatorTermKind, TypeOperand, VariableId};
+use crate::check::{FunctionTerm, OperatorTermKind, TypeOperand, VariableId};
 
 /// Solved runtime operator resolved by the solver.
 ///
@@ -112,32 +111,4 @@ pub(in crate::check) enum OperatorDecision {
     /// left + right
     /// ```
     Rejected(OperatorFailure),
-}
-
-impl CheckState<'_> {
-    /// Select one operator decision.
-    pub(in crate::check) fn select_operator(
-        &mut self,
-        decision: OperatorDecision,
-    ) -> CompilerResult<()> {
-        let source = match &decision {
-            OperatorDecision::Resolved(operator) => match operator {
-                OperatorResolution::Builtin { source, .. }
-                | OperatorResolution::Method { source, .. } => *source,
-            },
-            OperatorDecision::Rejected(failure) => failure.source,
-        };
-
-        if let Some(existing) = self.inference.operator(source) {
-            if existing == decision {
-                return Ok(());
-            }
-
-            return Err(self.selection_conflict_error("operator", source, &existing, &decision));
-        }
-
-        self.inference.select_operator(source, decision);
-
-        Ok(())
-    }
 }

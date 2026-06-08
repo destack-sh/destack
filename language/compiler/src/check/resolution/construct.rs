@@ -1,7 +1,6 @@
 use destack_dir as dir;
 
-use crate::CompilerResult;
-use crate::check::{CallFailure, CheckState, FunctionTerm, GenericInstance};
+use crate::check::{CallFailure, FunctionTerm, GenericInstance};
 
 /// Runtime construct target selected before commit.
 ///
@@ -148,25 +147,4 @@ pub(in crate::check) enum ConstructDecision {
     /// new 1()
     /// ```
     Rejected(ConstructFailure),
-}
-
-impl CheckState<'_> {
-    /// Select one construct decision.
-    pub(in crate::check) fn select_construct(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-        decision: ConstructDecision,
-    ) -> CompilerResult<()> {
-        if let Some(existing) = self.inference.construct(source) {
-            if existing == decision {
-                return Ok(());
-            }
-
-            return Err(self.selection_conflict_error("construct", source, &existing, &decision));
-        }
-
-        self.inference.select_construct(source, decision);
-
-        Ok(())
-    }
 }
