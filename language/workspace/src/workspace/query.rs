@@ -1,14 +1,14 @@
-use std::collections::HashMap;
 use std::path::Path;
 
 use destack_artifact::ArtifactKey;
 use destack_query as query;
+use destack_repository::{Repository, Revision};
 use destack_session::Session;
-use destack_source::{ProfileId, Uri};
-use destack_workspace::{Repository, Revision};
+use destack_source::ProfileId;
 
-use super::diagnostic::diagnostics_by_file;
-use super::{DiagnosticView, LanguageService, LanguageServiceError, SessionRevisionView};
+use crate::diagnostic::{Error, diagnostics_by_file};
+
+use super::{Snapshot, Workspace};
 
 /// Result of executing one query.
 #[derive(Debug, Clone, PartialEq)]
@@ -21,7 +21,7 @@ pub struct QueryResult {
 
 /// Revision selection policy for one query.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum QueryRevision {
+pub enum RevisionPolicy {
     /// Use the ref's latest revision when execution starts.
     Latest,
     /// Use one exact immutable revision.
@@ -30,129 +30,14 @@ pub enum QueryRevision {
     Current(Revision),
 }
 
-impl LanguageService {
-    /// Return a current diagnostic view for one file path.
-    pub fn file_diagnostics(
-        &self,
-        path: &Path,
-    ) -> Result<Option<DiagnosticView>, LanguageServiceError> {
-        let root = self.root_at(path)?;
-        let session = self.session_revision_view(&root)?;
-        let revision = session.revision();
-        let repository = session.repository();
-
-        let Some(file_id) = session.file_id(path)? else {
-            return Ok(None);
-        };
-        let file = session.file(file_id)?;
-        let diagnostics = diagnostics_by_file(repository, revision)?
-            .remove(&file_id)
-            .unwrap_or_default();
-        let open_file = file.path.as_ref().and_then(|path| self.open_state(path));
-        let diagnostic_uri = open_file
-            .as_ref()
-            .map(|file| file.uri.clone())
-            .or_else(|| file.path.as_ref().map(Uri::from_file_path))
-            .unwrap_or_else(|| file.uri.clone());
-        let diagnostic_version = if let Some(path) = file.path.as_ref() {
-            self.open_file_version_in_revision(repository, revision, file_id, path)?
-        } else {
-            None
-        };
-
-        Ok(Some(DiagnosticView {
-            file,
-            diagnostic_uri,
-            diagnostic_version,
-            diagnostics,
-        }))
-    }
-
-    /// Return current diagnostic views for every open root.
-    pub fn diagnostics(&self) -> Result<Vec<DiagnosticView>, LanguageServiceError> {
-        let mut roots: Vec<_> = self.roots.iter().map(|entry| entry.key().clone()).collect();
-        roots.sort();
-
-        let mut views = Vec::new();
-        for root in roots {
-            let root_views = self.root_diagnostics(&root)?;
-
-            views.extend(root_views);
-        }
-
-        Ok(views)
-    }
-
-    /// Return current diagnostic views for one root.
-    pub fn root_diagnostics(
-        &self,
-        root: &Path,
-    ) -> Result<Vec<DiagnosticView>, LanguageServiceError> {
-        let session = self.session_revision_view(root)?;
-        let revision = session.revision();
-        let repository = session.repository();
-        let mut diagnostics_by_file = diagnostics_by_file(repository, revision)?;
-
-        // open files
-        let mut open_files = HashMap::new();
-        for (path, file) in self.open_files_under(root) {
-            let Some(file_id) = session.file_id(&path)? else {
-                continue;
-            };
-            let version =
-                self.open_file_version_in_revision(repository, revision, file_id, &path)?;
-
-            diagnostics_by_file.entry(file_id).or_insert(Vec::new());
-            open_files.insert(file_id, (file.uri, version));
-        }
-
-        let mut views = Vec::new();
-        for (file_id, diagnostics) in diagnostics_by_file {
-            let Ok(file) = session.file(file_id) else {
-                continue;
-            };
-            let open_file = open_files.get(&file_id);
-            let diagnostic_uri = open_file
-                .map(|(uri, _)| uri.clone())
-                .or_else(|| file.path.as_ref().map(Uri::from_file_path))
-                .unwrap_or_else(|| file.uri.clone());
-            let diagnostic_version = open_file.and_then(|(_, version)| *version);
-
-            views.push(DiagnosticView {
-                file,
-                diagnostic_uri,
-                diagnostic_version,
-                diagnostics,
-            });
-        }
-
-        views.sort_by(|left, right| {
-            let left_key = left
-                .file
-                .path
-                .as_ref()
-                .map(|path| path.to_string_lossy().into_owned())
-                .unwrap_or_else(|| left.file.uri.to_string());
-            let right_key = right
-                .file
-                .path
-                .as_ref()
-                .map(|path| path.to_string_lossy().into_owned())
-                .unwrap_or_else(|| right.file.uri.to_string());
-
-            left_key.cmp(&right_key)
-        });
-
-        Ok(views)
-    }
-
+impl Workspace {
     /// Run one query for the root that owns a path.
     pub fn query(
         &self,
         path: &Path,
         request: query::QueryRequest,
-        revision: QueryRevision,
-    ) -> Result<QueryResult, LanguageServiceError> {
+        revision: RevisionPolicy,
+    ) -> Result<QueryResult, Error> {
         let root = self.root_at(path)?;
 
         self.query_root(&root, request, revision)
@@ -163,43 +48,39 @@ impl LanguageService {
         &self,
         root: &Path,
         request: query::QueryRequest,
-        revision: QueryRevision,
-    ) -> Result<QueryResult, LanguageServiceError> {
-        let session = self.query_revision_view(root, revision)?;
+        revision: RevisionPolicy,
+    ) -> Result<QueryResult, Error> {
+        let session = self.query_snapshot(root, revision)?;
         let revision = session.revision();
 
         // dispatch query execution
         let response =
-            self.execute_query_request(&session, session.repository(), revision, request)?;
+            self.execute_query_request(session.session(), session.repository(), revision, request)?;
 
         Ok(QueryResult { revision, response })
     }
 
-    /// Return the session revision view selected by one query revision policy.
-    fn query_revision_view(
-        &self,
-        root: &Path,
-        revision: QueryRevision,
-    ) -> Result<SessionRevisionView, LanguageServiceError> {
+    /// Return the snapshot selected by one query revision policy.
+    fn query_snapshot(&self, root: &Path, revision: RevisionPolicy) -> Result<Snapshot, Error> {
         match revision {
             // latest ref state
-            QueryRevision::Latest => self.session_revision_view(root),
+            RevisionPolicy::Latest => self.snapshot(root),
 
             // exact immutable revision state
-            QueryRevision::Exact(revision) => {
+            RevisionPolicy::Exact(revision) => {
                 let session = self.session(root)?;
                 let repository = session.repository();
                 let revision = repository.pin(revision)?;
 
-                Ok(SessionRevisionView::new(session, revision))
+                Ok(Snapshot::new(session, revision))
             }
 
             // current ref state with caller precondition
-            QueryRevision::Current(expected) => {
-                let session = self.session_revision_view(root)?;
+            RevisionPolicy::Current(expected) => {
+                let session = self.snapshot(root)?;
                 let current = session.revision();
                 if current != expected {
-                    return Err(LanguageServiceError::StaleRevision { expected, current });
+                    return Err(Error::StaleRevision { expected, current });
                 }
 
                 Ok(session)
@@ -214,7 +95,7 @@ impl LanguageService {
         repository: &Repository,
         revision: Revision,
         request: query::QueryRequest,
-    ) -> Result<query::QueryResponse, LanguageServiceError> {
+    ) -> Result<query::QueryResponse, Error> {
         // dispatch by query request variant
         let response = match request {
             query::QueryRequest::Completion(params) => {
@@ -633,22 +514,21 @@ impl LanguageService {
         repository: &'a Repository,
         revision: Revision,
         module: query::QueryModule,
-    ) -> Result<query::ModuleQueryContext<'a>, LanguageServiceError> {
+    ) -> Result<query::ModuleQueryContext<'a>, Error> {
         let key = ArtifactKey::dir_checked(module.module_id, module.profile_id);
-        let checked_version =
-            session
-                .require(revision, key)
-                .map_err(|error| LanguageServiceError::Internal {
-                    detail: format!(
-                        "failed to require query DIR for module {}: {error}",
-                        module.module_id
-                    ),
-                })?;
+        let checked_version = session
+            .require(revision, key)
+            .map_err(|error| Error::Internal {
+                detail: format!(
+                    "failed to require query DIR for module {}: {error}",
+                    module.module_id
+                ),
+            })?;
         let key = ArtifactKey::global_environment(module.profile_id);
         let global_environment_version =
             session
                 .require(revision, key)
-                .map_err(|error| LanguageServiceError::Internal {
+                .map_err(|error| Error::Internal {
                     detail: format!(
                         "failed to require query global environment for profile {:?}: {error}",
                         module.profile_id
@@ -663,7 +543,7 @@ impl LanguageService {
             checked_version,
             global_environment_version,
         )
-        .ok_or_else(|| LanguageServiceError::Internal {
+        .ok_or_else(|| Error::Internal {
             detail: format!("missing query artifacts for module {}", module.module_id),
         })
     }
@@ -675,13 +555,13 @@ impl LanguageService {
         repository: &'a Repository,
         revision: Revision,
         profile_ids: &[ProfileId],
-    ) -> Result<query::WorkspaceQueryContext<'a>, LanguageServiceError> {
+    ) -> Result<query::WorkspaceQueryContext<'a>, Error> {
         let mut indexes = Vec::with_capacity(profile_ids.len());
 
         for profile_id in profile_ids {
             let key = ArtifactKey::workspace_query_index(*profile_id);
             let version = session.require(revision, key).map_err(|error| {
-                LanguageServiceError::Internal {
+                Error::Internal {
                     detail: format!(
                         "failed to require workspace query index for profile {profile_id:?}: {error}"
                     ),
@@ -691,7 +571,7 @@ impl LanguageService {
             let index = repository
                 .artifact_store()
                 .workspace_query_index(&version)
-                .ok_or_else(|| LanguageServiceError::Internal {
+                .ok_or_else(|| Error::Internal {
                     detail: format!(
                         "workspace query index payload is missing for profile {profile_id:?}"
                     ),
@@ -701,7 +581,7 @@ impl LanguageService {
         }
 
         query::workspace_query_context(repository, revision, indexes).ok_or_else(|| {
-            LanguageServiceError::Internal {
+            Error::Internal {
                 detail: "workspace query index references missing module indexes".to_string(),
             }
         })

@@ -39,7 +39,7 @@ impl From<&File> for FileImage {
     }
 }
 
-/// File update emitted by the language service.
+/// File update emitted by the workspace.
 #[derive(Debug, Clone)]
 pub struct FileUpdate {
     /// Updated module id when known.
@@ -61,7 +61,7 @@ pub struct FileUpdate {
 }
 
 impl From<SessionFileUpdate> for FileUpdate {
-    /// Project one session file update into a service payload.
+    /// Project one session file update into a workspace payload.
     fn from(update: SessionFileUpdate) -> Self {
         match update {
             SessionFileUpdate::Updated {

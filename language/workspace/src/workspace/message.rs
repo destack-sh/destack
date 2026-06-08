@@ -1,8 +1,8 @@
-use super::FileUpdate;
+use crate::FileUpdate;
 
-/// Message severity for one language service operation.
+/// Message severity for one workspace operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LanguageServiceMessageKind {
+pub enum MessageKind {
     /// Informational message.
     Info,
     /// Warning message.
@@ -11,38 +11,38 @@ pub enum LanguageServiceMessageKind {
     Error,
 }
 
-/// Message payload emitted by one language service operation.
+/// Message payload emitted by one workspace operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LanguageServiceMessage {
+pub struct Message {
     /// Message severity.
-    pub kind: LanguageServiceMessageKind,
+    pub kind: MessageKind,
     /// Stable message code.
     pub code: String,
     /// Human-readable message.
     pub message: String,
 }
 
-impl LanguageServiceMessage {
+impl Message {
     /// Build one warning message payload.
     pub fn warning(code: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
-            kind: LanguageServiceMessageKind::Warning,
+            kind: MessageKind::Warning,
             code: code.into(),
             message: message.into(),
         }
     }
 }
 
-/// Result of applying local language service updates.
+/// Result of applying local workspace updates.
 #[derive(Debug, Default)]
-pub struct LanguageServiceResult {
+pub struct UpdateBatch {
     /// Update records produced by the operation.
     pub updates: Vec<FileUpdate>,
     /// Message records produced by the operation.
-    pub messages: Vec<LanguageServiceMessage>,
+    pub messages: Vec<Message>,
 }
 
-impl From<Vec<FileUpdate>> for LanguageServiceResult {
+impl From<Vec<FileUpdate>> for UpdateBatch {
     fn from(updates: Vec<FileUpdate>) -> Self {
         Self {
             updates,

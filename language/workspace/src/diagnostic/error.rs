@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 
+use destack_repository::{RepositoryError, Revision};
 use destack_session::SessionError;
-use destack_workspace::{RepositoryError, Revision};
 
-/// Errors produced by language service operations.
+/// Errors produced by workspace operations.
 #[derive(Debug)]
-pub enum LanguageServiceError {
+pub enum Error {
     /// A path is outside every opened root.
     PathNotInRoot {
         /// The path that failed root routing.
@@ -39,34 +39,34 @@ pub enum LanguageServiceError {
         /// The current revision.
         current: Revision,
     },
-    /// Repository work failed inside the service.
+    /// Repository work failed inside the workspace.
     Repository(RepositoryError),
-    /// Session work failed inside the service.
+    /// Session work failed inside the workspace.
     Session(Box<SessionError>),
-    /// Filesystem work failed inside the service.
+    /// Filesystem work failed inside the workspace.
     Io {
         /// The path that failed.
         path: PathBuf,
         /// The filesystem failure.
         source: std::io::Error,
     },
-    /// Internal language service failure.
+    /// Internal workspace failure.
     Internal {
         /// The failure detail.
         detail: String,
     },
 }
 
-impl std::fmt::Display for LanguageServiceError {
+impl std::fmt::Display for Error {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LanguageServiceError::PathNotInRoot { path } => {
+            Error::PathNotInRoot { path } => {
                 write!(formatter, "path is outside every root: {}", path.display())
             }
-            LanguageServiceError::FileMissing { path } => {
+            Error::FileMissing { path } => {
                 write!(formatter, "file is missing: {}", path.display())
             }
-            LanguageServiceError::StaleOpenFile {
+            Error::StaleOpenFile {
                 path,
                 incoming,
                 current,
@@ -77,58 +77,58 @@ impl std::fmt::Display for LanguageServiceError {
                     path.display()
                 )
             }
-            LanguageServiceError::InvalidTextChange { path, detail } => {
+            Error::InvalidTextChange { path, detail } => {
                 write!(
                     formatter,
                     "invalid text change for {}: {detail}",
                     path.display()
                 )
             }
-            LanguageServiceError::StaleRevision { expected, current } => {
+            Error::StaleRevision { expected, current } => {
                 write!(
                     formatter,
                     "stale query revision: expected {expected}, current {current}"
                 )
             }
-            LanguageServiceError::Repository(error) => {
+            Error::Repository(error) => {
                 write!(formatter, "repository error: {error}")
             }
-            LanguageServiceError::Session(error) => {
+            Error::Session(error) => {
                 write!(formatter, "session error: {error}")
             }
-            LanguageServiceError::Io { path, source } => {
+            Error::Io { path, source } => {
                 write!(
                     formatter,
                     "filesystem error at {}: {source}",
                     path.display()
                 )
             }
-            LanguageServiceError::Internal { detail } => {
-                write!(formatter, "language service internal error: {detail}")
+            Error::Internal { detail } => {
+                write!(formatter, "workspace internal error: {detail}")
             }
         }
     }
 }
 
-impl std::error::Error for LanguageServiceError {
+impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            LanguageServiceError::Repository(error) => Some(error),
-            LanguageServiceError::Session(error) => Some(error),
-            LanguageServiceError::Io { source, .. } => Some(source),
+            Error::Repository(error) => Some(error),
+            Error::Session(error) => Some(error),
+            Error::Io { source, .. } => Some(source),
             _ => None,
         }
     }
 }
 
-impl From<RepositoryError> for LanguageServiceError {
+impl From<RepositoryError> for Error {
     fn from(error: RepositoryError) -> Self {
-        LanguageServiceError::Repository(error)
+        Error::Repository(error)
     }
 }
 
-impl From<SessionError> for LanguageServiceError {
+impl From<SessionError> for Error {
     fn from(error: SessionError) -> Self {
-        LanguageServiceError::Session(Box::new(error))
+        Error::Session(Box::new(error))
     }
 }
