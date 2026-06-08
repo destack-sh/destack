@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::heap::{SharedRootEpoch, SharedRootSet, resolve_shared_heap_options};
 use crate::runtime::{SharedCollector, SharedGc, WorkerId};
-use destack_workspace::RuntimeOptions;
+use destack_repository::RuntimeOptions;
 
 /// Runtime-owned heap and GC state.
 #[derive(Debug)]

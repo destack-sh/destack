@@ -6,7 +6,7 @@ use crate::host::resource::ResourceRebinders;
 use crate::world::lineage::{
     CheckpointId, ImageId, Lineage, LineageSnapshot, Revision, RevisionId,
 };
-use destack_workspace::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
+use destack_repository::{ExecutionMode, ReplayPayloadMode, RuntimeOptions};
 use postcard::to_allocvec;
 
 use super::{World, WorldImage};

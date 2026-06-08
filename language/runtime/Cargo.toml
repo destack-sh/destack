@@ -46,7 +46,7 @@ destack_query = { workspace = true }
 destack_source = { workspace = true }
 destack_unicode = { workspace = true }
 destack_vm = { workspace = true }
-destack_workspace = { workspace = true }
+destack_repository = { workspace = true }
 
 libc = { workspace = true }
 postcard = { workspace = true }

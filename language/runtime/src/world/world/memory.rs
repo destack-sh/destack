@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_heap as heap;
-use destack_workspace::ExecutionMode;
+use destack_repository::ExecutionMode;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::{SharedCollector, SharedCollectorMode};

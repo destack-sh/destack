@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use destack_engine as engine;
-use destack_workspace::{Environment, RuntimeOptions};
+use destack_repository::{Environment, RuntimeOptions};
 
 use crate::diagnostic::RuntimeResult;
 use crate::runtime::engine::{Engine, Entry};

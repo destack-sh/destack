@@ -1,7 +1,7 @@
 use destack_core::{Capture, CaptureMode};
 use destack_engine as engine;
 use destack_native as native;
-use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
+use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
 use crate::host::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,
@@ -345,7 +345,7 @@ fn test_world_tick_drives_runtime() {
     let mut world = World::new(&options, Environment::default()).expect("world");
     let runtime_id = world
         .spawn_runtime(
-            destack_workspace::Environment::default(),
+            destack_repository::Environment::default(),
             &options,
             TestEngine::default(),
         )

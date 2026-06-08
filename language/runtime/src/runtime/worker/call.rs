@@ -15,7 +15,7 @@ use crate::world::trace::{EntropySubject, Trace};
 use crate::world::{RuntimeId, WorldState};
 
 use super::{RunnableScope, WorkerId, binding_affinity_name};
-use destack_workspace::{Environment, RuntimeDiagnosticLevel, RuntimeOptions};
+use destack_repository::{Environment, RuntimeDiagnosticLevel, RuntimeOptions};
 
 /// TLS payload for native runtime calls.
 #[derive(Debug)]

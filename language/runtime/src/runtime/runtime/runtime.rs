@@ -15,7 +15,7 @@ use crate::world::{RuntimeId, WorkerWake, WorldState};
 use destack_core::CaptureMode;
 use destack_engine as engine;
 use destack_heap as heap;
-use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
+use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -705,7 +705,7 @@ mod tests {
     use destack_engine as engine;
     use destack_heap::{AllocationShape, SharedHeap};
     use destack_mir::{TraceMap, TraceTable};
-    use destack_workspace::{Environment, RuntimeOptions};
+    use destack_repository::{Environment, RuntimeOptions};
 
     /// Allocate one shared byte payload for runtime tests.
     fn allocate_shared_bytes(
@@ -767,7 +767,7 @@ mod tests {
         let world_state = &mut world.state;
 
         let mut worker = Worker::new_in_world(
-            destack_workspace::Environment::default(),
+            destack_repository::Environment::default(),
             &options,
             world_state,
             &shared,
@@ -804,7 +804,7 @@ mod tests {
             .expect("host waiter should register");
 
         let mut runtime = Runtime::new(
-            Arc::new(destack_workspace::Environment::default()),
+            Arc::new(destack_repository::Environment::default()),
             &options,
             shared,
             engine::StaticSpace::empty(),
@@ -851,7 +851,7 @@ mod tests {
         let shared = runtime_shared_heap(&world, &options);
         let world_state = &mut world.state;
         let mut worker = Worker::new_in_world(
-            destack_workspace::Environment::default(),
+            destack_repository::Environment::default(),
             &options,
             world_state,
             &shared,
@@ -879,7 +879,7 @@ mod tests {
         assert_eq!(shared.shared.usage().allocation_count, 0);
 
         let mut runtime = Runtime::new(
-            Arc::new(destack_workspace::Environment::default()),
+            Arc::new(destack_repository::Environment::default()),
             &options,
             shared,
             engine::StaticSpace::empty(),
@@ -905,7 +905,7 @@ mod tests {
         let world_state = &mut world.state;
 
         let mut worker = Worker::new_in_world(
-            destack_workspace::Environment::default(),
+            destack_repository::Environment::default(),
             &options,
             world_state,
             &shared,
@@ -942,7 +942,7 @@ mod tests {
             .expect("host waiter should register");
 
         let mut runtime = Runtime::new(
-            Arc::new(destack_workspace::Environment::default()),
+            Arc::new(destack_repository::Environment::default()),
             &options,
             shared,
             engine::StaticSpace::empty(),

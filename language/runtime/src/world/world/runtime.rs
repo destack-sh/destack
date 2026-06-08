@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_core::CaptureMode;
 use destack_engine as engine;
-use destack_workspace::{Environment, ExecutionMode, RuntimeOptions};
+use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::resource::ResourceRebinders;

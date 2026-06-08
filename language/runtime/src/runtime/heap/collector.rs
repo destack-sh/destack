@@ -4,7 +4,7 @@ use std::thread::{self, JoinHandle};
 
 use destack_heap::{GcPhase, SharedHeap};
 use destack_mir as mir;
-use destack_workspace::ExecutionMode;
+use destack_repository::ExecutionMode;
 use parking_lot::{Condvar, Mutex};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};

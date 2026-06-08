@@ -10,7 +10,7 @@ use crate::host::HostError;
     target_os = "dragonfly"
 ))]
 use crate::host::HostErrorCode;
-use destack_workspace::PollerBackend;
+use destack_repository::PollerBackend;
 
 #[cfg(target_os = "linux")]
 use super::EpollPoller;

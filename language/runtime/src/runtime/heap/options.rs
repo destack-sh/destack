@@ -7,7 +7,7 @@ use destack_heap::{
     DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_SIZE_BYTES, GcOptions, HeapLimits,
     HeapOptions, SharedHeapLimits, SharedHeapOptions, SizeClassTable,
 };
-use destack_workspace::{HeapOptions as WorkspaceHeapOptions, LocalHeapOptions};
+use destack_repository::{HeapOptions as WorkspaceHeapOptions, LocalHeapOptions};
 
 /// Resolved heap construction options for one worker-local heap.
 #[derive(Debug, Clone)]

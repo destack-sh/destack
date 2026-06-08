@@ -1,4 +1,4 @@
-use destack_workspace::ExecutionMode;
+use destack_repository::ExecutionMode;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 

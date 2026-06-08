@@ -379,7 +379,7 @@ mod tests {
     use crate::runtime::time::Instant;
     use crate::world::trace::{Outcome, TraceRecord};
     use crate::world::{CheckpointId, RevisionId};
-    use destack_workspace::Environment;
+    use destack_repository::Environment;
 
     /// Build one explicit trace header for log tests.
     fn test_trace_header() -> TraceHeader {

@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_workspace::{RuntimeDiagnosticLevel, RuntimeDiagnosticOptions};
+use destack_repository::{RuntimeDiagnosticLevel, RuntimeDiagnosticOptions};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 
