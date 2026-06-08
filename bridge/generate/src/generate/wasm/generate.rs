@@ -1,20 +1,29 @@
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use anyhow::Result;
 use proc_macro2::TokenStream;
 use quote::quote;
 
-use crate::generate::core::{Field, Item, Payload, Schema, Shape, Type, Variant, write_rust};
+use crate::generate::core::{
+    Field, Item, Payload, PayloadNames, Schema, SchemaModule, Shape, Type, Variant, write_rust,
+};
 
 /// Generate WASM bridge bindings.
 pub(in crate::generate) fn generate(root: &Path, schema: &Schema) -> Result<()> {
-    for (module, names) in &schema.modules {
-        let tokens = render_module(schema, names);
+    for module in &schema.modules {
+        let tokens = render_module(schema, &module.names);
+        let path = generated_path(module);
 
-        write_rust(root, module.wasm_file(), tokens)?;
+        write_rust(root, &path, tokens)?;
     }
 
     Ok(())
+}
+
+/// Return one generated WASM module path.
+fn generated_path(module: &SchemaModule) -> String {
+    format!("bridge/wasm/src/{}/generated.rs", module.path.slash_path())
 }
 
 /// Render one generated WASM module.
@@ -209,6 +218,9 @@ fn render_payload_enum(schema: &Schema, ty: &Item, variants: &[Variant]) -> Toke
     let constructors = variants
         .iter()
         .map(|variant| render_payload_constructor(schema, variant, &content_name));
+    let getters = ty
+        .generates_from_bridge()
+        .then(|| render_payload_getters(schema, variants, &content_name));
     let into_bridge = ty
         .generates_into_bridge()
         .then(|| render_payload_enum_into_bridge(schema, ty, variants, &content_name));
@@ -233,11 +245,161 @@ fn render_payload_enum(schema: &Schema, ty: &Item, variants: &[Variant]) -> Toke
         #[wasm_bindgen]
         impl #name {
             #(#constructors)*
+            #getters
         }
 
         #into_bridge
         #from_bridge
     }
+}
+
+/// Render WASM getters for one payload enum.
+fn render_payload_getters(
+    schema: &Schema,
+    variants: &[Variant],
+    content_name: &proc_macro2::Ident,
+) -> TokenStream {
+    let kind_getter = render_payload_kind_getter(variants, content_name);
+    let payload_names = PayloadNames::new(variants);
+    let payload_fields = payload_enum_fields(variants, &payload_names);
+    let field_getters = payload_fields.iter().map(|field| {
+        render_payload_field_getter(schema, variants, &payload_names, content_name, field)
+    });
+
+    quote! {
+        #kind_getter
+        #(#field_getters)*
+    }
+}
+
+/// Render the variant label getter for one payload enum.
+fn render_payload_kind_getter(
+    variants: &[Variant],
+    content_name: &proc_macro2::Ident,
+) -> TokenStream {
+    let arms = variants.iter().map(|variant| {
+        let variant_name = variant.ident();
+        let label = variant.label();
+
+        match &variant.payload {
+            Payload::Unit => quote!(#content_name::#variant_name => #label,),
+            Payload::Tuple(_) => quote!(#content_name::#variant_name(..) => #label,),
+            Payload::Struct(_) => quote!(#content_name::#variant_name { .. } => #label,),
+        }
+    });
+
+    quote! {
+        /// Payload variant label.
+        #[wasm_bindgen(getter, js_name = "kind")]
+        pub fn kind(&self) -> String {
+            let label = match &self.content {
+                #(#arms)*
+            };
+
+            label.to_string()
+        }
+    }
+}
+
+/// Render one optional payload field getter.
+fn render_payload_field_getter(
+    schema: &Schema,
+    variants: &[Variant],
+    payload_names: &PayloadNames,
+    content_name: &proc_macro2::Ident,
+    field: &Field,
+) -> TokenStream {
+    let field_name = field.ident();
+    let label = field.label();
+    let ty = render_type(schema, &field.ty);
+    let arms = variants.iter().filter_map(|variant| {
+        render_payload_field_getter_arm(content_name, variant, payload_names, field)
+    });
+    let docs = field.docs();
+
+    quote! {
+        #docs
+        #[wasm_bindgen(getter, js_name = #label)]
+        pub fn #field_name(&self) -> Option<#ty> {
+            match &self.content {
+                #(#arms)*
+                _ => None,
+            }
+        }
+    }
+}
+
+/// Render one payload field getter arm when a variant carries the field.
+fn render_payload_field_getter_arm(
+    content_name: &proc_macro2::Ident,
+    variant: &Variant,
+    payload_names: &PayloadNames,
+    field: &Field,
+) -> Option<TokenStream> {
+    let variant_name = variant.ident();
+    let value = render_borrowed_clone_value(quote!(value), &field.ty);
+
+    match &variant.payload {
+        Payload::Unit => None,
+        Payload::Tuple(ty) if payload_names.tuple_label(variant) == field.name => {
+            let value = render_borrowed_clone_value(quote!(value), ty);
+
+            Some(quote!(#content_name::#variant_name(value) => Some(#value),))
+        }
+        Payload::Tuple(_) => None,
+        Payload::Struct(fields) => {
+            let Some(field_name) = fields
+                .iter()
+                .find(|variant_field| {
+                    payload_names.field_name(variant, variant_field) == field.name
+                })
+                .map(Field::ident)
+            else {
+                return None;
+            };
+
+            Some(quote!(
+                #content_name::#variant_name {
+                    #field_name: value,
+                    ..
+                } => Some(#value),
+            ))
+        }
+    }
+}
+
+/// Return unique payload enum fields across variants.
+fn payload_enum_fields(variants: &[Variant], payload_names: &PayloadNames) -> Vec<Field> {
+    let mut fields = Vec::new();
+    let mut names = BTreeSet::new();
+
+    for variant in variants {
+        match &variant.payload {
+            Payload::Unit => {}
+            Payload::Tuple(ty) => {
+                let name = payload_names.tuple_label(variant);
+                if names.insert(name.clone()) {
+                    fields.push(Field {
+                        name,
+                        docs: variant.docs.clone(),
+                        ty: ty.clone(),
+                    });
+                }
+            }
+            Payload::Struct(variant_fields) => {
+                for field in variant_fields {
+                    let name = payload_names.field_name(variant, field);
+                    if names.insert(name.clone()) {
+                        let mut field = field.clone();
+                        field.name = name;
+                        fields.push(field);
+                    }
+                }
+            }
+        }
+    }
+
+    fields
 }
 
 /// Render one internal payload content variant.
@@ -514,6 +676,14 @@ fn render_type(schema: &Schema, ty: &Type) -> TokenStream {
 fn render_clone_value(value: TokenStream, ty: &Type) -> TokenStream {
     match ty {
         Type::Bool | Type::U8 | Type::U32 | Type::Usize => value,
+        _ => quote!(#value.clone()),
+    }
+}
+
+/// Render one value cloned from a borrowed WASM field.
+fn render_borrowed_clone_value(value: TokenStream, ty: &Type) -> TokenStream {
+    match ty {
+        Type::Bool | Type::U8 | Type::U32 | Type::Usize => quote!(*#value),
         _ => quote!(#value.clone()),
     }
 }

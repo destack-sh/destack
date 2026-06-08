@@ -1,112 +1,63 @@
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
 use proc_macro2::TokenStream;
 
-use super::spelling::{ident, lower_camel, render_docs, to_snake};
+use super::spelling::{ident, lower_camel, render_docs, to_snake, upper_camel};
 
 /// Bridge schema parsed from `bridge/language`.
 pub(crate) struct Schema {
     /// Items keyed by Rust item name.
     pub(crate) items: BTreeMap<String, Item>,
-    /// Type names in bridge module order.
-    pub(crate) modules: BTreeMap<Module, Vec<String>>,
+    /// Bridge modules in source path order.
+    pub(crate) modules: Vec<SchemaModule>,
+    /// Bridge module path keyed by Rust item name.
+    item_modules: BTreeMap<String, ModulePath>,
 }
 
 /// One bridge schema module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum Module {
-    /// `repository/revision`.
-    RepositoryRevision,
-    /// `session/file`.
-    SessionFile,
-    /// `session/module`.
-    SessionModule,
-    /// `session/source/file`.
-    SourceFile,
-    /// `session/source/snapshot`.
-    SourceSnapshot,
-    /// `session/source/update`.
-    SourceUpdate,
+pub(crate) struct SchemaModule {
+    /// Source module path under `bridge/language/src`.
+    pub(crate) path: ModulePath,
+    /// Type names in source order.
+    pub(crate) names: Vec<String>,
 }
 
-impl Module {
-    /// Return this module generated NAPI path.
-    pub(crate) fn napi_file(self) -> &'static str {
-        match self {
-            Self::RepositoryRevision => "bridge/napi/src/repository/revision/generated.rs",
-            Self::SessionFile => "bridge/napi/src/session/file/generated.rs",
-            Self::SessionModule => "bridge/napi/src/session/module/generated.rs",
-            Self::SourceFile => "bridge/napi/src/session/source/file/generated.rs",
-            Self::SourceSnapshot => "bridge/napi/src/session/source/snapshot/generated.rs",
-            Self::SourceUpdate => "bridge/napi/src/session/source/update/generated.rs",
-        }
-    }
+/// One bridge source module path.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct ModulePath {
+    /// Path segments under `bridge/language/src`.
+    segments: Vec<String>,
+}
 
-    /// Return this module generated WASM path.
-    pub(crate) fn wasm_file(self) -> &'static str {
-        match self {
-            Self::RepositoryRevision => "bridge/wasm/src/repository/revision/generated.rs",
-            Self::SessionFile => "bridge/wasm/src/session/file/generated.rs",
-            Self::SessionModule => "bridge/wasm/src/session/module/generated.rs",
-            Self::SourceFile => "bridge/wasm/src/session/source/file/generated.rs",
-            Self::SourceSnapshot => "bridge/wasm/src/session/source/snapshot/generated.rs",
-            Self::SourceUpdate => "bridge/wasm/src/session/source/update/generated.rs",
-        }
-    }
-
-    /// Return this module generated TypeScript path.
-    pub(crate) fn typescript_file(self) -> &'static str {
-        match self {
-            Self::RepositoryRevision => "bridge/typescript/src/repository/revision.generated.ts",
-            Self::SessionFile => "bridge/typescript/src/session/file.generated.ts",
-            Self::SessionModule => "bridge/typescript/src/session/module.generated.ts",
-            Self::SourceFile => "bridge/typescript/src/session/source/file.generated.ts",
-            Self::SourceSnapshot => "bridge/typescript/src/session/source/snapshot.generated.ts",
-            Self::SourceUpdate => "bridge/typescript/src/session/source/update.generated.ts",
-        }
-    }
-
-    /// Return the TypeScript import path from this module to another module.
-    pub(crate) fn typescript_import_path(self, target: Self) -> String {
-        let source = self.typescript_segments();
-        let target = target.typescript_segments();
-        let source_directory = &source[..source.len() - 1];
-        let mut shared = 0;
-
-        while shared < source_directory.len()
-            && shared < target.len()
-            && source_directory[shared] == target[shared]
-        {
-            shared += 1;
-        }
-
+impl ModulePath {
+    /// Return one bridge source module path.
+    fn from_relative(path: &Path) -> Result<Self> {
+        let path = path.with_extension("");
         let mut segments = Vec::new();
-        for _ in shared..source_directory.len() {
-            segments.push("..");
-        }
-        segments.extend(target[shared..].iter().copied());
 
-        let path = segments.join("/");
-        if path.starts_with('.') {
-            format!("{path}.js")
-        } else {
-            format!("./{path}.js")
+        for component in path.components() {
+            let segment = component.as_os_str().to_string_lossy().to_string();
+            segments.push(segment);
         }
+
+        if segments.is_empty() {
+            bail!("bridge module path is empty");
+        }
+
+        Ok(Self { segments })
     }
 
-    /// Return generated TypeScript path segments.
-    pub(crate) fn typescript_segments(self) -> &'static [&'static str] {
-        match self {
-            Self::RepositoryRevision => &["repository", "revision.generated"],
-            Self::SessionFile => &["session", "file.generated"],
-            Self::SessionModule => &["session", "module.generated"],
-            Self::SourceFile => &["session", "source", "file.generated"],
-            Self::SourceSnapshot => &["session", "source", "snapshot.generated"],
-            Self::SourceUpdate => &["session", "source", "update.generated"],
-        }
+    /// Return path segments.
+    pub(crate) fn segments(&self) -> &[String] {
+        &self.segments
+    }
+
+    /// Return this module path joined by `/`.
+    pub(crate) fn slash_path(&self) -> String {
+        self.segments.join("/")
     }
 }
 
@@ -160,7 +111,7 @@ pub(crate) enum Payload {
 }
 
 /// One supported bridge type reference.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Type {
     /// `String`.
     String,
@@ -180,50 +131,138 @@ pub(crate) enum Type {
     Named(String),
 }
 
+/// Transport names for one payload enum.
+pub(crate) struct PayloadNames {
+    /// Field names that need variant-qualified transport names.
+    ambiguous: std::collections::BTreeSet<String>,
+}
+
+impl PayloadNames {
+    /// Return transport names for one payload enum.
+    pub(crate) fn new(variants: &[Variant]) -> Self {
+        let mut fields = BTreeMap::<String, std::collections::BTreeSet<Type>>::new();
+
+        for variant in variants {
+            for (name, ty) in variant.payload_fields() {
+                fields.entry(name).or_default().insert(ty);
+            }
+        }
+
+        let ambiguous = fields
+            .into_iter()
+            .filter_map(|(name, types)| (types.len() > 1).then_some(name))
+            .collect();
+
+        Self { ambiguous }
+    }
+
+    /// Return the transport field label for one struct payload field.
+    pub(crate) fn field_label(&self, variant: &Variant, field: &Field) -> String {
+        if self.ambiguous.contains(&field.name) {
+            let variant = lower_camel(&variant.name);
+            let field = upper_camel(&field.name);
+
+            format!("{variant}{field}")
+        } else {
+            field.label()
+        }
+    }
+
+    /// Return the Rust transport field name for one struct payload field.
+    pub(crate) fn field_name(&self, variant: &Variant, field: &Field) -> String {
+        to_snake(&self.field_label(variant, field))
+    }
+
+    /// Return the transport field identifier for one struct payload field.
+    pub(crate) fn field_ident(&self, variant: &Variant, field: &Field) -> proc_macro2::Ident {
+        ident(&self.field_name(variant, field))
+    }
+
+    /// Return the transport field label for one tuple payload.
+    pub(crate) fn tuple_label(&self, variant: &Variant) -> String {
+        variant.payload_field_name()
+    }
+
+    /// Return the transport field identifier for one tuple payload.
+    pub(crate) fn tuple_ident(&self, variant: &Variant) -> proc_macro2::Ident {
+        variant.payload_field_ident()
+    }
+}
+
 impl Schema {
     /// Load the bridge schema from Rust source files.
     pub(crate) fn load(root: &Path) -> Result<Self> {
         let mut items = BTreeMap::new();
-        let mut modules = BTreeMap::new();
-        let files = [
-            (
-                Module::RepositoryRevision,
-                "bridge/language/src/repository/revision.rs",
-            ),
-            (Module::SessionFile, "bridge/language/src/session/file.rs"),
-            (
-                Module::SessionModule,
-                "bridge/language/src/session/module.rs",
-            ),
-            (
-                Module::SourceFile,
-                "bridge/language/src/session/source/file.rs",
-            ),
-            (
-                Module::SourceSnapshot,
-                "bridge/language/src/session/source/snapshot.rs",
-            ),
-            (
-                Module::SourceUpdate,
-                "bridge/language/src/session/source/update.rs",
-            ),
-        ];
+        let mut modules = Vec::new();
+        let mut item_modules = BTreeMap::new();
+        let source = root.join("bridge/language/src");
+        let files = Self::source_files(&source)?;
 
-        for (module, file) in files {
-            let names = Self::load_module(root, file, &mut items)?;
-            modules.insert(module, names);
+        for file in files {
+            let relative = file
+                .strip_prefix(&source)
+                .with_context(|| format!("bridge source escaped root: {}", file.display()))?;
+            let path = ModulePath::from_relative(relative)?;
+            let names = Self::load_module(&file, &mut items)?;
+
+            if names.is_empty() {
+                continue;
+            }
+
+            for name in &names {
+                item_modules.insert(name.clone(), path.clone());
+            }
+
+            modules.push(SchemaModule { path, names });
         }
 
-        Ok(Self { items, modules })
+        Ok(Self {
+            items,
+            modules,
+            item_modules,
+        })
+    }
+
+    /// Return bridge source files in stable order.
+    fn source_files(directory: &Path) -> Result<Vec<PathBuf>> {
+        let mut files = Vec::new();
+        Self::push_source_files(directory, &mut files)?;
+        files.sort();
+
+        Ok(files)
+    }
+
+    /// Push bridge source files under one directory.
+    fn push_source_files(directory: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+        for entry in fs::read_dir(directory)
+            .with_context(|| format!("failed to read {}", directory.display()))?
+        {
+            let entry = entry.with_context(|| format!("failed to read {}", directory.display()))?;
+            let path = entry.path();
+
+            if path.is_dir() {
+                Self::push_source_files(&path, files)?;
+            } else if Self::is_source_file(&path) {
+                files.push(path);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return whether this path is one bridge DTO source file.
+    fn is_source_file(path: &Path) -> bool {
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            return false;
+        };
+
+        path.extension().and_then(|extension| extension.to_str()) == Some("rs")
+            && name != "lib.rs"
+            && name != "mod.rs"
     }
 
     /// Load one bridge schema module.
-    fn load_module(
-        root: &Path,
-        file: &str,
-        items: &mut BTreeMap<String, Item>,
-    ) -> Result<Vec<String>> {
-        let path = root.join(file);
+    fn load_module(path: &Path, items: &mut BTreeMap<String, Item>) -> Result<Vec<String>> {
         let source = fs::read_to_string(&path)
             .with_context(|| format!("failed to read {}", path.display()))?;
         let parsed = syn::parse_file(&source)
@@ -264,6 +303,13 @@ impl Schema {
         self.items
             .get(name)
             .unwrap_or_else(|| panic!("bridge type {name} was not parsed"))
+    }
+
+    /// Return the source module path for one bridge type.
+    pub(crate) fn module_path(&self, name: &str) -> &ModulePath {
+        self.item_modules
+            .get(name)
+            .unwrap_or_else(|| panic!("bridge type {name} has no source module"))
     }
 
     /// Return bridge items referenced by one generated module.
@@ -412,6 +458,12 @@ impl Item {
         matches!(
             self.name.as_str(),
             "Revision"
+                | "PackageId"
+                | "ModuleId"
+                | "ProfileId"
+                | "ComponentId"
+                | "TargetId"
+                | "ArtifactKey"
                 | "SourceFile"
                 | "SourceFileContent"
                 | "SourceSnapshot"
@@ -426,7 +478,35 @@ impl Item {
     pub(crate) fn generates_from_bridge(&self) -> bool {
         matches!(
             self.name.as_str(),
-            "Revision" | "SessionFile" | "Module" | "FileUpdate" | "SourceUpdateResult"
+            "Revision"
+                | "PackageId"
+                | "ModuleId"
+                | "ProfileId"
+                | "ComponentId"
+                | "TargetId"
+                | "FileId"
+                | "FileContentId"
+                | "FileContent"
+                | "Span"
+                | "Edit"
+                | "FileEdit"
+                | "BatchEdit"
+                | "DiagnosticSeverity"
+                | "DiagnosticTag"
+                | "Applicability"
+                | "DiagnosticLabel"
+                | "DiagnosticNote"
+                | "DiagnosticHelp"
+                | "DiagnosticSuggestion"
+                | "Diagnostic"
+                | "ArtifactKey"
+                | "ArtifactVersion"
+                | "ArtifactSidecarLabel"
+                | "ArtifactSidecar"
+                | "SessionFile"
+                | "Module"
+                | "FileUpdate"
+                | "SourceUpdateResult"
         )
     }
 
@@ -643,6 +723,18 @@ impl Field {
 }
 
 impl Variant {
+    /// Return payload fields as `(name, type)` pairs.
+    pub(crate) fn payload_fields(&self) -> Vec<(String, Type)> {
+        match &self.payload {
+            Payload::Unit => Vec::new(),
+            Payload::Tuple(ty) => vec![(self.payload_field_name(), ty.clone())],
+            Payload::Struct(fields) => fields
+                .iter()
+                .map(|field| (field.name.clone(), field.ty.clone()))
+                .collect(),
+        }
+    }
+
     /// Return this variant as a Rust identifier.
     pub(crate) fn ident(&self) -> proc_macro2::Ident {
         ident(&self.name)
