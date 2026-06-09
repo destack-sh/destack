@@ -16,5 +16,8 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 path = "src/lib.rs"
 doctest = false
 
+[dependencies]
+destack.workspace = true
+
 [lints]
 workspace = true
