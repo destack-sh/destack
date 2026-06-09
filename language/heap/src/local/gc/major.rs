@@ -1,16 +1,13 @@
 use destack_mir::{TraceMap, TraceTable};
 
-use crate::local::gc::{MajorSweepCursor, MarkWork, Phase};
+use crate::local::gc::{
+    GC_METADATA_STEP_BYTES, MajorSweepCursor, MarkWork, Phase, charge_bitmap_skip,
+};
 use crate::local::storage::{GcKind, GcStats, HeapExtent, HeapPlace, HeapStorage};
 use crate::{
     GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference, HeapResult,
     ReferenceInput, ReferenceRange, RootSlot, visit_references,
 };
-
-/// The budget charged for one metadata-only sweep step.
-const METADATA_STEP_BYTES: usize = 1;
-/// The number of metadata bits skipped by one bitmap word scan.
-const METADATA_WORD_BITS: usize = u64::BITS as usize;
 
 impl HeapStorage {
     /// Return whether one local major collection is active.
@@ -114,9 +111,22 @@ impl HeapStorage {
 
         self.start_major_gc(roots)?;
 
-        // drain the active major cycle synchronously
+        self.drain_major_gc(roots, usize::MAX, trace_table)
+    }
+
+    /// Drain the active local major collection and return its completed stats.
+    pub(crate) fn drain_major_gc<E>(
+        &mut self,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+        budget_bytes: usize,
+        trace_table: &TraceTable,
+    ) -> Result<GcStats, E>
+    where
+        E: From<HeapError>,
+    {
+        // drain the cycle in bounded steps
         loop {
-            match self.step_major_gc(roots, usize::MAX, trace_table)? {
+            match self.step_major_gc(roots, budget_bytes, trace_table)? {
                 GcProgress::Complete(stats) => return Ok(stats),
                 GcProgress::Active => continue,
                 GcProgress::Idle => {
@@ -382,7 +392,7 @@ impl HeapStorage {
                     return Err(HeapError::internal("missing span"));
                 };
                 if bits.freed.contains(slot_index) {
-                    *swept_bytes += METADATA_STEP_BYTES;
+                    *swept_bytes += GC_METADATA_STEP_BYTES;
 
                     continue;
                 }
@@ -458,7 +468,7 @@ impl HeapStorage {
 
                 // empty slots only charge metadata work
                 if !slot.is_occupied {
-                    *swept_bytes += METADATA_STEP_BYTES;
+                    *swept_bytes += GC_METADATA_STEP_BYTES;
 
                     continue;
                 }
@@ -535,7 +545,7 @@ impl HeapStorage {
                 return Err(HeapError::internal("missing large block"));
             };
             if !block.is_live {
-                *swept_bytes += METADATA_STEP_BYTES;
+                *swept_bytes += GC_METADATA_STEP_BYTES;
 
                 continue;
             }
@@ -641,13 +651,7 @@ impl HeapStorage {
             &trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::All,
-            &mut |reference| {
-                if !reference.is_null() && self.resolve_extent(reference).is_none() {
-                    return Err(HeapError::invalid_heap_reference(reference));
-                }
-
-                self.enqueue_major_reference(reference)
-            },
+            &mut |reference| self.enqueue_major_reference(reference),
         );
 
         if let Err(error) = trace_result {
@@ -695,13 +699,7 @@ impl HeapStorage {
             &trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(start, range_len),
-            &mut |reference| {
-                if !reference.is_null() && self.resolve_extent(reference).is_none() {
-                    return Err(HeapError::invalid_heap_reference(reference));
-                }
-
-                self.enqueue_major_reference(reference)
-            },
+            &mut |reference| self.enqueue_major_reference(reference),
         );
 
         if let Err(error) = trace_result {
@@ -887,29 +885,4 @@ struct SmallSlotSweep {
     is_occupied: bool,
     /// Whether the slot is marked in the active major cycle.
     is_marked: bool,
-}
-
-/// Charge bitmap metadata work and return the cursor reached.
-fn charge_bitmap_skip(
-    start: usize,
-    end: usize,
-    budget_bytes: usize,
-    swept_bytes: &mut usize,
-) -> usize {
-    if start >= end {
-        return end;
-    }
-
-    let skipped_bits = end - start;
-    let skipped_words = skipped_bits.div_ceil(METADATA_WORD_BITS);
-    let remaining_budget = budget_bytes - *swept_bytes;
-    if skipped_words <= remaining_budget {
-        *swept_bytes += skipped_words;
-
-        return end;
-    }
-
-    *swept_bytes = budget_bytes;
-
-    start + remaining_budget * METADATA_WORD_BITS
 }

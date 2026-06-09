@@ -10,7 +10,7 @@ use super::{
 use crate::allocator::{PageSpan, Slot};
 use crate::{
     AllocationPlan, HeapAllocationError, HeapError, HeapRepresentationError, HeapResult, Payload,
-    SharedHeapReference, SmallAllocationPlan, SmallSpanClass,
+    SharedHeapReference, SmallAllocationPlan, SmallSpanClass, align_up,
 };
 
 impl HeapStorage {
@@ -290,7 +290,7 @@ impl HeapStorage {
         };
         let first_offset = block.read().first_offset;
 
-        self.initialize_mapped_payload(first_offset, layout.byte_len, payload);
+        payload.initialize_mapped(&self.mapping, first_offset, layout.byte_len);
         self.accounting.allocate(layout.byte_len);
         self.accounting.retain_pages(pages, self.page_size_bytes());
 
@@ -327,7 +327,7 @@ impl HeapStorage {
         class: &SmallSpanClass,
     ) -> HeapResult<SmallSpanAllocation> {
         // first reuse a central partial span
-        while let Some(span_index) = store.small.partial_spans.entry(*class).or_default().pop() {
+        while let Some(span_index) = store.small.partial_spans.get_mut(class).and_then(Vec::pop) {
             let Some(span) = store.small.spans.get(span_index).cloned() else {
                 return Err(HeapError::internal("missing span"));
             };
@@ -380,7 +380,11 @@ impl HeapStorage {
         // materialize the full span before worker-local spans use it
         self.mapping
             .materialize(first_offset, class.span_size_bytes)?;
-        self.clear_mapped_bytes(first_offset, class.span_size_bytes);
+        // SAFETY: the span range was materialized above
+        unsafe {
+            self.mapping
+                .zero_mapped_bytes(first_offset, class.span_size_bytes);
+        }
 
         let span = SmallSpan::new(first_offset, *class, slot_count, pages, SpanList::Worker);
         let span_index = store.small.spans.len();
@@ -557,133 +561,14 @@ impl HeapStorage {
         trace_map: &TraceMap,
         payload: Payload<'_>,
     ) -> HeapResult<Option<ReservedSlot>> {
-        // no-scan payloads avoid reference metadata writes
-        if !trace_map.has_reference() {
-            match payload {
-                Payload::Zeroed | Payload::Uninit => {
-                    return self.reserve_zeroed_noscan_slot(size_class_cache);
-                }
-                Payload::Bytes(bytes) => {
-                    return self.reserve_bytes_noscan_slot(size_class_cache, bytes);
-                }
-            }
-        }
-
-        self.reserve_traced_slot(size_class_cache, trace_map, payload)
-    }
-
-    /// Reserve one zeroed no-scan slot from one worker-local cache.
-    #[inline(always)]
-    fn reserve_zeroed_noscan_slot(
-        &self,
-        size_class_cache: &mut SmallSizeClassCache,
-    ) -> HeapResult<Option<ReservedSlot>> {
+        // claim one slot or retire the exhausted cache
         let Some(slot) = size_class_cache.reserve_slot() else {
             size_class_cache.finish();
 
             return Ok(None);
         };
-        let slot_index = slot.slot_index;
-        let span = size_class_cache.span.as_ref().cloned();
-        let span_slot = size_class_cache.span_slot(slot_index);
-        let Some(class) = size_class_cache.class() else {
-            return Err(HeapError::internal("missing cache class"));
-        };
-        let Some(reference) = size_class_cache.reference_for_slot(slot_index) else {
-            return Err(HeapError::internal("missing cache class"));
-        };
 
-        // clear only slots that previously held arbitrary bytes
-        if let Some(span) = &span
-            && !slot.is_dense
-            && span.take_needs_zero(slot_index)
-        {
-            self.clear_mapped_bytes(reference.offset(), class.size_class);
-        }
-
-        // publish reused slots immediately
-        if let Some(span) = &span
-            && !slot.is_dense
-        {
-            span.publish_slot(slot_index);
-        }
-
-        // decide whether the worker keeps this cache
-        let keep_cache = size_class_cache.has_available_slot();
-
-        Ok(Some(ReservedSlot {
-            slot: span_slot,
-            is_dense: slot.is_dense,
-            keep_cache,
-        }))
-    }
-
-    /// Reserve one byte-initialized no-scan slot from one worker-local cache.
-    #[inline(always)]
-    fn reserve_bytes_noscan_slot(
-        &self,
-        size_class_cache: &mut SmallSizeClassCache,
-        bytes: &[u8],
-    ) -> HeapResult<Option<ReservedSlot>> {
-        let Some(slot) = size_class_cache.reserve_slot() else {
-            size_class_cache.finish();
-
-            return Ok(None);
-        };
-        let slot_index = slot.slot_index;
-        let span = size_class_cache.span.as_ref().cloned();
-        let span_slot = size_class_cache.span_slot(slot_index);
-        let Some(class) = size_class_cache.class() else {
-            return Err(HeapError::internal("missing cache class"));
-        };
-        let Some(reference) = size_class_cache.reference_for_slot(slot_index) else {
-            return Err(HeapError::internal("missing cache class"));
-        };
-
-        // clear stale tail bytes before copying short payloads
-        if let Some(span) = &span
-            && bytes.len() < class.size_class
-            && span.take_needs_zero(slot_index)
-        {
-            self.clear_mapped_bytes(reference.offset(), class.size_class);
-        }
-
-        // copy the payload before publishing the initialized slot
-        self.write_mapped_bytes(reference.offset(), bytes);
-        if let Some(span) = &span {
-            span.clear_needs_zero(slot_index);
-        }
-
-        // publish reused slots immediately
-        if let Some(span) = &span
-            && !slot.is_dense
-        {
-            span.publish_slot(slot_index);
-        }
-
-        // decide whether the worker keeps this cache
-        let keep_cache = size_class_cache.has_available_slot();
-
-        Ok(Some(ReservedSlot {
-            slot: span_slot,
-            is_dense: slot.is_dense,
-            keep_cache,
-        }))
-    }
-
-    /// Reserve one traced slot from one worker-local shared small cache.
-    #[inline(always)]
-    fn reserve_traced_slot(
-        &self,
-        size_class_cache: &mut SmallSizeClassCache,
-        trace_map: &TraceMap,
-        payload: Payload<'_>,
-    ) -> HeapResult<Option<ReservedSlot>> {
-        let Some(slot) = size_class_cache.reserve_slot() else {
-            size_class_cache.finish();
-
-            return Ok(None);
-        };
+        // resolve the claimed slot inside the worker-owned span
         let slot_index = slot.slot_index;
         let span = size_class_cache.span.as_ref().cloned();
         let span_slot = size_class_cache.span_slot(slot_index);
@@ -695,35 +580,59 @@ impl HeapStorage {
         };
         let mapping_offset = reference.offset();
 
-        match payload {
-            Payload::Bytes(bytes) if bytes.len() < class.size_class => {
-                self.clear_mapped_bytes(mapping_offset, class.size_class);
-                self.write_mapped_bytes(mapping_offset, bytes);
-            }
-            Payload::Bytes(bytes) => self.write_mapped_bytes(mapping_offset, bytes),
-            Payload::Zeroed => {
-                if let Some(span) = &span
-                    && span.take_needs_zero(slot_index)
-                {
-                    self.clear_mapped_bytes(mapping_offset, class.size_class);
+        // dense slots come bulk-zeroed, a clear needs-zero bit means the free slot holds zeroes
+        let needs_zero = !slot.is_dense
+            && span
+                .as_ref()
+                .is_some_and(|span| span.take_needs_zero(slot_index));
+
+        // initialize the slot payload
+        // SAFETY: worker spans are materialized before they enter caches
+        unsafe {
+            match payload {
+                // clear stale tail bytes before copying short payloads
+                Payload::Bytes(bytes) if bytes.len() < class.size_class => {
+                    if needs_zero {
+                        self.mapping
+                            .zero_mapped_bytes(mapping_offset, class.size_class);
+                    }
+
+                    self.mapping.write_mapped_bytes(mapping_offset, bytes);
                 }
+                // full-width payloads overwrite the slot completely
+                Payload::Bytes(bytes) => self.mapping.write_mapped_bytes(mapping_offset, bytes),
+                // clear only slots that previously held arbitrary bytes
+                Payload::Zeroed => {
+                    if needs_zero {
+                        self.mapping
+                            .zero_mapped_bytes(mapping_offset, class.size_class);
+                    }
+                }
+                // no-scan slots keep zeroed reuse semantics even when uninitialized
+                Payload::Uninit if !trace_map.has_reference() => {
+                    if needs_zero {
+                        self.mapping
+                            .zero_mapped_bytes(mapping_offset, class.size_class);
+                    }
+                }
+                // traced uninitialized slots are owned by the caller until written
+                Payload::Uninit => {}
             }
-            Payload::Uninit => {}
         }
 
+        // publish slot metadata before scanners can see the slot
         if let Some(span) = &span {
+            // byte payloads leave arbitrary slot contents behind on release
             if matches!(payload, Payload::Bytes(_)) {
                 span.clear_needs_zero(slot_index);
             }
 
             span.write_reference_bits(slot_index, trace_map);
-        }
 
-        // publish reused slots immediately
-        if let Some(span) = &span
-            && !slot.is_dense
-        {
-            span.publish_slot(slot_index);
+            // publish reused slots immediately
+            if !slot.is_dense {
+                span.publish_slot(slot_index);
+            }
         }
 
         // decide whether the worker keeps this cache
@@ -883,45 +792,6 @@ impl HeapStorage {
 
         Ok(first_offset)
     }
-
-    /// Initialize one mapped payload range.
-    #[inline(always)]
-    fn initialize_mapped_payload(
-        &self,
-        offset: usize,
-        clear_byte_len: usize,
-        payload: Payload<'_>,
-    ) {
-        match payload {
-            Payload::Bytes(bytes) if bytes.len() < clear_byte_len => {
-                self.clear_mapped_bytes(offset, clear_byte_len);
-                self.write_mapped_bytes(offset, bytes);
-            }
-            Payload::Bytes(bytes) => self.write_mapped_bytes(offset, bytes),
-            Payload::Zeroed => self.clear_mapped_bytes(offset, clear_byte_len),
-            Payload::Uninit => {}
-        }
-    }
-
-    /// Write bytes into one mapped payload range.
-    #[inline(always)]
-    fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
-        // SAFETY: block paths materialize the destination before publishing it
-        unsafe {
-            self.mapping.write_mapped_bytes(offset, bytes);
-        }
-    }
-
-    /// Clear one mapped payload range.
-    #[inline(always)]
-    fn clear_mapped_bytes(&self, offset: usize, byte_len: usize) {
-        let address = self.mapping.base_address() + offset;
-
-        // SAFETY: block paths materialize the destination before publishing it
-        unsafe {
-            std::ptr::write_bytes(address as *mut u8, 0, byte_len);
-        }
-    }
 }
 
 /// One shared small span selected for worker-local allocation.
@@ -931,11 +801,4 @@ struct SmallSpanAllocation {
     span_index: usize,
     /// Whether the worker cache can use dense cursor allocation.
     is_dense: bool,
-}
-
-/// Return the offset rounded up to one block boundary.
-fn align_up(byte_len: usize, alignment_bytes: usize) -> usize {
-    let alignment_bytes = alignment_bytes.max(1);
-
-    byte_len.div_ceil(alignment_bytes) * alignment_bytes
 }

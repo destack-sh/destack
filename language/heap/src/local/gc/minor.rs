@@ -1,8 +1,6 @@
 use destack_mir::{TraceMap, TraceTable};
 
-use crate::local::gc::{
-    DirtyCard, DirtyExtent, GC_METADATA_STEP_BYTES, GC_METADATA_WORD_BITS, Phase,
-};
+use crate::local::gc::{DirtyCard, DirtyExtent, GC_METADATA_STEP_BYTES, Phase, charge_bitmap_skip};
 use crate::local::storage::{GcKind, GcStats, HeapPlace, HeapStorage, LargeBlockId};
 use crate::{
     AllocationUsage, GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference,
@@ -21,9 +19,22 @@ impl HeapStorage {
     {
         self.start_young_gc()?;
 
-        // drain the cycle synchronously
+        self.drain_young_gc(roots, usize::MAX, trace_table)
+    }
+
+    /// Drain the active local young collection and return its completed stats.
+    pub(crate) fn drain_young_gc<E>(
+        &mut self,
+        roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
+        budget_bytes: usize,
+        trace_table: &TraceTable,
+    ) -> Result<GcStats, E>
+    where
+        E: From<HeapError>,
+    {
+        // drain the cycle in bounded steps
         loop {
-            match self.step_young_gc(roots, usize::MAX, trace_table)? {
+            match self.step_young_gc(roots, budget_bytes, trace_table)? {
                 GcProgress::Complete(stats) => return Ok(stats),
                 GcProgress::Active => continue,
                 GcProgress::Idle => {
@@ -566,45 +577,27 @@ impl HeapStorage {
         let Some(card) = self.select_dirty_span_card(span_index)? else {
             return Ok(None);
         };
-
-        // translate the dirty byte card to covered span slots
-        let card_end = card.card.byte_start + card.card.byte_len;
-        let first_slot = card.card.byte_start / card.size_class;
-        let last_slot = (card_end - 1) / card.size_class;
-        let end_slot = (last_slot + 1).min(card.slot_count);
         let mut has_young_reference = false;
 
         // scan occupied slots overlapped by the dirty card
-        for slot_index in first_slot..end_slot {
-            if !self.span_slot_occupied(span_index, slot_index)? {
+        for overlap in card.card.slot_overlaps(card.size_class, card.slot_count) {
+            if !self.span_slot_occupied(span_index, overlap.slot_index)? {
                 continue;
             }
 
             // skip slots without local heap references
-            let trace_map = self.small_slot_trace_map(span_index, slot_index, trace_table)?;
+            let trace_map =
+                self.small_slot_trace_map(span_index, overlap.slot_index, trace_table)?;
             if !trace_map.has_local_reference() {
                 continue;
             }
 
-            // calculate the card overlap inside this slot
-            let slot_start = card.size_class * slot_index;
-            let slot_end = slot_start + card.size_class;
-            let overlap_start = card.card.byte_start.max(slot_start);
-            let overlap_end = card_end.min(slot_end);
-
-            if overlap_start >= overlap_end {
-                continue;
-            }
-
-            let local_start = overlap_start - slot_start;
-            let local_len = overlap_end - overlap_start;
-            let base_address = self.mapping.base_address() + card.first_offset + slot_start;
-
             // enqueue young references discovered in the dirty slice
+            let base_address = self.mapping.base_address() + card.first_offset + overlap.slot_start;
             visit_references::<HeapReference>(
                 &trace_map,
                 ReferenceInput::mapped(base_address),
-                ReferenceRange::bytes(local_start, local_len),
+                ReferenceRange::bytes(overlap.byte_start, overlap.byte_len),
                 &mut |reference| {
                     has_young_reference |= self.reference_is_young(reference)?;
 
@@ -832,29 +825,4 @@ struct DirtyLargeCard {
     first_offset: usize,
     /// The trace map used to scan the block.
     trace_map: TraceMap,
-}
-
-/// Charge bitmap metadata work and return the cursor reached.
-fn charge_bitmap_skip(
-    start: usize,
-    end: usize,
-    budget_bytes: usize,
-    swept_bytes: &mut usize,
-) -> usize {
-    if start >= end {
-        return end;
-    }
-
-    let skipped_bits = end - start;
-    let skipped_words = skipped_bits.div_ceil(GC_METADATA_WORD_BITS);
-    let remaining_budget = budget_bytes - *swept_bytes;
-    if skipped_words <= remaining_budget {
-        *swept_bytes += skipped_words;
-
-        return end;
-    }
-
-    *swept_bytes = budget_bytes;
-
-    start + remaining_budget * GC_METADATA_WORD_BITS
 }

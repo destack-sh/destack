@@ -357,7 +357,7 @@ pub fn repeated_layout(
     element_trace_map: &TraceMap,
     count: usize,
 ) -> HeapResult<(usize, TraceMap)> {
-    let element_stride = layout_stride(element_byte_len, element_alignment);
+    let element_stride = align_up(element_byte_len, element_alignment);
     let byte_len = element_stride
         .checked_mul(count)
         .ok_or(HeapError::representation(
@@ -370,11 +370,11 @@ pub fn repeated_layout(
     Ok((byte_len, trace_map))
 }
 
-/// Return the aligned stride for one payload.
-fn layout_stride(byte_len: usize, alignment: usize) -> usize {
-    let alignment = alignment.max(1);
+/// Return the offset rounded up to the nearest alignment boundary.
+pub(crate) fn align_up(bytes: usize, alignment_bytes: usize) -> usize {
+    let alignment_bytes = alignment_bytes.max(1);
 
-    byte_len.div_ceil(alignment) * alignment
+    bytes.div_ceil(alignment_bytes) * alignment_bytes
 }
 
 /// Return the repeated trace map for one repeated element layout.

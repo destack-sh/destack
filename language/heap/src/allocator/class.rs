@@ -3,7 +3,9 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 use super::constants::{DEFAULT_MAX_SMALL_ALLOCATION_BYTES, DEFAULT_SIZE_CLASS_TABLE_CLASSES};
-use crate::{HeapConfigurationError, HeapError, SizeClassPolicyError, SizeClassTableError};
+use crate::{
+    HeapConfigurationError, HeapError, SizeClassPolicyError, SizeClassTableError, align_up,
+};
 
 /// One policy for generating size classes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -298,9 +300,4 @@ impl Default for SizeClassTable {
 /// Return the offset rounded down to the nearest alignment boundary.
 fn align_down(bytes: usize, alignment_bytes: usize) -> usize {
     bytes / alignment_bytes * alignment_bytes
-}
-
-/// Return the offset rounded up to the nearest alignment boundary.
-fn align_up(bytes: usize, alignment_bytes: usize) -> usize {
-    bytes.div_ceil(alignment_bytes) * alignment_bytes
 }

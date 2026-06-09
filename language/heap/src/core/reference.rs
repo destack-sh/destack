@@ -481,25 +481,11 @@ pub(crate) fn scan_references<R: ReferenceClass>(
     range: ReferenceRange,
     references: &mut Vec<R>,
 ) -> HeapResult<()> {
-    match input {
-        ReferenceInput::Mapped { base_address } => {
-            let mut walker = MemoryReferenceWalker::<R> {
-                base_address,
-                references,
-            };
+    visit_references::<R>(trace_map, input, range, &mut |reference| {
+        references.push(reference);
 
-            walk_trace_map(trace_map, 0, range, &mut walker)
-        }
-        ReferenceInput::Bytes { start, bytes } => {
-            let mut walker = ByteReferenceWalker::<R> {
-                start,
-                bytes,
-                references,
-            };
-
-            walk_trace_map(trace_map, 0, range, &mut walker)
-        }
-    }
+        Ok(())
+    })
 }
 
 /// Visit read-only references from one input.
@@ -624,86 +610,6 @@ trait ReferenceWalker {
 
     /// Return the active variant tag at the given offset.
     fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>>;
-}
-
-/// Read-only reference scanner over mapped block memory.
-struct MemoryReferenceWalker<'a, R: ReferenceClass> {
-    /// The mapped block base address.
-    base_address: usize,
-    /// The references collected during the walk.
-    references: &'a mut Vec<R>,
-}
-
-impl<R: ReferenceClass> ReferenceWalker for MemoryReferenceWalker<'_, R> {
-    fn fixed(
-        &mut self,
-        local_offsets: &[u32],
-        shared_offsets: &[u32],
-        base_offset: usize,
-        range: ReferenceRange,
-    ) -> HeapResult<()> {
-        walk_direct_offsets(
-            R::offsets(local_offsets, shared_offsets),
-            base_offset,
-            range,
-            R::BYTE_LEN,
-            |offset| {
-                // SAFETY: mapped block references are aligned native words at trace-map offsets
-                let bits = unsafe { read_reference_bits(self.base_address + offset) };
-
-                self.references.push(R::from_bits(bits));
-
-                Ok(())
-            },
-        )
-    }
-
-    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
-        // SAFETY: mapped block tags are inside live payload memory
-        let tag = unsafe { read_reference_tag(self.base_address + offset, width) };
-
-        Ok(Some(tag))
-    }
-}
-
-/// Read-only reference scanner over caller-provided bytes.
-struct ByteReferenceWalker<'a, R: ReferenceClass> {
-    /// The absolute byte offset represented by `bytes`.
-    start: usize,
-    /// The byte window to read.
-    bytes: &'a [u8],
-    /// The references collected during the walk.
-    references: &'a mut Vec<R>,
-}
-
-impl<R: ReferenceClass> ReferenceWalker for ByteReferenceWalker<'_, R> {
-    fn fixed(
-        &mut self,
-        local_offsets: &[u32],
-        shared_offsets: &[u32],
-        base_offset: usize,
-        range: ReferenceRange,
-    ) -> HeapResult<()> {
-        walk_direct_offsets(
-            R::offsets(local_offsets, shared_offsets),
-            base_offset,
-            range,
-            R::BYTE_LEN,
-            |offset| {
-                let bits = reference_bits_from_bytes(self.bytes, self.start, offset)?;
-
-                self.references.push(R::from_bits(bits));
-
-                Ok(())
-            },
-        )
-    }
-
-    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
-        Ok(reference_tag_from_bytes(
-            self.bytes, self.start, offset, width,
-        ))
-    }
 }
 
 /// Read-only reference visitor over mapped block memory.

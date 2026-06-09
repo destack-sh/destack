@@ -1,7 +1,7 @@
 # Heap
 
-`destack_heap` provides heap data structures and runtime values used by the language runtime stack.
-It includes GC related internals, heap values, and string representations shared by runtime execution paths.
+`destack_heap` provides the worker-local and shared heaps used by the language runtime.
+It covers page allocation, heap block metadata, and incremental garbage collection for both spaces.
 
 ## Testing
 

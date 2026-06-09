@@ -7,8 +7,9 @@ use super::{
 use crate::allocator::{PageSpan, Slot};
 use crate::{
     AllocationPlan, Bitmap, HeapAllocationError, HeapError, HeapReference, HeapRepresentationError,
-    HeapResult, Payload, SmallAllocationPlan, SmallSpanClass, clear_allocation_reference_bits,
-    clear_slot_reference_bits, write_allocation_reference_bits, write_slot_reference_bits,
+    HeapResult, Payload, SmallAllocationPlan, SmallSpanClass, align_up,
+    clear_allocation_reference_bits, clear_slot_reference_bits, write_allocation_reference_bits,
+    write_slot_reference_bits,
 };
 
 impl HeapStorage {
@@ -152,7 +153,10 @@ impl HeapStorage {
 
         // materialize the whole span before publishing its slots
         self.materialize_young_range(first_offset, span_bytes)?;
-        self.clear_mapped_bytes(first_offset, span_bytes);
+        // SAFETY: the span range was materialized above
+        unsafe {
+            self.mapping.zero_mapped_bytes(first_offset, span_bytes);
+        }
 
         // publish the span before handing out its first reference
         let span_index = self.young.spans.len();
@@ -268,7 +272,7 @@ impl HeapStorage {
 
         // reserve from a fixed-size young span
         if let Some(slot) = self.reserve_young_span(layout)? {
-            self.initialize_clean_slot_payload(slot.reference.offset(), payload);
+            payload.initialize_zeroed_mapped(&self.mapping, slot.reference.offset());
 
             if !layout.is_noscan {
                 self.publish_young_cache_allocation(slot, trace_map, has_initialized_bytes)?;
@@ -290,7 +294,7 @@ impl HeapStorage {
         {
             let reference = HeapReference::new(reservation.first_offset);
 
-            self.initialize_mapped_payload(reservation.first_offset, layout.byte_len, payload);
+            payload.initialize_mapped(&self.mapping, reservation.first_offset, layout.byte_len);
 
             if self.collector.major_phase != Phase::Idle {
                 self.young.marked.set_in_bounds(reservation.range_index);
@@ -497,7 +501,7 @@ impl HeapStorage {
             };
             let first_offset = block.first_offset;
 
-            self.initialize_mapped_payload(first_offset, layout.byte_len, payload);
+            payload.initialize_mapped(&self.mapping, first_offset, layout.byte_len);
 
             Ok(MatureAllocation {
                 place: HeapPlace::LargeBlock(block_id),
@@ -754,7 +758,7 @@ impl HeapStorage {
                 return Err(HeapError::internal("missing large block"));
             };
 
-            self.initialize_mapped_payload(block.first_offset, byte_len, Payload::Bytes(bytes));
+            Payload::Bytes(bytes).initialize_mapped(&self.mapping, block.first_offset, byte_len);
             self.record_mature_allocation(byte_len);
 
             HeapPlace::LargeBlock(block_id)
@@ -778,7 +782,7 @@ impl HeapStorage {
             return Ok(None);
         };
 
-        self.initialize_mapped_payload(write_offset, byte_len, payload);
+        payload.initialize_mapped(&self.mapping, write_offset, byte_len);
 
         Ok(Some(HeapReference::new(write_offset)))
     }
@@ -912,7 +916,7 @@ impl HeapStorage {
     /// Allocate or reuse one non-full heap span for the given size class.
     fn allocate_small_span(&mut self, class: &SmallSpanClass) -> HeapResult<usize> {
         // reuse one non-full span when possible
-        while let Some(span_index) = self.small.partial_spans.entry(*class).or_default().pop() {
+        while let Some(span_index) = self.small.partial_spans.get_mut(class).and_then(Vec::pop) {
             let Some(span) = self.small.spans.get(span_index) else {
                 return Err(HeapError::internal("missing span"));
             };
@@ -1005,7 +1009,7 @@ impl HeapStorage {
         let slot_offset = span.class.size_class * slot_index;
         let mapping_offset = span.first_offset + slot_offset;
 
-        self.initialize_mapped_payload(mapping_offset, class.size_class, init);
+        init.initialize_mapped(&self.mapping, mapping_offset, class.size_class);
 
         let span = self
             .small
@@ -1054,53 +1058,6 @@ impl HeapStorage {
 
         Ok(slot)
     }
-
-    /// Initialize one mapped payload range.
-    #[inline(always)]
-    pub(super) fn initialize_mapped_payload(
-        &self,
-        offset: usize,
-        clear_byte_len: usize,
-        payload: Payload<'_>,
-    ) {
-        match payload {
-            Payload::Bytes(bytes) if bytes.len() < clear_byte_len => {
-                self.clear_mapped_bytes(offset, clear_byte_len);
-                self.write_mapped_bytes(offset, bytes);
-            }
-            Payload::Bytes(bytes) => self.write_mapped_bytes(offset, bytes),
-            Payload::Zeroed => self.clear_mapped_bytes(offset, clear_byte_len),
-            Payload::Uninit => {}
-        }
-    }
-
-    /// Initialize one already-zeroed small slot.
-    #[inline(always)]
-    pub(super) fn initialize_clean_slot_payload(&self, offset: usize, payload: Payload<'_>) {
-        if let Payload::Bytes(bytes) = payload {
-            self.write_mapped_bytes(offset, bytes);
-        }
-    }
-
-    /// Write bytes into one mapped payload range.
-    #[inline(always)]
-    pub(super) fn write_mapped_bytes(&self, offset: usize, bytes: &[u8]) {
-        // SAFETY: block paths materialize the destination before publishing it
-        unsafe {
-            self.mapping.write_mapped_bytes(offset, bytes);
-        }
-    }
-
-    /// Clear one mapped payload range.
-    #[inline(always)]
-    pub(super) fn clear_mapped_bytes(&self, offset: usize, byte_len: usize) {
-        let address = self.mapping.base_address() + offset;
-
-        // SAFETY: block paths materialize the destination before publishing it
-        unsafe {
-            std::ptr::write_bytes(address as *mut u8, 0, byte_len);
-        }
-    }
 }
 
 /// One mature heap allocation result.
@@ -1130,11 +1087,4 @@ struct YoungSlot {
     span_index: usize,
     /// The slot index inside the owning young span.
     slot_index: usize,
-}
-
-/// Return the offset rounded up to one block boundary.
-fn align_up(byte_len: usize, alignment_bytes: usize) -> usize {
-    let alignment_bytes = alignment_bytes.max(1);
-
-    byte_len.div_ceil(alignment_bytes) * alignment_bytes
 }
