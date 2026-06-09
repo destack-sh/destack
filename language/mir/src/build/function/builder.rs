@@ -4,8 +4,8 @@ use indexmap::{IndexMap, IndexSet};
 use crate::build::{BuildError, BuildResult, Variable};
 use crate::{
     AllocationMode, AllocationSize, Block, Function, FunctionBehavior, Instruction, Linkage,
-    LocalNodeId, MemoryEffect, Parameter, Place, PlaceId, PlaceProjection, PlaceTable, Tree, Type,
-    TypeReference, Value, ValueReference, finalize_function_names,
+    LocalNodeId, MemoryEffect, Parameter, Place, Projection, Tree, Type, TypeReference, Value,
+    ValueReference, finalize_function_names,
 };
 
 /// Builder for constructing a single MIR function with automatic SSA construction.
@@ -99,7 +99,7 @@ impl<'a> FunctionBuilder<'a> {
             parameter_names: vec![None; parameter_types.len()],
             value_names: vec![None; next_value_id as usize],
             value_types,
-            places: PlaceTable::new(),
+            value_places: vec![None; next_value_id as usize],
             return_type: TypeReference::from(return_type),
             borrow_obligations: Vec::new(),
             linkage: Linkage::Local,
@@ -240,9 +240,9 @@ impl<'a> FunctionBuilder<'a> {
         value: Value,
         ty: LocalNodeId<Type>,
         place: Place,
-    ) -> PlaceId {
+    ) {
         self.define_value(value, ty);
-        self.define_place(value, place)
+        self.define_place(value, place);
     }
 
     /// Record the type and projected place for an SSA value.
@@ -251,10 +251,10 @@ impl<'a> FunctionBuilder<'a> {
         value: Value,
         ty: LocalNodeId<Type>,
         base: Value,
-        projection: PlaceProjection,
-    ) -> PlaceId {
+        projection: Projection,
+    ) {
         self.define_value(value, ty);
-        self.define_projection(value, base, projection)
+        self.define_projection(value, base, projection);
     }
 
     /// Record the type and copied place for an SSA value.
@@ -263,32 +263,27 @@ impl<'a> FunctionBuilder<'a> {
         value: Value,
         ty: LocalNodeId<Type>,
         source: Value,
-    ) -> Option<PlaceId> {
+    ) {
         self.define_value(value, ty);
-        self.propagate_place(value, source)
+        self.propagate_place(value, source);
     }
 
     /// Record the place for an SSA value.
-    pub(super) fn define_place(&mut self, value: Value, place: Place) -> PlaceId {
+    pub(super) fn define_place(&mut self, value: Value, place: Place) {
         let function = self.tree.get_mut(self.function_id);
         function.set_value_place(value, place)
     }
 
     /// Record a projected place for an SSA value.
-    pub(super) fn define_projection(
-        &mut self,
-        value: Value,
-        base: Value,
-        projection: PlaceProjection,
-    ) -> PlaceId {
+    pub(super) fn define_projection(&mut self, value: Value, base: Value, projection: Projection) {
         let function = self.tree.get_mut(self.function_id);
-        function.places.set_projection(value, base, projection)
+        function.set_projected_place(value, base, projection)
     }
 
     /// Copy a place from one SSA value to another.
-    pub(super) fn propagate_place(&mut self, value: Value, source: Value) -> Option<PlaceId> {
+    pub(super) fn propagate_place(&mut self, value: Value, source: Value) {
         let function = self.tree.get_mut(self.function_id);
-        function.places.set_from_value(value, source)
+        function.copy_value_place(value, source)
     }
 
     /// Get the type of an existing SSA value.

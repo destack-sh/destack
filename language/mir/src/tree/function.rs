@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Block, Lifetime, LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, Parameter,
-    Place, PlaceId, PlaceTable, Tree, Type, TypeReference, Value, ValueReference,
+    Place, PlaceEffect, Projection, Tree, Type, TypeReference, Value, ValueReference,
 };
 
 /// Memory allocation restrictions for a function.
@@ -98,10 +98,10 @@ pub struct Function {
     pub value_names: Vec<Option<StringId>>,
     /// SSA value types keyed by value id.
     pub value_types: Vec<Option<LocalNodeId<Type>>>,
+    /// Memory places keyed by SSA value.
+    pub value_places: Vec<Option<Place>>,
     /// Counter for allocating unique SSA value IDs.
     pub(crate) next_value_id: u32,
-    /// Memory places keyed by SSA value.
-    pub places: PlaceTable,
 
     /// The return type.
     pub return_type: TypeReference,
@@ -197,7 +197,7 @@ impl Function {
             parameter_names,
             value_names: vec![None; next_value_id as usize],
             value_types,
-            places: PlaceTable::new(),
+            value_places: vec![None; next_value_id as usize],
             return_type,
             borrow_obligations: Vec::new(),
             linkage,
@@ -241,16 +241,11 @@ impl Function {
         self.value_names.get(value.0 as usize).copied().flatten()
     }
 
-    /// Get the place id for an SSA value.
-    pub fn value_place_id(&self, value: Value) -> Option<PlaceId> {
-        self.places.value_place_id(value)
-    }
-
     /// Get the place for an SSA value.
     pub fn value_place(&self, value: Value) -> Option<&Place> {
-        let id = self.value_place_id(value)?;
-
-        self.places.place(id)
+        self.value_places
+            .get(value.0 as usize)
+            .and_then(Option::as_ref)
     }
 
     /// Get the type for an SSA value or panic if missing.
@@ -264,17 +259,8 @@ impl Function {
 
     /// Record the type for an SSA value.
     pub fn set_value_type(&mut self, value: Value, ty: LocalNodeId<Type>) {
-        // grow sparse side tables as needed
-        let index = value.0 as usize;
-        if index >= self.value_types.len() {
-            self.value_types.resize(index + 1, None);
-        }
+        let index = self.resize_value_slots(value);
 
-        if index >= self.value_names.len() {
-            self.value_names.resize(index + 1, None);
-        }
-
-        // idempotent set is okay
         if let Some(existing) = self.value_types[index] {
             if existing != ty {
                 unreachable!("value {value:?} has mismatched types {existing:?} and {ty:?}");
@@ -287,8 +273,103 @@ impl Function {
     }
 
     /// Record the place for an SSA value.
-    pub fn set_value_place(&mut self, value: Value, place: Place) -> PlaceId {
-        self.places.set_value_place(value, place)
+    pub fn set_value_place(&mut self, value: Value, place: Place) {
+        self.place_slot_mut(value).replace(place);
+    }
+
+    /// Record a projected place for an SSA value.
+    pub fn set_projected_place(&mut self, value: Value, base: Value, projection: Projection) {
+        let place = self
+            .value_place(base)
+            .cloned()
+            .unwrap_or_else(|| Place::value(base.into()))
+            .with_projection(projection);
+
+        self.set_value_place(value, place);
+    }
+
+    /// Copy a place from one SSA value to another.
+    pub fn copy_value_place(&mut self, value: Value, source: Value) {
+        let Some(place) = self.value_place(source).cloned() else {
+            return;
+        };
+
+        self.set_value_place(value, place);
+    }
+
+    /// Record one place table effect.
+    pub(crate) fn record_place_effect(&mut self, effect: PlaceEffect) {
+        match effect {
+            PlaceEffect::Root { value, place } => {
+                self.set_value_place(value, place);
+            }
+            PlaceEffect::Projection {
+                value,
+                base,
+                projection,
+            } => {
+                self.set_projected_place(value, base, projection);
+            }
+            PlaceEffect::Copy { value, source } => {
+                self.copy_value_place(value, source);
+            }
+        }
+    }
+
+    /// Replace value references inside stored places.
+    pub fn replace_place_values(&mut self, from: Value, to: Value) {
+        if from == to {
+            return;
+        }
+
+        // rewrite projected operands
+        for place in self.value_places.iter_mut().flatten() {
+            place.replace_value(from, to);
+        }
+
+        // move place ownership
+        let from_index = from.0 as usize;
+        let from_place = self.value_places.get(from_index).cloned().flatten();
+
+        let to_index = to.0 as usize;
+        if to_index >= self.value_places.len() {
+            self.value_places.resize(to_index + 1, None);
+        }
+
+        if self.value_places[to_index].is_none() {
+            self.value_places[to_index] = from_place;
+        }
+
+        if let Some(slot) = self.value_places.get_mut(from_index) {
+            *slot = None;
+        }
+    }
+
+    /// Return the mutable place slot for one value.
+    fn place_slot_mut(&mut self, value: Value) -> &mut Option<Place> {
+        let index = self.resize_value_slots(value);
+
+        &mut self.value_places[index]
+    }
+
+    /// Resize SSA side tables for one value.
+    fn resize_value_slots(&mut self, value: Value) -> usize {
+        let index = value.0 as usize;
+        let value_count = index + 1;
+
+        if self.value_types.len() < value_count {
+            self.value_types.resize(value_count, None);
+        }
+
+        if self.value_names.len() < value_count {
+            self.value_names.resize(value_count, None);
+        }
+
+        if self.value_places.len() < value_count {
+            self.value_places.resize(value_count, None);
+        }
+
+        index
     }
 
     /// Set the linkage and return self (builder pattern).

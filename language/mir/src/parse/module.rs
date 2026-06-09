@@ -3,8 +3,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global,
-    GlobalInitializer, Linkage, LocalNodeId, Mutability, PlaceTable, Type, TypeAlias,
-    TypeDeclarationSpans, TypeReference, Value, ValueReference,
+    GlobalInitializer, Linkage, LocalNodeId, Mutability, Type, TypeAlias, TypeDeclarationSpans,
+    TypeReference, Value, ValueReference,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -141,7 +141,7 @@ impl Parser {
                         parameter_names: Vec::new(),
                         value_names: Vec::new(),
                         value_types: Vec::new(),
-                        places: PlaceTable::new(),
+                        value_places: Vec::new(),
                         return_type: TypeReference::from(void_type),
                         borrow_obligations: Vec::new(),
                         linkage: Linkage::Local,

@@ -363,7 +363,7 @@ impl<'a> DropPlan<'a> {
             && self.is_owned_reference(*destination)
         {
             return vec![
-                self.place_moved_by_projection(*array, mir::Projection::fixed_element(*index)),
+                self.place_moved_by_projection(*array, mir::Projection::Element { index: *index }),
             ];
         }
 
@@ -591,7 +591,9 @@ impl<'a> DropPlan<'a> {
                 .flat_map(|index| {
                     self.drop_child_place(
                         &place,
-                        mir::Projection::fixed_element(index as u32),
+                        mir::Projection::Element {
+                            index: index as u32,
+                        },
                         element.clone(),
                         moved,
                     )
