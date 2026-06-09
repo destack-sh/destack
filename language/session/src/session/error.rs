@@ -52,8 +52,8 @@ pub enum SessionError {
         /// The artifact failure.
         failure: Box<ArtifactFailure>,
     },
-    /// One source edit is invalid.
-    InvalidSourceEdit {
+    /// One edit is invalid.
+    InvalidEdit {
         /// The edit failure.
         error: EditApplyError,
     },
@@ -106,8 +106,8 @@ impl std::fmt::Display for SessionError {
                     "artifact failed while providing {key:?}: {failure:?}"
                 )
             }
-            SessionError::InvalidSourceEdit { error } => {
-                write!(formatter, "source edit failed: {error}")
+            SessionError::InvalidEdit { error } => {
+                write!(formatter, "edit failed: {error}")
             }
             SessionError::Repository(error) => {
                 write!(formatter, "session repository error: {error}")
@@ -125,7 +125,7 @@ impl std::fmt::Display for SessionError {
 impl std::error::Error for SessionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            SessionError::InvalidSourceEdit { error } => Some(error),
+            SessionError::InvalidEdit { error } => Some(error),
             SessionError::Repository(error) => Some(error),
             SessionError::Source(error) => Some(error),
             _ => None,
@@ -155,6 +155,6 @@ impl From<DiagnosticError> for SessionError {
 
 impl From<EditApplyError> for SessionError {
     fn from(error: EditApplyError) -> Self {
-        Self::InvalidSourceEdit { error }
+        Self::InvalidEdit { error }
     }
 }

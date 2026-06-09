@@ -7,10 +7,7 @@ use destack_query::Query;
 use destack_repository::{DestackLayoutOverride, Environment, Ref, Repository, Revision, Settings};
 use destack_source::{FileSystem, MemoryFileSystem};
 
-use crate::{
-    FileUpdate, Session, SessionError, SourceEdit, SourceUpdate, SourceUpdateResult,
-    open_repository_from_fs,
-};
+use crate::{Change, Commit, Edit, Session, SessionError, open_repository_from_fs};
 
 const DEFAULT_ROOT: &str = "/workspace";
 
@@ -95,17 +92,17 @@ impl TestSession {
     }
 
     /// Reload the session from its memory filesystem.
-    pub(crate) fn reload(&self) -> Vec<FileUpdate> {
+    pub(crate) fn reload(&self) -> Vec<Change> {
         self.session
             .reload_from_fs(&self.head())
             .expect("test session should reload")
     }
 
-    /// Apply one source update to the session.
-    pub(crate) fn update(&self, edits: Vec<SourceEdit>) -> SourceUpdateResult {
+    /// Edit files through the session.
+    pub(crate) fn edit(&self, edits: Vec<Edit>) -> Commit {
         self.session
-            .update(&self.head(), SourceUpdate { base: None, edits })
-            .expect("test session should update")
+            .edit(&self.head(), edits)
+            .expect("test session should edit")
     }
 
     /// Load one module from the memory filesystem.
@@ -139,7 +136,7 @@ impl TestSession {
     }
 
     /// Assert update paths relative to the selected source root.
-    pub(crate) fn assert_update_paths(&self, updates: &[FileUpdate], expected: &[&str]) {
+    pub(crate) fn assert_update_paths(&self, updates: &[Change], expected: &[&str]) {
         let mut actual = updates
             .iter()
             .map(|update| self.update_path(update))
@@ -156,21 +153,21 @@ impl TestSession {
     }
 
     /// Assert that every update removed a file.
-    pub(crate) fn assert_removed_updates(&self, updates: &[FileUpdate]) {
+    pub(crate) fn assert_removed_updates(&self, updates: &[Change]) {
         assert!(
-            updates.iter().all(FileUpdate::is_removed),
+            updates.iter().all(Change::is_removed),
             "expected only removed updates, got {updates:#?}",
         );
     }
 
     /// Assert that no updates were emitted.
-    pub(crate) fn assert_no_updates(&self, updates: &[FileUpdate]) {
+    pub(crate) fn assert_no_updates(&self, updates: &[Change]) {
         assert!(updates.is_empty(), "expected no updates, got {updates:#?}");
     }
 
-    /// Assert update result paths relative to the selected source root.
-    pub(crate) fn assert_result_paths(&self, result: &SourceUpdateResult, expected: &[&str]) {
-        self.assert_update_paths(&result.files, expected);
+    /// Assert file commit paths relative to the selected source root.
+    pub(crate) fn assert_commit_paths(&self, commit: &Commit, expected: &[&str]) {
+        self.assert_update_paths(&commit.changes, expected);
     }
 
     /// Assert that reloading changes the head revision.
@@ -223,7 +220,7 @@ impl TestSession {
     }
 
     /// Return one update path relative to the selected source root.
-    fn update_path(&self, update: &FileUpdate) -> String {
+    fn update_path(&self, update: &Change) -> String {
         let path = update
             .uri()
             .to_path_buf()

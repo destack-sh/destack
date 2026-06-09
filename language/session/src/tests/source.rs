@@ -1,5 +1,10 @@
+use std::path::PathBuf;
+
+use destack_repository::{DestackLayoutOverride, Environment, Ref, Settings};
+use destack_source::FileId;
+
 use super::TestSession;
-use crate::{SourceEdit, TextEdit, TextRange};
+use crate::{Edit, TextEdit, TextRange, open_repository_from_memory};
 
 #[test]
 fn test_open_imports_root_package_sources() {
@@ -33,6 +38,89 @@ Not hot dog.
     .unwrap();
 
     test.assert_files(&["destack.json", "src/index.ds", "src/nested/user.ds"]);
+}
+
+#[test]
+fn test_open_applies_default_source_excludes() {
+    let test = TestSession::open(&[
+        (
+            "destack.json",
+            r#"{
+  "name": "@test/app",
+  "include": ["**"]
+}
+"#,
+        ),
+        (
+            "src/index.ds",
+            r#"
+export const value = 1;
+"#,
+        ),
+        (
+            "node_modules/pkg/src/hidden.ds",
+            r#"
+export const hidden = 2;
+"#,
+        ),
+        (
+            "target/generated.ds",
+            r#"
+export const generated = 3;
+"#,
+        ),
+        (
+            "vendor/pkg/src/hidden.ds",
+            r#"
+export const vendored = 4;
+"#,
+        ),
+    ])
+    .unwrap();
+
+    test.assert_files(&["destack.json", "src/index.ds"]);
+}
+
+#[test]
+fn test_open_memory_applies_ordered_edits() {
+    let source_text = "export const value = 1;\n";
+    let start = source_text.find('1').unwrap() as u32;
+    let end = start + 1;
+    let repository = open_repository_from_memory(
+        PathBuf::from("/workspace"),
+        vec![
+            Edit::SetText {
+                path: PathBuf::from("destack.json"),
+                text: r#"{
+  "name": "@test/app"
+}
+"#
+                .to_string(),
+            },
+            Edit::SetText {
+                path: PathBuf::from("src/index.ds"),
+                text: source_text.to_string(),
+            },
+            Edit::EditText {
+                path: PathBuf::from("src/index.ds"),
+                edits: vec![TextEdit {
+                    range: TextRange { start, end },
+                    text: "2".to_string(),
+                }],
+            },
+        ],
+        Environment::default(),
+        Settings::default(),
+        DestackLayoutOverride::default(),
+    )
+    .unwrap();
+    let revision = repository
+        .current(&Ref::for_root(repository.path()))
+        .unwrap();
+    let file_id = FileId::from_logical_str("src/index.ds");
+    let file = repository.file(revision, file_id).unwrap().unwrap();
+
+    assert_eq!(file.text(), "export const value = 2;\n");
 }
 
 #[test]
@@ -331,7 +419,7 @@ fn test_load_module_from_fs_adds_requested_module() {
 }
 
 #[test]
-fn test_update_applies_multiple_source_edits_atomically() {
+fn test_edit_commits_multiple_edits_atomically() {
     let test = TestSession::open(&[(
         "destack.json",
         r#"{
@@ -341,23 +429,23 @@ fn test_update_applies_multiple_source_edits_atomically() {
     )])
     .unwrap();
 
-    let result = test.update(vec![
-        SourceEdit::SetText {
+    let commit = test.edit(vec![
+        Edit::SetText {
             path: "src/index.ds".into(),
             text: "export const value = 1;\n".to_string(),
         },
-        SourceEdit::SetText {
+        Edit::SetText {
             path: "src/user.ds".into(),
             text: "export const user = 2;\n".to_string(),
         },
     ]);
 
-    test.assert_result_paths(&result, &["src/index.ds", "src/user.ds"]);
+    test.assert_commit_paths(&commit, &["src/index.ds", "src/user.ds"]);
     test.assert_files(&["destack.json", "src/index.ds", "src/user.ds"]);
 }
 
 #[test]
-fn test_update_materializes_text_edits() {
+fn test_edit_materializes_text_edits() {
     let test = TestSession::open(&[
         (
             "destack.json",
@@ -370,7 +458,7 @@ fn test_update_materializes_text_edits() {
     ])
     .unwrap();
 
-    let result = test.update(vec![SourceEdit::EditText {
+    let commit = test.edit(vec![Edit::EditText {
         path: "src/index.ds".into(),
         edits: vec![TextEdit {
             range: TextRange { start: 21, end: 22 },
@@ -378,12 +466,12 @@ fn test_update_materializes_text_edits() {
         }],
     }]);
 
-    test.assert_result_paths(&result, &["src/index.ds"]);
+    test.assert_commit_paths(&commit, &["src/index.ds"]);
     assert_eq!(test.text("src/index.ds"), "export const value = 2;\n");
 }
 
 #[test]
-fn test_update_reports_source_and_destination_for_move() {
+fn test_edit_reports_source_and_destination_for_move() {
     let test = TestSession::open(&[
         (
             "destack.json",
@@ -396,11 +484,11 @@ fn test_update_reports_source_and_destination_for_move() {
     ])
     .unwrap();
 
-    let result = test.update(vec![SourceEdit::Move {
+    let commit = test.edit(vec![Edit::Move {
         from: "src/index.ds".into(),
         to: "src/main.ds".into(),
     }]);
 
-    test.assert_result_paths(&result, &["src/index.ds", "src/main.ds"]);
+    test.assert_commit_paths(&commit, &["src/index.ds", "src/main.ds"]);
     test.assert_files(&["destack.json", "src/main.ds"]);
 }
