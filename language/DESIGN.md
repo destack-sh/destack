@@ -192,6 +192,7 @@ Because interval types require are basically just aliases to union types, they a
 
 TypeScript is structurally typed: an interface is satisfied by any value matching its shape, regardless of whether it explicitly `implement`s it.
 However, sometimes explicit nominality is helpful for correctness and expressiveness, and Destack adds `newtype` as the nominal counterpart to `type`.
+Like `type`, `newtype` follows its backing type: representable backings result in nominal concrete types, and constraint backings produce nominal constraints.
 
 For example, with plain `type`s and aliases, there is no actual protection against accidental assignment.
 (The TS ecosystem commonly resorts to "branding" hacks to work around this limitation.)
@@ -203,8 +204,6 @@ type OrderTag = string;
 "invalid" satisfies OrderTag; // OK, TS still happy, also ouch
 ```
 
-With explicit `newtype`, backing values do not satisfy the nominal type on their own:
-
 ```ds
 newtype UserId = number;
 const userId: UserId = 0; // error
@@ -213,7 +212,7 @@ newtype OrderTag = string;
 const orderTag: OrderTag = "invalid"; // error
 ```
 
-To construct a newtype value, use explicit `T(..)` call syntax:
+To construct a concrete newtype value, use explicit `T(..)` call syntax:
 
 ```ds
 newtype UserId = number;
@@ -235,7 +234,7 @@ newtype AuthenticatedUser = User;
 AuthenticatedUser(user) satisfies AuthenticatedUser;
 ```
 
-Newtypes are representation-transparent to the compiler but opaque to the type system.
+Concrete newtypes are representation-transparent to the compiler but opaque to the type system.
 Construction and projection across the backing boundary are both explicit and zero-cost:
 
 ```ds
@@ -243,14 +242,9 @@ const id = UserId(1);
 const raw = id as number;
 ```
 
-The important rule is that `newtype` brands the backing type you wrote.
-It does not reinterpret that backing type into some nearby declaration form.
-So `newtype UserId = number` is scalar-shaped, `newtype Shape = Circle | Rectangle` is variant-shaped, and `newtype Point = { x: number; y: number }` is still object-shaped.
-Use `struct` when you want inline fields.
-
 ### Newtype Interfaces
 
-Newtype aliases add nominality to any type, and Destack also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations.
+Newtype declarations add nominality to their backing type, and Destack also supports **nominal interfaces** using the `newtype` modifier on `interface` declarations.
 (This makes newtype interfaces behave essentially like traits in other languages, no weird "branding tricks" required.)
 
 ```ds
@@ -802,37 +796,29 @@ So, here goes:
 
 | Form | Role | Representation |
 | --- | --- | --- |
-| `type Point = { x: number; y: number }` | Reusable structural type constraint. | Transparent |
-| `interface Point { x: number; y: number }` | Structural constraint with extension syntax. | Transparent |
+| `type Point = { x: number; y: number }` | Transparent alias for a type expression. | Transparent |
+| `interface Point { x: number; y: number }` | Named structural constraint with extension syntax. | Transparent |
 | `newtype interface Point { x: number; y: number }` | Nominal interface (trait). | Transparent |
 | `newtype Point = { x: number; y: number }` | Nominal wrapper over an (object) shape. | Managed object |
 | `struct Point { x: number; y: number }` | Nominal value product. | Owned value |
 | `class Point { x: number; y: number }` | Nominal identity object. | Managed object |
 
-Hopefully, these mostly behave as expected, even if the assortment is bigger than what one would usually get. 
-They do all actually fill slightly different niches, and, fortunately, they compose quite well, and let us think in terms of types, openness, nominality, and layout as needed, which is quite neat.
+Hopefully, these mostly behave as expected, even if the assortment is bigger than what one would usually get.
+They do all actually fill slightly different niches, and, fortunately, they compose quite well, and let us think in terms of types, transparency, nominality, and layout as needed, which is quite neat.
 
 ### Representation
 
-That said, there are two core questions in types that Destack reifies somewhat differently than other languages (including TypeScript and Rust): 
-In general, users shouldn't _have_ to care too much about how types are represented for everyday use cases - as with the rest of Destack, precise control should be opted into as needed wherever possible, and everything should behave "as expected" from TypeScript by default.
- - *nominal vs structural*: does the type have a nominal identity (name) that must be constructed explicitly (e.g., `newtype` / `class` / `struct` vs `interface` / `type`)
- - *complete vs incomplete*: can the type can actually be represented directly or does it need to be completed by some implementation (e.g., `{ x: number }` vs `{ x(): number }`) 
+Destack's general philosophy is to let users opt _in_ to additional control and complexity as needed - as much as possible, things should "just work" like in TypeScript.
+That said, the actual memory representation of types does matter, and our unique blend of TypeScript type algebra and actual systems-y AOT compilation means that Destack needs to make representation tradeoffs differently from other languages.
+Specifically, we distinguish three main axes of type behavior that affect representation:
 
-Destack supports TypeScript's full type algebra, _and_ Destack wants to be a high performance systems language, so we need to avoid expensive indirection for structural types by leaning heavily into _monomorphisation_.
-That is, wherever a type can have multiple possible runtime representations (and isn't explicitly `Dynamic`, more on that below), then Destack will induce an implicit generic parameter and monomorphize all applications.
-Essentially, Destack's `interface T` / `type T` behaves like Rust explicit `impl T` or Swift's `some T` _by default_.
+ - *nominal* vs *structural*: does the type have a nominal identity that must be constructed or implemented explicitly (e.g., `newtype` / `class` / `struct` / `newtype interface`) or is it just structural
+ - *transparent* vs *opaque*: does a name just implicitly expand to a type expression (`type`), or does it name a "real" declaration (`interface` / `struct` / `class` / `newtype`)
+ - *concrete* vs *abstract*: does the spelling already have a representation we can store directly (i.e. is it representable), or does it need to be instantiated, reified, or erased somehow
 
-| Type | Example | Parameter | Field |
-| --- | --- | --- | --- |
-| nominal complete | `struct Point` | Pass `Point`. | Stores `Point` layout. |
-| structural complete | `{ x: int32; y: int32 }` | Induce `T: { x; y }`. | Reify exact anonymous layout. |
-| structural incomplete | `{ write(...): Result<...> }` | Induce `T: { write(...) }`. | Induce `T: { write(...) }`, or use `Dynamic<T>`. |
-| nominal incomplete | `newtype interface Writer` | Induce `T: Writer`. | Induce `T: Writer`, or use `Dynamic<Writer>`. |
-| generic `T` | `T: Writer` | Keep `T`. | Keep `T` and bound `T: Concrete`. |
-
-Having existential types and monomorphisation is of course not that special in itself, but Destack applies it much more aggressively than is typically done.
-For example, a structural `Point` alias behaves like a constraint at a function boundary, but like exact storage in a field:
+Wherever a type can have multiple possible runtime representations, Destack induces an _implicit_ generic parameter and monomorphizes all applications of that parameter, just like with an explicit generic type.
+The main special case are transparent types, which may either induce a generic in constraint positions (like a function parameter) or require a concrete type in storage positions (like a field in an aggregate).
+As an example, a structural `Point` alias expands before the position rules are applied, so it behaves like a constraint at a function boundary, but like exact storage in a field:
 
 ```ds
 type Point = {
@@ -855,7 +841,34 @@ const rectangle = Rectangle {
 };
 ```
 
-Incomplete types, like those with methods, require a specific type to be filled in at usage sites and thus induce a generic (since we can't really represent them directly anyway):
+Unlike transparent type aliases, interfaces always induce a generic in constraint positions (even as both behave like structural types in general):
+
+```ds
+interface PointLike {
+    x: int32;
+    y: int32;
+}
+
+function draw(point: PointLike): void {
+    // ...
+}
+
+struct Rectangle {
+    start: PointLike;
+    end: PointLike;
+}
+```
+
+Desugared, that is roughly:
+
+```ds
+struct Rectangle<TStart: PointLike, TEnd: PointLike> {
+    start: TStart;
+    end: TEnd;
+}
+```
+
+Anonymous constraint expressions, like those with methods, require a specific type to be filled in at usage sites and thus induce a generic:
 
 ```ds
 newtype interface Writer {
@@ -871,7 +884,7 @@ type Writer = {
 }
 ```
 
-For contrast, a function-valued field is still an ordinary _complete_ structural shape, because the field itself has a representation (a function pointer):
+For contrast, a function-valued field is still an ordinary representable structural shape, because the field itself has a representation (a function pointer):
 
 ```ds
 type WriterField = {
@@ -879,8 +892,8 @@ type WriterField = {
 };
 ```
 
-Structural type expressions are constraints, but structural value expressions still synthesize concrete anonymous shapes when they are used as values.
-Here the annotation is structural, and the object expression supplies the concrete value shape checked against it:
+Structural type annotations still typecheck structurally, and structural value expressions synthesize concrete anonymous shapes when they are used as values.
+Here the annotation checks the object shape, and the object expression supplies the concrete value shape:
 
 ```ds
 const point: { x: int32; y: int32 } = { x: 1, y: 2 };
@@ -890,7 +903,7 @@ Return types in functions _must_ have _one_ specific concrete representation on 
 (This is because otherwise we wouldn't know which function representation to use ahead of time.)
 
 ```ds
-type Shape = Rectangle | Circle; // structural shape
+type Shape = Rectangle | Circle; // transparent alias
 
 function foo(): Shape {
     return Rectangle(); // this is fine
@@ -905,18 +918,20 @@ function bar(): Shape { // ERROR, this is ambiguous
 }
 ```
 
-With regards to nominality, it should be noted that `newtype` is a concrete type, whereas `newtype` on an `interface` is just a nominality modifier (we couldn't think of a better naming here).
-So, `newtype Shape = Rectangle | Circle` creates a concrete variant layout for `Shape`, while `type Shape = Rectangle | Circle` remains a structural union shape until a value or storage boundary chooses a representation.
+With regards to nominality, `newtype` adds a nominal identity to whatever its backing type denotes.
+So, `newtype Shape = Rectangle | Circle` creates a concrete variant layout for `Shape`, while `newtype NamedWriter = Writer` creates a nominal constraint if `Writer` is an interface.
+By contrast, `type Shape = Rectangle | Circle` remains a transparent alias whose expanded union is interpreted at each use site.
 
 ```ds
-type Shape = Rectangle | Circle; // structural shape
+type Shape = Rectangle | Circle; // transparent alias
 newtype Shape = Rectangle | Circle; // concrete layout
+newtype NamedWriter = Writer; // nominal constraint
 ```
 
 ### Dynamic
 
-Structural shapes and incomplete constraints becoming hidden generic parameters is generally great for performance in a `type`-heavy language like TypeScript, and it works especially well because we always compile statically from source.
-However, sometimes explicit _runtime_ indirection is desired, and Destack also provides an intrinsic `Dynamic<T>` wrapper as the explicit erased runtime value satisfying some `T`:
+The default being that structural constraints become hidden generic parameters is _generally_ great for performance in a `type`-heavy language like TypeScript, and it works especially well because we always compile statically from source.
+However, sometimes explicit _runtime_ indirection / erasure is desired, and Destack also provides an intrinsic `Dynamic<T>` wrapper as the explicit erased runtime value satisfying any dynamic-safe `T`:
 
 ```ds
 // just like the function, this Logger is implicitly generic over Writer
@@ -935,7 +950,8 @@ struct LoggerFor {
 }
 ```
 
-For a type `T` to become concrete (as required by `Dynamic<T>`), it must have a form we can actually build a concrete type for - basically, the `T` in our `Dynamic<T>` must be "dynamic compatible", which is very similar to Rust's "object-safe" requirements for `dyn T`:
+For a type `T` to become concrete (as required by `Dynamic<T>`), it must have a surface we can actually erase into a runtime witness: we call this `DynamicSafe`.
+Basically, the `T` in `Dynamic<T>` implies `DynamicSafe`, which is very similar to Rust's "object-safe" requirements for `dyn T`:
  - no generic members that introduce new generic parameters
  - no index signatures
  - no unqualified reference to `this`
@@ -1513,7 +1529,7 @@ However, if `PointLike.x` were mutable, this conversion of `Point` to `PointLike
 
 #### Index Signatures
 
-Index signatures like `{ [index: string]: string }` (as in `Record<K, V>`) are incomplete structural constraints for object-shaped values, and can be satisfied with both fixed object shapes and types implementing `Index` for readonly / `IndexSet` for writable shapes.
+Index signatures like `{ [index: string]: string }` (as in `Record<K, V>`) still work like structural constraints for object-shaped values, and can be satisfied with both fixed object shapes and types implementing `Index` for readonly / `IndexSet` for writable shapes.
 It's important to note that while Destack supports structural index signatures, the actual compiled shape must still be known, and so `Record`-like types _by themselves_  are not concrete (they're just constraints).
 
 ```ds
@@ -2237,7 +2253,7 @@ Destack supports explicit, optional type modifiers for controlling memory _place
 - **Ownership** - who "owns" the value: managed (`T`), owned (`^T`), borrowed (`&T`, `&readonly T`, `&exclusive T`), or raw (`*T`).
 
 The two axes of ownership and placement compose and commute freely, e.g. `shared ^T` and `^shared T` both mean an owned handle to a value in shared space, and `shared &T` is a borrow of a shared value.
-Once structural shapes and incomplete constraints have been reified, instantiated, or erased, the plain old `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
+Once structural shapes and constraints have been reified, instantiated, or erased, the plain old `T` still behaves as the type's default representation, exactly like we're used to from TypeScript: value types are values, object types are managed references, both can be aliased and mutated freely (locally).
 
 ### Space
 
