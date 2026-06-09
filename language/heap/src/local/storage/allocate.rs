@@ -206,16 +206,24 @@ impl HeapStorage {
         })
     }
 
-    /// Publish one traced young span block to active collectors.
+    /// Publish one new young block to the active collectors.
     #[inline(always)]
-    fn publish_young_cache_allocation(
+    fn publish_young_allocation(
         &mut self,
-        slot: YoungSlot,
+        reference: HeapReference,
+        place: HeapPlace,
         trace_map: &TraceMap,
         has_initialized_bytes: bool,
     ) -> HeapResult<()> {
-        let reference = slot.reference;
+        // new young blocks are born marked while a minor cycle is active
+        if self.collector.minor_phase != Phase::Idle {
+            self.mark_place(place)?;
+        }
 
+        // mark and queue initial payload references for an active major cycle
+        self.publish_major_allocation(reference, place, trace_map)?;
+
+        // track and queue shared edges
         if trace_map.has_shared_reference() {
             self.collector.track_shared_edge_root(reference);
             if has_initialized_bytes {
@@ -223,11 +231,7 @@ impl HeapStorage {
             }
         }
 
-        self.publish_major_allocation(
-            reference,
-            HeapPlace::YoungSlot(Slot::new(slot.span_index, slot.slot_index)?),
-            trace_map,
-        )
+        Ok(())
     }
 
     /// Allocate one heap block.
@@ -273,37 +277,27 @@ impl HeapStorage {
         // reserve from a fixed-size young span
         if let Some(slot) = self.reserve_young_span(layout)? {
             payload.initialize_zeroed_mapped(&self.mapping, slot.reference.offset());
-
-            if !layout.is_noscan {
-                self.publish_young_cache_allocation(slot, trace_map, has_initialized_bytes)?;
-            } else if self.collector.major_phase != Phase::Idle {
-                let Some(bits) = self.young.span_bits_mut(slot.span_index) else {
-                    return Err(HeapError::internal("missing span"));
-                };
-
-                bits.marked.set_in_bounds(slot.slot_index);
-            }
+            let place = HeapPlace::YoungSlot(Slot::new(slot.span_index, slot.slot_index)?);
+            self.publish_young_allocation(slot.reference, place, trace_map, has_initialized_bytes)?;
 
             return Ok(Some(slot.reference));
         }
 
         // reserve a no-scan young range when fixed-size spans do not fit
         if layout.is_noscan
-            && let Some(reservation) =
+            && let Some(first_offset) =
                 self.reserve_young_noscan_range(layout.byte_len, layout.alignment)?
         {
-            let reference = HeapReference::new(reservation.first_offset);
-
-            payload.initialize_mapped(&self.mapping, reservation.first_offset, layout.byte_len);
-
-            if self.collector.major_phase != Phase::Idle {
-                self.young.marked.set_in_bounds(reservation.range_index);
-            }
+            let reference = HeapReference::new(first_offset);
+            payload.initialize_mapped(&self.mapping, first_offset, layout.byte_len);
             self.record_young_range_allocation(layout.byte_len);
+            let place = HeapPlace::YoungRange { first_offset };
+            self.publish_young_allocation(reference, place, trace_map, has_initialized_bytes)?;
 
             return Ok(Some(reference));
         }
 
+        // fall back to the variable-size young range path
         if let Some(reference) = self.allocate_young(
             layout.byte_len,
             layout.alignment,
@@ -311,23 +305,10 @@ impl HeapStorage {
             trace_map,
             tracks_shared_edges,
         )? {
-            // track every live reference whose layout may contain shared edges
-            if tracks_shared_edges {
-                self.collector.track_shared_edge_root(reference);
-            }
-
-            // queue newly published shared edges during an active shared cycle
-            if tracks_shared_edges && has_initialized_bytes {
-                self.queue_shared_edge_root(reference);
-            }
-
-            self.publish_major_allocation(
-                reference,
-                HeapPlace::YoungRange {
-                    first_offset: reference.offset(),
-                },
-                trace_map,
-            )?;
+            let place = HeapPlace::YoungRange {
+                first_offset: reference.offset(),
+            };
+            self.publish_young_allocation(reference, place, trace_map, has_initialized_bytes)?;
 
             return Ok(Some(reference));
         }
@@ -592,10 +573,6 @@ impl HeapStorage {
     /// Report whether one byte length still fits the young space tail.
     #[inline(always)]
     fn young_fits(&self, byte_len: usize, alignment: usize) -> bool {
-        if self.collector.minor_phase != Phase::Idle {
-            return false;
-        }
-
         if alignment > self.young.allocation_alignment_bytes {
             return false;
         }
@@ -897,7 +874,7 @@ impl HeapStorage {
         &mut self,
         byte_len: usize,
         alignment: usize,
-    ) -> HeapResult<Option<YoungRangeReservation>> {
+    ) -> HeapResult<Option<usize>> {
         if alignment > self.young.allocation_alignment_bytes {
             return Ok(None);
         }
@@ -922,14 +899,10 @@ impl HeapStorage {
         self.materialize_young_range(write_offset, byte_len)?;
 
         // install exact no-scan metadata
-        let range_index = self.young.push_range(write_offset, byte_len);
-
+        self.young.push_range(write_offset, byte_len);
         self.young.next_offset = end_offset;
 
-        Ok(Some(YoungRangeReservation {
-            first_offset: write_offset,
-            range_index,
-        }))
+        Ok(Some(write_offset))
     }
 
     /// Allocate or reuse one non-full heap span for the given size class.
@@ -1086,15 +1059,6 @@ struct MatureAllocation {
     place: HeapPlace,
     /// The byte count charged to mature allocation accounting.
     charged_bytes: usize,
-}
-
-/// One reserved variable-size young range.
-#[derive(Debug, Clone, Copy)]
-struct YoungRangeReservation {
-    /// The first byte offset inside heap storage.
-    first_offset: usize,
-    /// The range index inside young space.
-    range_index: usize,
 }
 
 /// One reserved fixed-size young slot.

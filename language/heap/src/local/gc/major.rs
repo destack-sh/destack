@@ -834,7 +834,7 @@ impl HeapStorage {
     }
 
     /// Mark one heap storage and return whether this was the first mark.
-    pub(super) fn mark_place(&mut self, storage: HeapPlace) -> HeapResult<bool> {
+    pub(crate) fn mark_place(&mut self, storage: HeapPlace) -> HeapResult<bool> {
         // skip already marked storages
         if self.is_marked_place(storage)? {
             return Ok(false);

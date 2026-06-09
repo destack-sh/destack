@@ -30,6 +30,8 @@ pub(crate) struct CollectorState {
     pub(crate) young_dirty_extent_cursor: usize,
     /// The next dirty card inside the current mature extent.
     pub(crate) young_dirty_card_cursor: usize,
+    /// Whether a write dirtied an already queued extent during the active minor cycle.
+    pub(crate) dirty_rescan_needed: bool,
     /// The number of blocks freed by the active young cycle.
     pub(crate) young_freed_allocations: usize,
     /// The number of bytes freed by the active young cycle.

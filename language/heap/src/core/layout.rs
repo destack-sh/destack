@@ -318,12 +318,11 @@ pub(crate) fn allocation_class(
     let span_size_bytes = size_class
         .span_size_bytes(page_size_bytes, span_size_bytes)
         .max(span_size_bytes);
+
+    // no-scan classes share spans regardless of their trace id
+    let trace_id = if is_noscan { None } else { trace_id };
     let class = SmallSpanClass::new(size_class.bytes, span_size_bytes, trace_id, is_noscan);
-    let trace_slot = if is_noscan {
-        0
-    } else {
-        trace_id.map_or(0, |trace_id| trace_id.index() + 1)
-    };
+    let trace_slot = trace_id.map_or(0, |trace_id| trace_id.index() + 1);
     let cache_index = (trace_slot * size_classes.classes.len() + class_index) * 2;
     let cache_index = SmallCacheIndex::from_class_index(cache_index + is_noscan as usize);
 
