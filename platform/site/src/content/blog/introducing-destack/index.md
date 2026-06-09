@@ -22,8 +22,8 @@ Despite incredible hardware advances, accumulated wisdom, and many libraries and
 
 ## higher-order programming
 
-- there is a long running trend in the history of software of rising abstractions
-- more abstraction is generally considered a good thing, removing the need to think aboiut those pesky "details of the machine" and focus on the "problem at hand" (a variant of the much cited "focus on what makes your beer test better" quote)
+- there is a long running trend in the history of software of raising levels of abstractions
+- more abstraction is generally considered a good thing, removing the need to think about those pesky "details of the machine" and focus on the "problem at hand" (the technological variant of the much cited "focus on what makes your beer test better" idea)
 - (it should be noted to the attentative reader, that we all implicitly know that the best programmers know a ton about the lowest levels of detail, even though they may choose to work higher up the stack)
 - increasing levels of abstraction along multiple dimensions:
 
