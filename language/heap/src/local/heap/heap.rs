@@ -5,9 +5,9 @@ use destack_mir::{TraceMap, TraceTable};
 use crate::allocator::Allocator;
 use crate::local::storage::HeapStorage;
 use crate::{
-    AllocationPlan, AllocationShape, AllocationSite, GcPacer, GcPressure, GcProgress, GcState,
-    GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RootSlot,
-    SharedHeapReference, SmallAllocationSite,
+    AllocationPlan, AllocationSite, GcPacer, GcPressure, GcProgress, GcState, GcStats, HeapError,
+    HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, RootSlot, SharedHeapReference,
+    SmallAllocationSite,
 };
 
 /// One live heap over one shared allocator.
@@ -116,15 +116,15 @@ impl Heap {
         self.storage.finish_shared_edge_scan();
     }
 
-    /// Scan bounded local-to-shared edge work into the provided root buffer.
-    pub fn scan_shared_references(
+    /// Trace bounded local-to-shared edges into the provided root buffer.
+    pub fn trace_shared_roots(
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
         budget_bytes: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<usize> {
         self.storage
-            .scan_shared_references(roots, budget_bytes, trace_table)
+            .trace_shared_roots(roots, budget_bytes, trace_table)
     }
 
     /// Stabilize one heap reference in mature space.
@@ -215,7 +215,7 @@ impl Heap {
     }
 
     /// Run one local collection step within one byte budget.
-    pub fn collect_step<E>(
+    pub fn step_collection<E>(
         &mut self,
         roots: &mut impl FnMut(&mut dyn FnMut(RootSlot<'_>) -> HeapResult<()>) -> Result<(), E>,
         budget_bytes: usize,
@@ -291,40 +291,6 @@ impl Heap {
 
             Ok(progress)
         }
-    }
-
-    /// Allocate one zeroed dynamic heap block.
-    #[inline(always)]
-    pub fn allocate_dynamic_zeroed(
-        &mut self,
-        shape: AllocationShape<'_>,
-    ) -> HeapResult<HeapReference> {
-        let layout = self.storage.allocation_plan(shape);
-
-        self.allocate_payload(&layout, Payload::Zeroed)
-    }
-
-    /// Allocate one uninitialized dynamic heap block.
-    #[inline(always)]
-    pub fn allocate_dynamic_uninit(
-        &mut self,
-        shape: AllocationShape<'_>,
-    ) -> HeapResult<HeapReference> {
-        let layout = self.storage.allocation_plan(shape);
-
-        self.allocate_payload(&layout, Payload::Uninit)
-    }
-
-    /// Allocate one byte-initialized dynamic heap block.
-    #[inline(always)]
-    pub fn allocate_dynamic_bytes(
-        &mut self,
-        shape: AllocationShape<'_>,
-        bytes: &[u8],
-    ) -> HeapResult<HeapReference> {
-        let layout = self.storage.allocation_plan(shape);
-
-        self.allocate_payload(&layout, Payload::Bytes(bytes))
     }
 
     /// Allocate one payload from one allocation plan.
@@ -409,16 +375,18 @@ impl Heap {
         self.allocate_payload(&layout, Payload::Uninit)
     }
 
-    /// Resolve one allocation shape to one allocation site.
-    #[inline(always)]
-    pub fn allocation_site(&self, shape: AllocationShape<'_>) -> AllocationSite {
-        self.storage.allocation_plan(shape).site()
-    }
+    /// Allocate one byte-initialized payload from one allocation site.
+    #[cold]
+    #[inline(never)]
+    pub fn allocate_bytes(
+        &mut self,
+        site: AllocationSite,
+        trace_map: &TraceMap,
+        bytes: &[u8],
+    ) -> HeapResult<HeapReference> {
+        let layout = site.plan(trace_map);
 
-    /// Resolve one allocation shape against this heap.
-    #[inline(always)]
-    pub fn allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
-        self.storage.allocation_plan(shape)
+        self.allocate_payload(&layout, Payload::Bytes(bytes))
     }
 
     /// Return whether one heap reference currently refers to one live block.
@@ -433,8 +401,12 @@ impl Heap {
     }
 
     /// Return the heap scan metadata for one heap block.
-    pub fn scan(&self, reference: HeapReference, trace_table: &TraceTable) -> HeapResult<TraceMap> {
-        self.storage.scan(reference, trace_table)
+    pub fn trace_map(
+        &self,
+        reference: HeapReference,
+        trace_table: &TraceTable,
+    ) -> HeapResult<TraceMap> {
+        self.storage.trace_map(reference, trace_table)
     }
 
     /// Record one heap write barrier over one byte range.

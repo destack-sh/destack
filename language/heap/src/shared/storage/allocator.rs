@@ -323,12 +323,7 @@ impl SmallSizeClassCache {
     }
 
     /// Install one shared small span into this cache.
-    pub(super) fn install(
-        &mut self,
-        span_index: usize,
-        span: Arc<SmallSpan>,
-        use_dense_cursor: bool,
-    ) {
+    pub(super) fn install(&mut self, span_index: usize, span: Arc<SmallSpan>, is_dense: bool) {
         // initialize cache metadata from the span
         let next_slot = span.first_free_slot();
 
@@ -340,7 +335,7 @@ impl SmallSizeClassCache {
         self.next_slot = next_slot;
 
         // dense spans cover newly mapped spans
-        let end_offset = if use_dense_cursor {
+        let end_offset = if is_dense {
             span.first_offset + span.class.size_class * span.slot_count
         } else {
             0

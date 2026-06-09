@@ -5,15 +5,14 @@ use destack_memory::AddressSpace;
 use destack_mir::{TraceMap, TraceTable};
 
 use super::{
-    CollectorState, GcState, HeapPageMapEntry, HeapPlace, LargeBlock, LargeBlockId, SmallSpan,
-    YoungRange, YoungSpace,
+    CollectorState, GcState, HeapPageMapEntry, HeapPlace, IndexedYoungRange, LargeBlock,
+    LargeBlockId, SmallSpan, YoungRange, YoungSpace,
 };
 use crate::allocator::{Allocator, PageSpan, PageSpanCache, SizeClassTable};
 use crate::local::heap::HeapUsage;
 use crate::{
-    AllocationPlan, AllocationShape, AllocationUsage, CowTable, HeapError, HeapOptions,
-    HeapReference, HeapResult, SmallSpanClass, allocation_plan, allocation_trace_map,
-    slot_trace_map,
+    AllocationUsage, CowTable, HeapError, HeapOptions, HeapReference, HeapResult, SmallSpanClass,
+    allocation_trace_map, slot_trace_map,
 };
 
 /// The first non-null heap large-block id.
@@ -170,17 +169,17 @@ impl HeapStorage {
 
     /// Return the number of live heap blocks.
     pub(crate) fn allocation_count(&self) -> usize {
-        self.usage.allocation_count() + self.young.pending_cursor_usage().allocation_count()
+        self.usage.allocation_count() + self.young.pending_usage().allocation_count()
     }
 
     /// Return the number of live heap bytes.
     pub(crate) fn allocated_bytes(&self) -> u64 {
-        self.usage.allocated_bytes() + self.young.pending_cursor_usage().allocated_bytes()
+        self.usage.allocated_bytes() + self.young.pending_usage().allocated_bytes()
     }
 
     /// Return the exact live usage for this heap storage.
     pub(crate) fn usage(&self) -> HeapUsage {
-        let pending_young = self.young.pending_cursor_usage();
+        let pending_young = self.young.pending_usage();
 
         HeapUsage {
             allocation_count: self.usage.allocation_count() + pending_young.allocation_count(),
@@ -229,10 +228,9 @@ impl HeapStorage {
         Ok(())
     }
 
-    /// Record one young heap block.
-    pub(crate) fn record_young_allocation(&mut self, byte_len: usize) {
-        self.usage.allocate(byte_len);
-        self.young_usage.allocate(byte_len);
+    /// Record one pending young range block.
+    pub(crate) fn record_young_range_allocation(&mut self, byte_len: usize) {
+        self.young.record_range_usage(byte_len);
     }
 
     /// Record multiple young heap blocks.
@@ -252,7 +250,7 @@ impl HeapStorage {
     /// Flush the active young cursor into exact usage.
     #[inline(always)]
     pub(crate) fn flush_young_cursor(&mut self) {
-        let usage = self.young.flush_cursor();
+        let usage = self.young.flush_usage();
         self.record_young_allocations(usage);
     }
 
@@ -305,7 +303,7 @@ impl HeapStorage {
     }
 
     /// Return one live young range by base offset.
-    pub(crate) fn young_range_by_offset(&self, first_offset: usize) -> Option<(usize, YoungRange)> {
+    pub(crate) fn young_range_by_offset(&self, first_offset: usize) -> Option<IndexedYoungRange> {
         self.young.range_by_offset(first_offset)
     }
 
@@ -347,11 +345,11 @@ impl HeapStorage {
     pub(crate) fn byte_len_for_place(&self, storage: HeapPlace) -> HeapResult<usize> {
         match storage {
             HeapPlace::YoungRange { first_offset } => {
-                let Some((_range_index, range)) = self.young_range_by_offset(first_offset) else {
+                let Some(indexed) = self.young_range_by_offset(first_offset) else {
                     return Err(HeapError::internal("missing young range"));
                 };
 
-                Ok(range.byte_len)
+                Ok(indexed.range.byte_len)
             }
             HeapPlace::YoungSlot(slot) => {
                 let Some(span) = self.young.span(slot.span_index()) else {
@@ -382,11 +380,10 @@ impl HeapStorage {
     pub(crate) fn base_reference(&self, storage: HeapPlace) -> HeapResult<HeapReference> {
         let base_offset = match storage {
             HeapPlace::YoungRange { first_offset } => {
-                let Some((_allocation_index, block)) = self.young_range_by_offset(first_offset)
-                else {
+                let Some(indexed) = self.young_range_by_offset(first_offset) else {
                     return Err(HeapError::internal("missing young range"));
                 };
-                block.first_offset
+                indexed.range.first_offset
             }
             HeapPlace::YoungSlot(slot) => {
                 let Some(span) = self.young.span(slot.span_index()) else {
@@ -498,26 +495,16 @@ impl HeapStorage {
 
     /// Return the exact trace map stored for one young range.
     pub(crate) fn young_range_trace_map(&self, first_offset: usize) -> HeapResult<TraceMap> {
-        let Some((_range_index, range)) = self.young_range_by_offset(first_offset) else {
+        let Some(indexed) = self.young_range_by_offset(first_offset) else {
             return Err(HeapError::internal("missing young range"));
         };
+
         Ok(allocation_trace_map(
             &self.young.local_reference_bits,
             &self.young.shared_reference_bits,
-            range.first_offset,
-            range.byte_len,
+            indexed.range.first_offset,
+            indexed.range.byte_len,
         ))
-    }
-
-    /// Resolve one allocation shape against this heap storage.
-    #[inline(always)]
-    pub(crate) fn allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
-        allocation_plan(
-            shape,
-            &self.small.size_classes,
-            self.allocator.page_size_bytes(),
-            self.small.span_size_bytes,
-        )
     }
 
     /// Return the page spans reachable from this live heap storage.

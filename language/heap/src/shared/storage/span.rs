@@ -352,18 +352,15 @@ impl SmallSpan {
         self.scanned.try_set(slot_index)
     }
 
-    /// Claim marked slots for scanning in one cycle.
-    pub(crate) fn claim_marked_slots(&self, epoch: u64, max_slots: usize) -> Vec<usize> {
+    /// Claim the next marked slot for scanning in one cycle.
+    pub(crate) fn claim_next_marked_slot(&self, epoch: u64) -> Option<usize> {
         if self.mark_epoch.load(Ordering::Acquire) != epoch {
-            return Vec::new();
+            return None;
         }
 
-        let mut slots = Vec::new();
-        while slots.len() < max_slots {
+        loop {
             let start = self.scan_cursor.load(Ordering::Acquire);
-            let Some(slot_index) = self.marked.first_set_from(start) else {
-                break;
-            };
+            let slot_index = self.marked.first_set_from(start)?;
             let next_slot_index = slot_index + 1;
             if self
                 .scan_cursor
@@ -374,11 +371,9 @@ impl SmallSpan {
             }
 
             if self.claim_marked_slot(slot_index, epoch) {
-                slots.push(slot_index);
+                return Some(slot_index);
             }
         }
-
-        slots
     }
 
     /// Ensure collector bitmaps represent one mark epoch.
@@ -580,11 +575,7 @@ impl SpanList {
             1 => Self::Worker,
             2 => Self::Full,
             3 => Self::Released,
-            _ => {
-                debug_assert!(false, "invalid shared small-span list byte");
-
-                Self::Released
-            }
+            _ => unreachable!("invalid shared small-span list byte: {bits}"),
         }
     }
 }

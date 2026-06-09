@@ -83,8 +83,8 @@ impl HeapStorage {
             return self.resolve_young_span_extent(span_index, logical_byte_offset);
         }
 
-        let (_range_index, block) = self.young.range_at_offset(logical_byte_offset)?;
-        let block_offset = block.first_offset;
+        let range = self.young.range_at_offset(logical_byte_offset)?;
+        let block_offset = range.range.first_offset;
 
         let byte_offset = logical_byte_offset - block_offset;
 
@@ -94,7 +94,7 @@ impl HeapStorage {
             },
             base: HeapReference::new(block_offset),
             byte_offset,
-            byte_len: block.byte_len,
+            byte_len: range.range.byte_len,
         })
     }
 
