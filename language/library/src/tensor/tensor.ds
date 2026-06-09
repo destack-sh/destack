@@ -182,7 +182,7 @@ extension<T, comptime Rank: int> of Tensor<T, Rank> implements
     type Output = T;
 
     /// Return a view of this tensor.
-    view<A: Access = "readonly">(this: WithAccess<&Tensor<T, Rank>, A>): TensorView<T, Rank, A> {
+    view<comptime A: Access = "readonly">(this: WithAccess<&Tensor<T, Rank>, A>): TensorView<T, Rank, A> {
         todo("Tensor.view")
     }
 
@@ -207,7 +207,7 @@ extension<T, comptime Rank: int> of Tensor<T, Rank> implements
     }
 
     /// Borrow the element at `coordinate`.
-    index<A: Access = "readonly">(
+    index<comptime A: Access = "readonly">(
         this: WithAccess<&Tensor<T, Rank>, A>,
         coordinate: Coordinate<Rank>,
     ): WithAccess<&T, A> {

@@ -196,8 +196,8 @@ export class Promise<T> {
 
         PromiseResolvers {
             promise,
-            resolve: resolve as PromiseResolve<T>,
-            reject: reject as PromiseReject,
+            resolve: resolve!,
+            reject: reject!,
         }
     }
 
@@ -213,7 +213,7 @@ export class Promise<T> {
                 },
             );
         } else {
-            this.fulfill(value as T);
+            this.fulfill(value);
         }
     }
 

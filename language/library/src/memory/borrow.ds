@@ -3,10 +3,10 @@ import { Lifetime } from "./lifetime.ds";
 
 /// Borrowed access form for exactly `T`.
 @languageItem("memory.Borrowed")
-export newtype Borrowed<T, L: Lifetime, A: Access = "mutable"> = intrinsic;
+export newtype Borrowed<T, comptime L: Lifetime, comptime A: Access = "mutable"> = intrinsic;
 
 /// Readonly borrowed access to `T` within lifetime `L`.
-export type ReadonlyBorrowed<T, L: Lifetime> = Borrowed<T, L, "readonly">;
+export type ReadonlyBorrowed<T, comptime L: Lifetime> = Borrowed<T, L, "readonly">;
 
 /// Exclusive borrowed access to `T` within lifetime `L`.
-export type ExclusiveBorrowed<T, L: Lifetime> = Borrowed<T, L, "exclusive">;
+export type ExclusiveBorrowed<T, comptime L: Lifetime> = Borrowed<T, L, "exclusive">;

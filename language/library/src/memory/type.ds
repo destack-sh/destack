@@ -33,7 +33,7 @@ export newtype OwnershipOf<T> = intrinsic;
 
 /// Extract the ownership of `T`, or fall back to `D`.
 @languageItem("memory.OwnershipOr")
-export newtype OwnershipOr<T, D: Ownership> = intrinsic;
+export newtype OwnershipOr<T, comptime D: Ownership> = intrinsic;
 
 /// Extract the placement of `T`.
 @languageItem("memory.PlaceOf")
@@ -41,11 +41,11 @@ export newtype PlaceOf<T> = intrinsic;
 
 /// Extract the placement of `T`, or fall back to `D`.
 @languageItem("memory.PlaceOr")
-export newtype PlaceOr<T, D: Place> = intrinsic;
+export newtype PlaceOr<T, comptime D: Place> = intrinsic;
 
 /// Resolve ambient placement in concrete space `S`.
 @languageItem("memory.PlaceIn")
-export newtype PlaceIn<T, S: Space> = intrinsic;
+export newtype PlaceIn<T, comptime S: Space> = intrinsic;
 
 /// Extract the explicit concrete space of `T`.
 @languageItem("memory.SpaceOf")
@@ -53,7 +53,7 @@ export newtype SpaceOf<T> = intrinsic;
 
 /// Extract the explicit concrete space of `T`, or fall back to `D`.
 @languageItem("memory.SpaceOr")
-export newtype SpaceOr<T, D: Space> = intrinsic;
+export newtype SpaceOr<T, comptime D: Space> = intrinsic;
 
 /// Extract the borrow lifetime of `T`.
 @languageItem("memory.LifetimeOf")
@@ -61,7 +61,7 @@ export newtype LifetimeOf<T> = intrinsic;
 
 /// Extract the borrow lifetime of `T`, or fall back to `D`.
 @languageItem("memory.LifetimeOr")
-export newtype LifetimeOr<T, D: Lifetime> = intrinsic;
+export newtype LifetimeOr<T, comptime D: Lifetime> = intrinsic;
 
 /// Extract the access mode of `T`.
 @languageItem("memory.AccessOf")
@@ -69,7 +69,7 @@ export newtype AccessOf<T> = intrinsic;
 
 /// Extract the access mode of `T`, or fall back to `D`.
 @languageItem("memory.AccessOr")
-export newtype AccessOr<T, D: Access> = intrinsic;
+export newtype AccessOr<T, comptime D: Access> = intrinsic;
 
 /// Return whether `T` is managed.
 @languageItem("memory.IsManaged")
@@ -93,7 +93,7 @@ export newtype IsShared<T> = intrinsic;
 
 /// Return whether `T` resolves to shared space in concrete space `S`.
 @languageItem("memory.IsSharedIn")
-export newtype IsSharedIn<T, S: Space> = intrinsic;
+export newtype IsSharedIn<T, comptime S: Space> = intrinsic;
 
 /// Replace the unqualified base type of `Q` with `T`.
 @languageItem("memory.WithBase")
@@ -101,23 +101,23 @@ export newtype WithBase<Q, T> = intrinsic;
 
 /// Add ownership form `O` around `Q`.
 @languageItem("memory.WithOwnership")
-export newtype WithOwnership<Q, O: Ownership, L = LifetimeOf<Q>> = intrinsic;
+export newtype WithOwnership<Q, comptime O: Ownership, comptime L: Lifetime = LifetimeOf<Q>> = intrinsic;
 
 /// Place `Q` in `P`.
 @languageItem("memory.WithPlace")
-export newtype WithPlace<Q, P: Place> = intrinsic;
+export newtype WithPlace<Q, comptime P: Place> = intrinsic;
 
 /// Place `Q` in concrete space `S`.
 @languageItem("memory.WithSpace")
-export newtype WithSpace<Q, S: Space> = intrinsic;
+export newtype WithSpace<Q, comptime S: Space> = intrinsic;
 
 /// Reborrow `Q` with lifetime `L`.
 @languageItem("memory.WithLifetime")
-export newtype WithLifetime<Q, L: Lifetime> = intrinsic;
+export newtype WithLifetime<Q, comptime L: Lifetime> = intrinsic;
 
 /// Reborrow `Q` with access mode `A`.
 @languageItem("memory.WithAccess")
-export newtype WithAccess<Q, A: Access> = intrinsic;
+export newtype WithAccess<Q, comptime A: Access> = intrinsic;
 
 /// Rebase each field of `T` into managed form.
 export type ManagedFields<T> = {
@@ -130,17 +130,17 @@ export type OwnedFields<T> = {
 };
 
 /// Rebase each field of `T` into borrowed form.
-export type BorrowedFields<T, L: Lifetime> = {
+export type BorrowedFields<T, comptime L: Lifetime> = {
     [K in keyof T]: Borrowed<T[K], L>;
 };
 
 /// Rebase each field of `T` into readonly borrowed form.
-export type ReadonlyBorrowedFields<T, L: Lifetime> = {
+export type ReadonlyBorrowedFields<T, comptime L: Lifetime> = {
     [K in keyof T]: ReadonlyBorrowed<T[K], L>;
 };
 
 /// Rebase each field of `T` into exclusive borrowed form.
-export type ExclusiveBorrowedFields<T, L: Lifetime> = {
+export type ExclusiveBorrowedFields<T, comptime L: Lifetime> = {
     [K in keyof T]: ExclusiveBorrowed<T[K], L>;
 };
 

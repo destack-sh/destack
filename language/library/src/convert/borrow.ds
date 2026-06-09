@@ -4,12 +4,12 @@ import { Access, WithAccess } from "destack:memory";
 ///
 /// Borrowed values must preserve equality, hashing, and ordering with the owner.
 @languageItem("convert.Borrow")
-export newtype interface Borrow<T, A: Access = "readonly"> {
+export newtype interface Borrow<T, comptime A: Access = "readonly"> {
     /// Borrow this value.
     borrow(this: WithAccess<&this, A>): WithAccess<&T, A>;
 }
 
-export extension<T, A: Access = "readonly"> of T implements Borrow<T, A> {
+export extension<T, comptime A: Access = "readonly"> of T implements Borrow<T, A> {
     /// Borrow this value as itself.
     borrow(this: WithAccess<&T, A>): WithAccess<&T, A> {
         this

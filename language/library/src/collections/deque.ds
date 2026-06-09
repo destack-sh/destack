@@ -76,7 +76,7 @@ extension<T> of Deque<T> implements
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>, index: usize): WithAccess<&T, A> {
+    index<comptime A: Access = "readonly">(this: WithAccess<&Deque<T>, A>, index: usize): WithAccess<&T, A> {
         todo("Deque.index")
     }
 
@@ -111,12 +111,12 @@ extension<T> of Deque<T> implements
     }
 
     /// Borrow the front element.
-    front<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>): WithAccess<&T, A> | undefined {
+    front<comptime A: Access = "readonly">(this: WithAccess<&Deque<T>, A>): WithAccess<&T, A> | undefined {
         todo("Deque.front")
     }
 
     /// Borrow the back element.
-    back<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>): WithAccess<&T, A> | undefined {
+    back<comptime A: Access = "readonly">(this: WithAccess<&Deque<T>, A>): WithAccess<&T, A> | undefined {
         todo("Deque.back")
     }
 
@@ -156,7 +156,7 @@ extension<T> of Deque<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator<A: Access = "readonly">(this: WithAccess<&Deque<T>, A>): Iterator<WithAccess<&T, A>> {
+    iterator<comptime A: Access = "readonly">(this: WithAccess<&Deque<T>, A>): Iterator<WithAccess<&T, A>> {
         todo("Deque.iterator")
     }
 

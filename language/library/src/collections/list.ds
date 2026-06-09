@@ -116,14 +116,14 @@ extension<T> of LinkedList<T> implements
     }
 
     /// Borrow the front element.
-    front<A: Access = "readonly">(
+    front<comptime A: Access = "readonly">(
         this: WithAccess<&LinkedList<T>, A>,
     ): WithAccess<&T, A> | undefined {
         todo("LinkedList.front")
     }
 
     /// Borrow the back element.
-    back<A: Access = "readonly">(
+    back<comptime A: Access = "readonly">(
         this: WithAccess<&LinkedList<T>, A>,
     ): WithAccess<&T, A> | undefined {
         todo("LinkedList.back")
@@ -165,7 +165,7 @@ extension<T> of LinkedList<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator<A: Access = "readonly">(
+    iterator<comptime A: Access = "readonly">(
         this: WithAccess<&LinkedList<T>, A>,
     ): Iterator<WithAccess<&T, A>> {
         todo("LinkedList.iterator")

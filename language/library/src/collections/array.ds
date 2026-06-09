@@ -11,6 +11,7 @@ import {
     WithAccess,
 } from "destack:memory";
 import { Index, IndexSet } from "destack:ops";
+import { RangeBounds } from "destack:range";
 
 import { Slice } from "./slice.ds";
 
@@ -21,6 +22,134 @@ export type ReadonlyArray<T> = readonly T[];
 /// Fixed-size array alias.
 @languageItem("collections.FixedArray")
 export type FixedArray<T, comptime N: number> = [T; N];
+
+extension<T, comptime N: number> of FixedArray<T, N> implements
+    Index<usize>,
+    IndexSet<usize, T>,
+    Iterable<T>,
+    Iterable<&T>,
+    Iterable<&readonly T>,
+    Iterable<&exclusive T> {
+    /// The indexed output type.
+    type Output = T;
+
+    /// Return the number of elements.
+    get length(): number {
+        N
+    }
+
+    /// Return the number of elements.
+    get size(): usize {
+        N as usize
+    }
+
+    /// Return whether this fixed array has no elements.
+    get isEmpty(): boolean {
+        N == 0
+    }
+
+    /// Return the element at `index` by value.
+    index(index: usize): T {
+        todo("FixedArray.index")
+    }
+
+    /// Borrow the element at `index`.
+    index<comptime A: Access = "readonly">(
+        this: WithAccess<&FixedArray<T, N>, A>,
+        index: usize,
+    ): WithAccess<&T, A> {
+        todo("FixedArray.index")
+    }
+
+    /// Replace the element at `index`.
+    indexSet(&exclusive this, index: usize, value: T): void {
+        todo("FixedArray.indexSet");
+    }
+
+    /// Return the first element by value.
+    first(): T | undefined {
+        todo("FixedArray.first")
+    }
+
+    /// Borrow the first element.
+    first<comptime A: Access = "readonly">(
+        this: WithAccess<&FixedArray<T, N>, A>,
+    ): WithAccess<&T, A> | undefined {
+        todo("FixedArray.first")
+    }
+
+    /// Return the last element by value.
+    last(): T | undefined {
+        todo("FixedArray.last")
+    }
+
+    /// Borrow the last element.
+    last<comptime A: Access = "readonly">(
+        this: WithAccess<&FixedArray<T, N>, A>,
+    ): WithAccess<&T, A> | undefined {
+        todo("FixedArray.last")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): Iterator<T> {
+        todo("FixedArray.iterator")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator<comptime A: Access = "readonly">(
+        this: WithAccess<&FixedArray<T, N>, A>,
+    ): Iterator<WithAccess<&T, A>> {
+        todo("FixedArray.iterator")
+    }
+}
+
+extension<T, comptime N: number, comptime A: Access = "readonly"> of FixedArray<T, N> implements
+    As<Slice<T>, A>,
+    Borrow<Slice<T>, A> {
+    /// Borrow this fixed array as a slice.
+    as(this: WithAccess<&FixedArray<T, N>, A>): WithAccess<&Slice<T>, A> {
+        todo("FixedArray.as")
+    }
+
+    /// Borrow this fixed array as a slice.
+    borrow(this: WithAccess<&FixedArray<T, N>, A>): WithAccess<&Slice<T>, A> {
+        this.as()
+    }
+}
+
+extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements Index<R> {
+    /// The indexed output type.
+    type Output = Slice<T>;
+
+    /// Return the selected range by value.
+    index(range: R): Slice<T> {
+        todo("FixedArray.indexRange")
+    }
+
+    /// Borrow the selected range.
+    index<comptime A: Access = "readonly">(
+        this: WithAccess<&FixedArray<T, N>, A>,
+        range: R,
+    ): WithAccess<&Slice<T>, A> {
+        todo("FixedArray.indexRange")
+    }
+}
+
+extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements
+    IndexSet<R, Slice<T>> where T: Copy {
+    /// Copy `source` into the selected range.
+    indexSet(&exclusive this, range: R, source: Slice<T>): void {
+        todo("FixedArray.indexSetRange");
+    }
+}
+
+extension<T, comptime N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements
+    IndexSet<R, &readonly Slice<T>> where T: Copy {
+    /// Copy `source` into the selected range.
+    indexSet(&exclusive this, range: R, source: &readonly Slice<T>): void {
+        todo("FixedArray.indexSetRange");
+    }
+}
 
 /// A growable compact array.
 @languageItem("collections.Array")
@@ -112,7 +241,7 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(this: WithAccess<&Array<T>, A>, index: usize): WithAccess<&T, A> {
+    index<comptime A: Access = "readonly">(this: WithAccess<&Array<T>, A>, index: usize): WithAccess<&T, A> {
         todo("Array.index")
     }
 
@@ -127,7 +256,7 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the first element.
-    first<A: Access = "readonly">(this: WithAccess<&Array<T>, A>): WithAccess<&T, A> | undefined {
+    first<comptime A: Access = "readonly">(this: WithAccess<&Array<T>, A>): WithAccess<&T, A> | undefined {
         todo("Array.first")
     }
 
@@ -137,7 +266,7 @@ extension<T> of Array<T> implements
     }
 
     /// Borrow the last element.
-    last<A: Access = "readonly">(this: WithAccess<&Array<T>, A>): WithAccess<&T, A> | undefined {
+    last<comptime A: Access = "readonly">(this: WithAccess<&Array<T>, A>): WithAccess<&T, A> | undefined {
         todo("Array.last")
     }
 
@@ -372,7 +501,7 @@ extension<T> of Array<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator<A: Access = "readonly">(this: WithAccess<&Array<T>, A>): Iterator<WithAccess<&T, A>> {
+    iterator<comptime A: Access = "readonly">(this: WithAccess<&Array<T>, A>): Iterator<WithAccess<&T, A>> {
         todo("Array.iterator")
     }
 
@@ -387,7 +516,7 @@ extension<T> of Array<T> implements
     }
 }
 
-extension<T, A: Access = "readonly"> of Array<T> implements As<Slice<T>, A>, Borrow<Slice<T>, A> {
+extension<T, comptime A: Access = "readonly"> of Array<T> implements As<Slice<T>, A>, Borrow<Slice<T>, A> {
     /// Borrow the initialized storage as a slice.
     as(this: WithAccess<&Array<T>, A>): WithAccess<&Slice<T>, A> {
         todo("Array.as")

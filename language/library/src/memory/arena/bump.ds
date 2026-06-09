@@ -6,7 +6,7 @@ import { Space } from "../place.ds";
 import { Unique } from "../unique.ds";
 
 /// Typed bump arena in space `S`.
-export struct Bump<S: Space = "local"> {
+export struct Bump<comptime S: Space = "local"> {
     /// The reserved storage bytes.
     storage: Unique<[MaybeUninit<uint8>]>;
 
@@ -14,7 +14,7 @@ export struct Bump<S: Space = "local"> {
     offset: usize = 0;
 }
 
-export extension<S: Space = "local"> of Bump<S> {
+export extension<comptime S: Space = "local"> of Bump<S> {
     /// Create a bump arena over `storage`.
     static new(storage: Unique<[MaybeUninit<uint8>]>): Bump<S> {
         Bump {

@@ -76,7 +76,7 @@ extension<T> of Slice<T> implements
     }
 
     /// Borrow the first element.
-    first<A: Access = "readonly">(this: WithAccess<&Slice<T>, A>): WithAccess<&T, A> | undefined {
+    first<comptime A: Access = "readonly">(this: WithAccess<&Slice<T>, A>): WithAccess<&T, A> | undefined {
         todo("Slice.first")
     }
 
@@ -92,20 +92,20 @@ extension<T> of Slice<T> implements
     }
 
     /// Borrow the last element.
-    last<A: Access = "readonly">(this: WithAccess<&Slice<T>, A>): WithAccess<&T, A> | undefined {
+    last<comptime A: Access = "readonly">(this: WithAccess<&Slice<T>, A>): WithAccess<&T, A> | undefined {
         todo("Slice.last")
     }
 
     /// Borrow a contiguous range.
     @intrinsic("collections.slice.subslice")
-    subslice<A: Access = "readonly">(
+    subslice<comptime A: Access = "readonly">(
         this: WithAccess<&Slice<T>, A>,
         start: usize,
         length: usize,
     ): WithAccess<&Slice<T>, A>;
 
     /// Borrow a selected range.
-    slice<A: Access = "readonly">(
+    slice<comptime A: Access = "readonly">(
         this: WithAccess<&Slice<T>, A>,
         start?: number,
         end?: number,
@@ -114,7 +114,7 @@ extension<T> of Slice<T> implements
     }
 
     /// Split this slice into two borrowed ranges.
-    splitAt<A: Access = "readonly">(
+    splitAt<comptime A: Access = "readonly">(
         this: WithAccess<&Slice<T>, A>,
         index: number,
     ): (WithAccess<&Slice<T>, A>, WithAccess<&Slice<T>, A>) {
@@ -158,7 +158,7 @@ extension<T> of Slice<T> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator<A: Access = "readonly">(this: WithAccess<&Slice<T>, A>): Iterator<WithAccess<&T, A>> {
+    iterator<comptime A: Access = "readonly">(this: WithAccess<&Slice<T>, A>): Iterator<WithAccess<&T, A>> {
         todo("Slice.iterator")
     }
 }
@@ -173,7 +173,7 @@ extension<T> of Slice<T> implements Index<usize>, IndexSet<usize, T> {
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(this: WithAccess<&Slice<T>, A>, index: usize): WithAccess<&T, A> {
+    index<comptime A: Access = "readonly">(this: WithAccess<&Slice<T>, A>, index: usize): WithAccess<&T, A> {
         todo("Slice.index")
     }
 
@@ -214,7 +214,7 @@ extension<T, R: RangeBounds<usize>> of Slice<T> implements Index<R> {
     }
 
     /// Borrow the selected range.
-    index<A: Access = "readonly">(
+    index<comptime A: Access = "readonly">(
         this: WithAccess<&Slice<T>, A>,
         range: R,
     ): WithAccess<&Slice<T>, A> {

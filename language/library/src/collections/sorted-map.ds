@@ -165,7 +165,7 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
     }
 
     /// Borrow a value by key.
-    get<Q: Compare<Q>, A: Access = "readonly">(
+    get<Q: Compare<Q>, comptime A: Access = "readonly">(
         this: WithAccess<&SortedMap<K, V>, A>,
         key: &readonly Q,
     ): WithAccess<&V, A> | undefined where K: Borrow<Q> {
@@ -251,35 +251,35 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
     }
 
     /// Return all borrowed values in key order.
-    values<A: Access = "readonly">(
+    values<comptime A: Access = "readonly">(
         this: WithAccess<&SortedMap<K, V>, A>,
     ): Iterator<WithAccess<&V, A>> {
         todo("SortedMap.values")
     }
 
     /// Return the first entry.
-    firstEntry<A: Access = "readonly">(
+    firstEntry<comptime A: Access = "readonly">(
         this: WithAccess<&SortedMap<K, V>, A>,
     ): SortedMapEntry<&readonly K, WithAccess<&V, A>> | undefined {
         todo("SortedMap.firstEntry")
     }
 
     /// Return the last entry.
-    lastEntry<A: Access = "readonly">(
+    lastEntry<comptime A: Access = "readonly">(
         this: WithAccess<&SortedMap<K, V>, A>,
     ): SortedMapEntry<&readonly K, WithAccess<&V, A>> | undefined {
         todo("SortedMap.lastEntry")
     }
 
     /// Return entries in key order.
-    entries<A: Access = "readonly">(
+    entries<comptime A: Access = "readonly">(
         this: WithAccess<&SortedMap<K, V>, A>,
     ): Iterator<SortedMapEntry<&readonly K, WithAccess<&V, A>>> {
         todo("SortedMap.entries")
     }
 
     /// Return entries in `range`.
-    range<Q: Compare<Q>, R: RangeBounds<Q>, A: Access = "readonly">(
+    range<Q: Compare<Q>, R: RangeBounds<Q>, comptime A: Access = "readonly">(
         this: WithAccess<&SortedMap<K, V>, A>,
         range: R,
     ): Iterator<SortedMapEntry<&readonly K, WithAccess<&V, A>>> where K: Borrow<Q> {
@@ -292,7 +292,7 @@ extension<K: Compare<K>, V> of SortedMap<K, V> implements
     }
 
     /// Return an iterator over borrowed entries.
-    iterator<A: Access = "readonly">(
+    iterator<comptime A: Access = "readonly">(
         this: WithAccess<&SortedMap<K, V>, A>,
     ): Iterator<SortedMapEntry<&readonly K, WithAccess<&V, A>>> {
         todo("SortedMap.iterator")

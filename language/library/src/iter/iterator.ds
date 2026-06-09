@@ -50,7 +50,7 @@ export newtype interface FromIterator<T> {
 
 /// Collection extended from an iterable sequence.
 @languageItem("iter.Extend")
-export newtype interface Extend<T, A: Access = "mutable"> {
+export newtype interface Extend<T, comptime A: Access = "mutable"> {
     /// Append `values`.
     extend(this: WithAccess<&this, A>, values: Iterable<T>): void;
 }

@@ -110,7 +110,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Borrow the element at `index`.
-    index<A: Access = "readonly">(
+    index<comptime A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
         index: usize,
     ): WithAccess<&T, A> {
@@ -128,7 +128,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Borrow the first element.
-    first<A: Access = "readonly">(
+    first<comptime A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
     ): WithAccess<&T, A> | undefined {
         todo("SmallArray.first")
@@ -140,7 +140,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Borrow the last element.
-    last<A: Access = "readonly">(
+    last<comptime A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
     ): WithAccess<&T, A> | undefined {
         todo("SmallArray.last")
@@ -232,7 +232,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 
     /// Return an iterator over borrowed values.
-    iterator<A: Access = "readonly">(
+    iterator<comptime A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
     ): Iterator<WithAccess<&T, A>> {
         todo("SmallArray.iterator")
@@ -244,7 +244,7 @@ extension<T, comptime N: number> of SmallArray<T, N> implements
     }
 }
 
-extension<T, comptime N: number, A: Access = "readonly"> of SmallArray<T, N> implements
+extension<T, comptime N: number, comptime A: Access = "readonly"> of SmallArray<T, N> implements
     As<Slice<T>, A>,
     Borrow<Slice<T>, A> {
     /// Borrow the initialized storage as a slice.
@@ -289,7 +289,7 @@ extension<T, comptime N: number, R: RangeBounds<usize>> of SmallArray<T, N> impl
     }
 
     /// Borrow the selected range.
-    index<A: Access = "readonly">(
+    index<comptime A: Access = "readonly">(
         this: WithAccess<&SmallArray<T, N>, A>,
         range: R,
     ): WithAccess<&Slice<T>, A> {

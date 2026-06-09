@@ -8,4 +8,4 @@ export type Place = "ambient" | Space;
 
 /// Placement form for exactly `T`.
 @languageItem("memory.Placed")
-export newtype Placed<T, P: Place> = intrinsic;
+export newtype Placed<T, comptime P: Place> = intrinsic;
