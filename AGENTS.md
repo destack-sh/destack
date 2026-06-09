@@ -1,10 +1,5 @@
 ## Code Style
 
-### READMEs
-
-- We have README.md for most substantial crate/package/module.
-- We don't like writing information that is redundant and easily out of date into the READMEs or specifications (so, avoid folder structures, paths, or "current status").
-
 ### Naming
 
 - Names should be obvious, clear, and idiomatic to the language and topic.
