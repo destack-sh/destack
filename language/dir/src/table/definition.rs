@@ -302,6 +302,19 @@ impl Definition {
             Self::TypeAlias(_) | Self::Extension(_) => false,
         }
     }
+
+    /// Return the generic template declared by this definition.
+    pub fn generic_template(&self) -> Option<LocalGenericTemplateId> {
+        match self {
+            Self::TypeAlias(definition) => definition.template,
+            Self::Struct(definition) => definition.template,
+            Self::Class(definition) => definition.template,
+            Self::Interface(definition) => definition.template,
+            Self::Enum(definition) => definition.template,
+            Self::Newtype(definition) => definition.template,
+            Self::Extension(_) => None,
+        }
+    }
 }
 
 /// Checked declaration data for one transparent type alias.
