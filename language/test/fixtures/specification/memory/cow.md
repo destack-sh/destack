@@ -21,7 +21,7 @@ name satisfies MaybeOwned<string>;
 ```ds
 import { Cow } from "destack:memory/cow";
 
-function view<L: Lifetime>(
+function view<comptime L: Lifetime>(
     name: ReadonlyBorrowed<string, L>,
 ): Cow<ReadonlyBorrowed<string, L>, ^string> {
     return Cow.borrowed(name);
@@ -50,7 +50,7 @@ Borrowed values are cloned only when the cow is not already owned.
 ```ds
 import { Cow } from "destack:memory/cow";
 
-declare function name<L: Lifetime>(): Cow<ReadonlyBorrowed<string, L>, ^string>;
+declare function name<comptime L: Lifetime>(): Cow<ReadonlyBorrowed<string, L>, ^string>;
 
 let owned = name().intoOwned();
 

@@ -135,7 +135,7 @@ OwnershipOr<Cell, "managed"> satisfies "managed";
 Borrowed forms carry their lifetime.
 
 ```ds
-function check<L: Lifetime>(value: Borrowed<int32, L>): void {
+function check<comptime L: Lifetime>(value: Borrowed<int32, L>): void {
     LifetimeOf<typeof value> satisfies L;
 }
 ```
@@ -149,7 +149,7 @@ struct Cell {
     value: int32;
 }
 
-function check<L: Lifetime>(
+function check<comptime L: Lifetime>(
     readonlyValue: ReadonlyBorrowed<int32, L>,
     value: Borrowed<int32, L>,
     exclusiveValue: ExclusiveBorrowed<int32, L>,
@@ -200,7 +200,7 @@ WithOwnership<readonly Cell, "owned"> satisfies Owned<readonly Cell>;
 Changing a borrow lifetime leaves the payload and access alone.
 
 ```ds
-function check<A: Lifetime, B: Lifetime>(value: ExclusiveBorrowed<shared int32, A>): void {
+function check<comptime A: Lifetime, comptime B: Lifetime>(value: ExclusiveBorrowed<shared int32, A>): void {
     WithLifetime<typeof value, B> satisfies ExclusiveBorrowed<shared int32, B>;
     LifetimeOf<Owned<Borrowed<int32, A>>> satisfies A;
 }
@@ -211,7 +211,7 @@ function check<A: Lifetime, B: Lifetime>(value: ExclusiveBorrowed<shared int32, 
 Changing access leaves the payload and placement alone.
 
 ```ds
-function check<L: Lifetime>(value: Borrowed<shared int32, L>): void {
+function check<comptime L: Lifetime>(value: Borrowed<shared int32, L>): void {
     WithAccess<Cell, "readonly"> satisfies readonly Cell;
     WithAccess<^Cell, "readonly"> satisfies ^readonly Cell;
     WithAccess<typeof value, "exclusive"> satisfies ExclusiveBorrowed<shared int32, L>;
