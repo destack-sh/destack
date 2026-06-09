@@ -66,7 +66,7 @@ impl ResolveState<'_> {
             return;
         };
 
-        self.imports.push_dependency(symbol.module_id);
+        self.imports.push_module(symbol.module_id);
         self.imports
             .push_global_target(key, dir::ImportTarget::Symbol(symbol));
     }
@@ -93,7 +93,7 @@ impl ResolveState<'_> {
             return Ok(());
         }
 
-        self.imports.push_dependency(symbol.module_id);
+        self.imports.push_module(symbol.module_id);
 
         Ok(())
     }
@@ -147,7 +147,7 @@ impl ResolveState<'_> {
             for entry in entries {
                 match entry {
                     dir::GlobalEntry::Local(entry) => {
-                        self.imports.push_dependency(module);
+                        self.imports.push_module(module);
                         self.imports.push_global_target(
                             *key,
                             dir::ImportTarget::Symbol(entry.source.into_global(module)),
@@ -181,7 +181,7 @@ impl ResolveState<'_> {
         };
 
         if entry.imported == dir::ExportSelector::Namespace {
-            self.imports.push_dependency(target);
+            self.imports.push_module(target);
             self.imports
                 .push_global_target(key, dir::ImportTarget::Namespace(target));
 
@@ -194,12 +194,12 @@ impl ResolveState<'_> {
 
         match self.resolve_export_target(target, export_key)? {
             ExportLookup::Found(ExportTarget::Symbol(symbol)) => {
-                self.imports.push_dependency(symbol.module_id);
+                self.imports.push_module(symbol.module_id);
                 self.imports
                     .push_global_target(key, dir::ImportTarget::Symbol(symbol));
             }
             ExportLookup::Found(ExportTarget::Namespace(module)) => {
-                self.imports.push_dependency(module);
+                self.imports.push_module(module);
                 self.imports
                     .push_global_target(key, dir::ImportTarget::Namespace(module));
             }

@@ -105,6 +105,10 @@ impl ResolveState<'_> {
                 self.require_language_item(dir::LanguageItem::FixedArray);
                 dir::walk_expression(self, tree, id, expression);
             }
+            dir::Expression::Index { .. } => {
+                self.require_language_item(dir::LanguageItem::Index);
+                dir::walk_expression(self, tree, id, expression);
+            }
             dir::Expression::Unary { operator, .. } => {
                 self.require_unary_operator_language_items(*operator);
                 dir::walk_expression(self, tree, id, expression);
