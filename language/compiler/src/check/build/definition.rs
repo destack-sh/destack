@@ -445,7 +445,11 @@ impl CheckState<'_> {
                 }
             }
             // build method
-            dir::Member::Method { is_static, .. } => {
+            dir::Member::Method {
+                is_static,
+                signature,
+                ..
+            } => {
                 let Some(slot) = member.slot() else {
                     return Ok(());
                 };
@@ -456,6 +460,7 @@ impl CheckState<'_> {
                     symbol,
                     source,
                     slot,
+                    role: signature.role,
                     ty,
                 };
 
@@ -523,7 +528,12 @@ impl CheckState<'_> {
                 }
             }
             // build method
-            dir::TypeMember::Method { key, is_static, .. } => {
+            dir::TypeMember::Method {
+                key,
+                is_static,
+                signature,
+                ..
+            } => {
                 let Some(key) = key.direct_static_key() else {
                     return Ok(());
                 };
@@ -534,6 +544,7 @@ impl CheckState<'_> {
                     symbol: Some(symbol),
                     source,
                     slot: dir::MemberSlot::Key(key),
+                    role: signature.role,
                     ty,
                 };
 

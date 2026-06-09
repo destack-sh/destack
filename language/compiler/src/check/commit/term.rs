@@ -4,10 +4,10 @@ use destack_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::check::{
-    CheckState, Constraint, FormTerm, FunctionParameter, FunctionTerm, GenericArgument,
+    Answer, CheckState, FormTerm, FunctionParameter, FunctionTerm, GenericArgument,
     GenericInstance, GenericParameterBinding, GenericParameterId, MemberTerm, Origin, ShapeMember,
     ShapeTerm, StaticOperand, StaticTerm, TermId, TupleElement, TypeOperand, TypeOperationTerm,
-    TypeRelation, TypeTerm, VariableId,
+    TypeTerm, VariableId,
 };
 
 use super::CheckModuleOutput;
@@ -26,7 +26,7 @@ impl CheckState<'_> {
         // write source node types
         for (node, operand) in node_types {
             let Some(type_id) =
-                self.commit_type_operand(module, output, environment, operand, node.local_id)
+                self.commit_type_operand(module, output, environment, operand, node.local_id)?
             else {
                 return Err(self.unresolved_node_type_error(module, node, operand));
             };
@@ -40,7 +40,7 @@ impl CheckState<'_> {
                 .module(symbol.module_id)
                 .symbol_declaration_node(symbol.local_id);
             let Some(type_id) =
-                self.commit_type_operand(module, output, environment, operand, source)
+                self.commit_type_operand(module, output, environment, operand, source)?
             else {
                 return Err(self.unresolved_symbol_type_error(module, symbol, operand));
             };
@@ -67,7 +67,8 @@ impl CheckState<'_> {
 
         // write source symbol statics
         for (symbol, operand) in symbol_statics {
-            let Some(static_id) = self.commit_static_operand(module, output, environment, operand)
+            let Some(static_id) =
+                self.commit_closed_static_operand(module, output, environment, operand)?
             else {
                 return Err(self.unresolved_symbol_static_error(module, symbol, operand));
             };
@@ -83,40 +84,6 @@ impl CheckState<'_> {
         Ok(statics)
     }
 
-    /// Return the output type already attached to one operand.
-    fn committed_operand_type(
-        &self,
-        output: &CheckModuleOutput,
-        operand: TypeOperand,
-    ) -> Option<dir::GlobalTypeId> {
-        match operand {
-            TypeOperand::Variable(variable) => {
-                let symbol = self.variable_source_symbol(variable)?;
-
-                output.types.get_symbol_type_id(symbol)
-            }
-            TypeOperand::Term(_) => None,
-            TypeOperand::Type(ty) => Some(ty),
-        }
-    }
-
-    /// Commit the solved type for one variable.
-    pub(in crate::check) fn commit_variable_type(
-        &mut self,
-        module: ModuleId,
-        output: &mut CheckModuleOutput,
-        environment: &GlobalEnvironment,
-        variable: VariableId,
-    ) -> Option<dir::GlobalTypeId> {
-        if let Some(type_id) = self.committed_operand_type(output, TypeOperand::Variable(variable))
-        {
-            return Some(type_id);
-        }
-        let source = self.variable_source_node(variable);
-
-        self.commit_type_variable(module, output, environment, variable, source)
-    }
-
     /// Commit one type operand.
     pub(in crate::check) fn commit_type_operand(
         &mut self,
@@ -125,7 +92,12 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         operand: TypeOperand,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::GlobalTypeId> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let origin = Origin::Node(source.into_global(module));
+        let Answer::Ready(operand) = self.normalize_type_operand(origin, operand)? else {
+            return Ok(None);
+        };
+
         match operand {
             TypeOperand::Variable(variable) => {
                 self.commit_type_variable(module, output, environment, variable, source)
@@ -135,7 +107,7 @@ impl CheckState<'_> {
 
                 self.commit_type_term(module, output, environment, &term, source)
             }
-            TypeOperand::Type(ty) => Some(ty),
+            TypeOperand::Type(ty) => Ok(Some(ty)),
         }
     }
 
@@ -147,59 +119,12 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         variable: VariableId,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::GlobalTypeId> {
-        match self.commit_variable_term(variable) {
-            Some(term) if term.referenced_variables(self).is_empty() => {
-                self.commit_type_term(module, output, environment, &term, source)
-            }
-            None => None,
-            Some(_) => None,
-        }
-    }
-
-    /// Commit the declared type term for one variable.
-    pub(in crate::check) fn commit_declared_type_variable(
-        &mut self,
-        module: ModuleId,
-        output: &mut CheckModuleOutput,
-        environment: &GlobalEnvironment,
-        variable: VariableId,
-    ) -> Option<dir::GlobalTypeId> {
-        if let Some(type_id) = self.committed_operand_type(output, TypeOperand::Variable(variable))
-        {
-            return Some(type_id);
-        }
-
-        let term = self.declared_type_variable_term(variable)?;
-        let source = self.variable_source_node(variable);
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(term) = self.commit_variable_term(variable) else {
+            return Ok(None);
+        };
 
         self.commit_type_term(module, output, environment, &term, source)
-    }
-
-    /// Return the declared type term for one variable.
-    fn declared_type_variable_term(&self, variable: VariableId) -> Option<TypeTerm> {
-        self.inference.constraints().find_map(|constraint| {
-            let Constraint::Type {
-                relation: TypeRelation::Equal,
-                left,
-                right,
-                origin: _,
-                condition: _,
-            } = constraint
-            else {
-                return None;
-            };
-
-            match (left, right) {
-                (TypeOperand::Variable(result), TypeOperand::Term(term))
-                | (TypeOperand::Term(term), TypeOperand::Variable(result))
-                    if *result == variable =>
-                {
-                    Some(self.inference.term(*term).clone())
-                }
-                _ => None,
-            }
-        })
     }
 
     /// Commit one type term.
@@ -210,33 +135,33 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         term: &TypeTerm,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::GlobalTypeId> {
-        if !term.is_stable(self) {
-            return None;
-        }
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let origin = Origin::Node(source.into_global(module));
         let can_reduce_members = source.ty == dir::NodeType::Expression;
-        let reduced =
-            match self.reduce_committable_type_term(origin, module, term, can_reduce_members) {
-                Ok(reduced) => reduced?,
-                Err(_) => {
-                    return None;
-                }
-            };
+        let Answer::Ready(reduced) =
+            self.reduce_committable_type_term(origin, module, term, can_reduce_members)?
+        else {
+            return Ok(None);
+        };
         if reduced != *term {
             return self.commit_type_term(module, output, environment, &reduced, source);
         }
 
         let ty = match term {
-            TypeTerm::Type(ty) => return Some(*ty),
+            TypeTerm::Type(ty) => return Ok(Some(*ty)),
             TypeTerm::Literal(atom) => atom.to_type(),
             TypeTerm::Intrinsic => dir::Type::Intrinsic,
             TypeTerm::Parameter(parameter) => dir::Type::Parameter(*parameter),
             TypeTerm::This => dir::Type::This,
             TypeTerm::Form { form, payload } => {
-                let value =
-                    self.commit_type_operand(module, output, environment, *payload, source)?;
-                let form = self.commit_form_term(module, output, environment, *form)?;
+                let Some(value) =
+                    self.commit_type_operand(module, output, environment, *payload, source)?
+                else {
+                    return Ok(None);
+                };
+                let Some(form) = self.commit_form_term(module, output, environment, *form)? else {
+                    return Ok(None);
+                };
 
                 dir::Type::Form(dir::FormType { form, value })
             }
@@ -245,6 +170,7 @@ impl CheckState<'_> {
                 symbol,
                 arguments,
             } => {
+                self.import_symbol_generic_template(module, *symbol)?;
                 let arguments =
                     if let Some(template) = self.inference.symbol_generic_template(*symbol) {
                         self.commit_reference_arguments(
@@ -258,6 +184,9 @@ impl CheckState<'_> {
                     } else {
                         self.commit_argument_terms(module, output, environment, arguments, source)?
                     };
+                let Some(arguments) = arguments else {
+                    return Ok(None);
+                };
 
                 dir::Type::Reference(dir::ReferenceType {
                     symbol: *symbol,
@@ -265,22 +194,32 @@ impl CheckState<'_> {
                 })
             }
             TypeTerm::Array { element } => {
-                let element =
-                    self.commit_type_operand(module, output, environment, *element, source)?;
+                let Some(element) =
+                    self.commit_type_operand(module, output, environment, *element, source)?
+                else {
+                    return Ok(None);
+                };
 
                 dir::Type::Array(dir::ArrayType { element })
             }
             TypeTerm::Member(member) => {
                 let member = self.inference.term(*member).clone();
-                let owner =
-                    self.commit_type_operand(module, output, environment, member.owner, source)?;
-                let arguments = self.commit_argument_terms(
+                let owner = self.member_receiver_type_operand(&member.owner);
+                let Some(owner) =
+                    self.commit_type_operand(module, output, environment, owner, source)?
+                else {
+                    return Ok(None);
+                };
+                let Some(arguments) = self.commit_argument_terms(
                     module,
                     output,
                     environment,
                     &member.arguments,
                     source,
-                )?;
+                )?
+                else {
+                    return Ok(None);
+                };
 
                 dir::Type::Member(dir::MemberType {
                     owner,
@@ -288,48 +227,63 @@ impl CheckState<'_> {
                     arguments,
                 })
             }
-            TypeTerm::StaticValue { .. } => return None,
+            TypeTerm::StaticValue { .. } => return Ok(None),
             TypeTerm::FixedArray { element, length } => {
-                let element =
-                    self.commit_type_operand(module, output, environment, *element, source)?;
-                let count = self.commit_static_operand(module, output, environment, *length)?;
+                let Some(element) =
+                    self.commit_type_operand(module, output, environment, *element, source)?
+                else {
+                    return Ok(None);
+                };
+                let Some(count) =
+                    self.commit_closed_static_operand(module, output, environment, *length)?
+                else {
+                    return Ok(None);
+                };
 
                 dir::Type::FixedArray(dir::FixedArrayType { element, count })
             }
             TypeTerm::Slice { element } => {
-                let element =
-                    self.commit_type_operand(module, output, environment, *element, source)?;
+                let Some(element) =
+                    self.commit_type_operand(module, output, environment, *element, source)?
+                else {
+                    return Ok(None);
+                };
 
                 dir::Type::Slice(dir::SliceType { element })
             }
             TypeTerm::Tuple { form, elements } => dir::Type::Tuple(dir::TupleType {
                 form: *form,
-                elements: self.commit_tuple_elements(
+                elements: match self.commit_tuple_elements(
                     module,
                     output,
                     environment,
                     elements,
                     source,
-                )?,
+                )? {
+                    Some(elements) => elements,
+                    None => return Ok(None),
+                },
             }),
             TypeTerm::Shape(shape) => {
                 let members = self.inference.term(*shape).members.clone();
 
-                dir::Type::Shape(self.commit_shape_type(
-                    module,
-                    output,
-                    environment,
-                    &members,
-                    source,
-                )?)
+                let Some(shape) =
+                    self.commit_shape_type(module, output, environment, &members, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::Type::Shape(shape)
             }
-            TypeTerm::Function(function) => dir::Type::Function(self.commit_function_type(
-                module,
-                output,
-                environment,
-                *function,
-                source,
-            )?),
+            TypeTerm::Function(function) => {
+                let Some(function) =
+                    self.commit_function_type(module, output, environment, *function, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::Type::Function(function)
+            }
             TypeTerm::Range {
                 start,
                 end,
@@ -339,31 +293,33 @@ impl CheckState<'_> {
                 end: end.clone(),
                 is_inclusive: *is_inclusive,
             }),
-            TypeTerm::Union { elements } => dir::Type::Union(dir::UnionType {
-                elements: self.commit_type_operands(
-                    module,
-                    output,
-                    environment,
-                    elements,
-                    source,
-                )?,
-            }),
-            TypeTerm::Intersection { elements } => dir::Type::Intersection(dir::IntersectionType {
-                elements: self.commit_type_operands(
-                    module,
-                    output,
-                    environment,
-                    elements,
-                    source,
-                )?,
-            }),
-            TypeTerm::Operation(operation) => dir::Type::Operation(self.commit_type_operation(
-                module,
-                output,
-                environment,
-                *operation,
-                source,
-            )?),
+            TypeTerm::Union { elements } => {
+                let Some(elements) =
+                    self.commit_type_operands(module, output, environment, elements, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::Type::Union(dir::UnionType { elements })
+            }
+            TypeTerm::Intersection { elements } => {
+                let Some(elements) =
+                    self.commit_type_operands(module, output, environment, elements, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::Type::Intersection(dir::IntersectionType { elements })
+            }
+            TypeTerm::Operation(operation) => {
+                let Some(operation) =
+                    self.commit_type_operation(module, output, environment, *operation, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::Type::Operation(operation)
+            }
             TypeTerm::Call(_)
             | TypeTerm::Construct(_)
             | TypeTerm::RangeValue(_)
@@ -383,10 +339,13 @@ impl CheckState<'_> {
             | TypeTerm::Yield(_)
             | TypeTerm::TryFailure(_)
             | TypeTerm::Template(_)
-            | TypeTerm::TaggedTemplate(_) => return None,
+            | TypeTerm::TaggedTemplate(_) => return Ok(None),
             TypeTerm::Dynamic { constraint } => {
-                let constraint =
-                    self.commit_type_operand(module, output, environment, *constraint, source)?;
+                let Some(constraint) =
+                    self.commit_type_operand(module, output, environment, *constraint, source)?
+                else {
+                    return Ok(None);
+                };
 
                 dir::Type::Dynamic(dir::DynamicType { constraint })
             }
@@ -394,10 +353,16 @@ impl CheckState<'_> {
                 function,
                 environment: capture,
             } => {
-                let function =
-                    self.commit_type_operand(module, output, environment, *function, source)?;
-                let environment =
-                    self.commit_type_operand(module, output, environment, *capture, source)?;
+                let Some(function) =
+                    self.commit_type_operand(module, output, environment, *function, source)?
+                else {
+                    return Ok(None);
+                };
+                let Some(environment) =
+                    self.commit_type_operand(module, output, environment, *capture, source)?
+                else {
+                    return Ok(None);
+                };
 
                 dir::Type::Closure(dir::ClosureType {
                     function,
@@ -406,10 +371,10 @@ impl CheckState<'_> {
             }
         };
 
-        Some(
+        Ok(Some(
             self.intern_type(module, output, ty, source)
                 .into_global(module),
-        )
+        ))
     }
 
     /// Reduce one stable type term for commit without writing decisions.
@@ -419,7 +384,7 @@ impl CheckState<'_> {
         module: ModuleId,
         term: &TypeTerm,
         can_reduce_members: bool,
-    ) -> CompilerResult<Option<TypeTerm>> {
+    ) -> CompilerResult<Answer<TypeTerm>> {
         match term {
             TypeTerm::Member(member) if can_reduce_members => {
                 let member = self.inference.term(*member).clone();
@@ -427,13 +392,17 @@ impl CheckState<'_> {
                 self.reduce_committable_member_term(origin, module, &member, can_reduce_members)
             }
             TypeTerm::Shape(shape) if can_reduce_members || self.shape_has_spread(*shape) => {
-                let Some(reduced) = self.reduce_type_term(origin, term)? else {
-                    return Ok(None);
+                let Answer::Ready(reduced) = self.reduce_type_term(origin, term)? else {
+                    return Ok(Answer::Pending);
                 };
 
-                self.type_operand_term(reduced)
+                let Some(term) = self.type_operand_term(reduced)? else {
+                    return Ok(Answer::Pending);
+                };
+
+                Ok(Answer::Ready(term))
             }
-            _ => Ok(Some(term.clone())),
+            _ => Ok(Answer::Ready(term.clone())),
         }
     }
 
@@ -444,17 +413,27 @@ impl CheckState<'_> {
         module: ModuleId,
         member: &MemberTerm,
         can_reduce_members: bool,
-    ) -> CompilerResult<Option<TypeTerm>> {
-        let Some(owner) = self.type_operand_term(member.owner)? else {
-            return Ok(None);
+    ) -> CompilerResult<Answer<TypeTerm>> {
+        let owner = self.member_receiver_type_operand(&member.owner);
+        let Some(owner) = self.type_operand_term(owner)? else {
+            return Ok(Answer::Pending);
         };
-        let Some(owner) =
+        let Answer::Ready(owner) =
             self.reduce_committable_type_term(origin, module, &owner, can_reduce_members)?
         else {
-            return Ok(None);
+            return Ok(Answer::Pending);
         };
 
-        self.resolve_member_type(origin, module, &owner, &member.key, &member.arguments)
+        let Some(term) =
+            self.resolve_member_type(origin, module, &owner, &member.key, &member.arguments)?
+        else {
+            return Ok(Answer::Pending);
+        };
+        let Some(term) = self.type_operand_term(term)? else {
+            return Ok(Answer::Pending);
+        };
+
+        Ok(Answer::Ready(term))
     }
 
     /// Return whether one shape still contains a spread member.
@@ -466,79 +445,93 @@ impl CheckState<'_> {
             .any(|member| matches!(member, ShapeMember::Spread { .. }))
     }
 
-    /// Commit one static term.
-    fn commit_static_term(
+    /// Commit one static term when it is closed.
+    fn commit_closed_static_term(
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         term: &StaticTerm,
-    ) -> Option<dir::GlobalStaticId> {
+    ) -> CompilerResult<Option<dir::GlobalStaticId>> {
         let term = match term {
-            StaticTerm::Static(static_id) => return Some(*static_id),
+            StaticTerm::Static(static_id) => return Ok(Some(*static_id)),
             StaticTerm::Literal(term) => term.clone(),
             StaticTerm::Parameter(parameter) => dir::StaticTerm::Parameter(*parameter),
             StaticTerm::Union { elements } => {
-                let elements = elements
-                    .iter()
-                    .map(|element| {
-                        self.commit_static_operand(module, output, environment, *element)
-                    })
-                    .collect::<Option<Vec<_>>>()?;
+                let mut arguments = Vec::with_capacity(elements.len());
 
-                dir::StaticTerm::Union { elements }
+                // commit every static union element
+                for element in elements {
+                    let Some(element) =
+                        self.commit_closed_static_operand(module, output, environment, *element)?
+                    else {
+                        return Ok(None);
+                    };
+
+                    arguments.push(element);
+                }
+
+                dir::StaticTerm::Union {
+                    elements: arguments,
+                }
             }
-            StaticTerm::Expression(_) => return None,
+            StaticTerm::Expression(_) => return Ok(None),
             StaticTerm::Member { .. }
             | StaticTerm::Layout(_)
             | StaticTerm::Intrinsic { .. }
             | StaticTerm::Equal { .. }
             | StaticTerm::TypeRelation { .. }
             | StaticTerm::Conditional { .. } => {
-                return None;
+                return Ok(None);
             }
         };
 
-        Some(self.intern_static(module, output, term).into_global(module))
+        Ok(Some(
+            self.intern_static(module, output, term).into_global(module),
+        ))
     }
 
-    /// Commit one static operand.
-    pub(in crate::check) fn commit_static_operand(
+    /// Commit one static operand when it is closed.
+    pub(in crate::check) fn commit_closed_static_operand(
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         operand: StaticOperand,
-    ) -> Option<dir::GlobalStaticId> {
+    ) -> CompilerResult<Option<dir::GlobalStaticId>> {
         match operand {
             StaticOperand::Variable(variable) => {
-                self.commit_static_variable(module, output, environment, variable)
+                self.commit_closed_static_variable(module, output, environment, variable)
             }
             StaticOperand::Term(term) => {
                 let term = self.inference.term(term).clone();
 
-                self.commit_static_term(module, output, environment, &term)
+                self.commit_closed_static_term(module, output, environment, &term)
             }
-            StaticOperand::Static(static_id) => Some(static_id),
+            StaticOperand::Static(static_id) => Ok(Some(static_id)),
         }
     }
 
-    /// Commit one variable as a static value inside one target module.
-    fn commit_static_variable(
+    /// Commit one static variable when its solution is closed.
+    fn commit_closed_static_variable(
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         variable: VariableId,
-    ) -> Option<dir::GlobalStaticId> {
-        match self.variable_static_solution_operand(variable)? {
-            StaticOperand::Variable(_) => None,
+    ) -> CompilerResult<Option<dir::GlobalStaticId>> {
+        let Some(solution) = self.variable_static_solution_operand(variable) else {
+            return Ok(None);
+        };
+
+        match solution {
+            StaticOperand::Variable(_) => Ok(None),
             StaticOperand::Term(term) => {
                 let term = self.inference.term(term).clone();
 
-                self.commit_static_term(module, output, environment, &term)
+                self.commit_closed_static_term(module, output, environment, &term)
             }
-            StaticOperand::Static(static_id) => Some(static_id),
+            StaticOperand::Static(static_id) => Ok(Some(static_id)),
         }
     }
 
@@ -549,27 +542,39 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         form: TermId<FormTerm>,
-    ) -> Option<dir::Form> {
+    ) -> CompilerResult<Option<dir::Form>> {
         let form = self.inference.term(form).clone();
         let form = match form {
             FormTerm::Managed => dir::Form::Managed,
             FormTerm::Owned => dir::Form::Owned,
             FormTerm::Borrowed { lifetime, access } => {
-                let lifetime = self.commit_static_operand(module, output, environment, lifetime)?;
-                let access = self.commit_static_operand(module, output, environment, access)?;
+                let Some(lifetime) =
+                    self.commit_closed_static_operand(module, output, environment, lifetime)?
+                else {
+                    return Ok(None);
+                };
+                let Some(access) =
+                    self.commit_closed_static_operand(module, output, environment, access)?
+                else {
+                    return Ok(None);
+                };
 
                 dir::Form::Borrowed { lifetime, access }
             }
             FormTerm::Raw => dir::Form::Raw,
             FormTerm::Placed { place } => {
-                let place = self.commit_static_operand(module, output, environment, place)?;
+                let Some(place) =
+                    self.commit_closed_static_operand(module, output, environment, place)?
+                else {
+                    return Ok(None);
+                };
 
                 dir::Form::Placed { place }
             }
             FormTerm::Readonly => dir::Form::Readonly,
         };
 
-        Some(form)
+        Ok(Some(form))
     }
 
     /// Return one solved type term for commit.
@@ -588,16 +593,14 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         parameters: &[GenericParameterId],
         source: dir::LocalNodeIdAny,
-    ) -> Option<Vec<dir::GlobalTypeId>> {
+    ) -> Vec<dir::GlobalTypeId> {
         parameters
             .iter()
             .map(|parameter| {
                 let ty = dir::Type::Parameter(*parameter);
 
-                Some(
-                    self.intern_type(module, output, ty, source)
-                        .into_global(module),
-                )
+                self.intern_type(module, output, ty, source)
+                    .into_global(module)
             })
             .collect()
     }
@@ -610,11 +613,21 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         operands: &[TypeOperand],
         source: dir::LocalNodeIdAny,
-    ) -> Option<Vec<dir::GlobalTypeId>> {
-        operands
-            .iter()
-            .map(|operand| self.commit_type_operand(module, output, environment, *operand, source))
-            .collect()
+    ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
+        let mut types = Vec::with_capacity(operands.len());
+
+        // commit every operand in order
+        for operand in operands {
+            let Some(ty) =
+                self.commit_type_operand(module, output, environment, *operand, source)?
+            else {
+                return Ok(None);
+            };
+
+            types.push(ty);
+        }
+
+        Ok(Some(types))
     }
 
     /// Commit function parameter type variables.
@@ -625,13 +638,21 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         parameters: &[FunctionParameter],
         source: dir::LocalNodeIdAny,
-    ) -> Option<Vec<dir::GlobalTypeId>> {
-        parameters
-            .iter()
-            .map(|parameter| {
-                self.commit_type_operand(module, output, environment, parameter.ty, source)
-            })
-            .collect()
+    ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
+        let mut types = Vec::with_capacity(parameters.len());
+
+        // commit every parameter type in order
+        for parameter in parameters {
+            let Some(ty) =
+                self.commit_type_operand(module, output, environment, parameter.ty, source)?
+            else {
+                return Ok(None);
+            };
+
+            types.push(ty);
+        }
+
+        Ok(Some(types))
     }
 
     /// Commit function parameters.
@@ -642,24 +663,27 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         parameters: &[FunctionParameter],
         source: dir::LocalNodeIdAny,
-    ) -> Option<Vec<dir::FunctionParameterType>> {
-        parameters
-            .iter()
-            .map(|parameter| {
-                let parameter = parameter;
-                let ty = parameter.ty;
-                let static_parameter = parameter.static_parameter;
-                let is_optional = parameter.is_optional;
-                let is_rest = parameter.is_rest;
+    ) -> CompilerResult<Option<Vec<dir::FunctionParameterType>>> {
+        let mut committed = Vec::with_capacity(parameters.len());
 
-                Some(dir::FunctionParameterType {
-                    ty: self.commit_type_operand(module, output, environment, ty, source)?,
-                    static_parameter,
-                    is_optional,
-                    is_rest,
-                })
-            })
-            .collect()
+        // commit every parameter in order
+        for parameter in parameters {
+            let Some(ty) =
+                self.commit_type_operand(module, output, environment, parameter.ty, source)?
+            else {
+                return Ok(None);
+            };
+            let parameter = dir::FunctionParameterType {
+                ty,
+                static_parameter: parameter.static_parameter,
+                is_optional: parameter.is_optional,
+                is_rest: parameter.is_rest,
+            };
+
+            committed.push(parameter);
+        }
+
+        Ok(Some(committed))
     }
 
     /// Commit one resolved generic instance.
@@ -670,7 +694,36 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         source: dir::LocalNodeIdAny,
         instance: &GenericInstance,
-    ) -> Option<dir::LocalGenericInstanceId> {
+    ) -> CompilerResult<Option<dir::LocalGenericInstanceId>> {
+        let mut generics = dir::GenericSegment::new(module);
+
+        // borrow output tables while mutating the generic segment
+        std::mem::swap(&mut output.generics, &mut generics);
+
+        let instance = self.commit_generic_instance_in_table(
+            module,
+            output,
+            environment,
+            &mut generics,
+            source,
+            instance,
+        );
+
+        std::mem::swap(&mut output.generics, &mut generics);
+
+        instance
+    }
+
+    /// Commit one resolved generic instance into one generic table.
+    pub(super) fn commit_generic_instance_in_table(
+        &mut self,
+        module: ModuleId,
+        output: &mut CheckModuleOutput,
+        environment: &GlobalEnvironment,
+        generics: &mut dir::GenericSegment,
+        source: dir::LocalNodeIdAny,
+        instance: &GenericInstance,
+    ) -> CompilerResult<Option<dir::LocalGenericInstanceId>> {
         let arguments = self.commit_reference_arguments(
             module,
             output,
@@ -679,14 +732,17 @@ impl CheckState<'_> {
             &instance.arguments,
             source,
         )?;
-        let template = instance.template.local_id;
-        let instance = dir::GenericInstance::new(template, arguments);
-        let instance_id = output
-            .generics
-            .find_instance(&instance)
-            .unwrap_or_else(|| output.generics.push_instance(instance));
+        let Some(arguments) = arguments else {
+            return Ok(None);
+        };
+        let instance = dir::GenericInstance::new(instance.template, arguments);
+        let instance_id = generics.intern_instance(instance);
+        let source = source.into_global(module);
 
-        Some(instance_id)
+        // attach the instance to its source node
+        generics.bind_node_instance(source, instance_id);
+
+        Ok(Some(instance_id))
     }
 
     /// Commit generic argument terms.
@@ -697,13 +753,21 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         arguments: &[GenericArgument],
         source: dir::LocalNodeIdAny,
-    ) -> Option<Vec<dir::StaticArgument>> {
-        arguments
-            .iter()
-            .map(|argument| {
-                self.commit_argument_term(module, output, environment, argument, source)
-            })
-            .collect()
+    ) -> CompilerResult<Option<Vec<dir::StaticArgument>>> {
+        let mut committed = Vec::with_capacity(arguments.len());
+
+        // commit every generic argument in order
+        for argument in arguments {
+            let Some(argument) =
+                self.commit_argument_term(module, output, environment, argument, source)?
+            else {
+                return Ok(None);
+            };
+
+            committed.push(argument);
+        }
+
+        Ok(Some(committed))
     }
 
     /// Commit generic arguments for one known template.
@@ -715,31 +779,36 @@ impl CheckState<'_> {
         template: dir::GlobalGenericTemplateId,
         arguments: &[GenericArgument],
         source: dir::LocalNodeIdAny,
-    ) -> Option<Vec<dir::StaticArgument>> {
+    ) -> CompilerResult<Option<Vec<dir::StaticArgument>>> {
         let parameters = self
             .inference
             .generic_template_parameters(template)
             .map(|(_, parameter)| parameter.clone())
             .collect::<Vec<_>>();
+        let mut committed = Vec::with_capacity(arguments.len());
 
-        arguments
-            .iter()
-            .enumerate()
-            .map(|(index, argument)| {
-                if let Some(parameter) = parameters.get(index) {
-                    self.commit_owner_argument_term(
-                        module,
-                        output,
-                        environment,
-                        parameter,
-                        argument,
-                        source,
-                    )
-                } else {
-                    self.commit_argument_term(module, output, environment, argument, source)
-                }
-            })
-            .collect()
+        // commit each argument with parameter context when available
+        for (index, argument) in arguments.iter().enumerate() {
+            let argument = if let Some(parameter) = parameters.get(index) {
+                self.commit_owner_argument_term(
+                    module,
+                    output,
+                    environment,
+                    parameter,
+                    argument,
+                    source,
+                )?
+            } else {
+                self.commit_argument_term(module, output, environment, argument, source)?
+            };
+            let Some(argument) = argument else {
+                return Ok(None);
+            };
+
+            committed.push(argument);
+        }
+
+        Ok(Some(committed))
     }
 
     /// Commit one generic argument for one known parameter.
@@ -751,29 +820,8 @@ impl CheckState<'_> {
         parameter: &GenericParameterBinding,
         argument: &GenericArgument,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::StaticArgument> {
-        let argument = match (parameter, argument) {
-            (
-                GenericParameterBinding::Type { .. } | GenericParameterBinding::VariadicType { .. },
-                GenericArgument::TypeOrStatic { source },
-            ) => {
-                let operand = self.inputs.node_type(source.value.clone().into_any())?;
-
-                GenericArgument::Type(operand)
-            }
-            (
-                GenericParameterBinding::Static { .. }
-                | GenericParameterBinding::VariadicStatic { .. },
-                GenericArgument::TypeOrStatic { source },
-            ) => {
-                let operand = self
-                    .node_static_operand(source.value.clone().into_any())
-                    .ok()?;
-
-                GenericArgument::Static(operand)
-            }
-            _ => argument.clone(),
-        };
+    ) -> CompilerResult<Option<dir::StaticArgument>> {
+        let argument = argument.specialize(parameter, self)?;
 
         self.commit_argument_term(module, output, environment, &argument, source)
     }
@@ -786,40 +834,58 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         argument: &GenericArgument,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::StaticArgument> {
+    ) -> CompilerResult<Option<dir::StaticArgument>> {
         let value = match argument {
             GenericArgument::Type(operand) => {
-                let ty = self.commit_type_operand(module, output, environment, *operand, source)?;
+                let Some(ty) =
+                    self.commit_type_operand(module, output, environment, *operand, source)?
+                else {
+                    return Ok(None);
+                };
 
                 self.commit_type_argument(module, output, ty).value
             }
             GenericArgument::Static(operand) => {
-                self.commit_static_operand(module, output, environment, *operand)?
+                let Some(value) =
+                    self.commit_closed_static_operand(module, output, environment, *operand)?
+                else {
+                    return Ok(None);
+                };
+
+                value
             }
             GenericArgument::AssociatedType { name, value } => {
-                let ty = self.commit_type_operand(module, output, environment, *value, source)?;
+                let Some(ty) =
+                    self.commit_type_operand(module, output, environment, *value, source)?
+                else {
+                    return Ok(None);
+                };
                 let value = self.commit_type_argument(module, output, ty).value;
 
-                return Some(dir::StaticArgument {
+                return Ok(Some(dir::StaticArgument {
                     name: Some(*name),
                     value,
-                });
+                }));
             }
             GenericArgument::AssociatedConst { name, value } => {
-                let value = self.commit_static_operand(module, output, environment, *value)?;
+                let Some(value) =
+                    self.commit_closed_static_operand(module, output, environment, *value)?
+                else {
+                    return Ok(None);
+                };
 
-                return Some(dir::StaticArgument {
+                return Ok(Some(dir::StaticArgument {
                     name: Some(*name),
                     value,
-                });
+                }));
             }
             GenericArgument::TypeOrStatic { .. }
             | GenericArgument::SpreadType(_)
             | GenericArgument::SpreadStatic(_)
-            | GenericArgument::SpreadTypeOrStatic { .. } => return None,
+            | GenericArgument::SpreadTypeOrStatic { .. } => return Ok(None),
         };
 
-        Some(dir::StaticArgument::value(value))
+        Ok(Some(dir::StaticArgument::value(value)))
     }
 
     /// Commit one type as a static argument.
@@ -842,26 +908,28 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         elements: &[TupleElement],
         source: dir::LocalNodeIdAny,
-    ) -> Option<Vec<dir::TypeElement>> {
-        elements
-            .iter()
-            .map(|element| {
-                let element = element;
-                let label = element.label;
-                let ty = element.ty;
-                let is_optional = element.is_optional;
-                let is_readonly = element.is_readonly;
-                let is_rest = element.is_rest;
+    ) -> CompilerResult<Option<Vec<dir::TypeElement>>> {
+        let mut committed = Vec::with_capacity(elements.len());
 
-                Some(dir::TypeElement {
-                    label,
-                    ty: self.commit_type_operand(module, output, environment, ty, source)?,
-                    is_optional,
-                    is_readonly,
-                    is_rest,
-                })
-            })
-            .collect()
+        // commit every tuple element in order
+        for element in elements {
+            let Some(ty) =
+                self.commit_type_operand(module, output, environment, element.ty, source)?
+            else {
+                return Ok(None);
+            };
+            let element = dir::TypeElement {
+                label: element.label,
+                ty,
+                is_optional: element.is_optional,
+                is_readonly: element.is_readonly,
+                is_rest: element.is_rest,
+            };
+
+            committed.push(element);
+        }
+
+        Ok(Some(committed))
     }
 
     /// Commit one structural shape type.
@@ -872,7 +940,7 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         members: &[ShapeMember],
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::ShapeType> {
+    ) -> CompilerResult<Option<dir::ShapeType>> {
         let mut fields = Vec::new();
         let mut call_signatures = Vec::new();
         let mut construct_signatures = Vec::new();
@@ -889,28 +957,31 @@ impl CheckState<'_> {
                     is_readonly,
                 } => fields.push(dir::TypeField {
                     key,
-                    ty: self.commit_type_operand(module, output, environment, ty, source)?,
+                    ty: match self.commit_type_operand(module, output, environment, ty, source)? {
+                        Some(ty) => ty,
+                        None => return Ok(None),
+                    },
                     is_optional,
                     is_readonly,
                 }),
-                ShapeMember::Spread { .. } => return None,
+                ShapeMember::Spread { .. } => return Ok(None),
                 ShapeMember::CallSignature { ty } => {
-                    call_signatures.push(self.commit_type_operand(
-                        module,
-                        output,
-                        environment,
-                        ty,
-                        source,
-                    )?);
+                    let Some(ty) =
+                        self.commit_type_operand(module, output, environment, ty, source)?
+                    else {
+                        return Ok(None);
+                    };
+
+                    call_signatures.push(ty);
                 }
                 ShapeMember::ConstructSignature { ty } => {
-                    construct_signatures.push(self.commit_type_operand(
-                        module,
-                        output,
-                        environment,
-                        ty,
-                        source,
-                    )?);
+                    let Some(ty) =
+                        self.commit_type_operand(module, output, environment, ty, source)?
+                    else {
+                        return Ok(None);
+                    };
+
+                    construct_signatures.push(ty);
                 }
                 ShapeMember::IndexSignature {
                     name,
@@ -918,34 +989,35 @@ impl CheckState<'_> {
                     value_type,
                     is_optional,
                     is_readonly,
-                } => index_signatures.push(dir::TypeIndexSignature {
-                    name,
-                    key_type: self.commit_type_operand(
-                        module,
-                        output,
-                        environment,
+                } => {
+                    let Some(key_type) =
+                        self.commit_type_operand(module, output, environment, key_type, source)?
+                    else {
+                        return Ok(None);
+                    };
+                    let Some(value_type) =
+                        self.commit_type_operand(module, output, environment, value_type, source)?
+                    else {
+                        return Ok(None);
+                    };
+
+                    index_signatures.push(dir::TypeIndexSignature {
+                        name,
                         key_type,
-                        source,
-                    )?,
-                    value_type: self.commit_type_operand(
-                        module,
-                        output,
-                        environment,
                         value_type,
-                        source,
-                    )?,
-                    is_optional,
-                    is_readonly,
-                }),
+                        is_optional,
+                        is_readonly,
+                    });
+                }
             }
         }
 
-        Some(dir::ShapeType {
+        Ok(Some(dir::ShapeType {
             fields,
             call_signatures,
             construct_signatures,
             index_signatures,
-        })
+        }))
     }
 
     /// Commit one function type.
@@ -956,32 +1028,43 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         function: TermId<FunctionTerm>,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::FunctionType> {
+    ) -> CompilerResult<Option<dir::FunctionType>> {
         let function = self.inference.term(function).clone();
+        let generic_parameters = self.commit_generic_parameter_types(
+            module,
+            output,
+            &function.generic_parameters,
+            source,
+        );
+        let this_parameter = if let Some(parameter) = function.this_parameter {
+            self.commit_type_operand(module, output, environment, parameter, source)?
+        } else {
+            None
+        };
+        let Some(parameters) = self.commit_function_parameters(
+            module,
+            output,
+            environment,
+            &function.parameters,
+            source,
+        )?
+        else {
+            return Ok(None);
+        };
+        let return_type = if let Some(return_type) = function.return_type {
+            self.commit_type_operand(module, output, environment, return_type, source)?
+        } else {
+            None
+        };
 
-        Some(dir::FunctionType {
+        Ok(Some(dir::FunctionType {
             asynchrony: function.asynchrony,
-            generic_parameters: self.commit_generic_parameter_types(
-                module,
-                output,
-                &function.generic_parameters,
-                source,
-            )?,
-            this_parameter: function.this_parameter.and_then(|parameter| {
-                self.commit_type_operand(module, output, environment, parameter, source)
-            }),
-            parameters: self.commit_function_parameters(
-                module,
-                output,
-                environment,
-                &function.parameters,
-                source,
-            )?,
-            return_type: function.return_type.and_then(|return_type| {
-                self.commit_type_operand(module, output, environment, return_type, source)
-            }),
+            generic_parameters,
+            this_parameter,
+            parameters,
+            return_type,
             is_generator: function.is_generator,
-        })
+        }))
     }
 
     /// Commit one type operation.
@@ -992,7 +1075,7 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         operation: TermId<TypeOperationTerm>,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::TypeOperation> {
+    ) -> CompilerResult<Option<dir::TypeOperation>> {
         let operation = self.inference.term(operation).clone();
         let operation = match operation {
             TypeOperationTerm::Conditional {
@@ -1000,51 +1083,76 @@ impl CheckState<'_> {
                 right,
                 then_type,
                 else_type,
-            } => dir::TypeOperation::Conditional(dir::ConditionalType {
-                left: self.commit_type_operand(module, output, environment, left, source)?,
-                right: self.commit_type_operand(module, output, environment, right, source)?,
-                then_type: self.commit_type_operand(
-                    module,
-                    output,
-                    environment,
+            } => {
+                let Some(left) =
+                    self.commit_type_operand(module, output, environment, left, source)?
+                else {
+                    return Ok(None);
+                };
+                let Some(right) =
+                    self.commit_type_operand(module, output, environment, right, source)?
+                else {
+                    return Ok(None);
+                };
+                let Some(then_type) =
+                    self.commit_type_operand(module, output, environment, then_type, source)?
+                else {
+                    return Ok(None);
+                };
+                let Some(else_type) =
+                    self.commit_type_operand(module, output, environment, else_type, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::TypeOperation::Conditional(dir::ConditionalType {
+                    left,
+                    right,
                     then_type,
-                    source,
-                )?,
-                else_type: self.commit_type_operand(
-                    module,
-                    output,
-                    environment,
                     else_type,
-                    source,
-                )?,
-            }),
-            TypeOperationTerm::Index { left, index } => dir::TypeOperation::Index(dir::IndexType {
-                left: self.commit_type_operand(module, output, environment, left, source)?,
-                index: self.commit_type_operand(module, output, environment, index, source)?,
-            }),
-            TypeOperationTerm::TemplateLiteral { strings, spans } => {
-                dir::TypeOperation::TemplateLiteral(dir::TemplateLiteralType {
-                    strings,
-                    spans: self.commit_type_operands(
-                        module,
-                        output,
-                        environment,
-                        &spans,
-                        source,
-                    )?,
                 })
+            }
+            TypeOperationTerm::Index { left, index } => {
+                let Some(left) =
+                    self.commit_type_operand(module, output, environment, left, source)?
+                else {
+                    return Ok(None);
+                };
+                let Some(index) =
+                    self.commit_type_operand(module, output, environment, index, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::TypeOperation::Index(dir::IndexType { left, index })
+            }
+            TypeOperationTerm::TemplateLiteral { strings, spans } => {
+                let Some(spans) =
+                    self.commit_type_operands(module, output, environment, &spans, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::TypeOperation::TemplateLiteral(dir::TemplateLiteralType { strings, spans })
             }
             TypeOperationTerm::Infer { name, constraint } => {
-                dir::TypeOperation::Infer(dir::InferType {
-                    name,
-                    constraint: constraint.and_then(|constraint| {
-                        self.commit_type_operand(module, output, environment, constraint, source)
-                    }),
-                })
+                let constraint = if let Some(constraint) = constraint {
+                    self.commit_type_operand(module, output, environment, constraint, source)?
+                } else {
+                    None
+                };
+
+                dir::TypeOperation::Infer(dir::InferType { name, constraint })
             }
-            TypeOperationTerm::KeyOf { target } => dir::TypeOperation::KeyOf(dir::UnaryType {
-                target: self.commit_type_operand(module, output, environment, target, source)?,
-            }),
+            TypeOperationTerm::KeyOf { target } => {
+                let Some(target) =
+                    self.commit_type_operand(module, output, environment, target, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::TypeOperation::KeyOf(dir::UnaryType { target })
+            }
             TypeOperationTerm::Mapped {
                 parameter,
                 modifiers,
@@ -1054,44 +1162,49 @@ impl CheckState<'_> {
                 let symbol = parameter.symbol;
                 let constraint = parameter.constraint;
                 let key_remap = parameter.key_remap;
+                let Some(constraint) =
+                    self.commit_type_operand(module, output, environment, constraint, source)?
+                else {
+                    return Ok(None);
+                };
+                let key_remap = if let Some(key_remap) = key_remap {
+                    self.commit_type_operand(module, output, environment, key_remap, source)?
+                } else {
+                    None
+                };
+                let Some(value) =
+                    self.commit_type_operand(module, output, environment, value, source)?
+                else {
+                    return Ok(None);
+                };
 
                 dir::TypeOperation::Mapped(dir::MappedType {
                     parameter: dir::MappedTypeParameter {
                         name,
                         symbol,
-                        constraint: self.commit_type_operand(
-                            module,
-                            output,
-                            environment,
-                            constraint,
-                            source,
-                        )?,
-                        key_remap: key_remap.and_then(|key_remap| {
-                            self.commit_type_operand(module, output, environment, key_remap, source)
-                        }),
+                        constraint,
+                        key_remap,
                     },
                     modifiers,
-                    value: self.commit_type_operand(module, output, environment, value, source)?,
+                    value,
                 })
             }
             TypeOperationTerm::StringMapping { mapping, argument } => {
-                dir::TypeOperation::StringMapping {
-                    mapping,
-                    target: self.commit_type_operand(
-                        module,
-                        output,
-                        environment,
-                        argument,
-                        source,
-                    )?,
-                }
+                let Some(target) =
+                    self.commit_type_operand(module, output, environment, argument, source)?
+                else {
+                    return Ok(None);
+                };
+
+                dir::TypeOperation::StringMapping { mapping, target }
             }
             TypeOperationTerm::BestCommon { .. }
             | TypeOperationTerm::Widen { .. }
             | TypeOperationTerm::Exclude { .. }
-            | TypeOperationTerm::Intrinsic { .. } => return None,
+            | TypeOperationTerm::NarrowMember { .. }
+            | TypeOperationTerm::Intrinsic { .. } => return Ok(None),
         };
 
-        Some(operation)
+        Ok(Some(operation))
     }
 }

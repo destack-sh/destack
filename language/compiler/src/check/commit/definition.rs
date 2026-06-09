@@ -4,9 +4,9 @@ use destack_source::ModuleId;
 
 use crate::check::{
     AssociatedConstDefinition, AssociatedTypeDefinition, CheckState, ClassDefinition, Definition,
-    EnumDefinition, ExtensionDefinition, ExtensionTarget, FieldDefinition, InterfaceDefinition,
-    MethodDefinition, NewtypeDefinition, NominalHeritage, SignatureDefinition, StructDefinition,
-    TypeAliasDefinition, TypeOperand, VariantDefinition,
+    EnumDefinition, ExtensionDefinition, ExtensionTarget, FieldDefinition, GenericTemplateId,
+    InterfaceDefinition, MethodDefinition, NewtypeDefinition, NominalHeritage, SignatureDefinition,
+    StructDefinition, TypeAliasDefinition, TypeOperand, VariantDefinition,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -95,8 +95,7 @@ impl CheckState<'_> {
             self.commit_extension_target(module, output, environment, definition.target, source)?;
         let where_clauses =
             self.commit_extension_where_clauses(module, output, environment, &definition)?;
-        let implements =
-            self.commit_nominal_heritages(module, output, environment, definition.implements);
+        let implements = self.commit_nominal_heritages(module, output, definition.implements)?;
         let fields =
             self.commit_field_definitions(module, output, environment, definition.fields)?;
         let static_fields =
@@ -143,7 +142,7 @@ impl CheckState<'_> {
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::ExtensionTarget> {
         let ty = self
-            .commit_type_operand(module, output, environment, target.r#type(), source)
+            .commit_type_operand(module, output, environment, target.r#type(), source)?
             .ok_or_else(|| CompilerError::Internal {
                 message: format!("extension target {source:?} has no committed type"),
             })?;
@@ -169,7 +168,7 @@ impl CheckState<'_> {
         for where_clause in &definition.where_clauses {
             let source = where_clause.source.local_id;
             let left = self
-                .commit_type_operand(module, output, environment, where_clause.left, source)
+                .commit_type_operand(module, output, environment, where_clause.left, source)?
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!(
                         "extension where clause {:?} has no committed left type",
@@ -177,7 +176,7 @@ impl CheckState<'_> {
                     ),
                 });
             let right = self
-                .commit_type_operand(module, output, environment, where_clause.right, source)
+                .commit_type_operand(module, output, environment, where_clause.right, source)?
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!(
                         "extension where clause {:?} has no committed right type",
@@ -204,7 +203,8 @@ impl CheckState<'_> {
         definition: TypeAliasDefinition,
     ) -> CompilerResult<dir::TypeAliasDefinition> {
         let source = definition.source.local_id;
-        let value = self.commit_type_operand(module, output, environment, definition.value, source);
+        let value =
+            self.commit_type_operand(module, output, environment, definition.value, source)?;
         let Some(value) = value else {
             return Err(CompilerError::Internal {
                 message: format!("type alias {:?} has no committed value", definition.source),
@@ -227,12 +227,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::StructDefinition> {
         Ok(dir::StructDefinition {
             template: self.commit_nominal_template(definition.template),
-            implements: self.commit_nominal_heritages(
-                module,
-                output,
-                environment,
-                definition.implements,
-            ),
+            implements: self.commit_nominal_heritages(module, output, definition.implements)?,
             fields: self.commit_field_definitions(
                 module,
                 output,
@@ -282,15 +277,11 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::ClassDefinition> {
         Ok(dir::ClassDefinition {
             template: self.commit_nominal_template(definition.template),
-            extends: definition.extends.map(|heritage| {
-                self.commit_nominal_heritage(module, output, environment, heritage)
-            }),
-            implements: self.commit_nominal_heritages(
-                module,
-                output,
-                environment,
-                definition.implements,
-            ),
+            extends: definition
+                .extends
+                .map(|heritage| self.commit_nominal_heritage(module, output, heritage))
+                .transpose()?,
+            implements: self.commit_nominal_heritages(module, output, definition.implements)?,
             fields: self.commit_field_definitions(
                 module,
                 output,
@@ -341,7 +332,7 @@ impl CheckState<'_> {
         Ok(dir::InterfaceDefinition {
             template: self.commit_nominal_template(definition.template),
             is_nominal: definition.is_nominal,
-            extends: self.commit_nominal_heritages(module, output, environment, definition.extends),
+            extends: self.commit_nominal_heritages(module, output, definition.extends)?,
             fields: self.commit_field_definitions(
                 module,
                 output,
@@ -409,18 +400,13 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::EnumDefinition> {
         Ok(dir::EnumDefinition {
             template: self.commit_nominal_template(definition.template),
-            implements: self.commit_nominal_heritages(
-                module,
-                output,
-                environment,
-                definition.implements,
-            ),
+            implements: self.commit_nominal_heritages(module, output, definition.implements)?,
             variants: self.commit_variant_definitions(
                 module,
                 output,
                 environment,
                 definition.variants,
-            ),
+            )?,
             static_fields: self.commit_field_definitions(
                 module,
                 output,
@@ -479,7 +465,7 @@ impl CheckState<'_> {
     /// Commit one checked generic template reference.
     fn commit_nominal_template(
         &self,
-        template: Option<crate::check::GenericTemplateId>,
+        template: Option<GenericTemplateId>,
     ) -> Option<dir::LocalGenericTemplateId> {
         template.map(|template| template.local_id)
     }
@@ -489,12 +475,11 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
-        environment: &GlobalEnvironment,
         heritages: Vec<NominalHeritage>,
-    ) -> Vec<dir::NominalHeritage> {
+    ) -> CompilerResult<Vec<dir::NominalHeritage>> {
         heritages
             .into_iter()
-            .map(|heritage| self.commit_nominal_heritage(module, output, environment, heritage))
+            .map(|heritage| self.commit_nominal_heritage(module, output, heritage))
             .collect()
     }
 
@@ -503,24 +488,34 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         output: &mut CheckModuleOutput,
-        environment: &GlobalEnvironment,
         heritage: NominalHeritage,
-    ) -> dir::NominalHeritage {
-        let instance = heritage.instance.as_ref().and_then(|instance| {
-            self.commit_generic_instance(
-                module,
-                output,
-                environment,
-                heritage.source.local_id,
-                instance,
-            )
-        });
+    ) -> CompilerResult<dir::NominalHeritage> {
+        let instance = if let Some(instance) = heritage.instance {
+            let instance = output
+                .generics
+                .node_instance_id_for_template(heritage.source, instance.template.local_id)
+                .ok_or_else(|| {
+                    let source = self.dump_in_module(module, &heritage.source);
+                    let symbol = self.dump_in_module(module, &heritage.symbol);
+                    let template = instance.template;
 
-        dir::NominalHeritage {
+                    CompilerError::Internal {
+                        message: format!(
+                            "nominal heritage {source} for {symbol} has no committed generic instance for {template:?}"
+                        ),
+                    }
+                })?;
+
+            Some(instance)
+        } else {
+            None
+        };
+
+        Ok(dir::NominalHeritage {
             source: heritage.source,
             symbol: heritage.symbol,
             instance,
-        }
+        })
     }
 
     /// Commit checked field definitions.
@@ -575,6 +570,7 @@ impl CheckState<'_> {
                     symbol: definition.symbol,
                     source: definition.source,
                     slot: definition.slot,
+                    role: definition.role,
                     ty,
                 })
             })
@@ -642,9 +638,11 @@ impl CheckState<'_> {
                     definition.ty,
                     definition.source,
                 )?;
-                let value = definition.value.and_then(|value| {
-                    self.commit_static_operand(module, output, environment, value)
-                });
+                let value = if let Some(value) = definition.value {
+                    self.commit_closed_static_operand(module, output, environment, value)?
+                } else {
+                    None
+                };
 
                 Ok(dir::AssociatedConstDefinition {
                     symbol: definition.symbol,
@@ -664,18 +662,27 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         definitions: Vec<VariantDefinition>,
-    ) -> Vec<dir::VariantDefinition> {
-        definitions
-            .into_iter()
-            .map(|definition| dir::VariantDefinition {
+    ) -> CompilerResult<Vec<dir::VariantDefinition>> {
+        let mut committed = Vec::with_capacity(definitions.len());
+
+        // commit each variant in order
+        for definition in definitions {
+            let value = if let Some(value) = definition.value {
+                self.commit_closed_static_operand(module, output, environment, value)?
+            } else {
+                None
+            };
+            let definition = dir::VariantDefinition {
                 symbol: definition.symbol,
                 source: definition.source,
                 key: definition.key,
-                value: definition.value.and_then(|value| {
-                    self.commit_static_operand(module, output, environment, value)
-                }),
-            })
-            .collect()
+                value,
+            };
+
+            committed.push(definition);
+        }
+
+        Ok(committed)
     }
 
     /// Commit checked signature definitions.
@@ -715,7 +722,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let Some(ty) =
-            self.commit_type_operand(module, output, environment, operand, source.local_id)
+            self.commit_type_operand(module, output, environment, operand, source.local_id)?
         else {
             return Err(CompilerError::Internal {
                 message: format!("nominal source node {source:?} has unresolved type operand"),
