@@ -15,7 +15,7 @@ pub struct Edit {
 /// Edits for a single file.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FileEdit {
+pub struct FilePatch {
     /// Edited file.
     pub file: FileId,
     /// Source edits.
@@ -27,7 +27,7 @@ pub struct FileEdit {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BatchEdit {
     /// Per-file edits.
-    pub files: Vec<FileEdit>,
+    pub files: Vec<FilePatch>,
 }
 
 impl Edit {
@@ -48,7 +48,7 @@ impl Edit {
     }
 }
 
-impl FileEdit {
+impl FilePatch {
     /// Convert one source file edit into one bridge file edit.
     pub fn from_source(edit: source::FileEdit) -> Self {
         Self {
@@ -74,7 +74,7 @@ impl BatchEdit {
     /// Convert one source batch edit into one bridge batch edit.
     pub fn from_source(edit: source::BatchEdit) -> Self {
         Self {
-            files: edit.files.into_iter().map(FileEdit::from_source).collect(),
+            files: edit.files.into_iter().map(FilePatch::from_source).collect(),
         }
     }
 
@@ -83,7 +83,7 @@ impl BatchEdit {
         let files = self
             .files
             .into_iter()
-            .map(FileEdit::into_source)
+            .map(FilePatch::into_source)
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(source::BatchEdit::from_files(files))
@@ -106,18 +106,18 @@ impl TryFrom<Edit> for source::Edit {
     }
 }
 
-impl From<source::FileEdit> for FileEdit {
+impl From<source::FileEdit> for FilePatch {
     /// Convert one source file edit into one bridge file edit.
     fn from(edit: source::FileEdit) -> Self {
         Self::from_source(edit)
     }
 }
 
-impl TryFrom<FileEdit> for source::FileEdit {
+impl TryFrom<FilePatch> for source::FileEdit {
     type Error = SourceIdParseError;
 
     /// Convert one bridge file edit into one source file edit.
-    fn try_from(edit: FileEdit) -> Result<Self, Self::Error> {
+    fn try_from(edit: FilePatch) -> Result<Self, Self::Error> {
         edit.into_source()
     }
 }

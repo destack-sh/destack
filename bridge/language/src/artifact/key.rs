@@ -5,7 +5,7 @@ use destack_artifact as artifact;
 use crate::{ComponentId, ModuleId, PackageId, ProfileId, SourceIdParseError, TargetId, bridge};
 
 /// External artifact key crossing bridge boundaries.
-#[bridge]
+#[bridge(capi_handle)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ArtifactKey {
     /// Parsed module DIR.

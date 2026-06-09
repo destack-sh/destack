@@ -1,7 +1,7 @@
 mod file;
-mod snapshot;
+mod source;
 mod update;
 
 pub use file::*;
-pub use snapshot::*;
+pub use source::*;
 pub use update::*;

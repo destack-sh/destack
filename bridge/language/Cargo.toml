@@ -17,6 +17,7 @@ doctest = false
 [dependencies]
 destack_artifact.workspace = true
 destack_bridge_language_macros.workspace = true
+destack_core.workspace = true
 destack_repository.workspace = true
 destack_session.workspace = true
 destack_source.workspace = true
