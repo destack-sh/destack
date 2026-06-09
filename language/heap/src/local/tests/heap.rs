@@ -1,11 +1,11 @@
-use crate::local::storage::{HeapPlace, HeapStorage};
+use crate::local::storage::HeapPlace;
 use crate::{
     HeapAllocationError, HeapError, HeapOptions, HeapReference, Payload, SizeClassTable,
-    test_aligned_layout, test_allocator, test_layout,
+    test_aligned_layout, test_layout,
 };
 use destack_mir::{TraceMap, TraceVariant};
 
-use super::{heap_allocation_plan, read_mapped_bytes, trace_table};
+use super::{TestHeapPlan, heap_allocation_plan, read_mapped_bytes, test_storage, trace_table};
 
 /// Reject one zero-size heap block.
 #[test]
@@ -13,8 +13,7 @@ fn test_allocate_heap_rejects_zero_size_layout() {
     // build a valid heap with an invalid block layout
     let options = HeapOptions::local();
     let layout = test_layout(0, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(test_allocator(&options), &options)
-        .expect("heap storage should build");
+    let mut heap = test_storage(&options);
 
     // reject zero-size heap objects loudly
     let error = heap
@@ -36,14 +35,8 @@ fn test_free_heap_reclaims_live_allocation() {
     // allocate one live heap payload
     let options = HeapOptions::local();
     let layout = test_layout(1, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(test_allocator(&options), &options)
-        .expect("heap storage should build");
-    let reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[0xAB]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[0xAB]));
 
     // free the block and retire its old reference
     assert!(heap.is_live(reference));
@@ -51,12 +44,7 @@ fn test_free_heap_reclaims_live_allocation() {
     assert!(!heap.is_live(reference));
 
     // allocate again to prove the heap remains usable
-    let next_reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[0xCD]),
-        )
-        .expect("heap block should succeed");
+    let next_reference = heap.test_allocate(layout.block(), Payload::Bytes(&[0xCD]));
 
     assert!(heap.is_live(next_reference));
 }
@@ -73,31 +61,15 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
     };
     let full_layout = test_layout(8, TraceMap::empty());
     let short_layout = test_layout(1, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(test_allocator(&options), &options)
-        .expect("heap storage should build");
+    let mut heap = test_storage(&options);
 
-    let first = heap
-        .allocate(
-            &heap_allocation_plan(&heap, full_layout.block()),
-            Payload::Bytes(&[0xAA; 8]),
-        )
-        .expect("heap block should succeed");
-    let second = heap
-        .allocate(
-            &heap_allocation_plan(&heap, short_layout.block()),
-            Payload::Bytes(&[0xBB]),
-        )
-        .expect("heap block should succeed");
+    let first = heap.test_allocate(full_layout.block(), Payload::Bytes(&[0xAA; 8]));
+    let second = heap.test_allocate(short_layout.block(), Payload::Bytes(&[0xBB]));
 
     // free the full slot so a shorter payload can reuse it
     heap.free(first).expect("heap free should succeed");
 
-    let reused = heap
-        .allocate(
-            &heap_allocation_plan(&heap, short_layout.block()),
-            Payload::Bytes(&[0xCC]),
-        )
-        .expect("heap block should succeed");
+    let reused = heap.test_allocate(short_layout.block(), Payload::Bytes(&[0xCC]));
 
     assert!(heap.is_live(second));
     assert!(heap.is_live(reused));
@@ -119,21 +91,10 @@ fn test_allocate_heap_tracks_exact_young_span_payload_lengths() {
     };
     let first_layout = test_layout(9, TraceMap::empty());
     let second_layout = test_layout(10, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(test_allocator(&options), &options)
-        .expect("heap storage should build");
+    let mut heap = test_storage(&options);
 
-    let first = heap
-        .allocate(
-            &heap_allocation_plan(&heap, first_layout.block()),
-            Payload::Bytes(&[0xAA; 9]),
-        )
-        .expect("first heap block should succeed");
-    let second = heap
-        .allocate(
-            &heap_allocation_plan(&heap, second_layout.block()),
-            Payload::Bytes(&[0xBB; 10]),
-        )
-        .expect("second heap block should succeed");
+    let first = heap.test_allocate(first_layout.block(), Payload::Bytes(&[0xAA; 9]));
+    let second = heap.test_allocate(second_layout.block(), Payload::Bytes(&[0xBB; 10]));
 
     // resolve each block through its own live metadata
     let first_place = heap.place(first).expect("first block should be live");
@@ -183,15 +144,9 @@ fn test_allocate_heap_routes_tagged_trace_map_to_large() {
         .into_boxed_slice(),
     };
     let layout = test_layout(16, trace_map);
-    let mut heap = HeapStorage::build_with_options(test_allocator(&options), &options)
-        .expect("heap storage should build");
+    let mut heap = test_storage(&options);
 
-    let reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Zeroed,
-        )
-        .expect("heap block should succeed");
+    let reference = heap.test_allocate(layout.block(), Payload::Zeroed);
 
     // tagged payloads should bypass young space
     assert!(matches!(
@@ -212,21 +167,10 @@ fn test_allocate_heap_honors_layout_alignment() {
         ..HeapOptions::local()
     };
     let layout = test_aligned_layout(17, 16, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(test_allocator(&options), &options)
-        .expect("heap storage should build");
+    let mut heap = test_storage(&options);
 
-    let first = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[0xAA; 17]),
-        )
-        .expect("first aligned heap block should succeed");
-    let second = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[0xBB; 17]),
-        )
-        .expect("second aligned heap block should succeed");
+    let first = heap.test_allocate(layout.block(), Payload::Bytes(&[0xAA; 17]));
+    let second = heap.test_allocate(layout.block(), Payload::Bytes(&[0xBB; 17]));
 
     // every returned base should satisfy the layout alignment
     assert_eq!(first.offset() % 16, 0);
@@ -245,14 +189,8 @@ fn test_write_heap_rejects_interior_reference_crossing_bounds() {
         ..HeapOptions::local()
     };
     let layout = test_layout(1, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(test_allocator(&options), &options)
-        .expect("heap storage should build");
-    let reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[0xAB]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[0xAB]));
     let reference = reference.add_bytes(7);
 
     // writing two bytes from offset 7 crosses the block boundary
@@ -286,26 +224,15 @@ fn test_free_heap_reclaims_large_block() {
         .expect("size class table should not be empty")
         + 1;
     let layout = test_layout(large_byte_len, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(test_allocator(&options), &options)
-        .expect("heap storage should build");
-    let first = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&vec![0xAB; large_byte_len]),
-        )
-        .expect("heap large block should succeed");
+    let mut heap = test_storage(&options);
+    let first = heap.test_allocate(layout.block(), Payload::Bytes(&vec![0xAB; large_byte_len]));
 
     assert!(matches!(heap.place(first), Some(HeapPlace::LargeBlock(_))));
 
     // free the large block before allocating another one
     heap.free(first).expect("heap large free should succeed");
 
-    let second = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&vec![0xCD; large_byte_len]),
-        )
-        .expect("heap large reallocation should succeed");
+    let second = heap.test_allocate(layout.block(), Payload::Bytes(&vec![0xCD; large_byte_len]));
 
     // large block placement should stay on the large path
     assert!(matches!(heap.place(second), Some(HeapPlace::LargeBlock(_))));
@@ -316,8 +243,7 @@ fn test_free_heap_reclaims_large_block() {
 fn test_free_heap_rejects_invalid_reference() {
     // build a heap with no block at offset 7
     let options = HeapOptions::local();
-    let mut heap = HeapStorage::build_with_options(test_allocator(&options), &options)
-        .expect("heap storage should build");
+    let mut heap = test_storage(&options);
 
     // reject the unknown address
     let reference = HeapReference::new(7);

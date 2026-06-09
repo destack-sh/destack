@@ -3,13 +3,13 @@ use std::sync::Arc;
 use crate::allocator::Allocator;
 use crate::local::storage::{HeapStorage, HeapStorageImage, YoungImage};
 use crate::{
-    HeapConfigurationError, HeapError, HeapOptions, Payload, SizeClassTable, TestLayout,
+    Heap, HeapConfigurationError, HeapError, HeapOptions, Payload, SizeClassTable, TestLayout,
     test_allocator, test_layouts,
 };
 use destack_mir::TraceMap;
 
 use super::{
-    TestHeap, heap_allocation_plan, read_mapped_bytes, trace_table, write_mapped_byte,
+    TestHeapPlan, read_mapped_bytes, test_heap_with_limits, trace_table, write_mapped_byte,
     write_mapped_bytes,
 };
 
@@ -36,13 +36,13 @@ fn heap_storage_with_empty_layouts(
 fn test_heap_with_empty_layouts(
     options: HeapOptions,
     allocation_byte_lens: &[usize],
-) -> (TestHeap, Vec<TestLayout>) {
+) -> (Heap, Vec<TestLayout>) {
     let layout_specs = allocation_byte_lens
         .iter()
         .map(|byte_len| (*byte_len, TraceMap::empty()))
         .collect::<Vec<_>>();
     let layouts = test_layouts(&layout_specs);
-    let heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
+    let heap = test_heap_with_limits(crate::HeapLimits::default(), options);
 
     (heap, layouts)
 }
@@ -157,9 +157,9 @@ fn test_roundtrip_heap_storage_image() {
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&options);
     let first_bytes = vec![1; 5000];
     let second_bytes = vec![2; 5000];
+    let allocator = test_allocator(&options);
     let (mut heap, layout_ids) = heap_storage_with_empty_layouts(
         allocator.clone(),
         &options,
@@ -169,18 +169,8 @@ fn test_roundtrip_heap_storage_image() {
     let second_layout = &layout_ids[1];
 
     // capture two blocks so the restored copy has independent bytes
-    let first = heap
-        .allocate(
-            &heap_allocation_plan(&heap, first_layout.block()),
-            Payload::Bytes(&first_bytes),
-        )
-        .expect("heap block should succeed");
-    let _second = heap
-        .allocate(
-            &heap_allocation_plan(&heap, second_layout.block()),
-            Payload::Bytes(&second_bytes),
-        )
-        .expect("heap block should succeed");
+    let first = heap.test_allocate(first_layout.block(), Payload::Bytes(&first_bytes));
+    let _second = heap.test_allocate(second_layout.block(), Payload::Bytes(&second_bytes));
     let image = heap.image().expect("heap image should capture");
     let mut restored = HeapStorage::from_image(allocator.clone(), &image, trace_table())
         .expect("heap image should restore");
@@ -241,13 +231,8 @@ fn test_roundtrip_heap_image_and_fork() {
     let (mut test_heap, layout_ids) =
         test_heap_with_empty_layouts(HeapOptions::local(), &[heap_bytes.len()]);
     let layout = &layout_ids[0];
-    let heap = &mut test_heap.heap;
-    let _heap_reference = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&heap_bytes),
-        )
-        .expect("heap block should succeed");
+    let heap = &mut test_heap;
+    let _heap_reference = heap.test_allocate(layout.block(), Payload::Bytes(&heap_bytes));
     // capture both the frozen image and the live fork
     let image = heap.image().expect("heap image should capture");
     let mut forked = heap
@@ -275,12 +260,8 @@ fn test_roundtrip_heap_snapshot() {
     let (mut test_heap, layout_ids) =
         test_heap_with_empty_layouts(HeapOptions::local(), &[heap_bytes.len()]);
     let layout = &layout_ids[0];
-    let heap = &mut test_heap.heap;
-    heap.allocate_payload(
-        &heap_allocation_plan(&heap, layout.block()),
-        Payload::Bytes(&heap_bytes),
-    )
-    .expect("heap block should succeed");
+    let heap = &mut test_heap;
+    heap.test_allocate(layout.block(), Payload::Bytes(&heap_bytes));
 
     let image = heap.image().expect("heap image should capture");
     let snapshot = image.snapshot();
@@ -308,19 +289,9 @@ fn test_heap_image_write_preserves_captured_allocation_bytes() {
     let second_bytes = vec![0xBB; 5000];
     let (mut test_heap, layout_ids) =
         test_heap_with_empty_layouts(options, &[first_bytes.len(), second_bytes.len()]);
-    let heap = &mut test_heap.heap;
-    let first = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout_ids[0].block()),
-            Payload::Bytes(&first_bytes),
-        )
-        .expect("heap block should succeed");
-    let _second = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout_ids[1].block()),
-            Payload::Bytes(&second_bytes),
-        )
-        .expect("heap block should succeed");
+    let heap = &mut test_heap;
+    let first = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&first_bytes));
+    let _second = heap.test_allocate(layout_ids[1].block(), Payload::Bytes(&second_bytes));
     let image = heap.image().expect("heap image should capture");
     let mut restored =
         crate::Heap::from_image(&image, trace_table()).expect("heap image should restore");
@@ -357,14 +328,9 @@ fn test_heap_image_write_preserves_captured_page_bytes() {
         ..HeapOptions::local()
     };
     let bytes = vec![0xAA; 9000];
-    let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
-    let heap = &mut test_heap.heap;
-    let reference = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout_ids[0].block()),
-            Payload::Bytes(&bytes),
-        )
-        .expect("heap block should succeed");
+    let (mut heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
+    let heap = &mut heap;
+    let reference = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&bytes));
     let image = heap.image().expect("heap image should capture");
     let mut restored =
         crate::Heap::from_image(&image, trace_table()).expect("heap image should restore");
@@ -393,14 +359,9 @@ fn test_heap_image_write_preserves_captured_multi_page_bytes() {
         ..HeapOptions::local()
     };
     let bytes = vec![0xAA; 5 * 4096];
-    let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
-    let heap = &mut test_heap.heap;
-    let reference = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout_ids[0].block()),
-            Payload::Bytes(&bytes),
-        )
-        .expect("heap block should succeed");
+    let (mut heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
+    let heap = &mut heap;
+    let reference = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&bytes));
     let image = heap.image().expect("heap image should capture");
     let mut restored =
         crate::Heap::from_image(&image, trace_table()).expect("heap image should restore");
@@ -429,14 +390,9 @@ fn test_heap_image_write_preserves_captured_many_page_bytes() {
         ..HeapOptions::local()
     };
     let bytes = vec![0xAA; 5 * 4096];
-    let (mut test_heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
-    let heap = &mut test_heap.heap;
-    let reference = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout_ids[0].block()),
-            Payload::Bytes(&bytes),
-        )
-        .expect("heap block should succeed");
+    let (mut heap, layout_ids) = test_heap_with_empty_layouts(options, &[bytes.len()]);
+    let heap = &mut heap;
+    let reference = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&bytes));
     let image = heap.image().expect("heap image should capture");
     let mut restored =
         crate::Heap::from_image(&image, trace_table()).expect("heap image should restore");
@@ -468,18 +424,8 @@ fn test_roundtrip_heap_small_storage_image() {
         heap_storage_with_empty_layouts(allocator.clone(), &options, &[3, 3]);
 
     // small blocks should roundtrip as independent bytes
-    let first = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout_ids[0].block()),
-            Payload::Bytes(&[1, 2, 3]),
-        )
-        .expect("heap block should succeed");
-    let _second = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout_ids[1].block()),
-            Payload::Bytes(&[4, 5, 6]),
-        )
-        .expect("heap block should succeed");
+    let first = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&[1, 2, 3]));
+    let _second = heap.test_allocate(layout_ids[1].block(), Payload::Bytes(&[4, 5, 6]));
     let image = heap.image().expect("heap image should capture");
     let mut restored = HeapStorage::from_image(allocator.clone(), &image, trace_table())
         .expect("heap image should restore");
@@ -533,18 +479,8 @@ fn test_roundtrip_heap_young_storage_image() {
         heap_storage_with_empty_layouts(allocator.clone(), &options, &[3, 3]);
 
     // young blocks should roundtrip as independent bytes
-    let first = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout_ids[0].block()),
-            Payload::Bytes(&[1, 2, 3]),
-        )
-        .expect("heap block should succeed");
-    let _second = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout_ids[1].block()),
-            Payload::Bytes(&[4, 5, 6]),
-        )
-        .expect("heap block should succeed");
+    let first = heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&[1, 2, 3]));
+    let _second = heap.test_allocate(layout_ids[1].block(), Payload::Bytes(&[4, 5, 6]));
     let image = heap.image().expect("heap image should capture");
     let mut restored = HeapStorage::from_image(allocator.clone(), &image, trace_table())
         .expect("heap image should restore");
@@ -581,11 +517,7 @@ fn test_restore_full_heap_image_rejects_invalid_size_class() {
     };
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) = heap_storage_with_empty_layouts(allocator.clone(), &options, &[3]);
-    heap.allocate(
-        &heap_allocation_plan(&heap, layout_ids[0].block()),
-        Payload::Bytes(&[1, 2, 3]),
-    )
-    .expect("heap block should succeed");
+    heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&[1, 2, 3]));
 
     let image = heap.image().expect("heap image should capture");
     let image =
@@ -609,11 +541,7 @@ fn test_fork_heap_storage_rejects_invalid_size_class() {
     };
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) = heap_storage_with_empty_layouts(allocator.clone(), &options, &[3]);
-    heap.allocate(
-        &heap_allocation_plan(&heap, layout_ids[0].block()),
-        Payload::Bytes(&[1, 2, 3]),
-    )
-    .expect("heap block should succeed");
+    heap.test_allocate(layout_ids[0].block(), Payload::Bytes(&[1, 2, 3]));
     heap.small.size_classes = SizeClassTable::new([16]).expect("size classes should validate");
 
     let error = heap

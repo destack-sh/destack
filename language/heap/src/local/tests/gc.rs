@@ -1,17 +1,19 @@
-use std::sync::Arc;
-
+use crate::local::gc::Phase;
 use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
-    AllocationShape, Allocator, GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions,
-    HeapReference, HeapResult, Payload, RootSlot, SharedHeapReference, SizeClassTable, TestLayout,
-    test_allocator, test_layout, test_layouts, visit_heap_references,
+    AllocationShape, GcKind, GcOptions, GcProgress, Heap, HeapError, HeapOptions, HeapReference,
+    HeapResult, Payload, RootSlot, SharedHeapReference, SizeClassTable, TestLayout,
+    local_trace_map, shared_trace_map, test_layout, test_layouts, visit_heap_references,
 };
 use destack_mir::{TraceMap, TraceTable};
 
-use super::{allocation_site, heap_allocation_plan, read_mapped_bytes, trace_table};
+use super::{
+    TestHeapPlan, allocation_site, read_mapped_bytes, test_heap, test_storage, trace_table,
+    write_mapped_bytes,
+};
 
 /// Build one heap whose pacer triggers immediately in step-driven tests.
-fn test_heap(layouts: &[(usize, TraceMap)]) -> (Heap, Vec<TestLayout>) {
+fn pacing_heap(layouts: &[(usize, TraceMap)]) -> (Heap, Vec<TestLayout>) {
     let options = HeapOptions {
         gc: GcOptions {
             growth_percent: 10,
@@ -22,16 +24,8 @@ fn test_heap(layouts: &[(usize, TraceMap)]) -> (Heap, Vec<TestLayout>) {
         },
         ..HeapOptions::local()
     };
-    let layouts = test_layouts(layouts);
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("allocator should build"),
-    );
-    let heap =
-        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
-            .expect("pacing heap should build");
 
-    (heap, layouts)
+    (test_heap(options), test_layouts(layouts))
 }
 
 /// Build heap options with tiny mature spans for focused GC tests.
@@ -74,24 +68,12 @@ fn visit_roots(
 fn test_collect_minor_promotes_reachable_entries() {
     // build a tiny mature space so promotion is easy to observe
     let options = tiny_heap_options();
-    let allocator = test_allocator(&options);
     let layout = test_layout(3, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
 
     // root 1,2,3 and leave 4,5,6 unreachable
-    let reachable = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1, 2, 3]),
-        )
-        .expect("heap block should succeed");
-    let unreachable = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[4, 5, 6]),
-        )
-        .expect("heap block should succeed");
+    let reachable = heap.test_allocate(layout.block(), Payload::Bytes(&[1, 2, 3]));
+    let unreachable = heap.test_allocate(layout.block(), Payload::Bytes(&[4, 5, 6]));
     let mut roots = [reachable];
 
     // verify both blocks begin in the nursery
@@ -133,19 +115,11 @@ fn test_collect_minor_promotes_reachable_entries() {
 fn test_collect_minor_promotes_reachable_noscan_spans() {
     // use the default young span path for fixed-size no-scan payloads
     let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
     let layout = test_layout(4, TraceMap::empty());
-    let mut heap =
-        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
-            .expect("heap should build");
+    let mut heap = test_heap(options);
 
     // root the single zeroed span slot
-    let reference = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Zeroed,
-        )
-        .expect("young no-scan block should succeed");
+    let reference = heap.test_allocate(layout.block(), Payload::Zeroed);
     let mut roots = [reference];
 
     // verify the block used the young fixed-size span path
@@ -177,22 +151,13 @@ fn test_collect_minor_promotes_reachable_noscan_spans() {
 /// Reuse exact young spans after another trace class becomes active.
 #[test]
 fn test_reserve_local_young_span_uses_exact_trace_cache() {
-    let first_map = TraceMap::Fixed {
-        local_offsets: Box::new([0]),
-        shared_offsets: Box::new([]),
-    };
-    let second_map = TraceMap::Fixed {
-        local_offsets: Box::new([8]),
-        shared_offsets: Box::new([]),
-    };
+    let first_map = local_trace_map(&[0]);
+    let second_map = local_trace_map(&[8]);
     let mut trace_table = TraceTable::new();
     let first_trace_id = trace_table.insert(first_map.clone());
     let second_trace_id = trace_table.insert(second_map.clone());
     let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
-    let mut heap =
-        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
-            .expect("heap should build");
+    let mut heap = test_heap(options);
     let first_shape = AllocationShape::new(16, 1, Some(first_trace_id), &first_map);
     let second_shape = AllocationShape::new(16, 1, Some(second_trace_id), &second_map);
     let first_site = allocation_site(heap.options(), first_shape);
@@ -221,17 +186,9 @@ fn test_reserve_local_young_span_uses_exact_trace_cache() {
 fn test_collect_minor_recycles_young_zeroed_bytes() {
     // allocate nonzero bytes in young space
     let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
     let layout = test_layout(8, TraceMap::empty());
-    let mut heap =
-        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
-            .expect("heap should build");
-    let reference = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[9; 8]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_heap(options);
+    let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[9; 8]));
     let mut roots = [];
 
     assert!(heap.is_young(reference));
@@ -241,12 +198,7 @@ fn test_collect_minor_recycles_young_zeroed_bytes() {
         .expect("young collection should succeed");
 
     // reuse young space through the zeroed path
-    let reference = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Zeroed,
-        )
-        .expect("zeroed heap block should succeed");
+    let reference = heap.test_allocate(layout.block(), Payload::Zeroed);
     let address = heap.storage.base_address() + reference.offset();
 
     // recycled bytes should be cleared before reuse
@@ -260,30 +212,18 @@ fn test_collect_minor_recycles_young_zeroed_bytes() {
 fn test_collect_minor_promotes_reachable_child_entries() {
     // parent traces one local child reference at offset zero
     let options = tiny_heap_options();
-    let allocator = test_allocator(&options);
-    let trace_map = TraceMap::Fixed {
-        local_offsets: vec![0].into_boxed_slice(),
-        shared_offsets: Vec::new().into_boxed_slice(),
-    };
+    let trace_map = local_trace_map(&[0]);
     let layouts = test_layouts(&[(2, TraceMap::empty()), (8, trace_map.clone())]);
     let [child_layout, parent_layout]: [TestLayout; 2] =
         layouts.try_into().expect("test layouts should match");
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
 
     // root the parent and make the child reachable only through payload bytes
-    let child = heap
-        .allocate(
-            &heap_allocation_plan(&heap, child_layout.block()),
-            Payload::Bytes(&[0xC1, 0x1D]),
-        )
-        .expect("heap block should succeed");
-    let parent = heap
-        .allocate(
-            &heap_allocation_plan(&heap, parent_layout.block()),
-            Payload::Bytes(&child.bits().to_le_bytes()),
-        )
-        .expect("heap block should succeed");
+    let child = heap.test_allocate(child_layout.block(), Payload::Bytes(&[0xC1, 0x1D]));
+    let parent = heap.test_allocate(
+        parent_layout.block(),
+        Payload::Bytes(&child.bits().to_le_bytes()),
+    );
     let mut roots = [parent];
 
     // collect and rewrite both parent and child references
@@ -318,31 +258,16 @@ fn test_collect_minor_promotes_reachable_child_entries() {
 fn test_collect_minor_promotes_table_traced_young_span_slots() {
     // store the parent trace map in the explicit trace table
     let options = tiny_heap_options();
-    let allocator = test_allocator(&options);
     let child_layout = test_layout(2, TraceMap::empty());
-    let parent_map = TraceMap::Fixed {
-        local_offsets: vec![0].into_boxed_slice(),
-        shared_offsets: Vec::new().into_boxed_slice(),
-    };
+    let parent_map = local_trace_map(&[0]);
     let mut trace_table = TraceTable::new();
     let parent_trace_id = trace_table.insert(parent_map.clone());
     let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
 
     // root the parent and make the child reachable only through table-backed metadata
-    let child = heap
-        .allocate(
-            &heap_allocation_plan(&heap, child_layout.block()),
-            Payload::Bytes(&[0xC1, 0x1D]),
-        )
-        .expect("child block should succeed");
-    let parent = heap
-        .allocate(
-            &heap_allocation_plan(&heap, parent_layout),
-            Payload::Bytes(&child.bits().to_le_bytes()),
-        )
-        .expect("parent block should succeed");
+    let child = heap.test_allocate(child_layout.block(), Payload::Bytes(&[0xC1, 0x1D]));
+    let parent = heap.test_allocate(parent_layout, Payload::Bytes(&child.bits().to_le_bytes()));
     let mut roots = [parent];
 
     assert!(heap.is_young(parent));
@@ -371,9 +296,7 @@ fn test_collect_minor_promotes_table_traced_young_span_slots() {
 fn test_collect_minor_rejects_invalid_root() {
     // build a heap with no block at offset 7
     let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
     let invalid = HeapReference::new(7);
     let mut roots = [invalid];
 
@@ -390,16 +313,9 @@ fn test_collect_minor_rejects_invalid_root() {
 fn test_collect_minor_updates_gc_state() {
     // allocate one reachable young payload
     let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
     let layout = test_layout(3, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
-    let reachable = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1, 2, 3]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let reachable = heap.test_allocate(layout.block(), Payload::Bytes(&[1, 2, 3]));
     let mut roots = [reachable];
 
     // span one complete minor collection
@@ -418,16 +334,9 @@ fn test_collect_minor_updates_gc_state() {
 fn test_pin_preserves_young_reference() {
     // allocate one young payload
     let options = tiny_heap_options();
-    let allocator = test_allocator(&options);
     let layout = test_layout(3, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
-    let reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1, 2, 3]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[1, 2, 3]));
 
     assert!(heap.is_young(reference));
 
@@ -452,16 +361,9 @@ fn test_pin_preserves_young_reference() {
 fn test_pin_preserves_interior_young_reference() {
     // allocate one young payload and point inside it
     let options = tiny_heap_options();
-    let allocator = test_allocator(&options);
     let layout = test_layout(8, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
-    let reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1, 2, 3, 4, 5, 6, 7, 8]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[1, 2, 3, 4, 5, 6, 7, 8]));
     let interior = HeapReference::new(reference.offset() + 3);
 
     // pinning the interior reference records the base block
@@ -488,16 +390,9 @@ fn test_pin_preserves_interior_young_reference() {
 fn test_collect_minor_promotes_interior_roots() {
     // allocate one young payload and root an interior address
     let options = tiny_heap_options();
-    let allocator = test_allocator(&options);
     let layout = test_layout(8, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
-    let reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1, 2, 3, 4, 5, 6, 7, 8]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[1, 2, 3, 4, 5, 6, 7, 8]));
     let mut roots = [HeapReference::new(reference.offset() + 5)];
 
     // collection should rewrite the interior root, not just the base
@@ -520,30 +415,18 @@ fn test_collect_minor_promotes_interior_roots() {
 fn test_collect_minor_traces_pinned_roots() {
     // parent traces one local child reference at offset zero
     let options = tiny_heap_options();
-    let allocator = test_allocator(&options);
-    let trace_map = TraceMap::Fixed {
-        local_offsets: vec![0].into_boxed_slice(),
-        shared_offsets: Vec::new().into_boxed_slice(),
-    };
+    let trace_map = local_trace_map(&[0]);
     let layouts = test_layouts(&[(2, TraceMap::empty()), (8, trace_map.clone())]);
     let [child_layout, parent_layout]: [TestLayout; 2] =
         layouts.try_into().expect("test layouts should match");
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
 
     // pin the parent and leave the explicit root set empty
-    let child = heap
-        .allocate(
-            &heap_allocation_plan(&heap, child_layout.block()),
-            Payload::Bytes(&[0xC1, 0x1D]),
-        )
-        .expect("heap block should succeed");
-    let parent = heap
-        .allocate(
-            &heap_allocation_plan(&heap, parent_layout.block()),
-            Payload::Bytes(&child.bits().to_le_bytes()),
-        )
-        .expect("heap block should succeed");
+    let child = heap.test_allocate(child_layout.block(), Payload::Bytes(&[0xC1, 0x1D]));
+    let parent = heap.test_allocate(
+        parent_layout.block(),
+        Payload::Bytes(&child.bits().to_le_bytes()),
+    );
     let parent = heap.pin(parent).expect("pin should succeed");
     let mut roots = [];
 
@@ -578,33 +461,18 @@ fn test_collect_minor_retains_dirty_card_for_pinned_young_child() {
         max_heap_young_allocation_size_bytes: 8,
         ..tiny_heap_options()
     };
-    let allocator = test_allocator(&options);
-    let trace_map = TraceMap::Fixed {
-        local_offsets: vec![0].into_boxed_slice(),
-        shared_offsets: Vec::new().into_boxed_slice(),
-    };
+    let trace_map = local_trace_map(&[0]);
     let layouts = test_layouts(&[(4, TraceMap::empty()), (16, trace_map.clone())]);
     let [child_layout, parent_layout]: [TestLayout; 2] =
         layouts.try_into().expect("test layouts should match");
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
 
     // pin the child so the parent dirty card still points into young space
-    let child = heap
-        .allocate(
-            &heap_allocation_plan(&heap, child_layout.block()),
-            Payload::Zeroed,
-        )
-        .expect("young child block should succeed");
+    let child = heap.test_allocate(child_layout.block(), Payload::Zeroed);
     let child = heap.pin(child).expect("pin should succeed");
     let mut parent_bytes = [0u8; 16];
     parent_bytes[..HeapReference::BYTE_LEN].copy_from_slice(&child.bits().to_le_bytes());
-    let parent = heap
-        .allocate(
-            &heap_allocation_plan(&heap, parent_layout.block()),
-            Payload::Bytes(&parent_bytes),
-        )
-        .expect("mature parent block should succeed");
+    let parent = heap.test_allocate(parent_layout.block(), Payload::Bytes(&parent_bytes));
     let mut roots = [parent];
 
     assert!(heap.is_young(child));
@@ -640,16 +508,9 @@ fn test_collect_full_traces_pinned_roots() {
         heap_young_size_bytes: 0,
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&options);
     let layout = test_layout(3, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
-    let reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1, 2, 3]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[1, 2, 3]));
     let reference = heap.pin(reference).expect("pin should succeed");
     let mut roots = [];
 
@@ -674,21 +535,11 @@ fn test_collect_full_traces_pinned_roots() {
 fn test_trace_shared_roots_uses_shared_reference_width() {
     // allocate one local object with one shared reference field
     let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
-    let trace_map = TraceMap::Fixed {
-        local_offsets: Vec::new().into_boxed_slice(),
-        shared_offsets: vec![0].into_boxed_slice(),
-    };
+    let trace_map = shared_trace_map(&[0]);
     let layout = test_layout(8, trace_map);
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
     let shared = SharedHeapReference::new(7);
-    let local = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&shared.bits().to_le_bytes()),
-        )
-        .expect("heap block should succeed");
+    let local = heap.test_allocate(layout.block(), Payload::Bytes(&shared.bits().to_le_bytes()));
     let mut roots = Vec::new();
 
     // scan the tracked local-to-shared root
@@ -717,8 +568,7 @@ fn test_trace_shared_roots_scans_large_blocks_incrementally() {
         heap_young_size_bytes: 0,
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&options);
-    let page_size_bytes = allocator.page_size_bytes();
+    let page_size_bytes = options.page_size_bytes;
     let first_offset = 0usize;
     let second_offset = page_size_bytes;
     let small_limit = options
@@ -727,13 +577,9 @@ fn test_trace_shared_roots_scans_large_blocks_incrementally() {
         .expect("default size classes should not be empty");
     let parent_byte_len = small_limit + second_offset + SharedHeapReference::BYTE_LEN;
     let second_offset = u32::try_from(second_offset).expect("page offset should fit uint32");
-    let trace_map = TraceMap::Fixed {
-        local_offsets: Vec::new().into_boxed_slice(),
-        shared_offsets: vec![first_offset as u32, second_offset].into_boxed_slice(),
-    };
+    let trace_map = shared_trace_map(&[first_offset as u32, second_offset]);
     let layout = test_layout(parent_byte_len, trace_map);
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
     let first_shared = SharedHeapReference::new(11);
     let second_shared = SharedHeapReference::new(22);
     let mut parent_bytes = vec![0; parent_byte_len];
@@ -741,12 +587,7 @@ fn test_trace_shared_roots_scans_large_blocks_incrementally() {
         .copy_from_slice(&first_shared.bits().to_le_bytes());
     parent_bytes[second_offset as usize..second_offset as usize + SharedHeapReference::BYTE_LEN]
         .copy_from_slice(&second_shared.bits().to_le_bytes());
-    let parent = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&parent_bytes),
-        )
-        .expect("heap block should succeed");
+    let parent = heap.test_allocate(layout.block(), Payload::Bytes(&parent_bytes));
     let mut roots = Vec::new();
 
     // scan at a one-page budget
@@ -788,35 +629,24 @@ fn test_trace_shared_roots_scans_large_blocks_incrementally() {
 fn test_trace_shared_roots_survives_active_root_removal() {
     // allocate three local objects that each contain one shared edge
     let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
-    let trace_map = TraceMap::Fixed {
-        local_offsets: Vec::new().into_boxed_slice(),
-        shared_offsets: vec![0].into_boxed_slice(),
-    };
+    let trace_map = shared_trace_map(&[0]);
     let layout = test_layout(8, trace_map);
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
     let first_shared = SharedHeapReference::new(11);
     let second_shared = SharedHeapReference::new(22);
     let third_shared = SharedHeapReference::new(33);
-    let first_local = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&first_shared.bits().to_le_bytes()),
-        )
-        .expect("heap block should succeed");
-    let _second_local = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&second_shared.bits().to_le_bytes()),
-        )
-        .expect("heap block should succeed");
-    let _third_local = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&third_shared.bits().to_le_bytes()),
-        )
-        .expect("heap block should succeed");
+    let first_local = heap.test_allocate(
+        layout.block(),
+        Payload::Bytes(&first_shared.bits().to_le_bytes()),
+    );
+    let _second_local = heap.test_allocate(
+        layout.block(),
+        Payload::Bytes(&second_shared.bits().to_le_bytes()),
+    );
+    let _third_local = heap.test_allocate(
+        layout.block(),
+        Payload::Bytes(&third_shared.bits().to_le_bytes()),
+    );
     let mut roots = Vec::new();
 
     // start a cursor-based local-to-shared scan
@@ -847,13 +677,7 @@ fn test_trace_shared_roots_survives_active_root_removal() {
 fn test_step_collection_stays_idle_without_request() {
     // build an empty heap with no pressure
     let options = HeapOptions::local();
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("allocator should build"),
-    );
-    let mut heap =
-        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
-            .expect("heap should build");
+    let mut heap = test_heap(options);
     let mut roots = [];
 
     // no request and no pressure should produce no work
@@ -874,14 +698,9 @@ fn test_step_collection_stays_idle_without_request() {
 #[test]
 fn test_step_collection_runs_full_after_pressure() {
     // configure the pacer to trigger after one block
-    let (mut heap, layout_ids) = test_heap(&[(64, TraceMap::empty())]);
+    let (mut heap, layout_ids) = pacing_heap(&[(64, TraceMap::empty())]);
     let layout = &layout_ids[0];
-    let root = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1; 64]),
-        )
-        .expect("heap block should succeed");
+    let root = heap.test_allocate(layout.block(), Payload::Bytes(&[1; 64]));
     let mut roots = [root];
 
     // collection budget should service the pressure-triggered full cycle
@@ -920,24 +739,13 @@ fn test_step_collection_runs_minor_after_young_occupancy() {
         max_heap_young_allocation_size_bytes: 16,
         ..HeapOptions::local()
     };
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("allocator should build"),
-    );
-    let mut heap =
-        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
-            .expect("heap should build");
+    let mut heap = test_heap(options);
     let layout = test_layout(16, TraceMap::empty());
     let mut roots = Vec::new();
 
     // fill the young prefix to the configured trigger
     for _ in 0..3 {
-        let reference = heap
-            .allocate_payload(
-                &heap_allocation_plan(&heap, layout.block()),
-                Payload::Bytes(&[1; 16]),
-            )
-            .expect("heap block should succeed");
+        let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[1; 16]));
         roots.push(reference);
     }
 
@@ -972,24 +780,13 @@ fn test_step_collection_bounds_minor_at_safepoint() {
         max_heap_young_allocation_size_bytes: 16,
         ..HeapOptions::local()
     };
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("allocator should build"),
-    );
-    let mut heap =
-        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
-            .expect("heap should build");
+    let mut heap = test_heap(options);
     let layout = test_layout(16, TraceMap::empty());
     let mut roots = Vec::new();
 
     // fill young space past the trigger
     for _ in 0..3 {
-        let reference = heap
-            .allocate_payload(
-                &heap_allocation_plan(&heap, layout.block()),
-                Payload::Bytes(&[1; 16]),
-            )
-            .expect("heap block should succeed");
+        let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[1; 16]));
         roots.push(reference);
     }
 
@@ -1023,23 +820,12 @@ fn test_collect_budget_does_not_expand_to_large_nursery() {
         max_heap_young_allocation_size_bytes: 256,
         ..HeapOptions::local()
     };
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("allocator should build"),
-    );
-    let mut heap =
-        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
-            .expect("heap should build");
+    let mut heap = test_heap(options);
     let layout = test_layout(256, TraceMap::empty());
 
     // fill young space beyond one configured safepoint quantum
     for _ in 0..3 {
-        let _reference = heap
-            .allocate_payload(
-                &heap_allocation_plan(&heap, layout.block()),
-                Payload::Bytes(&[1; 256]),
-            )
-            .expect("heap block should succeed");
+        let _reference = heap.test_allocate(layout.block(), Payload::Bytes(&[1; 256]));
     }
 
     // budget stays zero until explicit safepoint collection is chosen
@@ -1054,19 +840,8 @@ fn test_step_collection_honors_manual_full_request() {
     // allocate one root below the pacing trigger
     let layout = test_layout(3, TraceMap::empty());
     let options = HeapOptions::local();
-    let allocator = Arc::new(
-        Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-            .expect("allocator should build"),
-    );
-    let mut heap =
-        Heap::with_allocator_limits_and_options(allocator, crate::HeapLimits::default(), options)
-            .expect("heap should build");
-    let root = heap
-        .allocate_payload(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1, 2, 3]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_heap(options);
+    let root = heap.test_allocate(layout.block(), Payload::Bytes(&[1, 2, 3]));
     let mut roots = [root];
 
     // explicit requests should bypass pressure checks
@@ -1097,22 +872,10 @@ fn test_step_major_gc_spreads_full_cycle() {
         heap_young_size_bytes: 0,
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&options);
     let layout = test_layout(1, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
-    let root = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1]),
-        )
-        .expect("heap block should succeed");
-    let garbage = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[2]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let root = heap.test_allocate(layout.block(), Payload::Bytes(&[1]));
+    let garbage = heap.test_allocate(layout.block(), Payload::Bytes(&[2]));
     let mut roots = [root];
 
     // start a major cycle and stop after the first bounded step
@@ -1132,18 +895,13 @@ fn test_step_major_gc_spreads_full_cycle() {
     assert!(heap.major_gc_active());
 
     // finish the bounded major cycle
-    let stats = loop {
-        let progress = heap
-            .step_major_gc(
-                &mut |visit| visit_roots(&mut roots, visit),
-                1,
-                trace_table(),
-            )
-            .expect("major step should succeed");
-        if let Some(stats) = progress.completed_stats() {
-            break stats;
-        }
-    };
+    let stats = heap
+        .drain_major_gc(
+            &mut |visit| visit_roots(&mut roots, visit),
+            1,
+            trace_table(),
+        )
+        .expect("major drain should succeed");
 
     // reclaim only the unreachable mature block
     assert_eq!(stats.freed_allocations, 1);
@@ -1157,22 +915,15 @@ fn test_step_major_gc_spreads_full_cycle() {
 fn test_step_major_gc_keeps_young_noscan_span_allocated_during_cycle() {
     // start an empty major cycle before the mutator allocates again
     let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
     let layout = test_layout(4, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
+    let mut heap = test_storage(&options);
     let mut roots = [];
 
     heap.start_major_gc(&mut |visit| visit_roots(&mut roots, visit))
         .expect("major collection should start");
 
     // allocate through the young no-scan span path while the cycle is active
-    let reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Zeroed,
-        )
-        .expect("heap block should succeed");
+    let reference = heap.test_allocate(layout.block(), Payload::Zeroed);
 
     assert!(matches!(
         heap.place(reference),
@@ -1180,18 +931,13 @@ fn test_step_major_gc_keeps_young_noscan_span_allocated_during_cycle() {
     ));
 
     // drain the active cycle
-    let stats = loop {
-        let progress = heap
-            .step_major_gc(
-                &mut |visit| visit_roots(&mut roots, visit),
-                1,
-                trace_table(),
-            )
-            .expect("major step should succeed");
-        if let Some(stats) = progress.completed_stats() {
-            break stats;
-        }
-    };
+    let stats = heap
+        .drain_major_gc(
+            &mut |visit| visit_roots(&mut roots, visit),
+            1,
+            trace_table(),
+        )
+        .expect("major drain should succeed");
 
     // preserve post-cycle blocks by treating them as black
     assert_eq!(stats.freed_allocations, 0);
@@ -1211,40 +957,20 @@ fn test_step_major_gc_scans_large_blocks_incrementally() {
     let second_offset = options.page_size_bytes;
     let parent_byte_len = second_offset + HeapReference::BYTE_LEN;
     let second_offset = u32::try_from(second_offset).expect("page offset should fit uint32");
-    let trace_map = TraceMap::Fixed {
-        local_offsets: vec![first_offset as u32, second_offset].into_boxed_slice(),
-        shared_offsets: Vec::new().into_boxed_slice(),
-    };
-    let allocator = test_allocator(&options);
+    let trace_map = local_trace_map(&[first_offset as u32, second_offset]);
 
     let layouts = test_layouts(&[(2, TraceMap::empty()), (parent_byte_len, trace_map)]);
     let child_layout = &layouts[0];
     let parent_layout = &layouts[1];
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
-    let first_child = heap
-        .allocate(
-            &heap_allocation_plan(&heap, child_layout.block()),
-            Payload::Bytes(&[0xC1, 0x1D]),
-        )
-        .expect("heap block should succeed");
-    let second_child = heap
-        .allocate(
-            &heap_allocation_plan(&heap, child_layout.block()),
-            Payload::Bytes(&[0xC2, 0x1D]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let first_child = heap.test_allocate(child_layout.block(), Payload::Bytes(&[0xC1, 0x1D]));
+    let second_child = heap.test_allocate(child_layout.block(), Payload::Bytes(&[0xC2, 0x1D]));
     let mut parent_bytes = vec![0; parent_byte_len];
     parent_bytes[first_offset..first_offset + HeapReference::BYTE_LEN]
         .copy_from_slice(&first_child.bits().to_le_bytes());
     parent_bytes[second_offset as usize..second_offset as usize + HeapReference::BYTE_LEN]
         .copy_from_slice(&second_child.bits().to_le_bytes());
-    let parent = heap
-        .allocate(
-            &heap_allocation_plan(&heap, parent_layout.block()),
-            Payload::Bytes(&parent_bytes),
-        )
-        .expect("heap block should succeed");
+    let parent = heap.test_allocate(parent_layout.block(), Payload::Bytes(&parent_bytes));
     let mut roots = [parent];
 
     // start major marking from the large parent root
@@ -1264,18 +990,13 @@ fn test_step_major_gc_scans_large_blocks_incrementally() {
     assert!(heap.major_gc_active());
 
     // finish the bounded scan and sweep
-    let stats = loop {
-        let progress = heap
-            .step_major_gc(
-                &mut |visit| visit_roots(&mut roots, visit),
-                1,
-                trace_table(),
-            )
-            .expect("major step should succeed");
-        if let Some(stats) = progress.completed_stats() {
-            break stats;
-        }
-    };
+    let stats = heap
+        .drain_major_gc(
+            &mut |visit| visit_roots(&mut roots, visit),
+            1,
+            trace_table(),
+        )
+        .expect("major drain should succeed");
 
     // retain both children reached through the large parent
     assert_eq!(stats.freed_allocations, 0);
@@ -1288,22 +1009,10 @@ fn test_step_major_gc_scans_large_blocks_incrementally() {
 fn test_collect_full_reclaims_later_unreachable_allocations() {
     // seed one root and one unreachable block
     let options = HeapOptions::local();
-    let allocator = test_allocator(&options);
     let layout = test_layout(1, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
-    let root = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[1]),
-        )
-        .expect("heap block should succeed");
-    let _garbage = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[2]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let root = heap.test_allocate(layout.block(), Payload::Bytes(&[1]));
+    let _garbage = heap.test_allocate(layout.block(), Payload::Bytes(&[2]));
     let mut roots = [root];
 
     // the first full cycle should leave only the explicit root
@@ -1312,18 +1021,8 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
 
     assert_eq!(heap.allocation_count(), 1);
 
-    let more_garbage = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[3]),
-        )
-        .expect("heap block should succeed");
-    let even_more = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[4]),
-        )
-        .expect("heap block should succeed");
+    let more_garbage = heap.test_allocate(layout.block(), Payload::Bytes(&[3]));
+    let even_more = heap.test_allocate(layout.block(), Payload::Bytes(&[4]));
 
     // later blocks should still enter young space
     assert!(heap.is_young(more_garbage));
@@ -1334,4 +1033,287 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
         .expect("minor collection should succeed");
 
     assert_eq!(heap.allocation_count(), 1);
+}
+
+/// Keep rooted young allocations made during an active minor sweep.
+// FUGU #Broken: young allocations made during an active minor sweep are never marked and get swept
+#[test]
+fn test_step_young_gc_keeps_rooted_allocation_during_sweep() {
+    // young range layouts carry one local reference and no table id
+    let options = HeapOptions::local();
+    let range_map = local_trace_map(&[0]);
+    let layout = AllocationShape::new(8, 1, None, &range_map);
+    let mut heap = test_storage(&options);
+
+    // root one survivor and leave several ranges unreachable for sweep work
+    let survivor = heap.test_allocate(layout, Payload::Zeroed);
+    for _ in 0..12 {
+        heap.test_allocate(layout, Payload::Zeroed);
+    }
+    let mut roots = vec![survivor];
+
+    // drive the incremental cycle into its sweep phase
+    heap.start_young_gc()
+        .expect("young collection should start");
+    for _ in 0..10_000 {
+        if heap.collector.minor_phase == Phase::Sweep {
+            break;
+        }
+
+        heap.step_young_gc(
+            &mut |visit| visit_roots(&mut roots, visit),
+            1,
+            trace_table(),
+        )
+        .expect("young step should succeed");
+    }
+    assert_eq!(heap.collector.minor_phase, Phase::Sweep);
+
+    // allocate one rooted block while the sweep is still active
+    let late = heap.test_allocate(layout, Payload::Zeroed);
+    roots.push(late);
+
+    // drain the active cycle
+    heap.drain_young_gc(
+        &mut |visit| visit_roots(&mut roots, visit),
+        usize::MAX,
+        trace_table(),
+    )
+    .expect("young drain should succeed");
+
+    // keep both rooted blocks alive through the cycle
+    assert!(heap.is_live(roots[0]));
+    assert!(heap.is_live(roots[1]));
+}
+
+/// Keep fast-path no-scan reservations made during an active major sweep.
+// FUGU #Broken: fast-path no-scan reservations skip the allocate-black marking that the slow path performs during major cycles
+#[test]
+fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
+    // build one full heap so the public fast reservation path is available
+    let options = HeapOptions::local();
+    let mut heap = test_heap(options);
+    let layout = test_layout(16, TraceMap::empty());
+    let site = allocation_site(heap.options(), layout.block());
+    let small_site = site.small_site().expect("site should be small");
+    let mut roots: Vec<HeapReference> = Vec::new();
+
+    // prime the young allocation cursor with enough slots to keep sweep busy
+    for _ in 0..10 {
+        heap.test_allocate(layout.block(), Payload::Zeroed);
+    }
+
+    // drive an empty major cycle into its sweep phase
+    heap.storage
+        .start_major_gc(&mut |visit| visit_roots(&mut roots, visit))
+        .expect("major collection should start");
+    heap.storage
+        .step_major_gc(
+            &mut |visit| visit_roots(&mut roots, visit),
+            1,
+            trace_table(),
+        )
+        .expect("major step should succeed");
+    assert_eq!(heap.storage.collector.major_phase, Phase::Sweep);
+
+    // reserve one no-scan block through the public fast path mid-sweep
+    let reference = heap
+        .reserve_small_noscan(small_site)
+        .expect("fast reservation should succeed");
+
+    // drain the active cycle
+    heap.storage
+        .drain_major_gc(
+            &mut |visit| visit_roots(&mut roots, visit),
+            usize::MAX,
+            trace_table(),
+        )
+        .expect("major drain should succeed");
+
+    // keep the mid-sweep reservation alive through the cycle
+    assert!(heap.is_heap_live(reference));
+}
+
+/// Rewrite pinned young span-slot payloads after their children promote.
+// FUGU #Broken: promotion rewrites young range payloads but not pinned young span-slot payloads
+#[test]
+fn test_collect_minor_rewrites_pinned_young_slot_payload() {
+    // store the parent trace map in the explicit trace table
+    let options = tiny_heap_options();
+    let child_layout = test_layout(2, TraceMap::empty());
+    let parent_map = local_trace_map(&[0]);
+    let mut trace_table = TraceTable::new();
+    let parent_trace_id = trace_table.insert(parent_map.clone());
+    let parent_layout = AllocationShape::new(8, 1, Some(parent_trace_id), &parent_map);
+    let mut heap = test_storage(&options);
+
+    // pin the parent so it survives in place while the child promotes
+    let child = heap.test_allocate(child_layout.block(), Payload::Bytes(&[0xC1, 0x1D]));
+    let parent = heap.test_allocate(parent_layout, Payload::Bytes(&child.bits().to_le_bytes()));
+    heap.pin(parent).expect("parent pin should succeed");
+    let mut roots = [parent];
+
+    assert!(heap.is_young(parent));
+    assert!(heap.is_young(child));
+
+    // collect the nursery while the parent stays pinned
+    heap.collect_minor(&mut |visit| visit_roots(&mut roots, visit), &trace_table)
+        .expect("young collection should succeed");
+
+    // keep the pinned parent in place
+    assert_eq!(roots[0], parent);
+    assert!(heap.is_live(parent));
+    assert!(heap.is_young(parent));
+
+    // rewrite the pinned payload to the promoted child
+    let traced_child = read_heap_reference(&heap, parent);
+
+    assert_ne!(traced_child, child);
+    assert!(heap.is_live(traced_child));
+    assert!(!heap.is_young(traced_child));
+}
+
+/// Recycle a filled default-size nursery through paced step collection.
+// FUGU #Broken: the paced minor request gate is unsatisfiable for nurseries larger than the safepoint work quantum
+#[test]
+fn test_step_collection_recycles_filled_default_nursery() {
+    // use unmodified production defaults
+    let options = HeapOptions::local();
+    let trigger_bytes = options.heap_young_size_bytes * options.gc.trigger_percent as usize / 100;
+    let mut heap = test_heap(options);
+    let layout = test_layout(
+        crate::DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
+        TraceMap::empty(),
+    );
+    let mut roots: Vec<HeapReference> = Vec::new();
+
+    // fill the nursery past the configured young trigger
+    while heap.storage.young.used_bytes() < trigger_bytes {
+        heap.test_allocate(layout.block(), Payload::Zeroed);
+    }
+
+    // drive paced collection until it goes quiescent
+    for _ in 0..10_000 {
+        let budget_bytes = heap.take_collection_budget_bytes();
+        if budget_bytes == 0 {
+            break;
+        }
+
+        heap.step_collection(
+            &mut |visit| visit_roots(&mut roots, visit),
+            budget_bytes,
+            trace_table(),
+        )
+        .expect("collection step should succeed");
+    }
+
+    // recycle the unreachable nursery through one paced minor cycle
+    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+    assert_eq!(heap.storage.young.used_bytes(), 0);
+}
+
+/// Reuse young spans across no-scan classes that differ only by trace id.
+#[test]
+fn test_reserve_young_spans_reuse_across_noscan_trace_ids() {
+    // two no-scan layouts share one size class under different trace ids
+    let options = HeapOptions::local();
+    let first_map = TraceMap::Empty;
+    let second_map = TraceMap::Nested {
+        byte_offset: 0,
+        map: Box::new(TraceMap::Empty),
+    };
+    let mut trace_table = TraceTable::new();
+    let first_trace_id = trace_table.insert(first_map.clone());
+    let second_trace_id = trace_table.insert(second_map.clone());
+    let first_layout = AllocationShape::new(16, 1, Some(first_trace_id), &first_map);
+    let second_layout = AllocationShape::new(16, 1, Some(second_trace_id), &second_map);
+    let mut heap = test_storage(&options);
+
+    // allocate alternately between the two classes
+    for _ in 0..2 {
+        heap.test_allocate(first_layout, Payload::Zeroed);
+        heap.test_allocate(second_layout, Payload::Zeroed);
+    }
+
+    // share young spans instead of allocating one span per allocation
+    assert!(
+        heap.young.spans.len() <= 2,
+        "expected at most two young spans, found {}",
+        heap.young.spans.len()
+    );
+}
+
+/// Rescan mature cards dirtied after their extent was passed by an active minor cycle.
+// FUGU #Broken: cards dirtied on an already-passed queued extent are not rescanned within the active minor cycle
+#[test]
+fn test_collect_minor_rescans_card_dirtied_after_extent_scan() {
+    // one mature slot spans two remembered cards with one reference in each
+    let options = HeapOptions {
+        size_classes: SizeClassTable::new([512]).expect("size classes should validate"),
+        heap_small_size_bytes: 1024,
+        max_heap_young_allocation_size_bytes: 16,
+        ..HeapOptions::local()
+    };
+    let mature_map = local_trace_map(&[0, 256]);
+    let mut trace_table = TraceTable::new();
+    let mature_trace_id = trace_table.insert(mature_map.clone());
+    let mature_layout = AllocationShape::new(512, 1, Some(mature_trace_id), &mature_map);
+    let chain_map = local_trace_map(&[0]);
+    let chain_layout = AllocationShape::new(8, 1, None, &chain_map);
+    let young_layout = test_layout(8, TraceMap::empty());
+    let mut heap = test_storage(&options);
+
+    // keep one young child reachable only through the first mature card
+    let first_child = heap.test_allocate(young_layout.block(), Payload::Zeroed);
+    let second_child = heap.test_allocate(young_layout.block(), Payload::Zeroed);
+    let mature = heap.test_allocate(mature_layout, Payload::Zeroed);
+    let mature_address = heap.base_address() + mature.offset();
+    write_mapped_bytes(mature_address, &first_child.bits().to_le_bytes());
+    heap.write_barrier(mature, 0, HeapReference::BYTE_LEN, &trace_table)
+        .expect("first card barrier should succeed");
+
+    // root a young chain so marking stays busy after the dirty cards drain
+    let mut chain_head = heap.test_allocate(chain_layout, Payload::Zeroed);
+    for _ in 0..8 {
+        chain_head = heap.test_allocate(
+            chain_layout,
+            Payload::Bytes(&chain_head.bits().to_le_bytes()),
+        );
+    }
+    let mut roots = vec![chain_head];
+
+    // dirty the second mature card only after its extent was passed
+    heap.start_young_gc()
+        .expect("young collection should start");
+    let mut wrote_late_reference = false;
+    for _ in 0..10_000 {
+        let dirty_drained =
+            heap.collector.young_dirty_extent_cursor >= heap.collector.dirty_extents.len();
+        if !wrote_late_reference && dirty_drained && heap.collector.minor_phase == Phase::Mark {
+            write_mapped_bytes(mature_address + 256, &second_child.bits().to_le_bytes());
+            heap.write_barrier(mature, 256, HeapReference::BYTE_LEN, &trace_table)
+                .expect("second card barrier should succeed");
+            wrote_late_reference = true;
+        }
+
+        let progress = heap
+            .step_young_gc(&mut |visit| visit_roots(&mut roots, visit), 1, &trace_table)
+            .expect("young step should succeed");
+        if progress.completed_stats().is_some() {
+            break;
+        }
+    }
+    assert!(wrote_late_reference);
+
+    // keep both mature-referenced children alive through the cycle
+    let first_forwarded = read_heap_reference(&heap, mature);
+    let second_forwarded = {
+        let bytes = read_mapped_bytes(mature_address + 256, HeapReference::BYTE_LEN);
+        let bits = usize::from_le_bytes(bytes.try_into().expect("heap reference should fit"));
+
+        HeapReference::from_bits(bits)
+    };
+
+    assert!(heap.is_live(first_forwarded));
+    assert!(heap.is_live(second_forwarded));
 }

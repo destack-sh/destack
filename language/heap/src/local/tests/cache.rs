@@ -1,8 +1,7 @@
-use crate::local::storage::HeapStorage;
-use crate::{HeapOptions, Payload, SizeClassTable, test_allocator, test_layout};
+use crate::{HeapOptions, Payload, SizeClassTable, test_layout};
 use destack_mir::TraceMap;
 
-use super::heap_allocation_plan;
+use super::{TestHeapPlan, test_storage};
 
 /// The allocator chunk size for small-page cache fixtures.
 const TEST_ALLOCATOR_CHUNK_SIZE_BYTES: usize = 1024 * 1024;
@@ -19,16 +18,9 @@ fn test_release_heap_large_pages_into_page_span_cache() {
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
     };
-    let allocator = test_allocator(&options);
     let layout = test_layout(9, TraceMap::empty());
-    let mut heap = HeapStorage::build_with_options(allocator, &options)
-        .expect("explicit heap options should build");
-    let reference = heap
-        .allocate(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Bytes(&[9; 9]),
-        )
-        .expect("heap block should succeed");
+    let mut heap = test_storage(&options);
+    let reference = heap.test_allocate(layout.block(), Payload::Bytes(&[9; 9]));
 
     // one live large block should charge one page of active bytes
     assert_eq!(heap.retained_bytes(), 16);

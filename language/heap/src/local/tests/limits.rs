@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_mir::TraceMap;
 
-use super::{TestHeap, heap_allocation_plan, trace_table};
+use super::{TestHeapPlan, heap_allocation_plan, test_heap, test_heap_with_limits, trace_table};
 
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
@@ -13,14 +13,9 @@ const SMALL_ALLOCATION_BYTES: usize = 32;
 fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64 {
     // allocate one heap payload under the requested options
     let layout = test_layout(bytes.len(), TraceMap::empty());
-    let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
-    let heap = &mut test_heap.heap;
+    let heap = &mut test_heap_with_limits(crate::HeapLimits::default(), options);
 
-    heap.allocate_payload(
-        &heap_allocation_plan(&heap, layout.block()),
-        Payload::Bytes(bytes),
-    )
-    .expect("heap block should succeed");
+    heap.test_allocate(layout.block(), Payload::Bytes(bytes));
 
     // report retained bytes after allocator rounding
     heap.usage().retained_bytes
@@ -31,15 +26,10 @@ fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64
 fn test_track_default_young_retained_bytes() {
     // fill the default nursery with small zeroed objects
     let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
-    let mut test_heap = TestHeap::new();
-    let heap = &mut test_heap.heap;
+    let heap = &mut test_heap(HeapOptions::local());
 
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate_payload(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Zeroed,
-        )
-        .expect("heap block should succeed");
+        heap.test_allocate(layout.block(), Payload::Zeroed);
     }
 
     let usage = heap.usage();
@@ -74,16 +64,11 @@ fn test_track_small_span_retained_bytes() {
     let slot_count = span_size_bytes / size_class.bytes;
     let span_count = SMALL_ALLOCATION_COUNT.div_ceil(slot_count);
     let retained_bytes = span_count * span_size_bytes;
-    let mut test_heap = TestHeap::with_options(options);
-    let heap = &mut test_heap.heap;
+    let heap = &mut test_heap(options);
 
     // allocate enough objects to cover several slots and spans
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate_payload(
-            &heap_allocation_plan(&heap, layout.block()),
-            Payload::Zeroed,
-        )
-        .expect("heap block should succeed");
+        heap.test_allocate(layout.block(), Payload::Zeroed);
     }
 
     let usage = heap.usage();
@@ -108,8 +93,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
     };
     let expected_used_bytes = heap_retained_bytes_after_allocate(options.clone(), &[1]);
     let layout = test_layout(1, TraceMap::empty());
-    let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
-    let heap = &mut test_heap.heap;
+    let heap = &mut test_heap_with_limits(crate::HeapLimits::default(), options);
     let baseline = heap.usage().retained_bytes;
     heap.set_limits(HeapLimits {
         max_bytes: None,
@@ -141,8 +125,7 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
 #[test]
 fn test_restore_heap_image_preserves_limits() {
     // install non-default hard limits before capture
-    let mut test_heap = TestHeap::new();
-    let heap = &mut test_heap.heap;
+    let heap = &mut test_heap(HeapOptions::local());
     let limits = HeapLimits {
         max_bytes: Some(heap.usage().retained_bytes() + 4096),
         retained_bytes: Some(heap.usage().retained_bytes + 2048),

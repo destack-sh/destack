@@ -132,13 +132,20 @@ mod tests {
     use super::AddressSpace;
     use crate::platform;
 
+    /// Reserve one test address space and return it with the native frame width.
+    fn test_space(frame_count: usize) -> (AddressSpace, usize) {
+        let frame_size_bytes =
+            platform::system_frame_size_bytes().expect("frame size should resolve");
+        let space = AddressSpace::reserve(frame_size_bytes * frame_count, frame_size_bytes)
+            .expect("address space should reserve");
+
+        (space, frame_size_bytes)
+    }
+
     /// Reserved pages read as zeroes before materialization.
     #[test]
     fn test_read_reserved_pages_returns_zeroes() {
-        let frame_size_bytes =
-            platform::system_frame_size_bytes().expect("frame size should resolve");
-        let address_space = AddressSpace::reserve(frame_size_bytes * 2, frame_size_bytes)
-            .expect("address space should reserve");
+        let (address_space, frame_size_bytes) = test_space(2);
 
         let bytes = address_space
             .read_bytes(frame_size_bytes - 2, 4)
@@ -150,10 +157,7 @@ mod tests {
     /// Eager forks isolate selected mapped pages before raw pointer writes.
     #[test]
     fn test_fork_eager_isolates_selected_pages() {
-        let frame_size_bytes =
-            platform::system_frame_size_bytes().expect("frame size should resolve");
-        let parent = AddressSpace::reserve(frame_size_bytes * 3, frame_size_bytes)
-            .expect("address space should reserve");
+        let (parent, frame_size_bytes) = test_space(3);
         let initial = vec![1; frame_size_bytes * 3];
 
         // initialize every page before forking
@@ -187,10 +191,7 @@ mod tests {
     /// Lazy fork writes isolate multi page byte ranges.
     #[test]
     fn test_fork_lazy_write_bytes_isolates_multi_page_range() {
-        let frame_size_bytes =
-            platform::system_frame_size_bytes().expect("frame size should resolve");
-        let parent = AddressSpace::reserve(frame_size_bytes * 3, frame_size_bytes)
-            .expect("address space should reserve");
+        let (parent, frame_size_bytes) = test_space(3);
         let initial = vec![1; frame_size_bytes * 3];
         let replacement = vec![7; frame_size_bytes + 8];
         let write_offset = frame_size_bytes - 4;
@@ -223,10 +224,7 @@ mod tests {
     /// Raw pointer writes after fork stay isolated from the parent mapping.
     #[test]
     fn test_fork_preserves_raw_pointer_write_isolation() {
-        let frame_size_bytes =
-            platform::system_frame_size_bytes().expect("frame size should resolve");
-        let parent = AddressSpace::reserve(frame_size_bytes, frame_size_bytes)
-            .expect("address space should reserve");
+        let (parent, _) = test_space(1);
 
         // initialize the parent page before forking
         parent
@@ -250,13 +248,37 @@ mod tests {
         assert_eq!(child_bytes, [9, 8, 7, 6]);
     }
 
+    /// Parent raw pointer writes after a lazy fork stay isolated from the child.
+    #[test]
+    fn test_fork_isolates_parent_raw_pointer_writes() {
+        let (parent, _) = test_space(1);
+
+        // initialize the parent page before forking
+        parent
+            .write_bytes(0, &[1, 2, 3, 4])
+            .expect("parent write should succeed");
+
+        let child = parent
+            .fork_lazy()
+            .expect("address space fork should succeed");
+        let parent_address = parent.address(0, 4).expect("parent address should resolve");
+
+        // SAFETY: parent_address points at four materialized bytes in the parent mapping
+        unsafe {
+            copy_nonoverlapping([9, 8, 7, 6].as_ptr(), parent_address, 4);
+        }
+
+        let parent_bytes = parent.read_bytes(0, 4).expect("parent bytes should read");
+        let child_bytes = child.read_bytes(0, 4).expect("child bytes should read");
+
+        assert_eq!(parent_bytes, [9, 8, 7, 6]);
+        assert_eq!(child_bytes, [1, 2, 3, 4]);
+    }
+
     /// Forking a modified child preserves the child's visible bytes.
     #[test]
     fn test_fork_captures_modified_child_page() {
-        let frame_size_bytes =
-            platform::system_frame_size_bytes().expect("frame size should resolve");
-        let parent = AddressSpace::reserve(frame_size_bytes, frame_size_bytes)
-            .expect("address space should reserve");
+        let (parent, _) = test_space(1);
 
         // initialize the parent page before forking
         parent
@@ -284,10 +306,7 @@ mod tests {
     /// Modified reforks keep later writes isolated.
     #[test]
     fn test_fork_isolates_modified_child_page() {
-        let frame_size_bytes =
-            platform::system_frame_size_bytes().expect("frame size should resolve");
-        let parent = AddressSpace::reserve(frame_size_bytes, frame_size_bytes)
-            .expect("address space should reserve");
+        let (parent, _) = test_space(1);
 
         // initialize the parent page before forking
         parent
@@ -327,10 +346,7 @@ mod tests {
     /// Forking a shared child keeps later child and grandchild writes isolated.
     #[test]
     fn test_fork_reuses_shared_child_page() {
-        let frame_size_bytes =
-            platform::system_frame_size_bytes().expect("frame size should resolve");
-        let parent = AddressSpace::reserve(frame_size_bytes, frame_size_bytes)
-            .expect("address space should reserve");
+        let (parent, _) = test_space(1);
 
         // initialize the parent page before forking
         parent
@@ -366,10 +382,7 @@ mod tests {
     /// Raw pointer writes materialize reserved pages before exposing addresses.
     #[test]
     fn test_raw_pointer_write_materializes_reserved_page() {
-        let frame_size_bytes =
-            platform::system_frame_size_bytes().expect("frame size should resolve");
-        let address_space = AddressSpace::reserve(frame_size_bytes, frame_size_bytes)
-            .expect("address space should reserve");
+        let (address_space, _) = test_space(1);
         let address = address_space.address(0, 4).expect("address should resolve");
 
         // SAFETY: address points at four materialized bytes in the mapping
