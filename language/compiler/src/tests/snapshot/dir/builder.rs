@@ -42,6 +42,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) module_path_by_id: Option<&'a BTreeMap<ModuleId, String>>,
     /// Foreign binding tables keyed by module.
     pub(super) foreign_bindings: BTreeMap<ModuleId, dir::BindingTable<'a>>,
+    /// Foreign generic tables keyed by module.
+    pub(super) foreign_generics: BTreeMap<ModuleId, dir::GenericTable<'static>>,
     /// Foreign type tables keyed by module.
     pub(super) foreign_types: BTreeMap<ModuleId, dir::TypeTable<'static>>,
     /// Foreign static tables keyed by module.
@@ -81,6 +83,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             statics: None,
             module_path_by_id: None,
             foreign_bindings: BTreeMap::new(),
+            foreign_generics: BTreeMap::new(),
             foreign_types: BTreeMap::new(),
             foreign_statics: BTreeMap::new(),
             foreign_symbol_labels: RefCell::new(BTreeMap::new()),
@@ -107,12 +110,19 @@ impl<'a> DirSnapshotBuilder<'a> {
         self
     }
 
-    /// Set type and static tables used for foreign semantic labels.
+    /// Set semantic tables used for foreign semantic labels.
     pub(crate) fn with_foreign_tables(
         mut self,
-        foreign_tables: Vec<(dir::TypeTable<'static>, dir::StaticTable<'static>)>,
+        foreign_tables: Vec<(
+            Option<dir::GenericTable<'static>>,
+            dir::TypeTable<'static>,
+            dir::StaticTable<'static>,
+        )>,
     ) -> Self {
-        for (types, statics) in foreign_tables {
+        for (generics, types, statics) in foreign_tables {
+            if let Some(generics) = generics {
+                self.foreign_generics.insert(generics.module_id, generics);
+            }
             self.foreign_types.insert(types.module_id, types);
             self.foreign_statics.insert(statics.module_id, statics);
         }
@@ -307,9 +317,8 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         // render the solved semantic instance
         let instance = generics.get_instance(instance_id);
-        let template = generics.get_template(instance.template);
         if instance.arguments.is_empty() {
-            return self.symbol_path_label(template.owner);
+            return self.generic_template_label(instance.template);
         }
 
         let arguments = instance
@@ -318,13 +327,57 @@ impl<'a> DirSnapshotBuilder<'a> {
             .map(|argument| self.static_argument_label(argument))
             .collect::<Vec<_>>()
             .join(", ");
-        if let Some(label) = self.collection_type_label(template.owner, &instance.arguments) {
-            return label;
-        }
-
-        let symbol = self.symbol_path_label(template.owner);
+        let symbol = self.generic_template_label(instance.template);
 
         format!("{symbol}<{arguments}>")
+    }
+
+    /// Return the debug label for one generic template.
+    pub(super) fn generic_template_label(
+        &self,
+        template_id: dir::GlobalGenericTemplateId,
+    ) -> String {
+        let source = if template_id.module_id == self.tree.module_id {
+            let Some(generics) = &self.generics else {
+                return format!("template#{}", template_id.local_id.0);
+            };
+
+            generics.get_template(template_id.local_id).source
+        } else if let Some(generics) = self.foreign_generics.get(&template_id.module_id) {
+            generics.get_template(template_id.local_id).source
+        } else {
+            return format!("template#{}", template_id.local_id.0);
+        };
+
+        self.template_source_label(source)
+    }
+
+    /// Return the debug label for one generic template source node.
+    fn template_source_label(&self, source: dir::GlobalNodeIdAny) -> String {
+        if let Some(symbol) = self.symbol_for_declaration(source) {
+            return self.symbol_path_label(symbol);
+        }
+
+        self.node_label(source)
+    }
+
+    /// Return the declaration symbol for one local or foreign declaration node.
+    fn symbol_for_declaration(&self, source: dir::GlobalNodeIdAny) -> Option<dir::GlobalSymbolId> {
+        if source.local_id.ty != dir::NodeType::Declaration {
+            return None;
+        }
+
+        if source.module_id == self.tree.module_id {
+            return self
+                .binding_table()
+                .declaration_symbol(source)
+                .map(|symbol| symbol.into_global(source.module_id));
+        }
+
+        self.foreign_bindings
+            .get(&source.module_id)?
+            .declaration_symbol(source)
+            .map(|symbol| symbol.into_global(source.module_id))
     }
 
     /// Add semantic language item identities from resolved imports.
@@ -868,7 +921,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     ) -> String {
         // resolve declarations through the binding table
         let declaration = declaration.into_global_any(self.tree.module_id);
-        if let Some(symbol_id) = self.binding_table().symbol_for_declaration(declaration) {
+        if let Some(symbol_id) = self.binding_table().declaration_symbol(declaration) {
             let symbol_id = symbol_id.into_global(self.tree.module_id);
 
             return self.symbol_path_label(symbol_id);
@@ -1106,24 +1159,29 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render one generic parameter label.
     fn generic_parameter_label(&self, parameter: &dir::GlobalGenericParameterId) -> String {
-        let Some(generics) = &self.generics else {
+        let Some(generics) = self.generic_table(parameter.module_id) else {
             return format!("generic#{}", parameter.local_id.0);
         };
-        if generics.module_id != parameter.module_id {
-            return format!("generic#{}", parameter.local_id.0);
-        }
-
         let generic = generics.get_parameter(parameter.local_id);
         let template = generics.get_template(generic.template());
 
         match generic.key() {
             dir::GenericParameterKey::Symbol(symbol) => self.symbol_path_label(symbol),
             dir::GenericParameterKey::Generated(name) => {
-                let owner = self.symbol_path_label(template.owner);
+                let owner = self.node_label(template.source);
                 let name = self.strings.get(name);
 
                 format!("{owner}.{name}")
             }
+        }
+    }
+
+    /// Return one local or foreign generic table.
+    fn generic_table(&self, module: ModuleId) -> Option<&dir::GenericTable<'_>> {
+        if module == self.tree.module_id {
+            self.generics.as_ref()
+        } else {
+            self.foreign_generics.get(&module)
         }
     }
 

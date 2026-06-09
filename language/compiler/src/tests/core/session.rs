@@ -875,11 +875,15 @@ impl TestSession {
         artifacts
     }
 
-    /// Return foreign checked type and static tables needed for semantic labels.
+    /// Return foreign checked tables needed for semantic labels.
     fn foreign_checked_tables_for(
         &self,
         entry: &TestModule,
-    ) -> Vec<(dir::TypeTable<'static>, dir::StaticTable<'static>)> {
+    ) -> Vec<(
+        Option<dir::GenericTable<'static>>,
+        dir::TypeTable<'static>,
+        dir::StaticTable<'static>,
+    )> {
         let mut tables = self
             .modules_by_path
             .values()
@@ -888,10 +892,11 @@ impl TestSession {
                 let bound = self.dir_bound(foreign);
                 let expanded = self.dir_expanded(foreign);
                 let checked = self.dir_checked(foreign);
+                let generics = checked.generic_table();
                 let types = checked.type_table(&bound, &expanded);
                 let statics = checked.static_table(&bound, &expanded);
 
-                (types, statics)
+                (Some(generics), types, statics)
             })
             .collect::<Vec<_>>();
 
@@ -920,7 +925,7 @@ impl TestSession {
                 expanded.statics.clone(),
             ]);
 
-            tables.push((types, statics));
+            tables.push((None, types, statics));
         }
 
         tables

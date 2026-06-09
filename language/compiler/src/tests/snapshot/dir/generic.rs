@@ -7,9 +7,15 @@ impl SnapshotTable for dir::GenericSegment {
     fn add_snapshot_rows(&self, builder: &mut DirSnapshotBuilder<'_>) {
         // render generic templates
         for (_, template) in self.iter_templates() {
-            let anchor = builder.anchor_symbol(template.owner);
+            let anchor = builder.anchor_node(template.source);
             let row = SnapshotRow::new(anchor, "generic", "template")
-                .field("symbol", builder.symbol_path_label(template.owner))
+                .field("source", builder.node_label(template.source))
+                .optional_field(
+                    "parent",
+                    template
+                        .parent
+                        .map(|parent| format!("template#{}", parent.0)),
+                )
                 .list_field(
                     "parameters",
                     template.parameters.iter().map(|parameter| {
@@ -31,10 +37,12 @@ impl SnapshotTable for dir::GenericSegment {
 
         // render generic instances
         for (instance_id, instance) in self.iter_instances() {
-            let template = self.get_template(instance.template);
             let row = SnapshotRow::new(SnapshotAnchor::End, "generic", "instance")
                 .field("id", builder.generic_instance_label(instance_id))
-                .field("symbol", builder.symbol_path_label(template.owner))
+                .field(
+                    "template",
+                    builder.generic_template_label(instance.template),
+                )
                 .list_field(
                     "arguments",
                     instance

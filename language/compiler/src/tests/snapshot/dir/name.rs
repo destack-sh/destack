@@ -213,6 +213,8 @@ impl<'a> BindingSnapshotName<'a> {
         symbol.role == dir::SymbolRole::Item
             || symbol.role == dir::SymbolRole::Namespace
             || symbol.kind == dir::SymbolKind::TypeAlias
+            || symbol.kind == dir::SymbolKind::GenericTypeParameter
+            || symbol.kind == dir::SymbolKind::GenericValueParameter
     }
 
     /// Return the owner symbol for the symbol scope.
