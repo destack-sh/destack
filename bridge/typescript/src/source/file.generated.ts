@@ -28,3 +28,16 @@ export type FileContent =
       }
 ;
 
+export const FileContent = {
+    /** Text file content. */
+    text(content: string): FileContent {
+        return { kind: "text", content };
+    },
+
+    /** Binary file content. */
+    binary(content: Uint8Array | readonly number[]): FileContent {
+        return { kind: "binary", content };
+    },
+
+};
+

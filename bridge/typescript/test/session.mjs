@@ -1,23 +1,18 @@
 import assert from "node:assert/strict";
 
-import { openSession } from "../dist/index.js";
-import { openNapiSource } from "../dist/napi.js";
+import { FileEdit, Source, openSession } from "../dist/index.js";
+import { openNapiSession } from "../dist/napi.js";
 
-const source = {
-    files: [
-        {
-            path: "destack.json",
-            content: { kind: "text", text: '{"name":"@test/app"}' },
-        },
-        {
-            path: "src/index.ds",
-            content: { kind: "text", text: "export const value = 1;" },
-        },
+const source = Source.memory(
+    "/workspace",
+    [
+        FileEdit.setText("destack.json", '{"name":"@test/app"}'),
+        FileEdit.setText("src/index.ds", "export const value = 1;"),
     ],
-};
+);
 
-const session = await openSession({ root: "/workspace", source });
-const napiSession = await openNapiSource("/workspace", source);
+const session = await openSession(source);
+const napiSession = await openNapiSession(source);
 
 assert.deepEqual(
     session.files().map((file) => file.path),
@@ -33,10 +28,13 @@ const version = session.require(session.revision(), {
     kind: "dirParsed",
     module: module.id,
 });
+const parsed = session.parse(session.revision(), module);
 
 assert.equal(version.key.kind, "dirParsed");
 assert.deepEqual(version.key.module, module.id);
 assert.match(version.fingerprint, /^f[0-9a-f]{32}$/);
+assert.equal(parsed.version.fingerprint, version.fingerprint);
+assert.deepEqual(parsed.module, module.id);
 
 const update = session.update({
     edits: [

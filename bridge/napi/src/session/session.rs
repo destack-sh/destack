@@ -3,8 +3,9 @@ use napi::Result;
 use napi_derive::napi;
 
 use crate::{
-    ArtifactKey, ArtifactSidecar, ArtifactVersion, Diagnostic, FileUpdate, Module, Revision,
-    SessionFile, SourceSnapshot, SourceUpdate, SourceUpdateResult,
+    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Diagnostic, DirChecked,
+    DirParsed, DirResolved, FileChange, FileUpdate, FileUpdateResult, Module, ProfileId, Revision,
+    SessionFile, Source,
 };
 
 /// Live language session exposed to Node API bindings.
@@ -17,19 +18,11 @@ pub struct Session {
 
 #[napi]
 impl Session {
-    /// Open one session from an explicit source snapshot.
+    /// Open one session from one source input.
     #[napi(factory)]
-    pub fn open_source(root: String, source: SourceSnapshot) -> Result<Self> {
+    pub fn open(source: Source) -> Result<Self> {
         let source = source.into_bridge()?;
-        let session = rust::Session::open_source(root, source).map_err(to_error)?;
-
-        Ok(Self { session })
-    }
-
-    /// Open one session from a native filesystem path.
-    #[napi(factory)]
-    pub fn open_path(path: String) -> Result<Self> {
-        let session = rust::Session::open_path(path).map_err(to_error)?;
+        let session = rust::Session::open(source).map_err(to_error)?;
 
         Ok(Self { session })
     }
@@ -51,22 +44,22 @@ impl Session {
         Ok(files)
     }
 
-    /// Apply one source update through the default session ref.
+    /// Apply one file update through the default session ref.
     #[napi]
-    pub fn update(&self, update: SourceUpdate) -> Result<SourceUpdateResult> {
+    pub fn update(&self, update: FileUpdate) -> Result<FileUpdateResult> {
         let result = self
             .session
             .update(update.into_bridge()?)
             .map_err(to_error)?;
 
-        Ok(SourceUpdateResult::from_bridge(result))
+        Ok(FileUpdateResult::from_bridge(result))
     }
 
-    /// Reload tracked files from this session filesystem.
+    /// Reload tracked files from this session backing source.
     #[napi]
-    pub fn reload(&self) -> Result<Vec<FileUpdate>> {
+    pub fn reload(&self) -> Result<Vec<FileChange>> {
         let updates = self.session.reload().map_err(to_error)?;
-        let updates = updates.into_iter().map(FileUpdate::from_bridge).collect();
+        let updates = updates.into_iter().map(FileChange::from_bridge).collect();
 
         Ok(updates)
     }
@@ -99,6 +92,67 @@ impl Session {
         let version = self.session.require(revision, key).map_err(to_error)?;
 
         Ok(ArtifactVersion::from_bridge(version))
+    }
+
+    /// Return one raw artifact record for one immutable revision.
+    #[napi(js_name = "artifactRecord")]
+    pub fn artifact_record(&self, revision: Revision, key: ArtifactKey) -> Result<ArtifactRecord> {
+        let revision = revision.into_bridge()?;
+        let key = key.into_bridge()?;
+        let record = self
+            .session
+            .artifact_record(revision, key)
+            .map_err(to_error)?;
+
+        Ok(ArtifactRecord::from_bridge(record))
+    }
+
+    /// Return the parsed DIR artifact for one loaded module.
+    #[napi]
+    pub fn parse(&self, revision: Revision, module: Module) -> Result<DirParsed> {
+        let revision = revision.into_bridge()?;
+        let module = module.into_bridge()?;
+        let parsed = self.session.parse(revision, module).map_err(to_error)?;
+
+        Ok(DirParsed::from_bridge(parsed))
+    }
+
+    /// Return the resolved DIR artifact for one loaded module profile.
+    #[napi]
+    pub fn resolve(
+        &self,
+        revision: Revision,
+        module: Module,
+        profile: ProfileId,
+    ) -> Result<DirResolved> {
+        let revision = revision.into_bridge()?;
+        let module = module.into_bridge()?;
+        let profile = profile.into_bridge()?;
+        let resolved = self
+            .session
+            .resolve(revision, module, profile)
+            .map_err(to_error)?;
+
+        Ok(DirResolved::from_bridge(resolved))
+    }
+
+    /// Return the checked DIR facade artifact for one loaded module profile.
+    #[napi]
+    pub fn check(
+        &self,
+        revision: Revision,
+        module: Module,
+        profile: ProfileId,
+    ) -> Result<DirChecked> {
+        let revision = revision.into_bridge()?;
+        let module = module.into_bridge()?;
+        let profile = profile.into_bridge()?;
+        let checked = self
+            .session
+            .check(revision, module, profile)
+            .map_err(to_error)?;
+
+        Ok(DirChecked::from_bridge(checked))
     }
 
     /// Return diagnostics for one immutable revision.

@@ -2,36 +2,14 @@
 
 import type { ModuleId } from "../../source/module.generated.js";
 
-/** One source file in an explicit source snapshot. */
-export type SourceFile = {
-    /** Repository-root relative path. */
-    readonly path: string;
-    /** Full source file content. */
-    readonly content: SourceFileContent;
-};
-
-/** Full content for one source snapshot file. */
-export type SourceFileContent =
-    /** Text file content. */
-    | {
-          readonly kind: "text";
-          readonly text: string;
-      }
-    /** Binary file content. */
-    | {
-          readonly kind: "bytes";
-          readonly bytes: Uint8Array | readonly number[];
-      }
-;
-
-/** File update projected from a source update. */
-export type FileUpdate = {
+/** Observed file change projected from a file update. */
+export type FileChange = {
     /** Repository logical path. */
     readonly path: string;
     /** External file URI. */
     readonly uri: string;
-    /** Coarse file update kind. */
-    readonly kind: FileUpdateKind;
+    /** Coarse file change kind. */
+    readonly kind: FileChangeKind;
     /** Whether the file was removed. */
     readonly isRemoved: boolean;
     /** Updated module id when known. */
@@ -39,5 +17,5 @@ export type FileUpdate = {
 };
 
 /** One coarse kind for a file change. */
-export type FileUpdateKind = "source" | "config";
+export type FileChangeKind = "source" | "config";
 

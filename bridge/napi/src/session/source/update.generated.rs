@@ -4,9 +4,9 @@ use destack_bridge_language as bridge;
 
 use napi_derive::napi;
 
-use crate::{FileUpdate, Revision};
+use crate::{FileChange, Revision};
 
-/// Source text range in byte offsets.
+/// One text range in byte offsets.
 #[derive(Debug)]
 #[napi(object)]
 pub struct TextRange {
@@ -26,7 +26,7 @@ impl TextRange {
     }
 }
 
-/// Source text replacement.
+/// One text replacement.
 #[derive(Debug)]
 #[napi(object)]
 pub struct TextEdit {
@@ -46,10 +46,10 @@ impl TextEdit {
     }
 }
 
-/// One source edit accepted by a session update.
+/// One file edit accepted by a session update.
 #[derive(Debug)]
 #[napi(object)]
-pub struct SourceEdit {
+pub struct FileEdit {
     /// Payload variant label.
     pub kind: String,
     /// Repository logical path.
@@ -60,15 +60,15 @@ pub struct SourceEdit {
     pub edits: Option<Vec<TextEdit>>,
     /// Full binary content.
     pub bytes: Option<Vec<u8>>,
-    /// Source repository logical path.
+    /// Repository logical path.
     pub from: Option<String>,
     /// Destination repository logical path.
     pub to: Option<String>,
 }
 
-impl SourceEdit {
+impl FileEdit {
     /// Convert this NAPI payload enum into one bridge enum.
-    pub(crate) fn into_bridge(self) -> napi::Result<bridge::SourceEdit> {
+    pub(crate) fn into_bridge(self) -> napi::Result<bridge::FileEdit> {
         match self.kind.as_str() {
             "setText" => {
                 if self.edits.is_some() {
@@ -91,7 +91,7 @@ impl SourceEdit {
                     return Err(missing_payload("text"));
                 };
                 let text = value;
-                Ok(bridge::SourceEdit::SetText { path, text })
+                Ok(bridge::FileEdit::SetText { path, text })
             }
             "editText" => {
                 if self.text.is_some() {
@@ -117,7 +117,7 @@ impl SourceEdit {
                     .into_iter()
                     .map(|item| Ok::<_, napi::Error>(item.into_bridge()?))
                     .collect::<napi::Result<Vec<_>>>()?;
-                Ok(bridge::SourceEdit::EditText { path, edits })
+                Ok(bridge::FileEdit::EditText { path, edits })
             }
             "setBytes" => {
                 if self.text.is_some() {
@@ -140,7 +140,7 @@ impl SourceEdit {
                     return Err(missing_payload("bytes"));
                 };
                 let bytes = value;
-                Ok(bridge::SourceEdit::SetBytes { path, bytes })
+                Ok(bridge::FileEdit::SetBytes { path, bytes })
             }
             "remove" => {
                 if self.text.is_some() {
@@ -162,7 +162,7 @@ impl SourceEdit {
                     return Err(missing_payload("path"));
                 };
                 let path = value;
-                Ok(bridge::SourceEdit::Remove { path })
+                Ok(bridge::FileEdit::Remove { path })
             }
             "move" => {
                 if self.path.is_some() {
@@ -185,11 +185,11 @@ impl SourceEdit {
                     return Err(missing_payload("to"));
                 };
                 let to = value;
-                Ok(bridge::SourceEdit::Move { from, to })
+                Ok(bridge::FileEdit::Move { from, to })
             }
             _ => Err(napi::Error::from_reason(format!(
                 "unknown {}: {}",
-                stringify!(SourceEdit),
+                stringify!(FileEdit),
                 self.kind
             ))),
         }
@@ -206,20 +206,20 @@ fn unexpected_payload(kind: &str) -> napi::Error {
     napi::Error::from_reason(format!("{kind} payload is unexpected"))
 }
 
-/// Source update applied through one session ref.
+/// One file update applied through one session ref.
 #[derive(Debug)]
 #[napi(object)]
-pub struct SourceUpdate {
+pub struct FileUpdate {
     /// Expected base revision.
     pub base: Option<Revision>,
-    /// Source edits in this atomic update.
-    pub edits: Vec<SourceEdit>,
+    /// File edits in this atomic update.
+    pub edits: Vec<FileEdit>,
 }
 
-impl SourceUpdate {
+impl FileUpdate {
     /// Convert this NAPI value into one bridge value.
-    pub(crate) fn into_bridge(self) -> napi::Result<bridge::SourceUpdate> {
-        Ok(bridge::SourceUpdate {
+    pub(crate) fn into_bridge(self) -> napi::Result<bridge::FileUpdate> {
+        Ok(bridge::FileUpdate {
             base: self
                 .base
                 .map(|item| Ok::<_, napi::Error>(item.into_bridge()?))
@@ -233,28 +233,28 @@ impl SourceUpdate {
     }
 }
 
-/// Source update result.
+/// File update result.
 #[derive(Debug)]
 #[napi(object)]
-pub struct SourceUpdateResult {
+pub struct FileUpdateResult {
     /// Previous revision.
     pub before: Revision,
     /// Updated revision.
     pub after: Revision,
     /// Changed files.
-    pub files: Vec<FileUpdate>,
+    pub files: Vec<FileChange>,
 }
 
-impl SourceUpdateResult {
+impl FileUpdateResult {
     /// Convert one bridge value into one NAPI value.
-    pub(crate) fn from_bridge(value: bridge::SourceUpdateResult) -> Self {
+    pub(crate) fn from_bridge(value: bridge::FileUpdateResult) -> Self {
         Self {
             before: Revision::from_bridge(value.before),
             after: Revision::from_bridge(value.after),
             files: value
                 .files
                 .into_iter()
-                .map(|item| FileUpdate::from_bridge(item))
+                .map(|item| FileChange::from_bridge(item))
                 .collect(),
         }
     }

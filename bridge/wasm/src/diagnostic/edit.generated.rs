@@ -48,13 +48,13 @@ impl Edit {
 /// Edits for a single file.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
-pub struct FileEdit {
+pub struct FilePatch {
     file: FileId,
     edits: Vec<Edit>,
 }
 
 #[wasm_bindgen]
-impl FileEdit {
+impl FilePatch {
     /// Create one value.
     #[wasm_bindgen(constructor)]
     pub fn new(file: FileId, edits: Vec<Edit>) -> Self {
@@ -74,9 +74,9 @@ impl FileEdit {
     }
 }
 
-impl FileEdit {
+impl FilePatch {
     /// Convert one bridge value into one WASM value.
-    pub(crate) fn from_bridge(value: bridge::FileEdit) -> Self {
+    pub(crate) fn from_bridge(value: bridge::FilePatch) -> Self {
         Self {
             file: FileId::from_bridge(value.file),
             edits: value
@@ -92,20 +92,20 @@ impl FileEdit {
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
 pub struct BatchEdit {
-    files: Vec<FileEdit>,
+    files: Vec<FilePatch>,
 }
 
 #[wasm_bindgen]
 impl BatchEdit {
     /// Create one value.
     #[wasm_bindgen(constructor)]
-    pub fn new(files: Vec<FileEdit>) -> Self {
+    pub fn new(files: Vec<FilePatch>) -> Self {
         Self { files }
     }
 
     /// Per-file edits.
     #[wasm_bindgen(getter, js_name = "files")]
-    pub fn files(&self) -> Vec<FileEdit> {
+    pub fn files(&self) -> Vec<FilePatch> {
         self.files.clone()
     }
 }
@@ -117,7 +117,7 @@ impl BatchEdit {
             files: value
                 .files
                 .into_iter()
-                .map(|item| FileEdit::from_bridge(item))
+                .map(|item| FilePatch::from_bridge(item))
                 .collect(),
         }
     }

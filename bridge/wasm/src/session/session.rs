@@ -3,8 +3,9 @@ use js_sys::Array;
 use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 
 use crate::{
-    ArtifactKey, ArtifactSidecar, ArtifactVersion, Diagnostic, FileUpdate, Module, Revision,
-    SessionFile, SourceSnapshot, SourceUpdate, SourceUpdateResult, js_error,
+    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Diagnostic, DirChecked,
+    DirParsed, DirResolved, FileChange, FileUpdate, FileUpdateResult, Module, ProfileId, Revision,
+    SessionFile, Source, js_error,
 };
 
 /// Live language session exposed to WebAssembly bindings.
@@ -16,10 +17,10 @@ pub struct Session {
 
 #[wasm_bindgen]
 impl Session {
-    /// Open one session from an explicit source snapshot.
-    #[wasm_bindgen(js_name = openSource)]
-    pub fn open_source(root: String, source: SourceSnapshot) -> Result<Session, JsValue> {
-        let session = rust::Session::open_source(root, source.into_bridge()).map_err(js_error)?;
+    /// Open one session from one source input.
+    #[wasm_bindgen(js_name = open)]
+    pub fn open(source: Source) -> Result<Session, JsValue> {
+        let session = rust::Session::open(source.into_bridge()).map_err(js_error)?;
 
         Ok(Self { session })
     }
@@ -50,18 +51,18 @@ impl Session {
         Ok(files)
     }
 
-    /// Apply one source update through the default session ref.
+    /// Apply one file update through the default session ref.
     #[wasm_bindgen]
-    pub fn update(&self, update: SourceUpdate) -> Result<SourceUpdateResult, JsValue> {
+    pub fn update(&self, update: FileUpdate) -> Result<FileUpdateResult, JsValue> {
         let result = self
             .session
             .update(update.into_bridge())
             .map_err(js_error)?;
 
-        Ok(SourceUpdateResult::from_bridge(result))
+        Ok(FileUpdateResult::from_bridge(result))
     }
 
-    /// Reload tracked files from this session filesystem.
+    /// Reload tracked files from this session backing source.
     #[wasm_bindgen]
     pub fn reload(&self) -> Result<Array, JsValue> {
         let updates = self
@@ -70,7 +71,7 @@ impl Session {
             .map_err(js_error)?
             .into_iter()
             .map(|update| {
-                let update = FileUpdate::from_bridge(update);
+                let update = FileChange::from_bridge(update);
 
                 JsValue::from(update)
             })
@@ -111,6 +112,71 @@ impl Session {
         let version = self.session.require(revision, key).map_err(js_error)?;
 
         Ok(ArtifactVersion::from_bridge(version))
+    }
+
+    /// Return one raw artifact record for one immutable revision.
+    #[wasm_bindgen(js_name = artifactRecord)]
+    pub fn artifact_record(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+    ) -> Result<ArtifactRecord, JsValue> {
+        let revision = revision.into_bridge();
+        let key = key.into_bridge();
+        let record = self
+            .session
+            .artifact_record(revision, key)
+            .map_err(js_error)?;
+
+        Ok(ArtifactRecord::from_bridge(record))
+    }
+
+    /// Return the parsed DIR artifact for one loaded module.
+    #[wasm_bindgen]
+    pub fn parse(&self, revision: Revision, module: Module) -> Result<DirParsed, JsValue> {
+        let revision = revision.into_bridge();
+        let module = module.into_bridge();
+        let parsed = self.session.parse(revision, module).map_err(js_error)?;
+
+        Ok(DirParsed::from_bridge(parsed))
+    }
+
+    /// Return the resolved DIR artifact for one loaded module profile.
+    #[wasm_bindgen]
+    pub fn resolve(
+        &self,
+        revision: Revision,
+        module: Module,
+        profile: ProfileId,
+    ) -> Result<DirResolved, JsValue> {
+        let revision = revision.into_bridge();
+        let module = module.into_bridge();
+        let profile = profile.into_bridge();
+        let resolved = self
+            .session
+            .resolve(revision, module, profile)
+            .map_err(js_error)?;
+
+        Ok(DirResolved::from_bridge(resolved))
+    }
+
+    /// Return the checked DIR facade artifact for one loaded module profile.
+    #[wasm_bindgen]
+    pub fn check(
+        &self,
+        revision: Revision,
+        module: Module,
+        profile: ProfileId,
+    ) -> Result<DirChecked, JsValue> {
+        let revision = revision.into_bridge();
+        let module = module.into_bridge();
+        let profile = profile.into_bridge();
+        let checked = self
+            .session
+            .check(revision, module, profile)
+            .map_err(js_error)?;
+
+        Ok(DirChecked::from_bridge(checked))
     }
 
     /// Return diagnostics for one immutable revision.

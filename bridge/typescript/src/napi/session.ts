@@ -1,42 +1,45 @@
 import type * as Napi from "@destack/language-napi";
 import type { ArtifactKey } from "../artifact/key.generated.js";
+import type { ArtifactRecord } from "../artifact/record.generated.js";
 import type { ArtifactSidecar } from "../artifact/sidecar.generated.js";
 import type { ArtifactVersion } from "../artifact/version.generated.js";
+import type { DirChecked } from "../dir/checked.generated.js";
+import type { DirParsed } from "../dir/parsed.generated.js";
+import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Diagnostic } from "../diagnostic/diagnostic.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
 import type { Module } from "../session/module.generated.js";
-import type { FileUpdate } from "../session/source/file.generated.js";
-import type { SourceSnapshot } from "../session/source/snapshot.generated.js";
-import type { SourceUpdate, SourceUpdateResult } from "../session/source/update.generated.js";
+import type { ProfileId } from "../source/profile.generated.js";
+import type { FileChange } from "../session/source/file.generated.js";
+import type { Source } from "../session/source/source.generated.js";
+import type { FileUpdate, FileUpdateResult } from "../session/source/update.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
 import type { Session } from "../session/session.js";
 import {
-    fromNapiFileUpdate,
+    fromNapiFileChange,
+    fromNapiArtifactRecord,
     fromNapiArtifactSidecar,
     fromNapiArtifactVersion,
     fromNapiDiagnostic,
+    fromNapiDirChecked,
+    fromNapiDirParsed,
+    fromNapiDirResolved,
     fromNapiModule,
     fromNapiSessionFile,
-    fromNapiSourceUpdateResult,
+    fromNapiFileUpdateResult,
     toNapiArtifactKey,
-    toNapiSourceSnapshot,
-    toNapiSourceUpdate,
+    toNapiModule,
+    toNapiProfileId,
+    toNapiSource,
+    toNapiFileUpdate,
 } from "./generated.js";
 
 type NapiModule = typeof import("@destack/language-napi");
 
-/** Open one NAPI language session from a native filesystem path. */
-export async function openNapiPath(path: string): Promise<Session> {
+/** Open one NAPI language session from one source input. */
+export async function openNapiSession(source: Source): Promise<Session> {
     const napi = await import("@destack/language-napi");
-    const session = napi.Session.openPath(path);
-
-    return new NativeSession(session);
-}
-
-/** Open one NAPI language session from an explicit source snapshot. */
-export async function openNapiSource(root: string, source: SourceSnapshot): Promise<Session> {
-    const napi = await import("@destack/language-napi");
-    const session = napi.Session.openSource(root, toNapiSourceSnapshot(source));
+    const session = napi.Session.open(toNapiSource(source));
 
     return new NativeSession(session);
 }
@@ -52,14 +55,14 @@ class NativeSession implements Session {
         return this.session.files().map(fromNapiSessionFile);
     }
 
-    public update(update: SourceUpdate): SourceUpdateResult {
-        const result = this.session.update(toNapiSourceUpdate(update));
+    public update(update: FileUpdate): FileUpdateResult {
+        const result = this.session.update(toNapiFileUpdate(update));
 
-        return fromNapiSourceUpdateResult(result);
+        return fromNapiFileUpdateResult(result);
     }
 
-    public reload(): readonly FileUpdate[] {
-        return this.session.reload().map(fromNapiFileUpdate);
+    public reload(): readonly FileChange[] {
+        return this.session.reload().map(fromNapiFileChange);
     }
 
     public loadModule(path: string): Module {
@@ -74,6 +77,38 @@ class NativeSession implements Session {
         const version = this.session.require(revision, toNapiArtifactKey(key));
 
         return fromNapiArtifactVersion(version);
+    }
+
+    public artifactRecord(revision: Revision, key: ArtifactKey): ArtifactRecord {
+        const record = this.session.artifactRecord(revision, toNapiArtifactKey(key));
+
+        return fromNapiArtifactRecord(record);
+    }
+
+    public parse(revision: Revision, module: Module): DirParsed {
+        const parsed = this.session.parse(revision, toNapiModule(module));
+
+        return fromNapiDirParsed(parsed);
+    }
+
+    public resolve(revision: Revision, module: Module, profile: ProfileId): DirResolved {
+        const resolved = this.session.resolve(
+            revision,
+            toNapiModule(module),
+            toNapiProfileId(profile),
+        );
+
+        return fromNapiDirResolved(resolved);
+    }
+
+    public check(revision: Revision, module: Module, profile: ProfileId): DirChecked {
+        const checked = this.session.check(
+            revision,
+            toNapiModule(module),
+            toNapiProfileId(profile),
+        );
+
+        return fromNapiDirChecked(checked);
     }
 
     public diagnostics(revision: Revision, key?: ArtifactKey): readonly Diagnostic[] {

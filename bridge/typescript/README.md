@@ -12,23 +12,14 @@ npm install @destack/language
 ## API
 
 ```ts
-import { openSession } from "@destack/language";
+import { FileEdit, Source, openSession } from "@destack/language";
 
-const session = await openSession({
-    root: "/workspace",
-    source: {
-        files: [
-            {
-                path: "destack.json",
-                content: { kind: "text", text: "{\"name\":\"@test/app\"}" },
-            },
-            {
-                path: "src/index.ds",
-                content: { kind: "text", text: "export const value = 1;" },
-            },
-        ],
-    },
-});
+const session = await openSession(
+    Source.memory("/workspace", [
+        FileEdit.setText("destack.json", "{\"name\":\"@test/app\"}"),
+        FileEdit.setText("src/index.ds", "export const value = 1;"),
+    ]),
+);
 
 console.log(session.files());
 ```
@@ -36,11 +27,12 @@ console.log(session.files());
 ## Explicit Backends
 
 ```ts
-import { openNapiPath } from "@destack/language/napi";
-import { openWasmSource } from "@destack/language/wasm";
+import { openNapiSession } from "@destack/language/napi";
+import { openWasmSession } from "@destack/language/wasm";
+import { Source } from "@destack/language";
 
-const nativeSession = await openNapiPath(".");
-const webSession = await openWasmSource("/workspace", { files: [] });
+const nativeSession = await openNapiSession(Source.fileSystem("."));
+const webSession = await openWasmSession(Source.memory("/workspace", []));
 ```
 
 ## Testing

@@ -186,3 +186,121 @@ export type ArtifactKey =
       }
 ;
 
+export const ArtifactKey = {
+    /** Parsed module DIR. */
+    dirParsed(module: ModuleId): ArtifactKey {
+        return { kind: "dirParsed", module };
+    },
+
+    /** Parsed non-code module data. */
+    data(module: ModuleId): ArtifactKey {
+        return { kind: "data", module };
+    },
+
+    /** Explicit global environment for one profile. */
+    globalEnvironment(profile: ProfileId): ArtifactKey {
+        return { kind: "globalEnvironment", profile };
+    },
+
+    /** Active dependency index for one profile. */
+    dependencyIndex(profile: ProfileId): ArtifactKey {
+        return { kind: "dependencyIndex", profile };
+    },
+
+    /** Bound DIR. */
+    dirBound(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirBound", module, profile };
+    },
+
+    /** Imported DIR. */
+    dirImported(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirImported", module, profile };
+    },
+
+    /** Expanded DIR. */
+    dirExpanded(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirExpanded", module, profile };
+    },
+
+    /** Exported DIR. */
+    dirExported(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirExported", module, profile };
+    },
+
+    /** Resolved DIR imports. */
+    dirResolved(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirResolved", module, profile };
+    },
+
+    /** Checked DIR component. */
+    dirCheckedComponent(entry: ModuleId, component: ComponentId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirCheckedComponent", entry, component, profile };
+    },
+
+    /** Checked DIR facade. */
+    dirChecked(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirChecked", module, profile };
+    },
+
+    /** Materialized DIR. */
+    dirMaterialized(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirMaterialized", module, profile };
+    },
+
+    /** Elaborated DIR. */
+    dirElaborated(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "dirElaborated", module, profile };
+    },
+
+    /** Lowered MIR before optimization. */
+    mirLowered(module: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
+        return { kind: "mirLowered", module, profile, target };
+    },
+
+    /** Verified MIR after required semantic verification. */
+    mirVerified(module: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
+        return { kind: "mirVerified", module, profile, target };
+    },
+
+    /** Optimized MIR. */
+    mirOptimized(module: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
+        return { kind: "mirOptimized", module, profile, target };
+    },
+
+    /** Query index for one module profile. */
+    moduleQueryIndex(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "moduleQueryIndex", module, profile };
+    },
+
+    /** Query index for one workspace profile. */
+    workspaceQueryIndex(profile: ProfileId): ArtifactKey {
+        return { kind: "workspaceQueryIndex", profile };
+    },
+
+    /** One generated module output for one target. */
+    moduleOutput(module: ModuleId, target: TargetId): ArtifactKey {
+        return { kind: "moduleOutput", module, target };
+    },
+
+    /** Output entries for one package target. */
+    packageOutput(packageValue: PackageId, target: TargetId): ArtifactKey {
+        return { kind: "packageOutput", package: packageValue, target };
+    },
+
+    /** Realized lint diagnostics for one module profile. */
+    moduleLinted(module: ModuleId, profile: ProfileId): ArtifactKey {
+        return { kind: "moduleLinted", module, profile };
+    },
+
+    /** Realized lint diagnostics for one package. */
+    packageLinted(packageValue: PackageId): ArtifactKey {
+        return { kind: "packageLinted", package: packageValue };
+    },
+
+    /** Realized lint diagnostics for the workspace. */
+    workspaceLinted(): ArtifactKey {
+        return { kind: "workspaceLinted" };
+    },
+
+};
+

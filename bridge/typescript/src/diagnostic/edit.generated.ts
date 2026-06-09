@@ -12,7 +12,7 @@ export type Edit = {
 };
 
 /** Edits for a single file. */
-export type FileEdit = {
+export type FilePatch = {
     /** Edited file. */
     readonly file: FileId;
     /** Source edits. */
@@ -22,6 +22,6 @@ export type FileEdit = {
 /** Edits across multiple files. */
 export type BatchEdit = {
     /** Per-file edits. */
-    readonly files: readonly FileEdit[];
+    readonly files: readonly FilePatch[];
 };
 

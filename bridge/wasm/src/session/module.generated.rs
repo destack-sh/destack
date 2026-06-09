@@ -29,6 +29,15 @@ impl Module {
 }
 
 impl Module {
+    /// Convert this WASM value into one bridge value.
+    pub(crate) fn into_bridge(self) -> bridge::Module {
+        bridge::Module {
+            id: self.id.into_bridge(),
+        }
+    }
+}
+
+impl Module {
     /// Convert one bridge value into one WASM value.
     pub(crate) fn from_bridge(value: bridge::Module) -> Self {
         Self {
