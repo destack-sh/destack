@@ -28,7 +28,7 @@ import type {
     Diagnostic,
 } from "../diagnostic/diagnostic.generated.js";
 import type {
-    Edit,
+    Replacement,
     FilePatch,
     BatchEdit,
 } from "../diagnostic/edit.generated.js";
@@ -38,17 +38,13 @@ import type { DirResolved } from "../dir/resolved.generated.js";
 import type { Revision } from "../repository/revision.generated.js";
 import type { SessionFile } from "../session/file.generated.js";
 import type { Module } from "../session/module.generated.js";
-import type {
-    FileChange,
-    FileChangeKind,
-} from "../session/source/file.generated.js";
+import type { Change } from "../session/source/file.generated.js";
 import type { Source } from "../session/source/source.generated.js";
 import type {
     TextRange,
     TextEdit,
-    FileEdit,
-    FileUpdate,
-    FileUpdateResult,
+    Edit,
+    Commit,
 } from "../session/source/update.generated.js";
 import type { ComponentId } from "../source/component.generated.js";
 import type {
@@ -847,8 +843,8 @@ export function fromWasmDiagnostic(value: Wasm.Diagnostic): Diagnostic {
     };
 }
 
-/** Convert one WASM Edit into the public bridge shape. */
-export function fromWasmEdit(value: Wasm.Edit): Edit {
+/** Convert one WASM Replacement into the public bridge shape. */
+export function fromWasmReplacement(value: Wasm.Replacement): Replacement {
     return {
         span: fromWasmSpan(value.span),
         newText: value.newText,
@@ -859,7 +855,7 @@ export function fromWasmEdit(value: Wasm.Edit): Edit {
 export function fromWasmFilePatch(value: Wasm.FilePatch): FilePatch {
     return {
         file: fromWasmFileId(value.file),
-        edits: value.edits.map((item) => fromWasmEdit(item)),
+        replacements: value.replacements.map((item) => fromWasmReplacement(item)),
     };
 }
 
@@ -935,24 +931,14 @@ export function fromWasmModule(value: Wasm.Module): Module {
     };
 }
 
-/** Convert one WASM FileChange into the public bridge shape. */
-export function fromWasmFileChange(value: Wasm.FileChange): FileChange {
+/** Convert one WASM Change into the public bridge shape. */
+export function fromWasmChange(value: Wasm.Change): Change {
     return {
         path: value.path,
         uri: value.uri,
-        kind: fromWasmFileChangeKind(value.kind),
         isRemoved: value.isRemoved,
         moduleId: value.moduleId == null ? undefined : fromWasmModuleId(value.moduleId),
     };
-}
-
-/** Convert one FileChangeKind from the WASM transport shape. */
-export function fromWasmFileChangeKind(value: string): FileChangeKind {
-    if (value === "source" || value === "config") {
-        return value;
-    }
-
-    throw new Error(`unknown FileChangeKind: ${value}`);
 }
 
 /** Convert one Source into the WASM transport shape. */
@@ -965,10 +951,7 @@ export function toWasmSource(
     }
 
     if (value.kind === "memory") {
-        return wasm.Source.memory(
-            value.root,
-            value.edits.map((item) => toWasmFileEdit(wasm, item)),
-        );
+        return wasm.Source.memory(value.root, value.edits.map((item) => toWasmEdit(wasm, item)));
     }
 
     throw new Error("unknown Source");
@@ -990,54 +973,43 @@ export function toWasmTextEdit(
     return new wasm.TextEdit(toWasmTextRange(wasm, value.range), value.text);
 }
 
-/** Convert one FileEdit into the WASM transport shape. */
-export function toWasmFileEdit(
+/** Convert one Edit into the WASM transport shape. */
+export function toWasmEdit(
     wasm: WasmModule,
-    value: FileEdit,
-): Wasm.FileEdit {
+    value: Edit,
+): Wasm.Edit {
     if (value.kind === "setText") {
-        return wasm.FileEdit.setText(value.path, value.text);
+        return wasm.Edit.setText(value.path, value.text);
     }
 
     if (value.kind === "editText") {
-        return wasm.FileEdit.editText(
+        return wasm.Edit.editText(
             value.path,
             value.edits.map((item) => toWasmTextEdit(wasm, item)),
         );
     }
 
     if (value.kind === "setBytes") {
-        return wasm.FileEdit.setBytes(value.path, Uint8Array.from(value.bytes));
+        return wasm.Edit.setBytes(value.path, Uint8Array.from(value.bytes));
     }
 
     if (value.kind === "remove") {
-        return wasm.FileEdit.remove(value.path);
+        return wasm.Edit.remove(value.path);
     }
 
     if (value.kind === "move") {
-        return wasm.FileEdit.move(value.from, value.to);
+        return wasm.Edit.move(value.from, value.to);
     }
 
-    throw new Error("unknown FileEdit");
+    throw new Error("unknown Edit");
 }
 
-/** Convert one FileUpdate into the WASM transport shape. */
-export function toWasmFileUpdate(
-    wasm: WasmModule,
-    value: FileUpdate,
-): Wasm.FileUpdate {
-    return new wasm.FileUpdate(
-        value.base == null ? undefined : toWasmRevision(wasm, value.base),
-        value.edits.map((item) => toWasmFileEdit(wasm, item)),
-    );
-}
-
-/** Convert one WASM FileUpdateResult into the public bridge shape. */
-export function fromWasmFileUpdateResult(value: Wasm.FileUpdateResult): FileUpdateResult {
+/** Convert one WASM Commit into the public bridge shape. */
+export function fromWasmCommit(value: Wasm.Commit): Commit {
     return {
         before: fromWasmRevision(value.before),
         after: fromWasmRevision(value.after),
-        files: value.files.map((item) => fromWasmFileChange(item)),
+        changes: value.changes.map((item) => fromWasmChange(item)),
     };
 }
 

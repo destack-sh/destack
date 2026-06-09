@@ -13,12 +13,12 @@ pub struct DestackSource {
     pub(crate) value: rust::Source,
 }
 
-/// C ABI file update builder.
+/// C ABI edit list.
 #[repr(C)]
 #[derive(Debug)]
-pub struct DestackFileUpdate {
-    /// Rust file update.
-    pub(crate) value: rust::FileUpdate,
+pub struct DestackEdits {
+    /// Rust edit list.
+    pub(crate) value: Vec<rust::Edit>,
 }
 
 /// Create one filesystem source.
@@ -85,7 +85,7 @@ pub unsafe extern "C" fn destack_source_add_text(
             return Err("source is not in-memory".to_string());
         };
 
-        edits.push(rust::FileEdit::SetText { path, text });
+        edits.push(rust::Edit::SetText { path, text });
 
         Ok(())
     })
@@ -108,149 +108,121 @@ pub unsafe extern "C" fn destack_source_add_bytes(
             return Err("source is not in-memory".to_string());
         };
 
-        edits.push(rust::FileEdit::SetBytes { path, bytes });
+        edits.push(rust::Edit::SetBytes { path, bytes });
 
         Ok(())
     })
 }
 
-/// Create one file update builder.
+/// Create one edit list.
 #[unsafe(no_mangle)]
-pub extern "C" fn destack_file_update_new() -> *mut DestackFileUpdate {
-    Box::into_raw(Box::new(DestackFileUpdate {
-        value: rust::FileUpdate {
-            base: None,
-            edits: Vec::new(),
-        },
-    }))
+pub extern "C" fn destack_edits_new() -> *mut DestackEdits {
+    Box::into_raw(Box::new(DestackEdits { value: Vec::new() }))
 }
 
-/// Destroy one file update builder.
+/// Destroy one edit list.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_update_destroy(update: *mut DestackFileUpdate) {
-    if update.is_null() {
+pub unsafe extern "C" fn destack_edits_destroy(edits: *mut DestackEdits) {
+    if edits.is_null() {
         return;
     }
 
-    drop(unsafe { Box::from_raw(update) });
+    drop(unsafe { Box::from_raw(edits) });
 }
 
-/// Set the file update base revision.
+/// Add one text replacement edit.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_update_set_base(
-    update: *mut DestackFileUpdate,
-    revision: *const c_char,
-    error: *mut *mut DestackError,
-) -> DestackStatus {
-    return_status(error, || {
-        let update = unsafe { update.as_mut() }.ok_or("file update is null")?;
-        let revision = read_string(revision)?;
-
-        update.value.base = Some(rust::Revision { id: revision });
-
-        Ok(())
-    })
-}
-
-/// Add one text file edit.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_update_add_set_text(
-    update: *mut DestackFileUpdate,
+pub unsafe extern "C" fn destack_edits_add_set_text(
+    edits: *mut DestackEdits,
     path: *const c_char,
     text: *const c_char,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
-        let update = unsafe { update.as_mut() }.ok_or("file update is null")?;
+        let edits = unsafe { edits.as_mut() }.ok_or("edit list is null")?;
         let path = read_string(path)?;
         let text = read_string(text)?;
 
-        update
-            .value
-            .edits
-            .push(rust::FileEdit::SetText { path, text });
+        edits.value.push(rust::Edit::SetText { path, text });
 
         Ok(())
     })
 }
 
-/// Add one text patch file edit.
+/// Add one text patch edit.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_update_add_edit_text(
-    update: *mut DestackFileUpdate,
+pub unsafe extern "C" fn destack_edits_add_edit_text(
+    edits: *mut DestackEdits,
     path: *const c_char,
-    edits: *const DestackTextEdit,
+    text_edits: *const DestackTextEdit,
     len: usize,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
-        let update = unsafe { update.as_mut() }.ok_or("file update is null")?;
+        let edits = unsafe { edits.as_mut() }.ok_or("edit list is null")?;
         let path = read_string(path)?;
-        let edits = read_text_edits(edits, len)?;
+        let text_edits = read_text_edits(text_edits, len)?;
 
-        update
-            .value
-            .edits
-            .push(rust::FileEdit::EditText { path, edits });
+        edits.value.push(rust::Edit::EditText {
+            path,
+            edits: text_edits,
+        });
 
         Ok(())
     })
 }
 
-/// Add one binary file edit.
+/// Add one binary replacement edit.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_update_add_set_bytes(
-    update: *mut DestackFileUpdate,
+pub unsafe extern "C" fn destack_edits_add_set_bytes(
+    edits: *mut DestackEdits,
     path: *const c_char,
     bytes: *const u8,
     len: usize,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
-        let update = unsafe { update.as_mut() }.ok_or("file update is null")?;
+        let edits = unsafe { edits.as_mut() }.ok_or("edit list is null")?;
         let path = read_string(path)?;
         let bytes = read_bytes(bytes, len)?;
 
-        update
-            .value
-            .edits
-            .push(rust::FileEdit::SetBytes { path, bytes });
+        edits.value.push(rust::Edit::SetBytes { path, bytes });
 
         Ok(())
     })
 }
 
-/// Add one remove file edit.
+/// Add one remove edit.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_update_add_remove(
-    update: *mut DestackFileUpdate,
+pub unsafe extern "C" fn destack_edits_add_remove(
+    edits: *mut DestackEdits,
     path: *const c_char,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
-        let update = unsafe { update.as_mut() }.ok_or("file update is null")?;
+        let edits = unsafe { edits.as_mut() }.ok_or("edit list is null")?;
         let path = read_string(path)?;
 
-        update.value.edits.push(rust::FileEdit::Remove { path });
+        edits.value.push(rust::Edit::Remove { path });
 
         Ok(())
     })
 }
 
-/// Add one move file edit.
+/// Add one move edit.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn destack_file_update_add_move(
-    update: *mut DestackFileUpdate,
+pub unsafe extern "C" fn destack_edits_add_move(
+    edits: *mut DestackEdits,
     from: *const c_char,
     to: *const c_char,
     error: *mut *mut DestackError,
 ) -> DestackStatus {
     return_status(error, || {
-        let update = unsafe { update.as_mut() }.ok_or("file update is null")?;
+        let edits = unsafe { edits.as_mut() }.ok_or("edit list is null")?;
         let from = read_string(from)?;
         let to = read_string(to)?;
 
-        update.value.edits.push(rust::FileEdit::Move { from, to });
+        edits.value.push(rust::Edit::Move { from, to });
 
         Ok(())
     })

@@ -11,24 +11,24 @@
 extern "C" {
 #endif
 
-typedef struct DestackEdit {
+typedef struct DestackReplacement {
     DestackSpan span;
     char *new_text;
-} DestackEdit;
+} DestackReplacement;
 
-typedef struct DestackEditArray {
-    DestackEdit *ptr;
+typedef struct DestackReplacementArray {
+    DestackReplacement *ptr;
     size_t len;
-} DestackEditArray;
+} DestackReplacementArray;
 
-typedef struct DestackOptionalEdit {
+typedef struct DestackOptionalReplacement {
     bool is_some;
-    DestackEdit value;
-} DestackOptionalEdit;
+    DestackReplacement value;
+} DestackOptionalReplacement;
 
 typedef struct DestackFilePatch {
     DestackFileId file;
-    DestackEditArray edits;
+    DestackReplacementArray replacements;
 } DestackFilePatch;
 
 typedef struct DestackFilePatchArray {
@@ -55,8 +55,8 @@ typedef struct DestackOptionalBatchEdit {
     DestackBatchEdit value;
 } DestackOptionalBatchEdit;
 
-void destack_edit_destroy(DestackEdit *value);
-void destack_edit_array_destroy(DestackEditArray array);
+void destack_replacement_destroy(DestackReplacement *value);
+void destack_replacement_array_destroy(DestackReplacementArray array);
 void destack_file_patch_destroy(DestackFilePatch *value);
 void destack_file_patch_array_destroy(DestackFilePatchArray array);
 void destack_batch_edit_destroy(DestackBatchEdit *value);

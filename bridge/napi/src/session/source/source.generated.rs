@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use napi_derive::napi;
 
-use crate::FileEdit;
+use crate::Edit;
 
 /// Source input used to open a live session.
 #[derive(Debug)]
@@ -16,8 +16,8 @@ pub struct Source {
     pub path: Option<String>,
     /// Source root path used for repository identity.
     pub root: Option<String>,
-    /// File edits used to seed the memory filesystem.
-    pub edits: Option<Vec<FileEdit>>,
+    /// Edits used to seed the memory filesystem.
+    pub edits: Option<Vec<Edit>>,
 }
 
 impl Source {

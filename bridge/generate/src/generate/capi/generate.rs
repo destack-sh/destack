@@ -19,7 +19,7 @@ const ROOTS: &[&str] = &[
     "DirChecked",
     "DirParsed",
     "DirResolved",
-    "FileUpdateResult",
+    "Commit",
     "Module",
     "Revision",
     "SessionFile",

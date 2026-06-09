@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::FileEdit;
+use crate::Edit;
 
 /// Source input used to open a live session.
 #[derive(Debug, Clone)]
@@ -21,12 +21,12 @@ enum SourceContent {
         /// Source root or child path.
         path: String,
     },
-    /// In-memory filesystem source seeded by file edits.
+    /// In-memory filesystem source seeded by edits.
     Memory {
         /// Source root path used for repository identity.
         root: String,
-        /// File edits used to seed the memory filesystem.
-        edits: Vec<FileEdit>,
+        /// Edits used to seed the memory filesystem.
+        edits: Vec<Edit>,
     },
 }
 
@@ -42,7 +42,7 @@ impl Source {
 
     /// Create one payload variant.
     #[wasm_bindgen(js_name = "memory")]
-    pub fn memory(root: String, edits: Vec<FileEdit>) -> Self {
+    pub fn memory(root: String, edits: Vec<Edit>) -> Self {
         Self {
             content: SourceContent::Memory { root, edits },
         }

@@ -6,19 +6,19 @@ use napi_derive::napi;
 
 use crate::{FileId, Span};
 
-/// One source edit crossing bridge boundaries.
+/// One source replacement crossing bridge boundaries.
 #[derive(Debug)]
 #[napi(object)]
-pub struct Edit {
+pub struct Replacement {
     /// Source span to replace.
     pub span: Span,
     /// Replacement text.
     pub new_text: String,
 }
 
-impl Edit {
+impl Replacement {
     /// Convert one bridge value into one NAPI value.
-    pub(crate) fn from_bridge(value: bridge::Edit) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Replacement) -> Self {
         Self {
             span: Span::from_bridge(value.span),
             new_text: value.new_text,
@@ -32,8 +32,8 @@ impl Edit {
 pub struct FilePatch {
     /// Edited file.
     pub file: FileId,
-    /// Source edits.
-    pub edits: Vec<Edit>,
+    /// Source replacements.
+    pub replacements: Vec<Replacement>,
 }
 
 impl FilePatch {
@@ -41,10 +41,10 @@ impl FilePatch {
     pub(crate) fn from_bridge(value: bridge::FilePatch) -> Self {
         Self {
             file: FileId::from_bridge(value.file),
-            edits: value
-                .edits
+            replacements: value
+                .replacements
                 .into_iter()
-                .map(|item| Edit::from_bridge(item))
+                .map(|item| Replacement::from_bridge(item))
                 .collect(),
         }
     }

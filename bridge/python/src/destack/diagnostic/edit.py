@@ -1,13 +1,13 @@
 # generated bridge target, do not edit
 
 from .._native import (
-    Edit,
+    Replacement,
     FilePatch,
     BatchEdit,
 )
 
 __all__ = [
-    "Edit",
+    "Replacement",
     "FilePatch",
     "BatchEdit",
 ]

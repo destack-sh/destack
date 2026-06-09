@@ -6,20 +6,20 @@ use pyo3::prelude::*;
 
 use crate::{FileId, Span};
 
-/// One source edit crossing bridge boundaries.
-#[pyclass(name = "Edit", module = "destack._native", from_py_object)]
+/// One source replacement crossing bridge boundaries.
+#[pyclass(name = "Replacement", module = "destack._native", from_py_object)]
 #[derive(Debug, Clone)]
-pub struct Edit {
-    pub(crate) value: bridge::Edit,
+pub struct Replacement {
+    pub(crate) value: bridge::Replacement,
 }
 
 #[pymethods]
-impl Edit {
+impl Replacement {
     /// Create one value.
     #[new]
     pub fn new(span: Span, new_text: String) -> Self {
         Self {
-            value: bridge::Edit {
+            value: bridge::Replacement {
                 span: span.into_bridge(),
                 new_text,
             },
@@ -40,14 +40,14 @@ impl Edit {
 }
 
 #[allow(dead_code)]
-impl Edit {
+impl Replacement {
     /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::Edit {
+    pub(crate) fn into_bridge(self) -> bridge::Replacement {
         self.value
     }
 
     /// Convert one bridge value into one Python value.
-    pub(crate) fn from_bridge(value: bridge::Edit) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Replacement) -> Self {
         Self { value }
     }
 }
@@ -63,11 +63,14 @@ pub struct FilePatch {
 impl FilePatch {
     /// Create one value.
     #[new]
-    pub fn new(file: FileId, edits: Vec<Edit>) -> Self {
+    pub fn new(file: FileId, replacements: Vec<Replacement>) -> Self {
         Self {
             value: bridge::FilePatch {
                 file: file.into_bridge(),
-                edits: edits.into_iter().map(|item| item.into_bridge()).collect(),
+                replacements: replacements
+                    .into_iter()
+                    .map(|item| item.into_bridge())
+                    .collect(),
             },
         }
     }
@@ -78,14 +81,14 @@ impl FilePatch {
         FileId::from_bridge(self.value.file.clone())
     }
 
-    /// Source edits.
+    /// Source replacements.
     #[getter]
-    pub fn edits(&self) -> Vec<Edit> {
+    pub fn replacements(&self) -> Vec<Replacement> {
         self.value
-            .edits
+            .replacements
             .clone()
             .into_iter()
-            .map(|item| Edit::from_bridge(item))
+            .map(|item| Replacement::from_bridge(item))
             .collect()
     }
 }
@@ -149,7 +152,7 @@ impl BatchEdit {
 
 /// Register generated Python bridge classes.
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    module.add_class::<Edit>()?;
+    module.add_class::<Replacement>()?;
     module.add_class::<FilePatch>()?;
     module.add_class::<BatchEdit>()?;
     Ok(())

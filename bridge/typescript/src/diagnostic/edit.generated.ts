@@ -3,8 +3,8 @@
 import type { FileId } from "../source/file.generated.js";
 import type { Span } from "../source/span.generated.js";
 
-/** One source edit crossing bridge boundaries. */
-export type Edit = {
+/** One source replacement crossing bridge boundaries. */
+export type Replacement = {
     /** Source span to replace. */
     readonly span: Span;
     /** Replacement text. */
@@ -15,8 +15,8 @@ export type Edit = {
 export type FilePatch = {
     /** Edited file. */
     readonly file: FileId;
-    /** Source edits. */
-    readonly edits: readonly Edit[];
+    /** Source replacements. */
+    readonly replacements: readonly Replacement[];
 };
 
 /** Edits across multiple files. */

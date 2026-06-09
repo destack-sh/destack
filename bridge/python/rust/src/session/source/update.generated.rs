@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use pyo3::prelude::*;
 
-use crate::{FileChange, Revision};
+use crate::{Change, Revision};
 
 /// One text range in byte offsets.
 #[pyclass(name = "TextRange", module = "destack._native", from_py_object)]
@@ -95,20 +95,20 @@ impl TextEdit {
     }
 }
 
-/// One file edit accepted by a session update.
-#[pyclass(name = "FileEdit", module = "destack._native", from_py_object)]
+/// One edit accepted by a session.
+#[pyclass(name = "Edit", module = "destack._native", from_py_object)]
 #[derive(Debug, Clone)]
-pub struct FileEdit {
-    pub(crate) value: bridge::FileEdit,
+pub struct Edit {
+    pub(crate) value: bridge::Edit,
 }
 
 #[pymethods]
-impl FileEdit {
+impl Edit {
     /// Replace or create one text file.
     #[staticmethod]
     pub fn set_text(path: String, text: String) -> Self {
         Self {
-            value: bridge::FileEdit::SetText { path, text },
+            value: bridge::Edit::SetText { path, text },
         }
     }
 
@@ -116,7 +116,7 @@ impl FileEdit {
     #[staticmethod]
     pub fn edit_text(path: String, edits: Vec<TextEdit>) -> Self {
         Self {
-            value: bridge::FileEdit::EditText {
+            value: bridge::Edit::EditText {
                 path,
                 edits: edits.into_iter().map(|item| item.into_bridge()).collect(),
             },
@@ -127,7 +127,7 @@ impl FileEdit {
     #[staticmethod]
     pub fn set_bytes(path: String, bytes: Vec<u8>) -> Self {
         Self {
-            value: bridge::FileEdit::SetBytes { path, bytes },
+            value: bridge::Edit::SetBytes { path, bytes },
         }
     }
 
@@ -135,7 +135,7 @@ impl FileEdit {
     #[staticmethod]
     pub fn remove(path: String) -> Self {
         Self {
-            value: bridge::FileEdit::Remove { path },
+            value: bridge::Edit::Remove { path },
         }
     }
 
@@ -143,7 +143,7 @@ impl FileEdit {
     #[staticmethod]
     pub fn move_file(from: String, to: String) -> Self {
         Self {
-            value: bridge::FileEdit::Move { from, to },
+            value: bridge::Edit::Move { from, to },
         }
     }
 
@@ -151,11 +151,11 @@ impl FileEdit {
     #[getter]
     pub fn kind(&self) -> &'static str {
         match &self.value {
-            bridge::FileEdit::SetText { .. } => "setText",
-            bridge::FileEdit::EditText { .. } => "editText",
-            bridge::FileEdit::SetBytes { .. } => "setBytes",
-            bridge::FileEdit::Remove { .. } => "remove",
-            bridge::FileEdit::Move { .. } => "move",
+            bridge::Edit::SetText { .. } => "setText",
+            bridge::Edit::EditText { .. } => "editText",
+            bridge::Edit::SetBytes { .. } => "setBytes",
+            bridge::Edit::Remove { .. } => "remove",
+            bridge::Edit::Move { .. } => "move",
         }
     }
 
@@ -163,7 +163,7 @@ impl FileEdit {
     #[getter]
     pub fn bytes(&self) -> Option<Vec<u8>> {
         match &self.value {
-            bridge::FileEdit::SetBytes { bytes, .. } => Some(bytes.clone()),
+            bridge::Edit::SetBytes { bytes, .. } => Some(bytes.clone()),
             _ => None,
         }
     }
@@ -172,7 +172,7 @@ impl FileEdit {
     #[getter]
     pub fn edits(&self) -> Option<Vec<TextEdit>> {
         match &self.value {
-            bridge::FileEdit::EditText { edits, .. } => Some(
+            bridge::Edit::EditText { edits, .. } => Some(
                 edits
                     .clone()
                     .into_iter()
@@ -187,7 +187,7 @@ impl FileEdit {
     #[getter]
     pub fn from(&self) -> Option<String> {
         match &self.value {
-            bridge::FileEdit::Move { from, .. } => Some(from.clone()),
+            bridge::Edit::Move { from, .. } => Some(from.clone()),
             _ => None,
         }
     }
@@ -196,10 +196,10 @@ impl FileEdit {
     #[getter]
     pub fn path(&self) -> Option<String> {
         match &self.value {
-            bridge::FileEdit::SetText { path, .. } => Some(path.clone()),
-            bridge::FileEdit::EditText { path, .. } => Some(path.clone()),
-            bridge::FileEdit::SetBytes { path, .. } => Some(path.clone()),
-            bridge::FileEdit::Remove { path, .. } => Some(path.clone()),
+            bridge::Edit::SetText { path, .. } => Some(path.clone()),
+            bridge::Edit::EditText { path, .. } => Some(path.clone()),
+            bridge::Edit::SetBytes { path, .. } => Some(path.clone()),
+            bridge::Edit::Remove { path, .. } => Some(path.clone()),
             _ => None,
         }
     }
@@ -208,7 +208,7 @@ impl FileEdit {
     #[getter]
     pub fn text(&self) -> Option<String> {
         match &self.value {
-            bridge::FileEdit::SetText { text, .. } => Some(text.clone()),
+            bridge::Edit::SetText { text, .. } => Some(text.clone()),
             _ => None,
         }
     }
@@ -217,90 +217,41 @@ impl FileEdit {
     #[getter]
     pub fn to(&self) -> Option<String> {
         match &self.value {
-            bridge::FileEdit::Move { to, .. } => Some(to.clone()),
+            bridge::Edit::Move { to, .. } => Some(to.clone()),
             _ => None,
         }
     }
 }
 
-impl FileEdit {
+impl Edit {
     /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::FileEdit {
+    pub(crate) fn into_bridge(self) -> bridge::Edit {
         self.value
     }
 
     /// Convert one bridge value into one Python value.
-    pub(crate) fn from_bridge(value: bridge::FileEdit) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Edit) -> Self {
         Self { value }
     }
 }
 
-/// One file update applied through one session ref.
-#[pyclass(name = "FileUpdate", module = "destack._native", from_py_object)]
+/// One committed edit batch.
+#[pyclass(name = "Commit", module = "destack._native", from_py_object)]
 #[derive(Debug, Clone)]
-pub struct FileUpdate {
-    pub(crate) value: bridge::FileUpdate,
+pub struct Commit {
+    pub(crate) value: bridge::Commit,
 }
 
 #[pymethods]
-impl FileUpdate {
+impl Commit {
     /// Create one value.
     #[new]
-    pub fn new(base: Option<Revision>, edits: Vec<FileEdit>) -> Self {
+    pub fn new(before: Revision, after: Revision, changes: Vec<Change>) -> Self {
         Self {
-            value: bridge::FileUpdate {
-                base: base.map(|item| item.into_bridge()),
-                edits: edits.into_iter().map(|item| item.into_bridge()).collect(),
-            },
-        }
-    }
-
-    /// Expected base revision.
-    #[getter]
-    pub fn base(&self) -> Option<Revision> {
-        self.value
-            .base
-            .clone()
-            .map(|item| Revision::from_bridge(item))
-    }
-
-    /// File edits in this atomic update.
-    #[getter]
-    pub fn edits(&self) -> Vec<FileEdit> {
-        self.value
-            .edits
-            .clone()
-            .into_iter()
-            .map(|item| FileEdit::from_bridge(item))
-            .collect()
-    }
-}
-
-#[allow(dead_code)]
-impl FileUpdate {
-    /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::FileUpdate {
-        self.value
-    }
-}
-
-/// File update result.
-#[pyclass(name = "FileUpdateResult", module = "destack._native", from_py_object)]
-#[derive(Debug, Clone)]
-pub struct FileUpdateResult {
-    pub(crate) value: bridge::FileUpdateResult,
-}
-
-#[pymethods]
-impl FileUpdateResult {
-    /// Create one value.
-    #[new]
-    pub fn new(before: Revision, after: Revision, files: Vec<FileChange>) -> Self {
-        Self {
-            value: bridge::FileUpdateResult {
+            value: bridge::Commit {
                 before: before.into_bridge(),
                 after: after.into_bridge(),
-                files: files.into_iter().map(|item| item.into_bridge()).collect(),
+                changes: changes.into_iter().map(|item| item.into_bridge()).collect(),
             },
         }
     }
@@ -319,20 +270,20 @@ impl FileUpdateResult {
 
     /// Changed files.
     #[getter]
-    pub fn files(&self) -> Vec<FileChange> {
+    pub fn changes(&self) -> Vec<Change> {
         self.value
-            .files
+            .changes
             .clone()
             .into_iter()
-            .map(|item| FileChange::from_bridge(item))
+            .map(|item| Change::from_bridge(item))
             .collect()
     }
 }
 
 #[allow(dead_code)]
-impl FileUpdateResult {
+impl Commit {
     /// Convert one bridge value into one Python value.
-    pub(crate) fn from_bridge(value: bridge::FileUpdateResult) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Commit) -> Self {
         Self { value }
     }
 }
@@ -341,8 +292,7 @@ impl FileUpdateResult {
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<TextRange>()?;
     module.add_class::<TextEdit>()?;
-    module.add_class::<FileEdit>()?;
-    module.add_class::<FileUpdate>()?;
-    module.add_class::<FileUpdateResult>()?;
+    module.add_class::<Edit>()?;
+    module.add_class::<Commit>()?;
     Ok(())
 }

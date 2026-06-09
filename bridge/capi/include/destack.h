@@ -34,40 +34,35 @@ DestackStatus destack_source_add_bytes(
     DestackError **error
 );
 
-DestackFileUpdate *destack_file_update_new(void);
-void destack_file_update_destroy(DestackFileUpdate *update);
-DestackStatus destack_file_update_set_base(
-    DestackFileUpdate *update,
-    const char *revision,
-    DestackError **error
-);
-DestackStatus destack_file_update_add_set_text(
-    DestackFileUpdate *update,
+DestackEdits *destack_edits_new(void);
+void destack_edits_destroy(DestackEdits *edits);
+DestackStatus destack_edits_add_set_text(
+    DestackEdits *edits,
     const char *path,
     const char *text,
     DestackError **error
 );
-DestackStatus destack_file_update_add_edit_text(
-    DestackFileUpdate *update,
+DestackStatus destack_edits_add_edit_text(
+    DestackEdits *edits,
     const char *path,
-    const DestackTextEdit *edits,
+    const DestackTextEdit *text_edits,
     size_t len,
     DestackError **error
 );
-DestackStatus destack_file_update_add_set_bytes(
-    DestackFileUpdate *update,
+DestackStatus destack_edits_add_set_bytes(
+    DestackEdits *edits,
     const char *path,
     const uint8_t *bytes,
     size_t len,
     DestackError **error
 );
-DestackStatus destack_file_update_add_remove(
-    DestackFileUpdate *update,
+DestackStatus destack_edits_add_remove(
+    DestackEdits *edits,
     const char *path,
     DestackError **error
 );
-DestackStatus destack_file_update_add_move(
-    DestackFileUpdate *update,
+DestackStatus destack_edits_add_move(
+    DestackEdits *edits,
     const char *from,
     const char *to,
     DestackError **error
@@ -89,15 +84,22 @@ DestackStatus destack_session_files(
     DestackSessionFileArray *out,
     DestackError **error
 );
-DestackStatus destack_session_update(
+DestackStatus destack_session_edit(
     DestackSession *session,
-    const DestackFileUpdate *update,
-    DestackFileUpdateResult *out,
+    const DestackEdits *edits,
+    DestackCommit *out,
+    DestackError **error
+);
+DestackStatus destack_session_edit_at(
+    DestackSession *session,
+    const DestackRevision *revision,
+    const DestackEdits *edits,
+    DestackCommit *out,
     DestackError **error
 );
 DestackStatus destack_session_reload(
     DestackSession *session,
-    DestackFileChangeArray *out,
+    DestackChangeArray *out,
     DestackError **error
 );
 DestackStatus destack_session_load_module(

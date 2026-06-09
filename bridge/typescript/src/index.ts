@@ -26,8 +26,8 @@ export type {
 } from "./diagnostic/diagnostic.generated.js";
 export type {
     BatchEdit,
-    Edit,
     FilePatch,
+    Replacement,
 } from "./diagnostic/edit.generated.js";
 export type { DirChecked } from "./dir/checked.generated.js";
 export type { DirParsed } from "./dir/parsed.generated.js";
@@ -50,18 +50,14 @@ export type { TargetId } from "./source/target.generated.js";
 export type { SessionFile } from "./session/file.generated.js";
 export type { Module } from "./session/module.generated.js";
 export {
-    FileEdit,
+    Edit,
     Source,
     openSession,
     type Session,
 } from "./session/session.js";
+export type { Change } from "./session/source/file.generated.js";
 export type {
-    FileChange,
-    FileChangeKind,
-} from "./session/source/file.generated.js";
-export type {
-    FileUpdate,
-    FileUpdateResult,
+    Commit,
     TextEdit,
     TextRange,
 } from "./session/source/update.generated.js";

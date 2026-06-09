@@ -6,32 +6,24 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::ModuleId;
 
-/// Observed file change projected from a file update.
+/// One file change observed by a session.
 #[derive(Debug, Clone)]
 #[wasm_bindgen]
-pub struct FileChange {
+pub struct Change {
     path: String,
     uri: String,
-    kind: String,
     is_removed: bool,
     module_id: Option<ModuleId>,
 }
 
 #[wasm_bindgen]
-impl FileChange {
+impl Change {
     /// Create one value.
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        path: String,
-        uri: String,
-        kind: String,
-        is_removed: bool,
-        module_id: Option<ModuleId>,
-    ) -> Self {
+    pub fn new(path: String, uri: String, is_removed: bool, module_id: Option<ModuleId>) -> Self {
         Self {
             path,
             uri,
-            kind,
             is_removed,
             module_id,
         }
@@ -49,12 +41,6 @@ impl FileChange {
         self.uri.clone()
     }
 
-    /// Coarse file change kind.
-    #[wasm_bindgen(getter, js_name = "kind")]
-    pub fn kind(&self) -> String {
-        self.kind.clone()
-    }
-
     /// Whether the file was removed.
     #[wasm_bindgen(getter, js_name = "isRemoved")]
     pub fn is_removed(&self) -> bool {
@@ -68,24 +54,14 @@ impl FileChange {
     }
 }
 
-impl FileChange {
+impl Change {
     /// Convert one bridge value into one WASM value.
-    pub(crate) fn from_bridge(value: bridge::FileChange) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Change) -> Self {
         Self {
             path: value.path,
             uri: value.uri,
-            kind: file_change_kind_label(value.kind),
             is_removed: value.is_removed,
             module_id: value.module_id.map(|item| ModuleId::from_bridge(item)),
         }
     }
-}
-
-/// Return one target enum label.
-fn file_change_kind_label(value: bridge::FileChangeKind) -> String {
-    let label = match value {
-        bridge::FileChangeKind::Source => "source",
-        bridge::FileChangeKind::Config => "config",
-    };
-    label.to_string()
 }

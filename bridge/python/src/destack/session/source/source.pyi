@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from destack.session.source.update import (
-    FileEdit,
+    Edit,
 )
 
 class Source:
@@ -15,15 +15,15 @@ class Source:
     @staticmethod
     def file_system(path: str) -> Source: ...
 
-    """In-memory filesystem source seeded by file edits."""
+    """In-memory filesystem source seeded by edits."""
     @staticmethod
-    def memory(root: str, edits: Sequence[FileEdit]) -> Source: ...
+    def memory(root: str, edits: Sequence[Edit]) -> Source: ...
 
     @property
     def kind(self) -> str: ...
 
     @property
-    def edits(self) -> list[FileEdit] | None: ...
+    def edits(self) -> list[Edit] | None: ...
 
     @property
     def path(self) -> str | None: ...

@@ -11,21 +11,21 @@
 extern "C" {
 #endif
 
-typedef struct DestackFileUpdateResult {
+typedef struct DestackCommit {
     DestackRevision before;
     DestackRevision after;
-    DestackFileChangeArray files;
-} DestackFileUpdateResult;
+    DestackChangeArray changes;
+} DestackCommit;
 
-typedef struct DestackFileUpdateResultArray {
-    DestackFileUpdateResult *ptr;
+typedef struct DestackCommitArray {
+    DestackCommit *ptr;
     size_t len;
-} DestackFileUpdateResultArray;
+} DestackCommitArray;
 
-typedef struct DestackOptionalFileUpdateResult {
+typedef struct DestackOptionalCommit {
     bool is_some;
-    DestackFileUpdateResult value;
-} DestackOptionalFileUpdateResult;
+    DestackCommit value;
+} DestackOptionalCommit;
 
 typedef struct DestackTextRange {
     uint32_t start;
@@ -57,8 +57,8 @@ typedef struct DestackOptionalTextEdit {
     DestackTextEdit value;
 } DestackOptionalTextEdit;
 
-void destack_file_update_result_destroy(DestackFileUpdateResult *value);
-void destack_file_update_result_array_destroy(DestackFileUpdateResultArray array);
+void destack_commit_destroy(DestackCommit *value);
+void destack_commit_array_destroy(DestackCommitArray array);
 void destack_text_range_destroy(DestackTextRange *value);
 void destack_text_range_array_destroy(DestackTextRangeArray array);
 void destack_text_edit_destroy(DestackTextEdit *value);

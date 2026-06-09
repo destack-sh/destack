@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 
-import { FileEdit, Source, openSession } from "../dist/index.js";
+import { Edit, Source, openSession } from "../dist/index.js";
 import { openNapiSession } from "../dist/napi.js";
 
 const source = Source.memory(
     "/workspace",
     [
-        FileEdit.setText("destack.json", '{"name":"@test/app"}'),
-        FileEdit.setText("src/index.ds", "export const value = 1;"),
+        Edit.setText("destack.json", '{"name":"@test/app"}'),
+        Edit.setText("src/index.ds", "export const value = 1;"),
     ],
 );
 

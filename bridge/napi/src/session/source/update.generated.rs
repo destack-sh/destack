@@ -4,7 +4,7 @@ use destack_bridge_language as bridge;
 
 use napi_derive::napi;
 
-use crate::{FileChange, Revision};
+use crate::{Change, Revision};
 
 /// One text range in byte offsets.
 #[derive(Debug)]
@@ -46,10 +46,10 @@ impl TextEdit {
     }
 }
 
-/// One file edit accepted by a session update.
+/// One edit accepted by a session.
 #[derive(Debug)]
 #[napi(object)]
-pub struct FileEdit {
+pub struct Edit {
     /// Payload variant label.
     pub kind: String,
     /// Repository logical path.
@@ -66,9 +66,9 @@ pub struct FileEdit {
     pub to: Option<String>,
 }
 
-impl FileEdit {
+impl Edit {
     /// Convert this NAPI payload enum into one bridge enum.
-    pub(crate) fn into_bridge(self) -> napi::Result<bridge::FileEdit> {
+    pub(crate) fn into_bridge(self) -> napi::Result<bridge::Edit> {
         match self.kind.as_str() {
             "setText" => {
                 if self.edits.is_some() {
@@ -91,7 +91,7 @@ impl FileEdit {
                     return Err(missing_payload("text"));
                 };
                 let text = value;
-                Ok(bridge::FileEdit::SetText { path, text })
+                Ok(bridge::Edit::SetText { path, text })
             }
             "editText" => {
                 if self.text.is_some() {
@@ -117,7 +117,7 @@ impl FileEdit {
                     .into_iter()
                     .map(|item| Ok::<_, napi::Error>(item.into_bridge()?))
                     .collect::<napi::Result<Vec<_>>>()?;
-                Ok(bridge::FileEdit::EditText { path, edits })
+                Ok(bridge::Edit::EditText { path, edits })
             }
             "setBytes" => {
                 if self.text.is_some() {
@@ -140,7 +140,7 @@ impl FileEdit {
                     return Err(missing_payload("bytes"));
                 };
                 let bytes = value;
-                Ok(bridge::FileEdit::SetBytes { path, bytes })
+                Ok(bridge::Edit::SetBytes { path, bytes })
             }
             "remove" => {
                 if self.text.is_some() {
@@ -162,7 +162,7 @@ impl FileEdit {
                     return Err(missing_payload("path"));
                 };
                 let path = value;
-                Ok(bridge::FileEdit::Remove { path })
+                Ok(bridge::Edit::Remove { path })
             }
             "move" => {
                 if self.path.is_some() {
@@ -185,11 +185,11 @@ impl FileEdit {
                     return Err(missing_payload("to"));
                 };
                 let to = value;
-                Ok(bridge::FileEdit::Move { from, to })
+                Ok(bridge::Edit::Move { from, to })
             }
             _ => Err(napi::Error::from_reason(format!(
                 "unknown {}: {}",
-                stringify!(FileEdit),
+                stringify!(Edit),
                 self.kind
             ))),
         }
@@ -206,55 +206,28 @@ fn unexpected_payload(kind: &str) -> napi::Error {
     napi::Error::from_reason(format!("{kind} payload is unexpected"))
 }
 
-/// One file update applied through one session ref.
+/// One committed edit batch.
 #[derive(Debug)]
 #[napi(object)]
-pub struct FileUpdate {
-    /// Expected base revision.
-    pub base: Option<Revision>,
-    /// File edits in this atomic update.
-    pub edits: Vec<FileEdit>,
-}
-
-impl FileUpdate {
-    /// Convert this NAPI value into one bridge value.
-    pub(crate) fn into_bridge(self) -> napi::Result<bridge::FileUpdate> {
-        Ok(bridge::FileUpdate {
-            base: self
-                .base
-                .map(|item| Ok::<_, napi::Error>(item.into_bridge()?))
-                .transpose()?,
-            edits: self
-                .edits
-                .into_iter()
-                .map(|item| Ok::<_, napi::Error>(item.into_bridge()?))
-                .collect::<napi::Result<Vec<_>>>()?,
-        })
-    }
-}
-
-/// File update result.
-#[derive(Debug)]
-#[napi(object)]
-pub struct FileUpdateResult {
+pub struct Commit {
     /// Previous revision.
     pub before: Revision,
     /// Updated revision.
     pub after: Revision,
     /// Changed files.
-    pub files: Vec<FileChange>,
+    pub changes: Vec<Change>,
 }
 
-impl FileUpdateResult {
+impl Commit {
     /// Convert one bridge value into one NAPI value.
-    pub(crate) fn from_bridge(value: bridge::FileUpdateResult) -> Self {
+    pub(crate) fn from_bridge(value: bridge::Commit) -> Self {
         Self {
             before: Revision::from_bridge(value.before),
             after: Revision::from_bridge(value.after),
-            files: value
-                .files
+            changes: value
+                .changes
                 .into_iter()
-                .map(|item| FileChange::from_bridge(item))
+                .map(|item| Change::from_bridge(item))
                 .collect(),
         }
     }

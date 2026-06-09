@@ -4,9 +4,9 @@ use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
 use crate::{
-    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Diagnostic, DirChecked,
-    DirParsed, DirResolved, FileChange, FileUpdate, FileUpdateResult, Module, ProfileId, Revision,
-    SessionFile, Source, artifact, diagnostic, dir, repository, session, source,
+    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Change, Commit, Diagnostic,
+    DirChecked, DirParsed, DirResolved, Edit, Module, ProfileId, Revision, SessionFile, Source,
+    artifact, diagnostic, dir, repository, session, source,
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -44,20 +44,29 @@ impl Session {
         Ok(files)
     }
 
-    /// Apply one file update.
-    pub fn update(&self, update: FileUpdate) -> PyResult<FileUpdateResult> {
+    /// Edit files through the current session revision.
+    pub fn edit(&self, edits: Vec<Edit>) -> PyResult<Commit> {
+        let edits = edits.into_iter().map(Edit::into_bridge).collect();
+        let value = self.session.edit(edits).map_err(to_error)?;
+
+        Ok(Commit::from_bridge(value))
+    }
+
+    /// Edit files when the current revision still matches.
+    pub fn edit_at(&self, revision: Revision, edits: Vec<Edit>) -> PyResult<Commit> {
+        let edits = edits.into_iter().map(Edit::into_bridge).collect();
         let value = self
             .session
-            .update(update.into_bridge())
+            .edit_at(revision.into_bridge(), edits)
             .map_err(to_error)?;
 
-        Ok(FileUpdateResult::from_bridge(value))
+        Ok(Commit::from_bridge(value))
     }
 
     /// Reload tracked files from this session backing source.
-    pub fn reload(&self) -> PyResult<Vec<FileChange>> {
+    pub fn reload(&self) -> PyResult<Vec<Change>> {
         let updates = self.session.reload().map_err(to_error)?;
-        let updates = updates.into_iter().map(FileChange::from_bridge).collect();
+        let updates = updates.into_iter().map(Change::from_bridge).collect();
 
         Ok(updates)
     }
