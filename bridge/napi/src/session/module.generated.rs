@@ -15,6 +15,15 @@ pub struct Module {
 }
 
 impl Module {
+    /// Convert this NAPI value into one bridge value.
+    pub(crate) fn into_bridge(self) -> napi::Result<bridge::Module> {
+        Ok(bridge::Module {
+            id: self.id.into_bridge()?,
+        })
+    }
+}
+
+impl Module {
     /// Convert one bridge value into one NAPI value.
     pub(crate) fn from_bridge(value: bridge::Module) -> Self {
         Self {

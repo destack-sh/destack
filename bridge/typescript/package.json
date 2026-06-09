@@ -47,6 +47,16 @@
             "import": "./dist/artifact/key.generated.js",
             "default": "./dist/artifact/key.generated.js"
         },
+        "./artifact/dependency": {
+            "types": "./dist/artifact/dependency.generated.d.ts",
+            "import": "./dist/artifact/dependency.generated.js",
+            "default": "./dist/artifact/dependency.generated.js"
+        },
+        "./artifact/record": {
+            "types": "./dist/artifact/record.generated.d.ts",
+            "import": "./dist/artifact/record.generated.js",
+            "default": "./dist/artifact/record.generated.js"
+        },
         "./artifact/sidecar": {
             "types": "./dist/artifact/sidecar.generated.d.ts",
             "import": "./dist/artifact/sidecar.generated.js",
@@ -66,6 +76,21 @@
             "types": "./dist/diagnostic/edit.generated.d.ts",
             "import": "./dist/diagnostic/edit.generated.js",
             "default": "./dist/diagnostic/edit.generated.js"
+        },
+        "./dir/checked": {
+            "types": "./dist/dir/checked.generated.d.ts",
+            "import": "./dist/dir/checked.generated.js",
+            "default": "./dist/dir/checked.generated.js"
+        },
+        "./dir/parsed": {
+            "types": "./dist/dir/parsed.generated.d.ts",
+            "import": "./dist/dir/parsed.generated.js",
+            "default": "./dist/dir/parsed.generated.js"
+        },
+        "./dir/resolved": {
+            "types": "./dist/dir/resolved.generated.d.ts",
+            "import": "./dist/dir/resolved.generated.js",
+            "default": "./dist/dir/resolved.generated.js"
         },
         "./repository/revision": {
             "types": "./dist/repository/revision.generated.d.ts",
@@ -87,10 +112,10 @@
             "import": "./dist/session/source/file.generated.js",
             "default": "./dist/session/source/file.generated.js"
         },
-        "./session/source/snapshot": {
-            "types": "./dist/session/source/snapshot.generated.d.ts",
-            "import": "./dist/session/source/snapshot.generated.js",
-            "default": "./dist/session/source/snapshot.generated.js"
+        "./session/source/source": {
+            "types": "./dist/session/source/source.generated.d.ts",
+            "import": "./dist/session/source/source.generated.js",
+            "default": "./dist/session/source/source.generated.js"
         },
         "./session/source/update": {
             "types": "./dist/session/source/update.generated.d.ts",

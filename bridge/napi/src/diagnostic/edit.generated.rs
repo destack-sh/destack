@@ -29,16 +29,16 @@ impl Edit {
 /// Edits for a single file.
 #[derive(Debug)]
 #[napi(object)]
-pub struct FileEdit {
+pub struct FilePatch {
     /// Edited file.
     pub file: FileId,
     /// Source edits.
     pub edits: Vec<Edit>,
 }
 
-impl FileEdit {
+impl FilePatch {
     /// Convert one bridge value into one NAPI value.
-    pub(crate) fn from_bridge(value: bridge::FileEdit) -> Self {
+    pub(crate) fn from_bridge(value: bridge::FilePatch) -> Self {
         Self {
             file: FileId::from_bridge(value.file),
             edits: value
@@ -55,7 +55,7 @@ impl FileEdit {
 #[napi(object)]
 pub struct BatchEdit {
     /// Per-file edits.
-    pub files: Vec<FileEdit>,
+    pub files: Vec<FilePatch>,
 }
 
 impl BatchEdit {
@@ -65,7 +65,7 @@ impl BatchEdit {
             files: value
                 .files
                 .into_iter()
-                .map(|item| FileEdit::from_bridge(item))
+                .map(|item| FilePatch::from_bridge(item))
                 .collect(),
         }
     }

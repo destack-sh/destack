@@ -1,10 +1,10 @@
 #[path = "file.generated.rs"]
 mod file;
-#[path = "snapshot.generated.rs"]
-mod snapshot;
+#[path = "source.generated.rs"]
+mod source;
 #[path = "update.generated.rs"]
 mod update;
 
 pub use file::*;
-pub use snapshot::*;
+pub use source::*;
 pub use update::*;
