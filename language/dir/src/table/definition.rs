@@ -5,7 +5,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Extension, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
+    Extension, FunctionRole, GlobalNodeIdAny, GlobalStaticId, GlobalSymbolId, GlobalTypeId,
     LocalGenericInstanceId, LocalGenericTemplateId, MemberSlot, SegmentView, StaticKey,
 };
 
@@ -462,6 +462,8 @@ pub struct MethodDefinition {
     pub source: GlobalNodeIdAny,
     /// The nominal member slot.
     pub slot: MemberSlot,
+    /// The method role.
+    pub role: Option<FunctionRole>,
     /// The checked method type.
     pub ty: GlobalTypeId,
 }
