@@ -187,7 +187,7 @@ impl<'a> LintModuleContext<'a> {
         node_id: dir::LocalNodeId<T>,
     ) -> Option<dir::LocalSymbolId> {
         self.symbols
-            .symbol_for_declaration(node_id.into_global_any(self.module.id))
+            .declaration_symbol(node_id.into_global_any(self.module.id))
     }
 
     /// Return the global symbol declared by one DIR node.
