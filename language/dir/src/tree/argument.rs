@@ -158,6 +158,14 @@ impl Parameter {
             Self::Error => false,
         }
     }
+
+    /// Return whether this parameter may be omitted at the call site.
+    pub fn is_optional(&self) -> bool {
+        match self {
+            Self::Named { is_optional, .. } | Self::Pattern { is_optional, .. } => *is_optional,
+            Self::VariadicNamed { .. } | Self::VariadicPattern { .. } | Self::Error => false,
+        }
+    }
 }
 
 /// A generic argument in static argument position.

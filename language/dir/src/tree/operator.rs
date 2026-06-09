@@ -372,6 +372,12 @@ impl BinaryOperator {
         )
     }
 
+    /// Return whether this operator tests overloadable value equality.
+    #[inline]
+    pub fn is_value_equality(self) -> bool {
+        matches!(self, BinaryOperator::Equal | BinaryOperator::NotEqual)
+    }
+
     /// Return whether this equality operator negates the relation.
     #[inline]
     pub fn is_negative_equality(self) -> bool {

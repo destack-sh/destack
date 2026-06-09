@@ -10,7 +10,7 @@ pub struct ImportTable {
     /// The module id of the import table.
     pub module_id: ModuleId,
     /// Modules reached by resolved imports and active globals.
-    pub dependencies: Vec<ModuleId>,
+    pub modules: Vec<ModuleId>,
     /// Imported local symbols keyed to their resolved target.
     pub target_by_symbol: IndexMap<LocalSymbolId, ImportTarget>,
     /// Global targets made visible by the active profile.
@@ -24,17 +24,17 @@ impl ImportTable {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
-            dependencies: Vec::new(),
+            modules: Vec::new(),
             target_by_symbol: IndexMap::new(),
             global_target_by_key: IndexMap::new(),
             language_symbol_by_item: IndexMap::new(),
         }
     }
 
-    /// Add one resolved dependency.
-    pub fn push_dependency(&mut self, module: ModuleId) {
-        if !self.dependencies.contains(&module) {
-            self.dependencies.push(module);
+    /// Add one resolved module.
+    pub fn push_module(&mut self, module: ModuleId) {
+        if !self.modules.contains(&module) {
+            self.modules.push(module);
         }
     }
 
@@ -87,6 +87,11 @@ impl ImportTable {
     pub fn language_symbols(&self) -> impl Iterator<Item = GlobalSymbolId> + '_ {
         self.language_symbol_by_item.values().copied()
     }
+
+    /// Return resolved modules.
+    pub fn modules(&self) -> impl Iterator<Item = ModuleId> + '_ {
+        self.modules.iter().copied()
+    }
 }
 
 /// Target selected by one import binding.
@@ -96,4 +101,14 @@ pub enum ImportTarget {
     Symbol(GlobalSymbolId),
     /// A namespace object for a target module.
     Namespace(ModuleId),
+}
+
+impl ImportTarget {
+    /// Return the target module.
+    pub fn module(self) -> ModuleId {
+        match self {
+            Self::Symbol(symbol) => symbol.module_id,
+            Self::Namespace(module) => module,
+        }
+    }
 }
