@@ -7,7 +7,7 @@
 
 **Destack is a universal software engine for building correct, optimal, integrated software systems.**
 
-Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, and library.
+Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, and libraries.
 
 <p>
     <a href="VERSION.txt"><img src="https://img.shields.io/badge/version-0.55.4-2ea44f?style=for-the-badge" alt="Version"></a>
