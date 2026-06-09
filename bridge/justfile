@@ -148,10 +148,8 @@ publish-npm dry="--dry-run":
 publish-cargo dry="--dry-run":
     @if [ "{{dry}}" = "--dry-run" ]; then \
         cargo check -p destack_bridge_language -p destack; \
-        cargo check --manifest-path rust/aliases/destack-rs/Cargo.toml; \
         (cd language && cargo package --allow-dirty --list >/dev/null); \
         (cd rust && cargo package --allow-dirty --list >/dev/null); \
-        (cd rust/aliases/destack-rs && cargo package --allow-dirty --list >/dev/null); \
     else \
         if [ -z "${CARGO_TOKEN:-}" ]; then \
             echo "missing CARGO_TOKEN env var for live cargo publish"; \
@@ -159,7 +157,6 @@ publish-cargo dry="--dry-run":
         fi; \
         (cd language && cargo publish --token "${CARGO_TOKEN}"); \
         (cd rust && cargo publish --token "${CARGO_TOKEN}"); \
-        (cd rust/aliases/destack-rs && cargo publish --token "${CARGO_TOKEN}"); \
     fi
 
 # publish pypi package dry by default
