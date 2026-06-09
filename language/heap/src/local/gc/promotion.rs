@@ -438,42 +438,32 @@ impl HeapStorage {
         forwarding: &ForwardingTable,
         trace_table: &TraceTable,
     ) -> HeapResult<bool> {
-        let card_end = card.card.byte_start + card.card.byte_len;
-        let first_slot = card.card.byte_start / card.size_class;
-        let last_slot = (card_end - 1) / card.size_class;
-        let end_slot = (last_slot + 1).min(card.slot_count);
         let mut has_young_reference = false;
 
-        for slot_index in first_slot..end_slot {
+        // rewrite occupied slots overlapped by the dirty card
+        for overlap in card.card.slot_overlaps(card.size_class, card.slot_count) {
             let Some(span) = self.span(span_index) else {
                 return Err(HeapError::internal("missing span"));
             };
-            if !span.occupied.contains(slot_index) {
+            if !span.occupied.contains(overlap.slot_index) {
                 continue;
             }
 
-            let trace_map = self.small_slot_trace_map(span_index, slot_index, trace_table)?;
+            // skip slots without local heap references
+            let trace_map =
+                self.small_slot_trace_map(span_index, overlap.slot_index, trace_table)?;
             if !trace_map.has_local_reference() {
                 continue;
             }
 
-            let slot_start = card.size_class * slot_index;
-            let slot_end = slot_start + card.size_class;
-            let overlap_start = card.card.byte_start.max(slot_start);
-            let overlap_end = card_end.min(slot_end);
-            if overlap_start >= overlap_end {
-                continue;
-            }
-
-            let offset = card.first_offset + slot_start;
-            let local_start = overlap_start - slot_start;
-            let local_len = overlap_end - overlap_start;
+            // rewrite forwarded references inside the dirty slice
+            let offset = card.first_offset + overlap.slot_start;
             has_young_reference |= self.rewrite_payload_reference_range(
                 offset,
                 card.size_class,
                 &trace_map,
-                local_start,
-                local_len,
+                overlap.byte_start,
+                overlap.byte_len,
                 forwarding,
             )?;
         }

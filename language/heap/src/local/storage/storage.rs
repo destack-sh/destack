@@ -12,7 +12,7 @@ use crate::allocator::{Allocator, PageSpan, PageSpanCache, SizeClassTable};
 use crate::local::heap::HeapUsage;
 use crate::{
     AllocationUsage, CowTable, HeapError, HeapOptions, HeapReference, HeapResult, SmallSpanClass,
-    allocation_trace_map, slot_trace_map,
+    align_up, allocation_trace_map, slot_trace_map,
 };
 
 /// The first non-null heap large-block id.
@@ -561,11 +561,4 @@ pub(crate) struct LargeStorage {
     pub(crate) free_large_block_ids: Vec<u64>,
     /// The next heap block id to allocate.
     pub(crate) next_unused_large_block_id: u64,
-}
-
-/// Return the offset rounded up to one block boundary.
-fn align_up(byte_len: usize, alignment_bytes: usize) -> usize {
-    let alignment_bytes = alignment_bytes.max(1);
-
-    byte_len.div_ceil(alignment_bytes) * alignment_bytes
 }

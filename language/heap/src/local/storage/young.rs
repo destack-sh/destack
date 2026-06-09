@@ -371,11 +371,7 @@ impl YoungCursor {
     /// Return whether this cursor can allocate the requested byte length.
     #[inline(always)]
     pub(crate) fn matches(&self, class: SmallSpanClass, byte_len: usize) -> bool {
-        self.class.size_class == class.size_class
-            && self.class.span_size_bytes == class.span_size_bytes
-            && self.class.trace_id == class.trace_id
-            && self.class.is_noscan == class.is_noscan
-            && self.byte_len == byte_len
+        self.class == class && self.byte_len == byte_len
     }
 
     /// Reserve one reference from this cursor.

@@ -112,6 +112,17 @@ impl AddressSpace {
         // SAFETY: caller owns the mapped range invariant
         unsafe { self.map.write_mapped_bytes(offset, bytes) }
     }
+
+    /// Zero a range that the caller knows is already mapped.
+    ///
+    /// # Safety
+    ///
+    /// The byte range must be live and fully materialized in this address space.
+    #[inline(always)]
+    pub unsafe fn zero_mapped_bytes(&self, offset: usize, byte_len: usize) {
+        // SAFETY: caller owns the mapped range invariant
+        unsafe { self.map.zero_mapped_bytes(offset, byte_len) }
+    }
 }
 
 #[cfg(test)]

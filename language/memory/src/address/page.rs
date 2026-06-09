@@ -1,5 +1,5 @@
 use std::ops::Range;
-use std::ptr::{copy_nonoverlapping, read_volatile, write_bytes, write_volatile};
+use std::ptr::{copy_nonoverlapping, from_ref, read_volatile, write_bytes, write_volatile};
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -19,8 +19,8 @@ pub(super) struct PageMap {
     frame_size_bytes: usize,
     /// The platform allocator for mapped page frames.
     frames: Arc<PageFrameAllocator>,
-    /// The atomic page state table.
-    pages: Arc<PageTable>,
+    /// The atomic page state table, pinned for the registered write watch.
+    pages: Box<PageTable>,
     /// The write watch registration for this map.
     write_watch: Option<WriteWatchRegistration>,
     /// The page table mutation lock.
@@ -100,7 +100,10 @@ impl PageMap {
             return Ok(());
         }
 
-        self.zero_mapped_bytes(offset, byte_len);
+        // SAFETY: make_writable materialized the full range above
+        unsafe {
+            self.zero_mapped_bytes(offset, byte_len);
+        }
 
         Ok(())
     }
@@ -235,6 +238,21 @@ impl PageMap {
         self.copy_bytes_to_mapped(offset, bytes);
     }
 
+    /// Zero a range that the caller knows is already mapped.
+    ///
+    /// # Safety
+    ///
+    /// The byte range must be live and fully materialized in this page map.
+    #[inline(always)]
+    pub(super) unsafe fn zero_mapped_bytes(&self, offset: usize, byte_len: usize) {
+        let target = self.mapped_address(offset);
+
+        // SAFETY: the caller owns the mapped range invariant
+        unsafe {
+            write_bytes(target, 0, byte_len);
+        }
+    }
+
     /// Make already mapped shared pages in one page frame range writable.
     fn make_mapped_frame_range_writable(
         &self,
@@ -300,7 +318,7 @@ impl PageMap {
         frames: Arc<PageFrameAllocator>,
     ) -> MemoryResult<Self> {
         // register stable page metadata for native write watch
-        let pages = Arc::new(PageTable::new(
+        let pages = Box::new(PageTable::new(
             space.base() as usize,
             byte_len,
             frame_size_bytes,
@@ -311,7 +329,7 @@ impl PageMap {
             Some(platform::register_write_watch(
                 space.base(),
                 byte_len,
-                Arc::as_ptr(&pages).cast(),
+                from_ref(pages.as_ref()).cast(),
             )?)
         };
 
@@ -493,17 +511,6 @@ impl PageMap {
         // SAFETY: callers prepare page protections first
         unsafe {
             copy_nonoverlapping(bytes.as_ptr(), target, bytes.len());
-        }
-    }
-
-    /// Zero one mapped page range.
-    #[inline(always)]
-    fn zero_mapped_bytes(&self, offset: usize, byte_len: usize) {
-        let target = self.mapped_address(offset);
-
-        // SAFETY: callers prepare page protections first
-        unsafe {
-            write_bytes(target, 0, byte_len);
         }
     }
 

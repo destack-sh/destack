@@ -264,3 +264,30 @@ impl TraceReference for EdgeWork {
         }
     }
 }
+
+/// Charge bitmap metadata work and return the cursor reached.
+pub(crate) fn charge_bitmap_skip(
+    start: usize,
+    end: usize,
+    budget_bytes: usize,
+    swept_bytes: &mut usize,
+) -> usize {
+    if start >= end {
+        return end;
+    }
+
+    // charge one work unit per skipped bitmap word
+    let skipped_bits = end - start;
+    let skipped_words = skipped_bits.div_ceil(GC_METADATA_WORD_BITS);
+    let remaining_budget = budget_bytes - *swept_bytes;
+    if skipped_words <= remaining_budget {
+        *swept_bytes += skipped_words;
+
+        return end;
+    }
+
+    // stop at the bit reachable within the remaining budget
+    *swept_bytes = budget_bytes;
+
+    start + remaining_budget * GC_METADATA_WORD_BITS
+}

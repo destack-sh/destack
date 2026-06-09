@@ -75,3 +75,49 @@ pub(crate) struct DirtyCard {
     /// The card byte length.
     pub(crate) byte_len: usize,
 }
+
+impl DirtyCard {
+    /// Return each span slot overlapped by this dirty card.
+    pub(crate) fn slot_overlaps(
+        self,
+        size_class: usize,
+        slot_count: usize,
+    ) -> impl Iterator<Item = CardSlotOverlap> {
+        // translate the dirty byte card to covered span slots
+        let card_end = self.byte_start + self.byte_len;
+        let first_slot = self.byte_start / size_class;
+        let last_slot = (card_end - 1) / size_class;
+        let end_slot = (last_slot + 1).min(slot_count);
+
+        (first_slot..end_slot).filter_map(move |slot_index| {
+            // intersect the card range with this slot payload
+            let slot_start = size_class * slot_index;
+            let slot_end = slot_start + size_class;
+            let overlap_start = self.byte_start.max(slot_start);
+            let overlap_end = card_end.min(slot_end);
+            if overlap_start >= overlap_end {
+                return None;
+            }
+
+            Some(CardSlotOverlap {
+                slot_index,
+                slot_start,
+                byte_start: overlap_start - slot_start,
+                byte_len: overlap_end - overlap_start,
+            })
+        })
+    }
+}
+
+/// One dirty-card overlap with one span slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct CardSlotOverlap {
+    /// The overlapped slot index.
+    pub(crate) slot_index: usize,
+    /// The slot base byte offset inside the span.
+    pub(crate) slot_start: usize,
+    /// The overlap start inside the slot payload.
+    pub(crate) byte_start: usize,
+    /// The overlap byte length.
+    pub(crate) byte_len: usize,
+}
