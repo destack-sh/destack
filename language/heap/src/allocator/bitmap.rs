@@ -23,6 +23,19 @@ impl Bitmap {
         }
     }
 
+    /// Create one bitmap from packed words.
+    pub(crate) fn from_words(capacity: usize, words: impl IntoIterator<Item = u64>) -> Self {
+        let words = words.into_iter().collect::<Vec<_>>();
+        debug_assert_eq!(words.len(), capacity.div_ceil(BITMAP_WORD_BITS));
+
+        Self { capacity, words }
+    }
+
+    /// Return the packed bitmap words.
+    pub(crate) fn words(&self) -> &[u64] {
+        &self.words
+    }
+
     /// Ensure this bitmap can represent the given bit count.
     pub fn ensure_capacity(&mut self, capacity: usize) {
         if capacity <= self.capacity {

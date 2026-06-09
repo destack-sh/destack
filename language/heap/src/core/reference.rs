@@ -38,6 +38,27 @@ impl ReferenceRange {
             Self::Bytes { start, end } => ranges_overlap(start, end, offset, width),
         }
     }
+
+    /// Return the repeated element indexes whose strides overlap this range.
+    fn element_window(self, base_offset: usize, stride: usize, count: u32) -> std::ops::Range<u32> {
+        match self {
+            Self::All => 0..count,
+            Self::Bytes { start, end } => {
+                // empty or fully preceding ranges cover no elements
+                if end <= base_offset || stride == 0 {
+                    return 0..0;
+                }
+
+                // intersect the byte range with the repeated extent
+                let first = start.saturating_sub(base_offset) / stride;
+                let last = (end - base_offset).div_ceil(stride);
+                let first = (first.min(count as usize)) as u32;
+                let last = (last.min(count as usize)) as u32;
+
+                first..last
+            }
+        }
+    }
 }
 
 /// Reference bytes consumed by one scan.
@@ -168,7 +189,9 @@ fn walk_reference_offset_union<R: ReferenceClass>(
             stride,
             element,
         } => {
-            for index in 0..*count {
+            // element references lie within their stride, so prune by range
+            let window = range.element_window(base_offset, *stride as usize, *count);
+            for index in window {
                 let element_offset = base_offset + index as usize * *stride as usize;
 
                 if !walk_reference_offset_union::<R>(element, element_offset, range, visit) {
@@ -198,23 +221,40 @@ pub(crate) fn slot_trace_map(
     size_class: usize,
     byte_len: usize,
 ) -> TraceMap {
+    slot_trace_map_with(
+        |bit_index| local_reference_bits.contains(bit_index),
+        |bit_index| shared_reference_bits.contains(bit_index),
+        slot_index,
+        size_class,
+        byte_len,
+    )
+}
+
+/// Return the exact trace map encoded for one small slot by bit predicates.
+pub(crate) fn slot_trace_map_with(
+    local_contains: impl Fn(usize) -> bool,
+    shared_contains: impl Fn(usize) -> bool,
+    slot_index: usize,
+    size_class: usize,
+    byte_len: usize,
+) -> TraceMap {
     // locate this slot in the span reference bitmaps
     let word_count = size_class.div_ceil(REFERENCE_BYTES);
     let bit_start = slot_index * word_count;
 
     direct_trace_map(
-        local_reference_bits,
-        shared_reference_bits,
+        local_contains,
+        shared_contains,
         bit_start,
         word_count,
         byte_len,
     )
 }
 
-/// Return the exact trace map encoded in one bitmap range.
+/// Return the exact trace map encoded in one bit range.
 fn direct_trace_map(
-    local_reference_bits: &Bitmap,
-    shared_reference_bits: &Bitmap,
+    local_contains: impl Fn(usize) -> bool,
+    shared_contains: impl Fn(usize) -> bool,
     bit_start: usize,
     word_count: usize,
     byte_len: usize,
@@ -231,11 +271,11 @@ fn direct_trace_map(
             break;
         }
 
-        if local_reference_bits.contains(bit_index) {
+        if local_contains(bit_index) {
             local_offsets.push(byte_offset as u32);
         }
 
-        if shared_reference_bits.contains(bit_index) {
+        if shared_contains(bit_index) {
             shared_offsets.push(byte_offset as u32);
         }
     }
@@ -291,8 +331,8 @@ pub(crate) fn allocation_trace_map(
     let word_count = byte_len.div_ceil(REFERENCE_BYTES);
 
     direct_trace_map(
-        local_reference_bits,
-        shared_reference_bits,
+        |bit_index| local_reference_bits.contains(bit_index),
+        |bit_index| shared_reference_bits.contains(bit_index),
         bit_start,
         word_count,
         byte_len,
@@ -546,7 +586,9 @@ fn walk_trace_map<W: ReferenceWalker>(
             stride,
             element,
         } => {
-            for index in 0..*count {
+            // element references lie within their stride, so prune by range
+            let window = range.element_window(base_offset, *stride as usize, *count);
+            for index in window {
                 let element_offset = base_offset + index as usize * *stride as usize;
 
                 walk_trace_map(element, element_offset, range, walker)?;

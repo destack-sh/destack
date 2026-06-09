@@ -3,7 +3,7 @@ use destack_mir::{TraceMap, TraceTable};
 use super::{HeapExtent, HeapPlace, HeapStorage};
 use crate::{
     HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference,
-    scan_references,
+    overlaps_heap_range, scan_references,
 };
 
 impl HeapStorage {
@@ -81,7 +81,7 @@ impl HeapStorage {
         trace_table: &TraceTable,
     ) -> HeapResult<Vec<SharedHeapReference>> {
         // skip ranges that cannot contain shared references
-        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
         if !self.overlaps_shared_roots(&trace_map, byte_offset, bytes.len()) {
             return Ok(Vec::new());
         }
@@ -159,15 +159,25 @@ impl HeapStorage {
         match extent.storage {
             HeapPlace::YoungRange { .. } | HeapPlace::YoungSlot(_) => Ok(()),
             HeapPlace::MatureSlot(slot) => {
-                let trace_map =
-                    self.small_slot_trace_map(slot.span_index(), slot.slot_index(), trace_table)?;
+                // skip writes that cannot touch local references
+                let is_overlapping = {
+                    let trace_map = self.small_slot_trace_map_ref(
+                        slot.span_index(),
+                        slot.slot_index(),
+                        trace_table,
+                    )?;
 
-                self.mark_span_slot_dirty(
+                    overlaps_heap_range(&trace_map, byte_offset, byte_len)
+                };
+                if !is_overlapping {
+                    return Ok(());
+                }
+
+                self.remember_span_slot_write(
                     slot.span_index(),
                     slot.slot_index(),
                     byte_offset,
                     byte_len,
-                    &trace_map,
                 )
             }
             HeapPlace::LargeBlock(block_id) => {
@@ -191,8 +201,12 @@ impl HeapStorage {
         }
 
         // skip writes that cannot touch shared references
-        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
-        if !self.overlaps_shared_roots(&trace_map, byte_offset, byte_len) {
+        let is_overlapping = {
+            let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
+
+            self.overlaps_shared_roots(&trace_map, byte_offset, byte_len)
+        };
+        if !is_overlapping {
             return Ok(());
         }
 

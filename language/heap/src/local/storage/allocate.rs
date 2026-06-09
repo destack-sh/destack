@@ -713,7 +713,7 @@ impl HeapStorage {
         &mut self,
         byte_len: usize,
         trace_map: &TraceMap,
-        bytes: &[u8],
+        source_offset: usize,
     ) -> HeapResult<HeapPlace> {
         let storage = if !trace_map.has_reference()
             && let Some(class_index) = self.small.size_classes.class_index_for(byte_len)
@@ -732,15 +732,28 @@ impl HeapStorage {
                 return Err(HeapError::internal("missing span"));
             };
             let slot_index = span.free_cursor;
+            let target_offset = span.first_offset + slot_index * class.size_class;
             let slot = self.initialize_small_slot(
                 &class,
                 span_index,
                 slot_index,
                 byte_len,
                 trace_map,
-                Payload::Bytes(bytes),
+                Payload::Uninit,
                 false,
             )?;
+
+            // SAFETY: young source and mature target are materialized and disjoint
+            unsafe {
+                self.mapping
+                    .copy_mapped_bytes(source_offset, target_offset, byte_len);
+
+                // keep zeroed slack semantics for the slot tail
+                if byte_len < class.size_class {
+                    self.mapping
+                        .zero_mapped_bytes(target_offset + byte_len, class.size_class - byte_len);
+                }
+            }
 
             self.record_mature_allocation(class.size_class);
 
@@ -757,8 +770,14 @@ impl HeapStorage {
             let Some(block) = self.large_block(block_id) else {
                 return Err(HeapError::internal("missing large block"));
             };
+            let first_offset = block.first_offset;
 
-            Payload::Bytes(bytes).initialize_mapped(&self.mapping, block.first_offset, byte_len);
+            // SAFETY: young source and mature target are materialized and disjoint
+            unsafe {
+                self.mapping
+                    .copy_mapped_bytes(source_offset, first_offset, byte_len);
+            }
+
             self.record_mature_allocation(byte_len);
 
             HeapPlace::LargeBlock(block_id)

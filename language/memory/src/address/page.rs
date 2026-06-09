@@ -1,5 +1,5 @@
 use std::ops::Range;
-use std::ptr::{copy_nonoverlapping, from_ref, read_volatile, write_bytes, write_volatile};
+use std::ptr::{copy_nonoverlapping, from_ref, write_bytes};
 use std::sync::Arc;
 
 use parking_lot::Mutex;
@@ -289,13 +289,7 @@ impl PageMap {
                 byte_len,
             )?;
 
-            // force private pages before later stores
-            for page_offset in 0..run_len {
-                let offset = (run_start + page_offset) * self.frame_size_bytes;
-
-                self.force_private_page(offset);
-            }
-
+            // later stores copy the shared pages on first write
             // publish the modified state after the protection change succeeds
             for page_offset in 0..run_len {
                 let page_index = run_start + page_offset;
@@ -487,7 +481,7 @@ impl PageMap {
 
     /// Return one mapped address without validating the range.
     #[inline(always)]
-    fn mapped_address(&self, offset: usize) -> *mut u8 {
+    pub(super) fn mapped_address(&self, offset: usize) -> *mut u8 {
         // SAFETY: callers validate and materialize the range first
         unsafe { self.space.base().add(offset) }
     }
@@ -511,19 +505,6 @@ impl PageMap {
         // SAFETY: callers prepare page protections first
         unsafe {
             copy_nonoverlapping(bytes.as_ptr(), target, bytes.len());
-        }
-    }
-
-    /// Force one shared page to become privately writable.
-    #[inline(always)]
-    fn force_private_page(&self, offset: usize) {
-        let page_address = self.mapped_address(offset);
-
-        // SAFETY: page_address is mapped and writable after protection changes
-        unsafe {
-            let byte = read_volatile(page_address);
-
-            write_volatile(page_address, byte);
         }
     }
 

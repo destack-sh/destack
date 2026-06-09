@@ -31,7 +31,7 @@ impl HeapStorage {
         };
 
         // scan references overwritten by this store
-        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
         let base_address = self.mapping.base_address() + extent.base.offset();
         visit_references::<SharedHeapReference>(
             &trace_map,

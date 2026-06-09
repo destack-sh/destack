@@ -147,11 +147,8 @@ impl HeapStorage {
             }
 
             let trace_map = self.young_range_trace_map(range.first_offset)?;
-            let bytes = self
-                .mapping
-                .read_bytes(range.first_offset, range.byte_len)?;
             let target_place =
-                self.allocate_promoted_payload(range.byte_len, &trace_map, &bytes)?;
+                self.allocate_promoted_payload(range.byte_len, &trace_map, range.first_offset)?;
             let target = self.base_reference(target_place)?;
 
             // publish forwarding after the copied payload is tracked
@@ -204,13 +201,13 @@ impl HeapStorage {
                     continue;
                 }
 
-                let bytes = self
-                    .mapping
-                    .read_bytes(source.offset(), span.class.size_class)?;
                 let trace_map =
                     self.trace_map_for_place(HeapPlace::YoungSlot(slot), trace_table)?;
-                let target_place =
-                    self.allocate_promoted_payload(span.class.size_class, &trace_map, &bytes)?;
+                let target_place = self.allocate_promoted_payload(
+                    span.class.size_class,
+                    &trace_map,
+                    source.offset(),
+                )?;
                 let target = self.base_reference(target_place)?;
 
                 self.publish_promoted_payload(
@@ -606,29 +603,19 @@ impl HeapStorage {
             return Ok(());
         }
 
-        let mut did_rewrite = false;
-        let mut bytes = self.mapping.read_bytes(offset, byte_len)?;
-        visit_heap_root_slots(
-            trace_map,
-            0,
-            &mut bytes,
-            ReferenceRange::All,
-            &mut |mut slot| {
-                let Some(reference) = slot.load_heap_reference()? else {
-                    return Ok(());
-                };
+        // SAFETY: live payloads are materialized and the mutator is paused at this safepoint
+        let bytes = unsafe { self.mapping.mapped_bytes_mut(offset, byte_len) };
+        visit_heap_root_slots(trace_map, 0, bytes, ReferenceRange::All, &mut |mut slot| {
+            let Some(reference) = slot.load_heap_reference()? else {
+                return Ok(());
+            };
 
-                if let Some(next_reference) = self.forwarded_reference(reference, forwarding)? {
-                    slot.store_heap_reference(next_reference)?;
-                    did_rewrite = true;
-                }
+            if let Some(next_reference) = self.forwarded_reference(reference, forwarding)? {
+                slot.store_heap_reference(next_reference)?;
+            }
 
-                Ok(())
-            },
-        )?;
-        if did_rewrite {
-            self.mapping.write_bytes(offset, &bytes)?;
-        }
+            Ok(())
+        })?;
 
         Ok(())
     }
@@ -666,13 +653,14 @@ impl HeapStorage {
             )
         };
         let mut has_young_reference = false;
-        let mut did_rewrite = false;
-        let mut bytes = self.mapping.read_bytes(window_offset, window_len)?;
+
+        // SAFETY: live payloads are materialized and the mutator is paused at this safepoint
+        let bytes = unsafe { self.mapping.mapped_bytes_mut(window_offset, window_len) };
 
         visit_heap_root_slots(
             trace_map,
             window_start,
-            &mut bytes,
+            bytes,
             ReferenceRange::bytes(range_start, range_len),
             &mut |mut slot| {
                 let Some(reference) = slot.load_heap_reference()? else {
@@ -682,7 +670,6 @@ impl HeapStorage {
                     self.forwarded_reference(reference, forwarding)?
                 {
                     slot.store_heap_reference(next_reference)?;
-                    did_rewrite = true;
 
                     next_reference
                 } else {
@@ -696,10 +683,6 @@ impl HeapStorage {
                 Ok(())
             },
         )?;
-
-        if did_rewrite {
-            self.mapping.write_bytes(window_offset, &bytes)?;
-        }
 
         Ok(has_young_reference)
     }

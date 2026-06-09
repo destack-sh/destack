@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -323,20 +324,33 @@ impl HeapStorage {
         storage: HeapPlace,
         trace_table: &TraceTable,
     ) -> HeapResult<TraceMap> {
+        let trace_map = self.trace_map_for_place_ref(storage, trace_table)?;
+
+        Ok(trace_map.into_owned())
+    }
+
+    /// Borrow the trace map for one heap storage without cloning table-backed maps.
+    pub(crate) fn trace_map_for_place_ref<'a>(
+        &'a self,
+        storage: HeapPlace,
+        trace_table: &'a TraceTable,
+    ) -> HeapResult<Cow<'a, TraceMap>> {
         match storage {
-            HeapPlace::YoungRange { first_offset } => self.young_range_trace_map(first_offset),
-            HeapPlace::YoungSlot(slot) => self.young_slot_trace_map(slot.span_index(), trace_table),
+            HeapPlace::YoungRange { first_offset } => {
+                Ok(Cow::Owned(self.young_range_trace_map(first_offset)?))
+            }
+            HeapPlace::YoungSlot(slot) => {
+                self.young_slot_trace_map_ref(slot.span_index(), trace_table)
+            }
             HeapPlace::MatureSlot(slot) => {
-                self.small_slot_trace_map(slot.span_index(), slot.slot_index(), trace_table)
+                self.small_slot_trace_map_ref(slot.span_index(), slot.slot_index(), trace_table)
             }
             HeapPlace::LargeBlock(block_id) => {
-                let trace_map = self
+                let block = self
                     .large_block(block_id)
-                    .ok_or(HeapError::internal("missing large block"))?
-                    .trace_map
-                    .clone();
+                    .ok_or(HeapError::internal("missing large block"))?;
 
-                Ok(trace_map)
+                Ok(Cow::Borrowed(&block.trace_map))
             }
         }
     }
@@ -448,6 +462,18 @@ impl HeapStorage {
         slot_index: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<TraceMap> {
+        let trace_map = self.small_slot_trace_map_ref(span_index, slot_index, trace_table)?;
+
+        Ok(trace_map.into_owned())
+    }
+
+    /// Borrow the exact trace map stored for one small slot.
+    pub(crate) fn small_slot_trace_map_ref<'a>(
+        &'a self,
+        span_index: usize,
+        slot_index: usize,
+        trace_table: &'a TraceTable,
+    ) -> HeapResult<Cow<'a, TraceMap>> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::internal("missing span"));
         };
@@ -455,42 +481,44 @@ impl HeapStorage {
             return Err(HeapError::internal("missing small slot"));
         }
 
+        // table-backed classes share one canonical map
         if let Some(trace_id) = span.class.trace_id {
             let trace_map = trace_table
                 .trace(trace_id)
                 .ok_or(HeapError::internal("missing trace map"))?;
 
-            return Ok(trace_map.clone());
+            return Ok(Cow::Borrowed(trace_map));
         }
 
-        Ok(slot_trace_map(
+        Ok(Cow::Owned(slot_trace_map(
             &span.local_reference_bits,
             &span.shared_reference_bits,
             slot_index,
             span.class.size_class,
             span.class.size_class,
-        ))
+        )))
     }
 
-    /// Return the exact trace map stored for one young span slot.
-    pub(crate) fn young_slot_trace_map(
-        &self,
+    /// Borrow the exact trace map stored for one young span slot.
+    pub(crate) fn young_slot_trace_map_ref<'a>(
+        &'a self,
         span_index: usize,
-        trace_table: &TraceTable,
-    ) -> HeapResult<TraceMap> {
+        trace_table: &'a TraceTable,
+    ) -> HeapResult<Cow<'a, TraceMap>> {
         let Some(span) = self.young.span(span_index) else {
             return Err(HeapError::internal("missing span"));
         };
 
+        // class-less young spans are no-scan
         let Some(trace_id) = span.class.trace_id else {
-            return Ok(TraceMap::Empty);
+            return Ok(Cow::Owned(TraceMap::Empty));
         };
 
         let trace_map = trace_table
             .trace(trace_id)
             .ok_or(HeapError::internal("missing trace map"))?;
 
-        Ok(trace_map.clone())
+        Ok(Cow::Borrowed(trace_map))
     }
 
     /// Return the exact trace map stored for one young range.

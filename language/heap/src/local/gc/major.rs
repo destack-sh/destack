@@ -6,7 +6,7 @@ use crate::local::gc::{
 use crate::local::storage::{GcKind, GcStats, HeapExtent, HeapPlace, HeapStorage};
 use crate::{
     GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference, HeapResult,
-    ReferenceInput, ReferenceRange, RootSlot, visit_references,
+    ReferenceInput, ReferenceRange, RootSlot, scan_references,
 };
 
 impl HeapStorage {
@@ -45,15 +45,32 @@ impl HeapStorage {
             return Ok(());
         }
 
-        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
+        // scan the written range into the reusable scratch
+        let scan_len = byte_len.min(self.byte_len_for_place(extent.storage)? - byte_offset);
+        let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
+        let base_address = self.mapping.base_address() + extent.base.offset();
+        self.trace_map_for_place_ref(extent.storage, trace_table)
+            .and_then(|trace_map| {
+                // skip writes that cannot touch local references
+                if !trace_map.has_local_reference() {
+                    return Ok(());
+                }
 
-        self.enqueue_payload_references(
-            extent.base,
-            extent.storage,
-            byte_offset,
-            byte_len,
-            &trace_map,
-        )
+                scan_references::<HeapReference>(
+                    &trace_map,
+                    ReferenceInput::mapped(base_address),
+                    ReferenceRange::bytes(byte_offset, scan_len),
+                    &mut scratch,
+                )
+            })?;
+
+        // enqueue the discovered references
+        for reference in scratch.drain(..) {
+            self.enqueue_major_reference(reference)?;
+        }
+        self.collector.local_reference_scratch = scratch;
+
+        Ok(())
     }
 
     /// Queue local references from one heap payload range into the active major cycle.
@@ -70,21 +87,17 @@ impl HeapStorage {
         }
 
         // resolve the scan window inside the block payload
-        let extent = HeapExtent {
-            storage,
-            base: reference,
-            byte_offset: 0,
-            byte_len: self.byte_len_for_place(storage)?,
-        };
-        let scan_len = byte_len.min(extent.byte_len - byte_offset);
+        let byte_len_for_place = self.byte_len_for_place(storage)?;
+        let scan_len = byte_len.min(byte_len_for_place - byte_offset);
 
-        // scan local reference slots in mapped heap memory
-        let base_address = self.mapping.base_address() + extent.base.offset();
-        let result = visit_references::<HeapReference>(
+        // scan local reference slots into the reusable scratch
+        let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
+        let base_address = self.mapping.base_address() + reference.offset();
+        let result = scan_references::<HeapReference>(
             trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(byte_offset, scan_len),
-            &mut |reference| self.enqueue_major_reference(reference),
+            &mut scratch,
         );
 
         if let Err(error) = result {
@@ -93,6 +106,12 @@ impl HeapStorage {
                 error,
             ));
         }
+
+        // enqueue the discovered references
+        for reference in scratch.drain(..) {
+            self.enqueue_major_reference(reference)?;
+        }
+        self.collector.local_reference_scratch = scratch;
 
         Ok(())
     }
@@ -638,21 +657,19 @@ impl HeapStorage {
             return Err(HeapError::invalid_heap_reference(reference));
         };
 
-        // resolve the payload trace map
-        let trace_map = self
-            .trace_map_for_place(extent.storage, trace_table)
-            .map_err(|error| {
-                HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
-            })?;
-
-        // scan local references inside the payload
+        // scan local references inside the payload into the reusable scratch
+        let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
         let base_address = self.mapping.base_address() + extent.base.offset();
-        let trace_result = visit_references::<HeapReference>(
-            &trace_map,
-            ReferenceInput::mapped(base_address),
-            ReferenceRange::All,
-            &mut |reference| self.enqueue_major_reference(reference),
-        );
+        let trace_result = self
+            .trace_map_for_place_ref(extent.storage, trace_table)
+            .and_then(|trace_map| {
+                scan_references::<HeapReference>(
+                    &trace_map,
+                    ReferenceInput::mapped(base_address),
+                    ReferenceRange::All,
+                    &mut scratch,
+                )
+            });
 
         if let Err(error) = trace_result {
             return Err(HeapError::scan_failed(
@@ -660,6 +677,12 @@ impl HeapStorage {
                 error,
             ));
         }
+
+        // enqueue the discovered references
+        for reference in scratch.drain(..) {
+            self.enqueue_major_reference(reference)?;
+        }
+        self.collector.local_reference_scratch = scratch;
 
         Ok(extent.byte_len.max(1))
     }
@@ -680,27 +703,33 @@ impl HeapStorage {
         };
 
         // skip empty ranges and noscan payloads
-        let trace_map = self
-            .trace_map_for_place(extent.storage, trace_table)
+        let has_local_reference = self
+            .trace_map_for_place_ref(extent.storage, trace_table)
             .map_err(|error| {
                 HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
-            })?;
-        if !trace_map.has_local_reference() || start >= extent.byte_len {
+            })?
+            .has_local_reference();
+        if !has_local_reference || start >= extent.byte_len {
             return Ok(0);
         }
 
-        // scan at most one allocator page
+        // scan at most one allocator page into the reusable scratch
         let range_len = self
             .allocator()
             .page_size_bytes()
             .min(extent.byte_len - start);
+        let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
         let base_address = self.mapping.base_address() + extent.base.offset();
-        let trace_result = visit_references::<HeapReference>(
-            &trace_map,
-            ReferenceInput::mapped(base_address),
-            ReferenceRange::bytes(start, range_len),
-            &mut |reference| self.enqueue_major_reference(reference),
-        );
+        let trace_result = self
+            .trace_map_for_place_ref(extent.storage, trace_table)
+            .and_then(|trace_map| {
+                scan_references::<HeapReference>(
+                    &trace_map,
+                    ReferenceInput::mapped(base_address),
+                    ReferenceRange::bytes(start, range_len),
+                    &mut scratch,
+                )
+            });
 
         if let Err(error) = trace_result {
             return Err(HeapError::scan_failed(
@@ -708,6 +737,12 @@ impl HeapStorage {
                 error,
             ));
         }
+
+        // enqueue the discovered references
+        for reference in scratch.drain(..) {
+            self.enqueue_major_reference(reference)?;
+        }
+        self.collector.local_reference_scratch = scratch;
 
         // continue this large block on a later step
         let next_start = start + range_len;

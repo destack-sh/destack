@@ -1,10 +1,10 @@
-use destack_mir::{TraceMap, TraceTable};
+use destack_mir::TraceTable;
 
 use crate::local::gc::{DirtyCard, DirtyExtent, GC_METADATA_STEP_BYTES, Phase, charge_bitmap_skip};
 use crate::local::storage::{GcKind, GcStats, HeapPlace, HeapStorage, LargeBlockId};
 use crate::{
     AllocationUsage, GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference,
-    HeapResult, ReferenceInput, ReferenceRange, RootSlot, TraceQueue, visit_references,
+    HeapResult, ReferenceInput, ReferenceRange, RootSlot, TraceQueue, scan_references,
 };
 
 impl HeapStorage {
@@ -226,28 +226,32 @@ impl HeapStorage {
                 continue;
             }
 
-            // load exact reference layout for this block
-            let trace_map = self
-                .trace_map_for_place(extent.storage, trace_table)
-                .map_err(|error| {
-                    HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
-                })?;
-
-            // enqueue every local reference discovered in this payload
+            // scan every local reference in this payload into the reusable scratch
+            let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
             let base_address = self.mapping.base_address() + extent.base.offset();
-            let trace_result = visit_references::<HeapReference>(
-                &trace_map,
-                ReferenceInput::mapped(base_address),
-                ReferenceRange::All,
-                &mut |reference| self.enqueue_young_reference(reference, &mut pending),
-            );
+            let scan_result = self
+                .trace_map_for_place_ref(extent.storage, trace_table)
+                .and_then(|trace_map| {
+                    scan_references::<HeapReference>(
+                        &trace_map,
+                        ReferenceInput::mapped(base_address),
+                        ReferenceRange::All,
+                        &mut scratch,
+                    )
+                });
 
-            if let Err(error) = trace_result {
+            if let Err(error) = scan_result {
                 return Err(HeapError::scan_failed(
                     HeapOperationSource::Reference(reference),
                     error,
                 ));
             }
+
+            // enqueue the discovered references
+            for reference in scratch.drain(..) {
+                self.enqueue_young_reference(reference, &mut pending)?;
+            }
+            self.collector.local_reference_scratch = scratch;
 
             marked_bytes += extent.byte_len.max(1);
         }
@@ -527,7 +531,9 @@ impl HeapStorage {
             DirtyExtent::Span(span_index) => {
                 self.scan_dirty_span_card(span_index, pending, trace_table)
             }
-            DirtyExtent::Large(block_id) => self.scan_dirty_large_card(block_id, pending),
+            DirtyExtent::Large(block_id) => {
+                self.scan_dirty_large_card(block_id, pending, trace_table)
+            }
         }
     }
 
@@ -585,28 +591,28 @@ impl HeapStorage {
                 continue;
             }
 
-            // skip slots without local heap references
-            let trace_map =
-                self.small_slot_trace_map(span_index, overlap.slot_index, trace_table)?;
-            if !trace_map.has_local_reference() {
-                continue;
-            }
-
-            // enqueue young references discovered in the dirty slice
+            // scan young references in the dirty slice into the reusable scratch
+            let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
             let base_address = self.mapping.base_address() + card.first_offset + overlap.slot_start;
-            visit_references::<HeapReference>(
-                &trace_map,
-                ReferenceInput::mapped(base_address),
-                ReferenceRange::bytes(overlap.byte_start, overlap.byte_len),
-                &mut |reference| {
-                    has_young_reference |= self.reference_is_young(reference)?;
+            self.small_slot_trace_map_ref(span_index, overlap.slot_index, trace_table)
+                .and_then(|trace_map| {
+                    scan_references::<HeapReference>(
+                        &trace_map,
+                        ReferenceInput::mapped(base_address),
+                        ReferenceRange::bytes(overlap.byte_start, overlap.byte_len),
+                        &mut scratch,
+                    )
+                })
+                .map_err(|error| {
+                    HeapError::scan_failed(HeapOperationSource::Span(span_index), error)
+                })?;
 
-                    self.enqueue_young_reference(reference, pending)
-                },
-            )
-            .map_err(|error| {
-                HeapError::scan_failed(HeapOperationSource::Span(span_index), error)
-            })?;
+            // enqueue the discovered references
+            for reference in scratch.drain(..) {
+                has_young_reference |= self.reference_is_young(reference)?;
+                self.enqueue_young_reference(reference, pending)?;
+            }
+            self.collector.local_reference_scratch = scratch;
         }
 
         Ok(Some(DirtyCardScan {
@@ -667,27 +673,35 @@ impl HeapStorage {
         &mut self,
         block_id: LargeBlockId,
         pending: &mut TraceQueue<HeapReference>,
+        trace_table: &TraceTable,
     ) -> HeapResult<Option<DirtyCardScan>> {
         let Some(card) = self.select_dirty_large_card(block_id)? else {
             return Ok(None);
         };
         let mut has_young_reference = false;
 
-        // scan the dirty byte range inside the large block
+        // scan the dirty byte range into the reusable scratch
+        let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
         let base_address = self.mapping.base_address() + card.first_offset;
-        visit_references::<HeapReference>(
-            &card.trace_map,
-            ReferenceInput::mapped(base_address),
-            ReferenceRange::bytes(card.card.byte_start, card.card.byte_len),
-            &mut |reference| {
-                has_young_reference |= self.reference_is_young(reference)?;
+        self.trace_map_for_place_ref(HeapPlace::LargeBlock(block_id), trace_table)
+            .and_then(|trace_map| {
+                scan_references::<HeapReference>(
+                    &trace_map,
+                    ReferenceInput::mapped(base_address),
+                    ReferenceRange::bytes(card.card.byte_start, card.card.byte_len),
+                    &mut scratch,
+                )
+            })
+            .map_err(|error| {
+                HeapError::scan_failed(HeapOperationSource::LargeBlock(block_id.id()), error)
+            })?;
 
-                self.enqueue_young_reference(reference, pending)
-            },
-        )
-        .map_err(|error| {
-            HeapError::scan_failed(HeapOperationSource::LargeBlock(block_id.id()), error)
-        })?;
+        // enqueue the discovered references
+        for reference in scratch.drain(..) {
+            has_young_reference |= self.reference_is_young(reference)?;
+            self.enqueue_young_reference(reference, pending)?;
+        }
+        self.collector.local_reference_scratch = scratch;
 
         Ok(Some(DirtyCardScan {
             card: card.card,
@@ -717,7 +731,6 @@ impl HeapStorage {
         Ok(Some(DirtyLargeCard {
             card,
             first_offset: block.first_offset,
-            trace_map: block.trace_map.clone(),
         }))
     }
 
@@ -823,6 +836,4 @@ struct DirtyLargeCard {
     card: DirtyCard,
     /// The block byte offset within heap storage.
     first_offset: usize,
-    /// The trace map used to scan the block.
-    trace_map: TraceMap,
 }
