@@ -5,9 +5,9 @@ use destack_session as session;
 
 use crate::{Revision, RevisionParseError, bridge};
 
-use super::FileUpdate;
+use super::FileChange;
 
-/// Source text range in byte offsets.
+/// One text range in byte offsets.
 #[bridge]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextRange {
@@ -17,7 +17,7 @@ pub struct TextRange {
     pub end: u32,
 }
 
-/// Source text replacement.
+/// One text replacement.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextEdit {
@@ -27,10 +27,10 @@ pub struct TextEdit {
     pub text: String,
 }
 
-/// One source edit accepted by a session update.
+/// One file edit accepted by a session update.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SourceEdit {
+pub enum FileEdit {
     /// Replace or create one text file.
     SetText {
         /// Repository logical path.
@@ -59,33 +59,33 @@ pub enum SourceEdit {
     },
     /// Move one file.
     Move {
-        /// Source repository logical path.
+        /// Repository logical path.
         from: String,
         /// Destination repository logical path.
         to: String,
     },
 }
 
-/// Source update applied through one session ref.
+/// One file update applied through one session ref.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceUpdate {
+pub struct FileUpdate {
     /// Expected base revision.
     pub base: Option<Revision>,
-    /// Source edits in this atomic update.
-    pub edits: Vec<SourceEdit>,
+    /// File edits in this atomic update.
+    pub edits: Vec<FileEdit>,
 }
 
-/// Source update result.
+/// File update result.
 #[bridge]
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceUpdateResult {
+pub struct FileUpdateResult {
     /// Previous revision.
     pub before: Revision,
     /// Updated revision.
     pub after: Revision,
     /// Changed files.
-    pub files: Vec<FileUpdate>,
+    pub files: Vec<FileChange>,
 }
 
 /// Error returned when a source bridge value cannot become a session value.
@@ -95,20 +95,20 @@ pub enum SourceBridgeError {
     Revision(crate::RevisionParseError),
 }
 
-impl SourceUpdateResult {
-    /// Convert one session source update result through one live session.
+impl FileUpdateResult {
+    /// Convert one session file update result through one live session.
     pub fn from_session_update(
         session: &session::Session,
-        result: session::SourceUpdateResult,
+        result: session::FileUpdateResult,
     ) -> Self {
-        let session::SourceUpdateResult {
+        let session::FileUpdateResult {
             before,
             after,
             files,
         } = result;
         let files = files
             .into_iter()
-            .map(|update| FileUpdate::from_session_update(session, update))
+            .map(|update| FileChange::from_session_update(session, update))
             .collect();
 
         Self {
@@ -119,11 +119,11 @@ impl SourceUpdateResult {
     }
 }
 
-impl TryFrom<SourceUpdate> for session::SourceUpdate {
+impl TryFrom<FileUpdate> for session::FileUpdate {
     type Error = SourceBridgeError;
 
-    /// Convert one bridge source update into one session source update.
-    fn try_from(update: SourceUpdate) -> Result<Self, Self::Error> {
+    /// Convert one bridge file update into one session file update.
+    fn try_from(update: FileUpdate) -> Result<Self, Self::Error> {
         let base = update
             .base
             .map(Revision::into_repository)
@@ -132,35 +132,35 @@ impl TryFrom<SourceUpdate> for session::SourceUpdate {
         let edits = update
             .edits
             .into_iter()
-            .map(session::SourceEdit::try_from)
+            .map(session::FileEdit::try_from)
             .collect::<Result<Vec<_>, _>>()?;
 
-        Ok(session::SourceUpdate { base, edits })
+        Ok(session::FileUpdate { base, edits })
     }
 }
 
-impl TryFrom<SourceEdit> for session::SourceEdit {
+impl TryFrom<FileEdit> for session::FileEdit {
     type Error = SourceBridgeError;
 
-    /// Convert one bridge source edit into one session source edit.
-    fn try_from(edit: SourceEdit) -> Result<Self, Self::Error> {
+    /// Convert one bridge file edit into one session file edit.
+    fn try_from(edit: FileEdit) -> Result<Self, Self::Error> {
         match edit {
-            SourceEdit::SetText { path, text } => Ok(Self::SetText {
+            FileEdit::SetText { path, text } => Ok(Self::SetText {
                 path: PathBuf::from(path),
                 text,
             }),
-            SourceEdit::EditText { path, edits } => Ok(Self::EditText {
+            FileEdit::EditText { path, edits } => Ok(Self::EditText {
                 path: PathBuf::from(path),
                 edits: edits.into_iter().map(session::TextEdit::from).collect(),
             }),
-            SourceEdit::SetBytes { path, bytes } => Ok(Self::SetBytes {
+            FileEdit::SetBytes { path, bytes } => Ok(Self::SetBytes {
                 path: PathBuf::from(path),
                 bytes,
             }),
-            SourceEdit::Remove { path } => Ok(Self::Remove {
+            FileEdit::Remove { path } => Ok(Self::Remove {
                 path: PathBuf::from(path),
             }),
-            SourceEdit::Move { from, to } => Ok(Self::Move {
+            FileEdit::Move { from, to } => Ok(Self::Move {
                 from: PathBuf::from(from),
                 to: PathBuf::from(to),
             }),
