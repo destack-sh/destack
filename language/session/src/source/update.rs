@@ -1,14 +1,12 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use destack_repository::{Edit as RepositoryEdit, Ref, RepositoryChange, Revision};
-use destack_source::{
-    Edit as SourceTextEdit, FileContent, FileEdit, FileId, Span, Uri, apply_file_edit,
-};
+use destack_repository::{Ref, Revision};
+use destack_source::{FileContent, FileId, Span, Uri, apply_file_edit};
 
-use crate::{FileChange, FileUpdate, FileUpdateKind, Session, SessionError};
+use crate::{Change, Session, SessionError};
 
-/// One source text range in byte offsets.
+/// One text range in byte offsets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextRange {
     /// Inclusive start byte offset.
@@ -17,7 +15,7 @@ pub struct TextRange {
     pub end: u32,
 }
 
-/// One source text replacement.
+/// One text replacement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextEdit {
     /// Replaced byte range.
@@ -26,9 +24,9 @@ pub struct TextEdit {
     pub text: String,
 }
 
-/// One source edit accepted by a session update.
+/// One edit accepted by a session update.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SourceEdit {
+pub enum Edit {
     /// Replace or create one text file.
     SetText {
         /// Repository or session relative path.
@@ -57,177 +55,153 @@ pub enum SourceEdit {
     },
     /// Move one file.
     Move {
-        /// Source repository or session relative path.
+        /// Repository or session relative path.
         from: PathBuf,
         /// Destination repository or session relative path.
         to: PathBuf,
     },
 }
 
-/// One source update applied through a session ref.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SourceUpdate {
-    /// Expected base revision when the caller wants compare and swap.
-    pub base: Option<Revision>,
-    /// Source edits in this atomic update.
-    pub edits: Vec<SourceEdit>,
+impl Edit {
+    /// Return the single file path affected by this edit.
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            Self::SetText { path, .. }
+            | Self::EditText { path, .. }
+            | Self::SetBytes { path, .. }
+            | Self::Remove { path } => Some(path.as_path()),
+            Self::Move { .. } => None,
+        }
+    }
+
+    /// Return whether this edit removes its target file.
+    pub fn is_remove(&self) -> bool {
+        matches!(self, Self::Remove { .. })
+    }
+
+    /// Return full text content when this edit sets text directly.
+    pub fn text(&self) -> Option<&str> {
+        match self {
+            Self::SetText { text, .. } => Some(text),
+            _ => None,
+        }
+    }
 }
 
-/// Result of one source update.
+/// One committed edit batch.
 #[derive(Debug, Clone)]
-pub struct SourceUpdateResult {
+pub struct Commit {
     /// Previous revision.
     pub before: Revision,
     /// Updated revision.
     pub after: Revision,
     /// Changed files.
-    pub files: Vec<FileUpdate>,
+    pub changes: Vec<Change>,
 }
 
 impl Session {
-    /// Apply one source update through one ref.
-    pub fn update(
-        &self,
-        reference: &Ref,
-        update: SourceUpdate,
-    ) -> Result<SourceUpdateResult, SessionError> {
-        let repository = self.repository();
+    /// Edit files through one ref.
+    pub fn edit(&self, reference: &Ref, edits: Vec<Edit>) -> Result<Commit, SessionError> {
         let before = self.revision(reference)?;
 
-        // reject stale compare-and-swap bases
-        if let Some(base) = update.base {
-            if base != before {
-                return Err(SessionError::StaleRevision {
-                    reference: reference.clone(),
-                    expected: base,
-                    current: before,
-                });
-            }
-        }
+        self.edit_at(reference, before, edits)
+    }
 
-        // build a repository change before pinning outputs
-        let (change, file_ids) = self.change_for_source_update(before, update.edits)?;
-        let before_pin = repository.pin(before)?;
-        let revision = repository.commit_change(before, change)?;
-        let revision_pin = repository.pin(revision)?;
-
-        // publish when the ref still points at the edited base
-        let was_published = repository.advance_ref(reference, before, revision)?;
-        if !was_published {
+    /// Edit files when one ref still points at one revision.
+    pub fn edit_at(
+        &self,
+        reference: &Ref,
+        revision: Revision,
+        edits: Vec<Edit>,
+    ) -> Result<Commit, SessionError> {
+        let current = self.revision(reference)?;
+        if current != revision {
             return Err(SessionError::StaleRevision {
                 reference: reference.clone(),
-                expected: before,
-                current: self.revision(reference)?,
+                expected: revision,
+                current,
             });
         }
 
-        let files =
-            self.project_file_updates(before_pin.revision(), revision_pin.revision(), file_ids)?;
+        self.commit_edits(reference, revision, edits)
+    }
 
-        Ok(SourceUpdateResult {
+    /// Commit edits through one ref at one known revision.
+    fn commit_edits(
+        &self,
+        reference: &Ref,
+        before: Revision,
+        edits: Vec<Edit>,
+    ) -> Result<Commit, SessionError> {
+        let repository = self.repository();
+        // build repository edits before pinning outputs
+        let edits = self.repository_edits_for_edits(before, edits)?;
+        let file_ids = repository_file_ids(&edits);
+        let before_pin = repository.pin(before)?;
+        let revision = repository.commit_edits(before, edits)?;
+        let revision_pin = repository.pin(revision)?;
+
+        // publish when the ref still points at the edited base
+        self.publish_revision(reference, before, revision)?;
+
+        let files =
+            self.project_file_changes(before_pin.revision(), revision_pin.revision(), file_ids)?;
+
+        Ok(Commit {
             before: before_pin.revision(),
             after: revision_pin.revision(),
-            files,
+            changes: files,
         })
     }
 
-    /// Apply one explicit file change through one ref.
-    pub fn apply_file(
-        &self,
-        reference: &Ref,
-        path: &Path,
-        update: FileChange,
-    ) -> Result<Vec<FileUpdate>, SessionError> {
-        let update = SourceUpdate {
-            base: None,
-            edits: vec![self.source_edit_for_file(path, update)],
-        };
-        let result = self.update(reference, update)?;
-
-        Ok(result.files)
-    }
-
-    /// Build one source edit from one file change.
-    fn source_edit_for_file(&self, path: &Path, update: FileChange) -> SourceEdit {
-        let path = path.to_path_buf();
-
-        match update {
-            FileChange::Text { content } => SourceEdit::SetText {
-                path,
-                text: content,
-            },
-            FileChange::Bytes { content } => SourceEdit::SetBytes {
-                path,
-                bytes: content,
-            },
-            FileChange::Removed => SourceEdit::Remove { path },
-        }
-    }
-
-    /// Build repository edits from source edits.
-    fn change_for_source_update(
+    /// Build repository edits from session edits.
+    fn repository_edits_for_edits(
         &self,
         revision: Revision,
-        edits: Vec<SourceEdit>,
-    ) -> Result<(RepositoryChange, Vec<FileId>), SessionError> {
-        let mut change = RepositoryChange::new();
-        let mut file_ids = Vec::new();
-        let mut seen_file_ids = HashSet::new();
+        edits: Vec<Edit>,
+    ) -> Result<Vec<destack_repository::Edit>, SessionError> {
+        let mut repository_edits = Vec::new();
 
-        // lower each source edit into repository edits
+        // lower each session edit into repository edits
         for edit in edits {
-            self.push_source_edit(
-                revision,
-                edit,
-                &mut change,
-                &mut file_ids,
-                &mut seen_file_ids,
-            )?;
+            self.push_edit(revision, edit, &mut repository_edits)?;
         }
 
-        Ok((change, file_ids))
+        Ok(repository_edits)
     }
 
-    /// Add one source edit to one repository change.
-    fn push_source_edit(
+    /// Add one session edit to one repository edit list.
+    fn push_edit(
         &self,
         revision: Revision,
-        edit: SourceEdit,
-        change: &mut RepositoryChange,
-        file_ids: &mut Vec<FileId>,
-        seen_file_ids: &mut HashSet<FileId>,
+        edit: Edit,
+        repository_edits: &mut Vec<destack_repository::Edit>,
     ) -> Result<(), SessionError> {
         match edit {
-            SourceEdit::SetText { path, text } => {
+            Edit::SetText { path, text } => {
                 let path = self.repository_path(&path);
-                self.push_affected_file(&path, file_ids, seen_file_ids);
-                change.push(RepositoryEdit::set_text(path, text));
+                repository_edits.push(destack_repository::Edit::set_text(path, text));
             }
-            SourceEdit::EditText { path, edits } => {
+            Edit::EditText { path, edits } => {
                 let path = self.repository_path(&path);
-                self.push_affected_file(&path, file_ids, seen_file_ids);
                 let text = self.apply_text_edits(revision, &path, edits)?;
-                change.push(RepositoryEdit::set_text(path, text));
+                repository_edits.push(destack_repository::Edit::set_text(path, text));
             }
-            SourceEdit::SetBytes { path, bytes } => {
+            Edit::SetBytes { path, bytes } => {
                 let path = self.repository_path(&path);
-                self.push_affected_file(&path, file_ids, seen_file_ids);
-                change.push(RepositoryEdit::SetFile {
+                repository_edits.push(destack_repository::Edit::SetFile {
                     logical_path: path,
                     content: FileContent::Binary { content: bytes },
                 });
             }
-            SourceEdit::Remove { path } => {
+            Edit::Remove { path } => {
                 let path = self.repository_path(&path);
-                self.push_affected_file(&path, file_ids, seen_file_ids);
-                change.push(RepositoryEdit::remove_file(path));
+                repository_edits.push(destack_repository::Edit::remove_file(path));
             }
-            SourceEdit::Move { from, to } => {
+            Edit::Move { from, to } => {
                 let from = self.repository_path(&from);
                 let to = self.repository_path(&to);
-                self.push_affected_file(&from, file_ids, seen_file_ids);
-                self.push_affected_file(&to, file_ids, seen_file_ids);
-                change.push(RepositoryEdit::move_file(from, to));
+                repository_edits.push(destack_repository::Edit::move_file(from, to));
             }
         }
 
@@ -253,7 +227,7 @@ impl Session {
         let edits = edits
             .into_iter()
             .map(|edit| {
-                SourceTextEdit::replace(
+                destack_source::Edit::replace(
                     Span::new(file_id, edit.range.start, edit.range.end),
                     edit.text,
                 )
@@ -261,36 +235,23 @@ impl Session {
             .collect();
 
         // materialize the updated text
-        let file_edit = FileEdit::with_edits(file_id, edits);
+        let file_edit = destack_source::FileEdit::with_edits(file_id, edits);
         let text = apply_file_edit(file.as_ref(), &file_edit)?;
 
         Ok(text)
     }
 
-    /// Add one affected file id.
-    fn push_affected_file(
-        &self,
-        path: &str,
-        file_ids: &mut Vec<FileId>,
-        seen_file_ids: &mut HashSet<FileId>,
-    ) {
-        let file_id = FileId::from_logical_str(path);
-        if seen_file_ids.insert(file_id) {
-            file_ids.push(file_id);
-        }
-    }
-
-    /// Project repository file changes into session file updates.
-    pub(crate) fn project_file_updates(
+    /// Project repository file changes into session file changes.
+    pub(crate) fn project_file_changes(
         &self,
         before: Revision,
         revision: Revision,
         file_changes: Vec<FileId>,
-    ) -> Result<Vec<FileUpdate>, SessionError> {
+    ) -> Result<Vec<Change>, SessionError> {
         let mut files = Vec::new();
         let repository = self.repository();
 
-        // project changed repository files into session update payloads
+        // project changed repository files into session change payloads
         let mut seen_file_ids = HashSet::new();
         for file_id in file_changes {
             if !seen_file_ids.insert(file_id) {
@@ -309,16 +270,13 @@ impl Session {
                 let path = file.path.as_deref().ok_or_else(|| SessionError::Internal {
                     detail: format!("updated repository file has no path: {file_id:?}"),
                 })?;
-                let kind = FileUpdateKind::for_path(path);
-
                 let uri = Uri::from_file_path(path);
 
-                files.push(FileUpdate::Updated {
+                files.push(Change::Updated {
                     module_id,
                     file_id,
                     uri,
                     file,
-                    kind,
                 });
 
                 continue;
@@ -337,19 +295,33 @@ impl Session {
                 .ok_or_else(|| SessionError::Internal {
                     detail: format!("removed repository file has no path: {file_id:?}"),
                 })?;
-            let kind = FileUpdateKind::for_path(path);
-
             // removed files still need a uri so clients can clear diagnostics
             let uri = Uri::from_file_path(path);
 
-            files.push(FileUpdate::Removed {
+            files.push(Change::Removed {
                 module_id,
                 file_id,
                 uri,
-                kind,
             });
         }
 
         Ok(files)
     }
+}
+
+/// Return file ids affected by repository edits.
+fn repository_file_ids(edits: &[destack_repository::Edit]) -> Vec<FileId> {
+    let mut file_ids = Vec::new();
+    let mut seen_file_ids = HashSet::new();
+
+    // collect changed file ids in edit order
+    for edit in edits {
+        for file_id in edit.affected_file_ids() {
+            if seen_file_ids.insert(file_id) {
+                file_ids.push(file_id);
+            }
+        }
+    }
+
+    file_ids
 }

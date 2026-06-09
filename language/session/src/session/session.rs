@@ -167,6 +167,26 @@ impl Session {
             .map_err(SessionError::from)
     }
 
+    /// Publish one revision when one ref still points at the expected base.
+    pub(crate) fn publish_revision(
+        &self,
+        reference: &Ref,
+        before: Revision,
+        after: Revision,
+    ) -> Result<(), SessionError> {
+        let repository = self.repository();
+        let was_published = repository.advance_ref(reference, before, after)?;
+        if !was_published {
+            return Err(SessionError::StaleRevision {
+                reference: reference.clone(),
+                expected: before,
+                current: self.revision(reference)?,
+            });
+        }
+
+        Ok(())
+    }
+
     /// Return the compiler for this session.
     pub fn compiler(&self) -> Arc<Compiler> {
         self.state.compiler()
@@ -199,17 +219,16 @@ impl Session {
 
         // read the requested filesystem source file
         let repository_path = self.repository_path(path);
-        let source = FileSystemSource::new(repository.as_ref(), self.root());
-        let Some(source_import) = source.file(Path::new(&repository_path))? else {
+        let source = FileSystemSource::new(repository.as_ref(), self.root(), revision);
+        let Some(edits) = source.repository_edits_for_path(Path::new(&repository_path))? else {
             return Err(SessionError::ModulePathNotLoadable {
                 path: path.to_path_buf(),
-                detail: "source file is not importable".to_string(),
+                detail: "source file is not loadable".to_string(),
             });
         };
 
         // apply the selected source file
-        let change = source_import.change(repository.as_ref(), revision)?;
-        let next_revision = repository.commit_change(revision, change)?;
+        let next_revision = repository.commit_edits(revision, edits)?;
         let _next_revision_pin = repository.pin(next_revision)?;
 
         // require the applied file to produce a module

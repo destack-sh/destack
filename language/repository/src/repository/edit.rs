@@ -1,4 +1,4 @@
-use destack_source::FileContent;
+use destack_source::{FileContent, FileId};
 
 use crate::repository::{Repository, RepositoryError, Revision, normalize_logical_path};
 
@@ -65,6 +65,27 @@ impl Edit {
             from: normalize_logical_path(from),
             to: normalize_logical_path(to),
         }
+    }
+
+    /// Return file ids affected by this edit.
+    pub fn affected_file_ids(&self) -> impl Iterator<Item = FileId> {
+        let (first, second) = match self {
+            Self::AddFile { logical_path, .. }
+            | Self::SetFile { logical_path, .. }
+            | Self::RemoveFile { logical_path } => {
+                let first = FileId::from_logical_str(logical_path);
+
+                (first, None)
+            }
+            Self::MoveFile { from, to } => {
+                let from = FileId::from_logical_str(from);
+                let to = FileId::from_logical_str(to);
+
+                (from, Some(to))
+            }
+        };
+
+        [Some(first), second].into_iter().flatten()
     }
 }
 

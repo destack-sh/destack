@@ -7,8 +7,8 @@ use destack_repository::{
 };
 use destack_source::{FileSystem, MemoryFileSystem};
 
-use super::fs::{FileSystemSource, read_destack_config};
-use super::{Source, SourceSnapshot};
+use super::Edit;
+use super::fs::FileSystemSource;
 use crate::SessionError;
 
 /// Open one repository after discovering the source root from one path.
@@ -36,27 +36,26 @@ pub fn open_repository_from_fs(
     let root_ref = Ref::for_root(&root);
     let base_revision = repository.current(&root_ref)?;
 
-    // import the complete source snapshot
-    let mut source = FileSystemSource::new(&repository, &root);
-    let source_import = source.import()?;
-    let change = source_import.change(&repository, base_revision)?;
-    let revision = repository.commit_change(base_revision, change)?;
+    // read the complete source tree
+    let source = FileSystemSource::new(&repository, &root, base_revision);
+    let edits = source.edits()?;
+    let revision = repository.commit_edits(base_revision, edits)?;
 
     repository.set_ref(&root_ref, revision)?;
 
     Ok(repository)
 }
 
-/// Open one repository from an explicit source snapshot.
-pub fn open_repository_from_source(
+/// Open one repository from one in-memory source.
+pub fn open_repository_from_memory(
     root: PathBuf,
-    source: SourceSnapshot,
+    edits: Vec<Edit>,
     environment: Environment,
     settings: Settings,
     layout_override: DestackLayoutOverride,
 ) -> Result<Repository, SessionError> {
     let file_system = Arc::new(MemoryFileSystem::new());
-    source.write_to(file_system.as_ref(), &root)?;
+    Edit::apply_all(file_system.as_ref(), &root, edits)?;
 
     open_repository_from_fs(root, file_system, environment, settings, layout_override)
 }
@@ -85,7 +84,7 @@ fn find_source_root(file_system: &dyn FileSystem, path: &Path) -> Result<PathBuf
 
     // walk up directories looking for a source root
     loop {
-        if read_destack_config(file_system, &current)?.is_some() {
+        if FileSystemSource::read_destack_config(file_system, &current)?.is_some() {
             return Ok(current);
         }
 
