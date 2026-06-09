@@ -46,17 +46,32 @@ impl CardSet {
         self.dirty.first_set_from(0).is_none()
     }
 
-    /// Return one dirty card at or after the given card index.
-    pub(crate) fn next_dirty_card_from(&self, card_index: usize) -> Option<(usize, usize, usize)> {
-        let card_index = self.dirty.first_set_from(card_index)?;
-        let start = card_index * DEFAULT_CARD_SIZE_BYTES;
-        let end = (start + DEFAULT_CARD_SIZE_BYTES).min(self.byte_len);
+    /// Find one dirty card at or after the given card index.
+    pub(crate) fn find_dirty_card(&self, card_index: usize) -> Option<DirtyCard> {
+        let index = self.dirty.first_set_from(card_index)?;
+        let byte_start = index * DEFAULT_CARD_SIZE_BYTES;
+        let byte_end = (byte_start + DEFAULT_CARD_SIZE_BYTES).min(self.byte_len);
 
-        Some((card_index, start, end - start))
+        Some(DirtyCard {
+            index,
+            byte_start,
+            byte_len: byte_end - byte_start,
+        })
     }
 
     /// Clear one dirty card.
     pub(crate) fn clear_card(&mut self, card_index: usize) {
         self.dirty.clear(card_index);
     }
+}
+
+/// One dirty remembered-set card.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct DirtyCard {
+    /// The dirty card index.
+    pub(crate) index: usize,
+    /// The card byte start within its owning extent.
+    pub(crate) byte_start: usize,
+    /// The card byte length.
+    pub(crate) byte_len: usize,
 }

@@ -4,7 +4,7 @@ use crate::local::gc::EdgeWork;
 use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
     HeapError, HeapOperationSource, HeapReference, HeapResult, ReferenceInput, ReferenceRange,
-    SharedHeapReference, scan_references,
+    SharedHeapReference, visit_references,
 };
 
 impl HeapStorage {
@@ -23,8 +23,8 @@ impl HeapStorage {
         self.collector.finish_shared_edge_scan();
     }
 
-    /// Scan bounded local-to-shared edge work into the provided root buffer.
-    pub(crate) fn scan_shared_references(
+    /// Trace bounded local-to-shared edges into the provided root buffer.
+    pub(crate) fn trace_shared_roots(
         &mut self,
         roots: &mut Vec<SharedHeapReference>,
         budget_bytes: usize,
@@ -35,28 +35,28 @@ impl HeapStorage {
             return Ok(0);
         }
 
-        let mut scanned_bytes = 0usize;
+        let mut traced_bytes = 0usize;
 
         // drain queued rescans first
-        while scanned_bytes < budget_bytes {
+        while traced_bytes < budget_bytes {
             let Some(work) = self.collector.pop_shared_edge_work() else {
                 break;
             };
 
-            scanned_bytes += self.trace_shared_edge_work(work, roots, trace_table)?;
+            traced_bytes += self.trace_shared_edge(work, roots, trace_table)?;
         }
 
-        // then continue the tracked shared-edge walk
-        while scanned_bytes < budget_bytes {
+        // continue the tracked shared-edge walk
+        while traced_bytes < budget_bytes {
             let Some(reference) = self.collector.next_shared_edge_root() else {
                 break;
             };
 
-            scanned_bytes +=
-                self.trace_shared_edge_work(EdgeWork::Reference(reference), roots, trace_table)?;
+            traced_bytes +=
+                self.trace_shared_edge(EdgeWork::Reference(reference), roots, trace_table)?;
         }
 
-        Ok(scanned_bytes)
+        Ok(traced_bytes)
     }
 
     /// Queue one local reference for one later shared-edge rescan.
@@ -102,7 +102,7 @@ impl HeapStorage {
     }
 
     /// Trace shared heap roots from one queued edge work item.
-    fn trace_shared_edge_work(
+    fn trace_shared_edge(
         &mut self,
         work: EdgeWork,
         roots: &mut Vec<SharedHeapReference>,
@@ -149,12 +149,17 @@ impl HeapStorage {
 
         // scan mapped heap memory directly
         let base_address = self.mapping.base_address() + extent.base.offset();
-        let mut reference_buffer = Vec::new();
-        let result = scan_references::<SharedHeapReference>(
+        let result = visit_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::All,
-            &mut reference_buffer,
+            &mut |reference| {
+                if !reference.is_null() {
+                    roots.push(reference);
+                }
+
+                Ok(())
+            },
         );
 
         if let Err(error) = result {
@@ -163,10 +168,6 @@ impl HeapStorage {
                 error,
             ));
         }
-
-        // publish non-null shared roots
-        reference_buffer.retain(|reference| !reference.is_null());
-        roots.extend(reference_buffer);
 
         Ok(extent.byte_len)
     }
@@ -207,12 +208,17 @@ impl HeapStorage {
             .page_size_bytes()
             .min(extent.byte_len - start);
         let base_address = self.mapping.base_address() + extent.base.offset();
-        let mut reference_buffer = Vec::new();
-        let result = scan_references::<SharedHeapReference>(
+        let result = visit_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(start, range_len),
-            &mut reference_buffer,
+            &mut |reference| {
+                if !reference.is_null() {
+                    roots.push(reference);
+                }
+
+                Ok(())
+            },
         );
 
         if let Err(error) = result {
@@ -221,10 +227,6 @@ impl HeapStorage {
                 error,
             ));
         }
-
-        // publish non-null shared roots
-        reference_buffer.retain(|reference| !reference.is_null());
-        roots.extend(reference_buffer);
 
         // continue this large block on a later step
         let next_start = start + range_len;

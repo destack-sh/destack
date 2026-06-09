@@ -5,7 +5,7 @@ use crate::{
 };
 use destack_mir::{TraceMap, TraceVariant};
 
-use super::{read_mapped_bytes, trace_table};
+use super::{heap_allocation_plan, read_mapped_bytes, trace_table};
 
 /// Reject one zero-size heap block.
 #[test]
@@ -18,7 +18,10 @@ fn test_allocate_heap_rejects_zero_size_layout() {
 
     // reject zero-size heap objects loudly
     let error = heap
-        .allocate(&heap.allocation_plan(layout.block()), Payload::Bytes(&[]))
+        .allocate(
+            &heap_allocation_plan(&heap, layout.block()),
+            Payload::Bytes(&[]),
+        )
         .expect_err("heap block should reject zero-size layouts");
 
     assert_eq!(
@@ -37,7 +40,7 @@ fn test_free_heap_reclaims_live_allocation() {
         .expect("heap storage should build");
     let reference = heap
         .allocate(
-            &heap.allocation_plan(layout.block()),
+            &heap_allocation_plan(&heap, layout.block()),
             Payload::Bytes(&[0xAB]),
         )
         .expect("heap block should succeed");
@@ -50,7 +53,7 @@ fn test_free_heap_reclaims_live_allocation() {
     // allocate again to prove the heap remains usable
     let next_reference = heap
         .allocate(
-            &heap.allocation_plan(layout.block()),
+            &heap_allocation_plan(&heap, layout.block()),
             Payload::Bytes(&[0xCD]),
         )
         .expect("heap block should succeed");
@@ -75,13 +78,13 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
 
     let first = heap
         .allocate(
-            &heap.allocation_plan(full_layout.block()),
+            &heap_allocation_plan(&heap, full_layout.block()),
             Payload::Bytes(&[0xAA; 8]),
         )
         .expect("heap block should succeed");
     let second = heap
         .allocate(
-            &heap.allocation_plan(short_layout.block()),
+            &heap_allocation_plan(&heap, short_layout.block()),
             Payload::Bytes(&[0xBB]),
         )
         .expect("heap block should succeed");
@@ -91,7 +94,7 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
 
     let reused = heap
         .allocate(
-            &heap.allocation_plan(short_layout.block()),
+            &heap_allocation_plan(&heap, short_layout.block()),
             Payload::Bytes(&[0xCC]),
         )
         .expect("heap block should succeed");
@@ -121,13 +124,13 @@ fn test_allocate_heap_tracks_exact_young_span_payload_lengths() {
 
     let first = heap
         .allocate(
-            &heap.allocation_plan(first_layout.block()),
+            &heap_allocation_plan(&heap, first_layout.block()),
             Payload::Bytes(&[0xAA; 9]),
         )
         .expect("first heap block should succeed");
     let second = heap
         .allocate(
-            &heap.allocation_plan(second_layout.block()),
+            &heap_allocation_plan(&heap, second_layout.block()),
             Payload::Bytes(&[0xBB; 10]),
         )
         .expect("second heap block should succeed");
@@ -184,7 +187,10 @@ fn test_allocate_heap_routes_tagged_trace_map_to_large() {
         .expect("heap storage should build");
 
     let reference = heap
-        .allocate(&heap.allocation_plan(layout.block()), Payload::Zeroed)
+        .allocate(
+            &heap_allocation_plan(&heap, layout.block()),
+            Payload::Zeroed,
+        )
         .expect("heap block should succeed");
 
     // tagged payloads should bypass young space
@@ -211,13 +217,13 @@ fn test_allocate_heap_honors_layout_alignment() {
 
     let first = heap
         .allocate(
-            &heap.allocation_plan(layout.block()),
+            &heap_allocation_plan(&heap, layout.block()),
             Payload::Bytes(&[0xAA; 17]),
         )
         .expect("first aligned heap block should succeed");
     let second = heap
         .allocate(
-            &heap.allocation_plan(layout.block()),
+            &heap_allocation_plan(&heap, layout.block()),
             Payload::Bytes(&[0xBB; 17]),
         )
         .expect("second aligned heap block should succeed");
@@ -243,7 +249,7 @@ fn test_write_heap_rejects_interior_reference_crossing_bounds() {
         .expect("heap storage should build");
     let reference = heap
         .allocate(
-            &heap.allocation_plan(layout.block()),
+            &heap_allocation_plan(&heap, layout.block()),
             Payload::Bytes(&[0xAB]),
         )
         .expect("heap block should succeed");
@@ -284,7 +290,7 @@ fn test_free_heap_reclaims_large_block() {
         .expect("heap storage should build");
     let first = heap
         .allocate(
-            &heap.allocation_plan(layout.block()),
+            &heap_allocation_plan(&heap, layout.block()),
             Payload::Bytes(&vec![0xAB; large_byte_len]),
         )
         .expect("heap large block should succeed");
@@ -296,7 +302,7 @@ fn test_free_heap_reclaims_large_block() {
 
     let second = heap
         .allocate(
-            &heap.allocation_plan(layout.block()),
+            &heap_allocation_plan(&heap, layout.block()),
             Payload::Bytes(&vec![0xCD; large_byte_len]),
         )
         .expect("heap large reallocation should succeed");

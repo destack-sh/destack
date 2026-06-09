@@ -8,7 +8,10 @@ use crate::{
 };
 use destack_mir::TraceMap;
 
-use super::{TestHeap, read_mapped_bytes, trace_table, write_mapped_byte, write_mapped_bytes};
+use super::{
+    TestHeap, heap_allocation_plan, read_mapped_bytes, trace_table, write_mapped_byte,
+    write_mapped_bytes,
+};
 
 /// The allocator chunk size for small-page image fixtures.
 const TEST_ALLOCATOR_CHUNK_SIZE_BYTES: usize = 1024 * 1024;
@@ -168,13 +171,13 @@ fn test_roundtrip_heap_storage_image() {
     // capture two blocks so the restored copy has independent bytes
     let first = heap
         .allocate(
-            &heap.allocation_plan(first_layout.block()),
+            &heap_allocation_plan(&heap, first_layout.block()),
             Payload::Bytes(&first_bytes),
         )
         .expect("heap block should succeed");
     let _second = heap
         .allocate(
-            &heap.allocation_plan(second_layout.block()),
+            &heap_allocation_plan(&heap, second_layout.block()),
             Payload::Bytes(&second_bytes),
         )
         .expect("heap block should succeed");
@@ -241,7 +244,7 @@ fn test_roundtrip_heap_image_and_fork() {
     let heap = &mut test_heap.heap;
     let _heap_reference = heap
         .allocate_payload(
-            &heap.allocation_plan(layout.block()),
+            &heap_allocation_plan(&heap, layout.block()),
             Payload::Bytes(&heap_bytes),
         )
         .expect("heap block should succeed");
@@ -274,7 +277,7 @@ fn test_roundtrip_heap_snapshot() {
     let layout = &layout_ids[0];
     let heap = &mut test_heap.heap;
     heap.allocate_payload(
-        &heap.allocation_plan(layout.block()),
+        &heap_allocation_plan(&heap, layout.block()),
         Payload::Bytes(&heap_bytes),
     )
     .expect("heap block should succeed");
@@ -308,13 +311,13 @@ fn test_heap_image_write_preserves_captured_allocation_bytes() {
     let heap = &mut test_heap.heap;
     let first = heap
         .allocate_payload(
-            &heap.allocation_plan(layout_ids[0].block()),
+            &heap_allocation_plan(&heap, layout_ids[0].block()),
             Payload::Bytes(&first_bytes),
         )
         .expect("heap block should succeed");
     let _second = heap
         .allocate_payload(
-            &heap.allocation_plan(layout_ids[1].block()),
+            &heap_allocation_plan(&heap, layout_ids[1].block()),
             Payload::Bytes(&second_bytes),
         )
         .expect("heap block should succeed");
@@ -358,7 +361,7 @@ fn test_heap_image_write_preserves_captured_page_bytes() {
     let heap = &mut test_heap.heap;
     let reference = heap
         .allocate_payload(
-            &heap.allocation_plan(layout_ids[0].block()),
+            &heap_allocation_plan(&heap, layout_ids[0].block()),
             Payload::Bytes(&bytes),
         )
         .expect("heap block should succeed");
@@ -394,7 +397,7 @@ fn test_heap_image_write_preserves_captured_multi_page_bytes() {
     let heap = &mut test_heap.heap;
     let reference = heap
         .allocate_payload(
-            &heap.allocation_plan(layout_ids[0].block()),
+            &heap_allocation_plan(&heap, layout_ids[0].block()),
             Payload::Bytes(&bytes),
         )
         .expect("heap block should succeed");
@@ -430,7 +433,7 @@ fn test_heap_image_write_preserves_captured_many_page_bytes() {
     let heap = &mut test_heap.heap;
     let reference = heap
         .allocate_payload(
-            &heap.allocation_plan(layout_ids[0].block()),
+            &heap_allocation_plan(&heap, layout_ids[0].block()),
             Payload::Bytes(&bytes),
         )
         .expect("heap block should succeed");
@@ -467,13 +470,13 @@ fn test_roundtrip_heap_small_storage_image() {
     // small blocks should roundtrip as independent bytes
     let first = heap
         .allocate(
-            &heap.allocation_plan(layout_ids[0].block()),
+            &heap_allocation_plan(&heap, layout_ids[0].block()),
             Payload::Bytes(&[1, 2, 3]),
         )
         .expect("heap block should succeed");
     let _second = heap
         .allocate(
-            &heap.allocation_plan(layout_ids[1].block()),
+            &heap_allocation_plan(&heap, layout_ids[1].block()),
             Payload::Bytes(&[4, 5, 6]),
         )
         .expect("heap block should succeed");
@@ -532,13 +535,13 @@ fn test_roundtrip_heap_young_storage_image() {
     // young blocks should roundtrip as independent bytes
     let first = heap
         .allocate(
-            &heap.allocation_plan(layout_ids[0].block()),
+            &heap_allocation_plan(&heap, layout_ids[0].block()),
             Payload::Bytes(&[1, 2, 3]),
         )
         .expect("heap block should succeed");
     let _second = heap
         .allocate(
-            &heap.allocation_plan(layout_ids[1].block()),
+            &heap_allocation_plan(&heap, layout_ids[1].block()),
             Payload::Bytes(&[4, 5, 6]),
         )
         .expect("heap block should succeed");
@@ -579,7 +582,7 @@ fn test_restore_full_heap_image_rejects_invalid_size_class() {
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) = heap_storage_with_empty_layouts(allocator.clone(), &options, &[3]);
     heap.allocate(
-        &heap.allocation_plan(layout_ids[0].block()),
+        &heap_allocation_plan(&heap, layout_ids[0].block()),
         Payload::Bytes(&[1, 2, 3]),
     )
     .expect("heap block should succeed");
@@ -607,7 +610,7 @@ fn test_fork_heap_storage_rejects_invalid_size_class() {
     let allocator = test_allocator(&options);
     let (mut heap, layout_ids) = heap_storage_with_empty_layouts(allocator.clone(), &options, &[3]);
     heap.allocate(
-        &heap.allocation_plan(layout_ids[0].block()),
+        &heap_allocation_plan(&heap, layout_ids[0].block()),
         Payload::Bytes(&[1, 2, 3]),
     )
     .expect("heap block should succeed");
