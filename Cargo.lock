@@ -923,6 +923,7 @@ version = "0.55.4"
 dependencies = [
  "destack_artifact",
  "destack_bridge_language_macros",
+ "destack_core",
  "destack_repository",
  "destack_session",
  "destack_source",
@@ -935,6 +936,9 @@ version = "0.55.4"
 [[package]]
 name = "destack_capi"
 version = "0.55.4"
+dependencies = [
+ "destack",
+]
 
 [[package]]
 name = "destack_cli"
