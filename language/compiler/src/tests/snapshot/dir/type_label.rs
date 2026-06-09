@@ -606,18 +606,21 @@ impl DirSnapshotBuilder<'_> {
 
     /// Return one generic parameter label.
     fn parameter_type_label(&self, parameter: &dir::GlobalGenericParameterId) -> String {
-        let Some(generic) = self.generic_parameter_for_parameter(parameter) else {
-            return format!("generic#{}", parameter.local_id.0);
-        };
-        let Some(generics) = self.generics.as_ref() else {
+        let Some((generics, generic)) = self.generic_parameter_context(parameter) else {
             return format!("generic#{}", parameter.local_id.0);
         };
         let template = generics.get_template(generic.template());
 
         match generic.key() {
-            dir::GenericParameterKey::Symbol(symbol) => self.symbol_label(symbol),
+            dir::GenericParameterKey::Symbol(symbol) => {
+                if symbol.module_id == self.tree.module_id {
+                    self.symbol_label(symbol)
+                } else {
+                    self.symbol_path_label(symbol)
+                }
+            }
             dir::GenericParameterKey::Generated(name) => {
-                let owner = self.symbol_path_label(template.owner);
+                let owner = self.node_label(template.source);
                 let name = self.strings.get(name);
 
                 format!("{owner}.{name}")
@@ -631,11 +634,11 @@ impl DirSnapshotBuilder<'_> {
         types: &dir::TypeTable<'_>,
         parameter: &dir::GlobalGenericParameterId,
     ) -> String {
-        let Some(slot) = self.generic_parameter_for_parameter(parameter) else {
+        let Some((_, generic)) = self.generic_parameter_context(parameter) else {
             return String::new();
         };
 
-        match slot {
+        match generic {
             dir::GenericParameterBinding::Type {
                 constraint,
                 default,
@@ -678,16 +681,18 @@ impl DirSnapshotBuilder<'_> {
     }
 
     /// Return the generic slot represented by one parameter type.
-    fn generic_parameter_for_parameter(
+    fn generic_parameter_context(
         &self,
         parameter: &dir::GlobalGenericParameterId,
-    ) -> Option<&dir::GenericParameterBinding> {
-        let generics = self.generics.as_ref()?;
-        if generics.module_id != parameter.module_id {
-            return None;
-        }
+    ) -> Option<(&dir::GenericTable<'_>, &dir::GenericParameterBinding)> {
+        let generics = if parameter.module_id == self.tree.module_id {
+            self.generics.as_ref()
+        } else {
+            self.foreign_generics.get(&parameter.module_id)
+        }?;
+        let generic = generics.get_parameter(parameter.local_id);
 
-        Some(generics.get_parameter(parameter.local_id))
+        Some((generics, generic))
     }
 
     /// Return one type id list label.
