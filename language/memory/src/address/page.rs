@@ -16,7 +16,7 @@ pub(super) struct PageMap {
     /// The reserved byte length.
     byte_len: usize,
     /// The fixed platform page frame width.
-    frame_bytes: usize,
+    frame_size_bytes: usize,
     /// The platform allocator for mapped page frames.
     frames: Arc<PageFrameAllocator>,
     /// The atomic page state table.
@@ -31,22 +31,27 @@ impl PageMap {
     /// Reserve one forkable page map.
     pub(super) fn reserve(byte_len: usize, page_size_bytes: usize) -> MemoryResult<Self> {
         // align requested pages to native page frames
-        let frame_bytes = page_size_bytes.max(platform::system_frame_bytes()?);
-        let page_count = byte_len.div_ceil(frame_bytes);
-        let byte_len = page_count * frame_bytes;
+        let frame_size_bytes = page_size_bytes.max(platform::system_frame_size_bytes()?);
+        let page_count = byte_len.div_ceil(frame_size_bytes);
+        let byte_len = page_count * frame_size_bytes;
 
         // reserve the backing frame allocator and virtual range
         let frames = Arc::new(platform::create_page_frame_allocator(byte_len)?);
         let space = platform::reserve_virtual_space(byte_len)?;
 
-        Self::new(space, byte_len, frame_bytes, frames)
+        Self::new(space, byte_len, frame_size_bytes, frames)
     }
 
     /// Fork this page map and isolate pages on first write.
     pub(super) fn fork_lazy(&self) -> MemoryResult<Self> {
         // reserve the child range before changing parent mappings
         let space = platform::reserve_virtual_space(self.byte_len)?;
-        let fork = Self::new(space, self.byte_len, self.frame_bytes, self.frames.clone())?;
+        let fork = Self::new(
+            space,
+            self.byte_len,
+            self.frame_size_bytes,
+            self.frames.clone(),
+        )?;
 
         // native targets use read only cow mappings for shared pages
         if platform::SUPPORTS_SHARED_PAGE_FRAMES {
@@ -77,8 +82,8 @@ impl PageMap {
     }
 
     /// Return the native page frame width used by this map.
-    pub(super) const fn frame_bytes(&self) -> usize {
-        self.frame_bytes
+    pub(super) const fn frame_size_bytes(&self) -> usize {
+        self.frame_size_bytes
     }
 
     /// Return the base native address for this page map.
@@ -113,8 +118,8 @@ impl PageMap {
 
         // copy mapped pages and synthesize zeroes for reserved pages
         for page_index in first_frame..end_frame {
-            let page_start = page_index * self.frame_bytes;
-            let page_end = page_start + self.frame_bytes;
+            let page_start = page_index * self.frame_size_bytes;
+            let page_end = page_start + self.frame_size_bytes;
             let copy_start = offset.max(page_start);
             let copy_end = read_end.min(page_end);
             let copy_len = copy_end - copy_start;
@@ -170,14 +175,15 @@ impl PageMap {
             }
 
             let page_count = page_index - range_start;
-            let byte_len = page_count * self.frame_bytes;
-            let frame = platform::allocate_frame_range(&self.frames, byte_len, self.frame_bytes)?;
+            let byte_len = page_count * self.frame_size_bytes;
+            let frame =
+                platform::allocate_frame_range(&self.frames, byte_len, self.frame_size_bytes)?;
 
             // new pages start as owned writable mappings
             platform::map_frame_range_writable(
                 self.space.base(),
                 range_start,
-                self.frame_bytes,
+                self.frame_size_bytes,
                 byte_len,
                 &self.frames,
                 frame,
@@ -185,7 +191,7 @@ impl PageMap {
 
             // publish every page after the platform mapping succeeds
             for page_offset in 0..page_count {
-                let page_frame = platform::frame_at(frame, page_offset, self.frame_bytes);
+                let page_frame = platform::frame_at(frame, page_offset, self.frame_size_bytes);
 
                 self.pages
                     .set_state(range_start + page_offset, PageState::Owned(page_frame));
@@ -256,18 +262,18 @@ impl PageMap {
             }
 
             let run_len = page_index - run_start;
-            let byte_len = run_len * self.frame_bytes;
+            let byte_len = run_len * self.frame_size_bytes;
 
             platform::make_shared_pages_writable(
                 self.space.base(),
                 run_start,
-                self.frame_bytes,
+                self.frame_size_bytes,
                 byte_len,
             )?;
 
             // force private pages before later stores
             for page_offset in 0..run_len {
-                let offset = (run_start + page_offset) * self.frame_bytes;
+                let offset = (run_start + page_offset) * self.frame_size_bytes;
 
                 self.force_private_page(offset);
             }
@@ -290,11 +296,15 @@ impl PageMap {
     fn new(
         space: VirtualSpace,
         byte_len: usize,
-        frame_bytes: usize,
+        frame_size_bytes: usize,
         frames: Arc<PageFrameAllocator>,
     ) -> MemoryResult<Self> {
         // register stable page metadata for native write watch
-        let pages = Arc::new(PageTable::new(space.base() as usize, byte_len, frame_bytes));
+        let pages = Arc::new(PageTable::new(
+            space.base() as usize,
+            byte_len,
+            frame_size_bytes,
+        ));
         let write_watch = if byte_len == 0 {
             None
         } else {
@@ -308,7 +318,7 @@ impl PageMap {
         Ok(Self {
             space,
             byte_len,
-            frame_bytes,
+            frame_size_bytes,
             frames,
             pages,
             write_watch,
@@ -339,7 +349,7 @@ impl PageMap {
         platform::retain_frames(
             &self.frames,
             child_frames.iter().map(|(_, frame)| *frame),
-            self.frame_bytes,
+            self.frame_size_bytes,
         );
         fork.set_shared_frame_states(&child_frames);
 
@@ -400,7 +410,8 @@ impl PageMap {
             let page_run_offset = page_offset - start_offset;
             let (page_index, state) = pages[page_offset];
             let expected_page = start_page + page_run_offset;
-            let expected_frame = platform::frame_at(start_frame, page_run_offset, self.frame_bytes);
+            let expected_frame =
+                platform::frame_at(start_frame, page_run_offset, self.frame_size_bytes);
             let PageState::Modified(frame) = state else {
                 break;
             };
@@ -423,15 +434,16 @@ impl PageMap {
         first_page: usize,
         page_count: usize,
     ) -> MemoryResult<()> {
-        let byte_len = page_count * self.frame_bytes;
-        let source = self.mapped_address(first_page * self.frame_bytes);
+        let byte_len = page_count * self.frame_size_bytes;
+        let source = self.mapped_address(first_page * self.frame_size_bytes);
 
         // child receives a fresh writable frame with current parent bytes
-        let frame = platform::copy_frame_range(&self.frames, source, byte_len, self.frame_bytes)?;
+        let frame =
+            platform::copy_frame_range(&self.frames, source, byte_len, self.frame_size_bytes)?;
         platform::map_frame_range_writable(
             fork.space.base(),
             first_page,
-            self.frame_bytes,
+            self.frame_size_bytes,
             byte_len,
             &self.frames,
             frame,
@@ -440,7 +452,7 @@ impl PageMap {
         // publish child owned states after the mappings exist
         for page_offset in 0..page_count {
             let page_index = first_page + page_offset;
-            let frame = platform::frame_at(frame, page_offset, self.frame_bytes);
+            let frame = platform::frame_at(frame, page_offset, self.frame_size_bytes);
 
             fork.pages.set_state(page_index, PageState::Owned(frame));
         }
@@ -515,14 +527,14 @@ impl PageMap {
 
         // wasm has no native mappings, so materialized pages are copied
         for page_index in self.pages.mapped_pages() {
-            let source = self.mapped_address(page_index * self.frame_bytes);
-            let frame = platform::copy_page(&self.frames, source, self.frame_bytes)?;
+            let source = self.mapped_address(page_index * self.frame_size_bytes);
+            let frame = platform::copy_page(&self.frames, source, self.frame_size_bytes)?;
 
             // copy the frame into the child linear memory
             platform::map_page_writable(
                 fork.space.base(),
                 page_index,
-                self.frame_bytes,
+                self.frame_size_bytes,
                 &self.frames,
                 frame,
             )?;
@@ -544,7 +556,7 @@ impl PageMap {
 
         // coalesce adjacent pages backed by adjacent frames
         for (page_index, frame) in frames.iter().copied().skip(1) {
-            let next_frame = platform::frame_at(run_frame, run_len, self.frame_bytes);
+            let next_frame = platform::frame_at(run_frame, run_len, self.frame_size_bytes);
             if page_index == run_page + run_len && frame == next_frame {
                 run_len += 1;
                 continue;
@@ -554,8 +566,8 @@ impl PageMap {
             platform::map_frame_range_cow(
                 base,
                 run_page,
-                self.frame_bytes,
-                run_len * self.frame_bytes,
+                self.frame_size_bytes,
+                run_len * self.frame_size_bytes,
                 &self.frames,
                 run_frame,
             )?;
@@ -569,8 +581,8 @@ impl PageMap {
         platform::map_frame_range_cow(
             base,
             run_page,
-            self.frame_bytes,
-            run_len * self.frame_bytes,
+            self.frame_size_bytes,
+            run_len * self.frame_size_bytes,
             &self.frames,
             run_frame,
         )
@@ -599,8 +611,8 @@ impl PageMap {
 
         // convert byte bounds to page frame bounds
         let end = offset + byte_len;
-        let first_frame = offset / self.frame_bytes;
-        let end_frame = end.div_ceil(self.frame_bytes);
+        let first_frame = offset / self.frame_size_bytes;
+        let end_frame = end.div_ceil(self.frame_size_bytes);
 
         Ok((first_frame, end_frame))
     }
@@ -636,8 +648,8 @@ impl Drop for PageMap {
             platform::unregister_write_watch(write_watch);
         }
         self.space
-            .unmap(self.frame_bytes, self.pages.mapped_pages());
+            .unmap(self.frame_size_bytes, self.pages.mapped_pages());
 
-        platform::release_frames(&self.frames, frames, self.frame_bytes);
+        platform::release_frames(&self.frames, frames, self.frame_size_bytes);
     }
 }

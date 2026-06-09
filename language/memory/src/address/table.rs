@@ -21,7 +21,7 @@ pub(super) struct PageTable {
     byte_len: usize,
     /// The native page frame width.
     #[cfg(not(target_arch = "wasm32"))]
-    frame_bytes: usize,
+    frame_size_bytes: usize,
     /// The number of pages covered by the table.
     page_count: usize,
     /// The sparse page entry chunks indexed by page chunk.
@@ -30,11 +30,11 @@ pub(super) struct PageTable {
 
 impl PageTable {
     /// Create one page table for a reserved virtual range.
-    pub(super) fn new(base_address: usize, byte_len: usize, frame_bytes: usize) -> Self {
+    pub(super) fn new(base_address: usize, byte_len: usize, frame_size_bytes: usize) -> Self {
         #[cfg(target_arch = "wasm32")]
         let _ = base_address;
 
-        let page_count = byte_len / frame_bytes;
+        let page_count = byte_len / frame_size_bytes;
         let chunk_count = page_count.div_ceil(PAGE_CHUNK_LEN);
         let chunks = (0..chunk_count)
             .map(|_| AtomicPtr::new(null_mut()))
@@ -47,7 +47,7 @@ impl PageTable {
             #[cfg(not(target_arch = "wasm32"))]
             byte_len,
             #[cfg(not(target_arch = "wasm32"))]
-            frame_bytes,
+            frame_size_bytes,
             page_count,
             chunks,
         }
@@ -120,25 +120,28 @@ impl PageTable {
 
     /// Return one page entry by index when its chunk exists.
     fn entry(&self, page_index: usize) -> Option<&PageEntry> {
-        let (chunk_index, entry_index) = self.chunk_location(page_index);
-        let chunk = self.chunk(chunk_index)?;
+        let slot = self.page_chunk_slot(page_index);
+        let chunk = self.chunk(slot.chunk_index)?;
 
-        Some(&chunk.entries[entry_index])
+        Some(&chunk.entries[slot.entry_index])
     }
 
     /// Return one page entry by index, creating its chunk when needed.
     fn ensure_entry(&self, page_index: usize) -> &PageEntry {
-        let (chunk_index, entry_index) = self.chunk_location(page_index);
-        let chunk = self.ensure_chunk(chunk_index);
+        let slot = self.page_chunk_slot(page_index);
+        let chunk = self.ensure_chunk(slot.chunk_index);
 
-        &chunk.entries[entry_index]
+        &chunk.entries[slot.entry_index]
     }
 
     /// Return one chunk and entry index for a page index.
-    fn chunk_location(&self, page_index: usize) -> (usize, usize) {
+    fn page_chunk_slot(&self, page_index: usize) -> PageChunkSlot {
         debug_assert!(page_index < self.page_count);
 
-        (page_index / PAGE_CHUNK_LEN, page_index % PAGE_CHUNK_LEN)
+        PageChunkSlot {
+            chunk_index: page_index / PAGE_CHUNK_LEN,
+            entry_index: page_index % PAGE_CHUNK_LEN,
+        }
     }
 
     /// Return one page chunk when it has been allocated.
@@ -203,7 +206,7 @@ impl PageTable {
             return false;
         }
 
-        let page_index = offset / self.frame_bytes;
+        let page_index = offset / self.frame_size_bytes;
         let Some(entry) = self.entry(page_index) else {
             return false;
         };
@@ -215,8 +218,8 @@ impl PageTable {
         let result = platform::make_shared_pages_writable(
             base,
             page_index,
-            self.frame_bytes,
-            self.frame_bytes,
+            self.frame_size_bytes,
+            self.frame_size_bytes,
         );
         if result.is_err() {
             return false;
@@ -242,6 +245,15 @@ impl Drop for PageTable {
             }
         }
     }
+}
+
+/// One page table chunk slot.
+#[derive(Debug, Clone, Copy)]
+struct PageChunkSlot {
+    /// The sparse chunk index.
+    chunk_index: usize,
+    /// The entry index inside the chunk.
+    entry_index: usize,
 }
 
 /// The mapping state for one materialized page.

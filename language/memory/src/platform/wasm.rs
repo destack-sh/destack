@@ -24,7 +24,7 @@ impl VirtualSpace {
     }
 
     /// Unmap this virtual byte space.
-    pub(crate) fn unmap<I>(&mut self, _page_bytes: usize, _mapped_pages: I)
+    pub(crate) fn unmap<I>(&mut self, _page_size_bytes: usize, _mapped_pages: I)
     where
         I: IntoIterator<Item = usize>,
     {
@@ -71,7 +71,7 @@ struct PageFrameRange {
 }
 
 /// Return one page frame inside a contiguous frame range.
-pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, _page_bytes: usize) -> PageFrame {
+pub(crate) fn frame_at(frame: PageFrame, page_offset: usize, _page_size_bytes: usize) -> PageFrame {
     PageFrame {
         index: frame.index + page_offset,
     }
@@ -106,7 +106,7 @@ pub(crate) fn allocate_frame_range(
 }
 
 /// Retain mapped page frames.
-pub(crate) fn retain_frames<I>(allocator: &PageFrameAllocator, frames: I, _page_bytes: usize)
+pub(crate) fn retain_frames<I>(allocator: &PageFrameAllocator, frames: I, _page_size_bytes: usize)
 where
     I: IntoIterator<Item = PageFrame>,
 {
@@ -120,7 +120,7 @@ where
 }
 
 /// Release mapped page frames.
-pub(crate) fn release_frames<I>(allocator: &PageFrameAllocator, frames: I, _page_bytes: usize)
+pub(crate) fn release_frames<I>(allocator: &PageFrameAllocator, frames: I, _page_size_bytes: usize)
 where
     I: IntoIterator<Item = PageFrame>,
 {
@@ -213,7 +213,7 @@ fn allocate_frame_storage(
 }
 
 /// Return the platform frame byte width for linear memory mappings.
-pub(crate) const fn system_frame_bytes() -> MemoryResult<usize> {
+pub(crate) const fn system_frame_size_bytes() -> MemoryResult<usize> {
     Ok(WASM_PAGE_SIZE_BYTES)
 }
 
@@ -277,7 +277,7 @@ pub(crate) fn map_frame_range_writable(
 pub(crate) fn make_shared_pages_writable(
     _base: *mut u8,
     _first_page: usize,
-    _page_bytes: usize,
+    _page_size_bytes: usize,
     _byte_len: usize,
 ) -> MemoryResult<()> {
     Ok(())
