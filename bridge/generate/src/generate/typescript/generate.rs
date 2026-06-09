@@ -145,6 +145,7 @@ impl<'schema> TsItem<'schema> {
                 render_payload_enum(self.schema, text, variants);
                 text.line(";");
                 text.blank();
+                render_payload_constructors(self.schema, text, item, variants);
             }
         }
     }
@@ -193,6 +194,87 @@ fn render_payload_enum(schema: &Schema, text: &mut Text, variants: &[Variant]) {
         }
 
         text.line("      }");
+    }
+}
+
+/// Render constructors for one TypeScript payload enum.
+fn render_payload_constructors(
+    schema: &Schema,
+    text: &mut Text,
+    item: &Item,
+    variants: &[Variant],
+) {
+    text.line(format!("export const {} = {{", item.name));
+
+    for variant in variants {
+        let method = variant.label();
+        let arguments = render_constructor_arguments(schema, variant);
+        let fields = render_constructor_fields(variant);
+        let fields = if fields.is_empty() {
+            String::new()
+        } else {
+            format!(", {}", fields.join(", "))
+        };
+
+        text.doc(variant.doc(), "    ");
+        text.line(format!("    {method}({arguments}): {} {{", item.name));
+        text.line(format!(
+            "        return {{ kind: {:?}{fields} }};",
+            variant.label()
+        ));
+        text.line("    },");
+        text.blank();
+    }
+
+    text.line("};");
+    text.blank();
+}
+
+/// Render TypeScript constructor arguments for one payload variant.
+fn render_constructor_arguments(schema: &Schema, variant: &Variant) -> String {
+    constructor_fields(variant)
+        .into_iter()
+        .map(|(name, ty)| {
+            let parameter = ts_parameter_name(&name);
+
+            format!("{parameter}: {}", render_type(schema, &ty))
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Render TypeScript object fields for one payload constructor.
+fn render_constructor_fields(variant: &Variant) -> Vec<String> {
+    constructor_fields(variant)
+        .into_iter()
+        .map(|(name, _ty)| {
+            let parameter = ts_parameter_name(&name);
+            if parameter == name {
+                name
+            } else {
+                format!("{name}: {parameter}")
+            }
+        })
+        .collect()
+}
+
+/// Return TypeScript constructor fields for one payload variant.
+fn constructor_fields(variant: &Variant) -> Vec<(String, Type)> {
+    match &variant.payload {
+        Payload::Unit => Vec::new(),
+        Payload::Tuple(ty) => vec![(variant.payload_field_name(), ty.clone())],
+        Payload::Struct(fields) => fields
+            .iter()
+            .map(|field| (field.label(), field.ty.clone()))
+            .collect(),
+    }
+}
+
+/// Return one valid TypeScript parameter name.
+fn ts_parameter_name(name: &str) -> String {
+    match name {
+        "package" => "packageValue".to_string(),
+        _ => name.to_string(),
     }
 }
 

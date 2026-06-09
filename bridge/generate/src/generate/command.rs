@@ -1,7 +1,7 @@
 use anyhow::Result;
 
 use super::core::{Schema, workspace_root};
-use super::{napi, python, typescript, wasm};
+use super::{capi, napi, python, typescript, wasm};
 
 /// Generate bridge target bindings.
 pub(crate) fn run() -> Result<()> {
@@ -9,6 +9,7 @@ pub(crate) fn run() -> Result<()> {
     let schema = Schema::load(&root)?;
 
     schema.validate()?;
+    capi::generate(&root, &schema)?;
     napi::generate(&root, &schema)?;
     python::generate(&root, &schema)?;
     wasm::generate(&root, &schema)?;

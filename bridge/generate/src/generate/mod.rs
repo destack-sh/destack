@@ -1,3 +1,4 @@
+mod capi;
 mod command;
 mod core;
 mod napi;

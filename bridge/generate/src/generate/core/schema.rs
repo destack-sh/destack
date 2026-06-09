@@ -67,6 +67,8 @@ pub(crate) struct Item {
     pub(crate) name: String,
     /// Documentation lines.
     pub(crate) docs: Vec<String>,
+    /// Whether C ABI targets project this item as an opaque handle.
+    pub(crate) is_capi_handle: bool,
     /// Type shape.
     pub(crate) shape: Shape,
 }
@@ -407,14 +409,21 @@ impl Item {
         match item {
             syn::Item::Struct(item) if is_public(&item.vis) && has_bridge_attr(&item.attrs) => {
                 let name = item.ident.to_string();
+                let is_capi_handle = has_capi_handle_attr(&item.attrs)?;
                 let docs = parse_docs(item.attrs);
                 let fields = Field::parse_struct(item.fields)?;
                 let shape = Shape::Struct(fields);
 
-                Ok(Some(Self { name, docs, shape }))
+                Ok(Some(Self {
+                    name,
+                    docs,
+                    is_capi_handle,
+                    shape,
+                }))
             }
             syn::Item::Enum(item) if is_public(&item.vis) && has_bridge_attr(&item.attrs) => {
                 let name = item.ident.to_string();
+                let is_capi_handle = has_capi_handle_attr(&item.attrs)?;
                 let docs = parse_docs(item.attrs);
                 let variants = item
                     .variants
@@ -433,7 +442,12 @@ impl Item {
                     .collect::<Result<Vec<_>>>()?;
                 let shape = Shape::Enum(variants);
 
-                Ok(Some(Self { name, docs, shape }))
+                Ok(Some(Self {
+                    name,
+                    docs,
+                    is_capi_handle,
+                    shape,
+                }))
             }
             _ => Ok(None),
         }
@@ -464,13 +478,12 @@ impl Item {
                 | "ComponentId"
                 | "TargetId"
                 | "ArtifactKey"
-                | "SourceFile"
-                | "SourceFileContent"
-                | "SourceSnapshot"
+                | "Source"
                 | "TextRange"
                 | "TextEdit"
-                | "SourceEdit"
-                | "SourceUpdate"
+                | "FileEdit"
+                | "FileUpdate"
+                | "Module"
         )
     }
 
@@ -489,7 +502,7 @@ impl Item {
                 | "FileContent"
                 | "Span"
                 | "Edit"
-                | "FileEdit"
+                | "FilePatch"
                 | "BatchEdit"
                 | "DiagnosticSeverity"
                 | "DiagnosticTag"
@@ -501,12 +514,22 @@ impl Item {
                 | "Diagnostic"
                 | "ArtifactKey"
                 | "ArtifactVersion"
+                | "ArtifactPathState"
+                | "ArtifactDirectoryEntry"
+                | "ArtifactSourceDependency"
+                | "ArtifactDependency"
                 | "ArtifactSidecarLabel"
                 | "ArtifactSidecar"
+                | "ArtifactString"
+                | "ArtifactRecord"
+                | "DirParsedFile"
+                | "DirParsed"
+                | "DirResolved"
+                | "DirChecked"
                 | "SessionFile"
                 | "Module"
-                | "FileUpdate"
-                | "SourceUpdateResult"
+                | "FileChange"
+                | "FileUpdateResult"
         )
     }
 
@@ -783,6 +806,31 @@ fn is_public(visibility: &syn::Visibility) -> bool {
 /// Return whether attributes contain the bridge marker.
 fn has_bridge_attr(attrs: &[syn::Attribute]) -> bool {
     attrs.iter().any(|attr| attr.path().is_ident("bridge"))
+}
+
+/// Return whether attributes request an opaque C ABI handle.
+fn has_capi_handle_attr(attrs: &[syn::Attribute]) -> Result<bool> {
+    let mut is_capi_handle = false;
+
+    for attr in attrs {
+        if !attr.path().is_ident("bridge") {
+            continue;
+        }
+        if matches!(attr.meta, syn::Meta::Path(_)) {
+            continue;
+        }
+
+        attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("capi_handle") {
+                is_capi_handle = true;
+                Ok(())
+            } else {
+                Err(meta.error("unknown bridge attribute argument"))
+            }
+        })?;
+    }
+
+    Ok(is_capi_handle)
 }
 
 /// Keep documentation text.
