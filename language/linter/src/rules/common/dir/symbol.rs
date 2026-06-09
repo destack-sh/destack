@@ -400,9 +400,9 @@ pub fn declaration_initializer_expression(
                 dir::Expression::Let { declarators, .. }
                 | dir::Expression::Using { declarators, .. } => declarators.iter().find_map(|id| {
                     let declarator = tree.get(*id);
-                    (symbols.symbol_for_declaration(
-                        declarator.pattern.into_global_any(symbols.module_id),
-                    ) == Some(symbol_id))
+                    (symbols
+                        .declaration_symbol(declarator.pattern.into_global_any(symbols.module_id))
+                        == Some(symbol_id))
                     .then_some(declarator.value)
                     .flatten()
                 }),

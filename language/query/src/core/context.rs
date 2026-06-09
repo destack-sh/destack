@@ -215,7 +215,7 @@ impl<'a> DirQueryContext<'a> {
     ) -> Option<dir::LocalSymbolId> {
         let declaration = node_id.into_global(self.module_id);
 
-        self.symbols().symbol_for_declaration(declaration)
+        self.symbols().declaration_symbol(declaration)
     }
 
     /// Return the lexical scope attached to one local node when bound.

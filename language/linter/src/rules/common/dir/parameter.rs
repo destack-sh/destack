@@ -15,7 +15,7 @@ pub fn pattern_binding_name_and_symbol(
     let dir::Pattern::Binding { name, .. } = pattern else {
         return None;
     };
-    let symbol = symbols.symbol_for_declaration(pattern_id.into_global_any(symbols.module_id))?;
+    let symbol = symbols.declaration_symbol(pattern_id.into_global_any(symbols.module_id))?;
 
     Some((*name, symbol))
 }
@@ -30,7 +30,7 @@ pub fn parameter_binding_name_and_symbol(
     match parameter {
         dir::Parameter::Named { name, .. } | dir::Parameter::VariadicNamed { name, .. } => {
             let symbol =
-                symbols.symbol_for_declaration(parameter_id.into_global_any(symbols.module_id))?;
+                symbols.declaration_symbol(parameter_id.into_global_any(symbols.module_id))?;
 
             Some((*name, symbol))
         }
@@ -91,7 +91,7 @@ pub fn collect_parameter_value_binding_symbols(
 
     // collect the parameter root symbol when it lives in value space
     if let Some(parameter_symbol) =
-        symbols.symbol_for_declaration(parameter_id.into_global_any(symbols.module_id))
+        symbols.declaration_symbol(parameter_id.into_global_any(symbols.module_id))
     {
         collect_symbol_when_value_space(symbols, parameter_symbol, bindings);
     }
@@ -119,7 +119,7 @@ pub fn collect_pattern_value_binding_symbols(
 
     // collect the pattern binding symbol when present
     if let Some(symbol_id) =
-        symbols.symbol_for_declaration(pattern_id.into_global_any(symbols.module_id))
+        symbols.declaration_symbol(pattern_id.into_global_any(symbols.module_id))
     {
         collect_symbol_when_value_space(symbols, symbol_id, bindings);
     }
@@ -171,8 +171,7 @@ pub fn collect_pattern_field_value_binding_symbols(
     let field = tree.get(field_id);
 
     // collect the field binding symbol when present
-    if let Some(symbol_id) =
-        symbols.symbol_for_declaration(field_id.into_global_any(symbols.module_id))
+    if let Some(symbol_id) = symbols.declaration_symbol(field_id.into_global_any(symbols.module_id))
     {
         collect_symbol_when_value_space(symbols, symbol_id, bindings);
     }

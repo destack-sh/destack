@@ -738,9 +738,9 @@ fn declaration_marks_symbol_as_any(
                 dir::Expression::Let { declarators, .. }
                 | dir::Expression::Using { declarators, .. } => declarators.iter().any(|id| {
                     let declarator = tree.get(*id);
-                    symbols.symbol_for_declaration(
-                        declarator.pattern.into_global_any(symbols.module_id),
-                    ) == Some(symbol_id)
+                    symbols
+                        .declaration_symbol(declarator.pattern.into_global_any(symbols.module_id))
+                        == Some(symbol_id)
                         && declarator
                             .ty
                             .is_some_and(|type_id| type_expression_is_explicit_any(tree, type_id))
