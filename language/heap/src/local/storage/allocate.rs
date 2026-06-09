@@ -69,58 +69,6 @@ impl HeapStorage {
         Some(reference)
     }
 
-    /// Reserve one fixed-size or no-scan payload in young space.
-    #[inline(always)]
-    fn reserve_young_span_or_noscan_range(
-        &mut self,
-        layout: &AllocationPlan<'_>,
-        payload: Payload<'_>,
-    ) -> HeapResult<Option<HeapReference>> {
-        if let Some(slot) = self.reserve_young_span(layout)? {
-            self.initialize_clean_slot_payload(slot.reference.offset(), payload);
-
-            if !layout.is_noscan {
-                self.publish_young_cache_allocation(
-                    slot,
-                    layout.trace_map,
-                    payload.byte_len().is_some(),
-                )?;
-            }
-            // blacken noscan blocks created during an active major cycle
-            else if self.collector.major_phase != Phase::Idle {
-                let Some(bits) = self.young.span_bits_mut(slot.span_index) else {
-                    return Err(HeapError::internal("missing span"));
-                };
-
-                bits.marked.set_in_bounds(slot.slot_index);
-            }
-
-            return Ok(Some(slot.reference));
-        }
-
-        if !layout.is_noscan {
-            return Ok(None);
-        }
-
-        let byte_len = layout.byte_len;
-        let Some((write_offset, range_index)) =
-            self.reserve_young_noscan_range(byte_len, layout.alignment)?
-        else {
-            return Ok(None);
-        };
-        let reference = HeapReference::new(write_offset);
-
-        self.initialize_mapped_payload(write_offset, byte_len, payload);
-
-        // blacken noscan blocks created during an active major cycle
-        if self.collector.major_phase != Phase::Idle {
-            self.young.marked.set_in_bounds(range_index);
-        }
-        self.record_young_allocation(byte_len);
-
-        Ok(Some(reference))
-    }
-
     /// Allocate one fixed-size payload from young space.
     #[inline(always)]
     fn reserve_young_span(&mut self, layout: &AllocationPlan<'_>) -> HeapResult<Option<YoungSlot>> {
@@ -305,7 +253,7 @@ impl HeapStorage {
 
         let has_initialized_bytes = payload.byte_len().is_some();
 
-        self.allocate_mature_layout(layout, payload, has_initialized_bytes)
+        self.allocate_mature(layout, payload, has_initialized_bytes)
     }
 
     /// Reserve one heap block in young space.
@@ -318,7 +266,37 @@ impl HeapStorage {
         let tracks_shared_edges = layout.has_shared_reference;
         let has_initialized_bytes = payload.byte_len().is_some();
 
-        if let Some(reference) = self.reserve_young_span_or_noscan_range(layout, payload)? {
+        // reserve from a fixed-size young span
+        if let Some(slot) = self.reserve_young_span(layout)? {
+            self.initialize_clean_slot_payload(slot.reference.offset(), payload);
+
+            if !layout.is_noscan {
+                self.publish_young_cache_allocation(slot, trace_map, has_initialized_bytes)?;
+            } else if self.collector.major_phase != Phase::Idle {
+                let Some(bits) = self.young.span_bits_mut(slot.span_index) else {
+                    return Err(HeapError::internal("missing span"));
+                };
+
+                bits.marked.set_in_bounds(slot.slot_index);
+            }
+
+            return Ok(Some(slot.reference));
+        }
+
+        // reserve a no-scan young range when fixed-size spans do not fit
+        if layout.is_noscan
+            && let Some(reservation) =
+                self.reserve_young_noscan_range(layout.byte_len, layout.alignment)?
+        {
+            let reference = HeapReference::new(reservation.first_offset);
+
+            self.initialize_mapped_payload(reservation.first_offset, layout.byte_len, payload);
+
+            if self.collector.major_phase != Phase::Idle {
+                self.young.marked.set_in_bounds(reservation.range_index);
+            }
+            self.record_young_range_allocation(layout.byte_len);
+
             return Ok(Some(reference));
         }
 
@@ -354,7 +332,7 @@ impl HeapStorage {
     }
 
     /// Allocate one mature heap block from one block plan.
-    pub(crate) fn allocate_mature_layout(
+    pub(crate) fn allocate_mature(
         &mut self,
         layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
@@ -364,8 +342,8 @@ impl HeapStorage {
             return Err(HeapError::invalid_allocation(HeapAllocationError::ZeroSize));
         }
 
-        let (storage, charged_bytes) = self.allocate_mature(layout, payload)?;
-        let reference = self.base_reference(storage)?;
+        let allocation = self.allocate_mature_place(layout, payload)?;
+        let reference = self.base_reference(allocation.place)?;
 
         // track every live reference whose layout may contain shared edges
         if layout.has_shared_reference {
@@ -377,8 +355,8 @@ impl HeapStorage {
             self.queue_shared_edge_root(reference);
         }
 
-        self.publish_major_allocation(reference, storage, layout.trace_map)?;
-        self.record_mature_allocation(charged_bytes);
+        self.publish_major_allocation(reference, allocation.place, layout.trace_map)?;
+        self.record_mature_allocation(allocation.charged_bytes);
 
         Ok(reference)
     }
@@ -393,17 +371,17 @@ impl HeapStorage {
         match extent.storage {
             // retire one young range until the next young sweep
             HeapPlace::YoungRange { first_offset } => {
-                let Some((block_index, block)) = self.young_range_by_offset(first_offset) else {
+                let Some(range) = self.young_range_by_offset(first_offset) else {
                     return Err(HeapError::internal("missing young range"));
                 };
 
-                self.young.live.clear(block_index);
-                self.young.marked.clear(block_index);
+                self.young.live.clear(range.index);
+                self.young.marked.clear(range.index);
                 clear_allocation_reference_bits(
                     &mut self.young.local_reference_bits,
                     &mut self.young.shared_reference_bits,
-                    block.first_offset,
-                    block.byte_len,
+                    range.range.first_offset,
+                    range.range.byte_len,
                 );
 
                 self.collector.remove_shared_edge_root(reference);
@@ -464,11 +442,11 @@ impl HeapStorage {
     }
 
     /// Allocate one mature heap storage for the given payload.
-    fn allocate_mature(
+    fn allocate_mature_place(
         &mut self,
         layout: &AllocationPlan<'_>,
         payload: Payload<'_>,
-    ) -> HeapResult<(HeapPlace, usize)> {
+    ) -> HeapResult<MatureAllocation> {
         // reject inconsistent block
         if let Some(actual) = payload.byte_len()
             && actual != layout.byte_len
@@ -499,7 +477,10 @@ impl HeapStorage {
                 true,
             )?;
 
-            Ok((HeapPlace::MatureSlot(slot), class.size_class))
+            Ok(MatureAllocation {
+                place: HeapPlace::MatureSlot(slot),
+                charged_bytes: class.size_class,
+            })
         }
         // otherwise allocate one dedicated large block
         else {
@@ -518,7 +499,10 @@ impl HeapStorage {
 
             self.initialize_mapped_payload(first_offset, layout.byte_len, payload);
 
-            Ok((HeapPlace::LargeBlock(block_id), layout.byte_len))
+            Ok(MatureAllocation {
+                place: HeapPlace::LargeBlock(block_id),
+                charged_bytes: layout.byte_len,
+            })
         }
     }
 
@@ -817,9 +801,9 @@ impl HeapStorage {
         let materialize_end = (offset + materialize_bytes).min(self.young.capacity_bytes);
 
         // round to native page frames
-        let frame_bytes = self.mapping.frame_bytes();
-        let frame_start = offset / frame_bytes * frame_bytes;
-        let frame_end = materialize_end.div_ceil(frame_bytes) * frame_bytes;
+        let frame_size_bytes = self.mapping.frame_size_bytes();
+        let frame_start = offset / frame_size_bytes * frame_size_bytes;
+        let frame_end = materialize_end.div_ceil(frame_size_bytes) * frame_size_bytes;
 
         // publish the new materialized prefix
         self.mapping
@@ -879,7 +863,7 @@ impl HeapStorage {
 
         // advance the young space tail after installing the block
         self.young.next_offset = end_offset;
-        self.record_young_allocation(byte_len);
+        self.record_young_range_allocation(byte_len);
 
         Ok(Some(write_offset))
     }
@@ -890,7 +874,7 @@ impl HeapStorage {
         &mut self,
         byte_len: usize,
         alignment: usize,
-    ) -> HeapResult<Option<(usize, usize)>> {
+    ) -> HeapResult<Option<YoungRangeReservation>> {
         if alignment > self.young.allocation_alignment_bytes {
             return Ok(None);
         }
@@ -919,7 +903,10 @@ impl HeapStorage {
 
         self.young.next_offset = end_offset;
 
-        Ok(Some((write_offset, range_index)))
+        Ok(Some(YoungRangeReservation {
+            first_offset: write_offset,
+            range_index,
+        }))
     }
 
     /// Allocate or reuse one non-full heap span for the given size class.
@@ -1114,6 +1101,24 @@ impl HeapStorage {
             std::ptr::write_bytes(address as *mut u8, 0, byte_len);
         }
     }
+}
+
+/// One mature heap allocation result.
+#[derive(Debug, Clone, Copy)]
+struct MatureAllocation {
+    /// The physical heap storage.
+    place: HeapPlace,
+    /// The byte count charged to mature allocation accounting.
+    charged_bytes: usize,
+}
+
+/// One reserved variable-size young range.
+#[derive(Debug, Clone, Copy)]
+struct YoungRangeReservation {
+    /// The first byte offset inside heap storage.
+    first_offset: usize,
+    /// The range index inside young space.
+    range_index: usize,
 }
 
 /// One reserved fixed-size young slot.

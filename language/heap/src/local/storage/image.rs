@@ -359,6 +359,7 @@ impl HeapStorage {
             span_cache,
             cursor: None,
             page_spans,
+            pending_range_usage: AllocationUsage::default(),
         })
     }
 
@@ -391,6 +392,7 @@ impl HeapStorage {
             span_cache: space.young.span_cache.clone(),
             cursor: space.young.cursor,
             page_spans: space.young.page_spans.clone(),
+            pending_range_usage: space.young.pending_range_usage,
         })
     }
 

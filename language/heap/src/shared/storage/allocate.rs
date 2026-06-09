@@ -325,7 +325,7 @@ impl HeapStorage {
         &self,
         store: &mut HeapState,
         class: &SmallSpanClass,
-    ) -> HeapResult<(usize, bool)> {
+    ) -> HeapResult<SmallSpanAllocation> {
         // first reuse a central partial span
         while let Some(span_index) = store.small.partial_spans.entry(*class).or_default().pop() {
             let Some(span) = store.small.spans.get(span_index).cloned() else {
@@ -363,7 +363,10 @@ impl HeapStorage {
                 span.list.store(SpanList::Worker);
                 span.reset_free_cursor();
 
-                return Ok((span_index, false));
+                return Ok(SmallSpanAllocation {
+                    span_index,
+                    is_dense: false,
+                });
             }
         }
 
@@ -391,26 +394,10 @@ impl HeapStorage {
         store.small.spans.push(Arc::new(span));
         self.accounting.retain_pages(pages, self.page_size_bytes());
 
-        Ok((span_index, true))
-    }
-
-    /// Install one small span into one worker-local cache.
-    fn install_small_cache(
-        &self,
-        store: &HeapState,
-        size_class_cache: &mut SmallSizeClassCache,
-        span_index: usize,
-        use_dense_cursor: bool,
-    ) -> HeapResult<()> {
-        // resolve the selected shared small span
-        let Some(span) = store.small.spans.get(span_index).cloned() else {
-            return Err(HeapError::internal("missing span"));
-        };
-
-        // install the span in the worker-local cache
-        size_class_cache.install(span_index, span, use_dense_cursor);
-
-        Ok(())
+        Ok(SmallSpanAllocation {
+            span_index,
+            is_dense: true,
+        })
     }
 
     /// Allocate one shared heap small slot from one explicit initialization source.
@@ -477,10 +464,13 @@ impl HeapStorage {
         // acquire a central span or map a new one for this size class
         {
             let mut store = self.state.write();
-            let (span_index, use_dense_cursor) = self.allocate_small_span(&mut store, class)?;
+            let allocation = self.allocate_small_span(&mut store, class)?;
             let size_class_cache = &mut cache.small[cache_index];
+            let Some(span) = store.small.spans.get(allocation.span_index).cloned() else {
+                return Err(HeapError::internal("missing span"));
+            };
 
-            self.install_small_cache(&store, size_class_cache, span_index, use_dense_cursor)?;
+            size_class_cache.install(allocation.span_index, span, allocation.is_dense);
         }
 
         // initialize one slot from the newly installed worker cache
@@ -932,6 +922,15 @@ impl HeapStorage {
             std::ptr::write_bytes(address as *mut u8, 0, byte_len);
         }
     }
+}
+
+/// One shared small span selected for worker-local allocation.
+#[derive(Debug, Clone, Copy)]
+struct SmallSpanAllocation {
+    /// The selected small span index.
+    span_index: usize,
+    /// Whether the worker cache can use dense cursor allocation.
+    is_dense: bool,
 }
 
 /// Return the offset rounded up to one block boundary.

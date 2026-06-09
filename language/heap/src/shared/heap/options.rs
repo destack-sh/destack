@@ -7,10 +7,11 @@ use crate::allocator::{
     SizeClassTable,
 };
 use crate::{
-    AllocationClass, DEFAULT_ADDRESS_SPACE_SIZE_BYTES, DEFAULT_SHARED_SMALL_SIZE_BYTES,
-    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, GcOptions, HeapConfigurationError, HeapError,
-    allocation_class, validate_address_space_size_bytes, validate_allocator_chunk_size_bytes,
-    validate_page_size_bytes, validate_size_class_alignment, validate_small_span_size_bytes,
+    AllocationClass, AllocationShape, AllocationSite, DEFAULT_ADDRESS_SPACE_SIZE_BYTES,
+    DEFAULT_SHARED_SMALL_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, GcOptions,
+    HeapConfigurationError, HeapError, allocation_class, validate_address_space_size_bytes,
+    validate_allocator_chunk_size_bytes, validate_page_size_bytes, validate_size_class_alignment,
+    validate_small_span_size_bytes,
 };
 
 /// The configuration for one shared heap instance.
@@ -47,9 +48,32 @@ impl Default for SharedHeapOptions {
 }
 
 impl SharedHeapOptions {
-    /// Resolve one heap block class for this shared heap shape.
+    /// Resolve one shared heap allocation site for this allocation shape.
     #[inline(always)]
-    pub fn allocation_class(
+    pub fn allocation_site_for_shape(&self, shape: AllocationShape<'_>) -> AllocationSite {
+        let class = self.allocation_class_for_shape(shape);
+
+        AllocationSite::new(shape, class)
+    }
+
+    /// Resolve one shared heap allocation class for this allocation shape.
+    #[inline(always)]
+    fn allocation_class_for_shape(&self, shape: AllocationShape<'_>) -> AllocationClass {
+        if shape.trace_map.has_tagged_reference() {
+            return AllocationClass::Large;
+        }
+
+        self.allocation_class(
+            shape.byte_len,
+            shape.alignment,
+            shape.trace_id,
+            shape.is_noscan,
+        )
+    }
+
+    /// Resolve one shared heap allocation class for allocation parameters.
+    #[inline(always)]
+    pub(crate) fn allocation_class(
         &self,
         byte_len: usize,
         alignment: usize,

@@ -9,9 +9,9 @@ use super::usage::SharedHeapUsage;
 use crate::shared::gc::{GcPhase, GcWorker, Pacer};
 use crate::shared::storage::{AllocationCache, HeapStorage, HeapStorageImage};
 use crate::{
-    AccountingRegion, AllocationPlan, AllocationShape, AllocationSite, Allocator, GcPacer,
-    GcPressure, GcProgress, GcState, GcStats, HeapAllocationError, HeapError, HeapResult, Payload,
-    SharedHeapOptions, SharedHeapReference, SmallAllocationPlan, apply_byte_delta,
+    AccountingRegion, AllocationPlan, AllocationSite, Allocator, GcPacer, GcPressure, GcProgress,
+    GcState, GcStats, HeapAllocationError, HeapError, HeapResult, Payload, SharedHeapOptions,
+    SharedHeapReference, SmallAllocationPlan, apply_byte_delta,
 };
 
 /// One live shared heap.
@@ -242,49 +242,6 @@ impl SharedHeap {
         self.storage.flush_allocation_cache(cache);
     }
 
-    /// Allocate one zeroed dynamic shared heap block.
-    #[inline(always)]
-    pub fn allocate_dynamic_zeroed(
-        &self,
-        worker: &GcWorker,
-        cache: &mut AllocationCache,
-        shape: AllocationShape<'_>,
-        trace_table: &TraceTable,
-    ) -> HeapResult<SharedHeapReference> {
-        let layout = self.storage.allocation_plan(shape);
-
-        self.allocate_payload(worker, cache, &layout, Payload::Zeroed, trace_table)
-    }
-
-    /// Allocate one uninitialized dynamic shared heap block.
-    #[inline(always)]
-    pub fn allocate_dynamic_uninit(
-        &self,
-        worker: &GcWorker,
-        cache: &mut AllocationCache,
-        shape: AllocationShape<'_>,
-        trace_table: &TraceTable,
-    ) -> HeapResult<SharedHeapReference> {
-        let layout = self.storage.allocation_plan(shape);
-
-        self.allocate_payload(worker, cache, &layout, Payload::Uninit, trace_table)
-    }
-
-    /// Allocate one byte-initialized dynamic shared heap block.
-    #[inline(always)]
-    pub fn allocate_dynamic_bytes(
-        &self,
-        worker: &GcWorker,
-        cache: &mut AllocationCache,
-        shape: AllocationShape<'_>,
-        bytes: &[u8],
-        trace_table: &TraceTable,
-    ) -> HeapResult<SharedHeapReference> {
-        let layout = self.storage.allocation_plan(shape);
-
-        self.allocate_payload(worker, cache, &layout, Payload::Bytes(bytes), trace_table)
-    }
-
     /// Allocate one payload from one allocation plan.
     #[inline(always)]
     pub(crate) fn allocate_payload(
@@ -379,16 +336,21 @@ impl SharedHeap {
         self.allocate_payload(worker, cache, &layout, Payload::Uninit, trace_table)
     }
 
-    /// Resolve one allocation shape to one allocation site.
-    #[inline(always)]
-    pub fn allocation_site(&self, shape: AllocationShape<'_>) -> AllocationSite {
-        self.storage.allocation_plan(shape).site()
-    }
+    /// Allocate one byte-initialized payload from one allocation site.
+    #[cold]
+    #[inline(never)]
+    pub fn allocate_bytes(
+        &self,
+        worker: &GcWorker,
+        cache: &mut AllocationCache,
+        site: AllocationSite,
+        trace_map: &TraceMap,
+        bytes: &[u8],
+        trace_table: &TraceTable,
+    ) -> HeapResult<SharedHeapReference> {
+        let layout = site.plan(trace_map);
 
-    /// Resolve one allocation shape against this shared heap.
-    #[inline(always)]
-    pub fn allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
-        self.storage.allocation_plan(shape)
+        self.allocate_payload(worker, cache, &layout, Payload::Bytes(bytes), trace_table)
     }
 
     /// Return whether one shared heap reference currently refers to one live block.
@@ -414,12 +376,12 @@ impl SharedHeap {
     }
 
     /// Return the scan metadata for one shared heap reference.
-    pub fn scan(
+    pub fn trace_map(
         &self,
         reference: SharedHeapReference,
         trace_table: &TraceTable,
     ) -> HeapResult<TraceMap> {
-        self.storage.scan(reference, trace_table)
+        self.storage.trace_map(reference, trace_table)
     }
 
     /// Record one shared heap write barrier before one byte store.
@@ -488,14 +450,14 @@ impl SharedHeap {
     }
 
     /// Run one shared collection step with one explicit byte budget.
-    pub fn collect_step(
+    pub fn step_collection(
         &self,
         roots: &[SharedHeapReference],
         roots_complete: bool,
         budget_bytes: usize,
         trace_table: &TraceTable,
     ) -> HeapResult<GcProgress> {
-        self.collect_step_for_worker(None, roots, roots_complete, budget_bytes, trace_table)
+        self.step_collection_for_worker(None, roots, roots_complete, budget_bytes, trace_table)
     }
 
     /// Register one shared GC worker.
@@ -504,7 +466,7 @@ impl SharedHeap {
     }
 
     /// Run one shared collection step for one worker with one explicit byte budget.
-    pub fn collect_step_for_worker(
+    pub fn step_collection_for_worker(
         &self,
         worker: Option<&GcWorker>,
         roots: &[SharedHeapReference],
@@ -525,18 +487,18 @@ impl SharedHeap {
         // concurrent mark
         if self.gc_phase() == GcPhase::Mark {
             self.storage
-                .mark_step(worker, roots, budget_bytes, trace_table)?;
+                .step_mark(worker, roots, budget_bytes, trace_table)?;
 
             // termination check
             if roots_complete {
-                self.storage.try_start_sweep()?;
+                self.storage.start_sweep_when_drained()?;
             }
 
             return Ok(GcProgress::Active);
         }
 
         // incremental sweep
-        let progress = self.storage.sweep_step(budget_bytes)?;
+        let progress = self.storage.step_sweep(budget_bytes)?;
         if let Some(stats) = progress.completed_stats() {
             self.record_gc_cycle(stats);
         }
@@ -729,7 +691,7 @@ impl SharedHeap {
             return Ok(());
         }
 
-        self.collect_step_for_worker(Some(worker), &[], false, budget_bytes, trace_table)?;
+        self.step_collection_for_worker(Some(worker), &[], false, budget_bytes, trace_table)?;
 
         Ok(())
     }

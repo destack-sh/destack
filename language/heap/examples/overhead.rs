@@ -64,20 +64,11 @@ fn print_policy() {
     println!("heap metadata overhead report");
     println!();
     println!("defaults");
-    println!(
-        "  page bytes:             {}",
-        DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES
-    );
-    println!("  local young bytes:      {}", DEFAULT_YOUNG_SIZE_BYTES);
-    println!("  local small span bytes: {}", DEFAULT_SMALL_SIZE_BYTES);
-    println!(
-        "  shared span bytes:      {}",
-        DEFAULT_SHARED_SMALL_SIZE_BYTES
-    );
-    println!(
-        "  allocation alignment:   {}",
-        DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES
-    );
+    println!("  page bytes:             {DEFAULT_ALLOCATOR_PAGE_SIZE_BYTES}");
+    println!("  local young bytes:      {DEFAULT_YOUNG_SIZE_BYTES}");
+    println!("  local small span bytes: {DEFAULT_SMALL_SIZE_BYTES}");
+    println!("  shared span bytes:      {DEFAULT_SHARED_SMALL_SIZE_BYTES}");
+    println!("  allocation alignment:   {DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES}");
     println!();
 }
 
@@ -93,10 +84,10 @@ fn print_young_space_summary() {
     let metadata_percent = total_bytes as f64 / DEFAULT_YOUNG_SIZE_BYTES as f64 * 100.0;
 
     println!("current eager local young metadata");
-    println!("  page span owners:       {}", page_spans_bytes);
+    println!("  page span owners:       {page_spans_bytes}");
     println!("  span cache map:         0");
-    println!("  local reference bits:   {}", local_reference_bytes);
-    println!("  shared reference bits:  {}", shared_reference_bytes);
+    println!("  local reference bits:   {local_reference_bytes}");
+    println!("  shared reference bits:  {shared_reference_bytes}");
     println!("  total:                  {total_bytes} ({metadata_percent:.1}% of young)");
     println!();
 }

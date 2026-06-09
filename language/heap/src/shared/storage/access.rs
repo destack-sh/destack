@@ -3,12 +3,12 @@ use destack_mir::{TraceMap, TraceTable};
 use super::storage::block_byte_offset;
 use super::{HeapExtent, HeapPlace, HeapStorage};
 use crate::{
-    HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, scan_references,
+    HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, visit_references,
 };
 
 impl HeapStorage {
     /// Return the trace map for one shared heap reference.
-    pub(crate) fn scan(
+    pub(crate) fn trace_map(
         &self,
         reference: SharedHeapReference,
         trace_table: &TraceTable,
@@ -64,18 +64,13 @@ impl HeapStorage {
 
         // scan inserted shared references in mapped heap memory
         let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
-        let mut edges = Vec::new();
-
         let base_address = self.mapping.base_address() + extent.base.offset();
-        scan_references::<SharedHeapReference>(
+        visit_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(byte_offset, byte_len),
-            &mut edges,
-        )?;
-
-        // publish discovered references
-        self.queue_references(None, edges)
+            &mut |reference| self.mark_reference(None, reference),
+        )
     }
 
     /// Return one checked live extent and byte offset for one shared heap range.

@@ -11,8 +11,7 @@ use crate::allocator::{Allocator, PageSpan, PageSpanCache, SizeClassTable};
 use crate::shared::gc::{CollectorState, GcPhase};
 use crate::shared::heap::SharedHeapUsage;
 use crate::{
-    AllocationPlan, AllocationShape, GcState, HeapError, HeapResult, SharedHeapOptions,
-    SharedHeapReference, SmallSpanClass, allocation_plan,
+    GcState, HeapError, HeapResult, SharedHeapOptions, SharedHeapReference, SmallSpanClass,
 };
 
 /// The first non-null shared heap large-block id.
@@ -84,19 +83,6 @@ impl HeapStorage {
     /// Return the configured shared page size.
     pub(crate) fn page_size_bytes(&self) -> usize {
         self.allocator.page_size_bytes()
-    }
-
-    /// Resolve one allocation shape against this shared heap storage.
-    #[inline(always)]
-    pub(crate) fn allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
-        let store = self.state.read();
-
-        allocation_plan(
-            shape,
-            &store.small.size_classes,
-            self.allocator.page_size_bytes(),
-            store.small.span_size_bytes,
-        )
     }
 
     /// Return the exact retained shared heap allocator-page bytes.

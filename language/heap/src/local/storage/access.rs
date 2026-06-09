@@ -34,7 +34,7 @@ impl HeapStorage {
     }
 
     /// Return the trace map for one heap reference.
-    pub(crate) fn scan(
+    pub(crate) fn trace_map(
         &self,
         reference: HeapReference,
         trace_table: &TraceTable,

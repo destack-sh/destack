@@ -24,7 +24,7 @@ pub struct AllocationShape<'a> {
     pub has_shared_reference: bool,
 }
 
-/// One compiler-known allocation site.
+/// One explicit allocation site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AllocationSite {
     /// The exact payload byte length.
@@ -42,6 +42,19 @@ pub struct AllocationSite {
 }
 
 impl AllocationSite {
+    /// Create one allocation site from one shape and class.
+    #[inline(always)]
+    pub const fn new(shape: AllocationShape<'_>, class: AllocationClass) -> Self {
+        Self {
+            byte_len: shape.byte_len,
+            alignment: shape.alignment,
+            trace_id: shape.trace_id,
+            is_noscan: shape.is_noscan,
+            has_shared_reference: shape.has_shared_reference,
+            class,
+        }
+    }
+
     /// Return whether this site describes a valid non-empty heap block.
     #[inline(always)]
     pub const fn is_empty(&self) -> bool {
@@ -124,7 +137,7 @@ impl AllocationClass {
 
 /// One allocator-ready managed heap plan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AllocationPlan<'a> {
+pub(crate) struct AllocationPlan<'a> {
     /// The exact payload byte length.
     pub byte_len: usize,
     /// The required block base alignment in bytes.
@@ -144,31 +157,12 @@ pub struct AllocationPlan<'a> {
 impl<'a> AllocationPlan<'a> {
     /// Return whether this plan describes a valid non-empty heap block.
     #[inline(always)]
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.byte_len == 0
-    }
-
-    /// Return this plan as one compiler-known allocation site.
-    #[inline(always)]
-    pub fn site(&self) -> AllocationSite {
-        AllocationSite {
-            byte_len: self.byte_len,
-            alignment: self.alignment,
-            trace_id: self.trace_id,
-            is_noscan: self.is_noscan,
-            has_shared_reference: self.has_shared_reference,
-            class: self.class,
-        }
-    }
-
-    /// Return this plan as a small allocation site.
-    #[inline(always)]
-    pub fn small_site(&self) -> Option<SmallAllocationSite> {
-        self.site().small_site()
     }
 }
 
-/// One compiler-known small allocation site.
+/// One explicit small allocation site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SmallAllocationSite {
     /// The exact payload byte length.
@@ -185,11 +179,29 @@ impl SmallAllocationSite {
     }
 }
 
+/// Dense mutator cache index for one small allocation site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub(crate) struct SmallCacheIndex(usize);
+
+impl SmallCacheIndex {
+    /// Create one class-derived small allocation cache index.
+    #[inline(always)]
+    pub(crate) const fn from_class_index(index: usize) -> Self {
+        Self(index)
+    }
+
+    /// Return this cache index as a usize.
+    #[inline(always)]
+    pub(crate) const fn index(self) -> usize {
+        self.0
+    }
+}
+
 /// One allocator-ready small allocation plan.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SmallAllocationPlan {
     /// The exact mutator-cache index for this class.
-    pub(crate) cache_index: usize,
+    pub(crate) cache_index: SmallCacheIndex,
     /// The smallest payload byte length routed to this class.
     pub(crate) minimum_byte_len: usize,
     /// The small-span class used by local and shared spaces.
@@ -268,7 +280,7 @@ impl SmallAllocationPlan {
     /// Return the exact mutator-cache index for this small allocation.
     #[inline(always)]
     pub const fn cache_index(self) -> usize {
-        self.cache_index
+        self.cache_index.index()
     }
 
     /// Return the small-span class for this small allocation.
@@ -281,38 +293,6 @@ impl SmallAllocationPlan {
     #[inline(always)]
     pub const fn slot_bytes(self) -> usize {
         self.class.size_class
-    }
-}
-
-/// Resolve one allocation shape against a concrete small allocation table.
-pub(crate) fn allocation_plan<'a>(
-    shape: AllocationShape<'a>,
-    size_classes: &SizeClassTable,
-    page_size_bytes: usize,
-    span_size_bytes: usize,
-) -> AllocationPlan<'a> {
-    let class = if shape.trace_map.has_tagged_reference() {
-        AllocationClass::Large
-    } else {
-        allocation_class(
-            shape.byte_len,
-            shape.alignment,
-            shape.trace_id,
-            shape.is_noscan,
-            size_classes,
-            page_size_bytes,
-            span_size_bytes,
-        )
-    };
-
-    AllocationPlan {
-        byte_len: shape.byte_len,
-        alignment: shape.alignment,
-        trace_id: shape.trace_id,
-        trace_map: shape.trace_map,
-        is_noscan: shape.is_noscan,
-        has_shared_reference: shape.has_shared_reference,
-        class,
     }
 }
 
@@ -345,7 +325,7 @@ pub(crate) fn allocation_class(
         trace_id.map_or(0, |trace_id| trace_id.index() + 1)
     };
     let cache_index = (trace_slot * size_classes.classes.len() + class_index) * 2;
-    let cache_index = cache_index + is_noscan as usize;
+    let cache_index = SmallCacheIndex::from_class_index(cache_index + is_noscan as usize);
 
     AllocationClass::Small(SmallAllocationPlan {
         cache_index,

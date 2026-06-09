@@ -1,3 +1,5 @@
+use std::mem;
+
 use serde::{Deserialize, Serialize};
 
 use crate::allocator::{Allocator, Bitmap, PageSpan, PageSpanCache};
@@ -42,6 +44,8 @@ pub(crate) struct YoungSpace {
     pub(crate) cursor: Option<YoungCursor>,
     /// The owning span for each young space page.
     pub(crate) page_spans: Vec<Option<usize>>,
+    /// The uncommitted usage for variable-size young ranges.
+    pub(crate) pending_range_usage: AllocationUsage,
 }
 
 impl YoungSpace {
@@ -73,6 +77,7 @@ impl YoungSpace {
             span_cache: Vec::new(),
             cursor: None,
             page_spans: vec![None; page_count],
+            pending_range_usage: AllocationUsage::default(),
         })
     }
 
@@ -114,7 +119,7 @@ impl YoungSpace {
     }
 
     /// Return one young range by object base offset.
-    pub(crate) fn range_by_offset(&self, first_offset: usize) -> Option<(usize, YoungRange)> {
+    pub(crate) fn range_by_offset(&self, first_offset: usize) -> Option<IndexedYoungRange> {
         let range_index = self.range_index_at_offset(first_offset)?;
         let range = self.range(range_index)?;
 
@@ -122,11 +127,14 @@ impl YoungSpace {
             return None;
         }
 
-        Some((range_index, range))
+        Some(IndexedYoungRange {
+            index: range_index,
+            range,
+        })
     }
 
     /// Return one live young range containing one byte offset.
-    pub(crate) fn range_at_offset(&self, byte_offset: usize) -> Option<(usize, YoungRange)> {
+    pub(crate) fn range_at_offset(&self, byte_offset: usize) -> Option<IndexedYoungRange> {
         let range_index = self.range_index_at_offset(byte_offset)?;
         let range = self.range(range_index)?;
 
@@ -134,11 +142,14 @@ impl YoungSpace {
             return None;
         }
 
-        Some((range_index, range))
+        Some(IndexedYoungRange {
+            index: range_index,
+            range,
+        })
     }
 
     /// Return one young range record containing one byte offset.
-    pub(crate) fn range_record_at_offset(&self, byte_offset: usize) -> Option<(usize, YoungRange)> {
+    pub(crate) fn range_record_at_offset(&self, byte_offset: usize) -> Option<IndexedYoungRange> {
         let range_index = self.range_index_at_offset(byte_offset)?;
         let range = self.range_record(range_index)?;
 
@@ -146,7 +157,10 @@ impl YoungSpace {
             return None;
         }
 
-        Some((range_index, range))
+        Some(IndexedYoungRange {
+            index: range_index,
+            range,
+        })
     }
 
     /// Return every captured young space range and its live range bits.
@@ -190,25 +204,45 @@ impl YoungSpace {
         Some(span.reserved_slot_count_with(next_offset))
     }
 
-    /// Return the uncommitted usage held by the active span cursor.
+    /// Return the uncommitted usage held by young allocation cursors.
     #[inline(always)]
-    pub(crate) fn pending_cursor_usage(&self) -> AllocationUsage {
-        self.cursor
+    pub(crate) fn pending_usage(&self) -> AllocationUsage {
+        let mut usage = self.pending_range_usage;
+        let cursor_usage = self
+            .cursor
             .map(|cursor| cursor.pending_usage())
-            .unwrap_or_default()
+            .unwrap_or_default();
+
+        usage.allocate_many(
+            cursor_usage.allocation_count(),
+            cursor_usage.allocated_bytes(),
+        );
+
+        usage
     }
 
-    /// Flush the active young cursor into span metadata.
+    /// Record one uncommitted variable-size young range.
     #[inline(always)]
-    pub(crate) fn flush_cursor(&mut self) -> AllocationUsage {
-        let Some(cursor) = &mut self.cursor else {
-            return AllocationUsage::default();
-        };
+    pub(crate) fn record_range_usage(&mut self, byte_len: usize) {
+        self.pending_range_usage.allocate(byte_len);
+    }
 
-        let usage = cursor.flush_usage();
-        let span_index = cursor.span_index;
-        if let Some(span) = self.spans.get_mut(span_index) {
-            span.next_offset = cursor.next_offset;
+    /// Flush active young usage into exact heap accounting.
+    #[inline(always)]
+    pub(crate) fn flush_usage(&mut self) -> AllocationUsage {
+        let mut usage = mem::take(&mut self.pending_range_usage);
+
+        if let Some(cursor) = &mut self.cursor {
+            let cursor_usage = cursor.flush_usage();
+            let span_index = cursor.span_index;
+            if let Some(span) = self.spans.get_mut(span_index) {
+                span.next_offset = cursor.next_offset;
+            }
+
+            usage.allocate_many(
+                cursor_usage.allocation_count(),
+                cursor_usage.allocated_bytes(),
+            );
         }
 
         usage
@@ -411,6 +445,15 @@ pub(crate) struct YoungRange {
     pub(crate) first_offset: usize,
     /// The logical byte length for this block.
     pub(crate) byte_len: usize,
+}
+
+/// One young range with its range index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct IndexedYoungRange {
+    /// The young range index.
+    pub(crate) index: usize,
+    /// The young range record.
+    pub(crate) range: YoungRange,
 }
 
 /// Mark bits for one fixed-size young span.
