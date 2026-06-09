@@ -10,9 +10,8 @@ use crate::{
     Access, ArgumentSlice, Attribute, Block, CommentSpan, DynamicShape, DynamicTable, Field,
     FieldSpan, FloatType, Function, FunctionHeaderSpans, Global, Instruction, Layout, LayoutId,
     Lifetime, LifetimeParameter, Local, LocalNodeId, Metadata, Node, NodeType, Nullability,
-    PlaceProjection, PlaceTable, ReferenceKind, Space, Terminator, Type, TypeAlias,
-    TypeDeclarationSpans, TypeLineage, TypeMetadata, TypeReference, TypedValueSpan, ValueReference,
-    Vtable,
+    ReferenceKind, Space, Terminator, Type, TypeAlias, TypeDeclarationSpans, TypeLineage,
+    TypeMetadata, TypeReference, TypedValueSpan, ValueReference, Vtable,
 };
 
 #[inline]
@@ -223,19 +222,37 @@ impl Tree {
 
     /// Rebuild place facts for one function body.
     pub fn rebuild_function_places(&mut self, function_id: LocalNodeId<Function>) {
-        let blocks = self.get(function_id).blocks.clone();
-        let mut places = PlaceTable::new();
+        let function_index = self.local_id_for_node_id(function_id.id);
+        let blocks = self.functions.get(function_index).blocks.clone();
+        let mut instruction_indices = Vec::new();
 
+        // collect raw arena indexes before mutating the function
         for block_id in blocks {
-            let instructions = self.get(block_id).instructions.clone();
+            let block_index = self.local_id_for_node_id(block_id.id);
+            let block = self.blocks.get(block_index);
 
-            for instruction_id in instructions {
-                let instruction = self.get(instruction_id);
-                Self::record_instruction_places(instruction, &mut places);
-            }
+            instruction_indices.extend(
+                block
+                    .instructions
+                    .iter()
+                    .map(|instruction_id| self.local_id_for_node_id(instruction_id.id)),
+            );
         }
 
-        self.get_mut(function_id).places = places;
+        let instruction_arena = &self.instructions;
+        let function = self.functions.get_mut(function_index);
+
+        function.value_places.clear();
+
+        // rebuild places in instruction order
+        for instruction_index in instruction_indices {
+            let instruction = instruction_arena.get(instruction_index);
+            let Some(effect) = instruction.place_effect() else {
+                continue;
+            };
+
+            function.record_place_effect(effect);
+        }
     }
 
     /// Infer the return lifetime for one function signature.
@@ -464,122 +481,6 @@ impl Tree {
                 self.type_reference_contains_borrowed_refs(element)
             }
             _ => false,
-        }
-    }
-
-    /// Record place facts produced by one instruction.
-    fn record_instruction_places(instruction: &Instruction, places: &mut PlaceTable) {
-        match instruction {
-            Instruction::LocalAddr {
-                destination, local, ..
-            } => {
-                if let Some(value) = destination.value() {
-                    places.set_local(value, *local);
-                }
-            }
-            Instruction::GlobalAddr {
-                destination,
-                global,
-                ..
-            } => {
-                if let Some(value) = destination.value() {
-                    places.set_global(value, *global);
-                }
-            }
-            Instruction::NewZeroed { destination, .. }
-            | Instruction::NewUninit { destination, .. }
-            | Instruction::NewComplete { destination, .. }
-            | Instruction::NewSliceZeroed { destination, .. }
-            | Instruction::NewSliceUninit { destination, .. }
-            | Instruction::FrameAllocZeroed { destination, .. }
-            | Instruction::FrameAllocUninit { destination, .. }
-            | Instruction::ClosureEnvironment { destination } => {
-                if let Some(value) = destination.value() {
-                    places.set_value(value, *destination);
-                }
-            }
-            Instruction::FieldAddr {
-                destination,
-                aggregate,
-                index,
-                ..
-            } => {
-                let Some(value) = destination.value() else {
-                    return;
-                };
-                let Some(base) = aggregate.value() else {
-                    return;
-                };
-
-                places.set_projection(value, base, PlaceProjection::Field { index: *index });
-            }
-            Instruction::ElementAddr {
-                destination,
-                array,
-                index,
-                ..
-            } => {
-                let Some(value) = destination.value() else {
-                    return;
-                };
-                let Some(base) = array.value() else {
-                    return;
-                };
-
-                places.set_projection(value, base, PlaceProjection::Index { index: *index });
-            }
-            Instruction::Slice {
-                destination,
-                source,
-                start,
-                length,
-                ..
-            } => {
-                let Some(value) = destination.value() else {
-                    return;
-                };
-                let Some(base) = source.value() else {
-                    return;
-                };
-
-                places.set_projection(
-                    value,
-                    base,
-                    PlaceProjection::Slice {
-                        start: *start,
-                        length: *length,
-                    },
-                );
-            }
-            Instruction::Cast {
-                destination,
-                argument,
-                ..
-            }
-            | Instruction::TensorCast {
-                destination,
-                tensor: argument,
-            }
-            | Instruction::TensorView {
-                destination,
-                view: argument,
-                ..
-            }
-            | Instruction::Pin {
-                destination,
-                value: argument,
-                ..
-            } => {
-                let Some(value) = destination.value() else {
-                    return;
-                };
-                let Some(source) = argument.value() else {
-                    return;
-                };
-
-                places.set_from_value(value, source);
-            }
-            _ => {}
         }
     }
 

@@ -1,26 +1,7 @@
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{GlobalReference, LocalReference, Value, ValueReference};
-
-/// Opaque id for one MIR place.
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct PlaceId(pub u32);
-
-impl PlaceId {
-    /// Create a place id.
-    #[inline]
-    pub const fn new(id: u32) -> Self {
-        Self(id)
-    }
-
-    /// Return the numeric id.
-    #[inline]
-    pub const fn id(self) -> u32 {
-        self.0
-    }
-}
+use crate::{Constant, GlobalReference, Lifetime, LocalReference, Value, ValueReference};
 
 /// Root storage for one MIR place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -44,15 +25,15 @@ impl PlaceOrigin {
     }
 }
 
-/// One projection applied to a MIR place.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum PlaceProjection {
+/// One projection in a MIR path.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Projection {
     /// A fixed concrete field projection.
     Field {
         /// The zero-based field index.
         index: u32,
     },
-    /// A fixed concrete element projection.
+    /// A fixed element projection.
     Element {
         /// The zero-based element index.
         index: u32,
@@ -62,6 +43,8 @@ pub enum PlaceProjection {
         /// The runtime index value.
         index: ValueReference,
     },
+    /// An unknown element projection.
+    AnyElement,
     /// A runtime slice projection.
     Slice {
         /// The runtime start index value.
@@ -69,13 +52,19 @@ pub enum PlaceProjection {
         /// The runtime length value.
         length: ValueReference,
     },
+    /// A variant payload projection.
+    Variant {
+        /// The selected variant tag.
+        tag: Constant,
+    },
 }
 
-impl PlaceProjection {
+impl Projection {
     /// Replace value references inside this projection.
     fn replace_value(&mut self, from: Value, to: Value) {
         match self {
-            Self::Field { .. } | Self::Element { .. } => {}
+            Self::Field { .. } | Self::Element { .. } | Self::AnyElement | Self::Variant { .. } => {
+            }
             Self::Index { index } => index.replace_value(from, to),
             Self::Slice { start, length } => {
                 start.replace_value(from, to);
@@ -87,7 +76,8 @@ impl PlaceProjection {
     /// Append value references used by this projection.
     fn append_value_references(&self, values: &mut SmallVec<[ValueReference; 4]>) {
         match self {
-            Self::Field { .. } | Self::Element { .. } => {}
+            Self::Field { .. } | Self::Element { .. } | Self::AnyElement | Self::Variant { .. } => {
+            }
             Self::Index { index } => values.push(*index),
             Self::Slice { start, length } => {
                 values.push(*start);
@@ -97,13 +87,57 @@ impl PlaceProjection {
     }
 }
 
+/// A rootless path through a MIR value or type shape.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+pub struct Path {
+    /// Projections from the root value.
+    pub projections: Vec<Projection>,
+}
+
+impl Path {
+    /// Create a root path.
+    #[inline]
+    pub fn root() -> Self {
+        Self::default()
+    }
+
+    /// Append one projection.
+    #[inline]
+    pub fn push(&mut self, projection: Projection) {
+        self.projections.push(projection);
+    }
+
+    /// Return this path with one extra projection.
+    #[inline]
+    pub fn with_projection(mut self, projection: Projection) -> Self {
+        self.push(projection);
+
+        self
+    }
+
+    /// Return whether this path is rooted at the value itself.
+    #[inline]
+    pub fn is_root(&self) -> bool {
+        self.projections.is_empty()
+    }
+}
+
+/// One borrowed reference-like component in a type shape.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct BorrowedPath {
+    /// Path to the borrowed component.
+    pub path: Path,
+    /// Lifetime carried by the borrowed component.
+    pub lifetime: Lifetime,
+}
+
 /// A MIR memory place.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Place {
     /// Root storage for the place.
     pub origin: PlaceOrigin,
-    /// Projections from the root storage.
-    pub projections: Vec<PlaceProjection>,
+    /// Path from the root storage.
+    pub path: Path,
 }
 
 impl Place {
@@ -112,7 +146,7 @@ impl Place {
     pub fn new(origin: PlaceOrigin) -> Self {
         Self {
             origin,
-            projections: Vec::new(),
+            path: Path::root(),
         }
     }
 
@@ -136,13 +170,13 @@ impl Place {
 
     /// Append one projection.
     #[inline]
-    pub fn push(&mut self, projection: PlaceProjection) {
-        self.projections.push(projection);
+    pub fn push(&mut self, projection: Projection) {
+        self.path.push(projection);
     }
 
     /// Return this place with one extra projection.
     #[inline]
-    pub fn with_projection(mut self, projection: PlaceProjection) -> Self {
+    pub fn with_projection(mut self, projection: Projection) -> Self {
         self.push(projection);
         self
     }
@@ -154,21 +188,17 @@ impl Place {
                 && !matches!(other.origin, PlaceOrigin::Value(_));
         }
 
-        for (left, right) in self.projections.iter().zip(&other.projections) {
+        for (left, right) in self.path.projections.iter().zip(&other.path.projections) {
             // separate fields are disjoint
-            if let (
-                PlaceProjection::Field { index: left },
-                PlaceProjection::Field { index: right },
-            ) = (left, right)
+            if let (Projection::Field { index: left }, Projection::Field { index: right }) =
+                (left, right)
             {
                 return left != right;
             }
 
             // separate fixed elements are disjoint
-            if let (
-                PlaceProjection::Element { index: left },
-                PlaceProjection::Element { index: right },
-            ) = (left, right)
+            if let (Projection::Element { index: left }, Projection::Element { index: right }) =
+                (left, right)
             {
                 return left != right;
             }
@@ -180,11 +210,12 @@ impl Place {
     /// Return whether this place contains another place.
     pub fn contains(&self, other: &Self) -> bool {
         self.origin == other.origin
-            && self.projections.len() <= other.projections.len()
+            && self.path.projections.len() <= other.path.projections.len()
             && self
+                .path
                 .projections
                 .iter()
-                .zip(&other.projections)
+                .zip(&other.path.projections)
                 .all(|(left, right)| left == right)
     }
 
@@ -198,7 +229,7 @@ impl Place {
     pub fn replace_value(&mut self, from: Value, to: Value) {
         self.origin.replace_value(from, to);
 
-        for projection in &mut self.projections {
+        for projection in &mut self.path.projections {
             projection.replace_value(from, to);
         }
     }
@@ -213,7 +244,7 @@ impl Place {
         }
 
         // include dynamic projection operands
-        for projection in &self.projections {
+        for projection in &self.path.projections {
             projection.append_value_references(&mut values);
         }
 
@@ -221,130 +252,31 @@ impl Place {
     }
 }
 
-/// Places keyed by SSA value inside one function.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct PlaceTable {
-    /// Stored places.
-    places: Vec<Place>,
-    /// Place assigned to each SSA value.
-    places_by_value: Vec<Option<PlaceId>>,
-}
-
-impl PlaceTable {
-    /// Create an empty place table.
-    #[inline]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Return the place for one id.
-    #[inline]
-    pub fn place(&self, id: PlaceId) -> Option<&Place> {
-        self.places.get(id.0 as usize)
-    }
-
-    /// Return the place id assigned to one value.
-    #[inline]
-    pub fn value_place_id(&self, value: Value) -> Option<PlaceId> {
-        self.places_by_value
-            .get(value.0 as usize)
-            .copied()
-            .flatten()
-    }
-
-    /// Assign a place to one value.
-    pub fn set_value_place(&mut self, value: Value, place: Place) -> PlaceId {
-        let id = self.insert(place);
-        self.bind_value(value, id);
-        id
-    }
-
-    /// Assign a local place to one value.
-    #[inline]
-    pub fn set_local(&mut self, value: Value, local: LocalReference) -> PlaceId {
-        self.set_value_place(value, Place::local(local))
-    }
-
-    /// Assign a global place to one value.
-    #[inline]
-    pub fn set_global(&mut self, value: Value, global: GlobalReference) -> PlaceId {
-        self.set_value_place(value, Place::global(global))
-    }
-
-    /// Assign an opaque value place to one value.
-    #[inline]
-    pub fn set_value(&mut self, value: Value, origin: ValueReference) -> PlaceId {
-        self.set_value_place(value, Place::value(origin))
-    }
-
-    /// Assign a projected place to one value.
-    pub fn set_projection(
-        &mut self,
+/// Place table effect produced by one instruction.
+pub(crate) enum PlaceEffect {
+    /// Assign a concrete place to one SSA value.
+    Root {
+        /// The value receiving the place.
         value: Value,
+        /// The assigned place.
+        place: Place,
+    },
+    /// Project a place from an existing SSA value.
+    Projection {
+        /// The value receiving the projected place.
+        value: Value,
+        /// The base value whose place is projected.
         base: Value,
-        projection: PlaceProjection,
-    ) -> PlaceId {
-        let place = self
-            .value_place_id(base)
-            .and_then(|id| self.place(id).cloned())
-            .unwrap_or_else(|| Place::value(base.into()))
-            .with_projection(projection);
-
-        self.set_value_place(value, place)
-    }
-
-    /// Assign a copied place to one value.
-    pub fn set_from_value(&mut self, value: Value, source: Value) -> Option<PlaceId> {
-        let place = self
-            .value_place_id(source)
-            .and_then(|id| self.place(id).cloned())?;
-
-        Some(self.set_value_place(value, place))
-    }
-
-    /// Replace value references inside the table.
-    pub fn replace_value(&mut self, from: Value, to: Value) {
-        if from == to {
-            return;
-        }
-
-        for place in &mut self.places {
-            place.replace_value(from, to);
-        }
-
-        let from_index = from.0 as usize;
-        let from_place = self.places_by_value.get(from_index).copied().flatten();
-
-        let to_index = to.0 as usize;
-        if to_index >= self.places_by_value.len() {
-            self.places_by_value.resize(to_index + 1, None);
-        }
-
-        if self.places_by_value[to_index].is_none() {
-            self.places_by_value[to_index] = from_place;
-        }
-
-        if let Some(slot) = self.places_by_value.get_mut(from_index) {
-            *slot = None;
-        }
-    }
-
-    /// Insert one place.
-    fn insert(&mut self, place: Place) -> PlaceId {
-        let id = PlaceId::new(self.places.len() as u32);
-        self.places.push(place);
-        id
-    }
-
-    /// Bind an existing place id to one value.
-    fn bind_value(&mut self, value: Value, id: PlaceId) {
-        let index = value.0 as usize;
-        if index >= self.places_by_value.len() {
-            self.places_by_value.resize(index + 1, None);
-        }
-
-        self.places_by_value[index] = Some(id);
-    }
+        /// The projection to append.
+        projection: Projection,
+    },
+    /// Copy a place from one SSA value to another.
+    Copy {
+        /// The value receiving the copied place.
+        value: Value,
+        /// The source value whose place is copied.
+        source: Value,
+    },
 }
 
 #[cfg(test)]
@@ -355,8 +287,8 @@ mod tests {
     #[test]
     fn test_fields_are_disjoint() {
         let local = LocalNodeId::<Local>::new(0);
-        let left = Place::local(local.into()).with_projection(PlaceProjection::Field { index: 0 });
-        let right = Place::local(local.into()).with_projection(PlaceProjection::Field { index: 1 });
+        let left = Place::local(local.into()).with_projection(Projection::Field { index: 0 });
+        let right = Place::local(local.into()).with_projection(Projection::Field { index: 1 });
 
         assert!(left.is_definitely_disjoint(&right));
         assert!(!left.may_overlap(&right));
@@ -366,9 +298,7 @@ mod tests {
     fn test_prefix_places_overlap() {
         let local = LocalNodeId::<Local>::new(0);
         let root = Place::local(local.into());
-        let field = root
-            .clone()
-            .with_projection(PlaceProjection::Field { index: 0 });
+        let field = root.clone().with_projection(Projection::Field { index: 0 });
 
         assert!(!root.is_definitely_disjoint(&field));
         assert!(root.may_overlap(&field));
@@ -377,11 +307,10 @@ mod tests {
     #[test]
     fn test_index_projection_is_conservative() {
         let local = LocalNodeId::<Local>::new(0);
-        let dynamic = Place::local(local.into()).with_projection(PlaceProjection::Index {
+        let dynamic = Place::local(local.into()).with_projection(Projection::Index {
             index: Value::new(0).into(),
         });
-        let fixed =
-            Place::local(local.into()).with_projection(PlaceProjection::Element { index: 0 });
+        let fixed = Place::local(local.into()).with_projection(Projection::Element { index: 0 });
 
         assert!(!dynamic.is_definitely_disjoint(&fixed));
         assert!(dynamic.may_overlap(&fixed));
@@ -390,7 +319,7 @@ mod tests {
     #[test]
     fn test_slice_projection_tracks_operands() {
         let local = LocalNodeId::<Local>::new(0);
-        let place = Place::local(local.into()).with_projection(PlaceProjection::Slice {
+        let place = Place::local(local.into()).with_projection(Projection::Slice {
             start: Value::new(0).into(),
             length: Value::new(1).into(),
         });

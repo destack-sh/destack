@@ -182,8 +182,10 @@ function cleanup(value0: slice<int32, unique>, value1: int64, value2: int64): vo
 entry0(value0: slice<int32, unique>, value1: int64, value2: int64):
     drop place(value0, field(0))
     drop place(value0, element(1))
+    drop place(value0, element(any))
     drop place(value0, index(value1))
     drop place(value0, slice(value1, value2))
+    drop place(value0, variant(7int32))
     return
 }
 "#,

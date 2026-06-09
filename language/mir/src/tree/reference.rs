@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{Block, Function, Global, Lifetime, Local, LocalNodeId, Type, TypedValue, Value};
+use crate::{
+    Block, BorrowedPath, Function, Global, Lifetime, Local, LocalNodeId, Path, Projection,
+    ReferenceKind, Tree, Type, TypedValue, Value,
+};
 
 /// One value reference.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -93,6 +96,124 @@ impl TypeReference {
         match self {
             Self::Type { lifetimes, .. } => lifetimes,
             Self::Missing | Self::Error => &[],
+        }
+    }
+
+    /// Return borrowed reference-like paths carried by this type reference.
+    pub fn borrowed_paths(&self, tree: &Tree) -> Vec<BorrowedPath> {
+        let lifetimes = self.lifetimes().to_vec();
+        let mut borrowed_paths = Vec::new();
+
+        self.collect_borrowed_paths_into(tree, &lifetimes, Path::root(), &mut borrowed_paths);
+
+        borrowed_paths
+    }
+
+    /// Collect borrowed paths carried by this type reference into an output vector.
+    fn collect_borrowed_paths_into(
+        &self,
+        tree: &Tree,
+        lifetimes: &[Lifetime],
+        path: Path,
+        borrowed_paths: &mut Vec<BorrowedPath>,
+    ) {
+        let lifetimes = if self.lifetimes().is_empty() {
+            lifetimes.to_vec()
+        } else {
+            self.lifetimes()
+                .iter()
+                .map(|lifetime| tree.substitute_lifetime(lifetime, lifetimes))
+                .collect()
+        };
+        let Some(ty) = self.ty() else {
+            return;
+        };
+
+        Self::collect_type_borrowed_paths_into(tree, ty, &lifetimes, path, borrowed_paths);
+    }
+
+    /// Collect borrowed paths carried by one type into an output vector.
+    fn collect_type_borrowed_paths_into(
+        tree: &Tree,
+        ty: LocalNodeId<Type>,
+        lifetimes: &[Lifetime],
+        path: Path,
+        borrowed_paths: &mut Vec<BorrowedPath>,
+    ) {
+        match tree.get(ty) {
+            // record borrowed reference-like leaves
+            Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::Slice {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            }
+            | Type::TensorView {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                ..
+            } => {
+                let lifetime = tree.substitute_lifetime(lifetime, lifetimes);
+                if !lifetime.is_empty() {
+                    borrowed_paths.push(BorrowedPath { path, lifetime });
+                }
+            }
+            // descend into fixed-field aggregates
+            Type::Struct { fields, .. } => {
+                for (index, field) in fields.iter().enumerate() {
+                    let field = tree.get(*field);
+                    let path = path.clone().with_projection(Projection::Field {
+                        index: index as u32,
+                    });
+
+                    field
+                        .ty
+                        .collect_borrowed_paths_into(tree, lifetimes, path, borrowed_paths);
+                }
+            }
+            // descend into positional aggregates
+            Type::Tuple { elements, .. } => {
+                for (index, element) in elements.iter().enumerate() {
+                    let path = path.clone().with_projection(Projection::Field {
+                        index: index as u32,
+                    });
+
+                    element.collect_borrowed_paths_into(tree, lifetimes, path, borrowed_paths);
+                }
+            }
+            // transparent storage wrappers
+            Type::Newtype { inner, .. }
+            | Type::Dynamic { constraint: inner }
+            | Type::Uninit { value: inner }
+            | Type::Atomic { value: inner } => {
+                inner.collect_borrowed_paths_into(tree, lifetimes, path, borrowed_paths);
+            }
+            // descend into each variant payload shape
+            Type::Variant { cases, .. } => {
+                for case in cases {
+                    let path = path.clone().with_projection(Projection::Variant {
+                        tag: case.tag.clone(),
+                    });
+
+                    case.ty
+                        .collect_borrowed_paths_into(tree, lifetimes, path, borrowed_paths);
+                }
+            }
+            // collapse indexed containers to any-element paths
+            Type::Array { element, .. }
+            | Type::Slice { element, .. }
+            | Type::Vector { element, .. }
+            | Type::Tensor { element, .. }
+            | Type::TensorView { element, .. } => {
+                let path = path.with_projection(Projection::AnyElement);
+
+                element.collect_borrowed_paths_into(tree, lifetimes, path, borrowed_paths);
+            }
+            _ => {}
         }
     }
 }
@@ -284,5 +405,84 @@ impl Parameter {
         let ty = self.ty.ty()?;
 
         Some(TypedValue::new(value, ty))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        Access, BorrowedPath, Constant, Copy, Field, Lifetime, Nullability, Path, Projection,
+        ReferenceKind, Space, Tree, Type, TypeReference, VariantCase,
+    };
+
+    #[test]
+    fn test_collect_borrowed_paths_for_fields_and_variants() {
+        let mut tree = Tree::new();
+        let int = tree.insert_type(Type::Int {
+            width: 32,
+            is_signed: true,
+        });
+
+        let left = tree.insert_type(Type::Reference {
+            kind: ReferenceKind::Borrowed,
+            lifetime: Lifetime::slot(0),
+            space: Space::Local,
+            access: Access::Readonly,
+            pointee: int.into(),
+            nullability: Nullability::None,
+        });
+        let right = tree.insert_type(Type::Reference {
+            kind: ReferenceKind::Borrowed,
+            lifetime: Lifetime::slot(1),
+            space: Space::Local,
+            access: Access::Readonly,
+            pointee: int.into(),
+            nullability: Nullability::None,
+        });
+
+        let left_field = tree.insert(Field {
+            name: None,
+            ty: left.into(),
+        });
+        let structure = tree.insert_type(Type::Struct {
+            fields: vec![left_field],
+            copy: Copy::Yes,
+        });
+        let variant = tree.insert_type(Type::Variant {
+            tag: int.into(),
+            storage: right.into(),
+            cases: vec![VariantCase {
+                tag: Constant::int32(7),
+                ty: right.into(),
+            }],
+            copy: Copy::Yes,
+        });
+        let tuple = tree.insert_type(Type::Tuple {
+            elements: vec![structure.into(), variant.into()],
+            copy: Copy::Yes,
+        });
+
+        let ty = TypeReference::from(tuple);
+        let paths = ty.borrowed_paths(&tree);
+
+        assert_eq!(
+            paths,
+            vec![
+                BorrowedPath {
+                    path: Path::root()
+                        .with_projection(Projection::Field { index: 0 })
+                        .with_projection(Projection::Field { index: 0 }),
+                    lifetime: Lifetime::slot(0),
+                },
+                BorrowedPath {
+                    path: Path::root()
+                        .with_projection(Projection::Field { index: 1 })
+                        .with_projection(Projection::Variant {
+                            tag: Constant::int32(7),
+                        }),
+                    lifetime: Lifetime::slot(1),
+                },
+            ],
+        );
     }
 }

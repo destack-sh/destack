@@ -6,7 +6,7 @@ use super::r#type::format_lifetime_group;
 
 use crate::{
     BlockReference, Constant, FunctionReference, GlobalReference, IntegerReference, LocalReference,
-    MirFormatContext, MirFormatter, Place, PlaceOrigin, PlaceProjection, TypeReference, Value,
+    MirFormatContext, MirFormatter, Place, PlaceOrigin, Projection, TypeReference, Value,
     ValueReference,
 };
 
@@ -36,14 +36,14 @@ impl<'a> Format<MirFormatContext<'a>> for ValueReference {
 impl<'a> Format<MirFormatContext<'a>> for Place {
     fn format(&self, f: &mut MirFormatter<'a, '_>) -> FormatResult<()> {
         if let PlaceOrigin::Value(value) = self.origin
-            && self.projections.is_empty()
+            && self.path.is_root()
         {
             return value.format(f);
         }
 
         write!(f, [token("place"), token("(")])?;
         format_place_origin(&self.origin, f)?;
-        for projection in &self.projections {
+        for projection in &self.path.projections {
             write!(f, [token(","), space()])?;
             format_place_projection(projection, f)?;
         }
@@ -181,11 +181,11 @@ fn format_place_origin<'a>(origin: &PlaceOrigin, f: &mut MirFormatter<'a, '_>) -
 
 /// Format one MIR place projection.
 fn format_place_projection<'a>(
-    projection: &PlaceProjection,
+    projection: &Projection,
     f: &mut MirFormatter<'a, '_>,
 ) -> FormatResult<()> {
     match projection {
-        PlaceProjection::Field { index } => write!(
+        Projection::Field { index } => write!(
             f,
             [
                 token("field"),
@@ -194,7 +194,7 @@ fn format_place_projection<'a>(
                 token(")")
             ]
         ),
-        PlaceProjection::Element { index } => write!(
+        Projection::Element { index } => write!(
             f,
             [
                 token("element"),
@@ -203,10 +203,11 @@ fn format_place_projection<'a>(
                 token(")")
             ]
         ),
-        PlaceProjection::Index { index } => {
-            write!(f, [token("index"), token("("), index, token(")")])
+        Projection::Index { index } => write!(f, [token("index"), token("("), index, token(")")]),
+        Projection::AnyElement => {
+            write!(f, [token("element"), token("("), token("any"), token(")")])
         }
-        PlaceProjection::Slice { start, length } => write!(
+        Projection::Slice { start, length } => write!(
             f,
             [
                 token("slice"),
@@ -218,5 +219,8 @@ fn format_place_projection<'a>(
                 token(")")
             ]
         ),
+        Projection::Variant { tag } => {
+            write!(f, [token("variant"), token("("), tag, token(")")])
+        }
     }
 }

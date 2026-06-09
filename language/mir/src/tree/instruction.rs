@@ -7,10 +7,11 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CompareExchangeAccess, Constant,
     DispatchSlot, FenceAccess, FunctionReference, GlobalReference, Intrinsic, LocalReference, Node,
-    NodeType, Place, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
-    TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorIndexReduceOperator,
-    TensorIndexTieBreak, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
-    TypeReference, UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
+    NodeType, Place, PlaceEffect, Projection, TensorConvertMode, TensorConvolutionDimensionNumbers,
+    TensorConvolutionWindow, TensorDotDimensionNumbers, TensorGatherDimensionNumbers,
+    TensorIndexReduceOperator, TensorIndexTieBreak, TensorReduceOperator,
+    TensorScatterDimensionNumbers, TensorScatterMode, TypeReference, UnaryOperator, ValueReference,
+    VectorConvertMode, VectorReduceOperator,
 };
 
 /// Compact representation of an argument slice stored in an external buffer.
@@ -920,6 +921,155 @@ impl Node for Instruction {
 }
 
 impl Instruction {
+    /// Return the place table effect produced by this instruction.
+    pub(crate) fn place_effect(&self) -> Option<PlaceEffect> {
+        match self {
+            Instruction::LocalAddr {
+                destination, local, ..
+            } => Some(PlaceEffect::Root {
+                value: destination.value()?,
+                place: Place::local(*local),
+            }),
+            Instruction::GlobalAddr {
+                destination,
+                global,
+                ..
+            } => Some(PlaceEffect::Root {
+                value: destination.value()?,
+                place: Place::global(*global),
+            }),
+            Instruction::NewZeroed { destination, .. }
+            | Instruction::NewUninit { destination, .. }
+            | Instruction::NewComplete { destination, .. }
+            | Instruction::NewSliceZeroed { destination, .. }
+            | Instruction::NewSliceUninit { destination, .. }
+            | Instruction::FrameAllocZeroed { destination, .. }
+            | Instruction::FrameAllocUninit { destination, .. }
+            | Instruction::ClosureEnvironment { destination } => Some(PlaceEffect::Root {
+                value: destination.value()?,
+                place: Place::value(*destination),
+            }),
+            Instruction::FieldAddr {
+                destination,
+                aggregate,
+                index,
+                ..
+            } => Some(PlaceEffect::Projection {
+                value: destination.value()?,
+                base: aggregate.value()?,
+                projection: Projection::Field { index: *index },
+            }),
+            Instruction::ElementAddr {
+                destination,
+                array,
+                index,
+                ..
+            } => Some(PlaceEffect::Projection {
+                value: destination.value()?,
+                base: array.value()?,
+                projection: Projection::Index { index: *index },
+            }),
+            Instruction::Slice {
+                destination,
+                source,
+                start,
+                length,
+                ..
+            } => Some(PlaceEffect::Projection {
+                value: destination.value()?,
+                base: source.value()?,
+                projection: Projection::Slice {
+                    start: *start,
+                    length: *length,
+                },
+            }),
+            Instruction::Cast {
+                destination,
+                argument,
+                ..
+            }
+            | Instruction::TensorCast {
+                destination,
+                tensor: argument,
+            }
+            | Instruction::TensorView {
+                destination,
+                view: argument,
+                ..
+            }
+            | Instruction::Pin {
+                destination,
+                value: argument,
+                ..
+            } => Some(PlaceEffect::Copy {
+                value: destination.value()?,
+                source: argument.value()?,
+            }),
+            Instruction::Error
+            | Instruction::Const { .. }
+            | Instruction::Binary { .. }
+            | Instruction::Unary { .. }
+            | Instruction::Select { .. }
+            | Instruction::LocalGet { .. }
+            | Instruction::LocalSet { .. }
+            | Instruction::FunctionAddr { .. }
+            | Instruction::ClosureBind { .. }
+            | Instruction::Load { .. }
+            | Instruction::Store { .. }
+            | Instruction::FieldGet { .. }
+            | Instruction::FieldSet { .. }
+            | Instruction::ElementGet { .. }
+            | Instruction::ElementSet { .. }
+            | Instruction::Struct { .. }
+            | Instruction::Tuple { .. }
+            | Instruction::Array { .. }
+            | Instruction::VectorSplat { .. }
+            | Instruction::VectorExtract { .. }
+            | Instruction::VectorInsert { .. }
+            | Instruction::VectorShuffle { .. }
+            | Instruction::VectorSelect { .. }
+            | Instruction::VectorReduce { .. }
+            | Instruction::VectorCompare { .. }
+            | Instruction::VectorConvert { .. }
+            | Instruction::TensorSplat { .. }
+            | Instruction::TensorLoad { .. }
+            | Instruction::TensorExtract { .. }
+            | Instruction::TensorStore { .. }
+            | Instruction::TensorFill { .. }
+            | Instruction::TensorCopy { .. }
+            | Instruction::TensorReshape { .. }
+            | Instruction::TensorBroadcast { .. }
+            | Instruction::TensorTranspose { .. }
+            | Instruction::TensorSlice { .. }
+            | Instruction::TensorPad { .. }
+            | Instruction::TensorConcat { .. }
+            | Instruction::TensorCompare { .. }
+            | Instruction::TensorSelect { .. }
+            | Instruction::TensorReduce { .. }
+            | Instruction::TensorIndexReduce { .. }
+            | Instruction::TensorDot { .. }
+            | Instruction::TensorConvolution { .. }
+            | Instruction::TensorGather { .. }
+            | Instruction::TensorScatter { .. }
+            | Instruction::TensorConvert { .. }
+            | Instruction::Call { .. }
+            | Instruction::CallVirtual { .. }
+            | Instruction::CallDynamic { .. }
+            | Instruction::CallIndirect { .. }
+            | Instruction::Free { .. }
+            | Instruction::Drop { .. }
+            | Instruction::Unpin { .. }
+            | Instruction::BarrierWrite { .. }
+            | Instruction::AtomicLoad { .. }
+            | Instruction::AtomicStore { .. }
+            | Instruction::AtomicCompareExchange { .. }
+            | Instruction::AtomicRmw { .. }
+            | Instruction::AtomicFence { .. }
+            | Instruction::Assume { .. }
+            | Instruction::Intrinsic { .. } => None,
+        }
+    }
+
     /// Get the destination value defined by this instruction (if any).
     pub fn destination(&self) -> Option<ValueReference> {
         match self {

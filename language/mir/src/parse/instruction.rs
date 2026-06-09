@@ -6,8 +6,8 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     ArgumentSlice, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CastOperator,
     CompareExchangeAccess, DispatchSlot, FenceAccess, FunctionReference, Instruction, LocalNodeId,
-    MemoryFlags, MemoryOrdering, MemoryScope, Place, PlaceOrigin, PlaceProjection, SpaceSet,
-    SyncScope, TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
+    MemoryFlags, MemoryOrdering, MemoryScope, Place, PlaceOrigin, Projection, SpaceSet, SyncScope,
+    TensorConvertMode, TensorConvolutionDimensionNumbers, TensorConvolutionWindow,
     TensorDotDimensionNumbers, TensorGatherDimensionNumbers, TensorIndexReduceOperator,
     TensorIndexTieBreak, TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode,
     Type, TypeReference, UnaryOperator, ValueReference, VectorConvertMode, VectorReduceOperator,
@@ -1305,7 +1305,7 @@ impl Parser {
     }
 
     /// Parse one MIR place projection.
-    fn parse_place_projection(&mut self) -> ParseResult<PlaceProjection> {
+    fn parse_place_projection(&mut self) -> ParseResult<Projection> {
         if self.eat_identifier_text("field") {
             self.eat_token(TokenType::OpenParenthesis)?;
             let index = self.parse_int_literal()?;
@@ -1313,17 +1313,23 @@ impl Parser {
                 u32::try_from(index).map_err(|_| ParseError::invalid("place index", self.pos()))?;
             self.eat_token(TokenType::CloseParenthesis)?;
 
-            return Ok(PlaceProjection::Field { index });
+            return Ok(Projection::Field { index });
         }
 
         if self.eat_identifier_text("element") {
             self.eat_token(TokenType::OpenParenthesis)?;
+            if self.eat_identifier_text("any") {
+                self.eat_token(TokenType::CloseParenthesis)?;
+
+                return Ok(Projection::AnyElement);
+            }
+
             let index = self.parse_int_literal()?;
             let index =
                 u32::try_from(index).map_err(|_| ParseError::invalid("place index", self.pos()))?;
             self.eat_token(TokenType::CloseParenthesis)?;
 
-            return Ok(PlaceProjection::Element { index });
+            return Ok(Projection::Element { index });
         }
 
         if self.eat_identifier_text("index") {
@@ -1331,7 +1337,7 @@ impl Parser {
             let index = self.parse_value()?;
             self.eat_token(TokenType::CloseParenthesis)?;
 
-            return Ok(PlaceProjection::Index { index });
+            return Ok(Projection::Index { index });
         }
 
         if self.eat_identifier_text("slice") {
@@ -1341,7 +1347,15 @@ impl Parser {
             let length = self.parse_value()?;
             self.eat_token(TokenType::CloseParenthesis)?;
 
-            return Ok(PlaceProjection::Slice { start, length });
+            return Ok(Projection::Slice { start, length });
+        }
+
+        if self.eat_identifier_text("variant") {
+            self.eat_token(TokenType::OpenParenthesis)?;
+            let tag = self.parse_constant()?;
+            self.eat_token(TokenType::CloseParenthesis)?;
+
+            return Ok(Projection::Variant { tag });
         }
 
         Err(ParseError::invalid("place projection", self.pos()))

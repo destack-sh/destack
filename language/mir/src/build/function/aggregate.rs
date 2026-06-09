@@ -1,6 +1,6 @@
 use crate::build::FunctionBuilder;
 use crate::{
-    BinaryOperator, Instruction, LocalNodeId, PlaceProjection, TensorConvertMode,
+    BinaryOperator, Instruction, LocalNodeId, Projection, TensorConvertMode,
     TensorConvolutionDimensionNumbers, TensorConvolutionWindow, TensorDotDimensionNumbers,
     TensorGatherDimensionNumbers, TensorIndexReduceOperator, TensorIndexTieBreak,
     TensorReduceOperator, TensorScatterDimensionNumbers, TensorScatterMode, Type, TypeReference,
@@ -41,7 +41,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             result_type,
             aggregate,
-            PlaceProjection::Field { index },
+            Projection::Field { index },
         );
         destination
     }
@@ -92,7 +92,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             result_type,
             array,
-            PlaceProjection::Index {
+            Projection::Index {
                 index: index.into(),
             },
         );
@@ -119,7 +119,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             result_type,
             source,
-            PlaceProjection::Slice {
+            Projection::Slice {
                 start: start.into(),
                 length: length.into(),
             },
