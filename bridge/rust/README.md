@@ -13,7 +13,7 @@ destack = "0.55.4"
 ## API
 
 ```rust
-let session = destack::Session::open_path(".")?;
+let session = destack::Session::open(destack::Source::file_system("."))?;
 assert_eq!(destack::version(), "0.55.4");
 ```
 

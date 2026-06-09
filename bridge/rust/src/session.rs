@@ -9,8 +9,7 @@ use destack_linter as linter;
 use destack_query as query;
 use destack_repository as repository;
 use destack_session as session;
-use destack_source as source;
-use source::FileSystem;
+use destack_source::{FileSystem, PhysicalFileSystem};
 
 /// Result returned by the Rust bridge facade.
 pub type Result<T> = std::result::Result<T, Error>;
@@ -48,34 +47,32 @@ impl Display for Error {
 impl error::Error for Error {}
 
 impl Session {
-    /// Open one session from an explicit source snapshot.
-    pub fn open_source(root: impl Into<PathBuf>, source: bridge::SourceSnapshot) -> Result<Self> {
-        let source = session::SourceSnapshot::try_from(source).map_err(Error::new)?;
-        let repository = session::open_repository_from_source(
-            root.into(),
-            source,
-            repository::Environment::default(),
-            repository::Settings::default(),
-            repository::DestackLayoutOverride::default(),
-        )
-        .map_err(Error::new)?;
+    /// Open one session from one source input.
+    pub fn open(source: bridge::Source) -> Result<Self> {
+        let repository = match source {
+            bridge::Source::FileSystem { path } => Self::open_repository_from_file_system(
+                PathBuf::from(path),
+                Arc::new(PhysicalFileSystem::new()),
+            )?,
+            bridge::Source::Memory { root, edits } => {
+                let edits = edits
+                    .into_iter()
+                    .map(session::FileEdit::try_from)
+                    .collect::<std::result::Result<Vec<_>, _>>()
+                    .map_err(Error::new)?;
 
-        Self::open(repository)
-    }
+                session::open_repository_from_memory(
+                    PathBuf::from(root),
+                    edits,
+                    repository::Environment::default(),
+                    repository::Settings::default(),
+                    repository::DestackLayoutOverride::default(),
+                )
+                .map_err(Error::new)?
+            }
+        };
 
-    /// Open one session from a native filesystem path.
-    pub fn open_path(path: impl Into<PathBuf>) -> Result<Self> {
-        let file_system = Arc::new(source::PhysicalFileSystem::new());
-        let repository = session::open_repository_from_fs(
-            path.into(),
-            file_system,
-            repository::Environment::default(),
-            repository::Settings::default(),
-            repository::DestackLayoutOverride::default(),
-        )
-        .map_err(Error::new)?;
-
-        Self::open(repository)
+        Self::from_repository(repository)
     }
 
     /// Return the current session revision.
@@ -109,29 +106,29 @@ impl Session {
         Ok(files)
     }
 
-    /// Apply one source update through the default session ref.
-    pub fn update(&self, update: bridge::SourceUpdate) -> Result<bridge::SourceUpdateResult> {
-        let update = session::SourceUpdate::try_from(update).map_err(Error::new)?;
+    /// Apply one file update through the default session ref.
+    pub fn update(&self, update: bridge::FileUpdate) -> Result<bridge::FileUpdateResult> {
+        let update = session::FileUpdate::try_from(update).map_err(Error::new)?;
         let result = self
             .session
             .update(self.session.head(), update)
             .map_err(Error::new)?;
 
-        Ok(bridge::SourceUpdateResult::from_session_update(
+        Ok(bridge::FileUpdateResult::from_session_update(
             &self.session,
             result,
         ))
     }
 
-    /// Reload tracked files from this session filesystem.
-    pub fn reload(&self) -> Result<Vec<bridge::FileUpdate>> {
+    /// Reload tracked files from this session backing source.
+    pub fn reload(&self) -> Result<Vec<bridge::FileChange>> {
         let updates = self
             .session
             .reload_from_fs(self.session.head())
             .map_err(Error::new)?;
         let updates = updates
             .into_iter()
-            .map(|update| bridge::FileUpdate::from_session_update(&self.session, update))
+            .map(|update| bridge::FileChange::from_session_update(&self.session, update))
             .collect();
 
         Ok(updates)
@@ -174,6 +171,118 @@ impl Session {
         let version = self.session.require(revision, key).map_err(Error::new)?;
 
         Ok(bridge::ArtifactVersion::from_artifact(version))
+    }
+
+    /// Return one raw artifact record for one immutable revision.
+    pub fn artifact_record(
+        &self,
+        revision: bridge::Revision,
+        key: bridge::ArtifactKey,
+    ) -> Result<bridge::ArtifactRecord> {
+        let revision = revision.into_repository().map_err(Error::new)?;
+        let key = key.into_artifact().map_err(Error::new)?;
+        let version = self.session.require(revision, key).map_err(Error::new)?;
+        let repository = self.session.repository();
+        let record = repository
+            .artifact_store()
+            .record(&version, repository.string_pool())
+            .map_err(Error::new)?
+            .ok_or_else(|| Error::new(format!("artifact record is missing for {version:?}")))?;
+
+        Ok(bridge::ArtifactRecord::from_artifact(record))
+    }
+
+    /// Return the parsed DIR artifact for one loaded module.
+    pub fn parse(
+        &self,
+        revision: bridge::Revision,
+        module: bridge::Module,
+    ) -> Result<bridge::DirParsed> {
+        let revision = revision.into_repository().map_err(Error::new)?;
+        let module_id = module.id.clone();
+        let module = module.id.into_source().map_err(Error::new)?;
+        let key = bridge::ArtifactKey::DirParsed {
+            module: module_id.clone(),
+        };
+        let key = key.into_artifact().map_err(Error::new)?;
+        let version = self.session.require(revision, key).map_err(Error::new)?;
+        let repository = self.session.repository();
+        let parsed = repository
+            .artifact_store()
+            .dir_parsed(&version)
+            .ok_or_else(|| Error::new(format!("parsed DIR artifact is missing for {version:?}")))?;
+
+        Ok(bridge::DirParsed::from_artifact(
+            version,
+            module.into(),
+            parsed.as_ref(),
+        ))
+    }
+
+    /// Return the resolved DIR artifact for one loaded module profile.
+    pub fn resolve(
+        &self,
+        revision: bridge::Revision,
+        module: bridge::Module,
+        profile: bridge::ProfileId,
+    ) -> Result<bridge::DirResolved> {
+        let revision = revision.into_repository().map_err(Error::new)?;
+        let module_id = module.id.clone();
+        let profile_id = profile.clone();
+        let module = module.id.into_source().map_err(Error::new)?;
+        let profile = profile.into_source().map_err(Error::new)?;
+        let key = bridge::ArtifactKey::DirResolved {
+            module: module_id,
+            profile: profile_id,
+        };
+        let key = key.into_artifact().map_err(Error::new)?;
+        let version = self.session.require(revision, key).map_err(Error::new)?;
+        let repository = self.session.repository();
+        let resolved = repository
+            .artifact_store()
+            .dir_resolved(&version)
+            .ok_or_else(|| {
+                Error::new(format!("resolved DIR artifact is missing for {version:?}"))
+            })?;
+
+        Ok(bridge::DirResolved::from_artifact(
+            version,
+            module.into(),
+            profile.into(),
+            resolved.as_ref(),
+        ))
+    }
+
+    /// Return the checked DIR facade artifact for one loaded module profile.
+    pub fn check(
+        &self,
+        revision: bridge::Revision,
+        module: bridge::Module,
+        profile: bridge::ProfileId,
+    ) -> Result<bridge::DirChecked> {
+        let revision = revision.into_repository().map_err(Error::new)?;
+        let module_id = module.id.clone();
+        let profile_id = profile.clone();
+        let module = module.id.into_source().map_err(Error::new)?;
+        let profile = profile.into_source().map_err(Error::new)?;
+        let key = bridge::ArtifactKey::DirChecked {
+            module: module_id,
+            profile: profile_id,
+        };
+        let key = key.into_artifact().map_err(Error::new)?;
+        let version = self.session.require(revision, key).map_err(Error::new)?;
+        let repository = self.session.repository();
+        let store = repository.artifact_store();
+        let checked = store.dir_checked(&version).ok_or_else(|| {
+            Error::new(format!("checked DIR artifact is missing for {version:?}"))
+        })?;
+
+        Ok(bridge::DirChecked::from_artifact(
+            version,
+            module.into(),
+            profile.into(),
+            checked.as_ref(),
+        ))
     }
 
     /// Return diagnostics for one immutable revision.
@@ -224,7 +333,7 @@ impl Session {
     }
 
     /// Open one Rust session from one prepared repository.
-    fn open(repository: repository::Repository) -> Result<Self> {
+    fn from_repository(repository: repository::Repository) -> Result<Self> {
         let repository = Arc::new(repository);
         let root = repository.path().to_path_buf();
         let head = repository::Ref::for_root(&root);
@@ -246,5 +355,20 @@ impl Session {
         .map_err(Error::new)?;
 
         Ok(Self { session })
+    }
+
+    /// Open one repository from one filesystem source.
+    fn open_repository_from_file_system(
+        path: PathBuf,
+        file_system: Arc<dyn FileSystem>,
+    ) -> Result<repository::Repository> {
+        session::open_repository_from_fs(
+            path,
+            file_system,
+            repository::Environment::default(),
+            repository::Settings::default(),
+            repository::DestackLayoutOverride::default(),
+        )
+        .map_err(Error::new)
     }
 }
