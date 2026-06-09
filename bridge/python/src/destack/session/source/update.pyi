@@ -9,11 +9,11 @@ from destack.repository.revision import (
 )
 
 from destack.session.source.file import (
-    FileUpdate,
+    FileChange,
 )
 
 class TextRange:
-    """Source text range in byte offsets."""
+    """One text range in byte offsets."""
 
     def __init__(self, start: int, end: int) -> None: ...
 
@@ -26,7 +26,7 @@ class TextRange:
     def end(self) -> int: ...
 
 class TextEdit:
-    """Source text replacement."""
+    """One text replacement."""
 
     def __init__(self, range: TextRange, text: str) -> None: ...
 
@@ -38,49 +38,67 @@ class TextEdit:
     @property
     def text(self) -> str: ...
 
-class SourceEdit:
-    """One source edit accepted by a session update."""
+class FileEdit:
+    """One file edit accepted by a session update."""
 
     """Replace or create one text file."""
     @staticmethod
-    def set_text(path: str, text: str) -> SourceEdit: ...
+    def set_text(path: str, text: str) -> FileEdit: ...
 
     """Apply text replacements to one tracked text file."""
     @staticmethod
-    def edit_text(path: str, edits: Sequence[TextEdit]) -> SourceEdit: ...
+    def edit_text(path: str, edits: Sequence[TextEdit]) -> FileEdit: ...
 
     """Replace or create one binary file."""
     @staticmethod
-    def set_bytes(path: str, bytes: bytes | bytearray | Sequence[int]) -> SourceEdit: ...
+    def set_bytes(path: str, bytes: bytes | bytearray | Sequence[int]) -> FileEdit: ...
 
     """Remove one file."""
     @staticmethod
-    def remove(path: str) -> SourceEdit: ...
+    def remove(path: str) -> FileEdit: ...
 
     """Move one file."""
     @staticmethod
-    def move_file(from_: str, to: str) -> SourceEdit: ...
+    def move_file(from_: str, to: str) -> FileEdit: ...
 
     @property
     def kind(self) -> str: ...
 
-class SourceUpdate:
-    """Source update applied through one session ref."""
+    @property
+    def bytes(self) -> list[int] | None: ...
 
-    def __init__(self, base: Revision | None, edits: Sequence[SourceEdit]) -> None: ...
+    @property
+    def edits(self) -> list[TextEdit] | None: ...
+
+    @property
+    def from(self) -> str | None: ...
+
+    @property
+    def path(self) -> str | None: ...
+
+    @property
+    def text(self) -> str | None: ...
+
+    @property
+    def to(self) -> str | None: ...
+
+class FileUpdate:
+    """One file update applied through one session ref."""
+
+    def __init__(self, base: Revision | None, edits: Sequence[FileEdit]) -> None: ...
 
     """Expected base revision."""
     @property
     def base(self) -> Revision | None: ...
 
-    """Source edits in this atomic update."""
+    """File edits in this atomic update."""
     @property
-    def edits(self) -> list[SourceEdit]: ...
+    def edits(self) -> list[FileEdit]: ...
 
-class SourceUpdateResult:
-    """Source update result."""
+class FileUpdateResult:
+    """File update result."""
 
-    def __init__(self, before: Revision, after: Revision, files: Sequence[FileUpdate]) -> None: ...
+    def __init__(self, before: Revision, after: Revision, files: Sequence[FileChange]) -> None: ...
 
     """Previous revision."""
     @property
@@ -92,5 +110,5 @@ class SourceUpdateResult:
 
     """Changed files."""
     @property
-    def files(self) -> list[FileUpdate]: ...
+    def files(self) -> list[FileChange]: ...
 

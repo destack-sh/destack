@@ -36,3 +36,9 @@ class FileContent:
     @property
     def kind(self) -> str: ...
 
+    @property
+    def binary_content(self) -> list[int] | None: ...
+
+    @property
+    def text_content(self) -> str | None: ...
+

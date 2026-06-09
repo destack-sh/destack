@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 from .file import (
-    SourceFile,
-    SourceFileContent,
-    FileUpdate,
-    FileUpdateKind,
+    FileChange,
+    FileChangeKind,
 )
-from .snapshot import (
-    SourceSnapshot,
+from .source import (
+    Source,
 )
 from .update import (
     TextRange,
     TextEdit,
-    SourceEdit,
-    SourceUpdate,
-    SourceUpdateResult,
+    FileEdit,
+    FileUpdate,
+    FileUpdateResult,
 )

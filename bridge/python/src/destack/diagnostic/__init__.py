@@ -12,7 +12,7 @@ from .diagnostic import (
 )
 from .edit import (
     Edit,
-    FileEdit,
+    FilePatch,
     BatchEdit,
 )
 
@@ -26,6 +26,6 @@ __all__ = [
     "DiagnosticSuggestion",
     "Diagnostic",
     "Edit",
-    "FileEdit",
+    "FilePatch",
     "BatchEdit",
 ]

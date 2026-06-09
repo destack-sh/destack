@@ -2,12 +2,12 @@
 
 from .._native import (
     Edit,
-    FileEdit,
+    FilePatch,
     BatchEdit,
 )
 
 __all__ = [
     "Edit",
-    "FileEdit",
+    "FilePatch",
     "BatchEdit",
 ]

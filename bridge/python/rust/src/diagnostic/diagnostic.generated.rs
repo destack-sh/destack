@@ -492,6 +492,11 @@ impl Diagnostic {
 
 #[allow(dead_code)]
 impl Diagnostic {
+    /// Convert this Python value into one bridge value.
+    pub(crate) fn into_bridge(self) -> bridge::Diagnostic {
+        self.value
+    }
+
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::Diagnostic) -> Self {
         Self { value }

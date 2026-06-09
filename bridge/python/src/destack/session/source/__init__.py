@@ -1,31 +1,27 @@
 # generated bridge target, do not edit
 
 from .file import (
-    SourceFile,
-    SourceFileContent,
-    FileUpdate,
-    FileUpdateKind,
+    FileChange,
+    FileChangeKind,
 )
-from .snapshot import (
-    SourceSnapshot,
+from .source import (
+    Source,
 )
 from .update import (
     TextRange,
     TextEdit,
-    SourceEdit,
-    SourceUpdate,
-    SourceUpdateResult,
+    FileEdit,
+    FileUpdate,
+    FileUpdateResult,
 )
 
 __all__ = [
-    "SourceFile",
-    "SourceFileContent",
-    "FileUpdate",
-    "FileUpdateKind",
-    "SourceSnapshot",
+    "FileChange",
+    "FileChangeKind",
+    "Source",
     "TextRange",
     "TextEdit",
-    "SourceEdit",
-    "SourceUpdate",
-    "SourceUpdateResult",
+    "FileEdit",
+    "FileUpdate",
+    "FileUpdateResult",
 ]

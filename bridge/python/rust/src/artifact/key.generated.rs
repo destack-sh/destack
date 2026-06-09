@@ -296,6 +296,178 @@ impl ArtifactKey {
             bridge::ArtifactKey::WorkspaceLinted => "workspaceLinted",
         }
     }
+
+    /// Return this payload field when present.
+    #[getter]
+    pub fn component(&self) -> Option<ComponentId> {
+        match &self.value {
+            bridge::ArtifactKey::DirCheckedComponent { component, .. } => {
+                Some(ComponentId::from_bridge(component.clone()))
+            }
+            _ => None,
+        }
+    }
+
+    /// Return this payload field when present.
+    #[getter]
+    pub fn entry(&self) -> Option<ModuleId> {
+        match &self.value {
+            bridge::ArtifactKey::DirCheckedComponent { entry, .. } => {
+                Some(ModuleId::from_bridge(entry.clone()))
+            }
+            _ => None,
+        }
+    }
+
+    /// Return this payload field when present.
+    #[getter]
+    pub fn module(&self) -> Option<ModuleId> {
+        match &self.value {
+            bridge::ArtifactKey::DirParsed { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::Data { module, .. } => Some(ModuleId::from_bridge(module.clone())),
+            bridge::ArtifactKey::DirBound { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::DirImported { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::DirExpanded { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::DirExported { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::DirResolved { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::DirChecked { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::DirMaterialized { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::DirElaborated { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::MirLowered { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::MirVerified { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::MirOptimized { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::ModuleQueryIndex { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::ModuleOutput { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            bridge::ArtifactKey::ModuleLinted { module, .. } => {
+                Some(ModuleId::from_bridge(module.clone()))
+            }
+            _ => None,
+        }
+    }
+
+    /// Return this payload field when present.
+    #[getter]
+    pub fn package(&self) -> Option<PackageId> {
+        match &self.value {
+            bridge::ArtifactKey::PackageOutput { package, .. } => {
+                Some(PackageId::from_bridge(package.clone()))
+            }
+            bridge::ArtifactKey::PackageLinted { package, .. } => {
+                Some(PackageId::from_bridge(package.clone()))
+            }
+            _ => None,
+        }
+    }
+
+    /// Return this payload field when present.
+    #[getter]
+    pub fn profile(&self) -> Option<ProfileId> {
+        match &self.value {
+            bridge::ArtifactKey::GlobalEnvironment { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DependencyIndex { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DirBound { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DirImported { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DirExpanded { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DirExported { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DirResolved { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DirCheckedComponent { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DirChecked { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DirMaterialized { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::DirElaborated { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::MirLowered { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::MirVerified { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::MirOptimized { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::ModuleQueryIndex { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::WorkspaceQueryIndex { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            bridge::ArtifactKey::ModuleLinted { profile, .. } => {
+                Some(ProfileId::from_bridge(profile.clone()))
+            }
+            _ => None,
+        }
+    }
+
+    /// Return this payload field when present.
+    #[getter]
+    pub fn target(&self) -> Option<TargetId> {
+        match &self.value {
+            bridge::ArtifactKey::MirLowered { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
+            bridge::ArtifactKey::MirVerified { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
+            bridge::ArtifactKey::MirOptimized { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
+            bridge::ArtifactKey::ModuleOutput { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
+            bridge::ArtifactKey::PackageOutput { target, .. } => {
+                Some(TargetId::from_bridge(target.clone()))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl ArtifactKey {

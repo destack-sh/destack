@@ -111,6 +111,24 @@ impl FileContent {
             bridge::FileContent::Binary { .. } => "binary",
         }
     }
+
+    /// Return this payload field when present.
+    #[getter]
+    pub fn binary_content(&self) -> Option<Vec<u8>> {
+        match &self.value {
+            bridge::FileContent::Binary { content, .. } => Some(content.clone()),
+            _ => None,
+        }
+    }
+
+    /// Return this payload field when present.
+    #[getter]
+    pub fn text_content(&self) -> Option<String> {
+        match &self.value {
+            bridge::FileContent::Text { content, .. } => Some(content.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl FileContent {

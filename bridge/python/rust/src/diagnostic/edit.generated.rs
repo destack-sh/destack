@@ -53,19 +53,19 @@ impl Edit {
 }
 
 /// Edits for a single file.
-#[pyclass(name = "FileEdit", module = "destack._native", from_py_object)]
+#[pyclass(name = "FilePatch", module = "destack._native", from_py_object)]
 #[derive(Debug, Clone)]
-pub struct FileEdit {
-    pub(crate) value: bridge::FileEdit,
+pub struct FilePatch {
+    pub(crate) value: bridge::FilePatch,
 }
 
 #[pymethods]
-impl FileEdit {
+impl FilePatch {
     /// Create one value.
     #[new]
     pub fn new(file: FileId, edits: Vec<Edit>) -> Self {
         Self {
-            value: bridge::FileEdit {
+            value: bridge::FilePatch {
                 file: file.into_bridge(),
                 edits: edits.into_iter().map(|item| item.into_bridge()).collect(),
             },
@@ -91,14 +91,14 @@ impl FileEdit {
 }
 
 #[allow(dead_code)]
-impl FileEdit {
+impl FilePatch {
     /// Convert this Python value into one bridge value.
-    pub(crate) fn into_bridge(self) -> bridge::FileEdit {
+    pub(crate) fn into_bridge(self) -> bridge::FilePatch {
         self.value
     }
 
     /// Convert one bridge value into one Python value.
-    pub(crate) fn from_bridge(value: bridge::FileEdit) -> Self {
+    pub(crate) fn from_bridge(value: bridge::FilePatch) -> Self {
         Self { value }
     }
 }
@@ -114,7 +114,7 @@ pub struct BatchEdit {
 impl BatchEdit {
     /// Create one value.
     #[new]
-    pub fn new(files: Vec<FileEdit>) -> Self {
+    pub fn new(files: Vec<FilePatch>) -> Self {
         Self {
             value: bridge::BatchEdit {
                 files: files.into_iter().map(|item| item.into_bridge()).collect(),
@@ -124,12 +124,12 @@ impl BatchEdit {
 
     /// Per-file edits.
     #[getter]
-    pub fn files(&self) -> Vec<FileEdit> {
+    pub fn files(&self) -> Vec<FilePatch> {
         self.value
             .files
             .clone()
             .into_iter()
-            .map(|item| FileEdit::from_bridge(item))
+            .map(|item| FilePatch::from_bridge(item))
             .collect()
     }
 }
@@ -150,7 +150,7 @@ impl BatchEdit {
 /// Register generated Python bridge classes.
 pub(crate) fn register(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<Edit>()?;
-    module.add_class::<FileEdit>()?;
+    module.add_class::<FilePatch>()?;
     module.add_class::<BatchEdit>()?;
     Ok(())
 }
