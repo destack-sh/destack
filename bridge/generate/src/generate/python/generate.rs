@@ -6,8 +6,8 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 
 use crate::generate::core::{
-    Field, Item, ModulePath, Payload, Schema, SchemaModule, Shape, Type, Variant, write_rust,
-    write_text,
+    Field, Item, ModulePath, Payload, PayloadNames, Schema, SchemaModule, Shape, Type, Variant,
+    write_rust, write_text,
 };
 
 /// Generate Python bridge bindings.
@@ -107,6 +107,32 @@ struct StubMethod {
     arguments: Vec<String>,
     /// Return type.
     output: String,
+}
+
+/// One Python payload getter group.
+struct PayloadGetter<'schema> {
+    /// Getter method name.
+    name: String,
+    /// Getter output type.
+    ty: Type,
+    /// Getter match arms.
+    arms: Vec<PayloadGetterArm<'schema>>,
+}
+
+/// One Python payload getter match arm.
+struct PayloadGetterArm<'schema> {
+    /// Matched enum variant.
+    variant: &'schema Variant,
+    /// Payload source for the getter.
+    source: PayloadGetterSource<'schema>,
+}
+
+/// One Python payload getter source.
+enum PayloadGetterSource<'schema> {
+    /// Tuple variant payload.
+    Tuple,
+    /// Struct variant field payload.
+    Struct(&'schema Field),
 }
 
 /// One generated text document.
@@ -496,17 +522,13 @@ fn render_session_stub() -> String {
 /// Return native session stub methods.
 fn session_stub_methods() -> Vec<StubMethod> {
     vec![
-        StubMethod::new("open_path", "Session")
+        StubMethod::new("open", "Session")
             .with_decorator("@staticmethod")
-            .with_argument("path: str"),
-        StubMethod::new("open_source", "Session")
-            .with_decorator("@staticmethod")
-            .with_argument("root: str")
-            .with_argument("source: SourceSnapshot"),
+            .with_argument("source: Source"),
         StubMethod::new("revision", "Revision"),
         StubMethod::new("files", "list[SessionFile]"),
-        StubMethod::new("update", "SourceUpdateResult").with_argument("update: SourceUpdate"),
-        StubMethod::new("reload", "list[FileUpdate]"),
+        StubMethod::new("update", "FileUpdateResult").with_argument("update: FileUpdate"),
+        StubMethod::new("reload", "list[FileChange]"),
         StubMethod::new("load_module", "Module").with_argument("path: str"),
         StubMethod::new("provide", "None")
             .with_argument("revision: Revision")
@@ -514,6 +536,20 @@ fn session_stub_methods() -> Vec<StubMethod> {
         StubMethod::new("require", "ArtifactVersion")
             .with_argument("revision: Revision")
             .with_argument("key: ArtifactKey"),
+        StubMethod::new("artifact_record", "ArtifactRecord")
+            .with_argument("revision: Revision")
+            .with_argument("key: ArtifactKey"),
+        StubMethod::new("parse", "DirParsed")
+            .with_argument("revision: Revision")
+            .with_argument("module: Module"),
+        StubMethod::new("resolve", "DirResolved")
+            .with_argument("revision: Revision")
+            .with_argument("module: Module")
+            .with_argument("profile: ProfileId"),
+        StubMethod::new("check", "DirChecked")
+            .with_argument("revision: Revision")
+            .with_argument("module: Module")
+            .with_argument("profile: ProfileId"),
         StubMethod::new("diagnostics", "list[Diagnostic]")
             .with_argument("revision: Revision")
             .with_argument("key: ArtifactKey | None = None"),
@@ -565,19 +601,6 @@ fn render_struct_stub(schema: &Schema, item: &Item, fields: &[Field]) -> String 
             render_output_stub_type(schema, &field.ty)
         ));
         text.blank();
-    }
-
-    if item.name == "SourceFile" {
-        StubMethod::new("text", "SourceFile")
-            .with_decorator("@staticmethod")
-            .with_argument("path: str")
-            .with_argument("text: str")
-            .render(&mut text);
-        StubMethod::new("bytes", "SourceFile")
-            .with_decorator("@staticmethod")
-            .with_argument("path: str")
-            .with_argument("bytes: bytes | bytearray | Sequence[int]")
-            .render(&mut text);
     }
 
     text.finish()
@@ -642,6 +665,15 @@ fn render_payload_enum_stub(schema: &Schema, item: &Item, variants: &[Variant]) 
     StubMethod::new("kind", "str")
         .with_decorator("@property")
         .render(&mut text);
+
+    for getter in payload_getters(variants) {
+        let name = getter.name;
+        let ty = render_output_stub_type(schema, &getter.ty);
+
+        text.line("    @property");
+        text.line(format!("    def {name}(self) -> {ty} | None: ..."));
+        text.blank();
+    }
 
     text.finish()
 }
@@ -716,7 +748,6 @@ fn render_struct(schema: &Schema, item: &Item, fields: &[Field]) -> TokenStream 
     let constructor = render_struct_constructor(schema, item, fields);
     let getters = fields.iter().map(|field| render_getter(schema, field));
     let helpers = render_struct_helpers(schema, item);
-    let convenience = render_struct_convenience(schema, item);
 
     quote! {
         #docs
@@ -730,7 +761,6 @@ fn render_struct(schema: &Schema, item: &Item, fields: &[Field]) -> TokenStream 
         impl #name {
             #constructor
             #(#getters)*
-            #convenience
         }
 
         #helpers
@@ -766,29 +796,6 @@ fn render_struct_constructor(schema: &Schema, item: &Item, fields: &[Field]) -> 
                     #(#field_values)*
                 },
             }
-        }
-    }
-}
-
-/// Render custom convenience constructors for one Python struct.
-fn render_struct_convenience(schema: &Schema, item: &Item) -> TokenStream {
-    if item.name != "SourceFile" {
-        return quote!();
-    }
-
-    let content = schema.item("SourceFileContent").ident();
-
-    quote! {
-        /// Create one text source file.
-        #[staticmethod]
-        pub fn text(path: String, text: String) -> Self {
-            Self::new(path, #content::text(text))
-        }
-
-        /// Create one binary source file.
-        #[staticmethod]
-        pub fn bytes(path: String, bytes: Vec<u8>) -> Self {
-            Self::new(path, #content::bytes(bytes))
         }
     }
 }
@@ -917,6 +924,9 @@ fn render_payload_enum(schema: &Schema, item: &Item, variants: &[Variant]) -> To
     let constructors = variants
         .iter()
         .map(|variant| render_payload_constructor(schema, item, variant));
+    let getters = payload_getters(variants)
+        .into_iter()
+        .map(|getter| render_payload_getter(schema, item, getter));
     let labels = variants.iter().map(|variant| {
         let variant_name = variant.ident();
         let label = variant.label();
@@ -963,11 +973,92 @@ fn render_payload_enum(schema: &Schema, item: &Item, variants: &[Variant]) -> To
                     #(#labels)*
                 }
             }
+
+            #(#getters)*
         }
 
         impl #name {
             #into_bridge
             #from_bridge
+        }
+    }
+}
+
+/// Return Python payload getter groups.
+fn payload_getters(variants: &[Variant]) -> Vec<PayloadGetter<'_>> {
+    let names = PayloadNames::new(variants);
+    let mut getters = BTreeMap::<(String, Type), Vec<PayloadGetterArm<'_>>>::new();
+
+    for variant in variants {
+        match &variant.payload {
+            Payload::Unit => {}
+            Payload::Tuple(ty) => {
+                let key = (variant.payload_field_name(), ty.clone());
+                getters.entry(key).or_default().push(PayloadGetterArm {
+                    variant,
+                    source: PayloadGetterSource::Tuple,
+                });
+            }
+            Payload::Struct(fields) => {
+                for field in fields {
+                    let key = (names.field_name(variant, field), field.ty.clone());
+                    getters.entry(key).or_default().push(PayloadGetterArm {
+                        variant,
+                        source: PayloadGetterSource::Struct(field),
+                    });
+                }
+            }
+        }
+    }
+
+    getters
+        .into_iter()
+        .map(|((name, ty), arms)| PayloadGetter { name, ty, arms })
+        .collect()
+}
+
+/// Render one Python payload getter.
+fn render_payload_getter(schema: &Schema, item: &Item, getter: PayloadGetter<'_>) -> TokenStream {
+    let method = format_ident!("{}", getter.name);
+    let output = render_type(schema, &getter.ty);
+    let arms = getter
+        .arms
+        .iter()
+        .map(|arm| render_payload_getter_arm(schema, item, &getter.ty, arm));
+
+    quote! {
+        /// Return this payload field when present.
+        #[getter]
+        pub fn #method(&self) -> Option<#output> {
+            match &self.value {
+                #(#arms)*
+                _ => None,
+            }
+        }
+    }
+}
+
+/// Render one Python payload getter match arm.
+fn render_payload_getter_arm(
+    schema: &Schema,
+    item: &Item,
+    ty: &Type,
+    arm: &PayloadGetterArm<'_>,
+) -> TokenStream {
+    let name = item.ident();
+    let variant = arm.variant.ident();
+
+    match arm.source {
+        PayloadGetterSource::Tuple => {
+            let value = render_from_bridge_value(schema, quote!(value.clone()), ty);
+
+            quote!(bridge::#name::#variant(value) => Some(#value),)
+        }
+        PayloadGetterSource::Struct(field) => {
+            let field = field.ident();
+            let value = render_from_bridge_value(schema, quote!(#field.clone()), ty);
+
+            quote!(bridge::#name::#variant { #field, .. } => Some(#value),)
         }
     }
 }
@@ -1140,7 +1231,7 @@ fn generates_from_bridge(schema: &Schema, item: &Item) -> bool {
         || schema
             .items
             .values()
-            .any(|other| struct_fields_reference(other, &item.name))
+            .any(|other| other.references(&item.name))
 }
 
 /// Return whether this Python type needs bridge conversion.
@@ -1148,24 +1239,6 @@ fn type_needs_conversion(schema: &Schema, ty: &Type) -> bool {
     match ty {
         Type::Vec(ty) | Type::Option(ty) => type_needs_conversion(schema, ty),
         Type::Named(name) => schema.items.contains_key(name),
-        _ => false,
-    }
-}
-
-/// Return whether one item has a struct field referencing a bridge DTO.
-fn struct_fields_reference(item: &Item, name: &str) -> bool {
-    let Shape::Struct(fields) = &item.shape else {
-        return false;
-    };
-
-    fields.iter().any(|field| type_references(&field.ty, name))
-}
-
-/// Return whether one type references a bridge DTO.
-fn type_references(ty: &Type, name: &str) -> bool {
-    match ty {
-        Type::Vec(ty) | Type::Option(ty) => type_references(ty, name),
-        Type::Named(reference) => reference == name,
         _ => false,
     }
 }
