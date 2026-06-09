@@ -20,9 +20,10 @@
 - Less is more, every line of code is a liability, every bit of state is suspicious. Fewer overloads are better, fewer fields are better, fewer dependencies are better, etc.
 - When writing some logic or function and it turns into 500 lines, wonder if it could be done in 100 lines. If it's 100 lines, maybe it could be 10. If it's 10, maybe we can remove it altogether, or phrase the problem differently to avoid this problem in the first place.
 - Long methods are allowed if the logic isn't meaningfully extractable / reusable.
+- Having many overloads (or quasi-overloads) that just call one another with different arguments and little or no additional logic is almost always a smell and annoying to read (and a bad source of pointless code bloat).
 - Prefer pure(ish) functions, pass in context explicitly when needed (usually as the last argument).
 - Break larger code blocks into logical chunks with whitespace and/or preamble comments.
-- All logic in functions and outside should be broken into small-ish coherent blocks (2-7 lines or so) with a preceding comment.
+- All logic in functions and outside should be broken into small-ish coherent blocks (2-6 lines or so) with a preceding comment.
 - Logic blocks are always separated by blank lines (except the very first in a function).
 - Usually you want the comment before the if clause / loop / whatever, not inside.
 - Every logic block should have a comment (returns may omit the comment), and every logic block (except the first) should have a blank line before it. See commenting for how to comment properly.
@@ -52,8 +53,8 @@ else {
 }
 ```
 
-- As a corollary, it is good practice to try and keep the flow and depth of branching predictable and consistent.
-- There are really two main kinds of branching: unexpected / early exit guards, and "main" if-else-if-else chains (however they may manifest). Early exist can use the if-jump/return style, but anything that is a serious of if-jump-if-jump-if-jump should usually be turned into a coherent logic blocked legible chain as above, and/or use match statements:
+- As a corollary, it is good practice to try and keep the flow, breadth _and_ depth of branching predictable and consistent to make it easier to scan.
+- There are really two main kinds of branching: unexpected / early exit guards, and "main" if-else-if-else chains (however they may manifest). Early exist can use the if-jump/return style, but anything that is a serious of if-jump-if-jump-if-jump should usually be turned into a coherent logic blocked legible chain as above with proper if-else-if-else chains, and/or use match statements:
 
 ```
 let Some(extracted) = extract(foo) else {
@@ -71,7 +72,7 @@ match extracted {
 
 ### Factoring
 
-- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible that the machine understands, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware and under expected usage scenarios.
+- The point of all code is to solve real-world problems and model them with the fewest, most pristine nouns and verbs (types and functions) possible _that the machine understands well_, using the fewest possible resources (bytes, instructions, cycles, whatever) on the expected hardware and under expected usage scenarios.
 - Where good relevant prior art exists, we should try to follow it, especially in terminology, configuration, interfaces, and even behavior where sensible.
 - Most code on the internet, on StackOverflow, or on open source libraries, and even in their documentation, is not very good. Anything external we take in should be treated with great suspicion.
 - Every proposed change is really a question: "what shape should the codebase have in the long term to support changes and features _like_ this?"; the answer to that question leads to a more maintainable codebase, even if it means more work in the short term.
@@ -93,7 +94,8 @@ match extracted {
 
 - Just like writing is editing, programming is refactoring, and we refactor as we go and as our understanding of the problem deepens and the right solution shape reveals itself.
 - If we do our job right, and have the right level of testing, refactors should be reasonably painless and only touch the parts of the model we actually needed.
-- As with factoring, we should always try to make our work easier as we go: "make the change easy, then make the change".
+- If we find that refactors are touching more than it "should"; that is worthy of investigation and maybe we should broaden the refactor or do plan a follow up refactor to crispen the boundaries of the model (if we can, this doesn't always work unfortunately).
+- As with factoring, we should always try to make our work easier as we go: "make the change easy, then make the change". This often means we _should_ abandon "intermediate" or "transitional" states and just go straight for the final model / solution we want.
 - Sometimes it is however easier to just rip out a component altogether and rewrite it completely, especially if it's say <5k LoC or so.
 - We should always strive to refactor and "clean" as we go, continuously re-audit and semantically compress where the opportunity presents itself. Nothing is final.
 - Relatedly, as we go, we must never assume that what is already there is good just because it exists, even if it's in use, even if it's already tested.
@@ -101,7 +103,7 @@ match extracted {
 - Every noun, verb, type, variant, field, line, .. must be earned. The final model should capture the essential complexity of the problem in its most pristine form, nothing more, nothing less.
 - Bloat is deadly, and often we only realise something was bloated as we get further along and the true shape of the problem reveals itself (hence, refactor as we go)
 - Almost never introduce "transitional" or "for now" logic, we always want the final ideal shape, nothing in between.
-- It is quite often better to break / change the source directly and then let the compiler guide us to all usage sites.
+- In general, it is quite often better to break / change the source directly and then let the compiler guide us to all usage sites.
 
 ### Comments
 
