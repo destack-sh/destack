@@ -71,6 +71,7 @@ impl HeapStorage {
         self.collector.young_sweep_slot_cursor = 0;
         self.collector.young_dirty_extent_cursor = 0;
         self.collector.young_dirty_card_cursor = 0;
+        self.collector.dirty_rescan_needed = false;
         self.collector.young_freed_allocations = 0;
         self.collector.young_freed_bytes = 0;
 
@@ -121,6 +122,15 @@ impl HeapStorage {
         } else {
             0
         };
+
+        // repass the remembered set when writes dirtied already scanned extents
+        if self.collector.dirty_rescan_needed && self.young_dirty_references_drained() {
+            self.collector.dirty_rescan_needed = false;
+            self.collector.young_dirty_extent_cursor = 0;
+            self.collector.young_dirty_card_cursor = 0;
+
+            return Ok(GcProgress::Active);
+        }
 
         // use remaining safepoint budget before returning
         if self.young_dirty_references_drained()
@@ -191,6 +201,7 @@ impl HeapStorage {
         self.collector.young_sweep_slot_cursor = 0;
         self.collector.young_dirty_extent_cursor = 0;
         self.collector.young_dirty_card_cursor = 0;
+        self.collector.dirty_rescan_needed = false;
 
         // keep cards that still bridge mature objects to young objects
         self.compact_dirty_extents();

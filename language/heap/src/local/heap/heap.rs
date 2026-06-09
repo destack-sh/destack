@@ -313,17 +313,23 @@ impl Heap {
         Ok(reference)
     }
 
-    /// Reserve one no-scan small payload.
+    /// Reserve one no-scan small payload while no local cycle is active.
     #[inline(always)]
     pub fn reserve_small_noscan(&mut self, site: SmallAllocationSite) -> Option<HeapReference> {
+        // active cycles publish every new block through the slow path
+        if self.storage.collector.is_collecting() {
+            return None;
+        }
+
         self.storage
             .reserve_young_noscan_cursor(site.byte_len, site.span_class())
     }
 
-    /// Reserve one scanned small payload.
+    /// Reserve one scanned small payload while no local cycle is active.
     #[inline(always)]
     pub fn reserve_small_scan(&mut self, site: SmallAllocationSite) -> Option<HeapReference> {
-        if self.storage.major_gc_active() {
+        // active cycles publish every new block through the slow path
+        if self.storage.collector.is_collecting() {
             return None;
         }
 
@@ -331,13 +337,14 @@ impl Heap {
             .reserve_young_cursor(site.byte_len, site.span_class())
     }
 
-    /// Reserve one small payload that may point into shared heap.
+    /// Reserve one small payload that may point into shared heap while no local cycle is active.
     #[inline(always)]
     pub fn reserve_small_shared_edge(
         &mut self,
         site: SmallAllocationSite,
     ) -> Option<HeapReference> {
-        if self.storage.major_gc_active() {
+        // active cycles publish every new block through the slow path
+        if self.storage.collector.is_collecting() {
             return None;
         }
 
@@ -450,11 +457,9 @@ impl Heap {
             GcPressure::Full => self.request_gc(GcRequest::Full),
         }
 
-        // recycle the nursery only when it fits the hard local quantum
+        // recycle the nursery once occupancy crosses the trigger
         let young_size_bytes = self.storage.young.used_bytes();
-        let nursery_fits_quantum =
-            young_size_bytes > 0 && young_size_bytes <= self.options.gc.minimum_work_bytes;
-        if young_size_bytes >= self.young_trigger_bytes() && nursery_fits_quantum {
+        if young_size_bytes > 0 && young_size_bytes >= self.young_trigger_bytes() {
             self.request_gc(GcRequest::Minor);
         }
     }

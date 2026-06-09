@@ -302,7 +302,7 @@ impl HeapStorage {
         self.rewrite_root_references(roots, forwarding)?;
 
         // payloads after roots, while forwarding is still live
-        self.rewrite_young_payload_references(forwarding)?;
+        self.rewrite_young_payload_references(forwarding, trace_table)?;
         self.rewrite_remembered_mature_references(forwarding, trace_table)?;
 
         Ok(())
@@ -331,9 +331,13 @@ impl HeapStorage {
     }
 
     /// Rewrite live young payload references through completed forwarding metadata.
-    fn rewrite_young_payload_references(&mut self, forwarding: &ForwardingTable) -> HeapResult<()> {
+    fn rewrite_young_payload_references(
+        &self,
+        forwarding: &ForwardingTable,
+        trace_table: &TraceTable,
+    ) -> HeapResult<()> {
+        // rewrite live young range payloads
         let mut start = 0usize;
-
         while let Some(range_index) = self.young.live.first_set_from(start) {
             start = range_index + 1;
 
@@ -351,6 +355,38 @@ impl HeapStorage {
                 &trace_map,
                 forwarding,
             )?;
+        }
+
+        // rewrite surviving young span slot payloads
+        for span_index in 0..self.young.spans.len() {
+            let Some(span) = self.young.span(span_index) else {
+                return Err(HeapError::internal("missing span"));
+            };
+            let first_offset = span.first_offset;
+            let size_class = span.class.size_class;
+            let byte_len = span.byte_len();
+            let Some(reserved_slots) = self.young.span_reserved_slot_count(span_index) else {
+                return Err(HeapError::internal("missing span"));
+            };
+
+            // skip spans without local references
+            let trace_map = self.young_slot_trace_map_ref(span_index, trace_table)?;
+            if !trace_map.has_local_reference() {
+                continue;
+            }
+
+            // rewrite each surviving slot payload
+            for slot_index in 0..reserved_slots {
+                let Some(bits) = self.young.span_bits(span_index) else {
+                    return Err(HeapError::internal("missing span"));
+                };
+                if bits.freed.contains(slot_index) {
+                    continue;
+                }
+
+                let slot_offset = first_offset + slot_index * size_class;
+                self.rewrite_payload_references(slot_offset, byte_len, &trace_map, forwarding)?;
+            }
         }
 
         Ok(())
@@ -593,7 +629,7 @@ impl HeapStorage {
 
     /// Rewrite one mapped payload through completed forwarding metadata.
     fn rewrite_payload_references(
-        &mut self,
+        &self,
         offset: usize,
         byte_len: usize,
         trace_map: &TraceMap,

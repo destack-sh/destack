@@ -123,10 +123,9 @@ impl HeapStorage {
             self.collector
                 .dirty_extents
                 .push(DirtyExtent::Span(span_index));
-            if self.collector.minor_phase == Phase::Sweep {
-                self.collector.minor_phase = Phase::Mark;
-            }
         }
+
+        self.request_minor_dirty_rescan(should_queue);
 
         Ok(())
     }
@@ -163,12 +162,29 @@ impl HeapStorage {
             self.collector
                 .dirty_extents
                 .push(DirtyExtent::Large(block_id));
-            if self.collector.minor_phase == Phase::Sweep {
-                self.collector.minor_phase = Phase::Mark;
-            }
         }
 
+        self.request_minor_dirty_rescan(should_queue);
+
         Ok(())
+    }
+
+    /// Request one remembered-set rescan from the active minor cycle.
+    fn request_minor_dirty_rescan(&mut self, is_newly_queued: bool) {
+        // inactive cycles scan everything at their next start
+        if self.collector.minor_phase == Phase::Idle {
+            return;
+        }
+
+        // writes to already queued extents may land behind the scan cursor
+        if !is_newly_queued {
+            self.collector.dirty_rescan_needed = true;
+        }
+
+        // sweeping resumes marking until the remembered set is quiet
+        if self.collector.minor_phase == Phase::Sweep {
+            self.collector.minor_phase = Phase::Mark;
+        }
     }
 
     /// Return whether one local write range may overlap shared heap roots.

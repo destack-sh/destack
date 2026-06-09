@@ -804,9 +804,9 @@ fn test_step_collection_bounds_minor_at_safepoint() {
     assert_eq!(heap.gc_state().last_kind, None);
 }
 
-/// Avoid expanding local collection budgets to cover a large nursery.
+/// Spread one paced minor collection across bounded safepoints for a large nursery.
 #[test]
-fn test_collect_budget_does_not_expand_to_large_nursery() {
+fn test_step_collection_spreads_minor_across_large_nursery() {
     // configure a nursery larger than the minimum work quantum
     let options = HeapOptions {
         gc: GcOptions {
@@ -822,16 +822,44 @@ fn test_collect_budget_does_not_expand_to_large_nursery() {
     };
     let mut heap = test_heap(options);
     let layout = test_layout(256, TraceMap::empty());
+    let mut roots: Vec<HeapReference> = Vec::new();
 
     // fill young space beyond one configured safepoint quantum
     for _ in 0..3 {
         let _reference = heap.test_allocate(layout.block(), Payload::Bytes(&[1; 256]));
     }
 
-    // budget stays zero until explicit safepoint collection is chosen
+    // occupancy requests bounded minor work that spans more than one safepoint
     let budget_bytes = heap.take_collection_budget_bytes();
+    let first_progress = heap
+        .step_collection(
+            &mut |visit| visit_roots(&mut roots, visit),
+            budget_bytes,
+            trace_table(),
+        )
+        .expect("first collection step should succeed");
 
-    assert_eq!(budget_bytes, 0);
+    assert!(budget_bytes > 0);
+    assert_eq!(first_progress, GcProgress::Active);
+
+    // drive the paced cycle to completion across safepoints
+    for _ in 0..10_000 {
+        let budget_bytes = heap.take_collection_budget_bytes();
+        if budget_bytes == 0 {
+            break;
+        }
+
+        heap.step_collection(
+            &mut |visit| visit_roots(&mut roots, visit),
+            budget_bytes,
+            trace_table(),
+        )
+        .expect("collection step should succeed");
+    }
+
+    // recycle the unreachable nursery
+    assert_eq!(heap.gc_state().last_kind, Some(GcKind::Minor));
+    assert_eq!(heap.storage.young.used_bytes(), 0);
 }
 
 /// Honor one explicit full local collection request below the pacing trigger.
@@ -1036,7 +1064,6 @@ fn test_collect_full_reclaims_later_unreachable_allocations() {
 }
 
 /// Keep rooted young allocations made during an active minor sweep.
-// FUGU #Broken: young allocations made during an active minor sweep are never marked and get swept
 #[test]
 fn test_step_young_gc_keeps_rooted_allocation_during_sweep() {
     // young range layouts carry one local reference and no table id
@@ -1081,13 +1108,14 @@ fn test_step_young_gc_keeps_rooted_allocation_during_sweep() {
     )
     .expect("young drain should succeed");
 
-    // keep both rooted blocks alive through the cycle
+    // keep both rooted blocks alive and promote them out of the nursery
     assert!(heap.is_live(roots[0]));
     assert!(heap.is_live(roots[1]));
+    assert!(!heap.is_young(roots[0]));
+    assert!(!heap.is_young(roots[1]));
 }
 
-/// Keep fast-path no-scan reservations made during an active major sweep.
-// FUGU #Broken: fast-path no-scan reservations skip the allocate-black marking that the slow path performs during major cycles
+/// Close the fast path and keep slow-path allocations live during an active major sweep.
 #[test]
 fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
     // build one full heap so the public fast reservation path is available
@@ -1116,13 +1144,17 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
         .expect("major step should succeed");
     assert_eq!(heap.storage.collector.major_phase, Phase::Sweep);
 
-    // reserve one no-scan block through the public fast path mid-sweep
+    // close the fast path while the cycle is active
+    assert!(heap.reserve_small_noscan(small_site).is_none());
+
+    // publish the block through the slow path instead
     let reference = heap
-        .reserve_small_noscan(small_site)
-        .expect("fast reservation should succeed");
+        .allocate_zeroed(site, &layout.trace_map)
+        .expect("slow-path block should allocate");
 
     // drain the active cycle
-    heap.storage
+    let stats = heap
+        .storage
         .drain_major_gc(
             &mut |visit| visit_roots(&mut roots, visit),
             usize::MAX,
@@ -1130,12 +1162,13 @@ fn test_reserve_small_noscan_keeps_allocation_during_major_sweep() {
         )
         .expect("major drain should succeed");
 
-    // keep the mid-sweep reservation alive through the cycle
+    // free only the unrooted primers and keep the mid-sweep block in the nursery
+    assert_eq!(stats.freed_allocations, 10);
     assert!(heap.is_heap_live(reference));
+    assert!(heap.is_young(reference));
 }
 
 /// Rewrite pinned young span-slot payloads after their children promote.
-// FUGU #Broken: promotion rewrites young range payloads but not pinned young span-slot payloads
 #[test]
 fn test_collect_minor_rewrites_pinned_young_slot_payload() {
     // store the parent trace map in the explicit trace table
@@ -1174,7 +1207,6 @@ fn test_collect_minor_rewrites_pinned_young_slot_payload() {
 }
 
 /// Recycle a filled default-size nursery through paced step collection.
-// FUGU #Broken: the paced minor request gate is unsatisfiable for nurseries larger than the safepoint work quantum
 #[test]
 fn test_step_collection_recycles_filled_default_nursery() {
     // use unmodified production defaults
@@ -1235,16 +1267,11 @@ fn test_reserve_young_spans_reuse_across_noscan_trace_ids() {
         heap.test_allocate(second_layout, Payload::Zeroed);
     }
 
-    // share young spans instead of allocating one span per allocation
-    assert!(
-        heap.young.spans.len() <= 2,
-        "expected at most two young spans, found {}",
-        heap.young.spans.len()
-    );
+    // share one young span across both no-scan classes
+    assert_eq!(heap.young.spans.len(), 1);
 }
 
 /// Rescan mature cards dirtied after their extent was passed by an active minor cycle.
-// FUGU #Broken: cards dirtied on an already-passed queued extent are not rescanned within the active minor cycle
 #[test]
 fn test_collect_minor_rescans_card_dirtied_after_extent_scan() {
     // one mature slot spans two remembered cards with one reference in each
@@ -1314,6 +1341,10 @@ fn test_collect_minor_rescans_card_dirtied_after_extent_scan() {
         HeapReference::from_bits(bits)
     };
 
+    assert_ne!(first_forwarded, first_child);
+    assert_ne!(second_forwarded, second_child);
     assert!(heap.is_live(first_forwarded));
     assert!(heap.is_live(second_forwarded));
+    assert!(!heap.is_young(first_forwarded));
+    assert!(!heap.is_young(second_forwarded));
 }
