@@ -280,7 +280,7 @@ impl SharedGc {
         let budget_bytes = self.heap.take_collection_budget_bytes(1);
         let progress = self
             .heap
-            .collect_step(
+            .step_collection(
                 roots.as_ref(),
                 roots_complete,
                 budget_bytes,

@@ -703,21 +703,29 @@ mod tests {
     use crate::world::World;
     use destack_core::CaptureMode;
     use destack_engine as engine;
-    use destack_heap::AllocationShape;
+    use destack_heap::{AllocationShape, SharedHeap};
     use destack_mir::{TraceMap, TraceTable};
     use destack_workspace::{Environment, RuntimeOptions};
 
     /// Allocate one shared byte payload for runtime tests.
     fn allocate_shared_bytes(
-        heap: &destack_heap::SharedHeap,
+        heap: &SharedHeap,
         bytes: &[u8],
     ) -> destack_heap::HeapResult<destack_heap::SharedHeapReference> {
         let trace_map = TraceMap::Empty;
         let shape = AllocationShape::new(bytes.len(), 1, None, &trace_map);
+        let site = heap.options().allocation_site_for_shape(shape);
         let mut allocator = heap.allocation_cache();
         let worker = heap.register_collector_worker();
 
-        heap.allocate_dynamic_bytes(&worker, &mut allocator, shape, bytes, &TraceTable::new())
+        heap.allocate_bytes(
+            &worker,
+            &mut allocator,
+            site,
+            &trace_map,
+            bytes,
+            &TraceTable::new(),
+        )
     }
 
     /// Build runtime-owned shared heap state for one test world.
@@ -854,14 +862,16 @@ mod tests {
         .expect("worker should construct");
         let trace_map = TraceMap::Empty;
         let shape = AllocationShape::new(16, 1, None, &trace_map);
+        let site = shared.shared.options().allocation_site_for_shape(shape);
 
         // allocate through the worker cache without reaching a normal flush point
         let _reference = shared
             .shared
-            .allocate_dynamic_zeroed(
+            .allocate_zeroed(
                 &worker.shared_gc_worker,
                 &mut worker.shared_cache,
-                shape,
+                site,
+                &trace_map,
                 shared.trace_table(),
             )
             .expect("shared allocation should succeed");

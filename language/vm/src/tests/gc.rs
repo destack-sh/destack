@@ -1,5 +1,5 @@
 use crate::Cell;
-use crate::tests::{create_test_heap, trace_table};
+use crate::tests::{allocate_local_bytes, allocate_local_zeroed, create_test_heap, trace_table};
 use destack_heap::{
     AllocationShape, Heap, HeapAllocationError, HeapError, HeapReference, HeapResult, RootSlot,
     visit_heap_references,
@@ -11,8 +11,7 @@ fn allocate(heap: &mut Heap) -> HeapReference {
     let trace_map = TraceMap::empty();
     let shape = AllocationShape::new(1, 1, None, &trace_map);
 
-    heap.allocate_dynamic_bytes(shape, &[0])
-        .expect("heap allocation should succeed")
+    allocate_local_bytes(heap, shape, &[0]).expect("heap allocation should succeed")
 }
 
 /// Allocate one managed cell with cell contents for tests.
@@ -37,8 +36,7 @@ fn allocate_with_values(heap: &mut Heap, values: Vec<Cell>) -> HeapReference {
     };
     let shape = AllocationShape::new(bytes.len(), Cell::BYTE_LEN, None, &trace_map);
 
-    heap.allocate_dynamic_bytes(shape, &bytes)
-        .expect("heap allocation should succeed")
+    allocate_local_bytes(heap, shape, &bytes).expect("heap allocation should succeed")
 }
 
 /// Return whether one managed cell exists.
@@ -105,7 +103,7 @@ fn test_reject_zero_byte_heap_allocation() {
     let trace_map = TraceMap::empty();
     let shape = AllocationShape::new(0, 1, None, &trace_map);
 
-    let result = heap.allocate_dynamic_zeroed(shape);
+    let result = allocate_local_zeroed(&mut heap, shape);
 
     assert_eq!(
         result,
@@ -192,12 +190,8 @@ fn test_gc_handles_cycles() {
         shared_offsets: Vec::new().into_boxed_slice(),
     };
     let shape = AllocationShape::new(Cell::BYTE_LEN, Cell::BYTE_LEN, None, &trace_map);
-    let a = heap
-        .allocate_dynamic_zeroed(shape)
-        .expect("heap allocation should succeed");
-    let b = heap
-        .allocate_dynamic_zeroed(shape)
-        .expect("heap allocation should succeed");
+    let a = allocate_local_zeroed(&mut heap, shape).expect("heap allocation should succeed");
+    let b = allocate_local_zeroed(&mut heap, shape).expect("heap allocation should succeed");
 
     write_cell_bytes(&mut heap, a, &Cell::heap_reference(b).to_byte_array());
     write_cell_bytes(&mut heap, b, &Cell::heap_reference(a).to_byte_array());

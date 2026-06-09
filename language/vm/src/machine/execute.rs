@@ -417,9 +417,11 @@ impl Activation<'_> {
             length,
         )?;
         let shape = AllocationShape::new(byte_len, element.heap.alignment, None, &trace_map);
+        let site = self.heap().options().allocation_site_for_shape(shape);
         let heap = self.heap_mut();
 
-        heap.allocate_dynamic_zeroed(shape).map_err(Error::from)
+        heap.allocate_zeroed(site, shape.trace_map)
+            .map_err(Error::from)
     }
 
     /// Allocate one uninitialized local slice backing array.
@@ -441,9 +443,11 @@ impl Activation<'_> {
             length,
         )?;
         let shape = AllocationShape::new(byte_len, element.heap.alignment, None, &trace_map);
+        let site = self.heap().options().allocation_site_for_shape(shape);
         let heap = self.heap_mut();
 
-        heap.allocate_dynamic_uninit(shape).map_err(Error::from)
+        heap.allocate_uninit(site, shape.trace_map)
+            .map_err(Error::from)
     }
 
     /// Allocate one byte-initialized local heap payload from one program layout id.
@@ -455,9 +459,10 @@ impl Activation<'_> {
     ) -> Result<HeapReference, Error> {
         let program = self.machine.program.clone();
         let shape = program.allocation_shape(layout_id)?;
+        let site = self.heap().options().allocation_site_for_shape(shape);
         let heap = self.heap_mut();
 
-        heap.allocate_dynamic_bytes(shape, bytes)
+        heap.allocate_bytes(site, shape.trace_map, bytes)
             .map_err(Error::from)
     }
 
@@ -574,11 +579,17 @@ impl Activation<'_> {
             length,
         )?;
         let shape = AllocationShape::new(byte_len, element.heap.alignment, None, &trace_map);
-
+        let site = self.shared.options().allocation_site_for_shape(shape);
         let trace_table = program.trace_table();
 
         self.shared
-            .allocate_dynamic_zeroed(self.shared_gc, self.shared_cache, shape, trace_table)
+            .allocate_zeroed(
+                self.shared_gc,
+                self.shared_cache,
+                site,
+                shape.trace_map,
+                trace_table,
+            )
             .map_err(Error::from)
     }
 
@@ -601,11 +612,17 @@ impl Activation<'_> {
             length,
         )?;
         let shape = AllocationShape::new(byte_len, element.heap.alignment, None, &trace_map);
-
+        let site = self.shared.options().allocation_site_for_shape(shape);
         let trace_table = program.trace_table();
 
         self.shared
-            .allocate_dynamic_uninit(self.shared_gc, self.shared_cache, shape, trace_table)
+            .allocate_uninit(
+                self.shared_gc,
+                self.shared_cache,
+                site,
+                shape.trace_map,
+                trace_table,
+            )
             .map_err(Error::from)
     }
 
