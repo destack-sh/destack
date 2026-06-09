@@ -1,5 +1,6 @@
 mod annotation;
 mod capture;
+mod coercion;
 mod component;
 mod definition;
 mod diagnostic;

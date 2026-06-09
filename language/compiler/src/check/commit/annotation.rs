@@ -88,7 +88,7 @@ impl CheckState<'_> {
 
         // use an existing static operand
         if let Some(operand) = self.inputs.node_static(node) {
-            return Ok(self.commit_static_operand(module, output, environment, operand));
+            return self.commit_closed_static_operand(module, output, environment, operand);
         }
 
         // commit locally concrete literal values

@@ -4,10 +4,10 @@ use destack_source::ModuleId;
 
 use crate::check::{
     CallDecision, CallResolution, CallTargetResolution, CheckState, ConstructDecision,
-    ConstructTargetResolution, MemberDecision, MemberTargetResolution, OperatorDecision,
-    OperatorResolution, OperatorTermKind, PatternDecision, PatternFieldResolution,
-    PatternFieldTargetResolution, PatternResolution, PatternSequenceResolution,
-    PatternTargetResolution, StaticOperand, TypeOperand,
+    ConstructResolution, ConstructTargetResolution, GenericInstance, MemberDecision,
+    MemberTargetResolution, OperatorDecision, OperatorResolution, OperatorTermKind,
+    PatternDecision, PatternFieldResolution, PatternFieldTargetResolution, PatternResolution,
+    PatternSequenceResolution, PatternTargetResolution, StaticOperand, TypeOperand,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -28,8 +28,8 @@ impl CheckState<'_> {
         self.write_operator_resolutions(module, output, environment, &mut resolutions)?;
         self.write_name_resolutions(module, &mut resolutions);
         self.write_receiver_resolutions(module, output, environment, &mut resolutions)?;
-        self.write_member_resolutions(module, output, environment, &mut resolutions);
-        self.write_pattern_resolutions(module, output, environment, &mut resolutions);
+        self.write_member_resolutions(module, output, environment, &mut resolutions)?;
+        self.write_pattern_resolutions(module, output, environment, &mut resolutions)?;
 
         Ok(resolutions)
     }
@@ -63,7 +63,8 @@ impl CheckState<'_> {
                 environment,
                 &call.function.parameters,
                 call.source.local_id,
-            ) else {
+            )?
+            else {
                 continue;
             };
             let Some(return_type) = self.commit_function_return_type(
@@ -72,10 +73,11 @@ impl CheckState<'_> {
                 environment,
                 call.function.return_type,
                 call.source.local_id,
-            ) else {
+            )?
+            else {
                 continue;
             };
-            let target = self.commit_call_target(module, output, environment, &call);
+            let target = self.commit_call_target(module, output, environment, &call)?;
             let resolution = dir::CallResolution::new(target, parameters, return_type);
 
             resolutions.set_call_resolution(call.source, resolution);
@@ -113,7 +115,8 @@ impl CheckState<'_> {
                 environment,
                 &construct.function.parameters,
                 construct.source.local_id,
-            ) else {
+            )?
+            else {
                 continue;
             };
             let Some(return_type) = self.commit_function_return_type(
@@ -122,11 +125,12 @@ impl CheckState<'_> {
                 environment,
                 construct.function.return_type,
                 construct.source.local_id,
-            ) else {
+            )?
+            else {
                 continue;
             };
             let Some(target) =
-                self.commit_construct_target(module, output, environment, &construct)
+                self.commit_construct_target(module, output, environment, &construct)?
             else {
                 continue;
             };
@@ -146,11 +150,11 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         return_type: Option<TypeOperand>,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::GlobalTypeId> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let Some(return_type) = return_type else {
             let type_id = self.intern_type(module, output, dir::Type::Void, source);
 
-            return Some(type_id.into_global(module));
+            return Ok(Some(type_id.into_global(module)));
         };
 
         self.commit_type_operand(module, output, environment, return_type, source)
@@ -193,11 +197,17 @@ impl CheckState<'_> {
                         environment,
                         receiver,
                         source.local_id,
-                    ) else {
+                    )?
+                    else {
                         continue;
                     };
-                    let Some(return_type) =
-                        self.commit_variable_type(module, output, environment, result)
+                    let Some(return_type) = self.commit_type_operand(
+                        module,
+                        output,
+                        environment,
+                        result,
+                        source.local_id,
+                    )?
                     else {
                         continue;
                     };
@@ -209,7 +219,8 @@ impl CheckState<'_> {
                         kind,
                         receiver,
                         argument,
-                    ) else {
+                    )?
+                    else {
                         continue;
                     };
                     let resolution = dir::CallResolution::new(target, parameters, return_type);
@@ -231,7 +242,8 @@ impl CheckState<'_> {
                         environment,
                         receiver,
                         source.local_id,
-                    ) else {
+                    )?
+                    else {
                         continue;
                     };
                     let Some(parameters) = self.commit_function_parameter_type_ids(
@@ -240,7 +252,8 @@ impl CheckState<'_> {
                         environment,
                         &function.parameters,
                         source.local_id,
-                    ) else {
+                    )?
+                    else {
                         continue;
                     };
                     let Some(return_type) = self.commit_function_return_type(
@@ -249,7 +262,8 @@ impl CheckState<'_> {
                         environment,
                         function.return_type,
                         source.local_id,
-                    ) else {
+                    )?
+                    else {
                         continue;
                     };
                     let target = dir::CallTarget::Symbol(dir::CallCandidate {
@@ -311,7 +325,8 @@ impl CheckState<'_> {
                 environment,
                 receiver.ty,
                 receiver.source.local_id,
-            ) else {
+            )?
+            else {
                 return Err(CompilerError::Internal {
                     message: format!(
                         "receiver {:?} selected uncommittable type {:?}",
@@ -338,7 +353,7 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         resolutions: &mut dir::ResolutionSegment,
-    ) {
+    ) -> CompilerResult<()> {
         let members = self
             .inference
             .members()
@@ -363,22 +378,24 @@ impl CheckState<'_> {
                 environment,
                 member.receiver,
                 member.source.local_id,
-            ) else {
+            )?
+            else {
                 continue;
             };
             let target = match member.target {
                 MemberTargetResolution::Builtin(member) => dir::MemberTarget::Builtin(member),
                 MemberTargetResolution::Field(key) => dir::MemberTarget::Field(key),
                 MemberTargetResolution::Symbol { symbol, instance } => {
-                    let instance = instance.as_ref().and_then(|instance| {
-                        self.commit_generic_instance(
+                    let instance = match instance.as_ref() {
+                        Some(instance) => self.commit_generic_instance(
                             module,
                             output,
                             environment,
                             member.source.local_id,
                             instance,
-                        )
-                    });
+                        )?,
+                        None => None,
+                    };
                     let candidate = dir::MemberCandidate {
                         receiver,
                         symbol,
@@ -388,34 +405,37 @@ impl CheckState<'_> {
                     dir::MemberTarget::Symbol(candidate)
                 }
                 MemberTargetResolution::Union(candidates) => {
-                    let candidates = candidates
-                        .into_iter()
-                        .map(|candidate| {
-                            let instance = candidate.instance.as_ref().and_then(|instance| {
-                                self.commit_generic_instance(
-                                    module,
-                                    output,
-                                    environment,
-                                    member.source.local_id,
-                                    instance,
-                                )
-                            });
+                    let mut committed = Vec::with_capacity(candidates.len());
 
-                            dir::MemberCandidate {
-                                receiver,
-                                symbol: candidate.symbol,
+                    // commit candidate generic instances
+                    for candidate in candidates {
+                        let instance = match candidate.instance.as_ref() {
+                            Some(instance) => self.commit_generic_instance(
+                                module,
+                                output,
+                                environment,
+                                member.source.local_id,
                                 instance,
-                            }
-                        })
-                        .collect();
+                            )?,
+                            None => None,
+                        };
 
-                    dir::MemberTarget::Union(candidates)
+                        committed.push(dir::MemberCandidate {
+                            receiver,
+                            symbol: candidate.symbol,
+                            instance,
+                        });
+                    }
+
+                    dir::MemberTarget::Union(committed)
                 }
             };
             let resolution = dir::MemberResolution::new(receiver, target);
 
             resolutions.set_member_resolution(member.source, resolution);
         }
+
+        Ok(())
     }
 
     /// Write collected pattern resolutions into the resolution segment.
@@ -425,7 +445,7 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         resolutions: &mut dir::ResolutionSegment,
-    ) {
+    ) -> CompilerResult<()> {
         let patterns = self
             .inference
             .patterns()
@@ -442,13 +462,15 @@ impl CheckState<'_> {
         // write pattern decisions selected by check
         for pattern in patterns {
             let Some(resolution) =
-                self.commit_pattern_selection(module, output, environment, &pattern)
+                self.commit_pattern_selection(module, output, environment, &pattern)?
             else {
                 continue;
             };
 
             resolutions.set_pattern_resolution(pattern.source, resolution);
         }
+
+        Ok(())
     }
 }
 
@@ -460,87 +482,94 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         call: &CallResolution,
-    ) -> dir::CallTarget {
+    ) -> CompilerResult<dir::CallTarget> {
         match &call.target {
             CallTargetResolution::Expression { instance } => {
-                let instance = instance.as_ref().and_then(|instance| {
-                    self.commit_generic_instance(
+                let instance = match instance.as_ref() {
+                    Some(instance) => self.commit_generic_instance(
                         module,
                         output,
                         environment,
                         call.source.local_id,
                         instance,
-                    )
-                });
+                    )?,
+                    None => None,
+                };
 
-                dir::CallTarget::Expression { instance }
+                Ok(dir::CallTarget::Expression { instance })
             }
             CallTargetResolution::Symbol {
                 symbol,
                 instance,
                 receiver,
             } => {
-                let receiver = receiver.and_then(|receiver| {
+                let receiver = if let Some(receiver) = receiver {
                     self.commit_type_operand(
                         module,
                         output,
                         environment,
-                        receiver,
+                        *receiver,
                         call.source.local_id,
-                    )
-                });
-                let instance = instance.as_ref().and_then(|instance| {
-                    self.commit_generic_instance(
+                    )?
+                } else {
+                    None
+                };
+                let instance = match instance.as_ref() {
+                    Some(instance) => self.commit_generic_instance(
                         module,
                         output,
                         environment,
                         call.source.local_id,
                         instance,
-                    )
-                });
+                    )?,
+                    None => None,
+                };
                 let candidate = dir::CallCandidate {
                     receiver,
                     symbol: *symbol,
                     instance,
                 };
 
-                dir::CallTarget::Symbol(candidate)
+                Ok(dir::CallTarget::Symbol(candidate))
             }
             CallTargetResolution::Union {
                 candidates,
                 receiver,
             } => {
-                let receiver = receiver.and_then(|receiver| {
+                let receiver = if let Some(receiver) = receiver {
                     self.commit_type_operand(
                         module,
                         output,
                         environment,
-                        receiver,
+                        *receiver,
                         call.source.local_id,
-                    )
-                });
-                let candidates = candidates
-                    .iter()
-                    .map(|candidate| {
-                        let instance = candidate.instance.as_ref().and_then(|instance| {
-                            self.commit_generic_instance(
-                                module,
-                                output,
-                                environment,
-                                call.source.local_id,
-                                instance,
-                            )
-                        });
+                    )?
+                } else {
+                    None
+                };
+                let mut committed = Vec::with_capacity(candidates.len());
 
-                        dir::CallCandidate {
-                            receiver,
-                            symbol: candidate.symbol,
+                // commit candidate generic instances
+                for candidate in candidates {
+                    let instance = match candidate.instance.as_ref() {
+                        Some(instance) => self.commit_generic_instance(
+                            module,
+                            output,
+                            environment,
+                            call.source.local_id,
                             instance,
-                        }
-                    })
-                    .collect();
+                        )?,
+                        None => None,
+                    };
 
-                dir::CallTarget::Union(candidates)
+                    committed.push(dir::CallCandidate {
+                        receiver,
+                        symbol: candidate.symbol,
+                        instance,
+                    });
+                }
+
+                Ok(dir::CallTarget::Union(committed))
             }
         }
     }
@@ -551,8 +580,8 @@ impl CheckState<'_> {
         module: ModuleId,
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
-        construct: &crate::check::ConstructResolution,
-    ) -> Option<dir::ConstructTarget> {
+        construct: &ConstructResolution,
+    ) -> CompilerResult<Option<dir::ConstructTarget>> {
         match &construct.target {
             ConstructTargetResolution::Class {
                 symbol,
@@ -567,9 +596,9 @@ impl CheckState<'_> {
                     *symbol,
                     *constructor,
                     instance.as_ref(),
-                );
+                )?;
 
-                Some(dir::ConstructTarget::Class(candidate))
+                Ok(Some(dir::ConstructTarget::Class(candidate)))
             }
             ConstructTargetResolution::Newtype { symbol, instance } => {
                 let candidate = self.commit_construct_candidate(
@@ -579,9 +608,9 @@ impl CheckState<'_> {
                     construct.source,
                     *symbol,
                     instance.as_ref(),
-                );
+                )?;
 
-                Some(dir::ConstructTarget::Newtype(candidate))
+                Ok(Some(dir::ConstructTarget::Newtype(candidate)))
             }
         }
     }
@@ -595,17 +624,24 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
         constructor: Option<dir::GlobalSymbolId>,
-        instance: Option<&crate::check::GenericInstance>,
-    ) -> dir::ClassConstructCandidate {
-        let instance = instance.and_then(|instance| {
-            self.commit_generic_instance(module, output, environment, source.local_id, instance)
-        });
+        instance: Option<&GenericInstance>,
+    ) -> CompilerResult<dir::ClassConstructCandidate> {
+        let instance = match instance {
+            Some(instance) => self.commit_generic_instance(
+                module,
+                output,
+                environment,
+                source.local_id,
+                instance,
+            )?,
+            None => None,
+        };
 
-        dir::ClassConstructCandidate {
+        Ok(dir::ClassConstructCandidate {
             symbol,
             constructor,
             instance,
-        }
+        })
     }
 
     /// Commit one newtype construct candidate.
@@ -616,13 +652,20 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-        instance: Option<&crate::check::GenericInstance>,
-    ) -> dir::NewtypeConstructCandidate {
-        let instance = instance.and_then(|instance| {
-            self.commit_generic_instance(module, output, environment, source.local_id, instance)
-        });
+        instance: Option<&GenericInstance>,
+    ) -> CompilerResult<dir::NewtypeConstructCandidate> {
+        let instance = match instance {
+            Some(instance) => self.commit_generic_instance(
+                module,
+                output,
+                environment,
+                source.local_id,
+                instance,
+            )?,
+            None => None,
+        };
 
-        dir::NewtypeConstructCandidate { symbol, instance }
+        Ok(dir::NewtypeConstructCandidate { symbol, instance })
     }
 
     /// Commit one builtin operator as a builtin call.
@@ -635,21 +678,26 @@ impl CheckState<'_> {
         kind: OperatorTermKind,
         receiver: dir::GlobalTypeId,
         argument: Option<TypeOperand>,
-    ) -> Option<(dir::CallTarget, Vec<dir::GlobalTypeId>)> {
+    ) -> CompilerResult<Option<(dir::CallTarget, Vec<dir::GlobalTypeId>)>> {
         match kind {
             OperatorTermKind::Unary(operator) => {
                 let target = dir::CallTarget::Builtin(dir::BuiltinCall::UnaryOperator { operator });
 
-                Some((target, vec![receiver]))
+                Ok(Some((target, vec![receiver])))
             }
             OperatorTermKind::Binary(operator) => {
-                let argument = argument?;
-                let argument =
-                    self.commit_type_operand(module, output, environment, argument, source)?;
+                let Some(argument) = argument else {
+                    return Ok(None);
+                };
+                let Some(argument) =
+                    self.commit_type_operand(module, output, environment, argument, source)?
+                else {
+                    return Ok(None);
+                };
                 let target =
                     dir::CallTarget::Builtin(dir::BuiltinCall::BinaryOperator { operator });
 
-                Some((target, vec![receiver, argument]))
+                Ok(Some((target, vec![receiver, argument])))
             }
         }
     }
@@ -661,49 +709,63 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         pattern: &PatternResolution,
-    ) -> Option<dir::PatternResolution> {
+    ) -> CompilerResult<Option<dir::PatternResolution>> {
         match &pattern.target {
-            PatternTargetResolution::Wildcard => Some(dir::PatternResolution::Wildcard),
-            PatternTargetResolution::Binding(binding) => Some(dir::PatternResolution::Binding(
+            PatternTargetResolution::Wildcard => Ok(Some(dir::PatternResolution::Wildcard)),
+            PatternTargetResolution::Binding(binding) => Ok(Some(dir::PatternResolution::Binding(
                 dir::PatternBindingResolution {
                     symbol: binding.symbol,
                     pattern: binding.pattern,
                 },
-            )),
+            ))),
             PatternTargetResolution::Literal(literal) => {
-                let value =
-                    self.commit_static_operand(module, output, environment, literal.value)?;
+                let Some(value) =
+                    self.commit_closed_static_operand(module, output, environment, literal.value)?
+                else {
+                    return Ok(None);
+                };
 
-                Some(dir::PatternResolution::Literal(
+                Ok(Some(dir::PatternResolution::Literal(
                     dir::PatternLiteralResolution { value },
-                ))
+                )))
             }
             PatternTargetResolution::Range(range) => {
-                let domain = self.commit_type_operand(
+                let Some(domain) = self.commit_type_operand(
                     module,
                     output,
                     environment,
                     range.domain,
                     pattern.source.local_id,
-                )?;
-                let start =
-                    self.commit_optional_pattern_static(module, output, environment, range.start)?;
-                let end =
-                    self.commit_optional_pattern_static(module, output, environment, range.end)?;
+                )?
+                else {
+                    return Ok(None);
+                };
+                let Some(start) =
+                    self.commit_optional_pattern_static(module, output, environment, range.start)?
+                else {
+                    return Ok(None);
+                };
+                let Some(end) =
+                    self.commit_optional_pattern_static(module, output, environment, range.end)?
+                else {
+                    return Ok(None);
+                };
 
-                Some(dir::PatternResolution::Range(dir::PatternRangeResolution {
-                    domain,
-                    start,
-                    end,
-                    end_bound: range.end_bound,
-                }))
+                Ok(Some(dir::PatternResolution::Range(
+                    dir::PatternRangeResolution {
+                        domain,
+                        start,
+                        end,
+                        end_bound: range.end_bound,
+                    },
+                )))
             }
             PatternTargetResolution::Tuple(tuple) => {
                 let fields = self.commit_pattern_field_selections(&tuple.fields);
 
-                Some(dir::PatternResolution::Tuple(dir::PatternTupleResolution {
-                    fields,
-                }))
+                Ok(Some(dir::PatternResolution::Tuple(
+                    dir::PatternTupleResolution { fields },
+                )))
             }
             PatternTargetResolution::Sequence(sequence) => {
                 self.commit_pattern_sequence_selection(module, output, environment, sequence)
@@ -711,98 +773,104 @@ impl CheckState<'_> {
             PatternTargetResolution::Shape(shape) => {
                 let fields = self.commit_pattern_field_selections(&shape.fields);
 
-                Some(dir::PatternResolution::Shape(dir::PatternShapeResolution {
-                    fields,
-                }))
+                Ok(Some(dir::PatternResolution::Shape(
+                    dir::PatternShapeResolution { fields },
+                )))
             }
             PatternTargetResolution::Nominal(nominal) => {
-                let instance = nominal.instance.as_ref().and_then(|instance| {
-                    self.commit_generic_instance(
+                let instance = match nominal.instance.as_ref() {
+                    Some(instance) => self.commit_generic_instance(
                         module,
                         output,
                         environment,
                         pattern.source.local_id,
                         instance,
-                    )
-                });
+                    )?,
+                    None => None,
+                };
                 let fields = self.commit_pattern_field_selections(&nominal.fields);
 
-                Some(dir::PatternResolution::Nominal(
+                Ok(Some(dir::PatternResolution::Nominal(
                     dir::PatternNominalResolution {
                         symbol: nominal.symbol,
                         instance,
                         fields,
                     },
-                ))
+                )))
             }
             PatternTargetResolution::Newtype(newtype) => {
-                let instance = newtype.instance.as_ref().and_then(|instance| {
-                    self.commit_generic_instance(
+                let instance = match newtype.instance.as_ref() {
+                    Some(instance) => self.commit_generic_instance(
                         module,
                         output,
                         environment,
                         pattern.source.local_id,
                         instance,
-                    )
-                });
+                    )?,
+                    None => None,
+                };
 
-                Some(dir::PatternResolution::Newtype(
+                Ok(Some(dir::PatternResolution::Newtype(
                     dir::PatternNewtypeResolution {
                         symbol: newtype.symbol,
                         instance,
                         value: newtype.value,
                     },
-                ))
+                )))
             }
             PatternTargetResolution::Variant(variant) => {
-                let instance = variant.instance.as_ref().and_then(|instance| {
-                    self.commit_generic_instance(
+                let instance = match variant.instance.as_ref() {
+                    Some(instance) => self.commit_generic_instance(
                         module,
                         output,
                         environment,
                         pattern.source.local_id,
                         instance,
-                    )
-                });
-                let discriminant = self.commit_optional_pattern_static(
+                    )?,
+                    None => None,
+                };
+                let Some(discriminant) = self.commit_optional_pattern_static(
                     module,
                     output,
                     environment,
                     variant.discriminant,
-                )?;
+                )?
+                else {
+                    return Ok(None);
+                };
                 let fields = self.commit_pattern_field_selections(&variant.fields);
 
-                Some(dir::PatternResolution::Variant(
+                Ok(Some(dir::PatternResolution::Variant(
                     dir::PatternVariantResolution {
                         symbol: variant.symbol,
                         instance,
                         discriminant,
                         fields,
                     },
-                ))
+                )))
             }
-            PatternTargetResolution::Union(union) => {
-                Some(dir::PatternResolution::Union(dir::PatternUnionResolution {
+            PatternTargetResolution::Union(union) => Ok(Some(dir::PatternResolution::Union(
+                dir::PatternUnionResolution {
                     alternatives: union.alternatives.clone(),
-                }))
-            }
-            PatternTargetResolution::Borrow(borrow) => Some(dir::PatternResolution::Borrow(
+                },
+            ))),
+            PatternTargetResolution::Borrow(borrow) => Ok(Some(dir::PatternResolution::Borrow(
                 dir::PatternBorrowResolution {
                     access: borrow.access,
                     pattern: borrow.pattern,
                 },
-            )),
-            PatternTargetResolution::Move(move_) => {
-                Some(dir::PatternResolution::Move(dir::PatternMoveResolution {
+            ))),
+            PatternTargetResolution::Move(move_) => Ok(Some(dir::PatternResolution::Move(
+                dir::PatternMoveResolution {
                     access: move_.access,
                     pattern: move_.pattern,
-                }))
-            }
-            PatternTargetResolution::Dereference(dereference) => Some(
+                },
+            ))),
+            PatternTargetResolution::Dereference(dereference) => Ok(Some(
                 dir::PatternResolution::Dereference(dir::PatternDereferenceResolution {
                     pattern: dereference.pattern,
                 }),
-            ),
+            )),
         }
     }
 
@@ -813,7 +881,7 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         sequence: &PatternSequenceResolution,
-    ) -> Option<dir::PatternResolution> {
+    ) -> CompilerResult<Option<dir::PatternResolution>> {
         let sequence = match sequence {
             PatternSequenceResolution::Array { fields, rest } => {
                 dir::PatternSequenceResolution::Array {
@@ -834,7 +902,11 @@ impl CheckState<'_> {
                 }
             }
             PatternSequenceResolution::FixedArray { fields, length } => {
-                let length = self.commit_static_operand(module, output, environment, *length)?;
+                let Some(length) =
+                    self.commit_closed_static_operand(module, output, environment, *length)?
+                else {
+                    return Ok(None);
+                };
 
                 dir::PatternSequenceResolution::FixedArray {
                     fields: self.commit_pattern_field_selections(fields),
@@ -843,7 +915,7 @@ impl CheckState<'_> {
             }
         };
 
-        Some(dir::PatternResolution::Sequence(sequence))
+        Ok(Some(dir::PatternResolution::Sequence(sequence)))
     }
 
     /// Commit pattern field selections.
@@ -877,12 +949,16 @@ impl CheckState<'_> {
         output: &mut CheckModuleOutput,
         environment: &GlobalEnvironment,
         operand: Option<StaticOperand>,
-    ) -> Option<Option<dir::GlobalStaticId>> {
+    ) -> CompilerResult<Option<Option<dir::GlobalStaticId>>> {
         let Some(operand) = operand else {
-            return Some(None);
+            return Ok(Some(None));
         };
-        let value = self.commit_static_operand(module, output, environment, operand)?;
+        let Some(value) =
+            self.commit_closed_static_operand(module, output, environment, operand)?
+        else {
+            return Ok(None);
+        };
 
-        Some(Some(value))
+        Ok(Some(Some(value)))
     }
 }

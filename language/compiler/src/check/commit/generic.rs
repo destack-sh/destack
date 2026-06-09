@@ -8,7 +8,7 @@ use crate::{CompilerError, CompilerResult};
 use super::CheckModuleOutput;
 
 impl CheckState<'_> {
-    /// Commit generic parameters into the checked generic parameter table.
+    /// Commit generic templates and parameter bindings.
     pub(super) fn commit_generic_table(
         &mut self,
         module: ModuleId,
@@ -71,6 +71,25 @@ impl CheckState<'_> {
                     ),
                 });
             }
+        }
+
+        let mut instances = self
+            .inference
+            .generic_instances()
+            .filter(|(key, _)| key.source.module_id == module)
+            .map(|(key, instance)| (key, instance.clone()))
+            .collect::<Vec<_>>();
+        instances.sort_by_key(|(key, _)| key.source.local_id.id);
+
+        for (key, instance) in instances {
+            self.commit_generic_instance_in_table(
+                module,
+                output,
+                environment,
+                &mut table,
+                key.source.local_id,
+                &instance,
+            )?;
         }
 
         Ok(table)
@@ -158,9 +177,11 @@ impl CheckState<'_> {
                     parameter.template,
                     constraint,
                 )?;
-                let default = default.and_then(|operand| {
-                    self.commit_static_operand(module, output, environment, operand)
-                });
+                let default = if let Some(operand) = default {
+                    self.commit_closed_static_operand(module, output, environment, operand)?
+                } else {
+                    None
+                };
 
                 dir::GenericParameterBinding::Static {
                     template,
@@ -182,9 +203,11 @@ impl CheckState<'_> {
                     parameter.template,
                     constraint,
                 )?;
-                let default = default.and_then(|operand| {
-                    self.commit_static_operand(module, output, environment, operand)
-                });
+                let default = if let Some(operand) = default {
+                    self.commit_closed_static_operand(module, output, environment, operand)?
+                } else {
+                    None
+                };
 
                 dir::GenericParameterBinding::VariadicStatic {
                     template,
@@ -212,26 +235,11 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        let constraint = match constraint {
-            TypeOperand::Variable(variable) => {
-                self.commit_declared_type_variable(module, output, environment, variable)
-            }
-            TypeOperand::Term(term) => {
-                let term = self.inference.term(term).clone();
-                let source = self.generic_template_source(template)?;
+        let source = self.generic_template_source(template)?;
+        let constraint =
+            self.commit_type_operand(module, output, environment, constraint, source.local_id);
 
-                self.commit_type_term(
-                    template.module_id,
-                    output,
-                    environment,
-                    &term,
-                    source.local_id,
-                )
-            }
-            TypeOperand::Type(ty) => Some(ty),
-        };
-
-        Ok(constraint)
+        constraint
     }
 
     /// Commit a generic type parameter default.
@@ -249,7 +257,7 @@ impl CheckState<'_> {
 
         let source = self.generic_template_source(template)?;
         let default =
-            self.commit_type_operand(module, output, environment, default, source.local_id);
+            self.commit_type_operand(module, output, environment, default, source.local_id)?;
 
         Ok(default)
     }

@@ -49,7 +49,7 @@ impl CheckState<'_> {
 
         // write one layout binding per resolved query target
         for layout in layouts {
-            self.commit_layout_resolution(module, output, environment, &mut table, &layout);
+            self.commit_layout_resolution(module, output, environment, &mut table, &layout)?;
         }
 
         Ok(table)
@@ -76,7 +76,8 @@ impl CheckState<'_> {
         let Some(layout) = self.type_operand_layout(module, operand, pointer_bytes)? else {
             return Ok(());
         };
-        let Some(type_id) = self.commit_type_operand(module, output, environment, operand, source)
+        let Some(type_id) =
+            self.commit_type_operand(module, output, environment, operand, source)?
         else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -85,7 +86,7 @@ impl CheckState<'_> {
             });
         };
 
-        self.commit_type_layout(module, output, environment, table, type_id, &layout, source);
+        self.commit_type_layout(module, output, environment, table, type_id, &layout, source)?;
 
         Ok(())
     }
@@ -98,15 +99,16 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         table: &mut dir::LayoutSegment,
         resolution: &LayoutResolution,
-    ) {
+    ) -> CompilerResult<()> {
         let Some(type_id) = self.commit_type_operand(
             module,
             output,
             environment,
             resolution.target,
             resolution.source.local_id,
-        ) else {
-            return;
+        )?
+        else {
+            return Ok(());
         };
 
         self.commit_type_layout(
@@ -117,7 +119,9 @@ impl CheckState<'_> {
             type_id,
             &resolution.layout,
             resolution.source.local_id,
-        );
+        )?;
+
+        Ok(())
     }
 
     /// Commit one concrete layout binding.
@@ -130,18 +134,16 @@ impl CheckState<'_> {
         type_id: dir::GlobalTypeId,
         layout: &Layout,
         source: dir::LocalNodeIdAny,
-    ) {
+    ) -> CompilerResult<()> {
         if table.layout_id_for_type(type_id).is_some() {
-            return;
+            return Ok(());
         }
 
-        let Some(layout_id) =
-            self.commit_layout(module, output, environment, table, layout, source)
-        else {
-            return;
-        };
+        let layout_id = self.commit_layout(module, output, environment, table, layout, source)?;
 
         table.set_type_layout(type_id, layout_id);
+
+        Ok(())
     }
 
     /// Commit one layout tree.
@@ -153,7 +155,7 @@ impl CheckState<'_> {
         table: &mut dir::LayoutSegment,
         layout: &Layout,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::LocalLayoutId> {
+    ) -> CompilerResult<dir::LocalLayoutId> {
         let shape = match &layout.shape {
             LayoutShape::None => dir::LayoutShape::None,
             LayoutShape::Scalar => dir::LayoutShape::Scalar,
@@ -258,7 +260,7 @@ impl CheckState<'_> {
             alignment: layout.alignment,
         };
 
-        Some(table.insert_layout(layout))
+        Ok(table.insert_layout(layout))
     }
 
     /// Commit aggregate layout fields.
@@ -270,7 +272,7 @@ impl CheckState<'_> {
         table: &mut dir::LayoutSegment,
         fields: &[LayoutField],
         source: dir::LocalNodeIdAny,
-    ) -> Option<Vec<dir::LayoutField>> {
+    ) -> CompilerResult<Vec<dir::LayoutField>> {
         let mut committed = Vec::with_capacity(fields.len());
 
         // commit fields in source layout order
@@ -278,6 +280,7 @@ impl CheckState<'_> {
             let ty = self.commit_layout_type(module, output, environment, field.ty, source)?;
             let layout =
                 self.commit_layout(module, output, environment, table, &field.layout, source)?;
+
             committed.push(dir::LayoutField {
                 key: field.key,
                 ty,
@@ -288,7 +291,7 @@ impl CheckState<'_> {
             });
         }
 
-        Some(committed)
+        Ok(committed)
     }
 
     /// Commit variant case layouts.
@@ -300,7 +303,7 @@ impl CheckState<'_> {
         table: &mut dir::LayoutSegment,
         variants: &[VariantCaseLayout],
         source: dir::LocalNodeIdAny,
-    ) -> Option<Vec<dir::VariantCaseLayout>> {
+    ) -> CompilerResult<Vec<dir::VariantCaseLayout>> {
         let mut committed = Vec::with_capacity(variants.len());
 
         // commit variants in source layout order
@@ -308,10 +311,11 @@ impl CheckState<'_> {
             let ty = self.commit_layout_type(module, output, environment, variant.ty, source)?;
             let layout =
                 self.commit_layout(module, output, environment, table, &variant.layout, source)?;
+
             committed.push(dir::VariantCaseLayout { ty, layout });
         }
 
-        Some(committed)
+        Ok(committed)
     }
 
     /// Commit one variant tag layout.
@@ -322,13 +326,13 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         tag: VariantTagLayout,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::VariantTagLayout> {
+    ) -> CompilerResult<dir::VariantTagLayout> {
         let ty = match tag.ty {
             Some(ty) => Some(self.commit_layout_type(module, output, environment, ty, source)?),
             None => None,
         };
 
-        Some(dir::VariantTagLayout {
+        Ok(dir::VariantTagLayout {
             ty,
             size: tag.size,
             alignment: tag.alignment,
@@ -343,12 +347,14 @@ impl CheckState<'_> {
         environment: &GlobalEnvironment,
         ty: LayoutType,
         source: dir::LocalNodeIdAny,
-    ) -> Option<dir::GlobalTypeId> {
+    ) -> CompilerResult<dir::GlobalTypeId> {
         match ty {
-            LayoutType::Operand(operand) => {
-                self.commit_type_operand(module, output, environment, operand, source)
-            }
-            LayoutType::TypeId(ty) => Some(ty),
+            LayoutType::Operand(operand) => self
+                .commit_type_operand(module, output, environment, operand, source)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("layout type operand {operand:?} did not commit"),
+                }),
+            LayoutType::TypeId(ty) => Ok(ty),
         }
     }
 }

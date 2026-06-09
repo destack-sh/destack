@@ -22,6 +22,9 @@ impl CheckState<'_> {
         for capture in captures {
             let function = capture.symbol;
             let directive = capture.directive;
+            let source = self
+                .module(function.module_id)
+                .symbol_declaration_node(function.local_id);
             let mut captured = Vec::with_capacity(capture.symbols.len());
             let mut fields = Vec::with_capacity(capture.symbols.len());
             let mut bindings = Vec::with_capacity(capture.symbols.len());
@@ -29,11 +32,8 @@ impl CheckState<'_> {
             // commit captured binding types and split managed fields
             for symbol in capture.symbols {
                 let operand = self.symbol_type_operand(module, symbol)?;
-                let source = self
-                    .module(symbol.module_id)
-                    .symbol_declaration_node(symbol.local_id);
                 let Some(ty) =
-                    self.commit_type_operand(module, output, environment, operand, source)
+                    self.commit_type_operand(module, output, environment, operand, source)?
                 else {
                     return Err(self.unresolved_symbol_type_error(module, symbol, operand));
                 };
@@ -47,12 +47,9 @@ impl CheckState<'_> {
             }
 
             let this = if let Some(receiver) = capture.receiver {
-                let source = self
-                    .module(receiver.symbol.module_id)
-                    .symbol_declaration_node(receiver.symbol.local_id);
                 let receiver_type = receiver.receiver.ty;
                 let Some(ty) =
-                    self.commit_type_operand(module, output, environment, receiver_type, source)
+                    self.commit_type_operand(module, output, environment, receiver_type, source)?
                 else {
                     return Err(self.unresolved_symbol_type_error(
                         module,

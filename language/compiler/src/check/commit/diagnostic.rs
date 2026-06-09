@@ -3,9 +3,9 @@ use destack_dir as dir;
 use destack_source::{DiagnosticCollection, ModuleId};
 
 use crate::check::{
-    CallDecision, CallFailure, CheckError, CheckState, Constraint, ConstructDecision,
-    ConstructFailure, Decision, MemberDecision, MemberFailure, OperatorDecision,
-    OperatorFailureReason, OperatorTermKind, Origin, StaticRelation, TypeRelation,
+    Answer, CallDecision, CallFailure, CheckError, CheckState, Constraint, ConstructDecision,
+    ConstructFailure, MemberDecision, MemberFailure, OperatorDecision, OperatorFailureReason,
+    OperatorTermKind, Origin, StaticRelation, TypeRelation,
 };
 use crate::{CompilerResult, DiagnosticAnchor};
 
@@ -167,30 +167,25 @@ impl CheckState<'_> {
         diagnostics: &mut Vec<CheckError>,
     ) -> CompilerResult<()> {
         let condition = constraint.condition();
-        match self.reduce_condition_decision(&condition)? {
-            Decision::No => return Ok(()),
-            Decision::Undecidable => return Ok(()),
-            Decision::Yes => {}
+        match self.decide_condition(&condition)? {
+            Answer::Ready(false) => return Ok(()),
+            Answer::Pending => return Ok(()),
+            Answer::Ready(true) => {}
         }
 
         match constraint {
+            Constraint::TypeReduction { .. } => {}
             Constraint::Type {
                 relation,
                 left,
                 right,
                 origin,
                 condition: _,
+                coercion: _,
             } => {
-                let reduced_left = self.reduce_type_operand(*origin, *left)?;
-                let reduced_right = self.reduce_type_operand(*origin, *right)?;
-                let decision = match (reduced_left, reduced_right) {
-                    (Some(left), Some(right)) => {
-                        self.decide_type_relation(*relation, left, right)?
-                    }
-                    _ => self.decide_type_relation(*relation, *left, *right)?,
-                };
+                let decision = self.decide_type_relation(*relation, *left, *right)?;
 
-                if decision != Decision::Yes {
+                if decision != Answer::Ready(true) {
                     let diagnostic = self.type_relation_diagnostic(*relation, *origin)?;
 
                     diagnostics.push(diagnostic);
@@ -203,7 +198,7 @@ impl CheckState<'_> {
                 condition: _,
             } => {
                 let decision = self.decide_pattern_relation(*origin, *value, relation)?;
-                if decision != Decision::Yes {
+                if decision != Answer::Ready(true) {
                     let diagnostic =
                         self.type_relation_diagnostic(TypeRelation::Satisfies, *origin)?;
 
@@ -218,7 +213,8 @@ impl CheckState<'_> {
                 condition: _,
             } => {
                 let decision = self.decide_static_relation(*relation, *left, *right)?;
-                if decision != Decision::Yes {
+
+                if decision != Answer::Ready(true) {
                     let diagnostic = self.static_relation_diagnostic(*relation, *origin)?;
 
                     diagnostics.push(diagnostic);

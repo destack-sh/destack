@@ -18,9 +18,10 @@ impl CheckState<'_> {
 
         output.annotations = self.commit_annotation_table(module, &mut output, &environment)?;
         output.generics = self.commit_generic_table(module, &mut output, &environment)?;
-        output.resolutions = self.commit_resolution_table(module, &mut output, &environment)?;
         output.types = self.commit_type_table(module, &mut output, &environment)?;
         output.statics = self.commit_static_table(module, &mut output, &environment)?;
+        output.coercions = self.commit_coercion_table(module, &mut output, &environment)?;
+        output.resolutions = self.commit_resolution_table(module, &mut output, &environment)?;
         output.definitions = self.commit_definition_table(module, &mut output, &environment)?;
         output.layouts = self.commit_layout_table(module, &mut output, &environment)?;
         output.captures = self.commit_capture_table(module, &mut output, &environment)?;
