@@ -23,7 +23,7 @@ pub(in crate::generate) fn generate(root: &Path, schema: &Schema) -> Result<()> 
 
 /// Return one generated WASM module path.
 fn generated_path(module: &SchemaModule) -> String {
-    format!("bridge/wasm/src/{}/generated.rs", module.path.slash_path())
+    format!("bridge/wasm/src/{}.generated.rs", module.path.slash_path())
 }
 
 /// Render one generated WASM module.

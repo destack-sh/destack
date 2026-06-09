@@ -1,10 +1,17 @@
+#[path = "component.generated.rs"]
 mod component;
+#[path = "file.generated.rs"]
 mod file;
+#[path = "module.generated.rs"]
 mod module;
+#[path = "package.generated.rs"]
 mod package;
+#[path = "profile.generated.rs"]
 mod profile;
 mod registry;
+#[path = "span.generated.rs"]
 mod span;
+#[path = "target.generated.rs"]
 mod target;
 
 pub use component::*;

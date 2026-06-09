@@ -45,7 +45,7 @@ pub(in crate::generate) fn generate(root: &Path, schema: &Schema) -> Result<()> 
 /// Return one generated Python module path.
 fn generated_path(module: &SchemaModule) -> String {
     format!(
-        "bridge/python/rust/src/{}/generated.rs",
+        "bridge/python/rust/src/{}.generated.rs",
         module.path.slash_path()
     )
 }

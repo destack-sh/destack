@@ -23,7 +23,7 @@ pub(in crate::generate) fn generate(root: &Path, schema: &Schema) -> Result<()> 
 
 /// Return one generated NAPI module path.
 fn generated_path(module: &SchemaModule) -> String {
-    format!("bridge/napi/src/{}/generated.rs", module.path.slash_path())
+    format!("bridge/napi/src/{}.generated.rs", module.path.slash_path())
 }
 
 /// Render one generated NAPI module.

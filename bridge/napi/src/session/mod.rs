@@ -1,4 +1,6 @@
+#[path = "file.generated.rs"]
 mod file;
+#[path = "module.generated.rs"]
 mod module;
 mod session;
 mod source;
