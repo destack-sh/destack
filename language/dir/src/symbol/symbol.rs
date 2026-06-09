@@ -206,9 +206,9 @@ impl SymbolKind {
         )
     }
 
-    /// Check whether this kind declares a reference-shaped type.
+    /// Check whether this kind declares a type definition.
     #[inline]
-    pub fn declares_reference_type(self) -> bool {
+    pub fn is_type_definition(self) -> bool {
         matches!(
             self,
             Self::Class
@@ -217,7 +217,14 @@ impl SymbolKind {
                 | Self::Newtype
                 | Self::NewtypeInterface
                 | Self::Struct
+                | Self::TypeAlias
         )
+    }
+
+    /// Check whether this kind declares a transparent type alias.
+    #[inline]
+    pub fn is_type_alias(self) -> bool {
+        matches!(self, Self::TypeAlias)
     }
 
     /// Return the symbol space normally introduced by this symbol kind.

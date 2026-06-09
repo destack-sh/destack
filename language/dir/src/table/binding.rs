@@ -162,9 +162,9 @@ impl<'a> BindingTable<'a> {
     }
 
     /// Find the symbol declared by one node.
-    pub fn symbol_for_declaration(&self, declaration: GlobalNodeIdAny) -> Option<LocalSymbolId> {
+    pub fn declaration_symbol(&self, declaration: GlobalNodeIdAny) -> Option<LocalSymbolId> {
         for segment in self.segments.iter().rev() {
-            if let Some(symbol_id) = segment.symbol_for_declaration(declaration) {
+            if let Some(symbol_id) = segment.declaration_symbol(declaration) {
                 return Some(symbol_id);
             }
         }
@@ -436,7 +436,7 @@ impl BindingSegment {
 
     /// Find the symbol declared by one node.
     #[inline]
-    pub fn symbol_for_declaration(&self, declaration: GlobalNodeIdAny) -> Option<LocalSymbolId> {
+    pub fn declaration_symbol(&self, declaration: GlobalNodeIdAny) -> Option<LocalSymbolId> {
         self.symbol_by_declaration.get(&declaration).copied()
     }
 

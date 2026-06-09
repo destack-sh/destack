@@ -134,9 +134,13 @@ impl CoercionSegment {
         }
     }
 
-    /// Set the coercion for one value node.
-    pub fn set_coercion(&mut self, node_id: GlobalNodeIdAny, coercion: Coercion) {
-        self.coercions.insert(node_id, coercion);
+    /// Bind the coercion for one value node.
+    pub fn bind_coercion(
+        &mut self,
+        node_id: GlobalNodeIdAny,
+        coercion: Coercion,
+    ) -> Option<Coercion> {
+        self.coercions.insert(node_id, coercion)
     }
 
     /// Get the coercion for one value node.
