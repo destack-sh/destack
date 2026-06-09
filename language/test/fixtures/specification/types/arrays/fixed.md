@@ -85,3 +85,21 @@ const lane: FixedArray<int32, 2> = [1, 2, 3];
 ```
 
 - contains: not assignable
+
+### FixedArray exposes fixed array members
+
+`FixedArray<T, N>` exposes the same fixed array member surface as `[T; N]`.
+
+```ds
+const lane: FixedArray<int32, 2> = [1, 2];
+lane.size satisfies usize;
+```
+
+### fixed arrays expose FixedArray members
+
+`[T; N]` resolves members through the builtin `FixedArray<T, N>` alias.
+
+```ds
+const lane: [int32; 2] = [1, 2];
+lane.size satisfies usize;
+```

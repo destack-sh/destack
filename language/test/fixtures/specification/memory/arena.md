@@ -15,7 +15,7 @@ struct Node {
 
 declare function bump(): Bump;
 
-function allocate<L: Lifetime>(arena: &exclusive Arena<Node, L>): ReadonlyBorrowed<Node, L> {
+function allocate<comptime L: Lifetime>(arena: &exclusive Arena<Node, L>): ReadonlyBorrowed<Node, L> {
     return arena.alloc(Node { value: 1 });
 }
 ```
@@ -33,7 +33,7 @@ struct Node {
 
 declare function bump(): Bump;
 
-function escaped<L: Lifetime>(): ReadonlyBorrowed<Node, L> {
+function escaped<comptime L: Lifetime>(): ReadonlyBorrowed<Node, L> {
     let arena = Arena.new<Node, L>(bump());
     return arena.alloc(Node { value: 1 });
 }

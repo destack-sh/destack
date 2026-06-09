@@ -88,12 +88,12 @@ class User {
     name: string = "";
 }
 
-struct NameView<L: Lifetime> {
+struct NameView<comptime L: Lifetime> {
     user: ^User;
     name: Borrowed<string, L>;
 }
 
-function makeView<L: Lifetime>(): NameView<L> {
+function makeView<comptime L: Lifetime>(): NameView<L> {
     let user: ^User = new User();
     return NameView {
         user,

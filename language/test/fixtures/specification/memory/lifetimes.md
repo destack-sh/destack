@@ -275,11 +275,11 @@ struct Node {
     id: int32;
 }
 
-struct NodeBorrow<L: Lifetime> {
+struct NodeBorrow<comptime L: Lifetime> {
     node: Borrowed<Node, L>;
 }
 
-function borrowNode<L: Lifetime>(node: Borrowed<Node, L>): NodeBorrow<L> {
+function borrowNode<comptime L: Lifetime>(node: Borrowed<Node, L>): NodeBorrow<L> {
     return NodeBorrow { node };
 }
 ```
@@ -293,11 +293,11 @@ struct Node {
     id: int32;
 }
 
-struct NodeBorrow<L: Lifetime> {
+struct NodeBorrow<comptime L: Lifetime> {
     node: Borrowed<Node, L>;
 }
 
-function escaped<L: Lifetime>(): NodeBorrow<L> {
+function escaped<comptime L: Lifetime>(): NodeBorrow<L> {
     let node = ^Node { id: 1 };
     return NodeBorrow { node: &node };
 }
@@ -333,12 +333,12 @@ struct Node {
     id: int32;
 }
 
-struct Pair<A: Lifetime, B: Lifetime> {
+struct Pair<comptime A: Lifetime, comptime B: Lifetime> {
     left: Borrowed<Node, A>;
     right: Borrowed<Node, B>;
 }
 
-function pair<A: Lifetime, B: Lifetime>(
+function pair<comptime A: Lifetime, comptime B: Lifetime>(
     left: Borrowed<Node, A>,
     right: Borrowed<Node, B>,
 ): Pair<A, B> {
@@ -416,7 +416,7 @@ function leakedName(user: Box<User>): &readonly string {
 Explicit lifetime relationships use static parameters.
 
 ```ds
-function borrowInput<L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L> {
+function borrowInput<comptime L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L> {
     return point;
 }
 ```
@@ -426,7 +426,7 @@ function borrowInput<L: Lifetime>(point: Borrowed<Point, L>): Borrowed<Point, L>
 Borrowing through an input keeps the input lifetime.
 
 ```ds
-function first<T, L: Lifetime>(items: Borrowed<[T], L>): Borrowed<T, L> {
+function first<T, comptime L: Lifetime>(items: Borrowed<[T], L>): Borrowed<T, L> {
     return &items[0];
 }
 ```
@@ -436,7 +436,7 @@ function first<T, L: Lifetime>(items: Borrowed<[T], L>): Borrowed<T, L> {
 Types that store borrowed access carry the lifetime they depend on.
 
 ```ds
-struct View<T, L: Lifetime> {
+struct View<T, comptime L: Lifetime> {
     items: Borrowed<[T], L>;
 }
 ```
@@ -446,7 +446,7 @@ struct View<T, L: Lifetime> {
 Returned borrowed access must come from the declared lifetime.
 
 ```ds
-function pick<A: Lifetime, B: Lifetime>(
+function pick<comptime A: Lifetime, comptime B: Lifetime>(
     a: Borrowed<int32, A>,
     b: Borrowed<int32, B>,
 ): Borrowed<int32, A> {
