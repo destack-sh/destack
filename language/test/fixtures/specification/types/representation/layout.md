@@ -76,7 +76,7 @@ layout.shape satisfies { kind: "aggregate"; fields: readonly LayoutField[] };
 
 ### layout queries require concrete types
 
-Transparent constraints have no single layout before they are specialized or erased.
+Transparent aliases and constraints have no single layout before a representation is selected.
 
 ```ds
 type Writer = {

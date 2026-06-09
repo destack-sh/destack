@@ -4,6 +4,51 @@ Newtype interfaces are nominal interfaces.
 
 ## implements
 
+### newtypes over interfaces require explicit implements
+
+Newtypes over interfaces create nominal constraints.
+
+```ds
+interface Writer {
+    write(bytes: readonly uint8[]): uint;
+}
+
+newtype NamedWriter = Writer;
+
+struct Buffer {
+    write(bytes: readonly uint8[]): uint {
+        bytes.length
+    }
+}
+
+const writer: NamedWriter = Buffer {};
+```
+
+- contains: not assignable
+
+### newtypes over interfaces accept explicit implements
+
+Newtypes over interfaces can be implemented explicitly.
+
+```ds
+interface Writer {
+    write(bytes: readonly uint8[]): uint;
+}
+
+newtype NamedWriter = Writer;
+
+struct Buffer {}
+
+extension of Buffer implements NamedWriter {
+    write(bytes: readonly uint8[]): uint {
+        bytes.length
+    }
+}
+
+const writer: NamedWriter = Buffer {};
+writer.write([]) satisfies uint;
+```
+
 ### structural matches do not satisfy nominal interfaces
 
 ```ds

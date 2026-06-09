@@ -20,9 +20,9 @@ size satisfies usize;
 
 ## aliases
 
-### transparent union aliases do not choose storage
+### layout queries do not reify aliases
 
-A union alias is a constraint until a concrete boundary chooses representation.
+Layout queries require a representation that has already been selected.
 
 ```ds
 struct Circle {
@@ -39,7 +39,7 @@ type Shape = Circle | Rectangle;
 const size = comptime sizeOf<Shape>();
 ```
 
-- contains: concrete representation
+- contains: no concrete representation
 
 ### newtype unions choose storage
 
@@ -61,36 +61,29 @@ const size = comptime sizeOf<Shape>();
 size satisfies usize;
 ```
 
-### concrete containers choose element storage
-
-Concrete containers force transparent type arguments into a concrete element representation.
-
-```ds
-struct Circle {
-    radius: float64;
-}
-
-struct Rectangle {
-    width: float64;
-    height: float64;
-}
-
-type Shape = Circle | Rectangle;
-
-const size = comptime sizeOf<Array<Shape>>();
-size satisfies usize;
-```
-
 ## dynamic
 
 ### dynamic wrappers are concrete
 
-`Dynamic<T>` is a concrete erased value for a transparent constraint.
+`Dynamic<T>` is a concrete erased value for any dynamic-safe type surface.
 
 ```ds
 interface Writer {
     write(bytes: readonly uint8[]): uint;
 }
+
+const size = comptime sizeOf<Dynamic<Writer>>();
+size satisfies usize;
+```
+
+### dynamic wrappers accept anonymous constraints
+
+Anonymous constraints can be erased when they are dynamic-safe.
+
+```ds
+type Writer = {
+    write(bytes: readonly uint8[]): uint;
+};
 
 const size = comptime sizeOf<Dynamic<Writer>>();
 size satisfies usize;
