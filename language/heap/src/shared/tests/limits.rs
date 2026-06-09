@@ -6,7 +6,7 @@ use crate::{
 };
 use destack_mir::TraceMap;
 
-use super::{heap_allocation_plan, read_mapped_bytes, trace_table};
+use super::{heap_allocation_plan, read_mapped_bytes, test_allocate, trace_table};
 
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
@@ -29,15 +29,13 @@ fn shared_heap_retained_bytes_after_allocate(bytes: &[u8]) -> u64 {
     let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
-    shared
-        .allocate_payload(
-            &worker,
-            &mut allocator,
-            &heap_allocation_plan(&shared, layout.block()),
-            Payload::Bytes(bytes),
-            trace_table(),
-        )
-        .expect("shared heap block should succeed");
+    test_allocate(
+        &shared,
+        &worker,
+        &mut allocator,
+        layout.block(),
+        Payload::Bytes(bytes),
+    );
 
     // report retained bytes after shared allocator rounding
     shared.usage().retained_bytes
@@ -74,15 +72,13 @@ fn test_track_shared_small_span_retained_bytes() {
 
     // allocate enough objects to cover several shared span slots
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        shared
-            .allocate_payload(
-                &worker,
-                &mut allocator,
-                &heap_allocation_plan(&shared, layout.block()),
-                Payload::Zeroed,
-                trace_table(),
-            )
-            .expect("shared heap block should succeed");
+        test_allocate(
+            &shared,
+            &worker,
+            &mut allocator,
+            layout.block(),
+            Payload::Zeroed,
+        );
     }
     shared.flush_allocation_cache(&mut allocator);
 
@@ -111,24 +107,20 @@ fn test_flush_publishes_worker_shared_small_allocations() {
     let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
-    let first = shared
-        .allocate_payload(
-            &worker,
-            &mut allocator,
-            &heap_allocation_plan(&shared, layout.block()),
-            Payload::Zeroed,
-            trace_table(),
-        )
-        .expect("shared heap block should succeed");
-    let second = shared
-        .allocate_payload(
-            &worker,
-            &mut allocator,
-            &heap_allocation_plan(&shared, layout.block()),
-            Payload::Zeroed,
-            trace_table(),
-        )
-        .expect("shared heap block should succeed");
+    let first = test_allocate(
+        &shared,
+        &worker,
+        &mut allocator,
+        layout.block(),
+        Payload::Zeroed,
+    );
+    let second = test_allocate(
+        &shared,
+        &worker,
+        &mut allocator,
+        layout.block(),
+        Payload::Zeroed,
+    );
 
     // flushing should publish worker-local slots into shared heap state
     shared.flush_allocation_cache(&mut allocator);
@@ -161,15 +153,13 @@ fn test_free_clears_worker_shared_small_liveness() {
     let worker = shared.register_collector_worker();
 
     // allocate into the worker-local cursor without publishing it globally
-    let reference = shared
-        .allocate_payload(
-            &worker,
-            &mut allocator,
-            &heap_allocation_plan(&shared, layout.block()),
-            Payload::Zeroed,
-            trace_table(),
-        )
-        .expect("shared heap block should succeed");
+    let reference = test_allocate(
+        &shared,
+        &worker,
+        &mut allocator,
+        layout.block(),
+        Payload::Zeroed,
+    );
 
     assert!(allocator.contains_heap_reference(reference));
     assert!(!shared.is_heap_live(reference));
@@ -203,24 +193,20 @@ fn test_allocate_shared_honors_layout_alignment() {
     let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
 
-    let first = shared
-        .allocate_payload(
-            &worker,
-            &mut allocator,
-            &heap_allocation_plan(&shared, layout.block()),
-            Payload::Zeroed,
-            trace_table(),
-        )
-        .expect("first shared heap block should succeed");
-    let second = shared
-        .allocate_payload(
-            &worker,
-            &mut allocator,
-            &heap_allocation_plan(&shared, layout.block()),
-            Payload::Zeroed,
-            trace_table(),
-        )
-        .expect("second shared heap block should succeed");
+    let first = test_allocate(
+        &shared,
+        &worker,
+        &mut allocator,
+        layout.block(),
+        Payload::Zeroed,
+    );
+    let second = test_allocate(
+        &shared,
+        &worker,
+        &mut allocator,
+        layout.block(),
+        Payload::Zeroed,
+    );
 
     // every returned base should satisfy the layout alignment
     assert_eq!(first.offset() % 16, 0);
@@ -283,15 +269,13 @@ fn test_reject_shared_heap_image_when_limits_start_over_budget() {
     .expect("shared heap should build");
     let mut allocator = shared.allocation_cache();
     let worker = shared.register_collector_worker();
-    shared
-        .allocate_payload(
-            &worker,
-            &mut allocator,
-            &heap_allocation_plan(&shared, layout.block()),
-            Payload::Bytes(&[1]),
-            trace_table(),
-        )
-        .expect("shared heap block should succeed");
+    test_allocate(
+        &shared,
+        &worker,
+        &mut allocator,
+        layout.block(),
+        Payload::Bytes(&[1]),
+    );
     shared.flush_allocation_cache(&mut allocator);
 
     let used_bytes = shared.usage().retained_bytes;

@@ -1,22 +1,34 @@
-use std::sync::{Arc, OnceLock};
+use std::sync::OnceLock;
 
-use crate::allocator::Allocator;
 use crate::local::storage::HeapStorage;
 use crate::local::{Heap, HeapLimits, HeapOptions};
-use crate::{AllocationClass, AllocationPlan, AllocationShape, AllocationSite, allocation_class};
+use crate::{
+    AllocationClass, AllocationPlan, AllocationShape, AllocationSite, HeapReference, Payload,
+    allocation_class, test_allocator,
+};
 use destack_mir::TraceTable;
 
 static TRACE_TABLE: OnceLock<TraceTable> = OnceLock::new();
 
-/// A local heap layer that can build allocation plans for tests.
+/// A local heap layer that can build plans and allocate blocks for tests.
 pub(crate) trait TestHeapPlan {
     /// Build one allocation plan for this test heap layer.
     fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a>;
+
+    /// Allocate one block for this test heap layer.
+    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference;
 }
 
 impl TestHeapPlan for Heap {
     fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
         allocation_plan(self.options(), shape)
+    }
+
+    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference {
+        let plan = self.test_allocation_plan(shape);
+
+        self.allocate_payload(&plan, payload)
+            .expect("test block should allocate")
     }
 }
 
@@ -26,6 +38,10 @@ where
 {
     fn test_allocation_plan<'a>(&self, shape: AllocationShape<'a>) -> AllocationPlan<'a> {
         (**self).test_allocation_plan(shape)
+    }
+
+    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference {
+        (**self).test_allocate(shape, payload)
     }
 }
 
@@ -48,50 +64,33 @@ impl TestHeapPlan for HeapStorage {
 
         site.plan(shape.trace_map)
     }
+
+    fn test_allocate(&mut self, shape: AllocationShape<'_>, payload: Payload<'_>) -> HeapReference {
+        let plan = self.test_allocation_plan(shape);
+
+        self.allocate(&plan, payload)
+            .expect("test block should allocate")
+    }
 }
 
-/// One heap test harness.
-pub(crate) struct TestHeap {
-    /// The heap under test.
-    pub(crate) heap: Heap,
+/// Build one local heap from explicit limits and options.
+pub(crate) fn test_heap_with_limits(limits: HeapLimits, options: HeapOptions) -> Heap {
+    let allocator = test_allocator(&options);
+
+    Heap::with_allocator_limits_and_options(allocator, limits, options)
+        .expect("test heap should build")
 }
 
-impl TestHeap {
-    /// Create one test heap with default options.
-    pub(crate) fn new() -> Self {
-        let options = HeapOptions::local();
-        let allocator = Arc::new(
-            Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-                .expect("default allocator should build"),
-        );
+/// Build one local heap from explicit options.
+pub(crate) fn test_heap(options: HeapOptions) -> Heap {
+    test_heap_with_limits(HeapLimits::default(), options)
+}
 
-        Self {
-            heap: Heap::with_allocator_limits_and_options(
-                allocator,
-                HeapLimits::default(),
-                options,
-            )
-            .expect("default heap should build"),
-        }
-    }
+/// Build one local heap storage from explicit options.
+pub(crate) fn test_storage(options: &HeapOptions) -> HeapStorage {
+    let allocator = test_allocator(options);
 
-    /// Create one test heap with explicit options.
-    pub(crate) fn with_options(options: HeapOptions) -> Self {
-        Self::with_limits_and_options(HeapLimits::default(), options)
-    }
-
-    /// Create one test heap with explicit limits and options.
-    pub(crate) fn with_limits_and_options(limits: HeapLimits, options: HeapOptions) -> Self {
-        let allocator = Arc::new(
-            Allocator::try_new(options.page_size_bytes, options.allocator_chunk_size_bytes)
-                .expect("explicit allocator should build"),
-        );
-
-        Self {
-            heap: Heap::with_allocator_limits_and_options(allocator, limits, options)
-                .expect("explicit heap options should build"),
-        }
-    }
+    HeapStorage::build_with_options(allocator, options).expect("test heap storage should build")
 }
 
 /// Return the shared empty trace table for heap tests.

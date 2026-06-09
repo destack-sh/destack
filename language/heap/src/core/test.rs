@@ -51,3 +51,19 @@ pub(crate) fn test_aligned_layout(
         trace_map,
     }
 }
+
+/// Create one trace map with the given local reference offsets.
+pub(crate) fn local_trace_map(offsets: &[u32]) -> TraceMap {
+    TraceMap::Fixed {
+        local_offsets: offsets.to_vec().into_boxed_slice(),
+        shared_offsets: Vec::new().into_boxed_slice(),
+    }
+}
+
+/// Create one trace map with the given shared reference offsets.
+pub(crate) fn shared_trace_map(offsets: &[u32]) -> TraceMap {
+    TraceMap::Fixed {
+        local_offsets: Vec::new().into_boxed_slice(),
+        shared_offsets: offsets.to_vec().into_boxed_slice(),
+    }
+}
