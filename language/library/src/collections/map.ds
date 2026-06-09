@@ -155,7 +155,7 @@ extension<K: Hash, V> of Map<K, V> implements
     }
 
     /// Borrow a value by key.
-    get<Q: Hash, A: Access = "readonly">(
+    get<Q: Hash, comptime A: Access = "readonly">(
         this: WithAccess<&Map<K, V>, A>,
         key: &readonly Q,
     ): WithAccess<&V, A> | undefined where (K: Borrow<Q>, Q: Equal<Q>) {
@@ -163,7 +163,7 @@ extension<K: Hash, V> of Map<K, V> implements
     }
 
     /// Return a borrowed entry by key.
-    getEntry<Q: Hash, A: Access = "readonly">(
+    getEntry<Q: Hash, comptime A: Access = "readonly">(
         this: WithAccess<&Map<K, V>, A>,
         key: &readonly Q,
     ): MapEntry<&readonly K, WithAccess<&V, A>> | undefined where (K: Borrow<Q>, Q: Equal<Q>) {
@@ -265,7 +265,7 @@ extension<K: Hash, V> of Map<K, V> implements
     }
 
     /// Return all borrowed values.
-    values<A: Access = "readonly">(this: WithAccess<&Map<K, V>, A>): Iterator<WithAccess<&V, A>> {
+    values<comptime A: Access = "readonly">(this: WithAccess<&Map<K, V>, A>): Iterator<WithAccess<&V, A>> {
         todo("Map.values")
     }
 
@@ -275,7 +275,7 @@ extension<K: Hash, V> of Map<K, V> implements
     }
 
     /// Return all borrowed entries.
-    entries<A: Access = "readonly">(
+    entries<comptime A: Access = "readonly">(
         this: WithAccess<&Map<K, V>, A>,
     ): Iterator<MapEntry<&readonly K, WithAccess<&V, A>>> {
         todo("Map.entries")
@@ -292,7 +292,7 @@ extension<K: Hash, V> of Map<K, V> implements
     }
 
     /// Return an iterator over borrowed entries.
-    iterator<A: Access = "readonly">(
+    iterator<comptime A: Access = "readonly">(
         this: WithAccess<&Map<K, V>, A>,
     ): Iterator<MapEntry<&readonly K, WithAccess<&V, A>>> {
         todo("Map.iterator")

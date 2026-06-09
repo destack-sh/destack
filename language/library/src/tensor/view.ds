@@ -8,9 +8,9 @@ import { Coordinate, Shape } from "./shape.ds";
 
 /// Borrowed view over a tensor buffer.
 @languageItem("tensor.TensorView")
-export newtype TensorView<T, comptime Rank: int, A: Access = "mutable"> = intrinsic;
+export newtype TensorView<T, comptime Rank: int, comptime A: Access = "mutable"> = intrinsic;
 
-extension<T, comptime Rank: int, A: Access> of TensorView<T, Rank, A> implements
+extension<T, comptime Rank: int, comptime A: Access> of TensorView<T, Rank, A> implements
     Index<Coordinate<Rank>> {
     /// The indexed output type.
     type Output = T;

@@ -4,7 +4,7 @@ import { Access } from "destack:memory";
 ///
 /// `A` selects the access form required by the operator use.
 @languageItem("ops.Dereference")
-export newtype interface Dereference<A: Access = "readonly"> {
+export newtype interface Dereference<comptime A: Access = "readonly"> {
     /// The projected result form.
     type Output;
 

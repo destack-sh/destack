@@ -80,7 +80,7 @@ export class ByteBuffer {
     }
 
     /// Borrow initialized bytes.
-    asBytes<A: Access = "readonly">(this: WithAccess<&ByteBuffer, A>): WithAccess<&[uint8], A> {
+    asBytes<comptime A: Access = "readonly">(this: WithAccess<&ByteBuffer, A>): WithAccess<&[uint8], A> {
         todo("ByteBuffer.asBytes")
     }
 
