@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use destack_repository::Revision;
 use destack_source::Uri;
-use destack_workspace::{SourceUpdateResult, UpdateBatch};
+use destack_workspace::{Commit, UpdateBatch};
 use serde::{Deserialize, Serialize};
 
 use super::{DaemonMessageRecord, DaemonUpdateRecord, DiagnosticBatch, RootHandleId};
@@ -166,7 +166,7 @@ pub struct SourceUpdateResponse {
 
 impl SourceUpdateResponse {
     /// Build a source update response from a workspace source update.
-    pub fn new(handle: RootHandleId, update: &SourceUpdateResult) -> Self {
+    pub fn new(handle: RootHandleId, update: &Commit) -> Self {
         Self {
             handle,
             before: update.before,

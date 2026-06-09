@@ -1,7 +1,6 @@
 use std::path::Path;
 
 use destack_session as session;
-use destack_workspace::FileChange;
 
 use crate::{DaemonError, Workspace};
 
@@ -33,7 +32,14 @@ impl Server {
                 version,
                 content,
             } => workspace
-                .open_file(&path, uri, version, FileChange::Text { content })
+                .open_file(
+                    uri,
+                    version,
+                    session::Edit::SetText {
+                        path,
+                        text: content,
+                    },
+                )
                 .map_err(DaemonError::from),
             FileOperation::OpenBytes {
                 path,
@@ -41,7 +47,14 @@ impl Server {
                 version,
                 content,
             } => workspace
-                .open_file(&path, uri, version, FileChange::Bytes { content })
+                .open_file(
+                    uri,
+                    version,
+                    session::Edit::SetBytes {
+                        path,
+                        bytes: content,
+                    },
+                )
                 .map_err(DaemonError::from),
             FileOperation::ChangeText {
                 path,
@@ -49,7 +62,14 @@ impl Server {
                 version,
                 content,
             } => workspace
-                .change_file(&path, uri, version, FileChange::Text { content })
+                .change_file(
+                    uri,
+                    version,
+                    session::Edit::SetText {
+                        path,
+                        text: content,
+                    },
+                )
                 .map_err(DaemonError::from),
             FileOperation::ChangeBytes {
                 path,
@@ -57,18 +77,31 @@ impl Server {
                 version,
                 content,
             } => workspace
-                .change_file(&path, uri, version, FileChange::Bytes { content })
+                .change_file(
+                    uri,
+                    version,
+                    session::Edit::SetBytes {
+                        path,
+                        bytes: content,
+                    },
+                )
                 .map_err(DaemonError::from),
             FileOperation::SaveText { path, content } => workspace.save_text_file(&path, content),
             FileOperation::SaveBytes { path, content } => workspace.save_bytes_file(&path, content),
             FileOperation::Close { path } => workspace.close_file(&path).map_err(DaemonError::from),
             FileOperation::WriteText { path, content } => {
-                workspace.write_file(&path, FileChange::Text { content })
+                workspace.write_file(session::Edit::SetText {
+                    path,
+                    text: content,
+                })
             }
             FileOperation::WriteBytes { path, content } => {
-                workspace.write_file(&path, FileChange::Bytes { content })
+                workspace.write_file(session::Edit::SetBytes {
+                    path,
+                    bytes: content,
+                })
             }
-            FileOperation::Remove { path } => workspace.write_file(&path, FileChange::Removed),
+            FileOperation::Remove { path } => workspace.write_file(session::Edit::Remove { path }),
         }
         .map_err(|error| self.daemon_error(error))?;
 
@@ -86,8 +119,15 @@ impl Server {
         let (entry, workspace) = self.resolve_root(request.handle)?;
         self.validate_source_update_paths(workspace.as_ref(), &entry.root, &request.update.edits)?;
 
+        let base = request.update.base;
+        let edits = request
+            .update
+            .edits
+            .into_iter()
+            .map(session::Edit::from)
+            .collect();
         let result = workspace
-            .apply_source_update(&entry.root, session_source_update(request.update))
+            .apply_source_edits(&entry.root, base, edits)
             .map_err(|error| self.daemon_error(error))?;
 
         Ok(DaemonResponse::SourceUpdated(SourceUpdateResponse::new(
@@ -133,40 +173,38 @@ impl Server {
     }
 }
 
-/// Build a session source update from a protocol payload.
-fn session_source_update(update: super::SourceUpdate) -> session::SourceUpdate {
-    session::SourceUpdate {
-        base: update.base,
-        edits: update.edits.into_iter().map(session_source_edit).collect(),
+impl From<SourceEdit> for session::Edit {
+    /// Convert a protocol source edit into a session edit.
+    fn from(edit: SourceEdit) -> Self {
+        match edit {
+            SourceEdit::SetText { path, text } => Self::SetText { path, text },
+            SourceEdit::EditText { path, edits } => Self::EditText {
+                path,
+                edits: edits.into_iter().map(session::TextEdit::from).collect(),
+            },
+            SourceEdit::SetBytes { path, bytes } => Self::SetBytes { path, bytes },
+            SourceEdit::Remove { path } => Self::Remove { path },
+            SourceEdit::Move { from, to } => Self::Move { from, to },
+        }
     }
 }
 
-/// Build a session source edit from a protocol payload.
-fn session_source_edit(edit: SourceEdit) -> session::SourceEdit {
-    match edit {
-        SourceEdit::SetText { path, text } => session::SourceEdit::SetText { path, text },
-        SourceEdit::EditText { path, edits } => session::SourceEdit::EditText {
-            path,
-            edits: edits.into_iter().map(session_text_edit).collect(),
-        },
-        SourceEdit::SetBytes { path, bytes } => session::SourceEdit::SetBytes { path, bytes },
-        SourceEdit::Remove { path } => session::SourceEdit::Remove { path },
-        SourceEdit::Move { from, to } => session::SourceEdit::Move { from, to },
+impl From<TextEdit> for session::TextEdit {
+    /// Convert a protocol text edit into a session text edit.
+    fn from(edit: TextEdit) -> Self {
+        Self {
+            range: session::TextRange::from(edit.range),
+            text: edit.text,
+        }
     }
 }
 
-/// Build a session text edit from a protocol payload.
-fn session_text_edit(edit: TextEdit) -> session::TextEdit {
-    session::TextEdit {
-        range: session_text_range(edit.range),
-        text: edit.text,
-    }
-}
-
-/// Build a session text range from a protocol payload.
-fn session_text_range(range: TextRange) -> session::TextRange {
-    session::TextRange {
-        start: range.start,
-        end: range.end,
+impl From<TextRange> for session::TextRange {
+    /// Convert a protocol text range into a session text range.
+    fn from(range: TextRange) -> Self {
+        Self {
+            start: range.start,
+            end: range.end,
+        }
     }
 }
