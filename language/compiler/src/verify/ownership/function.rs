@@ -356,7 +356,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 self.move_projection_value(
                     *destination,
                     *aggregate,
-                    mir::PlaceProjection::Field { index: *index },
+                    mir::Projection::Field { index: *index },
                     anchor,
                 );
                 self.propagate_sources(*aggregate, *destination);
@@ -370,7 +370,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 self.move_projection_value(
                     *destination,
                     *array,
-                    mir::PlaceProjection::Element { index: *index },
+                    mir::Projection::fixed_element(*index),
                     anchor,
                 );
                 self.propagate_sources(*array, *destination);
@@ -552,15 +552,15 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
             | mir::Instruction::FieldAddr {
                 aggregate, index, ..
             } => {
-                let projection = mir::PlaceProjection::Field { index: *index };
+                let projection = mir::Projection::Field { index: *index };
                 self.check_projection_use(*aggregate, projection, anchor);
             }
             mir::Instruction::ElementGet { array, index, .. } => {
-                let projection = mir::PlaceProjection::Element { index: *index };
+                let projection = mir::Projection::fixed_element(*index);
                 self.check_projection_use(*array, projection, anchor);
             }
             mir::Instruction::ElementAddr { array, index, .. } => {
-                let projection = mir::PlaceProjection::Index { index: *index };
+                let projection = mir::Projection::dynamic_element(*index);
                 self.check_projection_use(*array, projection, anchor);
                 self.check_value_use(*index, anchor);
             }
@@ -570,7 +570,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
                 length,
                 ..
             } => {
-                let projection = mir::PlaceProjection::Slice {
+                let projection = mir::Projection::Slice {
                     start: *start,
                     length: *length,
                 };
@@ -590,7 +590,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     fn check_projection_use(
         &mut self,
         base: mir::ValueReference,
-        projection: mir::PlaceProjection,
+        projection: mir::Projection,
         anchor: mir::LocalNodeIdAny,
     ) {
         let place = self.projected_place(base, projection);
@@ -667,7 +667,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
         &mut self,
         value: mir::ValueReference,
         base: mir::ValueReference,
-        projection: mir::PlaceProjection,
+        projection: mir::Projection,
         anchor: mir::LocalNodeIdAny,
     ) {
         if !self.is_move_only(value) {
@@ -1775,7 +1775,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     fn projected_place(
         &self,
         base: mir::ValueReference,
-        projection: mir::PlaceProjection,
+        projection: mir::Projection,
     ) -> mir::Place {
         let mut place = self.place_for_value(base);
         place.push(projection);
@@ -1787,7 +1787,7 @@ impl<'a, 'b> FunctionVerifyState<'a, 'b> {
     fn place_moved_by_projection(
         &self,
         base: mir::ValueReference,
-        projection: mir::PlaceProjection,
+        projection: mir::Projection,
     ) -> mir::Place {
         let place = self.place_for_value(base);
         if self.is_union_value(base) {
