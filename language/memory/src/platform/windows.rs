@@ -276,7 +276,7 @@ pub(crate) fn copy_frame_range(
 }
 
 /// Return the platform frame byte width for fixed address mappings.
-pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
+pub(crate) fn system_frame_size_bytes() -> MemoryResult<usize> {
     let mut system = MaybeUninit::<SYSTEM_INFO>::uninit();
 
     // SAFETY: GetSystemInfo initializes the provided SYSTEM_INFO storage
@@ -286,14 +286,14 @@ pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
 
     // SAFETY: GetSystemInfo initialized the structure above
     let system = unsafe { system.assume_init() };
-    let frame_bytes = system.dwPageSize as usize;
-    if frame_bytes == 0 {
+    let frame_size_bytes = system.dwPageSize as usize;
+    if frame_size_bytes == 0 {
         return Err(MemoryError::Internal {
             context: "system frame size",
         });
     }
 
-    Ok(frame_bytes)
+    Ok(frame_size_bytes)
 }
 
 /// Reserve one inaccessible virtual address range.

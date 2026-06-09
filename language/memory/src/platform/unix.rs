@@ -39,7 +39,7 @@ impl VirtualSpace {
     }
 
     /// Unmap this virtual byte space.
-    pub(crate) fn unmap<I>(&mut self, _page_bytes: usize, _mapped_pages: I)
+    pub(crate) fn unmap<I>(&mut self, _page_size_bytes: usize, _mapped_pages: I)
     where
         I: IntoIterator<Item = usize>,
     {
@@ -217,8 +217,8 @@ pub(crate) fn copy_frame_range(
 }
 
 /// Return the platform frame byte width for fixed address mappings.
-pub(crate) fn system_frame_bytes() -> MemoryResult<usize> {
-    let page_size_bytes = system_page_bytes();
+pub(crate) fn system_frame_size_bytes() -> MemoryResult<usize> {
+    let page_size_bytes = system_page_size_bytes();
     if page_size_bytes <= 0 {
         return Err(MemoryError::Internal {
             context: "system frame size",
@@ -465,7 +465,7 @@ fn page_address(base: *mut u8, page_index: usize, page_size_bytes: usize) -> *mu
 }
 
 /// Return the platform page byte width.
-fn system_page_bytes() -> libc::c_long {
+fn system_page_size_bytes() -> libc::c_long {
     // SAFETY: sysconf reads process configuration and does not retain pointers
     unsafe { libc::sysconf(libc::_SC_PAGESIZE) }
 }
