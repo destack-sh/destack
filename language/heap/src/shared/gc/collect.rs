@@ -228,7 +228,7 @@ impl HeapStorage {
         };
 
         // skip empty ranges and noscan payloads
-        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
         if !trace_map.has_shared_reference() {
             return Ok(extent.byte_len);
         }

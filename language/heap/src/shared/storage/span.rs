@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
 use destack_mir::{TraceMap, TraceTable};
@@ -7,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::allocator::{Bitmap, PageSpan};
 use crate::{
     HeapError, HeapReference, HeapResult, ReferenceRange, SharedHeapReference, SmallSpanClass,
-    slot_trace_map, visit_untagged_reference_offsets,
+    slot_trace_map_with, visit_untagged_reference_offsets,
 };
 
 /// The number of bits in one atomic bitmap word.
@@ -292,30 +293,33 @@ impl SmallSpan {
     }
 
     /// Return exact reference metadata for one occupied slot.
-    pub(crate) fn trace_map(
+    pub(crate) fn trace_map<'a>(
         &self,
         slot_index: usize,
-        trace_table: &TraceTable,
-    ) -> HeapResult<TraceMap> {
+        trace_table: &'a TraceTable,
+    ) -> HeapResult<Cow<'a, TraceMap>> {
+        // no-scan classes never carry reference bits
+        if self.class.is_noscan {
+            return Ok(Cow::Owned(TraceMap::Empty));
+        }
+
+        // table-backed classes share one canonical map
         if let Some(trace_id) = self.class.trace_id {
             let trace_map = trace_table
                 .trace(trace_id)
                 .ok_or(HeapError::internal("missing trace map"))?;
 
-            return Ok(trace_map.clone());
+            return Ok(Cow::Borrowed(trace_map));
         }
 
-        // snapshot both edge classes consistently enough for tracing
-        let local_reference_bits = self.local_reference_bits.snapshot();
-        let shared_reference_bits = self.shared_reference_bits.snapshot();
-
-        Ok(slot_trace_map(
-            &local_reference_bits,
-            &shared_reference_bits,
+        // read only the slot's bit range from both edge classes
+        Ok(Cow::Owned(slot_trace_map_with(
+            |bit_index| self.local_reference_bits.contains(bit_index),
+            |bit_index| self.shared_reference_bits.contains(bit_index),
             slot_index,
             self.class.size_class,
             self.class.size_class,
-        ))
+        )))
     }
 
     /// Return whether one slot is marked in one cycle.
@@ -600,15 +604,16 @@ impl AtomicBitmap {
 
     /// Create one atomic bitmap from a bitmap snapshot.
     fn from_bitmap(bitmap: &Bitmap) -> Self {
-        let atomic = Self::with_capacity(bitmap.capacity());
+        let words = bitmap
+            .words()
+            .iter()
+            .map(|word| AtomicU64::new(*word))
+            .collect();
 
-        for bit_index in 0..atomic.capacity {
-            if bitmap.contains(bit_index) {
-                atomic.set(bit_index);
-            }
+        Self {
+            capacity: bitmap.capacity(),
+            words,
         }
-
-        atomic
     }
 
     /// Create one bitmap for every currently free slot.
@@ -700,14 +705,56 @@ impl AtomicBitmap {
 
     /// Clear every bit inside the given range.
     pub(crate) fn clear_range(&self, start: usize, len: usize) {
-        for bit_index in start..start + len {
-            self.clear(bit_index);
+        if len == 0 || start >= self.capacity {
+            return;
+        }
+
+        // mask whole words across the range
+        let end = (start + len).min(self.capacity);
+        let start_word_index = start / ATOMIC_BITMAP_WORD_BITS;
+        let end_word_index = (end - 1) / ATOMIC_BITMAP_WORD_BITS;
+        for word_index in start_word_index..=end_word_index {
+            // keep bits outside the range inside boundary words
+            let word_start = word_index * ATOMIC_BITMAP_WORD_BITS;
+            let from_bit = start
+                .saturating_sub(word_start)
+                .min(ATOMIC_BITMAP_WORD_BITS);
+            let until_bit = (end - word_start).min(ATOMIC_BITMAP_WORD_BITS);
+            let range_mask = range_bit_mask(from_bit, until_bit);
+
+            self.words[word_index].fetch_and(!range_mask, Ordering::AcqRel);
         }
     }
 
     /// Return the first clear bit from the given offset.
     pub(crate) fn first_clear_from(&self, start: usize) -> Option<usize> {
-        (start..self.capacity).find(|bit_index| !self.contains(*bit_index))
+        if start >= self.capacity {
+            return None;
+        }
+
+        // scan whole words for the first zero bit
+        let mut word_index = start / ATOMIC_BITMAP_WORD_BITS;
+        let bit_offset = start % ATOMIC_BITMAP_WORD_BITS;
+        let mut word = self.words[word_index].load(Ordering::Acquire) | low_bit_mask(bit_offset);
+
+        loop {
+            // report the first zero bit inside this word
+            let available_bits = !word;
+            if available_bits != 0 {
+                let first_bit = available_bits.trailing_zeros() as usize;
+                let bit_index = word_index * ATOMIC_BITMAP_WORD_BITS + first_bit;
+
+                return (bit_index < self.capacity).then_some(bit_index);
+            }
+
+            // advance to the next word
+            word_index += 1;
+            if word_index >= self.words.len() {
+                return None;
+            }
+
+            word = self.words[word_index].load(Ordering::Acquire);
+        }
     }
 
     /// Return the first set bit from the given offset.
@@ -739,16 +786,15 @@ impl AtomicBitmap {
 
     /// Return a bitmap snapshot.
     pub(crate) fn snapshot(&self) -> Bitmap {
-        let mut bitmap = Bitmap::with_capacity(self.capacity);
+        let words = self.words.iter().map(|word| word.load(Ordering::Acquire));
 
-        for bit_index in 0..self.capacity {
-            if self.contains(bit_index) {
-                bitmap.set(bit_index);
-            }
-        }
-
-        bitmap
+        Bitmap::from_words(self.capacity, words)
     }
+}
+
+/// Return one mask covering the half-open bit range inside one word.
+fn range_bit_mask(from_bit: usize, until_bit: usize) -> u64 {
+    low_bit_mask(until_bit) & !low_bit_mask(from_bit)
 }
 
 /// Return one mask with every low bit below the offset set.

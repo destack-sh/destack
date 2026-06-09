@@ -81,16 +81,28 @@ impl HeapStorage {
         byte_len: usize,
         trace_map: &TraceMap,
     ) -> HeapResult<()> {
+        // skip writes that cannot touch local references
+        let is_overlapping = overlaps_heap_range(trace_map, byte_offset, byte_len);
+        if !is_overlapping {
+            return Ok(());
+        }
+
+        self.remember_span_slot_write(span_index, slot_index, byte_offset, byte_len)
+    }
+
+    /// Remember one overlapping mature heap span write.
+    pub(crate) fn remember_span_slot_write(
+        &mut self,
+        span_index: usize,
+        slot_index: usize,
+        byte_offset: usize,
+        byte_len: usize,
+    ) -> HeapResult<()> {
         let Some(span) = self.span(span_index) else {
             return Err(HeapError::internal("missing span"));
         };
         if !span.occupied.contains(slot_index) {
             return Err(HeapError::internal("missing small slot"));
-        }
-
-        let is_overlapping = overlaps_heap_range(trace_map, byte_offset, byte_len);
-        if !is_overlapping {
-            return Ok(());
         }
 
         let slot_offset = span.class.size_class * slot_index;

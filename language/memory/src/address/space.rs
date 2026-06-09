@@ -18,6 +18,8 @@ unsafe impl Send for AddressSpace {}
 // SAFETY: exposed raw writes are caller synchronized via safepoints
 unsafe impl Sync for AddressSpace {}
 
+// mapped_bytes_mut hands out exclusive windows under a caller-proved contract
+#[allow(clippy::mut_from_ref)]
 impl AddressSpace {
     /// Reserve one virtual address space.
     pub fn reserve(byte_len: usize, page_size_bytes: usize) -> MemoryResult<Self> {
@@ -122,6 +124,40 @@ impl AddressSpace {
     pub unsafe fn zero_mapped_bytes(&self, offset: usize, byte_len: usize) {
         // SAFETY: caller owns the mapped range invariant
         unsafe { self.map.zero_mapped_bytes(offset, byte_len) }
+    }
+
+    /// Copy bytes between two ranges that the caller knows are already mapped.
+    ///
+    /// # Safety
+    ///
+    /// Both byte ranges must be live, fully materialized, and disjoint.
+    #[inline(always)]
+    pub unsafe fn copy_mapped_bytes(
+        &self,
+        source_offset: usize,
+        target_offset: usize,
+        byte_len: usize,
+    ) {
+        let source = self.map.mapped_address(source_offset);
+        let target = self.map.mapped_address(target_offset);
+
+        // SAFETY: caller owns the mapped range and disjointness invariants
+        unsafe {
+            std::ptr::copy_nonoverlapping(source, target, byte_len);
+        }
+    }
+
+    /// Borrow a mutable byte window that the caller knows is already mapped.
+    ///
+    /// # Safety
+    ///
+    /// The byte range must be live, fully materialized, and not aliased while borrowed.
+    #[inline(always)]
+    pub unsafe fn mapped_bytes_mut(&self, offset: usize, byte_len: usize) -> &mut [u8] {
+        let address = self.map.mapped_address(offset);
+
+        // SAFETY: caller owns the mapped range and exclusivity invariants
+        unsafe { std::slice::from_raw_parts_mut(address, byte_len) }
     }
 }
 

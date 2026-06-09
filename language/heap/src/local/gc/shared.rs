@@ -96,7 +96,7 @@ impl HeapStorage {
         };
 
         // layout metadata decides whether scanning is needed
-        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
 
         Ok(trace_map.has_shared_reference())
     }
@@ -132,7 +132,7 @@ impl HeapStorage {
 
         // load exact shared-reference layout
         let trace_map = self
-            .trace_map_for_place(extent.storage, trace_table)
+            .trace_map_for_place_ref(extent.storage, trace_table)
             .map_err(|error| {
                 HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
             })?;
@@ -192,7 +192,7 @@ impl HeapStorage {
 
         // load exact shared-reference layout
         let trace_map = self
-            .trace_map_for_place(extent.storage, trace_table)
+            .trace_map_for_place_ref(extent.storage, trace_table)
             .map_err(|error| {
                 HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
             })?;

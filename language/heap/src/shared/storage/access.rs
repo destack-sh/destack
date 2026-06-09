@@ -1,4 +1,5 @@
 use destack_mir::{TraceMap, TraceTable};
+use std::borrow::Cow;
 
 use super::storage::block_byte_offset;
 use super::{HeapExtent, HeapPlace, HeapStorage};
@@ -14,8 +15,9 @@ impl HeapStorage {
         trace_table: &TraceTable,
     ) -> HeapResult<TraceMap> {
         let (extent, _) = self.resolve_range(reference, 0, 0)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
 
-        self.trace_map_for_place(extent.storage, trace_table)
+        Ok(trace_map.into_owned())
     }
 
     /// Record one shared heap write barrier before one byte store.
@@ -63,7 +65,7 @@ impl HeapStorage {
         }
 
         // scan inserted shared references in mapped heap memory
-        let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
+        let trace_map = self.trace_map_for_place_ref(extent.storage, trace_table)?;
         let base_address = self.mapping.base_address() + extent.base.offset();
         visit_references::<SharedHeapReference>(
             &trace_map,
@@ -92,15 +94,15 @@ impl HeapStorage {
     }
 
     /// Return the trace map for one shared heap extent.
-    pub(crate) fn trace_map_for_place(
+    pub(crate) fn trace_map_for_place_ref<'a>(
         &self,
         storage: HeapPlace,
-        trace_table: &TraceTable,
-    ) -> HeapResult<TraceMap> {
+        trace_table: &'a TraceTable,
+    ) -> HeapResult<Cow<'a, TraceMap>> {
         // dispatch by physical shared heap storage
         match storage {
             HeapPlace::SmallSlot(slot) => {
-                self.small_slot_trace_map(slot.span_index(), slot.slot_index(), trace_table)
+                self.small_slot_trace_map_ref(slot.span_index(), slot.slot_index(), trace_table)
             }
             HeapPlace::LargeBlock(block_id) => {
                 let trace_map = self
@@ -115,7 +117,7 @@ impl HeapStorage {
                     .trace_map
                     .clone();
 
-                Ok(trace_map)
+                Ok(Cow::Owned(trace_map))
             }
         }
     }

@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
@@ -221,12 +222,12 @@ impl HeapStorage {
     }
 
     /// Return the exact trace map stored for one shared small slot.
-    pub(crate) fn small_slot_trace_map(
+    pub(crate) fn small_slot_trace_map_ref<'a>(
         &self,
         span_index: usize,
         slot_index: usize,
-        trace_table: &TraceTable,
-    ) -> HeapResult<TraceMap> {
+        trace_table: &'a TraceTable,
+    ) -> HeapResult<Cow<'a, TraceMap>> {
         // resolve the small span
         let store = self.state.read();
         let Some(span) = store.small.spans.get(span_index).cloned() else {
