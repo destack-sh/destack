@@ -1,8 +1,18 @@
 # generated bridge target, do not edit
 
 from ._native import VERSION, Session, version
+from .artifact.dependency import (
+    ArtifactPathState,
+    ArtifactDirectoryEntry,
+    ArtifactSourceDependency,
+    ArtifactDependency,
+)
 from .artifact.key import (
     ArtifactKey,
+)
+from .artifact.record import (
+    ArtifactString,
+    ArtifactRecord,
 )
 from .artifact.sidecar import (
     ArtifactSidecarLabel,
@@ -23,8 +33,17 @@ from .diagnostic.diagnostic import (
 )
 from .diagnostic.edit import (
     Edit,
-    FileEdit,
+    FilePatch,
     BatchEdit,
+)
+from .dir.checked import (
+    DirChecked,
+)
+from .dir.parsed import (
+    DirParsed,
+)
+from .dir.resolved import (
+    DirResolved,
 )
 from .repository.revision import (
     Revision,
@@ -36,20 +55,18 @@ from .session.module import (
     Module,
 )
 from .session.source.file import (
-    SourceFile,
-    SourceFileContent,
-    FileUpdate,
-    FileUpdateKind,
+    FileChange,
+    FileChangeKind,
 )
-from .session.source.snapshot import (
-    SourceSnapshot,
+from .session.source.source import (
+    Source,
 )
 from .session.source.update import (
     TextRange,
     TextEdit,
-    SourceEdit,
-    SourceUpdate,
-    SourceUpdateResult,
+    FileEdit,
+    FileUpdate,
+    FileUpdateResult,
 )
 from .source.component import (
     ComponentId,
@@ -78,7 +95,13 @@ from .source.target import (
 
 __all__ = [
     "Session",
+    "ArtifactPathState",
+    "ArtifactDirectoryEntry",
+    "ArtifactSourceDependency",
+    "ArtifactDependency",
     "ArtifactKey",
+    "ArtifactString",
+    "ArtifactRecord",
     "ArtifactSidecarLabel",
     "ArtifactSidecar",
     "ArtifactVersion",
@@ -91,21 +114,22 @@ __all__ = [
     "DiagnosticSuggestion",
     "Diagnostic",
     "Edit",
-    "FileEdit",
+    "FilePatch",
     "BatchEdit",
+    "DirChecked",
+    "DirParsed",
+    "DirResolved",
     "Revision",
     "SessionFile",
     "Module",
-    "SourceFile",
-    "SourceFileContent",
-    "FileUpdate",
-    "FileUpdateKind",
-    "SourceSnapshot",
+    "FileChange",
+    "FileChangeKind",
+    "Source",
     "TextRange",
     "TextEdit",
-    "SourceEdit",
-    "SourceUpdate",
-    "SourceUpdateResult",
+    "FileEdit",
+    "FileUpdate",
+    "FileUpdateResult",
     "ComponentId",
     "FileId",
     "FileContentId",

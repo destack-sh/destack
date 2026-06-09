@@ -14,6 +14,6 @@ from .diagnostic import (
 )
 from .edit import (
     Edit,
-    FileEdit,
+    FilePatch,
     BatchEdit,
 )

@@ -4,8 +4,18 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from .artifact.dependency import (
+    ArtifactPathState,
+    ArtifactDirectoryEntry,
+    ArtifactSourceDependency,
+    ArtifactDependency,
+)
 from .artifact.key import (
     ArtifactKey,
+)
+from .artifact.record import (
+    ArtifactString,
+    ArtifactRecord,
 )
 from .artifact.sidecar import (
     ArtifactSidecarLabel,
@@ -26,8 +36,17 @@ from .diagnostic.diagnostic import (
 )
 from .diagnostic.edit import (
     Edit,
-    FileEdit,
+    FilePatch,
     BatchEdit,
+)
+from .dir.checked import (
+    DirChecked,
+)
+from .dir.parsed import (
+    DirParsed,
+)
+from .dir.resolved import (
+    DirResolved,
 )
 from .repository.revision import (
     Revision,
@@ -39,20 +58,18 @@ from .session.module import (
     Module,
 )
 from .session.source.file import (
-    SourceFile,
-    SourceFileContent,
-    FileUpdate,
-    FileUpdateKind,
+    FileChange,
+    FileChangeKind,
 )
-from .session.source.snapshot import (
-    SourceSnapshot,
+from .session.source.source import (
+    Source,
 )
 from .session.source.update import (
     TextRange,
     TextEdit,
-    SourceEdit,
-    SourceUpdate,
-    SourceUpdateResult,
+    FileEdit,
+    FileUpdate,
+    FileUpdateResult,
 )
 from .source.component import (
     ComponentId,
@@ -86,24 +103,29 @@ class Session:
     """Python language session."""
 
     @staticmethod
-    def open_path(path: str) -> Session: ...
-
-    @staticmethod
-    def open_source(root: str, source: SourceSnapshot) -> Session: ...
+    def open(source: Source) -> Session: ...
 
     def revision(self) -> Revision: ...
 
     def files(self) -> list[SessionFile]: ...
 
-    def update(self, update: SourceUpdate) -> SourceUpdateResult: ...
+    def update(self, update: FileUpdate) -> FileUpdateResult: ...
 
-    def reload(self) -> list[FileUpdate]: ...
+    def reload(self) -> list[FileChange]: ...
 
     def load_module(self, path: str) -> Module: ...
 
     def provide(self, revision: Revision, keys: Sequence[ArtifactKey]) -> None: ...
 
     def require(self, revision: Revision, key: ArtifactKey) -> ArtifactVersion: ...
+
+    def artifact_record(self, revision: Revision, key: ArtifactKey) -> ArtifactRecord: ...
+
+    def parse(self, revision: Revision, module: Module) -> DirParsed: ...
+
+    def resolve(self, revision: Revision, module: Module, profile: ProfileId) -> DirResolved: ...
+
+    def check(self, revision: Revision, module: Module, profile: ProfileId) -> DirChecked: ...
 
     def diagnostics(self, revision: Revision, key: ArtifactKey | None = None) -> list[Diagnostic]: ...
 

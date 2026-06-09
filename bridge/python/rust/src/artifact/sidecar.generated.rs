@@ -100,6 +100,11 @@ impl ArtifactSidecar {
 
 #[allow(dead_code)]
 impl ArtifactSidecar {
+    /// Convert this Python value into one bridge value.
+    pub(crate) fn into_bridge(self) -> bridge::ArtifactSidecar {
+        self.value
+    }
+
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::ArtifactSidecar) -> Self {
         Self { value }

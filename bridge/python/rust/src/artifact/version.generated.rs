@@ -41,6 +41,11 @@ impl ArtifactVersion {
 
 #[allow(dead_code)]
 impl ArtifactVersion {
+    /// Convert this Python value into one bridge value.
+    pub(crate) fn into_bridge(self) -> bridge::ArtifactVersion {
+        self.value
+    }
+
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::ArtifactVersion) -> Self {
         Self { value }

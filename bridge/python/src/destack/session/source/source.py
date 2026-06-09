@@ -1,9 +1,9 @@
 # generated bridge target, do not edit
 
 from ..._native import (
-    SourceSnapshot,
+    Source,
 )
 
 __all__ = [
-    "SourceSnapshot",
+    "Source",
 ]

@@ -34,6 +34,11 @@ impl Module {
 
 #[allow(dead_code)]
 impl Module {
+    /// Convert this Python value into one bridge value.
+    pub(crate) fn into_bridge(self) -> bridge::Module {
+        self.value
+    }
+
     /// Convert one bridge value into one Python value.
     pub(crate) fn from_bridge(value: bridge::Module) -> Self {
         Self { value }

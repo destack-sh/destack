@@ -25,7 +25,7 @@ class Edit:
     @property
     def new_text(self) -> str: ...
 
-class FileEdit:
+class FilePatch:
     """Edits for a single file."""
 
     def __init__(self, file: FileId, edits: Sequence[Edit]) -> None: ...
@@ -41,9 +41,9 @@ class FileEdit:
 class BatchEdit:
     """Edits across multiple files."""
 
-    def __init__(self, files: Sequence[FileEdit]) -> None: ...
+    def __init__(self, files: Sequence[FilePatch]) -> None: ...
 
     """Per-file edits."""
     @property
-    def files(self) -> list[FileEdit]: ...
+    def files(self) -> list[FilePatch]: ...
 

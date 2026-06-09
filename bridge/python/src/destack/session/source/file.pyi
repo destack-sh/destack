@@ -8,43 +8,10 @@ from destack.source.module import (
     ModuleId,
 )
 
-class SourceFile:
-    """One source file in an explicit source snapshot."""
+class FileChange:
+    """Observed file change projected from a file update."""
 
-    def __init__(self, path: str, content: SourceFileContent) -> None: ...
-
-    """Repository-root relative path."""
-    @property
-    def path(self) -> str: ...
-
-    """Full source file content."""
-    @property
-    def content(self) -> SourceFileContent: ...
-
-    @staticmethod
-    def text(path: str, text: str) -> SourceFile: ...
-
-    @staticmethod
-    def bytes(path: str, bytes: bytes | bytearray | Sequence[int]) -> SourceFile: ...
-
-class SourceFileContent:
-    """Full content for one source snapshot file."""
-
-    """Text file content."""
-    @staticmethod
-    def text(text: str) -> SourceFileContent: ...
-
-    """Binary file content."""
-    @staticmethod
-    def bytes(bytes: bytes | bytearray | Sequence[int]) -> SourceFileContent: ...
-
-    @property
-    def kind(self) -> str: ...
-
-class FileUpdate:
-    """File update projected from a source update."""
-
-    def __init__(self, path: str, uri: str, kind: FileUpdateKind, is_removed: bool, module_id: ModuleId | None) -> None: ...
+    def __init__(self, path: str, uri: str, kind: FileChangeKind, is_removed: bool, module_id: ModuleId | None) -> None: ...
 
     """Repository logical path."""
     @property
@@ -54,9 +21,9 @@ class FileUpdate:
     @property
     def uri(self) -> str: ...
 
-    """Coarse file update kind."""
+    """Coarse file change kind."""
     @property
-    def kind(self) -> FileUpdateKind: ...
+    def kind(self) -> FileChangeKind: ...
 
     """Whether the file was removed."""
     @property
@@ -66,16 +33,16 @@ class FileUpdate:
     @property
     def module_id(self) -> ModuleId | None: ...
 
-class FileUpdateKind:
+class FileChangeKind:
     """One coarse kind for a file change."""
 
     """One ordinary source change."""
     @staticmethod
-    def source() -> FileUpdateKind: ...
+    def source() -> FileChangeKind: ...
 
     """One `destack.json` change."""
     @staticmethod
-    def config() -> FileUpdateKind: ...
+    def config() -> FileChangeKind: ...
 
     @property
     def label(self) -> str: ...

@@ -4,9 +4,9 @@ use pyo3::prelude::*;
 use pyo3::types::PyModule;
 
 use crate::{
-    ArtifactKey, ArtifactSidecar, ArtifactVersion, Diagnostic, FileUpdate, Module, Revision,
-    SessionFile, SourceSnapshot, SourceUpdate, SourceUpdateResult, artifact, diagnostic,
-    repository, session, source,
+    ArtifactKey, ArtifactRecord, ArtifactSidecar, ArtifactVersion, Diagnostic, DirChecked,
+    DirParsed, DirResolved, FileChange, FileUpdate, FileUpdateResult, Module, ProfileId, Revision,
+    SessionFile, Source, artifact, diagnostic, dir, repository, session, source,
 };
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -21,18 +21,10 @@ pub struct Session {
 
 #[pymethods]
 impl Session {
-    /// Open one session from a native filesystem path.
+    /// Open one session from one source input.
     #[staticmethod]
-    pub fn open_path(path: String) -> PyResult<Self> {
-        let session = rust::Session::open_path(path).map_err(to_error)?;
-
-        Ok(Self { session })
-    }
-
-    /// Open one session from an explicit source snapshot.
-    #[staticmethod]
-    pub fn open_source(root: String, source: SourceSnapshot) -> PyResult<Self> {
-        let session = rust::Session::open_source(root, source.into_bridge()).map_err(to_error)?;
+    pub fn open(source: Source) -> PyResult<Self> {
+        let session = rust::Session::open(source.into_bridge()).map_err(to_error)?;
 
         Ok(Self { session })
     }
@@ -52,20 +44,20 @@ impl Session {
         Ok(files)
     }
 
-    /// Apply one source update.
-    pub fn update(&self, update: SourceUpdate) -> PyResult<SourceUpdateResult> {
+    /// Apply one file update.
+    pub fn update(&self, update: FileUpdate) -> PyResult<FileUpdateResult> {
         let value = self
             .session
             .update(update.into_bridge())
             .map_err(to_error)?;
 
-        Ok(SourceUpdateResult::from_bridge(value))
+        Ok(FileUpdateResult::from_bridge(value))
     }
 
-    /// Reload tracked files from this session source.
-    pub fn reload(&self) -> PyResult<Vec<FileUpdate>> {
+    /// Reload tracked files from this session backing source.
+    pub fn reload(&self) -> PyResult<Vec<FileChange>> {
         let updates = self.session.reload().map_err(to_error)?;
-        let updates = updates.into_iter().map(FileUpdate::from_bridge).collect();
+        let updates = updates.into_iter().map(FileChange::from_bridge).collect();
 
         Ok(updates)
     }
@@ -94,6 +86,68 @@ impl Session {
             .map_err(to_error)?;
 
         Ok(ArtifactVersion::from_bridge(version))
+    }
+
+    /// Return one raw artifact record for one immutable revision.
+    pub fn artifact_record(
+        &self,
+        revision: Revision,
+        key: ArtifactKey,
+    ) -> PyResult<ArtifactRecord> {
+        let record = self
+            .session
+            .artifact_record(revision.into_bridge(), key.into_bridge())
+            .map_err(to_error)?;
+
+        Ok(ArtifactRecord::from_bridge(record))
+    }
+
+    /// Return the parsed DIR artifact for one loaded module.
+    pub fn parse(&self, revision: Revision, module: Module) -> PyResult<DirParsed> {
+        let parsed = self
+            .session
+            .parse(revision.into_bridge(), module.into_bridge())
+            .map_err(to_error)?;
+
+        Ok(DirParsed::from_bridge(parsed))
+    }
+
+    /// Return the resolved DIR artifact for one loaded module profile.
+    pub fn resolve(
+        &self,
+        revision: Revision,
+        module: Module,
+        profile: ProfileId,
+    ) -> PyResult<DirResolved> {
+        let resolved = self
+            .session
+            .resolve(
+                revision.into_bridge(),
+                module.into_bridge(),
+                profile.into_bridge(),
+            )
+            .map_err(to_error)?;
+
+        Ok(DirResolved::from_bridge(resolved))
+    }
+
+    /// Return the checked DIR facade artifact for one loaded module profile.
+    pub fn check(
+        &self,
+        revision: Revision,
+        module: Module,
+        profile: ProfileId,
+    ) -> PyResult<DirChecked> {
+        let checked = self
+            .session
+            .check(
+                revision.into_bridge(),
+                module.into_bridge(),
+                profile.into_bridge(),
+            )
+            .map_err(to_error)?;
+
+        Ok(DirChecked::from_bridge(checked))
     }
 
     /// Return diagnostics for one immutable revision.
@@ -142,6 +196,7 @@ fn _native(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<Session>()?;
     artifact::register(module)?;
     diagnostic::register(module)?;
+    dir::register(module)?;
     repository::register(module)?;
     session::register(module)?;
     source::register(module)?;

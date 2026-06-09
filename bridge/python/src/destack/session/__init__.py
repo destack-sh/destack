@@ -7,33 +7,29 @@ from .module import (
     Module,
 )
 from .source.file import (
-    SourceFile,
-    SourceFileContent,
-    FileUpdate,
-    FileUpdateKind,
+    FileChange,
+    FileChangeKind,
 )
-from .source.snapshot import (
-    SourceSnapshot,
+from .source.source import (
+    Source,
 )
 from .source.update import (
     TextRange,
     TextEdit,
-    SourceEdit,
-    SourceUpdate,
-    SourceUpdateResult,
+    FileEdit,
+    FileUpdate,
+    FileUpdateResult,
 )
 
 __all__ = [
     "SessionFile",
     "Module",
-    "SourceFile",
-    "SourceFileContent",
-    "FileUpdate",
-    "FileUpdateKind",
-    "SourceSnapshot",
+    "FileChange",
+    "FileChangeKind",
+    "Source",
     "TextRange",
     "TextEdit",
-    "SourceEdit",
-    "SourceUpdate",
-    "SourceUpdateResult",
+    "FileEdit",
+    "FileUpdate",
+    "FileUpdateResult",
 ]

@@ -12,9 +12,9 @@ pip install destack
 ## API
 
 ```python
-from destack import Session
+from destack import Session, Source
 
-session = Session.open_path(".")
+session = Session.open(Source.file_system("."))
 ```
 
 ## Testing
