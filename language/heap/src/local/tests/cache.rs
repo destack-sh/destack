@@ -2,6 +2,8 @@ use crate::local::storage::HeapStorage;
 use crate::{HeapOptions, Payload, SizeClassTable, test_allocator, test_layout};
 use destack_mir::TraceMap;
 
+use super::heap_allocation_plan;
+
 /// The allocator chunk size for small-page cache fixtures.
 const TEST_ALLOCATOR_CHUNK_SIZE_BYTES: usize = 1024 * 1024;
 
@@ -23,7 +25,7 @@ fn test_release_heap_large_pages_into_page_span_cache() {
         .expect("explicit heap options should build");
     let reference = heap
         .allocate(
-            &heap.allocation_plan(layout.block()),
+            &heap_allocation_plan(&heap, layout.block()),
             Payload::Bytes(&[9; 9]),
         )
         .expect("heap block should succeed");

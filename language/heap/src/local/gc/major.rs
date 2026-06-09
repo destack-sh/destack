@@ -4,7 +4,7 @@ use crate::local::gc::{MajorSweepCursor, MarkWork, Phase};
 use crate::local::storage::{GcKind, GcStats, HeapExtent, HeapPlace, HeapStorage};
 use crate::{
     GcProgress, HeapError, HeapGcStateError, HeapOperationSource, HeapReference, HeapResult,
-    ReferenceInput, ReferenceRange, RootSlot, scan_references,
+    ReferenceInput, ReferenceRange, RootSlot, visit_references,
 };
 
 /// The budget charged for one metadata-only sweep step.
@@ -32,7 +32,7 @@ impl HeapStorage {
 
         self.mark_place(storage)?;
 
-        self.enqueue_location_heap_references(reference, storage, 0, usize::MAX, trace_map)
+        self.enqueue_payload_references(reference, storage, 0, usize::MAX, trace_map)
     }
 
     /// Queue local references written into one active local major cycle.
@@ -50,7 +50,7 @@ impl HeapStorage {
 
         let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
 
-        self.enqueue_location_heap_references(
+        self.enqueue_payload_references(
             extent.base,
             extent.storage,
             byte_offset,
@@ -60,7 +60,7 @@ impl HeapStorage {
     }
 
     /// Queue local references from one heap payload range into the active major cycle.
-    fn enqueue_location_heap_references(
+    fn enqueue_payload_references(
         &mut self,
         reference: HeapReference,
         storage: HeapPlace,
@@ -80,15 +80,14 @@ impl HeapStorage {
             byte_len: self.byte_len_for_place(storage)?,
         };
         let scan_len = byte_len.min(extent.byte_len - byte_offset);
-        let mut references = Vec::new();
 
         // scan local reference slots in mapped heap memory
         let base_address = self.mapping.base_address() + extent.base.offset();
-        let result = scan_references::<HeapReference>(
+        let result = visit_references::<HeapReference>(
             trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(byte_offset, scan_len),
-            &mut references,
+            &mut |reference| self.enqueue_major_reference(reference),
         );
 
         if let Err(error) = result {
@@ -96,11 +95,6 @@ impl HeapStorage {
                 HeapOperationSource::Reference(reference),
                 error,
             ));
-        }
-
-        // enqueue after scanner borrows have ended
-        for reference in references {
-            self.enqueue_major_reference(reference)?;
         }
 
         Ok(())
@@ -187,8 +181,7 @@ impl HeapStorage {
             Phase::Mark => {
                 // roots may have changed between incremental steps
                 self.seed_major_roots(roots)?;
-                let marked_bytes =
-                    self.mark_reachable_references_step(budget_bytes, trace_table)?;
+                let marked_bytes = self.step_reachable_reference_mark(budget_bytes, trace_table)?;
 
                 // switch to sweep when mark work drains
                 if self.collector.major_queue.is_empty() {
@@ -199,15 +192,14 @@ impl HeapStorage {
                     if marked_bytes < budget_bytes {
                         let remaining_bytes = budget_bytes - marked_bytes;
 
-                        return Ok(self.sweep_unreachable_references_step(remaining_bytes)?);
+                        return Ok(self.step_unreachable_reference_sweep(remaining_bytes)?);
                     }
                 }
 
                 Ok(GcProgress::Active)
             }
             Phase::Sweep => {
-                let marked_bytes =
-                    self.mark_reachable_references_step(budget_bytes, trace_table)?;
+                let marked_bytes = self.step_reachable_reference_mark(budget_bytes, trace_table)?;
                 if !self.collector.major_queue.is_empty() {
                     return Ok(GcProgress::Active);
                 }
@@ -217,7 +209,7 @@ impl HeapStorage {
 
                 let remaining_bytes = budget_bytes - marked_bytes;
 
-                Ok(self.sweep_unreachable_references_step(remaining_bytes)?)
+                Ok(self.step_unreachable_reference_sweep(remaining_bytes)?)
             }
         }
     }
@@ -269,7 +261,10 @@ impl HeapStorage {
 
     /// Start sweeping over the heap tables visible to the active major cycle.
     fn start_major_sweep(&mut self) {
+        // publish active span accounting before cursor bounds are captured
         self.flush_young_cursor();
+
+        // capture sweep limits for a stable bounded pass
         self.collector.major_sweep = MajorSweepCursor {
             small_span_limit: self.small.spans.len(),
             large_limit: self.large.blocks.len(),
@@ -278,14 +273,22 @@ impl HeapStorage {
     }
 
     /// Sweep unreachable references within one byte budget.
-    fn sweep_unreachable_references_step(&mut self, budget_bytes: usize) -> HeapResult<GcProgress> {
+    fn step_unreachable_reference_sweep(&mut self, budget_bytes: usize) -> HeapResult<GcProgress> {
         let mut swept_bytes = 0usize;
 
-        self.sweep_major_young_ranges_step(budget_bytes, &mut swept_bytes)?;
-        self.sweep_major_young_spans_step(budget_bytes, &mut swept_bytes)?;
-        self.sweep_major_small_spans_step(budget_bytes, &mut swept_bytes)?;
-        self.sweep_major_large_blocks_step(budget_bytes, &mut swept_bytes)?;
+        // sweep young variable ranges first
+        self.step_major_young_range_sweep(budget_bytes, &mut swept_bytes)?;
 
+        // sweep young fixed spans with remaining budget
+        self.step_major_young_span_sweep(budget_bytes, &mut swept_bytes)?;
+
+        // sweep mature small spans with remaining budget
+        self.step_major_small_span_sweep(budget_bytes, &mut swept_bytes)?;
+
+        // sweep mature large blocks last
+        self.step_major_large_block_sweep(budget_bytes, &mut swept_bytes)?;
+
+        // finish when all sweep cursors drain
         if self.major_sweep_drained() {
             return self.finish_major_gc().map(GcProgress::Complete);
         }
@@ -294,7 +297,7 @@ impl HeapStorage {
     }
 
     /// Sweep unreachable young range blocks within one byte budget.
-    fn sweep_major_young_ranges_step(
+    fn step_major_young_range_sweep(
         &mut self,
         budget_bytes: usize,
         swept_bytes: &mut usize,
@@ -302,6 +305,7 @@ impl HeapStorage {
         while *swept_bytes < budget_bytes
             && self.collector.major_sweep.young_range_cursor < self.young.ranges.len()
         {
+            // skip clear bitmap words as charged metadata work
             let Some(block_index) = self
                 .young
                 .live
@@ -317,6 +321,7 @@ impl HeapStorage {
                 return Ok(());
             };
 
+            // charge skipped dead range bits
             self.collector.major_sweep.young_range_cursor = charge_bitmap_skip(
                 self.collector.major_sweep.young_range_cursor,
                 block_index,
@@ -328,6 +333,7 @@ impl HeapStorage {
             }
             self.collector.major_sweep.young_range_cursor = block_index + 1;
 
+            // resolve the live range selected by the bitmap
             let Some(block) = self.young_range(block_index) else {
                 return Err(HeapError::Internal {
                     context: "live young range missing during major sweep",
@@ -336,12 +342,14 @@ impl HeapStorage {
             let reference = HeapReference::new(block.first_offset);
             let byte_len = block.byte_len;
 
+            // marked ranges survive this cycle
             if self.young.marked.contains(block_index) {
                 *swept_bytes += byte_len.max(1);
 
                 continue;
             }
 
+            // unmarked ranges are dead
             self.free_swept_reference(reference, byte_len)?;
             *swept_bytes += byte_len.max(1);
         }
@@ -350,7 +358,7 @@ impl HeapStorage {
     }
 
     /// Sweep unreachable young span slots within one byte budget.
-    fn sweep_major_young_spans_step(
+    fn step_major_young_span_sweep(
         &mut self,
         budget_bytes: usize,
         swept_bytes: &mut usize,
@@ -358,21 +366,18 @@ impl HeapStorage {
         while *swept_bytes < budget_bytes
             && self.collector.major_sweep.young_span_cursor < self.young.spans.len()
         {
+            // select the active span and reserved slot limit
             let span_index = self.collector.major_sweep.young_span_cursor;
-            let Some(span) = self.young.span(span_index).cloned() else {
-                return Err(HeapError::internal("missing span"));
-            };
-            let reserved_slots = self
-                .young
-                .span_reserved_slot_count(span_index)
-                .unwrap_or_else(|| span.slot_count());
+            let span = self.select_major_young_span_sweep(span_index)?;
 
+            // sweep slots within this young span
             while *swept_bytes < budget_bytes
-                && self.collector.major_sweep.young_slot_cursor < reserved_slots
+                && self.collector.major_sweep.young_slot_cursor < span.reserved_slots
             {
                 let slot_index = self.collector.major_sweep.young_slot_cursor;
                 self.collector.major_sweep.young_slot_cursor += 1;
 
+                // already freed slots only charge metadata work
                 let Some(bits) = self.young.span_bits_mut(span_index) else {
                     return Err(HeapError::internal("missing span"));
                 };
@@ -382,23 +387,27 @@ impl HeapStorage {
                     continue;
                 }
 
+                // marked slots survive this cycle
                 if bits.marked.contains(slot_index) {
-                    *swept_bytes += span.class.size_class.max(1);
+                    *swept_bytes += span.size_class.max(1);
 
                     continue;
                 }
 
+                // unmarked slots are dead
                 bits.freed.set(slot_index);
                 bits.marked.clear(slot_index);
-                let reference = HeapReference::new(span.slot_offset(slot_index));
+                let reference =
+                    HeapReference::new(span.first_offset + slot_index * span.size_class);
                 self.collector.remove_shared_edge_root(reference);
-                self.record_young_free(span.class.size_class);
+                self.record_young_free(span.size_class);
                 self.collector.major_freed_allocations += 1;
-                self.collector.major_freed_bytes += span.class.size_class as u64;
-                *swept_bytes += span.class.size_class.max(1);
+                self.collector.major_freed_bytes += span.size_class as u64;
+                *swept_bytes += span.size_class.max(1);
             }
 
-            if self.collector.major_sweep.young_slot_cursor >= reserved_slots {
+            // advance after all reserved slots drain
+            if self.collector.major_sweep.young_slot_cursor >= span.reserved_slots {
                 self.collector.major_sweep.young_span_cursor += 1;
                 self.collector.major_sweep.young_slot_cursor = 0;
             }
@@ -407,8 +416,26 @@ impl HeapStorage {
         Ok(())
     }
 
+    /// Select young span sweep metadata without cloning span bitmaps.
+    fn select_major_young_span_sweep(&self, span_index: usize) -> HeapResult<YoungSpanSweep> {
+        let Some(span) = self.young.span(span_index) else {
+            return Err(HeapError::internal("missing span"));
+        };
+
+        let reserved_slots = self
+            .young
+            .span_reserved_slot_count(span_index)
+            .unwrap_or_else(|| span.slot_count());
+
+        Ok(YoungSpanSweep {
+            first_offset: span.first_offset,
+            size_class: span.class.size_class,
+            reserved_slots,
+        })
+    }
+
     /// Sweep unreachable small-span slots within one byte budget.
-    fn sweep_major_small_spans_step(
+    fn step_major_small_span_sweep(
         &mut self,
         budget_bytes: usize,
         swept_bytes: &mut usize,
@@ -417,42 +444,41 @@ impl HeapStorage {
             && self.collector.major_sweep.small_span_cursor
                 < self.collector.major_sweep.small_span_limit
         {
+            // select mature span sweep metadata
             let span_index = self.collector.major_sweep.small_span_cursor;
-            let Some(span) = self.span(span_index) else {
-                return Err(HeapError::internal("missing span"));
-            };
-            let slot_count = span.slot_count;
-            let size_class = span.class.size_class;
+            let span = self.select_major_small_span_sweep(span_index)?;
 
+            // sweep slots within this mature span
             while *swept_bytes < budget_bytes
-                && self.collector.major_sweep.small_slot_cursor < slot_count
+                && self.collector.major_sweep.small_slot_cursor < span.slot_count
             {
                 let slot_index = self.collector.major_sweep.small_slot_cursor;
                 self.collector.major_sweep.small_slot_cursor += 1;
+                let slot = self.select_major_small_slot_sweep(span_index, slot_index)?;
 
-                let Some(span) = self.span(span_index) else {
-                    return Err(HeapError::internal("missing span"));
-                };
-                if !span.occupied.contains(slot_index) {
+                // empty slots only charge metadata work
+                if !slot.is_occupied {
                     *swept_bytes += METADATA_STEP_BYTES;
 
                     continue;
                 }
 
-                let is_marked = span.mark_epoch == self.collector.mark_epoch
-                    && span.marked.contains(slot_index);
-                if is_marked {
-                    *swept_bytes += size_class.max(1);
+                // marked slots survive this cycle
+                if slot.is_marked {
+                    *swept_bytes += span.size_class.max(1);
 
                     continue;
                 }
 
-                let reference = HeapReference::new(span.first_offset + slot_index * size_class);
-                self.free_swept_reference(reference, size_class)?;
-                *swept_bytes += size_class.max(1);
+                // unmarked slots are dead
+                let reference =
+                    HeapReference::new(span.first_offset + slot_index * span.size_class);
+                self.free_swept_reference(reference, span.size_class)?;
+                *swept_bytes += span.size_class.max(1);
             }
 
-            if self.collector.major_sweep.small_slot_cursor >= slot_count {
+            // advance after the span drains
+            if self.collector.major_sweep.small_slot_cursor >= span.slot_count {
                 self.collector.major_sweep.small_span_cursor += 1;
                 self.collector.major_sweep.small_slot_cursor = 0;
             }
@@ -461,8 +487,38 @@ impl HeapStorage {
         Ok(())
     }
 
+    /// Select mature small span sweep metadata.
+    fn select_major_small_span_sweep(&self, span_index: usize) -> HeapResult<SmallSpanSweep> {
+        let Some(span) = self.span(span_index) else {
+            return Err(HeapError::internal("missing span"));
+        };
+
+        Ok(SmallSpanSweep {
+            first_offset: span.first_offset,
+            size_class: span.class.size_class,
+            slot_count: span.slot_count,
+        })
+    }
+
+    /// Select mature small slot sweep state.
+    fn select_major_small_slot_sweep(
+        &self,
+        span_index: usize,
+        slot_index: usize,
+    ) -> HeapResult<SmallSlotSweep> {
+        let Some(span) = self.span(span_index) else {
+            return Err(HeapError::internal("missing span"));
+        };
+
+        Ok(SmallSlotSweep {
+            is_occupied: span.occupied.contains(slot_index),
+            is_marked: span.mark_epoch == self.collector.mark_epoch
+                && span.marked.contains(slot_index),
+        })
+    }
+
     /// Sweep unreachable large blocks within one byte budget.
-    fn sweep_major_large_blocks_step(
+    fn step_major_large_block_sweep(
         &mut self,
         budget_bytes: usize,
         swept_bytes: &mut usize,
@@ -470,9 +526,11 @@ impl HeapStorage {
         while *swept_bytes < budget_bytes
             && self.collector.major_sweep.large_cursor < self.collector.major_sweep.large_limit
         {
+            // select the next large block
             let block_index = self.collector.major_sweep.large_cursor;
             self.collector.major_sweep.large_cursor += 1;
 
+            // inactive blocks only charge metadata work
             let Some(block) = self.large.blocks.get(block_index) else {
                 return Err(HeapError::internal("missing large block"));
             };
@@ -484,12 +542,15 @@ impl HeapStorage {
 
             let reference = HeapReference::new(block.first_offset);
             let byte_len = block.byte_len;
+
+            // marked blocks survive this cycle
             if block.mark_epoch == self.collector.mark_epoch {
                 *swept_bytes += byte_len.max(1);
 
                 continue;
             }
 
+            // unmarked blocks are dead
             self.free_swept_reference(reference, byte_len)?;
             *swept_bytes += byte_len.max(1);
         }
@@ -512,8 +573,11 @@ impl HeapStorage {
         reference: HeapReference,
         byte_len: usize,
     ) -> HeapResult<()> {
+        // free physical storage
         self.free(reference)
             .map_err(|error| HeapError::free_failed(reference, error))?;
+
+        // record cycle accounting
         self.collector.major_freed_allocations += 1;
         self.collector.major_freed_bytes += byte_len as u64;
 
@@ -521,7 +585,7 @@ impl HeapStorage {
     }
 
     /// Mark reachable heap references within one byte budget.
-    fn mark_reachable_references_step(
+    fn step_reachable_reference_mark(
         &mut self,
         budget_bytes: usize,
         trace_table: &TraceTable,
@@ -545,50 +609,55 @@ impl HeapStorage {
 
                 // small and young blocks are scanned as one mark item
                 MarkWork::Reference(reference) => {
-                    let Some(extent) = self.resolve_extent(reference) else {
-                        return Err(HeapError::invalid_heap_reference(reference));
-                    };
-
-                    marked_bytes += extent.byte_len.max(1);
-
-                    // read layout side metadata for this payload
-                    let trace_map = self
-                        .trace_map_for_place(extent.storage, trace_table)
-                        .map_err(|error| {
-                            HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
-                        })?;
-
-                    let mut references = Vec::new();
-
-                    // scan every local reference discovered in this payload
-                    let base_address = self.mapping.base_address() + extent.base.offset();
-                    let trace_result = scan_references::<HeapReference>(
-                        &trace_map,
-                        ReferenceInput::mapped(base_address),
-                        ReferenceRange::All,
-                        &mut references,
-                    );
-
-                    if let Err(error) = trace_result {
-                        return Err(HeapError::scan_failed(
-                            HeapOperationSource::Reference(reference),
-                            error,
-                        ));
-                    }
-
-                    // validate and enqueue after the read borrow has ended
-                    for reference in references {
-                        if !reference.is_null() && self.resolve_extent(reference).is_none() {
-                            return Err(HeapError::invalid_heap_reference(reference));
-                        }
-
-                        self.enqueue_major_reference(reference)?;
-                    }
+                    marked_bytes += self.trace_reference(reference, trace_table)?;
                 }
             }
         }
 
         Ok(marked_bytes)
+    }
+
+    /// Trace one local heap reference.
+    fn trace_reference(
+        &mut self,
+        reference: HeapReference,
+        trace_table: &TraceTable,
+    ) -> HeapResult<usize> {
+        // resolve the referenced block
+        let Some(extent) = self.resolve_extent(reference) else {
+            return Err(HeapError::invalid_heap_reference(reference));
+        };
+
+        // resolve the payload trace map
+        let trace_map = self
+            .trace_map_for_place(extent.storage, trace_table)
+            .map_err(|error| {
+                HeapError::scan_failed(HeapOperationSource::Reference(reference), error)
+            })?;
+
+        // scan local references inside the payload
+        let base_address = self.mapping.base_address() + extent.base.offset();
+        let trace_result = visit_references::<HeapReference>(
+            &trace_map,
+            ReferenceInput::mapped(base_address),
+            ReferenceRange::All,
+            &mut |reference| {
+                if !reference.is_null() && self.resolve_extent(reference).is_none() {
+                    return Err(HeapError::invalid_heap_reference(reference));
+                }
+
+                self.enqueue_major_reference(reference)
+            },
+        );
+
+        if let Err(error) = trace_result {
+            return Err(HeapError::scan_failed(
+                HeapOperationSource::Reference(reference),
+                error,
+            ));
+        }
+
+        Ok(extent.byte_len.max(1))
     }
 
     /// Trace one page-sized range from one local large block.
@@ -621,13 +690,18 @@ impl HeapStorage {
             .allocator()
             .page_size_bytes()
             .min(extent.byte_len - start);
-        let mut references = Vec::new();
         let base_address = self.mapping.base_address() + extent.base.offset();
-        let trace_result = scan_references::<HeapReference>(
+        let trace_result = visit_references::<HeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(start, range_len),
-            &mut references,
+            &mut |reference| {
+                if !reference.is_null() && self.resolve_extent(reference).is_none() {
+                    return Err(HeapError::invalid_heap_reference(reference));
+                }
+
+                self.enqueue_major_reference(reference)
+            },
         );
 
         if let Err(error) = trace_result {
@@ -635,15 +709,6 @@ impl HeapStorage {
                 HeapOperationSource::Reference(reference),
                 error,
             ));
-        }
-
-        // enqueue discovered local references after the read borrow ends
-        for reference in references {
-            if !reference.is_null() && self.resolve_extent(reference).is_none() {
-                return Err(HeapError::invalid_heap_reference(reference));
-            }
-
-            self.enqueue_major_reference(reference)?;
         }
 
         // continue this large block on a later step
@@ -660,6 +725,7 @@ impl HeapStorage {
 
     /// Queue one major collection reference after marking it.
     fn enqueue_major_reference(&mut self, reference: HeapReference) -> HeapResult<()> {
+        // null references are not heap roots
         if reference.is_null() {
             return Ok(());
         }
@@ -703,12 +769,11 @@ impl HeapStorage {
         // dispatch by physical heap storage
         match storage {
             HeapPlace::YoungRange { first_offset } => {
-                let Some((block_index, _allocation)) = self.young_range_by_offset(first_offset)
-                else {
+                let Some(range) = self.young_range_by_offset(first_offset) else {
                     return Err(HeapError::internal("missing young range"));
                 };
 
-                Ok(self.young.marked.contains(block_index))
+                Ok(self.young.marked.contains(range.index))
             }
             HeapPlace::YoungSlot(slot) => {
                 let Some(bits) = self.young.span_bits(slot.span_index()) else {
@@ -745,12 +810,11 @@ impl HeapStorage {
         // mark by physical heap storage
         match storage {
             HeapPlace::YoungRange { first_offset } => {
-                let Some((block_index, _allocation)) = self.young_range_by_offset(first_offset)
-                else {
+                let Some(range) = self.young_range_by_offset(first_offset) else {
                     return Err(HeapError::internal("missing young range"));
                 };
 
-                self.young.marked.set(block_index);
+                self.young.marked.set(range.index);
             }
             HeapPlace::YoungSlot(slot) => {
                 let Some(bits) = self.young.span_bits_mut(slot.span_index()) else {
@@ -795,6 +859,34 @@ impl HeapStorage {
             retained_bytes: self.retained_bytes(),
         }
     }
+}
+
+/// Young span metadata selected for major sweep.
+struct YoungSpanSweep {
+    /// The span byte offset within heap storage.
+    first_offset: usize,
+    /// The span size class in bytes.
+    size_class: usize,
+    /// The number of reserved slots to sweep.
+    reserved_slots: usize,
+}
+
+/// Mature small span metadata selected for major sweep.
+struct SmallSpanSweep {
+    /// The span byte offset within heap storage.
+    first_offset: usize,
+    /// The span size class in bytes.
+    size_class: usize,
+    /// The number of slots to sweep.
+    slot_count: usize,
+}
+
+/// Mature small slot state selected for major sweep.
+struct SmallSlotSweep {
+    /// Whether the slot is currently occupied.
+    is_occupied: bool,
+    /// Whether the slot is marked in the active major cycle.
+    is_marked: bool,
 }
 
 /// Charge bitmap metadata work and return the cursor reached.

@@ -4,7 +4,7 @@ use crate::{
 };
 use destack_mir::TraceMap;
 
-use super::{TestHeap, trace_table};
+use super::{TestHeap, heap_allocation_plan, trace_table};
 
 const SMALL_ALLOCATION_COUNT: usize = 1024;
 const SMALL_ALLOCATION_BYTES: usize = 32;
@@ -16,8 +16,11 @@ fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64
     let mut test_heap = TestHeap::with_limits_and_options(crate::HeapLimits::default(), options);
     let heap = &mut test_heap.heap;
 
-    heap.allocate_payload(&heap.allocation_plan(layout.block()), Payload::Bytes(bytes))
-        .expect("heap block should succeed");
+    heap.allocate_payload(
+        &heap_allocation_plan(&heap, layout.block()),
+        Payload::Bytes(bytes),
+    )
+    .expect("heap block should succeed");
 
     // report retained bytes after allocator rounding
     heap.usage().retained_bytes
@@ -32,8 +35,11 @@ fn test_track_default_young_retained_bytes() {
     let heap = &mut test_heap.heap;
 
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate_payload(&heap.allocation_plan(layout.block()), Payload::Zeroed)
-            .expect("heap block should succeed");
+        heap.allocate_payload(
+            &heap_allocation_plan(&heap, layout.block()),
+            Payload::Zeroed,
+        )
+        .expect("heap block should succeed");
     }
 
     let usage = heap.usage();
@@ -73,8 +79,11 @@ fn test_track_small_span_retained_bytes() {
 
     // allocate enough objects to cover several slots and spans
     for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.allocate_payload(&heap.allocation_plan(layout.block()), Payload::Zeroed)
-            .expect("heap block should succeed");
+        heap.allocate_payload(
+            &heap_allocation_plan(&heap, layout.block()),
+            Payload::Zeroed,
+        )
+        .expect("heap block should succeed");
     }
 
     let usage = heap.usage();
@@ -110,7 +119,10 @@ fn test_reject_heap_allocation_when_limit_exceeded() {
 
     // reject the block before mutating heap accounting
     let error = heap
-        .allocate_payload(&heap.allocation_plan(layout.block()), Payload::Bytes(&[1]))
+        .allocate_payload(
+            &heap_allocation_plan(&heap, layout.block()),
+            Payload::Bytes(&[1]),
+        )
         .expect_err("heap block should be rejected");
 
     assert_eq!(

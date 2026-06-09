@@ -1,7 +1,7 @@
 use destack_mir::{TraceMap, TraceTable};
 
 use crate::allocator::Slot;
-use crate::local::gc::DirtyExtent;
+use crate::local::gc::{DirtyCard, DirtyExtent};
 use crate::local::storage::{HeapExtent, HeapPageMapEntry, HeapPlace, HeapStorage, LargeBlockId};
 use crate::{
     HeapError, HeapReference, HeapResult, ReferenceRange, RootSlot, visit_heap_root_slots,
@@ -63,6 +63,32 @@ struct SlotForwarding {
     slot: Slot,
     /// The mature reference for the copied payload.
     target: HeapReference,
+}
+
+/// Dirty span card selected for rewriting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct DirtySpanRewrite {
+    /// The selected dirty card.
+    card: DirtyCard,
+    /// The span byte offset within heap storage.
+    first_offset: usize,
+    /// The span size class in bytes.
+    size_class: usize,
+    /// The number of slots in the span.
+    slot_count: usize,
+}
+
+/// Dirty large-block card selected for rewriting.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DirtyLargeRewrite {
+    /// The selected dirty card.
+    card: DirtyCard,
+    /// The block byte offset within heap storage.
+    first_offset: usize,
+    /// The block byte length.
+    byte_len: usize,
+    /// The trace map used to scan the block.
+    trace_map: TraceMap,
 }
 
 /// Return the sortable key for one young span slot.
@@ -365,48 +391,57 @@ impl HeapStorage {
         let mut card_cursor = 0usize;
 
         loop {
-            let Some(span) = self.span(span_index) else {
-                return Err(HeapError::internal("missing span"));
-            };
-            let Some((card_index, card_start, card_len)) =
-                span.dirty_cards.next_dirty_card_from(card_cursor)
-            else {
+            let Some(card) = self.select_rewrite_dirty_span_card(span_index, card_cursor)? else {
                 self.finish_rewritten_dirty_span(span_index)?;
 
                 return Ok(());
             };
 
-            let has_young_reference = self.rewrite_dirty_span_card(
+            let has_young_reference =
+                self.rewrite_dirty_span_card(span_index, card, forwarding, trace_table)?;
+            self.finish_rewritten_dirty_span_card(
                 span_index,
-                card_start,
-                card_len,
-                forwarding,
-                trace_table,
+                card.card.index,
+                has_young_reference,
             )?;
-            self.finish_rewritten_dirty_span_card(span_index, card_index, has_young_reference)?;
-            card_cursor = card_index + 1;
+            card_cursor = card.card.index + 1;
         }
+    }
+
+    /// Select one dirty card to rewrite from one mature span.
+    fn select_rewrite_dirty_span_card(
+        &self,
+        span_index: usize,
+        card_cursor: usize,
+    ) -> HeapResult<Option<DirtySpanRewrite>> {
+        let Some(span) = self.span(span_index) else {
+            return Err(HeapError::internal("missing span"));
+        };
+
+        let Some(card) = span.dirty_cards.find_dirty_card(card_cursor) else {
+            return Ok(None);
+        };
+
+        Ok(Some(DirtySpanRewrite {
+            card,
+            first_offset: span.first_offset,
+            size_class: span.class.size_class,
+            slot_count: span.slot_count,
+        }))
     }
 
     /// Rewrite one dirty card on one mature span.
     fn rewrite_dirty_span_card(
         &mut self,
         span_index: usize,
-        card_start: usize,
-        card_len: usize,
+        card: DirtySpanRewrite,
         forwarding: &ForwardingTable,
         trace_table: &TraceTable,
     ) -> HeapResult<bool> {
-        let Some(span) = self.span(span_index) else {
-            return Err(HeapError::internal("missing span"));
-        };
-        let card_end = card_start + card_len;
-        let first_offset = span.first_offset;
-        let size_class = span.class.size_class;
-        let slot_count = span.slot_count;
-        let first_slot = card_start / size_class;
-        let last_slot = (card_end - 1) / size_class;
-        let end_slot = (last_slot + 1).min(slot_count);
+        let card_end = card.card.byte_start + card.card.byte_len;
+        let first_slot = card.card.byte_start / card.size_class;
+        let last_slot = (card_end - 1) / card.size_class;
+        let end_slot = (last_slot + 1).min(card.slot_count);
         let mut has_young_reference = false;
 
         for slot_index in first_slot..end_slot {
@@ -422,20 +457,20 @@ impl HeapStorage {
                 continue;
             }
 
-            let slot_start = size_class * slot_index;
-            let slot_end = slot_start + size_class;
-            let overlap_start = card_start.max(slot_start);
+            let slot_start = card.size_class * slot_index;
+            let slot_end = slot_start + card.size_class;
+            let overlap_start = card.card.byte_start.max(slot_start);
             let overlap_end = card_end.min(slot_end);
             if overlap_start >= overlap_end {
                 continue;
             }
 
-            let offset = first_offset + slot_start;
+            let offset = card.first_offset + slot_start;
             let local_start = overlap_start - slot_start;
             let local_len = overlap_end - overlap_start;
             has_young_reference |= self.rewrite_payload_reference_range(
                 offset,
-                size_class,
+                card.size_class,
                 &trace_map,
                 local_start,
                 local_len,
@@ -487,45 +522,52 @@ impl HeapStorage {
         let mut card_cursor = 0usize;
 
         loop {
-            let Some(block) = self.large_block(block_id) else {
-                return Err(HeapError::internal("missing large block"));
-            };
-            let Some((card_index, card_start, card_len)) =
-                block.dirty_cards.next_dirty_card_from(card_cursor)
-            else {
+            let Some(card) = self.select_rewrite_dirty_large_card(block_id, card_cursor)? else {
                 self.finish_rewritten_dirty_large(block_id)?;
 
                 return Ok(());
             };
 
-            let has_young_reference =
-                self.rewrite_dirty_large_card(block_id, card_start, card_len, forwarding)?;
-            self.finish_rewritten_dirty_large_card(block_id, card_index, has_young_reference)?;
-            card_cursor = card_index + 1;
+            let has_young_reference = self.rewrite_dirty_large_card(&card, forwarding)?;
+            self.finish_rewritten_dirty_large_card(block_id, card.card.index, has_young_reference)?;
+            card_cursor = card.card.index + 1;
         }
+    }
+
+    /// Select one dirty card to rewrite from one mature large block.
+    fn select_rewrite_dirty_large_card(
+        &self,
+        block_id: LargeBlockId,
+        card_cursor: usize,
+    ) -> HeapResult<Option<DirtyLargeRewrite>> {
+        let Some(block) = self.large_block(block_id) else {
+            return Err(HeapError::internal("missing large block"));
+        };
+
+        let Some(card) = block.dirty_cards.find_dirty_card(card_cursor) else {
+            return Ok(None);
+        };
+
+        Ok(Some(DirtyLargeRewrite {
+            card,
+            first_offset: block.first_offset,
+            byte_len: block.byte_len,
+            trace_map: block.trace_map.clone(),
+        }))
     }
 
     /// Rewrite one dirty card on one mature large block.
     fn rewrite_dirty_large_card(
         &mut self,
-        block_id: LargeBlockId,
-        card_start: usize,
-        card_len: usize,
+        card: &DirtyLargeRewrite,
         forwarding: &ForwardingTable,
     ) -> HeapResult<bool> {
-        let Some(block) = self.large_block(block_id) else {
-            return Err(HeapError::internal("missing large block"));
-        };
-        let first_offset = block.first_offset;
-        let byte_len = block.byte_len;
-        let trace_map = block.trace_map.clone();
-
         self.rewrite_payload_reference_range(
-            first_offset,
-            byte_len,
-            &trace_map,
-            card_start,
-            card_len,
+            card.first_offset,
+            card.byte_len,
+            &card.trace_map,
+            card.card.byte_start,
+            card.card.byte_len,
             forwarding,
         )
     }
@@ -673,7 +715,7 @@ impl HeapStorage {
     }
 
     /// Return whether one reference points into live young space.
-    fn reference_is_young(&self, reference: HeapReference) -> HeapResult<bool> {
+    pub(super) fn reference_is_young(&self, reference: HeapReference) -> HeapResult<bool> {
         if reference.is_null() {
             return Ok(false);
         }
@@ -732,13 +774,12 @@ impl HeapStorage {
         reference: HeapReference,
         forwarding: &ForwardingTable,
     ) -> HeapResult<Option<HeapReference>> {
-        let Some((range_index, range)) = self.young.range_record_at_offset(logical_byte_offset)
-        else {
+        let Some(range) = self.young.range_record_at_offset(logical_byte_offset) else {
             return Ok(None);
         };
-        let block_offset = range.first_offset;
+        let block_offset = range.range.first_offset;
 
-        let Some(target) = forwarding.range(range_index) else {
+        let Some(target) = forwarding.range(range.index) else {
             return Ok(None);
         };
         let byte_offset = reference.offset() - block_offset;

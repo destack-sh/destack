@@ -3,7 +3,7 @@ use destack_mir::TraceTable;
 use crate::shared::gc::{GcPhase, GcWorker, MarkWork};
 use crate::shared::storage::{HeapPlace, HeapStorage};
 use crate::{
-    HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, scan_references,
+    HeapError, HeapResult, ReferenceInput, ReferenceRange, SharedHeapReference, visit_references,
 };
 
 impl HeapStorage {
@@ -26,30 +26,39 @@ impl HeapStorage {
         }
 
         // overwritten bytes
-        let mut reference_buffer = Vec::new();
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
+
+        // scan references overwritten by this store
         let trace_map = self.trace_map_for_place(extent.storage, trace_table)?;
         let base_address = self.mapping.base_address() + extent.base.offset();
-        scan_references::<SharedHeapReference>(
+        visit_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(byte_offset, bytes.len()),
-            &mut reference_buffer,
+            &mut |reference| {
+                if !reference.is_null() {
+                    self.mark_reference(None, reference)?;
+                }
+
+                Ok(())
+            },
         )?;
 
-        // inserted bytes
-        scan_references::<SharedHeapReference>(
+        // scan references inserted by this store
+        visit_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::bytes(byte_offset, bytes),
             ReferenceRange::bytes(byte_offset, bytes.len()),
-            &mut reference_buffer,
-        )?;
-        reference_buffer.retain(|reference| !reference.is_null());
+            &mut |reference| {
+                if !reference.is_null() {
+                    self.mark_reference(None, reference)?;
+                }
 
-        // published references
-        self.queue_references(None, reference_buffer)?;
+                Ok(())
+            },
+        )?;
 
         Ok(())
     }
@@ -90,11 +99,11 @@ impl HeapStorage {
         }
 
         // queue the new block so the active cycle traces its initial payload
-        self.queue_reference(None, reference)
+        self.mark_reference(None, reference)
     }
 
     /// Queue explicit roots that are not already marked in this cycle.
-    pub(super) fn queue_unmarked_references(
+    pub(super) fn mark_roots(
         &self,
         worker: Option<&GcWorker>,
         references: &[SharedHeapReference],
@@ -105,92 +114,56 @@ impl HeapStorage {
                 continue;
             }
 
-            self.queue_reference_work(worker, *reference)?;
+            self.mark_reference(worker, *reference)?;
         }
 
         Ok(())
     }
 
-    /// Queue one shared reference for later trace work.
-    pub(super) fn queue_reference(
+    /// Mark one shared reference and queue trace work when needed.
+    pub(crate) fn mark_reference(
         &self,
         worker: Option<&GcWorker>,
         reference: SharedHeapReference,
     ) -> HeapResult<()> {
-        self.queue_references(worker, [reference])
-    }
-
-    /// Queue shared references for later trace work.
-    pub(crate) fn queue_references(
-        &self,
-        worker: Option<&GcWorker>,
-        references: impl IntoIterator<Item = SharedHeapReference>,
-    ) -> HeapResult<()> {
-        // queue every non-null shared reference
-        for reference in references {
-            if reference.is_null() {
-                continue;
-            }
-
-            self.queue_reference_work(worker, reference)?;
+        if reference.is_null() {
+            return Ok(());
         }
 
-        Ok(())
-    }
-
-    /// Queue one shared reference as span work or direct reference work.
-    pub(super) fn queue_reference_work(
-        &self,
-        worker: Option<&GcWorker>,
-        reference: SharedHeapReference,
-    ) -> HeapResult<()> {
-        // resolve the reference to its physical storage
+        // resolve the reference to physical storage
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_shared_heap_reference(reference));
         };
 
-        // small references mark their span slot for later scanning
-        if let HeapPlace::SmallSlot(slot) = extent.storage {
-            let should_queue = {
-                let store = self.state.read();
-                let Some(span) = store.small.spans.get(slot.span_index()).cloned() else {
-                    return Err(HeapError::internal("missing span"));
-                };
+        // skip references already marked in this cycle
+        if !self.mark_place(extent.storage)? {
+            return Ok(());
+        }
 
-                let mark_epoch = self.gc.mark_epoch();
-                if span.is_marked(slot.slot_index(), mark_epoch) {
-                    return Ok(());
-                }
-
-                span.mark_slot(slot.slot_index(), mark_epoch)
-            };
-
-            if should_queue {
+        // queue trace work for the newly marked storage
+        match extent.storage {
+            HeapPlace::SmallSlot(slot) => {
                 self.gc
                     .trace_queue
                     .push(worker, MarkWork::SmallSpan(slot.span_index()));
             }
-
-            return Ok(());
+            HeapPlace::LargeBlock(_) => {
+                self.gc.trace_queue.push(
+                    worker,
+                    MarkWork::Large {
+                        reference,
+                        start: 0,
+                    },
+                );
+            }
         }
-
-        // large references scan in page-sized chunks
-        if !self.mark_place(extent.storage)? {
-            return Ok(());
-        }
-        self.gc.trace_queue.push(
-            worker,
-            MarkWork::Large {
-                reference,
-                start: 0,
-            },
-        );
 
         Ok(())
     }
 
     /// Mark one shared heap storage and return whether this was the first mark.
     pub(super) fn mark_place(&self, storage: HeapPlace) -> HeapResult<bool> {
+        // load shared heap state for physical mark bits
         let store = self.state.read();
         let mark_epoch = self.gc.mark_epoch();
 

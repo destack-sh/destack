@@ -7,7 +7,9 @@ use crate::{
 };
 use destack_mir::{TraceMap, TraceTable};
 
-use super::{read_mapped_bytes, trace_table, write_mapped_bytes};
+use super::{
+    allocation_site, heap_allocation_plan, read_mapped_bytes, trace_table, write_mapped_bytes,
+};
 
 /// Build one shared heap whose pacer starts immediately in step-driven tests.
 fn test_shared_heap(
@@ -59,7 +61,7 @@ fn test_allocate_shared_rejects_zero_size_layout() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[]),
             trace_table(),
         )
@@ -76,7 +78,7 @@ fn test_allocate_shared_rejects_zero_size_layout() {
 fn test_allocate_shared_zeroed_worker_cache_defers_accounting() {
     // allocate two zeroed slots from a worker-local cursor
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(8, TraceMap::empty())]);
-    let layout = shared.allocation_plan(layout_ids[0].block());
+    let layout = heap_allocation_plan(&shared, layout_ids[0].block());
 
     let first = shared
         .allocate_payload(
@@ -129,8 +131,8 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
     let (shared, mut allocator, worker, _) = test_shared_heap(&[]);
     let first_shape = AllocationShape::new(8, 1, Some(first_trace_id), &first_map);
     let second_shape = AllocationShape::new(8, 1, Some(second_trace_id), &second_map);
-    let first_site = shared.allocation_site(first_shape);
-    let second_site = shared.allocation_site(second_shape);
+    let first_site = allocation_site(shared.options(), first_shape);
+    let second_site = allocation_site(shared.options(), second_shape);
     let second_small = second_site
         .class
         .small()
@@ -158,7 +160,7 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
 fn test_allocate_shared_bytes_worker_cache_defers_accounting() {
     // allocate two byte-initialized slots from a worker-local cursor
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(8, TraceMap::empty())]);
-    let layout = shared.allocation_plan(layout_ids[0].block());
+    let layout = heap_allocation_plan(&shared, layout_ids[0].block());
 
     let first = shared
         .allocate_payload(
@@ -204,7 +206,7 @@ fn test_collect_shared_frees_unreachable_entries() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
@@ -213,7 +215,7 @@ fn test_collect_shared_frees_unreachable_entries() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[4, 5, 6]),
             trace_table(),
         )
@@ -272,7 +274,7 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(full_layout.block()),
+            &heap_allocation_plan(&shared, full_layout.block()),
             Payload::Bytes(&[0xAA; 8]),
             trace_table(),
         )
@@ -281,7 +283,7 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(short_layout.block()),
+            &heap_allocation_plan(&shared, short_layout.block()),
             Payload::Bytes(&[0xBB]),
             trace_table(),
         )
@@ -300,7 +302,7 @@ fn test_collect_shared_clears_reused_small_slot_tail() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(short_layout.block()),
+            &heap_allocation_plan(&shared, short_layout.block()),
             Payload::Bytes(&[0xCC]),
             trace_table(),
         )
@@ -334,7 +336,7 @@ fn test_collect_shared_keeps_reachable_children() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.block()),
+            &heap_allocation_plan(&shared, child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             trace_table(),
         )
@@ -343,7 +345,7 @@ fn test_collect_shared_keeps_reachable_children() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.block()),
+            &heap_allocation_plan(&shared, parent_layout.block()),
             Payload::Bytes(&child.bits().to_le_bytes()),
             trace_table(),
         )
@@ -387,7 +389,7 @@ fn test_collect_shared_keeps_table_traced_small_children() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.block()),
+            &heap_allocation_plan(&shared, child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             &trace_table,
         )
@@ -396,7 +398,7 @@ fn test_collect_shared_keeps_table_traced_small_children() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout),
+            &heap_allocation_plan(&shared, parent_layout),
             Payload::Bytes(&child.bits().to_le_bytes()),
             &trace_table,
         )
@@ -433,7 +435,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.block()),
+            &heap_allocation_plan(&shared, child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             trace_table(),
         )
@@ -442,7 +444,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.block()),
+            &heap_allocation_plan(&shared, child_layout.block()),
             Payload::Bytes(&[0xC2, 0x1D]),
             trace_table(),
         )
@@ -451,7 +453,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.block()),
+            &heap_allocation_plan(&shared, parent_layout.block()),
             Payload::Bytes(&first_child.bits().to_le_bytes()),
             trace_table(),
         )
@@ -460,7 +462,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.block()),
+            &heap_allocation_plan(&shared, parent_layout.block()),
             Payload::Bytes(&second_child.bits().to_le_bytes()),
             trace_table(),
         )
@@ -476,7 +478,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
     );
 
     shared
-        .collect_step(&[first_parent, second_parent], true, 1, trace_table())
+        .step_collection(&[first_parent, second_parent], true, 1, trace_table())
         .expect("shared collection step should succeed");
 
     assert_eq!(shared.gc_phase(), GcPhase::Mark);
@@ -484,7 +486,7 @@ fn test_collect_shared_scans_small_spans_incrementally() {
 
     // drain the remaining bounded mark and sweep work
     while shared
-        .collect_step(&[first_parent, second_parent], true, 1, trace_table())
+        .step_collection(&[first_parent, second_parent], true, 1, trace_table())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -518,7 +520,7 @@ fn test_collect_shared_scans_large_blocks_incrementally() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.block()),
+            &heap_allocation_plan(&shared, child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             trace_table(),
         )
@@ -527,7 +529,7 @@ fn test_collect_shared_scans_large_blocks_incrementally() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.block()),
+            &heap_allocation_plan(&shared, child_layout.block()),
             Payload::Bytes(&[0xC2, 0x1D]),
             trace_table(),
         )
@@ -541,7 +543,7 @@ fn test_collect_shared_scans_large_blocks_incrementally() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.block()),
+            &heap_allocation_plan(&shared, parent_layout.block()),
             Payload::Bytes(&parent_bytes),
             trace_table(),
         )
@@ -557,13 +559,13 @@ fn test_collect_shared_scans_large_blocks_incrementally() {
     );
 
     shared
-        .collect_step(&[parent], true, 1, trace_table())
+        .step_collection(&[parent], true, 1, trace_table())
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), GcPhase::Mark);
 
     // drain the remaining bounded mark and sweep work
     while shared
-        .collect_step(&[parent], true, 1, trace_table())
+        .step_collection(&[parent], true, 1, trace_table())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -621,7 +623,7 @@ fn test_shared_heap_gc_state_roundtrips_through_image() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&SharedHeapReference::NULL.bits().to_le_bytes()),
             trace_table(),
         )
@@ -663,7 +665,7 @@ fn test_shared_heap_gc_state_roundtrips_through_snapshot() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&SharedHeapReference::NULL.bits().to_le_bytes()),
             trace_table(),
         )
@@ -702,7 +704,7 @@ fn test_collect_shared_barrier_keeps_written_child() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(child_layout.block()),
+            &heap_allocation_plan(&shared, child_layout.block()),
             Payload::Bytes(&[0xC1, 0x1D]),
             trace_table(),
         )
@@ -711,7 +713,7 @@ fn test_collect_shared_barrier_keeps_written_child() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(parent_layout.block()),
+            &heap_allocation_plan(&shared, parent_layout.block()),
             Payload::Zeroed,
             trace_table(),
         )
@@ -727,7 +729,7 @@ fn test_collect_shared_barrier_keeps_written_child() {
     );
 
     shared
-        .collect_step(&[parent], false, 1, trace_table())
+        .step_collection(&[parent], false, 1, trace_table())
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), GcPhase::Mark);
 
@@ -741,7 +743,7 @@ fn test_collect_shared_barrier_keeps_written_child() {
 
     // finish the collection after the barrier-published edge
     while shared
-        .collect_step(&[parent], true, 1, trace_table())
+        .step_collection(&[parent], true, 1, trace_table())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -761,7 +763,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
@@ -777,7 +779,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
     );
 
     shared
-        .collect_step(&[root], false, 1, trace_table())
+        .step_collection(&[root], false, 1, trace_table())
         .expect("shared collection step should succeed");
     assert_eq!(shared.gc_phase(), GcPhase::Mark);
 
@@ -786,7 +788,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[7, 8, 9]),
             trace_table(),
         )
@@ -794,7 +796,7 @@ fn test_collect_shared_keeps_allocation_created_during_mark() {
 
     // drain the active cycle
     while shared
-        .collect_step(&[root], true, 1, trace_table())
+        .step_collection(&[root], true, 1, trace_table())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -815,7 +817,7 @@ fn test_collect_shared_keeps_cache_allocation_created_during_mark() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
@@ -833,7 +835,7 @@ fn test_collect_shared_keeps_cache_allocation_created_during_mark() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[7, 8, 9]),
             trace_table(),
         )
@@ -841,7 +843,7 @@ fn test_collect_shared_keeps_cache_allocation_created_during_mark() {
 
     // drain the active cycle with no explicit roots
     while shared
-        .collect_step(&[], true, 1, trace_table())
+        .step_collection(&[], true, 1, trace_table())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -868,7 +870,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
@@ -877,7 +879,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[4, 5, 6]),
             trace_table(),
         )
@@ -894,7 +896,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
 
     while shared.gc_phase() == GcPhase::Mark {
         shared
-            .collect_step(&[root], true, 1, trace_table())
+            .step_collection(&[root], true, 1, trace_table())
             .expect("shared collection step should succeed");
     }
 
@@ -906,7 +908,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[7, 8, 9]),
             trace_table(),
         )
@@ -915,7 +917,7 @@ fn test_allocate_shared_assists_sweep_before_returning() {
     // drain any remaining sweep work
     while shared.gc_phase() != GcPhase::Idle {
         shared
-            .collect_step(&[], true, 1, trace_table())
+            .step_collection(&[], true, 1, trace_table())
             .expect("shared collection step should succeed");
     }
 
@@ -940,7 +942,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
@@ -949,7 +951,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[4, 5, 6]),
             trace_table(),
         )
@@ -965,7 +967,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
     );
 
     shared
-        .collect_step(&[reachable], false, 1, trace_table())
+        .step_collection(&[reachable], false, 1, trace_table())
         .expect("shared collection step should succeed");
 
     // unreachable block should remain live until sweep is allowed
@@ -974,7 +976,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
 
     // allowing mark termination should finish the cycle and free garbage
     while shared
-        .collect_step(&[reachable], true, 1, trace_table())
+        .step_collection(&[reachable], true, 1, trace_table())
         .expect("shared collection step should succeed")
         .completed_stats()
         .is_none()
@@ -987,7 +989,7 @@ fn test_collect_shared_requires_explicit_mark_finish() {
 
 /// Stay idle when no shared pressure or explicit request exists.
 #[test]
-fn test_collect_step_stays_idle_without_request() {
+fn test_step_collection_stays_idle_without_request() {
     // build an empty shared heap with no pressure
     let options = SharedHeapOptions::default();
     let allocator = Arc::new(
@@ -1003,7 +1005,7 @@ fn test_collect_step_stays_idle_without_request() {
 
     // no request and no pressure should produce no work
     let progress = shared
-        .collect_step(&[], true, 1, trace_table())
+        .step_collection(&[], true, 1, trace_table())
         .expect("shared collection step should succeed");
 
     // keep the collector idle
@@ -1013,7 +1015,7 @@ fn test_collect_step_stays_idle_without_request() {
 
 /// Honor one explicit shared collection request below the pacing trigger.
 #[test]
-fn test_collect_step_honors_manual_request() {
+fn test_step_collection_honors_manual_request() {
     // allocate one root below the pacing trigger
     let (shared, mut allocator, worker, layout_ids) = test_shared_heap(&[(3, TraceMap::empty())]);
     let layout = &layout_ids[0];
@@ -1021,7 +1023,7 @@ fn test_collect_step_honors_manual_request() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )
@@ -1037,7 +1039,7 @@ fn test_collect_step_honors_manual_request() {
     );
 
     shared
-        .collect_step(&[reachable], false, 1, trace_table())
+        .step_collection(&[reachable], false, 1, trace_table())
         .expect("shared collection step should succeed");
 
     // first bounded step should enter mark
@@ -1054,7 +1056,7 @@ fn test_shared_gc_budget_consumes_cycle_work() {
         .allocate_payload(
             &worker,
             &mut allocator,
-            &shared.allocation_plan(layout.block()),
+            &heap_allocation_plan(&shared, layout.block()),
             Payload::Bytes(&[1, 2, 3]),
             trace_table(),
         )

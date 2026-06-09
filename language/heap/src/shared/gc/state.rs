@@ -94,10 +94,13 @@ impl CollectorState {
     }
 
     /// Return the completed sweep free counts.
-    pub(crate) fn sweep_freed(&self) -> (usize, u64) {
+    pub(crate) fn sweep_freed(&self) -> SweepFreed {
         let sweep = self.sweep.lock();
 
-        (sweep.freed_allocations, sweep.freed_bytes)
+        SweepFreed {
+            allocations: sweep.freed_allocations,
+            bytes: sweep.freed_bytes,
+        }
     }
 
     /// Return whether shared mark publication is currently closed.
@@ -418,6 +421,15 @@ pub(crate) struct SweepCursor {
     pub(crate) large_index: usize,
     /// The large block table length captured when sweep started.
     pub(crate) large_limit: usize,
+}
+
+/// Block counts freed by one shared sweep cycle.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SweepFreed {
+    /// The blocks freed by the sweep cycle.
+    pub(crate) allocations: usize,
+    /// The bytes freed by the sweep cycle.
+    pub(crate) bytes: u64,
 }
 
 /// Active shared sweep state.

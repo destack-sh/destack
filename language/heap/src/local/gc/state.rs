@@ -99,7 +99,6 @@ impl CollectorState {
         self.is_scanning_shared_edges = false;
         self.shared_edge_cursor = 0;
         self.clear_shared_edge_work();
-        self.compact_shared_edge_roots();
     }
 
     /// Record one live reference whose layout may contain shared edges.
@@ -120,31 +119,16 @@ impl CollectorState {
 
         self.remove_shared_edge_pending(reference);
 
-        // active scans need stable cursor ordering
-        if self.is_scanning_shared_edges {
-            self.shared_edge_roots[tracked_index] = HeapReference::NULL;
+        let last_index = self.shared_edge_roots.len() - 1;
+        self.shared_edge_roots.swap_remove(tracked_index);
 
-            return;
+        // keep active scans from skipping the root moved into a visited slot
+        if self.is_scanning_shared_edges
+            && tracked_index < self.shared_edge_cursor
+            && tracked_index < last_index
+        {
+            self.shared_edge_cursor -= 1;
         }
-
-        let Some(moved_reference) = self.shared_edge_roots.pop() else {
-            return;
-        };
-
-        // removing the last root needs no swap
-        if tracked_index == self.shared_edge_roots.len() {
-            return;
-        }
-
-        // backfill the removed slot
-        self.shared_edge_roots[tracked_index] = moved_reference;
-    }
-
-    /// Compact removed roots after one active shared-edge scan.
-    pub(crate) fn compact_shared_edge_roots(&mut self) {
-        // remove active-scan tombstones
-        self.shared_edge_roots
-            .retain(|reference| !reference.is_null());
     }
 
     /// Queue one live reference for one later shared-edge rescan.
@@ -178,18 +162,14 @@ impl CollectorState {
 
     /// Return the next tracked local reference that may contain shared edges.
     pub(crate) fn next_shared_edge_root(&mut self) -> Option<HeapReference> {
-        // skip tombstones left by removals during the active scan
-        while self.shared_edge_cursor < self.shared_edge_roots.len() {
-            let index = self.shared_edge_cursor;
-            self.shared_edge_cursor += 1;
-
-            let reference = self.shared_edge_roots.get(index).copied()?;
-            if !reference.is_null() {
-                return Some(reference);
-            }
+        if self.shared_edge_cursor >= self.shared_edge_roots.len() {
+            return None;
         }
 
-        None
+        let index = self.shared_edge_cursor;
+        self.shared_edge_cursor += 1;
+
+        self.shared_edge_roots.get(index).copied()
     }
 
     /// Remove one reference from the pending shared-edge set.

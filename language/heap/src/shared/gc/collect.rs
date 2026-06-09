@@ -6,7 +6,7 @@ use crate::shared::gc::{GcPhase, GcWorker, MarkWork};
 use crate::shared::storage::{HeapPlace, HeapStorage, small_slot_offset};
 use crate::{
     GcStats, HeapConfigurationError, HeapError, HeapGcStateError, HeapResult, ReferenceInput,
-    ReferenceRange, SharedHeapReference, SizeClassTableError, scan_references,
+    ReferenceRange, SharedHeapReference, SizeClassTableError, visit_references,
 };
 
 impl HeapStorage {
@@ -30,7 +30,7 @@ impl HeapStorage {
         self.gc.set_phase(GcPhase::Mark);
 
         // begin with roots
-        self.queue_unmarked_references(None, roots)?;
+        self.mark_roots(None, roots)?;
 
         Ok(())
     }
@@ -46,24 +46,24 @@ impl HeapStorage {
 
         // concurrent mark
         while !self.mark_idle() {
-            self.mark_step(None, &[], usize::MAX, trace_table)?;
+            self.step_mark(None, &[], usize::MAX, trace_table)?;
         }
 
         // sweep phase
-        if !self.try_start_sweep()? {
+        if !self.start_sweep_when_drained()? {
             return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive));
         }
 
         // drain sweep work synchronously
         loop {
-            if let Some(stats) = self.sweep_step(usize::MAX)?.completed_stats() {
+            if let Some(stats) = self.step_sweep(usize::MAX)?.completed_stats() {
                 return Ok(stats);
             }
         }
     }
 
     /// Perform bounded shared mark work.
-    pub(crate) fn mark_step(
+    pub(crate) fn step_mark(
         &self,
         worker: Option<&GcWorker>,
         roots: &[SharedHeapReference],
@@ -76,7 +76,7 @@ impl HeapStorage {
         }
 
         // newly discovered roots
-        self.queue_unmarked_references(worker, roots)?;
+        self.mark_roots(worker, roots)?;
 
         // mark queue
         let mut marked_bytes = 0usize;
@@ -103,7 +103,7 @@ impl HeapStorage {
             // trace claimed work
             let trace_result =
                 self.trace_batch(worker, &batch, budget_bytes - marked_bytes, trace_table);
-            let (traced_bytes, processed_items) = match trace_result {
+            let traced = match trace_result {
                 Ok(result) => result,
                 Err(error) => {
                     self.gc
@@ -115,7 +115,7 @@ impl HeapStorage {
             };
 
             // return work that did not fit this step budget
-            for work in batch[processed_items..].iter().copied() {
+            for work in batch[traced.work_count..].iter().copied() {
                 self.gc.trace_queue.push(worker, work);
             }
 
@@ -124,7 +124,7 @@ impl HeapStorage {
                 .mark_inflight
                 .fetch_sub(batch.len(), Ordering::AcqRel);
 
-            marked_bytes += traced_bytes;
+            marked_bytes += traced.byte_len;
         }
 
         Ok(())
@@ -154,7 +154,7 @@ impl HeapStorage {
         batch: &[MarkWork],
         budget_bytes: usize,
         trace_table: &TraceTable,
-    ) -> HeapResult<(usize, usize)> {
+    ) -> HeapResult<TracedBatch> {
         let mut start = 0usize;
         let mut marked_bytes = 0usize;
 
@@ -189,7 +189,7 @@ impl HeapStorage {
                         end += 1;
                     }
 
-                    marked_bytes += self.trace_small_span_work(
+                    marked_bytes += self.trace_small_span(
                         worker,
                         span_index,
                         budget_bytes - marked_bytes,
@@ -200,7 +200,10 @@ impl HeapStorage {
             }
         }
 
-        Ok((marked_bytes, start))
+        Ok(TracedBatch {
+            byte_len: marked_bytes,
+            work_count: start,
+        })
     }
 
     /// Return whether concurrent mark is currently drained.
@@ -241,20 +244,20 @@ impl HeapStorage {
             .page_size_bytes()
             .min(extent.byte_len - start);
 
-        let mut reference_buffer = Vec::new();
-
         // payload scan
         let base_address = self.mapping.base_address() + extent.base.offset();
-        scan_references::<SharedHeapReference>(
+        visit_references::<SharedHeapReference>(
             &trace_map,
             ReferenceInput::mapped(base_address),
             ReferenceRange::bytes(start, range_len),
-            &mut reference_buffer,
-        )?;
-        reference_buffer.retain(|reference| !reference.is_null());
+            &mut |reference| {
+                if !reference.is_null() {
+                    self.mark_reference(worker, reference)?;
+                }
 
-        // discovered references
-        self.queue_references(worker, reference_buffer)?;
+                Ok(())
+            },
+        )?;
 
         // continue this large block on a later step
         let next_start = start + range_len;
@@ -273,7 +276,7 @@ impl HeapStorage {
     }
 
     /// Trace one shared small-span work item.
-    fn trace_small_span_work(
+    fn trace_small_span(
         &self,
         worker: Option<&GcWorker>,
         span_index: usize,
@@ -293,58 +296,34 @@ impl HeapStorage {
         };
         // keep draining until this span really goes idle
         while scanned_bytes < budget_bytes {
-            let scan_slots = {
-                let remaining_bytes = budget_bytes - scanned_bytes;
-                let slot_bytes = span.class.size_class.max(1);
-                let mark_epoch = self.gc.mark_epoch();
-                let max_slots = (remaining_bytes / slot_bytes).max(1);
-                let slot_indices = span.claim_marked_slots(mark_epoch, max_slots);
-
-                // no marked slots are currently available
-                if slot_indices.is_empty() {
-                    return Ok(scanned_bytes);
-                }
-
-                // claim bounded marked slots
-                let mut scan_slots = Vec::with_capacity(slot_indices.len());
-
-                for slot_index in slot_indices {
-                    let slot_offset = small_slot_offset(span.class.size_class, slot_index);
-                    let trace_map = span.trace_map(slot_index, trace_table)?;
-                    scan_slots.push((
-                        span.first_offset,
-                        slot_offset,
-                        span.class.size_class,
-                        trace_map,
-                    ));
-                }
-
-                scan_slots
+            let slot_bytes = span.class.size_class.max(1);
+            let mark_epoch = self.gc.mark_epoch();
+            let Some(slot_index) = span.claim_next_marked_slot(mark_epoch) else {
+                return Ok(scanned_bytes);
             };
+            let slot_offset = small_slot_offset(span.class.size_class, slot_index);
+            let trace_map = span.trace_map(slot_index, trace_table)?;
+            scanned_bytes += slot_bytes;
 
-            // scan claimed slots
-            let mut reference_buffer = Vec::new();
-            for (span_offset, slot_offset, slot_bytes, trace_map) in scan_slots {
-                scanned_bytes += slot_bytes.max(1);
-
-                // noscan slots cost one claimed unit only
-                if !trace_map.has_shared_reference() {
-                    continue;
-                }
-
-                // payload scan
-                let base_address = self.mapping.base_address() + span_offset + slot_offset;
-                scan_references::<SharedHeapReference>(
-                    &trace_map,
-                    ReferenceInput::mapped(base_address),
-                    ReferenceRange::All,
-                    &mut reference_buffer,
-                )?;
+            // noscan slots cost one claimed unit only
+            if !trace_map.has_shared_reference() {
+                continue;
             }
 
-            // discovered references
-            reference_buffer.retain(|reference| !reference.is_null());
-            self.queue_references(worker, reference_buffer)?;
+            // payload scan
+            let base_address = self.mapping.base_address() + span.first_offset + slot_offset;
+            visit_references::<SharedHeapReference>(
+                &trace_map,
+                ReferenceInput::mapped(base_address),
+                ReferenceRange::All,
+                &mut |reference| {
+                    if !reference.is_null() {
+                        self.mark_reference(worker, reference)?;
+                    }
+
+                    Ok(())
+                },
+            )?;
         }
 
         // keep this span queued when the step budget runs out
@@ -354,4 +333,12 @@ impl HeapStorage {
 
         Ok(scanned_bytes)
     }
+}
+
+/// Result from tracing one shared mark batch.
+struct TracedBatch {
+    /// The traced payload byte length.
+    byte_len: usize,
+    /// The number of consumed work items.
+    work_count: usize,
 }

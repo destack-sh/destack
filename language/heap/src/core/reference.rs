@@ -502,6 +502,34 @@ pub(crate) fn scan_references<R: ReferenceClass>(
     }
 }
 
+/// Visit read-only references from one input.
+pub(crate) fn visit_references<R: ReferenceClass>(
+    trace_map: &TraceMap,
+    input: ReferenceInput<'_>,
+    range: ReferenceRange,
+    visit: &mut dyn FnMut(R) -> HeapResult<()>,
+) -> HeapResult<()> {
+    match input {
+        ReferenceInput::Mapped { base_address } => {
+            let mut walker = MemoryReferenceVisitWalker::<R> {
+                base_address,
+                visit,
+            };
+
+            walk_trace_map(trace_map, 0, range, &mut walker)
+        }
+        ReferenceInput::Bytes { start, bytes } => {
+            let mut walker = ByteReferenceVisitWalker::<R> {
+                start,
+                bytes,
+                visit,
+            };
+
+            walk_trace_map(trace_map, 0, range, &mut walker)
+        }
+    }
+}
+
 /// Walk references selected by one trace map.
 fn walk_trace_map<W: ReferenceWalker>(
     trace_map: &TraceMap,
@@ -667,6 +695,82 @@ impl<R: ReferenceClass> ReferenceWalker for ByteReferenceWalker<'_, R> {
                 self.references.push(R::from_bits(bits));
 
                 Ok(())
+            },
+        )
+    }
+
+    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
+        Ok(reference_tag_from_bytes(
+            self.bytes, self.start, offset, width,
+        ))
+    }
+}
+
+/// Read-only reference visitor over mapped block memory.
+struct MemoryReferenceVisitWalker<'a, R: ReferenceClass> {
+    /// The mapped block base address.
+    base_address: usize,
+    /// The reference visitor.
+    visit: &'a mut dyn FnMut(R) -> HeapResult<()>,
+}
+
+impl<R: ReferenceClass> ReferenceWalker for MemoryReferenceVisitWalker<'_, R> {
+    fn fixed(
+        &mut self,
+        local_offsets: &[u32],
+        shared_offsets: &[u32],
+        base_offset: usize,
+        range: ReferenceRange,
+    ) -> HeapResult<()> {
+        walk_direct_offsets(
+            R::offsets(local_offsets, shared_offsets),
+            base_offset,
+            range,
+            R::BYTE_LEN,
+            |offset| {
+                // SAFETY: mapped block references are aligned native words at trace-map offsets
+                let bits = unsafe { read_reference_bits(self.base_address + offset) };
+
+                (self.visit)(R::from_bits(bits))
+            },
+        )
+    }
+
+    fn tag(&mut self, offset: usize, width: u8) -> HeapResult<Option<u64>> {
+        // SAFETY: mapped block tags are inside live payload memory
+        let tag = unsafe { read_reference_tag(self.base_address + offset, width) };
+
+        Ok(Some(tag))
+    }
+}
+
+/// Read-only reference visitor over caller-provided bytes.
+struct ByteReferenceVisitWalker<'a, R: ReferenceClass> {
+    /// The absolute byte offset represented by `bytes`.
+    start: usize,
+    /// The byte window to read.
+    bytes: &'a [u8],
+    /// The reference visitor.
+    visit: &'a mut dyn FnMut(R) -> HeapResult<()>,
+}
+
+impl<R: ReferenceClass> ReferenceWalker for ByteReferenceVisitWalker<'_, R> {
+    fn fixed(
+        &mut self,
+        local_offsets: &[u32],
+        shared_offsets: &[u32],
+        base_offset: usize,
+        range: ReferenceRange,
+    ) -> HeapResult<()> {
+        walk_direct_offsets(
+            R::offsets(local_offsets, shared_offsets),
+            base_offset,
+            range,
+            R::BYTE_LEN,
+            |offset| {
+                let bits = reference_bits_from_bytes(self.bytes, self.start, offset)?;
+
+                (self.visit)(R::from_bits(bits))
             },
         )
     }

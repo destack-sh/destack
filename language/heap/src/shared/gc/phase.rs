@@ -29,11 +29,7 @@ impl GcPhase {
             0 => Self::Idle,
             1 => Self::Mark,
             2 => Self::Sweep,
-            _ => {
-                debug_assert!(bits <= 2, "invalid shared gc phase byte");
-
-                Self::Idle
-            }
+            _ => unreachable!("invalid shared gc phase byte: {bits}"),
         }
     }
 }
