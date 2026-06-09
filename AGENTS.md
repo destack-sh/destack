@@ -18,6 +18,7 @@
 - Abstraction sludge names like "seam", "lane", "parts", "info", "factory", "syntax", "semantics", "data", "inner", "wrapper", "facts", "summary", "channel", "boundary", "contract", .. and friends are to be treated with high suspicion and are almost certainly wrong (and temptation to use them implies conceptual muddiness that should be revisited).
 - The same logic applies for module and file names too: single part file names are clearer while "support", "helper" and "utils" are sludgy.
 - It can be tempting to name things along the lines of "x_for_y" in certain overload situations, however, this is almost always a modeling smell and means we haven't properly generalised or reified our invariants yet. (Note that this does \_not* mean we should introduce arbitrary interfaces or abstractions just to please this rule, that would be just another factoring issue.)
+- The name of a thing should describe its actual behavior or purpose. This sounds trivial, but e.g., when a function creates or updates a variable, it should be called `upsert*`, when a function only conditionally allocates something it should be called `allocate*maybe` (or `allocate*if_*`), and so on.
 
 ### Logic
 
